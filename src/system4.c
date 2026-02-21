@@ -427,10 +427,17 @@ static void sigsegv_handler(int sig)
 	_exit(139);
 }
 
+static void sigtrap_handler(int sig)
+{
+	(void)sig;
+	signal(SIGTRAP, sigtrap_handler); // re-register for non-persistent signals
+}
+
 int main(int argc, char *argv[])
 {
 	signal(SIGSEGV, sigsegv_handler);
 	signal(SIGBUS, sigsegv_handler);
+	signal(SIGTRAP, sigtrap_handler);
 	setvbuf(stderr, NULL, _IOLBF, 0);  // Force line-buffered stderr even when redirected to file
 	sys_error_handler = error_handler;
 

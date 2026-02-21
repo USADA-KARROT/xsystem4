@@ -74,18 +74,20 @@ static void GUIEngine_ReleaseAllWithoutSystem(possibly_unused struct page **eras
 HLL_WARN_UNIMPLEMENTED(, void, GUIEngine, StopSoundWithoutSystemSound);
 //static void GUIEngine_ReleaseMessage(void);
 HLL_QUIET_UNIMPLEMENTED(, void, GUIEngine, ReleaseMessage);
-//static void GUIEngine_PopMessage(void);
-//static int GUIEngine_GetMessagePartsNumber(void);
-//static int GUIEngine_GetMessageDelegateIndex(void);
+/* Message pump quiet stubs — these are polled millions of times per second
+ * in the game main loop. Returning 0/"empty" causes the loop to simply
+ * skip message processing without flooding stderr with warnings. */
+static void GUIEngine_PopMessage(void) {}
+static int GUIEngine_GetMessagePartsNumber(void) { return 0; }
+static int GUIEngine_GetMessageDelegateIndex(void) { return 0; }
 //static int GUIEngine_GetDelegateIndex(int PartsNumber);
-//static int GUIEngine_GetMessageType(void);
 HLL_QUIET_UNIMPLEMENTED(0, int, GUIEngine, GetMessageType);
-//static int GUIEngine_GetMessageVariableCount(void);
-//static int GUIEngine_GetMessageVariableType(int MessageVariableIndex);
-//static int GUIEngine_GetMessageVariableInt(int MessageVariableIndex);
-//static float GUIEngine_GetMessageVariableFloat(int MessageVariableIndex);
-//static bool GUIEngine_GetMessageVariableBool(int MessageVariableIndex);
-//static void GUIEngine_GetMessageVariableString(int MessageVariableIndex, ref string String);
+static int GUIEngine_GetMessageVariableCount(void) { return 0; }
+static int GUIEngine_GetMessageVariableType(int idx) { return 0; }
+static int GUIEngine_GetMessageVariableInt(int idx) { return 0; }
+static float GUIEngine_GetMessageVariableFloat(int idx) { return 0.0f; }
+static bool GUIEngine_GetMessageVariableBool(int idx) { return false; }
+static void GUIEngine_GetMessageVariableString(int idx, struct string **s) { (void)idx; (void)s; }
 //static void GUIEngine_SetButtonPos(int PartsNumber, int PosX, int PosY);
 //static void GUIEngine_SetButtonZ(int PartsNumber, int PosZ);
 //static int GUIEngine_GetButtonX(int PartsNumber);
@@ -550,17 +552,17 @@ HLL_LIBRARY(GUIEngine,
 	    HLL_TODO_EXPORT(IsFocus, GUIEngine_IsFocus),
 	    HLL_EXPORT(StopSoundWithoutSystemSound, GUIEngine_StopSoundWithoutSystemSound),
 	    HLL_EXPORT(ReleaseMessage, GUIEngine_ReleaseMessage),
-	    HLL_TODO_EXPORT(PopMessage, GUIEngine_PopMessage),
-	    HLL_TODO_EXPORT(GetMessagePartsNumber, GUIEngine_GetMessagePartsNumber),
-	    HLL_TODO_EXPORT(GetMessageDelegateIndex, GUIEngine_GetMessageDelegateIndex),
+	    HLL_EXPORT(PopMessage, GUIEngine_PopMessage),
+	    HLL_EXPORT(GetMessagePartsNumber, GUIEngine_GetMessagePartsNumber),
+	    HLL_EXPORT(GetMessageDelegateIndex, GUIEngine_GetMessageDelegateIndex),
 	    HLL_EXPORT(GetDelegateIndex, PE_GetDelegateIndex),
 	    HLL_EXPORT(GetMessageType, GUIEngine_GetMessageType),
-	    HLL_TODO_EXPORT(GetMessageVariableCount, GUIEngine_GetMessageVariableCount),
-	    HLL_TODO_EXPORT(GetMessageVariableType, GUIEngine_GetMessageVariableType),
-	    HLL_TODO_EXPORT(GetMessageVariableInt, GUIEngine_GetMessageVariableInt),
-	    HLL_TODO_EXPORT(GetMessageVariableFloat, GUIEngine_GetMessageVariableFloat),
-	    HLL_TODO_EXPORT(GetMessageVariableBool, GUIEngine_GetMessageVariableBool),
-	    HLL_TODO_EXPORT(GetMessageVariableString, GUIEngine_GetMessageVariableString),
+	    HLL_EXPORT(GetMessageVariableCount, GUIEngine_GetMessageVariableCount),
+	    HLL_EXPORT(GetMessageVariableType, GUIEngine_GetMessageVariableType),
+	    HLL_EXPORT(GetMessageVariableInt, GUIEngine_GetMessageVariableInt),
+	    HLL_EXPORT(GetMessageVariableFloat, GUIEngine_GetMessageVariableFloat),
+	    HLL_EXPORT(GetMessageVariableBool, GUIEngine_GetMessageVariableBool),
+	    HLL_EXPORT(GetMessageVariableString, GUIEngine_GetMessageVariableString),
 	    HLL_TODO_EXPORT(SetButtonPos, GUIEngine_SetButtonPos),
 	    HLL_TODO_EXPORT(SetButtonZ, GUIEngine_SetButtonZ),
 	    HLL_TODO_EXPORT(GetButtonX, GUIEngine_GetButtonX),

@@ -25,6 +25,7 @@
 #include "asset_manager.h"
 #include "hll.h"
 #include "reign.h"
+#include "sact.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
@@ -157,6 +158,11 @@ static void SealEngine_UpdateAFA(void)
 /* [6] SetMagSpeed(MagSpeed:int) -> void */
 static void SealEngine_SetMagSpeed(int mag_speed)
 {
+	static int log_count = 0;
+	if (log_count < 5) {
+		WARNING("SealEngine.SetMagSpeed(%d)", mag_speed);
+		log_count++;
+	}
 	se_mag_speed = mag_speed;
 }
 
@@ -167,6 +173,11 @@ static int SealEngine_CreateInstance(int plugin)
 	if (!p)
 		return -1;
 	int id = RE_create_instance(p);
+	static int log_count = 0;
+	if (log_count < 5) {
+		WARNING("SealEngine.CreateInstance(plugin=%d) -> %d", plugin, id);
+		log_count++;
+	}
 	return id;
 }
 
@@ -209,6 +220,12 @@ static bool SealEngine_ThreadLoadPolyInstanceList(int plugin, struct page *insta
 /* [10] LoadInstance(nPlugin:int, nInstance:int, pIName:string) -> bool */
 static bool SealEngine_LoadInstance(int plugin, int instance, struct string *name)
 {
+	static int log_count = 0;
+	if (log_count < 5) {
+		WARNING("SealEngine.LoadInstance(plugin=%d, instance=%d, name=\"%s\")",
+			plugin, instance, name ? name->text : "(null)");
+		log_count++;
+	}
 	struct RE_instance *ri = se_get_instance(plugin, instance);
 	if (!ri)
 		return false;
@@ -752,7 +769,19 @@ static bool SealEngine_GetEdgeColor(int p, float *r, float *g, float *b) {
 
 /* [183-184] Viewport / Projection */
 static bool SealEngine_SetViewport(int p, int x, int y, int w, int h) {
-	return RE_set_viewport(se_get_plugin(p), x, y, w, h);
+	struct RE_plugin *plugin = se_get_plugin(p);
+	if (!plugin)
+		return false;
+	/* Auto-bind: if renderer not yet created, allocate a sprite and bind */
+	if (!plugin->renderer) {
+		int sp_no = 0; /* sprite slot 0 for 3D overlay */
+		struct sact_sprite *sp = sact_try_get_sprite(sp_no);
+		if (!sp)
+			sact_create_sprite(sp_no, w > 0 ? w : 1920, h > 0 ? h : 1080, 0, 0, 0, 255);
+		RE_plugin_bind(plugin, sp_no);
+		WARNING("SealEngine: auto-bind plugin %d to sprite %d (%dx%d)", p, sp_no, w, h);
+	}
+	return RE_set_viewport(plugin, x, y, w, h);
 }
 static bool SealEngine_SetProjection(int p, float w, float h, float near, float far, float deg) {
 	return RE_set_projection(se_get_plugin(p), w, h, near, far, deg);

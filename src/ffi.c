@@ -20,6 +20,7 @@
 #include <string.h>
 #include <ffi.h>
 #include "system4/ain.h"
+#include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -292,7 +293,7 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 }
 #endif /* TRACE_HLL */
 
-void hll_call(int libno, int fno)
+void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 	static int hll_count = 0;
@@ -300,10 +301,47 @@ void hll_call(int libno, int fno)
 	if (hll_count <= 500 || hll_count % 1000000 == 0) {
 		WARNING("HLL #%d: %s.%s", hll_count, ain->libraries[libno].name, f->name);
 	}
+	// Trace SystemService.GetTime (lib=32, func=33)
+	if (libno == 32 && fno == 33) {
+		static int gt_trace = 0;
+		if (gt_trace < 3) {
+			WARNING("GetTime: nargs=%d hll_arg3=%d sp=%d",
+				f->nr_arguments, hll_arg3, stack_ptr);
+			for (int _k = 0; _k < f->nr_arguments; _k++)
+				WARNING("  arg[%d] type=%d name=%s", _k,
+					f->arguments[_k].type.data, f->arguments[_k].name);
+			for (int _k = 0; _k < 8 && _k < stack_ptr; _k++)
+				WARNING("  stack[sp-%d] = %d", _k+1, stack[stack_ptr-1-_k].i);
+			gt_trace++;
+		}
+	}
 
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
-		WARNING("Unimplemented HLL function: %s.%s (popping %d args, pushing 0)",
-			ain->libraries[libno].name, f->name, f->nr_arguments);
+		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
+		{
+			static struct { int libno; int fno; int count; } unimp_log[64];
+			static int unimp_log_cnt = 0;
+			int idx = -1;
+			for (int i = 0; i < unimp_log_cnt; i++) {
+				if (unimp_log[i].libno == libno && unimp_log[i].fno == fno) {
+					idx = i; break;
+				}
+			}
+			if (idx < 0 && unimp_log_cnt < 64) {
+				idx = unimp_log_cnt++;
+				unimp_log[idx].libno = libno;
+				unimp_log[idx].fno = fno;
+				unimp_log[idx].count = 0;
+			}
+			int cnt = idx >= 0 ? ++unimp_log[idx].count : 1;
+			if (cnt <= 3) {
+				WARNING("Unimplemented HLL function: %s.%s (popping %d args, pushing 0)",
+					ain->libraries[libno].name, f->name, f->nr_arguments);
+			} else if (cnt % 1000000 == 0) {
+				WARNING("Unimplemented HLL (x%dM): %s.%s",
+					cnt / 1000000, ain->libraries[libno].name, f->name);
+			}
+		}
 		// Pop all arguments from stack
 		for (int i = f->nr_arguments - 1; i >= 0; i--) {
 			switch (f->arguments[i].type.data) {
@@ -313,8 +351,10 @@ void hll_call(int libno, int fno)
 			case AIN_REF_FLOAT:
 			case AIN_REF_HLL_PARAM:
 			case AIN_REF_FUNC_TYPE:
-			case AIN_REF_ARRAY:
+			case AIN_WRAP: // v14: wrap args are 2-slot refs (page_slot + var_index)
 				stack_ptr -= 2; break;
+			case AIN_REF_ARRAY:
+				stack_ptr--; break; // v14: 1-slot (resolved heap slot)
 			default:
 				stack_ptr--; break;
 			}
@@ -338,10 +378,22 @@ void hll_call(int libno, int fno)
 	// reallocation during HLL calls.
 	void *heap_ptrs[HLL_MAX_ARGS];
 	int heap_slots[HLL_MAX_ARGS];
-	// For AIN_REF_ARRAY 2-slot write-back
-	int ref_array_pageno[HLL_MAX_ARGS];
-	int ref_array_varno[HLL_MAX_ARGS];
-	memset(ref_array_pageno, -1, sizeof(ref_array_pageno));
+	(void)hll_arg3; // reserved for future use
+
+	// Trace String.GetPart arg processing (lib=30 func=22)
+	static int getpart_call = 0;
+	static int getpart_trace = 0;
+	if (libno == 30 && fno == 22) getpart_call++;
+	bool trace_this = (libno == 30 && fno == 22 && getpart_call >= 28 && getpart_trace < 10);
+	if (trace_this) {
+		getpart_trace++;
+		WARNING("GetPart ffi #%d: nargs=%d sp=%d", getpart_call, f->nr_arguments, stack_ptr);
+		for (int _k = 0; _k < f->nr_arguments; _k++)
+			WARNING("  arg[%d] type=%d", _k, f->arguments[_k].type.data);
+		for (int _k = 0; _k < 4 && _k < stack_ptr; _k++)
+			WARNING("  stack[sp-%d] = .i=%d .ref=%p", _k+1,
+				stack[stack_ptr-1-_k].i, stack[stack_ptr-1-_k].ref);
+	}
 
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
@@ -349,7 +401,8 @@ void hll_call(int libno, int fno)
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
-		case AIN_REF_HLL_PARAM: {
+		case AIN_REF_HLL_PARAM:
+		case AIN_WRAP: { // v14: wrap args are 2-slot refs (page_slot + var_index)
 			// need to create pointer for immediate ref types (2-slot)
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
@@ -379,13 +432,22 @@ void hll_call(int libno, int fno)
 				heap_ptrs[i] = NULL;
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
+			if (trace_this) {
+				WARNING("  REF_STRING: slot=%d heap[%d].s=%p heap_ptrs=%p ptrs=%p args=%p",
+					slot, slot, (void*)heap[slot].s, (void*)heap_ptrs[i],
+					(void*)ptrs[i], (void*)args[i]);
+				if (heap_ptrs[i]) {
+					struct string *_ts = heap_ptrs[i];
+					WARNING("  string: %p size=%d text='%.30s'",
+						(void*)_ts, _ts->size, _ts->text);
+				}
+			}
 			break;
 		}
 		case AIN_STRUCT:
 		case AIN_ARRAY_TYPE:
 		case AIN_ARRAY:
-		case AIN_DELEGATE:
-		case AIN_WRAP: {
+		case AIN_DELEGATE: {
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
 			if (slot >= 0 && (size_t)slot < heap_size)
@@ -413,29 +475,16 @@ void hll_call(int libno, int fno)
 			break;
 		}
 		case AIN_REF_ARRAY: {
-			// v14 generic ref array — 2-slot reference [page_slot, var_index]
-			stack_ptr -= 2;
-			int pageno = stack[stack_ptr].i;
-			int varno  = stack[stack_ptr+1].i;
-			// Save container info for write-back
-			ref_array_pageno[i] = pageno;
-			ref_array_varno[i] = varno;
-			struct page *container = NULL;
-			if (pageno >= 0 && (size_t)pageno < heap_size
-			    && heap[pageno].ref > 0 && heap[pageno].type == VM_PAGE)
-				container = heap[pageno].page;
-			if (container && varno >= 0 && varno < container->nr_vars) {
-				int array_slot = container->values[varno].i;
-				heap_slots[i] = array_slot;
-				if (array_slot > 0 && (size_t)array_slot < heap_size
-				    && heap[array_slot].type == VM_PAGE)
-					heap_ptrs[i] = heap[array_slot].page;
-				else
-					heap_ptrs[i] = NULL;
-			} else {
-				heap_slots[i] = -1;
+			// v14: 1-slot — bytecode resolves via X_REF and pushes
+			// the array's heap slot directly
+			stack_ptr--;
+			int slot = stack[stack_ptr].i;
+			heap_slots[i] = slot;
+			if (slot >= 0 && (size_t)slot < heap_size
+			    && heap[slot].type == VM_PAGE)
+				heap_ptrs[i] = heap[slot].page;
+			else
 				heap_ptrs[i] = NULL;
-			}
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
@@ -465,22 +514,46 @@ void hll_call(int libno, int fno)
 	}
 
 	union vm_value r;
+	// Precision trace for GetTime heap[1] corruption
+	bool _gt_trace = (libno == 32 && fno == 33 && heap_size > 1 && heap[1].ref > 0);
+	int _gt_pre = _gt_trace ? heap[1].ref : 0;
+	if (_gt_trace) {
+		WARNING("GetTime PRE ffi_call: heap[1].ref=%d type=%d page=%p &ref=%p",
+			heap[1].ref, heap[1].type, (void*)heap[1].page, (void*)&heap[1].ref);
+		for (int _a = 0; _a < 3; _a++)
+			WARNING("  ptrs[%d]=%p (target writes to %p)", _a, ptrs[_a], ptrs[_a]);
+		WARNING("  sizeof(vm_value)=%zu sizeof(vm_pointer)=%zu",
+			sizeof(union vm_value), sizeof(heap[0]));
+	}
 #ifdef TRACE_HLL
 	trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
 #else
 	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
 #endif
+	if (_gt_trace && heap[1].ref != _gt_pre) {
+		WARNING("GetTime POST ffi_call: heap[1].ref=%d->%d CORRUPTED!",
+			_gt_pre, heap[1].ref);
+	}
 
 
+	// Checkpoint 1.5: before writeback
+	if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
+		WARNING("GetTime BEFORE WRITEBACK: heap[1].ref=%d->%d CORRUPTED!", _gt_pre, heap[1].ref);
+	}
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
+		if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
+			WARNING("GetTime WRITEBACK iter i=%d j=%d type=%d: heap[1].ref=%d->%d",
+				i, j, f->arguments[i].type.data, _gt_pre, heap[1].ref);
+		}
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
 		case AIN_REF_HLL_PARAM:
+		case AIN_WRAP: // v14: wrap args are 2-slot refs
 		case AIN_HLL_FUNC:
 			j++;
 			break;
@@ -495,30 +568,10 @@ void hll_call(int libno, int fno)
 				heap[heap_slots[i]].page = heap_ptrs[i];
 			break;
 		case AIN_REF_ARRAY: {
-			// Write back array page to its heap slot
-			static int wb_log = 0;
-			if (wb_log < 20) {
-				WARNING("REF_ARRAY writeback: heap_slot=%d heap_ptr=%p pageno=%d varno=%d",
-					heap_slots[i], heap_ptrs[i], ref_array_pageno[i], ref_array_varno[i]);
-				wb_log++;
-			}
+			// v14: 1-slot — write back directly to heap slot
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size) {
 				heap[heap_slots[i]].page = heap_ptrs[i];
-			} else if (heap_ptrs[i] != NULL && ref_array_pageno[i] >= 0) {
-				// Array was NULL before, now allocated — create heap slot
-				int new_slot = heap_alloc_slot(VM_PAGE);
-				heap[new_slot].page = heap_ptrs[i];
-				heap_ref(new_slot);
-				// Update container member to point to new slot
-				int pn = ref_array_pageno[i];
-				int vn = ref_array_varno[i];
-				if (pn >= 0 && (size_t)pn < heap_size
-				    && heap[pn].type == VM_PAGE && heap[pn].page
-				    && vn >= 0 && vn < heap[pn].page->nr_vars) {
-					heap[pn].page->values[vn].i = new_slot;
-				}
 			}
-			j++;  // 2-slot argument
 			break;
 		}
 		case AIN_REF_FUNC_TYPE:
@@ -534,11 +587,26 @@ void hll_call(int libno, int fno)
 		}
 	}
 
+	// Checkpoint 2: after writeback
+	if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
+		WARNING("GetTime AFTER WRITEBACK: heap[1].ref=%d->%d CORRUPTED!", _gt_pre, heap[1].ref);
+	}
 	int slot;
+	{
+		static int ret_trace = 0;
+		if (ret_trace < 10 && f->return_type.data != AIN_VOID && f->return_type.data != AIN_INT
+		    && f->return_type.data != AIN_FLOAT && f->return_type.data != AIN_BOOL) {
+			WARNING("ffi_return: %s.%s rettype=%d r.ref=%p r.i=%d",
+				ain->libraries[libno].name, f->name,
+				f->return_type.data, r.ref, r.i);
+			ret_trace++;
+		}
+	}
 	switch (f->return_type.data) {
 	case AIN_VOID:
 		break;
 	case AIN_STRING:
+	case AIN_HLL_PARAM:
 		slot = heap_alloc_slot(VM_STRING);
 		heap[slot].s = r.ref;
 		stack_push(slot);
@@ -558,6 +626,11 @@ void hll_call(int libno, int fno)
 	default:
 		stack_push(r);
 		break;
+	}
+	// Checkpoint 3: after return handling
+	if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
+		WARNING("GetTime AFTER RETURN: heap[1].ref=%d->%d CORRUPTED! rettype=%d",
+			_gt_pre, heap[1].ref, f->return_type.data);
 	}
 }
 

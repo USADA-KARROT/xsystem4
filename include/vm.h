@@ -114,7 +114,7 @@ void vm_call_nopop(int fno, int nargs);
 int vm_time(void);
 void vm_sleep(int ms);
 
-void hll_call(int libno, int fno);
+void hll_call(int libno, int fno, int hll_arg3);
 bool library_exists(int libno);
 bool library_function_exists(int libno, int fno);
 void init_libraries(void);

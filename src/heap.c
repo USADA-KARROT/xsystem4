@@ -121,11 +121,16 @@ void heap_ref(int32_t slot)
 	if (slot <= 0 || (size_t)slot >= heap_size)
 		return;
 	heap[slot].ref++;
-	if (slot == 1000) {
-		WARNING("heap_ref(1000): ref=%d type=%d ip=0x%lX fno=%d",
-			heap[slot].ref, heap[slot].type,
-			(unsigned long)instr_ptr,
-			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1);
+	if (slot == 1) {
+		static int ref1_trace = 0;
+		if (ref1_trace < 30) {
+			WARNING("heap_ref(1): ref=%d type=%d ip=0x%lX fno=%d csp=%d",
+				heap[slot].ref, heap[slot].type,
+				(unsigned long)instr_ptr,
+				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
+				call_stack_ptr);
+			ref1_trace++;
+		}
 	}
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
@@ -140,11 +145,16 @@ void heap_unref(int slot)
 		return;
 	}
 	unref_depth++;
-	if (slot == 1000) {
-		WARNING("heap_unref(1000): ref=%d->%d type=%d ip=0x%lX fno=%d",
-			heap[slot].ref, heap[slot].ref - 1, heap[slot].type,
-			(unsigned long)instr_ptr,
-			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1);
+	if (slot == 1) {
+		static int unref1_trace = 0;
+		if (unref1_trace < 30) {
+			WARNING("heap_unref(1): ref=%d->%d type=%d ip=0x%lX fno=%d csp=%d",
+				heap[slot].ref, heap[slot].ref - 1, heap[slot].type,
+				(unsigned long)instr_ptr,
+				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
+				call_stack_ptr);
+			unref1_trace++;
+		}
 	}
 	if (unlikely(heap[slot].ref <= 0)) {
 		unref_depth--;

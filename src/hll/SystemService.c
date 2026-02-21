@@ -394,6 +394,13 @@ static void SystemService_DRPKT(struct string **text)
 	*text = cstr_to_string("DRPKT QWERTY NUFUAUEO 75849027582754829");
 }
 
+static struct string *SystemService_GetGameVersionByText(void)
+{
+	struct string *s = cstr_to_string("sd40006sd00000008f6300004");
+	WARNING("GetGameVersionByText: returning %p '%s' len=%d", (void*)s, s->text, s->size);
+	return s;
+}
+
 static void SystemService_PreLink(void);
 
 static void SystemService_ModuleInit(void)
@@ -452,6 +459,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
 	    HLL_EXPORT(Test, SystemService_Test),
 	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
+	    HLL_EXPORT(GetGameVersionByText, SystemService_GetGameVersionByText),
 	    HLL_EXPORT(AddBackupSaveFileName, SystemService_AddBackupSaveFileName)
 	);
 
