@@ -135,7 +135,9 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 
 static int gl_initialize(void)
 {
+	WARNING("gl_initialize: loading shaders...");
 	gfx_load_shader(&default_shader, "shaders/render.v.glsl", "shaders/render.f.glsl");
+	WARNING("gl_initialize: shaders loaded, setting up VAO/VBO...");
 
 	const struct gfx_vertex vertex_data[] = {
 		//  x,   y,   z,   w,   u,   v
@@ -226,11 +228,15 @@ int gfx_init(void)
 	if (gfx_initialized)
 		return true;
 
+	WARNING("gfx_init: starting SDL_Init (view=%dx%d)...", config.view_width, config.view_height);
+
 	uint32_t flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 	if (config.joypad)
 		flags |= SDL_INIT_GAMECONTROLLER;
 	if (SDL_Init(flags) < 0)
 		ERROR("SDL_Init failed: %s", SDL_GetError());
+
+	WARNING("gfx_init: SDL_Init OK, setting GL attributes...");
 
 #ifdef USE_GLES
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -242,6 +248,7 @@ int gfx_init(void)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
+	WARNING("gfx_init: creating window...");
 	sdl.format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
 	sdl.window =  SDL_CreateWindow("XSystem4",
 				       SDL_WINDOWPOS_UNDEFINED,
@@ -252,11 +259,15 @@ int gfx_init(void)
 	if (!sdl.window)
 		ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
 
+	WARNING("gfx_init: window created, setting title...");
 	set_window_title();
 
+	WARNING("gfx_init: creating GL context...");
 	sdl.gl.context = SDL_GL_CreateContext(sdl.window);
 	if (!sdl.gl.context)
 		ERROR("SDL_GL_CreateContext failed: %s", SDL_GetError());
+
+	WARNING("gfx_init: GL context OK, initializing GLEW...");
 
 #ifndef USE_GLES
 	glewExperimental = GL_TRUE;
@@ -265,15 +276,23 @@ int gfx_init(void)
 		ERROR("glewInit failed");
 #endif
 
+	WARNING("gfx_init: GLEW OK, SetSwapInterval...");
 	SDL_GL_SetSwapInterval(wait_vsync ? 1 : 0);
+	WARNING("gfx_init: gl_initialize...");
 	gl_initialize();
+	WARNING("gfx_init: gfx_draw_init...");
 	gfx_draw_init();
+	WARNING("gfx_init: gfx_set_window_logical_size...");
 	gfx_set_window_logical_size(config.view_width, config.view_height);
+	WARNING("gfx_init: init_window_size...");
 	init_window_size();
+	WARNING("gfx_init: atexit/gfx_clear...");
 	atexit(gfx_fini);
 	gfx_clear();
+	WARNING("gfx_init: icon_init...");
 	icon_init();
 	gfx_initialized = true;
+	WARNING("gfx_init: complete!");
 	return 0;
 }
 

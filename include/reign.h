@@ -148,6 +148,7 @@ struct RE_plugin {
 
 	// TapirEngine
 	bool suspended;
+	bool owns_archive;
 };
 
 struct RE_instance {
@@ -199,6 +200,7 @@ struct RE_instance {
 };
 
 struct RE_plugin *RE_plugin_new(enum RE_plugin_version version);
+struct RE_plugin *RE_plugin_new_with_archive(enum RE_plugin_version version, struct archive *archive);
 void RE_plugin_free(struct RE_plugin *plugin);
 bool RE_plugin_bind(struct RE_plugin *plugin, int sprite);
 bool RE_plugin_unbind(struct RE_plugin *plugin);

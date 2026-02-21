@@ -249,6 +249,8 @@ static bool PassRegister_RegistNumber(int handle, int n)
 static char **find_text(int handle, const char *text)
 {
 	struct passregister *reg = registers + handle;
+	if (!text || (reg->nr_strings > 0 && !reg->strings))
+		return NULL;
 	return bsearch(&text, reg->strings, reg->nr_strings, sizeof(char*), compare_string);
 }
 
@@ -256,10 +258,13 @@ static bool PassRegister_RegistText(int handle, struct string *text)
 {
 	if (handle < 0 || (size_t)handle >= nr_registers || !registers[handle].filename)
 		return false;
+	if (!text)
+		return false;
+	struct passregister *reg = registers + handle;
+	if (reg->nr_strings > 0 && !reg->strings)
+		return false;
 	if (find_text(handle, text->text) != NULL)
 		return true;
-
-	struct passregister *reg = registers + handle;
 	reg->strings = xrealloc_array(reg->strings, reg->nr_strings, reg->nr_strings+1, sizeof(char*));
 	// NOTE: this could be improved by using O(n) insertion
 	reg->strings[reg->nr_strings++] = strdup(text->text);

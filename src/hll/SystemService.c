@@ -58,6 +58,14 @@ static int SystemService_GetGameVersion(void)
 	return ain->game_version;
 }
 
+static struct string *SystemService_GetGameVersionByText(void)
+{
+	// Return version string that passes the main() DRM check.
+	// The game extracts parts at specific positions and concatenates them,
+	// expecting the result to equal "6sdsd48f63".
+	return cstr_to_string("sd40006sd00000008f6300004");
+}
+
 static void SystemService_GetGameName(struct string **game_name)
 {
 	if (*game_name)
@@ -265,11 +273,13 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 //bool SystemService_RunProgram(struct string *program_file_name, struct string *parameter);
 //bool SystemService_IsOpenedMutex(struct string *mutex_name);
 
-void SystemService_GetGameFolderPath(struct string **folder_path)
+static struct string *SystemService_GetGameFolderPath(void)
 {
-	char *sjis = utf2sjis(config.game_dir, 0);
-	*folder_path = make_string(sjis, strlen(sjis));
-	free(sjis);
+	if (!config.game_dir)
+		return string_ref(&EMPTY_STRING);
+	// Return UTF-8 path directly — xsystem4 file I/O uses UTF-8 natively.
+	// SJIS conversion fails on non-Japanese paths (e.g. Chinese characters).
+	return make_string(config.game_dir, strlen(config.game_dir));
 }
 
 static void SystemService_GetTime(int *hour, int *min, int *sec)
@@ -401,6 +411,16 @@ static void SystemService_ModuleInit(void)
 	load_window_settings();
 }
 
+static void SystemService_AddBackupSaveFileName(struct string *name)
+{
+	// stub — backup save file name tracking not needed
+}
+
+// GameVariable: game-specific variable storage (used for config/save state)
+HLL_QUIET_UNIMPLEMENTED(0, bool, SystemService, GameVariable_IsExist, struct string *name);
+HLL_QUIET_UNIMPLEMENTED(, void, SystemService, ShowWaitMessage, void);
+HLL_QUIET_UNIMPLEMENTED(, void, SystemService, SetAndroidViewKeepScreen, int flag);
+
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
@@ -413,6 +433,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(SetMixerVolume, mixer_set_volume),
 	    HLL_EXPORT(SetMixerMute, mixer_set_mute),
 	    HLL_EXPORT(GetGameVersion, SystemService_GetGameVersion),
+	    HLL_EXPORT(GetGameVersionByText, SystemService_GetGameVersionByText),
 	    HLL_EXPORT(GetGameName, SystemService_GetGameName),
 	    HLL_EXPORT(AddURLMenu, SystemService_AddURLMenu),
 	    HLL_EXPORT(IsFullScreen, SystemService_IsFullScreen),
@@ -446,7 +467,11 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
 	    HLL_EXPORT(Test, SystemService_Test),
-	    HLL_EXPORT(DRPKT, SystemService_DRPKT)
+	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
+	    HLL_EXPORT(AddBackupSaveFileName, SystemService_AddBackupSaveFileName),
+	    HLL_EXPORT(GameVariable_IsExist, SystemService_GameVariable_IsExist),
+	    HLL_EXPORT(ShowWaitMessage, SystemService_ShowWaitMessage),
+	    HLL_EXPORT(SetAndroidViewKeepScreen, SystemService_SetAndroidViewKeepScreen)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

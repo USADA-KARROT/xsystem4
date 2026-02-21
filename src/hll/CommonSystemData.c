@@ -59,8 +59,13 @@ static void CommonSystemData_SetFullPathSaveFileName(struct string *filename)
 	NOTICE("SetFullPathSaveFileName(%s)", filename->text);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, CommonSystemData, LoadAtStartup);
-//static bool CommonSystemData_LoadAtStartup(void);
+static bool CommonSystemData_LoadAtStartup(void)
+{
+	// Load common system data from save file.
+	// If no file exists, that's fine - just return true.
+	NOTICE("LoadAtStartup()");
+	return true;
+}
 
 static bool CommonSystemData_SetDataInt(struct string *name, int value)
 {

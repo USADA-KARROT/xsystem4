@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 
+struct archive;
 struct archive_data;
 struct cg;
 struct cg_metrics;
@@ -42,6 +43,7 @@ bool asset_exists(enum asset_type type, int no);
 bool asset_exists_by_name(enum asset_type type, const char *name, int *id_out);
 struct archive_data *asset_get(enum asset_type type, int no);
 struct archive_data *asset_get_by_name(enum asset_type type, const char *name, int *id_out);
+struct archive *asset_get_archive(enum asset_type type);
 
 struct cg *asset_cg_load(int no);
 struct cg *asset_cg_load_by_name(const char *name, int *id_out);
