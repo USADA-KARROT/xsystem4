@@ -139,6 +139,7 @@ xsystem4 = [version_h,
             'hll/PlayDemo.c',
             'hll/PlayMovie.c',
             'hll/ReignEngine.c',
+            'hll/SealEngine.c',
             'hll/SACT2.c',
             'hll/SengokuRanceFont.c',
             'hll/SoundFilePlayer.c',
@@ -175,6 +176,14 @@ xsystem4 = [version_h,
             'hll/vmTimer.c',
             'hll/ValueEncryption.c',
             'hll/VSFile.c',
+            'hll/system.c',
+            'hll/String.c',
+            'hll/Delegate.c',
+            'hll/Float.c',
+            'hll/HashMap.c',
+            'hll/Int.c',
+            'hll/Sys43VM.c',
+            'hll/TextFile.c',
 ]
 
 xsystem4_deps = [libm, zlib, sdl2, ft2, ffi, cglm, sndfile, libsys4_dep] + gl_deps
@@ -206,6 +215,8 @@ endif
 static_link_args = []
 if host_machine.system() == 'windows'
     static_link_args = ['-static', '-lstdc++']
+elif host_machine.system() == 'darwin'
+    static_link_args = ['-Wl,-stack_size,0x20000000']
 endif
 
 winsys = 'console'
