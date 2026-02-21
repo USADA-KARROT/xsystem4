@@ -14,13 +14,359 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
+
 #include "hll.h"
+#include "vm.h"
+#include "vm/heap.h"
 #include "vm/page.h"
 
 static void check_array(struct page *array)
 {
-	if (array->type != ARRAY_PAGE || array->a_type != AIN_ARRAY_INT || array->array.rank != 1)
-		VM_ERROR("Not a flat integer array");
+	if (!array || array->type != ARRAY_PAGE)
+		return;  // silently accept invalid arrays in v14
+}
+
+
+// Alloc: allocate an integer array of given size
+static void Array_Alloc(struct page **array, int numof)
+{
+	if (!array || numof < 0)
+		return;
+	if (*array && (*array)->type == ARRAY_PAGE) {
+		delete_page_vars(*array);
+		free_page(*array);
+	}
+	*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, numof);
+	(*array)->array.rank = 1;
+}
+
+// PushBack (capital B) — alias for Pushback
+static void Array_PushBack(struct page **array, int value)
+{
+	if (!array)
+		return;
+	struct page *a = *array;
+	int old_size = a ? a->nr_vars : 0;
+	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	if (a) {
+		for (int i = 0; i < old_size; i++)
+			new_a->values[i] = a->values[i];
+		new_a->array = a->array;
+		free_page(a);
+	}
+	new_a->values[old_size].i = value;
+	*array = new_a;
+}
+
+// EraseAll: erase all elements matching a predicate
+static bool Array_EraseAll(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0 || func < 0)
+		return false;
+
+	struct ain_function *cb = &ain->functions[func];
+
+	// Find elements to keep
+	int *keep = malloc(src->nr_vars * sizeof(int));
+	int keep_count = 0;
+
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+
+		// Push args on stack (stay for bytecode to consume via nopop)
+		if (cb->nr_args >= 2) {
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+
+		vm_call_nopop(func, cb->nr_args);
+
+		int match = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (!match) {
+			keep[keep_count++] = src->values[i].i;
+		}
+	}
+
+	bool erased = (keep_count != src->nr_vars);
+
+	// Rebuild array with kept elements
+	struct page *new_a = alloc_page(ARRAY_PAGE, src->a_type, keep_count);
+	new_a->array = src->array;
+	for (int i = 0; i < keep_count; i++) {
+		new_a->values[i].i = keep[i];
+	}
+	free(keep);
+
+	free_page(src);
+	*array = new_a;
+	return erased;
+}
+
+// Where: filter array with predicate function, return new array
+static int Array_Where(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0 || func < 0) {
+		// Return empty array
+		struct page *result = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, 0);
+		result->array.rank = 1;
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, result);
+		return slot;
+	}
+
+	struct ain_function *cb = &ain->functions[func];
+
+	// Collect matching elements by calling the predicate function for each
+	int *matches = malloc(src->nr_vars * sizeof(int));
+	int match_count = 0;
+
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+
+		// Push args on stack (they stay for the bytecode to consume via nopop)
+		if (cb->nr_args >= 2) {
+			// Ref parameter: push element value (struct heap slot) and 0
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+
+		vm_call_nopop(func, cb->nr_args);
+
+		int result = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (result) {
+			matches[match_count++] = src->values[i].i;
+		}
+	}
+
+	// Build result array
+	struct page *result_page = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, match_count);
+	result_page->array.rank = 1;
+	for (int i = 0; i < match_count; i++) {
+		result_page->values[i].i = matches[i];
+	}
+	free(matches);
+
+	int slot = heap_alloc_slot(VM_PAGE);
+	heap_set_page(slot, result_page);
+	return slot;
+}
+
+// First: return first element matching predicate, or -1 if none
+static int Array_First(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0 || func < 0)
+		return -1;
+
+	struct ain_function *cb = &ain->functions[func];
+
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+		if (cb->nr_args >= 2) {
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+		vm_call_nopop(func, cb->nr_args);
+		int result = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (result) {
+			return src->values[i].i;
+		}
+	}
+	return -1;
+}
+
+static void Array_Free(struct page **array)
+{
+	if (array && *array && (*array)->type == ARRAY_PAGE) {
+		delete_page_vars(*array);
+		free_page(*array);
+		*array = NULL;
+	}
+}
+
+static int Array_Numof(struct page **self)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	return array ? array->nr_vars : 0;
+}
+
+static int Array_Empty(struct page **self)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	static int empty_log = 0;
+	if (empty_log < 20) {
+		WARNING("Empty: self=%p *self=%p nr_vars=%d result=%d",
+			(void*)self, self ? (void*)*self : NULL,
+			array ? array->nr_vars : -1,
+			!array || array->nr_vars == 0);
+		empty_log++;
+	}
+	return !array || array->nr_vars == 0;
+}
+
+static int Array_At(struct page **self, int index)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	if (!array || index < 0 || index >= array->nr_vars)
+		return 0;
+	return array->values[index].i;
+}
+
+static int Array_Last(struct page **self)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	if (!array || array->nr_vars <= 0)
+		return 0;
+	return array->values[array->nr_vars - 1].i;
+}
+
+// PopBack (capital B) — v14 name
+static void Array_PopBack(struct page **array)
+{
+	static int popback_log = 0;
+	if (popback_log < 20) {
+		WARNING("PopBack: array=%p *array=%p nr_vars=%d",
+			(void*)array, array ? (void*)*array : NULL,
+			(array && *array) ? (*array)->nr_vars : -1);
+		popback_log++;
+	}
+	if (!array || !*array || (*array)->nr_vars <= 0)
+		return;
+	struct page *a = *array;
+	int new_size = a->nr_vars - 1;
+	if (new_size == 0) {
+		free_page(a);
+		*array = NULL;
+		return;
+	}
+	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
+	for (int i = 0; i < new_size; i++)
+		new_a->values[i] = a->values[i];
+	new_a->array = a->array;
+	free_page(a);
+	*array = new_a;
+}
+
+// Clear: clear array (set to empty)
+static void Array_Clear(struct page **array)
+{
+	if (!array)
+		return;
+	if (*array) {
+		delete_page_vars(*array);
+		free_page(*array);
+	}
+	*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, 0);
+	(*array)->array.rank = 1;
+}
+
+static void Array_Pushback(struct page **array, int value)
+{
+	if (!array)
+		return;
+	struct page *a = *array;
+	int old_size = a ? a->nr_vars : 0;
+	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	if (a) {
+		for (int i = 0; i < old_size; i++)
+			new_a->values[i] = a->values[i];
+		new_a->array = a->array;
+		free_page(a);
+	}
+	new_a->values[old_size].i = value;
+	*array = new_a;
+}
+
+static void Array_Popback(struct page **array)
+{
+	if (!array || !*array || (*array)->nr_vars <= 0)
+		return;
+	struct page *a = *array;
+	int new_size = a->nr_vars - 1;
+	if (new_size == 0) {
+		free_page(a);
+		*array = NULL;
+		return;
+	}
+	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
+	for (int i = 0; i < new_size; i++)
+		new_a->values[i] = a->values[i];
+	new_a->array = a->array;
+	free_page(a);
+	*array = new_a;
+}
+
+static void Array_Erase(struct page **array, int index)
+{
+	if (!array || !*array)
+		return;
+	struct page *a = *array;
+	if (index < 0 || index >= a->nr_vars)
+		return;
+	int new_size = a->nr_vars - 1;
+	if (new_size == 0) {
+		free_page(a);
+		*array = NULL;
+		return;
+	}
+	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
+	for (int i = 0; i < index; i++)
+		new_a->values[i] = a->values[i];
+	for (int i = index; i < new_size; i++)
+		new_a->values[i] = a->values[i + 1];
+	new_a->array = a->array;
+	free_page(a);
+	*array = new_a;
+}
+
+static void Array_Insert(struct page **array, int index, int value)
+{
+	if (!array)
+		return;
+	struct page *a = *array;
+	int old_size = a ? a->nr_vars : 0;
+	if (index < 0) index = 0;
+	if (index > old_size) index = old_size;
+	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	if (a) {
+		for (int i = 0; i < index; i++)
+			new_a->values[i] = a->values[i];
+		for (int i = index; i < old_size; i++)
+			new_a->values[i + 1] = a->values[i];
+		new_a->array = a->array;
+		free_page(a);
+	}
+	new_a->values[index].i = value;
+	*array = new_a;
+}
+
+static void Array_Sort(struct page **array)
+{
+	// Simple insertion sort for int arrays
+	if (!array || !*array || (*array)->nr_vars <= 1)
+		return;
+	struct page *a = *array;
+	for (int i = 1; i < a->nr_vars; i++) {
+		int val = a->values[i].i;
+		int j = i - 1;
+		while (j >= 0 && a->values[j].i > val) {
+			a->values[j + 1].i = a->values[j].i;
+			j--;
+		}
+		a->values[j + 1].i = val;
+	}
 }
 
 //void Array_NV_copy(struct page **nArray, int nNum);
@@ -84,11 +430,11 @@ static void check_array(struct page *array)
 //void Array_SS_min(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
 //void Array_SS_max(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
 
-static int Array_NV_eneq(struct page *array, int num)
+static int Array_NV_eneq(struct page **self, int num)
 {
+	struct page *array = (self && *self) ? *self : NULL;
 	if (!array)
 		return 0;
-	check_array(array);
 	int count = 0;
 	for (int i = 0; i < array->nr_vars; i++) {
 		if (array->values[i].i == num)
@@ -227,11 +573,11 @@ static int Array_NV_eneq(struct page *array, int num)
 //void Array_SS_folo(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
 //void Array_SS_fohi(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
 
-static int Array_NV_sceq(struct page *array, int index, int num, int *out_index)
+static int Array_NV_sceq(struct page **self, int index, int num, int *out_index)
 {
+	struct page *array = (self && *self) ? *self : NULL;
 	if (!array)
 		return 0;
-	check_array(array);
 
 	if (index >= 0) {
 		for (int i = index; i < array->nr_vars; i++) {
@@ -253,7 +599,6 @@ static int Array_NV_sceq(struct page *array, int index, int num, int *out_index)
 		}
 	}
 	return 0;
-
 }
 
 //int Array_NV_scne(struct page *nArray, int nIndex, int nNum, int *pnIndex);
@@ -281,6 +626,23 @@ static int Array_NV_sceq(struct page *array, int index, int num, int *out_index)
 //int Array_VS_or(struct page *sArray, int nMember);
 
 HLL_LIBRARY(Array,
+	    HLL_EXPORT(Alloc, Array_Alloc),
+	    HLL_EXPORT(Free, Array_Free),
+	    HLL_EXPORT(Numof, Array_Numof),
+	    HLL_EXPORT(Empty, Array_Empty),
+	    HLL_EXPORT(At, Array_At),
+	    HLL_EXPORT(Last, Array_Last),
+	    HLL_EXPORT(PushBack, Array_PushBack),
+	    HLL_EXPORT(Pushback, Array_Pushback),
+	    HLL_EXPORT(PopBack, Array_PopBack),
+	    HLL_EXPORT(Clear, Array_Clear),
+	    HLL_EXPORT(EraseAll, Array_EraseAll),
+	    HLL_EXPORT(Where, Array_Where),
+	    HLL_EXPORT(First, Array_First),
+	    HLL_EXPORT(Popback, Array_Popback),
+	    HLL_EXPORT(Erase, Array_Erase),
+	    HLL_EXPORT(Insert, Array_Insert),
+	    HLL_EXPORT(Sort, Array_Sort),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),

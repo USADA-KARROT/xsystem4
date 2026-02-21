@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -412,11 +414,24 @@ enum {
 
 static void error_handler(const char *msg)
 {
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "xsystem4", msg, NULL);
+	// Never show SDL message box — it blocks in non-interactive environments.
+	// Errors are already logged to stderr by sys_verror.
+	(void)msg;
+}
+
+static void sigsegv_handler(int sig)
+{
+	(void)sig;
+	const char msg[] = "\n*** SIGSEGV caught ***\n";
+	write(2, msg, sizeof(msg) - 1);
+	_exit(139);
 }
 
 int main(int argc, char *argv[])
 {
+	signal(SIGSEGV, sigsegv_handler);
+	signal(SIGBUS, sigsegv_handler);
+	setvbuf(stderr, NULL, _IOLBF, 0);  // Force line-buffered stderr even when redirected to file
 	sys_error_handler = error_handler;
 
 	char *ainfile;

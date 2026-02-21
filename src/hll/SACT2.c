@@ -107,10 +107,14 @@ int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 	}
 	engine_type = engine;
 
+	WARNING("sact_init: gfx_init...");
 	gfx_init();
+	WARNING("sact_init: gfx_font_init...");
 	gfx_font_init();
+	WARNING("sact_init: audio_init...");
 	audio_init();
 
+	WARNING("sact_init: creating sprites...");
 	nr_sprites = 256;
 	sprites = xmalloc(sizeof(struct sact_sprite*) * 257);
 	memset(sprites, 0, sizeof(struct sact_sprite*) * 257);
@@ -124,10 +128,12 @@ int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 	sprites++;
 
 	// initialize sprite renderer
+	WARNING("sact_init: sprite_init...");
 	if (engine == CHIPMUNK_SPRITE_ENGINE)
 		sprite_init_chipmunk();
 	else
 		sprite_init_sact();
+	WARNING("sact_init: complete!");
 
 	return 1;
 }

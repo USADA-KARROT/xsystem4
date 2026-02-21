@@ -923,12 +923,15 @@ bool PE_Init(void)
 {
 	if (parts_engine_initialized)
 		return true;
+	WARNING("PE_Init: sact_init...");
 	// XXX: Oyako Rankan doesn't call ChipmunkSpriteEngine.Init
 	sact_init(16, CHIPMUNK_SPRITE_ENGINE);
+	WARNING("PE_Init: parts_table + render_init...");
 	parts_table = ht_create(1024);
 	parts_render_init();
 	parts_debug_init();
 	parts_engine_initialized = true;
+	WARNING("PE_Init: complete!");
 	return true;
 }
 

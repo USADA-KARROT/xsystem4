@@ -105,6 +105,8 @@ void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 	case AIN_STRUCT:
 	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
+	case AIN_WRAP:
 	case AIN_REF_TYPE:
 		if (v.i == -1)
 			break;
@@ -145,28 +147,44 @@ enum ain_data_type array_type(enum ain_data_type type)
 	case AIN_ARRAY_DELEGATE:
 	case AIN_REF_ARRAY_DELEGATE:
 		return AIN_DELEGATE;
-	default:
-		WARNING("Unknown/invalid array type: %d", type);
+	case AIN_ARRAY:
+	case AIN_REF_ARRAY:
+		// v14 generic array — element type is erased at type level.
+		// Return AIN_INT as neutral fallback (no refcounting).
+		return AIN_INT;
+	default: {
+		static int array_type_warn_count = 0;
+		if (array_type_warn_count < 10)
+			WARNING("Unknown/invalid array type: %d (count=%d)", type, array_type_warn_count);
+		array_type_warn_count++;
 		return type;
+	}
 	}
 }
 
 enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank)
 {
+	if (struct_type) *struct_type = -1;
+	if (array_rank) *array_rank = 0;
 	switch (page->type) {
 	case GLOBAL_PAGE:
+		if (varno < 0 || varno >= ain->nr_globals) return AIN_VOID;
 		if (struct_type)
 			*struct_type = ain->globals[varno].type.struc;
 		if (array_rank)
 			*array_rank = ain->globals[varno].type.rank;
 		return ain->globals[varno].type.data;
 	case LOCAL_PAGE:
+		if (page->index < 0 || page->index >= ain->nr_functions) return AIN_VOID;
+		if (varno < 0 || varno >= ain->functions[page->index].nr_vars) return AIN_VOID;
 		if (struct_type)
 			*struct_type = ain->functions[page->index].vars[varno].type.struc;
 		if (array_rank)
 			*array_rank = ain->functions[page->index].vars[varno].type.rank;
 		return ain->functions[page->index].vars[varno].type.data;
 	case STRUCT_PAGE:
+		if (page->index < 0 || page->index >= ain->nr_structures) return AIN_VOID;
+		if (varno < 0 || varno >= ain->structures[page->index].nr_members) return AIN_VOID;
 		if (struct_type)
 			*struct_type = ain->structures[page->index].members[varno].type.struc;
 		if (array_rank)
@@ -201,9 +219,18 @@ void delete_page_vars(struct page *page)
 
 void delete_page(int slot)
 {
-	struct page *page = heap_get_page(slot);
+	// Access heap[slot].page directly — heap_unref sets ref=0 before calling
+	// us to break circular references, so heap_get_page validation would fail.
+	struct page *page = heap[slot].page;
 	if (!page)
 		return;
+	heap[slot].page = NULL; // Prevent double-delete
+	// Validate page before freeing
+	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
+		WARNING("delete_page: corrupted page at slot %d (type=%d nr_vars=%d), skipping",
+			slot, page->type, page->nr_vars);
+		return;  // leak memory rather than crash
+	}
 	if (page->type == STRUCT_PAGE) {
 		delete_struct(page->index, slot);
 	}
@@ -214,16 +241,32 @@ void delete_page(int slot)
 /*
  * Recursively copy a page.
  */
+static int copy_depth = 0;
+
 struct page *copy_page(struct page *src)
 {
 	if (!src)
 		return NULL;
+	// Validate page before copying
+	if (src->type >= NR_PAGE_TYPES || src->nr_vars < 0 || src->nr_vars > 1000000) {
+		WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning NULL",
+			src->type, src->nr_vars);
+		return NULL;
+	}
+	copy_depth++;
+	if (copy_depth > 100) {
+		WARNING("copy_page: depth %d too deep, returning NULL", copy_depth);
+		copy_depth--;
+		return NULL;
+	}
+	// depth trace removed
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
 	dst->array = src->array;
 
 	for (int i = 0; i < src->nr_vars; i++) {
 		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
 	}
+	copy_depth--;
 	return dst;
 }
 
@@ -244,13 +287,17 @@ int alloc_struct(int no)
 
 void init_struct(int no, int slot)
 {
+	if (!heap_index_valid(slot) || !heap[slot].page)
+		return;
 	struct ain_struct *s = &ain->structures[no];
 	for (int i = 0; i < s->nr_members; i++) {
 		if (s->members[i].type.data == AIN_STRUCT) {
-			init_struct(s->members[i].type.struc, heap[slot].page->values[i].i);
+			int child = heap[slot].page->values[i].i;
+			if (child > 0)
+				init_struct(s->members[i].type.struc, child);
 		}
 	}
-	if (s->constructor > 0) {
+	if (s->constructor > 0 && ain->version < 14) {
 		vm_call(s->constructor, slot);
 	}
 }
@@ -281,6 +328,7 @@ static enum ain_data_type unref_array_type(enum ain_data_type type)
 	case AIN_REF_ARRAY_LONG_INT:  return AIN_ARRAY_LONG_INT;
 	case AIN_REF_ARRAY_DELEGATE:  return AIN_ARRAY_DELEGATE;
 	case AIN_ARRAY_TYPE:          return type;
+	case AIN_REF_ARRAY:           return AIN_ARRAY;
 	default: VM_ERROR("Attempt to array allocate non-array type");
 	}
 }

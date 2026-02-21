@@ -660,6 +660,15 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, struct str
 	return false;
 }
 
+// GetColAtFormatName(Name, FormatName, ID) -> int
+// Returns column index for a given format name, or -1 if not found
+static int MainEXFile_GetColAtFormatName(struct string *name, struct string *format_name, int id)
+{
+	WARNING("MainEXFile.GetColAtFormatName('%s', '%s', %d) stub -> -1",
+		name ? name->text : "", format_name ? format_name->text : "", id);
+	return -1;
+}
+
 HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(_ModuleInit, MainEXFile_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, MainEXFile_ModuleFini),
@@ -707,4 +716,5 @@ HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(GetNodeNameCount, MainEXFile_GetNodeNameCount),
 	    HLL_EXPORT(GetEXNameCount, MainEXFile_GetEXNameCount),
 	    HLL_EXPORT(GetNodeName, MainEXFile_GetNodeName),
-	    HLL_EXPORT(GetEXName, MainEXFile_GetEXName));
+	    HLL_EXPORT(GetEXName, MainEXFile_GetEXName),
+	    HLL_EXPORT(GetColAtFormatName, MainEXFile_GetColAtFormatName));

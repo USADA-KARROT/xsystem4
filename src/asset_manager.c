@@ -120,6 +120,16 @@ struct archive_data *asset_get_by_name(enum asset_type type, const char *name, i
 	return assets[type]->get_by_name(assets[type], name, id_out);
 }
 
+struct archive *asset_get_archive(enum asset_type type)
+{
+	if (!assets[type])
+		return NULL;
+	struct asset_manager_afa *manager = (struct asset_manager_afa *)assets[type];
+	if (manager->archives[0])
+		return &manager->archives[0]->ar;
+	return NULL;
+}
+
 struct cg *asset_cg_load(int id)
 {
 	struct archive_data *data = asset_get(ASSET_CG, id);

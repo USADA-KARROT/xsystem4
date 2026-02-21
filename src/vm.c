@@ -22,6 +22,8 @@
 #include <time.h>
 #include <setjmp.h>
 #include <assert.h>
+#include <signal.h>
+#include <execinfo.h>
 #include <SDL.h> // for system.MsgBox
 
 #include "system4.h"
@@ -53,6 +55,27 @@ static inline int32_t lint_clamp(int64_t n)
 
 // When the IP is set to VM_RETURN, the VM halts
 #define VM_RETURN 0xFFFFFFFF
+
+static unsigned long long insn_count = 0;
+
+// Circular trace buffer for last N instructions
+#define TRACE_BUF_SIZE 32
+static struct { size_t ip; uint16_t op; int32_t sp; } trace_buf[TRACE_BUF_SIZE];
+static int trace_buf_idx = 0;
+
+static void dump_trace_buf(void)
+{
+	WARNING("=== Last %d instructions ===", TRACE_BUF_SIZE);
+	for (int k = 0; k < TRACE_BUF_SIZE; k++) {
+		int idx = (trace_buf_idx + k) % TRACE_BUF_SIZE;
+		if (trace_buf[idx].ip == 0 && trace_buf[idx].op == 0)
+			continue;
+		WARNING("  [%02d] ip=0x%lX op=0x%04X (%s) sp=%d",
+			k, (unsigned long)trace_buf[idx].ip, trace_buf[idx].op,
+			trace_buf[idx].op < NR_OPCODES ? instructions[trace_buf[idx].op].name : "?",
+			trace_buf[idx].sp);
+	}
+}
 
 /*
  * NOTE: The current implementation is a simple bytecode interpreter.
@@ -184,6 +207,19 @@ union vm_value stack_peek(int n)
 union vm_value stack_pop(void)
 {
 	stack_ptr--;
+	if (unlikely(stack_ptr < 0)) {
+		static int underflow_count = 0;
+		if (underflow_count < 3) {
+			WARNING("STACK UNDERFLOW: sp=%d ip=0x%lX fno=%d insn#%llu",
+				stack_ptr, (unsigned long)instr_ptr,
+				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
+				insn_count);
+			dump_trace_buf();
+			underflow_count++;
+		}
+		stack_ptr = 0;
+		return (union vm_value){.i = 0};
+	}
 	return stack[stack_ptr];
 }
 
@@ -193,14 +229,30 @@ static union vm_value *stack_peek_ptr(int n)
 }
 
 // Pop a reference off the stack, returning the address of the referenced object.
+static union vm_value dummy_var;
 static union vm_value *stack_pop_var(void)
 {
 	int32_t page_index = stack_pop().i;
 	int32_t heap_index = stack_pop().i;
-	if (unlikely(!heap_index_valid(heap_index)))
-		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
-	if (unlikely(!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars))
-		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
+	if (unlikely(!heap_index_valid(heap_index))) {
+		WARNING("stack_pop_var: invalid heap index %d/%d", heap_index, page_index);
+		dummy_var.i = 0;
+		return &dummy_var;
+	}
+	if (unlikely(!heap[heap_index].page || page_index < 0 || page_index >= heap[heap_index].page->nr_vars)) {
+		static int oob_trace = 0;
+		WARNING("stack_pop_var: out of bounds %d/%d (nr_vars=%d) ip=0x%lX fno=%d sp=%d page_type=%d",
+			heap_index, page_index,
+			heap[heap_index].page ? heap[heap_index].page->nr_vars : -1,
+			(unsigned long)instr_ptr,
+			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
+			stack_ptr,
+			heap[heap_index].page ? heap[heap_index].page->type : -1);
+		if (oob_trace++ < 1)
+			dump_trace_buf();
+		dummy_var.i = 0;
+		return &dummy_var;
+	}
 	return &heap[heap_index].page->values[page_index];
 }
 
@@ -208,10 +260,16 @@ union vm_value *stack_peek_var(void)
 {
 	int32_t page_index = stack_peek(0).i;
 	int32_t heap_index = stack_peek(1).i;
-	if (unlikely(!heap_index_valid(heap_index)))
-		VM_ERROR("Out of bounds heap index: %d/%d", heap_index, page_index);
-	if (unlikely(!heap[heap_index].page || page_index >= heap[heap_index].page->nr_vars))
-		VM_ERROR("Out of bounds page index: %d/%d", heap_index, page_index);
+	if (unlikely(!heap_index_valid(heap_index))) {
+		WARNING("stack_peek_var: invalid heap index %d/%d", heap_index, page_index);
+		dummy_var.i = 0;
+		return &dummy_var;
+	}
+	if (unlikely(!heap[heap_index].page || page_index < 0 || page_index >= heap[heap_index].page->nr_vars)) {
+		WARNING("stack_peek_var: out of bounds %d/%d", heap_index, page_index);
+		dummy_var.i = 0;
+		return &dummy_var;
+	}
 	return &heap[heap_index].page->values[page_index];
 }
 
@@ -224,7 +282,10 @@ static void stack_push_string(struct string *s)
 
 static struct string *stack_peek_string(int n)
 {
-	return heap[stack_peek(n).i].s;
+	int slot = stack_peek(n).i;
+	if (slot < 0 || (size_t)slot >= heap_size || !heap[slot].s)
+		return &EMPTY_STRING;
+	return heap[slot].s;
 }
 
 int vm_string_ref(struct string *s)
@@ -329,8 +390,11 @@ static void scenario_call(int slot)
  *   - callee pushes return value on the stack
  *   - RETURN jumps to return address (saved in stack frame)
  */
+static int call_depth = 0;
+
 static int _function_call(int fno, int return_address)
 {
+	call_depth++;
 	struct ain_function *f = &ain->functions[fno];
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
@@ -366,7 +430,14 @@ static void function_call(int fno, int return_address)
 		heap[slot].page->values[i] = stack_pop();
 		switch (f->vars[i].type.data) {
 		case AIN_REF_TYPE:
-			heap_ref(heap[slot].page->values[i].i);
+		case AIN_STRING:
+		case AIN_STRUCT:
+		case AIN_DELEGATE:
+		case AIN_ARRAY_TYPE:
+		case AIN_ARRAY:
+		case AIN_WRAP:
+			if (heap[slot].page->values[i].i != -1)
+				heap_ref(heap[slot].page->values[i].i);
 			break;
 		default:
 			break;
@@ -395,6 +466,13 @@ static void delegate_call(int dg_no, int return_address)
 	int dg_index = stack_peek(0 + return_values).i;
 	int obj, fun;
 	if (delegate_get(heap_get_delegate_page(dg_page), dg_index, &obj, &fun)) {
+		// Guard: skip invalid function numbers
+		if (fun < 0 || fun >= ain->nr_functions) {
+			WARNING("delegate_call: invalid function number %d, skipping", fun);
+			// increment dg_index to advance past this entry
+			stack[stack_ptr - 1].i++;
+			return;
+		}
 		// pop previous return value
 		if (ain->delegates[dg_no].return_type.data != AIN_VOID) {
 			stack_pop();
@@ -443,10 +521,47 @@ void vm_call(int fno, int struct_page)
 	instr_ptr = saved_ip;
 }
 
+// Call a function with args already on the stack, WITHOUT popping them.
+// The args are copied into the local page but remain on the stack for
+// the bytecode to consume directly (used by v14 HLL callback calling convention).
+void vm_call_nopop(int fno, int nargs)
+{
+	size_t saved_ip = instr_ptr;
+	struct ain_function *f = &ain->functions[fno];
+	int slot = _function_call(fno, VM_RETURN);
+
+	// Copy args from stack to local page WITHOUT popping
+	// Stack layout: [arg0, arg1, ..., argN-1] with arg0 at sp-nargs
+	for (int i = 0; i < nargs && i < f->nr_args; i++) {
+		heap[slot].page->values[i] = stack[stack_ptr - nargs + i];
+		// heap_ref for ref types
+		switch (f->vars[i].type.data) {
+		case AIN_REF_TYPE:
+		case AIN_STRING:
+		case AIN_STRUCT:
+		case AIN_DELEGATE:
+		case AIN_ARRAY_TYPE:
+		case AIN_ARRAY:
+		case AIN_WRAP:
+			if (heap[slot].page->values[i].i != -1)
+				heap_ref(heap[slot].page->values[i].i);
+			break;
+		default:
+			break;
+		}
+	}
+
+	vm_execute();
+	instr_ptr = saved_ip;
+}
+
 static void function_return(void)
 {
-	heap_unref(call_stack[call_stack_ptr-1].page_slot);
-	instr_ptr = call_stack[call_stack_ptr-1].return_address;
+	call_depth--;
+	int page_slot = call_stack[call_stack_ptr-1].page_slot;
+	size_t ret_addr = call_stack[call_stack_ptr-1].return_address;
+	heap_unref(page_slot);
+	instr_ptr = ret_addr;
 	call_stack_ptr--;
 }
 
@@ -936,7 +1051,38 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case NEW: {
 		union vm_value v;
-		create_struct(stack_pop().i, &v);
+		if (ain->version >= 11) {
+			int struct_type = get_argument(0);
+			int ctor_func = get_argument(1);
+			create_struct(struct_type, &v);
+			if (ctor_func > 0 && ain->version >= 14) {
+				// v14: constructor args are already on the stack
+				// method_call expects: [struct_page, arg1, ..., argN]
+				// Need to insert struct_page below the args
+				int nr_ctor_args = ain->functions[ctor_func].nr_args;
+				// Save constructor args from stack
+				union vm_value saved[64];
+				for (int i = nr_ctor_args - 1; i >= 0; i--) {
+					saved[i] = stack_pop();
+				}
+				// Push struct_page (this) below args
+				stack_push(v);
+				// Re-push args on top
+				for (int i = 0; i < nr_ctor_args; i++) {
+					stack_push(saved[i]);
+				}
+				// Call constructor as method
+				size_t saved_ip = instr_ptr;
+				method_call(ctor_func, VM_RETURN);
+				vm_execute();
+				instr_ptr = saved_ip;
+				// Constructor is void — push 'this' back on stack
+				stack_push(v);
+				break;
+			}
+			} else {
+			create_struct(stack_pop().i, &v);
+		}
 		stack_push(v);
 		break;
 	}
@@ -951,7 +1097,9 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case OBJSWAP: {
-		stack_pop(); // type
+		if (ain->version < 11)
+			stack_pop(); // pre-v11: type on stack
+		// v11+: type in bytecode arg (get_argument(0)), ignored
 		union vm_value *b = stack_pop_var();
 		union vm_value *a = stack_pop_var();
 		union vm_value tmp = *a;
@@ -972,11 +1120,51 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case CALLMETHOD: {
-		method_call(get_argument(0), instr_ptr + instruction_width(CALLMETHOD));
+		if (ain->version >= 14) {
+			// ain v14: bytecode arg = nargs (not function number)
+			// Stack: [struct_page, funcno, arg0, ..., argN-1]
+			int nargs = get_argument(0);
+			// Save args, extract funcno from beneath them, restore args
+			union vm_value small_args[64];
+			union vm_value *saved_args = (nargs <= 64) ? small_args : malloc(nargs * sizeof(union vm_value));
+			for (int i = 0; i < nargs; i++) {
+				saved_args[i] = stack_pop();
+			}
+			int funcno = stack_pop().i;
+			for (int i = nargs - 1; i >= 0; i--) {
+				stack_push(saved_args[i]);
+			}
+			if (saved_args != small_args) free(saved_args);
+			// Stack is now: [struct_page, arg0, ..., argN-1]
+			if (funcno >= 0 && funcno < ain->nr_functions) {
+				method_call(funcno, instr_ptr + instruction_width(CALLMETHOD));
+			} else {
+				WARNING("CALLMETHOD: invalid function number %d", funcno);
+				stack_pop(); // pop struct_page
+			}
+		} else {
+			// Pre-v14: bytecode arg = function number
+			method_call(get_argument(0), instr_ptr + instruction_width(CALLMETHOD));
+		}
 		break;
 	}
 	case CALLHLL: {
+		int hll_arg2 = (ain->version >= 11) ? get_argument(2) : -1;
+		int sp_before = stack_ptr;
 		hll_call(get_argument(0), get_argument(1));
+		static int callhll_log = 0;
+		if (callhll_log < 15) {
+			struct ain_hll_function *_f = &ain->libraries[get_argument(0)].functions[get_argument(1)];
+			WARNING("CALLHLL %s.%s arg2=%d sp: %d→%d (Δ=%d) rettype=%d nargs=%d",
+				ain->libraries[get_argument(0)].name, _f->name,
+				hll_arg2, sp_before, stack_ptr, stack_ptr - sp_before,
+				_f->return_type.data, _f->nr_arguments);
+			for (int _i = 0; _i < _f->nr_arguments; _i++) {
+				WARNING("  arg[%d] type=%d (%s)", _i, _f->arguments[_i].type.data,
+					_f->arguments[_i].name);
+			}
+			callhll_log++;
+		}
 		break;
 	}
 	case RETURN: {
@@ -1482,8 +1670,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 	case S_ADD: {
 		int b = stack_pop().i;
 		int a = stack_pop().i;
-		// TODO: can use string_append here?
-		stack_push_string(string_concatenate(heap_get_string(a), heap_get_string(b)));
+		struct string *sa = heap_get_string(a);
+		struct string *sb = heap_get_string(b);
+		if (!sa) sa = &EMPTY_STRING;
+		if (!sb) sb = &EMPTY_STRING;
+		stack_push_string(string_concatenate(sa, sb));
 		heap_unref(a);
 		heap_unref(b);
 		break;
@@ -1589,7 +1780,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case S_MOD: {
-		int type = stack_pop().i;
+		int type;
+		if (ain->version >= 11)
+			type = get_argument(0); // v14: type in bytecode arg
+		else
+			type = stack_pop().i;   // pre-v11: type on stack
 		union vm_value val = stack_pop();
 		int fmt = stack_pop().i;
 		int dst = heap_alloc_slot(VM_STRING);
@@ -1706,9 +1901,25 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case A_REF: {
 		int array = stack_pop().i;
-		int slot = heap_alloc_slot(VM_PAGE);
-		heap_set_page(slot, copy_page(heap[array].page));
-		stack_push(slot);
+		if (array < 0 || (size_t)array >= heap_size || heap[array].ref <= 0) {
+			stack_push(-1);
+		} else if (heap[array].type == VM_STRING) {
+			// v14: A_REF on string — create a string reference copy
+			stack_push_string(string_ref(heap[array].s ? heap[array].s : &EMPTY_STRING));
+		} else if (heap[array].type == VM_PAGE) {
+			struct page *p = heap[array].page;
+			if (p && (p->type >= NR_PAGE_TYPES || p->nr_vars < 0 || p->nr_vars > 1000000)) {
+				WARNING("A_REF: corrupted page at slot %d (ptype=%d nr_vars=%d)", array, p->type, p->nr_vars);
+				stack_push(-1);
+			} else {
+				int slot = heap_alloc_slot(VM_PAGE);
+				heap_set_page(slot, copy_page(p));
+				stack_push(slot);
+			}
+		} else {
+			WARNING("A_REF: unknown type %d at slot %d", heap[array].type, array);
+			stack_push(-1);
+		}
 		break;
 	}
 	case A_NUMOF: {
@@ -2292,8 +2503,206 @@ static enum opcode execute_instruction(enum opcode opcode)
 		}
 		break;
 	}
-	//case DG_NEW:
-	//case DG_STR_TO_METHOD:
+	case DG_NEW: {
+		// DG_NEW: create empty delegate, push slot
+		// In v14 alloc context: stack=[page, idx] from X_DUP/DELETE pattern
+		// Create empty delegate page (NULL = empty)
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, NULL);
+		stack_push(slot);
+		break;
+	}
+	case DG_STR_TO_METHOD: {
+		// Resolve method name string to function index
+		// In v14 this has 1 arg (delegate type), stack has: [obj_page, string_slot]
+		int str_slot = stack_pop().i;
+		struct string *name = heap_get_string(str_slot);
+		int fno = -1;
+		if (name) {
+			fno = ain_get_function(ain, name->text);
+		}
+		heap_unref(str_slot);
+		stack_push(fno);
+		break;
+	}
+	case X_MOV: {
+		// X_MOV n, offset: rotate top n stack slots.
+		// Top `offset` values move to the bottom of the n-slot window.
+		// Stack size does NOT change. Equivalent to SWAP when n=2,offset=1.
+		int n = get_argument(0);
+		int offset = get_argument(1);
+		if (n > 1 && offset > 0 && offset < n) {
+			union vm_value tmp_buf[16];
+			union vm_value *buf = (n <= 16) ? tmp_buf : malloc(n * sizeof(union vm_value));
+			for (int i = 0; i < n; i++) {
+				buf[i] = stack[stack_ptr - n + i];
+			}
+			for (int i = 0; i < n; i++) {
+				stack[stack_ptr - n + i] = buf[(i + n - offset) % n];
+			}
+			if (buf != tmp_buf) free(buf);
+		}
+		break;
+	}
+	case X_REF: {
+		// X_REF n: dereference a 2-slot variable reference and push n consecutive values
+		int n = get_argument(0);
+		if (n <= 0) n = 1;
+		int32_t var_idx = stack_pop().i;
+		int32_t heap_idx = stack_pop().i;
+		struct page *page = NULL;
+		if (heap_idx >= 0 && (size_t)heap_idx < heap_size && heap[heap_idx].ref > 0
+		    && heap[heap_idx].type == VM_PAGE)
+			page = heap[heap_idx].page;
+		if (page && var_idx >= 0 && var_idx + n <= page->nr_vars) {
+			for (int i = 0; i < n; i++) {
+				stack_push(page->values[var_idx + i]);
+			}
+		} else {
+			for (int i = 0; i < n; i++) {
+				stack_push(0);
+			}
+		}
+		break;
+	}
+	case X_ASSIGN: {
+		// X_ASSIGN n: stack = [..., heap_idx, page_idx, v0..v(n-1)]
+		// Pop n values, pop 2-slot ref, write values, push values back
+		int n = get_argument(0);
+		if (n <= 0) n = 1;
+		union vm_value small_buf[64];
+		union vm_value *vals = (n <= 64) ? small_buf : malloc(n * sizeof(union vm_value));
+		for (int i = n - 1; i >= 0; i--) {
+			vals[i] = stack_pop();
+		}
+		union vm_value *var = stack_pop_var();
+		if (var) {
+			for (int i = 0; i < n; i++) {
+				var[i] = vals[i];
+			}
+		}
+		for (int i = 0; i < n; i++) {
+			stack_push(vals[i]);
+		}
+		if (vals != small_buf) free(vals);
+		break;
+	}
+	case X_DUP: {
+		// X_DUP n: duplicate top n values on stack
+		int n = get_argument(0);
+		if (n <= 0) n = 1;
+		int base = stack_ptr - n;
+		for (int i = 0; i < n; i++) {
+			stack_push(stack[base + i]);
+		}
+		break;
+	}
+	case X_GETENV: {
+		// X_GETENV: get parent environment page (lambda captures)
+		// Push the local page's parent pointer
+		WARNING("X_GETENV: stub (pushing -1)");
+		stack_push(-1);
+		break;
+	}
+	case X_SET: {
+		// X_SET: assign value to variable reference (like X_ASSIGN 1 but no argument)
+		// stack: [..., heap_idx, page_idx, value]
+		union vm_value val = stack_pop();
+		union vm_value *var = stack_pop_var();
+		if (var) {
+			*var = val;
+		}
+		stack_push(val);
+		break;
+	}
+	case X_ICAST: {
+		// X_ICAST struct_type: interface cast
+		int struct_type = get_argument(0);
+		// The value on stack is already the object; just leave it
+		(void)struct_type;
+		break;
+	}
+	case X_OP_SET: {
+		// X_OP_SET n: like X_ASSIGN but for option types
+		// stack = [..., heap_idx, page_idx, val0, ..., val(n-1)]
+		// Pop n values, pop 2-slot var ref, write n consecutive slots, push n values
+		int n = get_argument(0);
+		if (n <= 0) n = 1;
+		union vm_value vals[4];
+		if (n > 4) n = 4;
+		for (int i = n - 1; i >= 0; i--) {
+			vals[i] = stack_pop();
+		}
+		union vm_value *var = stack_pop_var();
+		if (var) {
+			for (int i = 0; i < n; i++) {
+				var[i] = vals[i];
+			}
+		}
+		for (int i = 0; i < n; i++) {
+			stack_push(vals[i]);
+		}
+		break;
+	}
+	case X_A_INIT: {
+		// X_A_INIT arg: stack=[page, idx, size] → create array, assign to (page,idx), push slot
+		// arg is NOT the data type — get actual type from variable definition
+		int arg = get_argument(0);
+		int size = stack_pop().i;
+		int var_idx = stack_pop().i;
+		int heap_idx = stack_pop().i;
+		// Get data type from variable definition
+		int struct_type = -1;
+		enum ain_data_type data_type = AIN_ARRAY_INT; // fallback
+		if (heap_idx == 0 && var_idx >= 0 && var_idx < ain->nr_globals) {
+			data_type = ain->globals[var_idx].type.data;
+			struct_type = ain->globals[var_idx].type.struc;
+		} else if (heap_index_valid(heap_idx) && heap[heap_idx].page) {
+			data_type = variable_type(heap[heap_idx].page, var_idx, &struct_type, NULL);
+		}
+		(void)arg;
+		// Allocate array slot and page
+		int slot = heap_alloc_slot(VM_PAGE);
+		if (size > 0) {
+			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) {
+				// Generic array (v14 type erasure) — create flat int array
+				struct page *page = alloc_page(ARRAY_PAGE, data_type, size);
+				for (int i = 0; i < size; i++)
+					page->values[i].i = 0;
+				heap_set_page(slot, page);
+			} else {
+				union vm_value dim = { .i = size };
+				heap_set_page(slot, alloc_array(1, &dim, data_type, struct_type, false));
+			}
+		} else {
+			heap_set_page(slot, NULL);
+		}
+		// Assign to variable
+		if (heap_index_valid(heap_idx) && heap[heap_idx].page &&
+		    var_idx >= 0 && var_idx < heap[heap_idx].page->nr_vars) {
+			heap[heap_idx].page->values[var_idx].i = slot;
+		}
+		stack_push(slot);
+		break;
+	}
+	case X_A_SIZE: {
+		// X_A_SIZE: push array size
+		int slot = stack_pop().i;
+		struct page *page = (heap_index_valid(slot) && heap[slot].page) ? heap[slot].page : NULL;
+		stack_push(page ? page->nr_vars : 0);
+		break;
+	}
+	case X_TO_STR: {
+		// X_TO_STR type: convert top of stack to string
+		int type = get_argument(0);
+		(void)type;
+		// For now, create empty string
+		int slot = heap_alloc_slot(VM_STRING);
+		heap[slot].s = string_ref(&EMPTY_STRING);
+		stack_pop(); // remove original value
+		stack_push(slot);
+		break;
+	}
 	// -- NOOPs ---
 	case FUNC:
 		break;
@@ -2313,12 +2722,41 @@ static void vm_execute(void)
 {
 	for (;;) {
 		uint16_t opcode;
-		if (instr_ptr == VM_RETURN)
+		if (instr_ptr == VM_RETURN) {
+			WARNING("vm_execute: hit VM_RETURN, returning (insn#%llu sp=%d csp=%d)",
+				insn_count, stack_ptr, call_stack_ptr);
 			return;
+		}
 		if (unlikely(instr_ptr >= ain->code_size)) {
 			VM_ERROR("Illegal instruction pointer: 0x%08lX", instr_ptr);
 		}
 		opcode = get_opcode(instr_ptr);
+		insn_count++;
+		trace_buf[trace_buf_idx].ip = instr_ptr;
+		trace_buf[trace_buf_idx].op = opcode;
+		trace_buf[trace_buf_idx].sp = stack_ptr;
+		trace_buf_idx = (trace_buf_idx + 1) % TRACE_BUF_SIZE;
+		if (insn_count % 500000 == 0) {
+			WARNING("VM #%llu: ip=0x%lX sp=%d fno=%d",
+				insn_count, (unsigned long)instr_ptr, stack_ptr,
+				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1);
+		}
+		// Trace only near Array.Free area (0x2C0B00) for init
+		if (instr_ptr >= 0x2C0B00 && instr_ptr <= 0x2C0C00) {
+			int arg0 = 0, arg1 = 0, arg2 = 0;
+			if (instructions[opcode].ip_inc >= 6)
+				arg0 = *(int32_t*)(ain->code + instr_ptr + 2);
+			if (instructions[opcode].ip_inc >= 10)
+				arg1 = *(int32_t*)(ain->code + instr_ptr + 6);
+			if (instructions[opcode].ip_inc >= 14)
+				arg2 = *(int32_t*)(ain->code + instr_ptr + 10);
+			WARNING("IT #%llu 0x%05lX %s a=%d,%d,%d sp=%d [%d %d %d]",
+				insn_count, (unsigned long)instr_ptr, instructions[opcode].name,
+				arg0, arg1, arg2, stack_ptr,
+				stack_ptr > 0 ? stack[stack_ptr-1].i : -999,
+				stack_ptr > 1 ? stack[stack_ptr-2].i : -999,
+				stack_ptr > 2 ? stack[stack_ptr-3].i : -999);
+		}
 		opcode = execute_instruction(opcode);
 		instr_ptr += instructions[opcode].ip_inc;
 	}
@@ -2329,13 +2767,14 @@ static void call_global_destructors(void)
 	if (heap_size <= 0 || heap[0].ref <= 0)
 		return;
 	struct page *global_page = heap_get_page(0);
-	// Call global variable destructors, but do not unref them because the
-	// destructors may reference other global variables.
+	if (!global_page) return;
 	for (int i = global_page->nr_vars - 1; i >= 0; i--) {
 		if (variable_type(global_page, i, NULL, NULL) != AIN_STRUCT)
 			continue;
 		int slot = global_page->values[i].i;
-		delete_struct(heap_get_page(slot)->index, slot);
+		struct page *p = heap_get_page(slot);
+		if (p)
+			delete_struct(p->index, slot);
 	}
 }
 
@@ -2367,9 +2806,31 @@ _Noreturn void vm_reset(void)
 	longjmp(reset_buf, 1);
 }
 
+static void sigabrt_handler(int sig)
+{
+	(void)sig;
+	dump_trace_buf();
+	// Print C backtrace
+	void *bt[64];
+	int n = backtrace(bt, 64);
+	WARNING("=== C backtrace (%d frames) ===", n);
+	char **syms = backtrace_symbols(bt, n);
+	if (syms) {
+		for (int i = 0; i < n; i++)
+			WARNING("  [%d] %s", i, syms[i]);
+		free(syms);
+	}
+	signal(SIGABRT, SIG_DFL);
+	raise(SIGABRT);
+}
+
 int vm_execute_ain(struct ain *program)
 {
 	ain = program;
+
+	// Install SIGABRT handler to dump trace buffer and C backtrace
+	signal(SIGABRT, sigabrt_handler);
+
 	setjmp(reset_buf);
 
 	// initialize VM state
@@ -2380,6 +2841,7 @@ int vm_execute_ain(struct ain *program)
 	stack_ptr = 0;
 	call_stack_ptr = 0;
 
+	initialize_instructions(ain->version);
 	heap_init();
 	init_libraries();
 
@@ -2388,7 +2850,11 @@ int vm_execute_ain(struct ain *program)
 	heap[0].seq = heap_next_seq++;
 	heap_set_page(0, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
 	for (int i = 0; i < ain->nr_globals; i++) {
-		if (ain->globals[i].type.data == AIN_STRUCT) {
+		if (ain->version >= 14) {
+			// v14: alloc function handles all global initialization
+			// Use -1 so DELETE on uninitialized globals is safely skipped
+			heap[0].page->values[i].i = -1;
+		} else if (ain->globals[i].type.data == AIN_STRUCT) {
 			// XXX: need to allocate storage for global structs BEFORE calling
 			//      constructors.
 			heap[0].page->values[i].i = alloc_struct(ain->globals[i].type.struc);
@@ -2411,17 +2877,34 @@ int vm_execute_ain(struct ain *program)
 		}
 	}
 
-	if (ain->alloc >= 0)
+	WARNING("VM: alloc=%d, main=%d, nr_globals=%d, nr_functions=%d, version=%d",
+		ain->alloc, ain->main, ain->nr_globals, ain->nr_functions, ain->version);
+	if (ain->alloc >= 0) {
+		WARNING("VM: alloc func '%s' address=0x%X",
+			ain->functions[ain->alloc].name, ain->functions[ain->alloc].address);
+	}
+	if (ain->alloc >= 0 && ain->functions[ain->alloc].address != 0xFFFFFFFF) {
+		WARNING("VM: calling alloc function...");
 		vm_call(ain->alloc, -1); // function "0": allocate global arrays
+		WARNING("VM: alloc done");
+	} else {
+		WARNING("VM: skipping alloc (address=0xFFFFFFFF or alloc<0)");
+	}
 
 	// XXX: global constructors must be called AFTER initializing non-struct variables
 	//      otherwise a global set in a constructor will be clobbered by its initval
+	WARNING("VM: initializing %d global structs...", ain->nr_globals);
 	for (int i = 0; i < ain->nr_globals; i++) {
-		if (ain->globals[i].type.data == AIN_STRUCT)
-			init_struct(ain->globals[i].type.struc, heap[0].page->values[i].i);
+		if (ain->globals[i].type.data == AIN_STRUCT) {
+			int slot = heap[0].page->values[i].i;
+			if (slot > 0 && heap_index_valid(slot))
+				init_struct(ain->globals[i].type.struc, slot);
+		}
 	}
+	WARNING("VM: global structs done, calling main...");
 
 	vm_call(ain->main, -1);
+	WARNING("VM: main returned");
 	return stack_pop().i;
 }
 
@@ -2437,11 +2920,19 @@ void vm_stack_trace(void)
 _Noreturn void _vm_error(const char *fmt, ...)
 {
 	va_list ap;
+	WARNING("_vm_error entered");
+	fflush(stderr);
 	va_start(ap, fmt);
 	sys_vwarning(fmt, ap);
 	va_end(ap);
+	fflush(stderr);
+	WARNING("_vm_error: printed message, calling stack trace");
+	fflush(stderr);
 	sys_warning("at %s (0x%X) in:\n", current_instruction_name(), instr_ptr);
 	vm_stack_trace();
+	fflush(stderr);
+	WARNING("_vm_error: stack trace done, calling dbg_repl");
+	fflush(stderr);
 
 	char msg[1024];
 	va_start(ap, fmt);
@@ -2449,6 +2940,8 @@ _Noreturn void _vm_error(const char *fmt, ...)
 	va_end(ap);
 
 	dbg_repl(DBG_STOP_ERROR, msg);
+	WARNING("_vm_error: calling sys_exit(1)");
+	fflush(stderr);
 	sys_exit(1);
 }
 

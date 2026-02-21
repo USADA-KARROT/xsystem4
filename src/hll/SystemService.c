@@ -401,6 +401,11 @@ static void SystemService_ModuleInit(void)
 	load_window_settings();
 }
 
+static void SystemService_AddBackupSaveFileName(struct string *name)
+{
+	// stub — backup save file name tracking not needed
+}
+
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
@@ -446,7 +451,8 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
 	    HLL_EXPORT(Test, SystemService_Test),
-	    HLL_EXPORT(DRPKT, SystemService_DRPKT)
+	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
+	    HLL_EXPORT(AddBackupSaveFileName, SystemService_AddBackupSaveFileName)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

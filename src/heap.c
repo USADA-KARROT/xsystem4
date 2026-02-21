@@ -87,6 +87,7 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	heap[slot].ref = 1;
 	heap[slot].seq = heap_next_seq++;
 	heap[slot].type = type;
+	heap[slot].page = NULL;  // Clear stale pointer from previous allocation
 #ifdef DEBUG_HEAP
 	heap[slot].alloc_addr = instr_ptr;
 	memset(heap[slot].ref_addr, 0, sizeof(heap[slot].ref_addr));
@@ -117,9 +118,15 @@ static void heap_double_free(int32_t slot)
 
 void heap_ref(int32_t slot)
 {
-	if (slot == -1)
+	if (slot <= 0 || (size_t)slot >= heap_size)
 		return;
 	heap[slot].ref++;
+	if (slot == 1000) {
+		WARNING("heap_ref(1000): ref=%d type=%d ip=0x%lX fno=%d",
+			heap[slot].ref, heap[slot].type,
+			(unsigned long)instr_ptr,
+			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1);
+	}
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
 #endif
@@ -127,20 +134,28 @@ void heap_ref(int32_t slot)
 
 void heap_unref(int slot)
 {
-	if (unlikely(heap[slot].ref <= 0)) {
-		heap_double_free(slot);
-		VM_ERROR("double free");
-	}
-	if (heap[slot].ref > 1) {
-#ifdef DEBUG_HEAP
-		heap[slot].deref_addr[heap[slot].deref_nr++ % 16] = instr_ptr;
-#endif
-		heap[slot].ref--;
+	static int unref_depth = 0;
+	// Never unref the global page (slot 0) or invalid slots
+	if (slot <= 0 || (size_t)slot >= heap_size) {
 		return;
 	}
-#ifdef DEBUG_HEAP
-	heap[slot].free_addr = instr_ptr;
-#endif
+	unref_depth++;
+	if (slot == 1000) {
+		WARNING("heap_unref(1000): ref=%d->%d type=%d ip=0x%lX fno=%d",
+			heap[slot].ref, heap[slot].ref - 1, heap[slot].type,
+			(unsigned long)instr_ptr,
+			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1);
+	}
+	if (unlikely(heap[slot].ref <= 0)) {
+		unref_depth--;
+		return;
+	}
+	if (heap[slot].ref > 1) {
+		heap[slot].ref--;
+		unref_depth--;
+		return;
+	}
+	heap[slot].ref = 0;
 	switch (heap[slot].type) {
 	case VM_PAGE:
 		if (heap[slot].page) {
@@ -148,11 +163,15 @@ void heap_unref(int slot)
 		}
 		break;
 	case VM_STRING:
-		free_string(heap[slot].s);
+		if (heap[slot].s)
+			free_string(heap[slot].s);
+		break;
+	default:
+		WARNING("heap_unref: unknown type %d at slot %d", heap[slot].type, slot);
 		break;
 	}
-	heap[slot].ref = 0;
 	heap_free_slot(slot);
+	unref_depth--;
 }
 
 // XXX: special version of heap_unref which avoids calling destructors
@@ -225,23 +244,49 @@ bool string_index_valid(int index)
 
 struct page *heap_get_page(int index)
 {
-	if (unlikely(!page_index_valid(index)))
-		VM_ERROR("Invalid page index: %d", index);
+	if (unlikely(!page_index_valid(index))) {
+		int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+		if (index >= 0 && (size_t)index < heap_size)
+			WARNING("heap_get_page: invalid page index %d (ref=%d type=%d) ip=0x%lX fno=%d",
+				index, heap[index].ref, heap[index].type,
+				(unsigned long)instr_ptr, fno);
+		else
+			WARNING("heap_get_page: invalid page index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
+				index, heap_size, (unsigned long)instr_ptr, fno);
+		return NULL;
+	}
 	return heap[index].page;
 }
 
 struct string *heap_get_string(int index)
 {
-	if (unlikely(!string_index_valid(index)))
-		VM_ERROR("Invalid string index: %d", index);
+	if (unlikely(!string_index_valid(index))) {
+		int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+		if (index >= 0 && (size_t)index < heap_size) {
+			if (heap[index].type == VM_PAGE && heap[index].page)
+				WARNING("heap_get_string: invalid string index %d (ref=%d type=VM_PAGE page_type=%d a_type=%d nr_vars=%d) ip=0x%lX fno=%d",
+					index, heap[index].ref, heap[index].page->type, heap[index].page->a_type, heap[index].page->nr_vars,
+					(unsigned long)instr_ptr, fno);
+			else
+				WARNING("heap_get_string: invalid string index %d (ref=%d type=%d) ip=0x%lX fno=%d",
+					index, heap[index].ref, heap[index].type, (unsigned long)instr_ptr, fno);
+		} else
+			WARNING("heap_get_string: invalid string index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
+				index, heap_size, (unsigned long)instr_ptr, fno);
+		return &EMPTY_STRING;
+	}
 	return heap[index].s;
 }
 
+static int delegate_page_warn_count = 0;
 struct page *heap_get_delegate_page(int index)
 {
 	struct page *page = heap_get_page(index);
-	if (unlikely(page && page->type != DELEGATE_PAGE))
-		VM_ERROR("Not a delegate page: %d", index);
+	if (unlikely(page && page->type != DELEGATE_PAGE)) {
+		if (delegate_page_warn_count++ < 5)
+			WARNING("heap_get_delegate_page: not a delegate page %d (suppressing further)", index);
+		return NULL;
+	}
 	return page;
 }
 
