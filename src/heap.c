@@ -295,6 +295,13 @@ void heap_set_page(int slot, struct page *page)
 	if (unlikely(!page_index_valid(slot)))
 		VM_ERROR("Invalid page index: %d", index);
 #endif
+	if (unlikely(slot == 0 && page && page->type != GLOBAL_PAGE)) {
+		static int hp0_warn = 0;
+		if (hp0_warn++ < 5)
+			WARNING("heap_set_page: BUG! overwriting slot 0 (global page) with type=%d idx=%d",
+				page->type, page->index);
+		return;
+	}
 	heap[slot].page = page;
 }
 
@@ -314,6 +321,10 @@ void heap_struct_assign(int lval, int rval)
 {
 	if (unlikely(lval == -1))
 		VM_ERROR("Assignment to null-pointer");
+	if (unlikely(lval <= 0)) {
+		WARNING("heap_struct_assign: attempt to assign to slot %d (global page), rval=%d", lval, rval);
+		return;
+	}
 	if (lval == rval)
 		return;
 #ifdef DEBUG_HEAP

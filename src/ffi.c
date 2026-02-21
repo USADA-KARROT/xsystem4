@@ -503,14 +503,14 @@ void hll_call(int libno, int fno, int hll_arg3)
 			j++;
 			break;
 		case AIN_REF_STRING:
-			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
 			    && heap[heap_slots[i]].type == VM_STRING)
 				heap[heap_slots[i]].s = heap_ptrs[i];
 			break;
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
 		case AIN_REF_DELEGATE:
-			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
 			    && heap[heap_slots[i]].type == VM_PAGE)
 				heap[heap_slots[i]].page = heap_ptrs[i];
 			break;
@@ -914,7 +914,6 @@ static void library_run_all(const char *name)
 	for (int i = 0; i < ain->nr_libraries; i++) {
 		for (int j = 0; static_libraries[j]; j++) {
 			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
-				WARNING("  run_all(%s) on %s...", name, ain->libraries[i].name);
 				library_run(static_libraries[j], name);
 				break;
 			}
@@ -937,8 +936,6 @@ static void link_libraries(void)
 
 	for (int i = 0; i < ain->nr_libraries; i++) {
 		const char *resolved = resolve_library_name(ain->libraries[i].name);
-		WARNING("Linking library %d/%d: %s (%d functions)...",
-			i, ain->nr_libraries, ain->libraries[i].name, ain->libraries[i].nr_functions);
 		for (int j = 0; static_libraries[j]; j++) {
 			if (!strcmp(resolved, static_libraries[j]->name)) {
 				libraries[i] = link_static_library(&ain->libraries[i], static_libraries[j]);
@@ -954,13 +951,9 @@ bool libraries_initialized = false;
 
 void init_libraries(void)
 {
-	WARNING("init_libraries: _PreLink...");
 	library_run_all("_PreLink");
-	WARNING("init_libraries: link_libraries...");
 	link_libraries();
-	WARNING("init_libraries: _ModuleInit...");
 	library_run_all("_ModuleInit");
-	WARNING("init_libraries: done");
 	libraries_initialized = true;
 }
 

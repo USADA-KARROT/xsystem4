@@ -219,6 +219,10 @@ void delete_page_vars(struct page *page)
 
 void delete_page(int slot)
 {
+	if (unlikely(slot == 0)) {
+		WARNING("delete_page: BUG! attempt to delete slot 0 (global page)");
+		return;
+	}
 	struct page *page = heap[slot].page;
 	if (!page)
 		return;

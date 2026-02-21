@@ -186,7 +186,11 @@ static int system_MsgBoxOkCancel(struct string *text)
 // [26] Error(text) -> string
 static struct string *system_Error(struct string *text)
 {
-	WARNING("system.Error: %s", text->text);
+	static int error_count = 0;
+	if (error_count++ < 10)
+		WARNING("system.Error: %s", text->text);
+	else if (error_count == 11)
+		WARNING("system.Error: (suppressing further errors)");
 	return string_ref(text);
 }
 

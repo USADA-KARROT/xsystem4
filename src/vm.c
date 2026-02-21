@@ -466,24 +466,34 @@ static void function_call(int fno, int return_address)
 	}
 }
 
+static void function_return(void);
+
 static void method_call(int fno, int return_address)
 {
 	function_call(fno, return_address);
 	int struct_page = stack_pop().i;
-	// Validate struct_page: should point to a STRUCT_PAGE, not LOCAL_PAGE
-	if (heap_index_valid(struct_page) && heap[struct_page].page) {
-		struct page *sp = heap[struct_page].page;
-		if (sp->type != STRUCT_PAGE) {
-			static int mc_trace = 0;
-			if (mc_trace < 20) {
-				WARNING("method_call: struct_page=%d is type %d (idx=%d nr_vars=%d), "
-					"expected STRUCT_PAGE. fno=%d '%s' nr_args=%d page_slot=%d",
-					struct_page, sp->type, sp->index, sp->nr_vars,
-					fno, ain->functions[fno].name, ain->functions[fno].nr_args,
-					call_stack[call_stack_ptr-1].page_slot);
-				mc_trace++;
-			}
+	// Skip method if struct_page is invalid (null, global page, or wrong type)
+	bool valid = struct_page > 0 && heap_index_valid(struct_page)
+		&& heap[struct_page].page && heap[struct_page].page->type == STRUCT_PAGE;
+	if (unlikely(!valid)) {
+		static int mc_skip = 0;
+		if (mc_skip++ < 20) {
+			const char *name = (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?";
+			if (struct_page > 0 && heap_index_valid(struct_page) && heap[struct_page].page)
+				WARNING("method_call: skip fno=%d '%s' struct_page=%d type=%d (not STRUCT_PAGE)",
+					fno, name, struct_page, heap[struct_page].page->type);
+			else
+				WARNING("method_call: skip fno=%d '%s' struct_page=%d (invalid/null)",
+					fno, name, struct_page);
 		}
+		// Push default return value if function has non-void return type
+		if (ain->functions[fno].return_type.data == AIN_STRING) {
+			stack_push(vm_string_ref(string_ref(&EMPTY_STRING)));
+		} else if (ain->functions[fno].return_type.data != AIN_VOID) {
+			stack_push((union vm_value){.i = 0});
+		}
+		function_return();
+		return;
 	}
 	call_stack[call_stack_ptr-1].struct_page = struct_page;
 	heap[call_stack[call_stack_ptr-1].page_slot].page->local.struct_ptr = struct_page;
