@@ -28,6 +28,11 @@
 
 #define HLL_MAX_ARGS 64
 
+// Struct page for the most recent AIN_HLL_FUNC callback argument.
+// HLL callback functions (type 95) are 2-slot: [struct_page, func_no].
+// The struct_page is the closure context for lambda calls.
+int32_t hll_callback_page = -1;
+
 struct hll_function {
 	void *fun;
 	ffi_cif cif;
@@ -296,12 +301,63 @@ void hll_call(int libno, int fno)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 
-	if (!libraries[libno])
-		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
+	if (!libraries[libno] || !libraries[libno][fno].fun) {
+		WARNING("Unimplemented HLL function: %s.%s (popping %d args, pushing 0)",
+			ain->libraries[libno].name, f->name, f->nr_arguments);
+		// Pop all arguments from stack
+		for (int i = f->nr_arguments - 1; i >= 0; i--) {
+			switch (f->arguments[i].type.data) {
+			case AIN_REF_INT:
+			case AIN_REF_LONG_INT:
+			case AIN_REF_BOOL:
+			case AIN_REF_FLOAT:
+			case AIN_REF_HLL_PARAM:
+			case AIN_REF_FUNC_TYPE:
+				stack_ptr -= 2; break;
+			case AIN_REF_STRING:
+			case AIN_REF_STRUCT:
+			case AIN_REF_ARRAY_TYPE:
+			case AIN_REF_DELEGATE:
+			case AIN_REF_ARRAY:
+				stack_ptr--; break;  // heap-type refs: 1-slot (value/heap index)
+			case AIN_HLL_FUNC:
+				stack_ptr -= 2; break;  // 2-slot: [struct_page, func_no]
+			case AIN_WRAP: {
+				struct ain_type *ws = f->arguments[i].type.array_type;
+				bool prim = ws && (ws->data == AIN_INT || ws->data == AIN_BOOL ||
+					ws->data == AIN_FLOAT || ws->data == AIN_LONG_INT ||
+					ws->data == AIN_ENUM || ws->data == AIN_ENUM2 ||
+					ws->data == AIN_IFACE || ws->data == AIN_IFACE_WRAP);
+				stack_ptr -= (ain->version >= 14 && prim) ? 2 : 1;
+				break;
+			}
+			case AIN_OPTION:
+				stack_ptr -= (ain->version >= 14) ? 2 : 1;
+				break;
+			default:
+				stack_ptr--; break;
+			}
+		}
+		// Push default return value(s)
+		if (f->return_type.data != AIN_VOID) {
+			int stub_ret = 1;
+			if (ain->version >= 14 && f->return_type.data == AIN_OPTION) {
+				stub_ret = 2;
+			} else if (ain->version >= 14 && f->return_type.data == AIN_WRAP) {
+				struct ain_type *ws = f->return_type.array_type;
+				bool prim = ws && (ws->data == AIN_INT || ws->data == AIN_BOOL ||
+					ws->data == AIN_FLOAT || ws->data == AIN_LONG_INT ||
+					ws->data == AIN_ENUM || ws->data == AIN_ENUM2 ||
+					ws->data == AIN_IFACE || ws->data == AIN_IFACE_WRAP);
+				stub_ret = prim ? 2 : 1;
+			}
+			for (int i = 0; i < stub_ret; i++)
+				stack_push(f->return_type.data == AIN_REF_HLL_PARAM ? -1 : 0);
+		}
+		return;
+	}
 
 	struct hll_function *fun = &libraries[libno][fno];
-	if (!fun->fun)
-		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
 	void *args[HLL_MAX_ARGS];
 	void *ptrs[HLL_MAX_ARGS];
@@ -309,14 +365,16 @@ void hll_call(int libno, int fno)
 	// reallocation during HLL calls.
 	void *heap_ptrs[HLL_MAX_ARGS];
 	int heap_slots[HLL_MAX_ARGS];
+	// (ref_array container info no longer needed — 1-slot handling)
 
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
-		case AIN_REF_FLOAT: {
-			// need to create pointer for immediate ref types
+		case AIN_REF_FLOAT:
+		case AIN_REF_HLL_PARAM: {
+			// need to create pointer for immediate ref types (2-slot)
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
 			int varno  = stack[stack_ptr+1].i;
@@ -324,29 +382,157 @@ void hll_call(int libno, int fno)
 			args[i] = &ptrs[i];
 			break;
 		}
-		case AIN_STRING:
+		case AIN_STRING: {
 			stack_ptr--;
-			args[i] = &heap[stack[stack_ptr].i].s;
+			int slot = stack[stack_ptr].i;
+			if (slot >= 0 && (size_t)slot < heap_size)
+				args[i] = &heap[slot].s;
+			else {
+				heap_ptrs[i] = NULL;
+				args[i] = &heap_ptrs[i];
+			}
 			break;
-		case AIN_REF_STRING:
+		}
+		case AIN_REF_STRING: {
+			// v14: bytecode dereferences via X_REF → 1-slot value (same as pre-v14)
 			stack_ptr--;
-			heap_slots[i] = stack[stack_ptr].i;
-			heap_ptrs[i] = heap[stack[stack_ptr].i].s;
+			int slot = stack[stack_ptr].i;
+			heap_slots[i] = slot;
+			if (slot >= 0 && (size_t)slot < heap_size)
+				heap_ptrs[i] = heap[slot].s;
+			else
+				heap_ptrs[i] = NULL;
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
+		}
 		case AIN_STRUCT:
 		case AIN_ARRAY_TYPE:
+		case AIN_ARRAY:
+		case AIN_DELEGATE: {
 			stack_ptr--;
-			args[i] = &heap[stack[stack_ptr].i].page;
+			int slot = stack[stack_ptr].i;
+			if (slot == 0) {
+				// Protect global page — pass NULL instead of &heap[0].page
+				// so HLL functions see an empty/uninitialized container
+				static int slot0_warn = 0;
+				if (slot0_warn++ < 10)
+					WARNING("FFI: slot=0 (global page) for %s.%s arg[%d], using NULL",
+						ain->libraries[libno].name, f->name, i);
+				heap_ptrs[i] = NULL;
+				args[i] = &heap_ptrs[i];
+			} else if (slot >= 0 && (size_t)slot < heap_size)
+				args[i] = &heap[slot].page;
+			else {
+				heap_ptrs[i] = NULL;
+				args[i] = &heap_ptrs[i];
+			}
 			break;
+		}
+		case AIN_WRAP: {
+			int slot;
+			struct ain_type *wrap_sub = f->arguments[i].type.array_type;
+			bool is_primitive_wrap = wrap_sub && (wrap_sub->data == AIN_INT ||
+				wrap_sub->data == AIN_BOOL || wrap_sub->data == AIN_FLOAT ||
+				wrap_sub->data == AIN_LONG_INT || wrap_sub->data == AIN_ENUM ||
+				wrap_sub->data == AIN_ENUM2);
+			if (ain->version >= 14 && is_primitive_wrap) {
+				// v14 wrap<primitive>: 2-slot variable reference on stack [page_ref, var_idx]
+				// Bytecode passes the variable ref so the HLL can write back through pointer.
+				stack_ptr -= 2;
+				int pageno = stack[stack_ptr].i;
+				int varno = stack[stack_ptr + 1].i;
+				if (pageno >= 0 && (size_t)pageno < heap_size && heap[pageno].page &&
+						varno >= 0 && varno < heap[pageno].page->nr_vars) {
+					slot = heap[pageno].page->values[varno].i;
+				} else {
+					slot = -1;
+				}
+			} else {
+				// Pre-v14 or wrap<non-primitive>: 1-slot heap index
+				stack_ptr--;
+				slot = stack[stack_ptr].i;
+			}
+			if (slot <= 0) {
+				// Uninitialized or global page — allocate a proper wrap page
+				slot = heap_alloc_slot(VM_PAGE);
+				struct page *wp = alloc_page(STRUCT_PAGE, 0, 1);
+				wp->values[0].i = 0;
+				heap_set_page(slot, wp);
+			}
+			if (is_primitive_wrap) {
+				// wrap<primitive>: C function expects int*/float*, not struct page*
+				heap_slots[i] = slot;
+				if (slot >= 0 && (size_t)slot < heap_size && heap[slot].page &&
+						heap[slot].page->nr_vars > 0) {
+					ptrs[i] = &heap[slot].page->values[0];
+				} else {
+					memset(&heap_ptrs[i], 0, sizeof(heap_ptrs[i]));
+					ptrs[i] = &heap_ptrs[i];
+				}
+				args[i] = &ptrs[i];
+			} else {
+				// wrap<struct/array/etc>: pass page pointer directly
+				if (slot >= 0 && (size_t)slot < heap_size)
+					args[i] = &heap[slot].page;
+				else {
+					heap_ptrs[i] = NULL;
+					args[i] = &heap_ptrs[i];
+				}
+			}
+			break;
+		}
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
+		case AIN_REF_DELEGATE: {
+			// v14: bytecode dereferences via X_REF → 1-slot value (same as pre-v14)
 			stack_ptr--;
-			heap_slots[i] = stack[stack_ptr].i;
-			heap_ptrs[i] = heap[stack[stack_ptr].i].page;
+			int slot = stack[stack_ptr].i;
+			if (slot == 0) {
+				// Protect global page
+				heap_slots[i] = 0;
+				heap_ptrs[i] = NULL;
+			} else if (slot >= 0 && (size_t)slot < heap_size) {
+				heap_slots[i] = slot;
+				heap_ptrs[i] = heap[slot].page;
+			} else {
+				heap_slots[i] = -1;
+				heap_ptrs[i] = NULL;
+			}
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
+			break;
+		}
+		case AIN_REF_ARRAY: {
+			// v14: X_REF already dereferenced the 2-slot struct member
+			// reference, so the stack has a 1-slot heap index (like REF_ARRAY_TYPE)
+			stack_ptr--;
+			int slot = stack[stack_ptr].i;
+			if (slot == 0) {
+				// Protect global page
+				heap_slots[i] = 0;
+				heap_ptrs[i] = NULL;
+			} else if (slot >= 0 && (size_t)slot < heap_size) {
+				heap_slots[i] = slot;
+				if (heap[slot].type == VM_PAGE)
+					heap_ptrs[i] = heap[slot].page;
+				else
+					heap_ptrs[i] = NULL;
+			} else {
+				heap_slots[i] = -1;
+				heap_ptrs[i] = NULL;
+			}
+			ptrs[i] = &heap_ptrs[i];
+			args[i] = &ptrs[i];
+			break;
+		}
+		case AIN_HLL_FUNC:
+			// v14 HLL callback function — 2-slot: [struct_page, func_no]
+			// The struct_page is the closure context for lambda calls.
+			stack_ptr--;
+			args[i] = &stack[stack_ptr];  // func_no
+			stack_ptr--;
+			hll_callback_page = stack[stack_ptr].i;  // struct_page (closure)
 			break;
 		default:
 			stack_ptr--;
@@ -371,15 +557,33 @@ void hll_call(int libno, int fno)
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
+		case AIN_REF_HLL_PARAM:
 			j++;
 			break;
+		case AIN_HLL_FUNC:
+			j++;  // 2-slot: [struct_page, func_no]
+			break;
 		case AIN_REF_STRING:
-			heap[heap_slots[i]].s = heap_ptrs[i];
+			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size)
+				heap[heap_slots[i]].s = heap_ptrs[i];
+			if (ain->version >= 14)
+				j++;  // v14: 2-slot reference
 			break;
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
-			heap[heap_slots[i]].page = heap_ptrs[i];
+		case AIN_REF_DELEGATE:
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size)
+				heap[heap_slots[i]].page = heap_ptrs[i];
+			if (ain->version >= 14)
+				j++;  // v14: 2-slot reference
 			break;
+		case AIN_REF_ARRAY: {
+			// Write back array page to its heap slot (1-slot, same as REF_ARRAY_TYPE)
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size)
+				heap[heap_slots[i]].page = heap_ptrs[i];
+			// No j++ — 1-slot argument (X_REF already dereferenced)
+			break;
+		}
 		case AIN_REF_FUNC_TYPE:
 			break;
 		case AIN_ARRAY_TYPE:
@@ -388,7 +592,12 @@ void hll_call(int libno, int fno)
 				break;
 			// fallthrough
 		default:
-			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data, false);
+			// v14+: bytecode does NOT use SP_INC before CALLHLL, so arguments
+			// have no extra ref count.  The bytecode handles cleanup via DELETE.
+			// Calling variable_fini here would prematurely free values still
+			// referenced by local variables (e.g., freeing main's local page).
+			if (ain->version < 14)
+				variable_fini(stack[stack_ptr+j], f->arguments[i].type.data, false);
 			break;
 		}
 	}
@@ -407,6 +616,11 @@ void hll_call(int libno, int fno)
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 		stack_push(*(bool*)&r);
 #pragma GCC diagnostic pop
+		break;
+	case AIN_REF_HLL_PARAM:
+		// v14: HLL option return — bytecode expects 1 slot (the raw value).
+		// The bytecode checks value == -1 for None, no separate discriminant.
+		stack_push(r);
 		break;
 	default:
 		stack_push(r);
@@ -491,6 +705,7 @@ extern struct static_library lib_PixelRestore;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_ReignEngine;
+extern struct static_library lib_SealEngine;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
 extern struct static_library lib_SengokuRanceFont;
@@ -527,6 +742,14 @@ extern struct static_library lib_vmSprite;
 extern struct static_library lib_vmString;
 extern struct static_library lib_vmSurface;
 extern struct static_library lib_vmSystem;
+extern struct static_library lib_system;
+extern struct static_library lib_String;
+extern struct static_library lib_Delegate;
+extern struct static_library lib_Float;
+extern struct static_library lib_HashMap;
+extern struct static_library lib_Int;
+extern struct static_library lib_Sys43VM;
+extern struct static_library lib_TextFile;
 extern struct static_library lib_vmTimer;
 extern struct static_library lib_ValueEncryption;
 extern struct static_library lib_VSFile;
@@ -609,6 +832,7 @@ static struct static_library *static_libraries[] = {
 	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_ReignEngine,
+	&lib_SealEngine,
 	&lib_SACT2,
 	&lib_SACTDX,
 	&lib_SengokuRanceFont,
@@ -648,6 +872,14 @@ static struct static_library *static_libraries[] = {
 	&lib_vmTimer,
 	&lib_ValueEncryption,
 	&lib_VSFile,
+	&lib_system,
+	&lib_String,
+	&lib_Delegate,
+	&lib_Float,
+	&lib_HashMap,
+	&lib_Int,
+	&lib_Sys43VM,
+	&lib_TextFile,
 	NULL
 };
 
@@ -669,10 +901,25 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
 	case AIN_REF_TYPE:
+	case AIN_HLL_PARAM:
+	case AIN_REF_HLL_PARAM:
+	case AIN_ARRAY:
+	case AIN_WRAP:
+	case AIN_OPTION:
+	case AIN_UNKNOWN_TYPE_87:
+	case AIN_IFACE:
+	case AIN_IFACE_WRAP:
 	case AIN_IMAIN_SYSTEM: // ???
 		return &ffi_type_pointer;
+	case AIN_ENUM2:
+	case AIN_ENUM:
+	case AIN_REF_ENUM:
+	case AIN_HLL_FUNC:
+	case AIN_HLL_FUNC_71:
+		return &ffi_type_sint32;
 	default:
-		ERROR("Unhandled type in HLL function: %s", ain_strtype(ain, type, -1));
+		WARNING("Unhandled type in HLL function: %d (%s)", type, ain_strtype(ain, type, -1));
+		return &ffi_type_sint32;  // fallback to int
 	}
 }
 
@@ -698,19 +945,45 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 {
 	struct hll_function *dst = xcalloc(ainlib->nr_functions, sizeof(struct hll_function));
 
+	// Count static library functions and build duplicate-name tracking
+	int nr_lib_funcs = 0;
+	for (int j = 0; lib->functions[j].name; j++)
+		nr_lib_funcs++;
+
+	// Track which static lib entries have been consumed (for overloads)
+	bool *used = xcalloc(nr_lib_funcs, sizeof(bool));
+	// Mark which entries have duplicate names (only these use consumed tracking)
+	bool *has_dup = xcalloc(nr_lib_funcs, sizeof(bool));
+	for (int j = 0; j < nr_lib_funcs; j++) {
+		if (!lib->functions[j].name) break;
+		for (int k = j + 1; k < nr_lib_funcs; k++) {
+			if (!lib->functions[k].name) break;
+			if (!strcmp(lib->functions[j].name, lib->functions[k].name)) {
+				has_dup[j] = has_dup[k] = true;
+			}
+		}
+	}
+
 	for (int i = 0; i < ainlib->nr_functions; i++) {
-		for (int j = 0; lib->functions[j].name; j++) {
+		for (int j = 0; j < nr_lib_funcs; j++) {
+			if (has_dup[j] && used[j])
+				continue;
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
-				link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				if (lib->functions[j].fun)
+					link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				if (has_dup[j])
+					used[j] = true;
 				break;
 			}
 		}
 		if (!dst[i].fun)
-			;//WARNING("Unimplemented library function: %s.%s", ainlib->name, ainlib->functions[i].name);
+			; // unimplemented
 		else if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
 
+	free(has_dup);
+	free(used);
 	return dst;
 }
 
@@ -729,11 +1002,18 @@ static void library_run_all(const char *name)
 	for (int i = 0; i < ain->nr_libraries; i++) {
 		for (int j = 0; static_libraries[j]; j++) {
 			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+				WARNING("  run_all(%s) on %s...", name, ain->libraries[i].name);
 				library_run(static_libraries[j], name);
 				break;
 			}
 		}
 	}
+}
+
+// v14 AIN uses different library names; map them to xsystem4 names
+static const char *resolve_library_name(const char *name)
+{
+	return name;
 }
 
 static void link_libraries(void)
@@ -744,8 +1024,11 @@ static void link_libraries(void)
 	libraries = xcalloc(ain->nr_libraries, sizeof(struct hll_function*));
 
 	for (int i = 0; i < ain->nr_libraries; i++) {
+		const char *resolved = resolve_library_name(ain->libraries[i].name);
+		WARNING("Linking library %d/%d: %s (%d functions)...",
+			i, ain->nr_libraries, ain->libraries[i].name, ain->libraries[i].nr_functions);
 		for (int j = 0; static_libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+			if (!strcmp(resolved, static_libraries[j]->name)) {
 				libraries[i] = link_static_library(&ain->libraries[i], static_libraries[j]);
 				break;
 			}
@@ -759,9 +1042,13 @@ bool libraries_initialized = false;
 
 void init_libraries(void)
 {
+	WARNING("init_libraries: _PreLink...");
 	library_run_all("_PreLink");
+	WARNING("init_libraries: link_libraries...");
 	link_libraries();
+	WARNING("init_libraries: _ModuleInit...");
 	library_run_all("_ModuleInit");
+	WARNING("init_libraries: done");
 	libraries_initialized = true;
 }
 

@@ -110,12 +110,16 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 
 int vm_execute_ain(struct ain *program);
 void vm_call(int fno, int struct_page);
+void vm_call_nopop(int fno, int nargs);
 int vm_time(void);
 void vm_sleep(int ms);
 
 void hll_call(int libno, int fno);
 bool library_exists(int libno);
 bool library_function_exists(int libno, int fno);
+
+// Struct page for the most recent AIN_HLL_FUNC callback argument (closure context)
+extern int32_t hll_callback_page;
 void init_libraries(void);
 void exit_libraries(void);
 
@@ -155,6 +159,12 @@ struct function_call {
 	uint32_t return_address;
 	int32_t page_slot;
 	int32_t struct_page;
+	int32_t saved_sp;   // stack pointer after args popped (leak detection)
+	// v14 delegate call state (saved off value stack)
+	int32_t dg_page;    // delegate page slot (-1 = not in delegate call)
+	int32_t dg_index;   // current delegate entry index
+	int32_t dg_nr_args; // number of saved delegate arguments
+	union vm_value dg_args[8]; // saved delegate arguments
 };
 
 extern struct function_call call_stack[4096];

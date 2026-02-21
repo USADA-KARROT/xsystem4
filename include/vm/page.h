@@ -33,7 +33,7 @@ enum page_type {
 	DELEGATE_PAGE,
 };
 
-#define NR_PAGE_TYPES (ARRAY_PAGE+1)
+#define NR_PAGE_TYPES (DELEGATE_PAGE+1)
 
 /*
  * A page is an ordered collection of variables. Pages are used to implement
