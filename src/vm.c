@@ -2715,11 +2715,36 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case X_SET: {
 		// X_SET: assign value to variable reference (like X_ASSIGN 1 but no argument)
+		// Unlike X_ASSIGN, X_SET is followed by DELETE (not SP_INC), so it must
+		// handle ref counting internally for ref-counted types.
 		// stack: [..., heap_idx, page_idx, value]
 		union vm_value val = stack_pop();
-		union vm_value *var = stack_pop_var();
-		if (var) {
-			*var = val;
+		int32_t page_index = stack_pop().i;
+		int32_t heap_index = stack_pop().i;
+		if (heap_index_valid(heap_index) && heap[heap_index].page
+		    && page_index >= 0 && page_index < heap[heap_index].page->nr_vars) {
+			struct page *page = heap[heap_index].page;
+			// Check if variable is ref-counted type
+			enum ain_data_type dtype = variable_type(page, page_index, NULL, NULL);
+			switch (dtype) {
+			case AIN_STRING:
+			case AIN_STRUCT:
+			case AIN_DELEGATE:
+			case AIN_ARRAY_TYPE:
+			case AIN_ARRAY:
+			case AIN_WRAP:
+			case AIN_REF_TYPE:
+				// Unref old value
+				if (page->values[page_index].i != -1)
+					heap_unref(page->values[page_index].i);
+				// Ref new value
+				if (val.i != -1)
+					heap_ref(val.i);
+				break;
+			default:
+				break;
+			}
+			page->values[page_index] = val;
 		}
 		stack_push(val);
 		break;

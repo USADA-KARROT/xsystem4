@@ -219,21 +219,25 @@ void delete_page_vars(struct page *page)
 
 void delete_page(int slot)
 {
-	// Access heap[slot].page directly — heap_unref sets ref=0 before calling
-	// us to break circular references, so heap_get_page validation would fail.
 	struct page *page = heap[slot].page;
 	if (!page)
 		return;
-	heap[slot].page = NULL; // Prevent double-delete
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
 		WARNING("delete_page: corrupted page at slot %d (type=%d nr_vars=%d), skipping",
 			slot, page->type, page->nr_vars);
+		heap[slot].page = NULL;
 		return;  // leak memory rather than crash
 	}
 	if (page->type == STRUCT_PAGE) {
+		// Destructor needs heap[slot].page and ref > 0 for PUSHSTRUCTPAGE/X_REF.
+		// heap_unref already set ref=0 before calling us. Temporarily boost ref
+		// to a high value so X_REF works and accidental re-unref won't re-enter.
+		heap[slot].ref = 1 << 16;
 		delete_struct(page->index, slot);
+		heap[slot].ref = 0;
 	}
+	heap[slot].page = NULL;
 	delete_page_vars(page);
 	free_page(page);
 }
@@ -775,8 +779,10 @@ struct page *delegate_append(struct page *dst, int obj, int fun)
 {
 	if (!dst)
 		return delegate_new_from_method(obj, fun);
-	if (dst->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if (dst->type != DELEGATE_PAGE) {
+		WARNING("delegate_append: not a delegate (type=%d), creating new", dst->type);
+		return delegate_new_from_method(obj, fun);
+	}
 	if (delegate_contains(dst, obj, fun))
 		return dst;
 
@@ -792,8 +798,10 @@ int delegate_numof(struct page *page)
 {
 	if (!page)
 		return 0;
-	if (page->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if (page->type != DELEGATE_PAGE) {
+		WARNING("delegate_numof: not a delegate (type=%d)", page->type);
+		return 0;
+	}
 
 	// garbage collection
 	for (int i = 0; i < page->nr_vars; i += 3) {
@@ -814,8 +822,10 @@ void delegate_erase(struct page *page, int obj, int fun)
 {
 	if (!page)
 		return;
-	if (page->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if (page->type != DELEGATE_PAGE) {
+		WARNING("delegate_erase: not a delegate (type=%d)", page->type);
+		return;
+	}
 	for (int i = 0; i < page->nr_vars; i += 3) {
 		if (page->values[i].i == obj && page->values[i+1].i == fun) {
 			for (int j = i+3; j < page->nr_vars; j += 3) {
@@ -833,8 +843,10 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 {
 	if (!add)
 		return dst;
-	if ((dst && dst->type != DELEGATE_PAGE) || add->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if ((dst && dst->type != DELEGATE_PAGE) || add->type != DELEGATE_PAGE) {
+		WARNING("delegate_plusa: not a delegate");
+		return dst;
+	}
 
 	for (int i = 0; i < add->nr_vars; i += 3) {
 		if (heap_get_seq(add->values[i].i) == add->values[i+2].i)
@@ -849,8 +861,10 @@ struct page *delegate_minusa(struct page *dst, struct page *minus)
 		return NULL;
 	if (!minus)
 		return dst;
-	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if (dst->type != DELEGATE_PAGE || minus->type != DELEGATE_PAGE) {
+		WARNING("delegate_minusa: not a delegate");
+		return dst;
+	}
 
 	for (int i = 0; i < minus->nr_vars; i += 3) {
 		if (heap_get_seq(minus->values[i].i) == minus->values[i+2].i)
@@ -864,8 +878,11 @@ struct page *delegate_clear(struct page *page)
 {
 	if (!page)
 		return NULL;
-	if (page->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if (page->type != DELEGATE_PAGE) {
+		WARNING("delegate_clear: not a delegate (type=%d nr_vars=%d), returning NULL",
+			page->type, page->nr_vars);
+		return NULL;
+	}
 	for (int i = 0; i < page->nr_vars; i += 3) {
 		page->values[i].i = -1;
 		page->values[i+1].i = -1;
@@ -880,8 +897,10 @@ bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out)
 {
 	if (!page)
 		return false;
-	if (page->type != DELEGATE_PAGE)
-		VM_ERROR("Not a delegate");
+	if (page->type != DELEGATE_PAGE) {
+		WARNING("delegate_get: not a delegate (type=%d)", page->type);
+		return false;
+	}
 	while (i*3 < page->nr_vars) {
 		if (heap_get_seq(page->values[i*3].i) == page->values[i*3+2].i) {
 			*obj_out = page->values[i*3].i;

@@ -480,8 +480,8 @@ void hll_call(int libno, int fno, int hll_arg3)
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
 			heap_slots[i] = slot;
-			if (slot >= 0 && (size_t)slot < heap_size
-			    && heap[slot].type == VM_PAGE)
+			if (slot > 0 && (size_t)slot < heap_size
+			    && heap[slot].type == VM_PAGE && heap[slot].ref > 0)
 				heap_ptrs[i] = heap[slot].page;
 			else
 				heap_ptrs[i] = NULL;
@@ -514,39 +514,15 @@ void hll_call(int libno, int fno, int hll_arg3)
 	}
 
 	union vm_value r;
-	// Precision trace for GetTime heap[1] corruption
-	bool _gt_trace = (libno == 32 && fno == 33 && heap_size > 1 && heap[1].ref > 0);
-	int _gt_pre = _gt_trace ? heap[1].ref : 0;
-	if (_gt_trace) {
-		WARNING("GetTime PRE ffi_call: heap[1].ref=%d type=%d page=%p &ref=%p",
-			heap[1].ref, heap[1].type, (void*)heap[1].page, (void*)&heap[1].ref);
-		for (int _a = 0; _a < 3; _a++)
-			WARNING("  ptrs[%d]=%p (target writes to %p)", _a, ptrs[_a], ptrs[_a]);
-		WARNING("  sizeof(vm_value)=%zu sizeof(vm_pointer)=%zu",
-			sizeof(union vm_value), sizeof(heap[0]));
-	}
 #ifdef TRACE_HLL
 	trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
 #else
 	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
 #endif
-	if (_gt_trace && heap[1].ref != _gt_pre) {
-		WARNING("GetTime POST ffi_call: heap[1].ref=%d->%d CORRUPTED!",
-			_gt_pre, heap[1].ref);
-	}
 
-
-	// Checkpoint 1.5: before writeback
-	if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
-		WARNING("GetTime BEFORE WRITEBACK: heap[1].ref=%d->%d CORRUPTED!", _gt_pre, heap[1].ref);
-	}
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
-		if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
-			WARNING("GetTime WRITEBACK iter i=%d j=%d type=%d: heap[1].ref=%d->%d",
-				i, j, f->arguments[i].type.data, _gt_pre, heap[1].ref);
-		}
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
@@ -587,21 +563,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 	}
 
-	// Checkpoint 2: after writeback
-	if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
-		WARNING("GetTime AFTER WRITEBACK: heap[1].ref=%d->%d CORRUPTED!", _gt_pre, heap[1].ref);
-	}
 	int slot;
-	{
-		static int ret_trace = 0;
-		if (ret_trace < 10 && f->return_type.data != AIN_VOID && f->return_type.data != AIN_INT
-		    && f->return_type.data != AIN_FLOAT && f->return_type.data != AIN_BOOL) {
-			WARNING("ffi_return: %s.%s rettype=%d r.ref=%p r.i=%d",
-				ain->libraries[libno].name, f->name,
-				f->return_type.data, r.ref, r.i);
-			ret_trace++;
-		}
-	}
 	switch (f->return_type.data) {
 	case AIN_VOID:
 		break;
@@ -626,11 +588,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 	default:
 		stack_push(r);
 		break;
-	}
-	// Checkpoint 3: after return handling
-	if (_gt_trace && heap_size > 1 && heap[1].ref != _gt_pre) {
-		WARNING("GetTime AFTER RETURN: heap[1].ref=%d->%d CORRUPTED! rettype=%d",
-			_gt_pre, heap[1].ref, f->return_type.data);
 	}
 }
 

@@ -369,6 +369,29 @@ static void Array_Sort(struct page **array)
 	}
 }
 
+// Unique: remove duplicate values from sorted array
+static void Array_Unique(struct page **array)
+{
+	if (!array || !*array || (*array)->nr_vars <= 1)
+		return;
+	struct page *a = *array;
+	int write = 1;
+	for (int read = 1; read < a->nr_vars; read++) {
+		if (a->values[read].i != a->values[read - 1].i) {
+			a->values[write] = a->values[read];
+			write++;
+		}
+	}
+	if (write < a->nr_vars) {
+		struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, write);
+		for (int i = 0; i < write; i++)
+			new_a->values[i] = a->values[i];
+		new_a->array = a->array;
+		free_page(a);
+		*array = new_a;
+	}
+}
+
 //void Array_NV_copy(struct page **nArray, int nNum);
 //void Array_NV_add(struct page **nArray, int nNum);
 //void Array_NV_sub(struct page **nArray, int nNum);
@@ -643,6 +666,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Erase, Array_Erase),
 	    HLL_EXPORT(Insert, Array_Insert),
 	    HLL_EXPORT(Sort, Array_Sort),
+	    HLL_EXPORT(Unique, Array_Unique),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),
