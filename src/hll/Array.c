@@ -231,14 +231,6 @@ static int Array_Numof(struct page **self)
 static int Array_Empty(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	static int empty_log = 0;
-	if (empty_log < 20) {
-		WARNING("Empty: self=%p *self=%p nr_vars=%d result=%d",
-			(void*)self, self ? (void*)*self : NULL,
-			array ? array->nr_vars : -1,
-			!array || array->nr_vars == 0);
-		empty_log++;
-	}
 	return !array || array->nr_vars == 0;
 }
 
@@ -261,13 +253,6 @@ static int Array_Last(struct page **self)
 // PopBack (capital B) — v14 name
 static void Array_PopBack(struct page **array)
 {
-	static int popback_log = 0;
-	if (popback_log < 20) {
-		WARNING("PopBack: array=%p *array=%p nr_vars=%d",
-			(void*)array, array ? (void*)*array : NULL,
-			(array && *array) ? (*array)->nr_vars : -1);
-		popback_log++;
-	}
 	if (!array || !*array || (*array)->nr_vars <= 0)
 		return;
 	struct page *a = *array;
@@ -687,6 +672,47 @@ static int Array_NV_sceq(struct page **self, int index, int num, int *out_index)
 //int Array_SS_schighest(struct page *sArray, int nMember, struct page **sArrayD, int nMemberS, int *pnIndex);
 //int Array_VN_add(struct page *nArray);
 //int Array_VN_and(struct page *nArray);
+// Realloc: resize array, preserving existing elements
+static void Array_Realloc(struct page **array, int new_size)
+{
+	if (!array || new_size < 0)
+		return;
+	struct page *old = *array;
+	if (!old) {
+		*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
+		(*array)->array.rank = 1;
+		return;
+	}
+	int old_size = old->nr_vars;
+	struct page *new_a = alloc_page(ARRAY_PAGE, old->a_type, new_size);
+	new_a->array = old->array;
+	int copy = old_size < new_size ? old_size : new_size;
+	for (int i = 0; i < copy; i++)
+		new_a->values[i] = old->values[i];
+	free_page(old);
+	*array = new_a;
+}
+
+// Add: alias for Pushback (v14 generic array)
+static void Array_Add(struct page **array, int value)
+{
+	Array_Pushback(array, value);
+}
+
+// Find: alias for First (v14 generic array)
+static int Array_Find(struct page **array, int func)
+{
+	return Array_First(array, func);
+}
+
+// Copy: copy elements between arrays
+static void Array_Copy(struct page **dst, int dst_i, struct page **src, int src_i, int count)
+{
+	if (!dst || !*dst || !src || !*src || count <= 0)
+		return;
+	array_copy(*dst, dst_i, *src, src_i, count);
+}
+
 //int Array_VN_or(struct page *nArray);
 //int Array_VS_add(struct page *sArray, int nMember);
 //int Array_VS_and(struct page *sArray, int nMember);
@@ -713,6 +739,10 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Unique, Array_Unique),
 	    HLL_EXPORT(QuickSort, Array_QuickSort),
 	    HLL_EXPORT(Any, Array_Any),
+	    HLL_EXPORT(Add, Array_Add),
+	    HLL_EXPORT(Find, Array_Find),
+	    HLL_EXPORT(Realloc, Array_Realloc),
+	    HLL_EXPORT(Copy, Array_Copy),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),

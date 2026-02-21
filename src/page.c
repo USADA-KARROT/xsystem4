@@ -277,6 +277,11 @@ struct page *copy_page(struct page *src)
 int alloc_struct(int no)
 {
 	struct ain_struct *s = &ain->structures[no];
+	static bool traced_577 = false;
+	if (!traced_577 && (no == 577 || no == 576 || no == 578)) {
+		WARNING("alloc_struct(%d): name='%s' nr_members=%d", no, s->name, s->nr_members);
+		if (no == 577) traced_577 = true;
+	}
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	for (int i = 0; i < s->nr_members; i++) {

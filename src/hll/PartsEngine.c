@@ -54,6 +54,28 @@ static bool PartsEngine_AddCopyCutCGToPartsConstructionProcess_old(int parts_no,
 			sx, sy, w, h, 0, state);
 }
 
+static int PartsEngine_GetActiveController(void)
+{
+	return 0;
+}
+
+static void PartsEngine_SetActiveController(int controller)
+{
+	// stub: no controller system yet
+}
+
+static void PartsEngine_UpdateComponent(int passed_time, int a, int b, int c, int d)
+{
+	PE_UpdateComponent(passed_time);
+}
+
+/* Message pump quiet stubs — polled every frame in the game main loop.
+ * Returning 0/"empty" causes the loop to skip message processing. */
+static void PartsEngine_PopMessage(void) {}
+static int PartsEngine_GetMessageType(void) { return 0; }
+static int PartsEngine_GetMessagePartsNumber(void) { return 0; }
+static int PartsEngine_GetMessageVariableInt(int idx) { return 0; }
+
 static void PartsEngine_PreLink(void);
 
 HLL_LIBRARY(PartsEngine,
@@ -221,7 +243,14 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SetThumbnailMode, PE_SetThumbnailMode),
 	    HLL_EXPORT(Save, PE_Save),
 	    HLL_EXPORT(SaveWithoutHideParts, PE_SaveWithoutHideParts),
-	    HLL_EXPORT(Load, PE_Load)
+	    HLL_EXPORT(Load, PE_Load),
+	    HLL_EXPORT(GetActiveController, PartsEngine_GetActiveController),
+	    HLL_EXPORT(SetActiveController, PartsEngine_SetActiveController),
+	    HLL_EXPORT(UpdateComponent, PartsEngine_UpdateComponent),
+	    HLL_EXPORT(PopMessage, PartsEngine_PopMessage),
+	    HLL_EXPORT(GetMessageType, PartsEngine_GetMessageType),
+	    HLL_EXPORT(GetMessagePartsNumber, PartsEngine_GetMessagePartsNumber),
+	    HLL_EXPORT(GetMessageVariableInt, PartsEngine_GetMessageVariableInt)
 	    );
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

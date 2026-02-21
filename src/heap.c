@@ -67,7 +67,7 @@ void heap_init(void)
 		heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
 		heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
 	} else {
-		memset(heap, 0, heap_size * sizeof(struct vm_pointer*));
+		memset(heap, 0, heap_size * sizeof(struct vm_pointer));
 	}
 
 	for (size_t i = 0; i < heap_size; i++) {
@@ -84,6 +84,10 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	}
 
 	int32_t slot = heap_free_stack[heap_free_ptr++];
+	if (unlikely(slot == 0)) {
+		WARNING("heap_alloc_slot: BUG! allocated slot 0 (global page) type=%d free_ptr=%zu", type, heap_free_ptr);
+		slot = heap_free_stack[heap_free_ptr++];
+	}
 	heap[slot].ref = 1;
 	heap[slot].seq = heap_next_seq++;
 	heap[slot].type = type;
@@ -101,6 +105,10 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 
 static void heap_free_slot(int32_t slot)
 {
+	if (unlikely(slot == 0)) {
+		WARNING("heap_free_slot: BUG! freeing slot 0 (global page)");
+		return;
+	}
 	heap[slot].seq = 0;
 	heap_free_stack[--heap_free_ptr] = slot;
 }
@@ -160,7 +168,7 @@ void heap_unref(int slot)
 // XXX: special version of heap_unref which avoids calling destructors
 void exit_unref(int slot)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) {
+	if (slot <= 0 || (size_t)slot >= heap_size) {
 		WARNING("out of bounds heap index: %d", slot);
 		return;
 	}
@@ -228,14 +236,18 @@ bool string_index_valid(int index)
 struct page *heap_get_page(int index)
 {
 	if (unlikely(!page_index_valid(index))) {
-		int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-		if (index >= 0 && (size_t)index < heap_size)
-			WARNING("heap_get_page: invalid page index %d (ref=%d type=%d) ip=0x%lX fno=%d",
-				index, heap[index].ref, heap[index].type,
-				(unsigned long)instr_ptr, fno);
-		else
-			WARNING("heap_get_page: invalid page index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
-				index, heap_size, (unsigned long)instr_ptr, fno);
+		static int page_warn_count = 0;
+		if (page_warn_count++ < 20) {
+			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			if (index >= 0 && (size_t)index < heap_size)
+				WARNING("heap_get_page: invalid page index %d (ref=%d type=%d) ip=0x%lX fno=%d '%s'",
+					index, heap[index].ref, heap[index].type,
+					(unsigned long)instr_ptr, fno,
+					(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
+			else
+				WARNING("heap_get_page: invalid page index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
+					index, heap_size, (unsigned long)instr_ptr, fno);
+		}
 		return NULL;
 	}
 	return heap[index].page;
@@ -266,8 +278,12 @@ struct page *heap_get_delegate_page(int index)
 {
 	struct page *page = heap_get_page(index);
 	if (unlikely(page && page->type != DELEGATE_PAGE)) {
-		if (delegate_page_warn_count++ < 5)
-			WARNING("heap_get_delegate_page: not a delegate page %d (suppressing further)", index);
+		if (delegate_page_warn_count++ < 10) {
+			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			WARNING("heap_get_delegate_page: slot %d type=%d ip=0x%lX fno=%d '%s'",
+				index, page->type, (unsigned long)instr_ptr, fno,
+				(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
+		}
 		return NULL;
 	}
 	return page;

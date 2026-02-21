@@ -84,6 +84,20 @@ static int Math_Max(int a, int b)
 	return a > b ? a : b;
 }
 
+static int Math_Clamp(int val, int low, int high)
+{
+	if (val < low) return low;
+	if (val > high) return high;
+	return val;
+}
+
+static float Math_ClampF(float val, float low, float high)
+{
+	if (val < low) return low;
+	if (val > high) return high;
+	return val;
+}
+
 static float Math_MaxF(float a, float b)
 {
 	return a > b ? a : b;
@@ -216,5 +230,7 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Log10, log10f),
 	    HLL_EXPORT(Ceil, Math_Ceil),
 	    HLL_EXPORT(Floor, Math_Floor),
-	    HLL_EXPORT(BezierCurve, Math_BezierCurve));
+	    HLL_EXPORT(BezierCurve, Math_BezierCurve),
+	    HLL_EXPORT(Clamp, Math_Clamp),
+	    HLL_EXPORT(ClampF, Math_ClampF));
 

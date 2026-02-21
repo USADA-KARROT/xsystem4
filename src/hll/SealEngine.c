@@ -220,18 +220,21 @@ static bool SealEngine_ThreadLoadPolyInstanceList(int plugin, struct page *insta
 /* [10] LoadInstance(nPlugin:int, nInstance:int, pIName:string) -> bool */
 static bool SealEngine_LoadInstance(int plugin, int instance, struct string *name)
 {
-	static int log_count = 0;
-	if (log_count < 5) {
-		WARNING("SealEngine.LoadInstance(plugin=%d, instance=%d, name=\"%s\")",
-			plugin, instance, name ? name->text : "(null)");
-		log_count++;
-	}
 	struct RE_instance *ri = se_get_instance(plugin, instance);
-	if (!ri)
+	if (!ri) {
+		WARNING("SealEngine.LoadInstance: plugin=%d inst=%d name='%s' -> NO INSTANCE",
+			plugin, instance, name ? name->text : "null");
 		return false;
+	}
 	bool result = RE_instance_load(ri, name->text);
 	if ((unsigned)instance < SE_MAX_INSTANCES_PER_PLUGIN)
 		se_instance_ext[plugin][instance].loading = false;
+	static int log_count = 0;
+	if (log_count < 20) {
+		WARNING("SealEngine.LoadInstance: plugin=%d inst=%d name='%s' result=%d",
+			plugin, instance, name ? name->text : "null", result);
+		log_count++;
+	}
 	return result;
 }
 
@@ -781,6 +784,8 @@ static bool SealEngine_SetViewport(int p, int x, int y, int w, int h) {
 		RE_plugin_bind(plugin, sp_no);
 		WARNING("SealEngine: auto-bind plugin %d to sprite %d (%dx%d)", p, sp_no, w, h);
 	}
+	WARNING("SealEngine.SetViewport: plugin=%d renderer=%p sprite=%d viewport=%d,%d,%dx%d",
+		p, (void*)plugin->renderer, plugin->sprite, x, y, w, h);
 	return RE_set_viewport(plugin, x, y, w, h);
 }
 static bool SealEngine_SetProjection(int p, float w, float h, float near, float far, float deg) {

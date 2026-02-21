@@ -254,15 +254,21 @@ static union vm_value *stack_pop_var(void)
 	if (unlikely(!heap[heap_index].page || page_index < 0 || page_index >= heap[heap_index].page->nr_vars)) {
 		static int oob_trace = 0;
 		if (oob_trace < 20) {
-			WARNING("stack_pop_var: out of bounds %d/%d (nr_vars=%d) ip=0x%lX fno=%d sp=%d "
-				"page_type=%d heap_type=%d heap_ref=%d",
+			{
+			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			struct page *p = heap[heap_index].page;
+			WARNING("stack_pop_var: OOB %d/%d (page_nr_vars=%d page_idx=%d) ip=0x%lX fno=%d '%s' "
+				"(func_nr_vars=%d) sp=%d page_type=%d heap_type=%d heap_ref=%d",
 				heap_index, page_index,
-				heap[heap_index].page ? heap[heap_index].page->nr_vars : -1,
+				p ? p->nr_vars : -1,
+				p ? p->index : -1,
 				(unsigned long)instr_ptr,
-				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
+				fno, fno >= 0 ? ain->functions[fno].name : "?",
+				fno >= 0 ? ain->functions[fno].nr_vars : -1,
 				stack_ptr,
-				heap[heap_index].page ? heap[heap_index].page->type : -1,
+				p ? p->type : -1,
 				heap[heap_index].type, heap[heap_index].ref);
+		}
 			if (oob_trace == 0)
 				dump_trace_buf();
 			oob_trace++;
@@ -407,12 +413,10 @@ static void scenario_call(int slot)
  *   - callee pushes return value on the stack
  *   - RETURN jumps to return address (saved in stack frame)
  */
-static int call_depth = 0;
-
 static int _function_call(int fno, int return_address)
 {
-	call_depth++;
 	struct ain_function *f = &ain->functions[fno];
+
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 	heap[slot].page->local.struct_ptr = -1;
@@ -466,6 +470,21 @@ static void method_call(int fno, int return_address)
 {
 	function_call(fno, return_address);
 	int struct_page = stack_pop().i;
+	// Validate struct_page: should point to a STRUCT_PAGE, not LOCAL_PAGE
+	if (heap_index_valid(struct_page) && heap[struct_page].page) {
+		struct page *sp = heap[struct_page].page;
+		if (sp->type != STRUCT_PAGE) {
+			static int mc_trace = 0;
+			if (mc_trace < 20) {
+				WARNING("method_call: struct_page=%d is type %d (idx=%d nr_vars=%d), "
+					"expected STRUCT_PAGE. fno=%d '%s' nr_args=%d page_slot=%d",
+					struct_page, sp->type, sp->index, sp->nr_vars,
+					fno, ain->functions[fno].name, ain->functions[fno].nr_args,
+					call_stack[call_stack_ptr-1].page_slot);
+				mc_trace++;
+			}
+		}
+	}
 	call_stack[call_stack_ptr-1].struct_page = struct_page;
 	heap[call_stack[call_stack_ptr-1].page_slot].page->local.struct_ptr = struct_page;
 }
@@ -574,7 +593,6 @@ void vm_call_nopop(int fno, int nargs)
 
 static void function_return(void)
 {
-	call_depth--;
 	int page_slot = call_stack[call_stack_ptr-1].page_slot;
 	size_t ret_addr = call_stack[call_stack_ptr-1].return_address;
 	heap_unref(page_slot);
@@ -1163,26 +1181,68 @@ static enum opcode execute_instruction(enum opcode opcode)
 				saved_args[i] = stack_pop();
 			}
 			int funcno = stack_pop().i;
-			for (int i = nargs - 1; i >= 0; i--) {
-				stack_push(saved_args[i]);
+			// Diagnostic: check nargs vs function's nr_args
+			{
+				static int cm_trace = 0;
+				if (cm_trace < 30 && funcno >= 0 && funcno < ain->nr_functions) {
+					int fnr = ain->functions[funcno].nr_args;
+					int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+					if (nargs != fnr) {
+						WARNING("CALLMETHOD: ip=0x%lX nargs=%d != nr_args=%d funcno=%d '%s' "
+							"caller=%d '%s' sp=%d peek=%d",
+							(unsigned long)(instr_ptr - instruction_width(CALLMETHOD)),
+							nargs, fnr, funcno, ain->functions[funcno].name,
+							caller_fno, caller_fno >= 0 ? ain->functions[caller_fno].name : "?",
+							stack_ptr,
+							stack_ptr > 0 ? stack[stack_ptr-1].i : -999);
+						cm_trace++;
+					}
+				}
 			}
-			if (saved_args != small_args) free(saved_args);
-			// Stack is now: [struct_page, arg0, ..., argN-1]
+			// Handle nargs vs resolved function's nr_args mismatch.
+			// When vtable dispatch resolves to the wrong function (common
+			// for unimplemented interface methods), nargs won't match.
+			// Skip the call entirely to prevent stack corruption.
+			bool skip_call = false;
 			if (funcno >= 0 && funcno < ain->nr_functions) {
-				if (ain->functions[funcno].address == 0xFFFFFFFF) {
-					// Function has no body (null constructor/method).
-					// Set up call frame then immediately return to
-					// avoid colliding with VM_RETURN sentinel.
-					method_call(funcno, instr_ptr + instruction_width(CALLMETHOD));
-					function_return();
-				} else {
-					method_call(funcno, instr_ptr + instruction_width(CALLMETHOD));
+				int fnr_args = ain->functions[funcno].nr_args;
+				if (nargs != fnr_args) {
+					skip_call = true;
+				}
+			}
+			if (skip_call) {
+				// Vtable mismatch: skip the call entirely.
+				// Stack is currently: [struct_page] (args and funcno already popped)
+				if (saved_args != small_args) free(saved_args);
+				stack_pop(); // struct_page
+				// CALLMETHOD has ip_inc=0, so we must advance instr_ptr manually.
+				instr_ptr += instruction_width(CALLMETHOD);
+				// Check if caller expects a return value via bytecode lookahead.
+				int16_t next_op = get_opcode(instr_ptr);
+				if (next_op == POP || next_op == DELETE) {
+					stack_push((union vm_value){.i = 0});
 				}
 			} else {
-				WARNING("CALLMETHOD: invalid funcno=%d nargs=%d", funcno, nargs);
-				for (int i = 0; i < nargs; i++)
-					stack_pop();
-				stack_pop(); // struct_page
+				// Push args back for method_call/function_call to consume.
+				for (int i = nargs - 1; i >= 0; i--) {
+					stack_push(saved_args[i]);
+				}
+				if (saved_args != small_args) free(saved_args);
+				// Stack: [struct_page, arg0, ..., argN-1]
+				if (funcno >= 0 && funcno < ain->nr_functions) {
+					if (ain->functions[funcno].address == 0xFFFFFFFF) {
+						// Function has no body (null constructor/method).
+						method_call(funcno, instr_ptr + instruction_width(CALLMETHOD));
+						function_return();
+					} else {
+						method_call(funcno, instr_ptr + instruction_width(CALLMETHOD));
+					}
+				} else {
+					WARNING("CALLMETHOD: invalid funcno=%d nargs=%d", funcno, nargs);
+					for (int i = 0; i < nargs; i++)
+						stack_pop();
+					stack_pop(); // struct_page
+				}
 			}
 		} else {
 			// Pre-v14: bytecode arg = function number
@@ -2648,9 +2708,10 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case X_GETENV: {
 		// X_GETENV: get parent environment page (lambda captures)
-		// Push the local page's parent pointer
-		WARNING("X_GETENV: stub (pushing -1)");
-		stack_push(-1);
+		// In delegate_call, obj (the delegate's object slot) is stored as
+		// struct_page in the call frame. For lambdas, this is the enclosing
+		// function's local page slot — the captured environment.
+		stack_push(struct_page_slot());
 		break;
 	}
 	case X_SET: {
@@ -2810,6 +2871,16 @@ static void vm_execute(void)
 			// Yield CPU briefly to prevent 100% usage in tight loops
 			if (insn_count % 100000 == 0)
 				SDL_Delay(1);
+			// Heap[0] corruption watchpoint
+			if (unlikely(heap[0].type != VM_PAGE)) {
+				static int h0_warn = 0;
+				if (h0_warn++ < 3) {
+					int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+					WARNING("HEAP0_CORRUPT: heap[0].type=%d ref=%d insn=%llu ip=0x%lX fno=%d '%s'",
+						heap[0].type, heap[0].ref, insn_count, (unsigned long)instr_ptr,
+						fno, (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
+				}
+			}
 		}
 		trace_buf[trace_buf_idx].ip = instr_ptr;
 		trace_buf[trace_buf_idx].op = opcode;
@@ -2907,6 +2978,7 @@ int vm_execute_ain(struct ain *program)
 	// Initialize globals
 	heap[0].ref = 1;
 	heap[0].seq = heap_next_seq++;
+	heap[0].type = VM_PAGE;
 	heap_set_page(0, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
 	for (int i = 0; i < ain->nr_globals; i++) {
 		if (ain->version >= 14) {

@@ -28,6 +28,8 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "sact.h"
+#include "scene.h"
+#include "sprite.h"
 #include "parts.h"
 #include "parts_internal.h"
 
@@ -1030,10 +1032,15 @@ void PE_Update(int passed_time, bool message_window_show)
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
 	audio_update();
+	sprite_call_plugins();
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
-	gfx_swap();
+	if (scene_is_dirty) {
+		scene_render();
+		gfx_swap();
+		scene_is_dirty = false;
+	}
 }
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
@@ -1041,9 +1048,14 @@ void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_
 	handle_events();
 	parts_message_window_show = message_window_show;
 	audio_update();
+	sprite_call_plugins();
 	parts_update_animation(passed_time);
 	parts_render_update(passed_time);
-	gfx_swap();
+	if (scene_is_dirty) {
+		scene_render();
+		gfx_swap();
+		scene_is_dirty = false;
+	}
 }
 
 void PE_SetDelegateIndex(int parts_no, int delegate_index)
