@@ -267,9 +267,15 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 
 void SystemService_GetGameFolderPath(struct string **folder_path)
 {
-	char *sjis = utf2sjis(config.game_dir, 0);
-	*folder_path = make_string(sjis, strlen(sjis));
-	free(sjis);
+	if (!folder_path)
+		return;
+	if (!config.game_dir) {
+		*folder_path = cstr_to_string(".");
+		return;
+	}
+	// Return UTF-8 path directly — macOS filesystem uses UTF-8.
+	// Do NOT convert to SJIS: CJK chars in path may not exist in SJIS.
+	*folder_path = cstr_to_string(config.game_dir);
 }
 
 static void SystemService_GetTime(int *hour, int *min, int *sec)
@@ -396,9 +402,7 @@ static void SystemService_DRPKT(struct string **text)
 
 static struct string *SystemService_GetGameVersionByText(void)
 {
-	struct string *s = cstr_to_string("sd40006sd00000008f6300004");
-	WARNING("GetGameVersionByText: returning %p '%s' len=%d", (void*)s, s->text, s->size);
-	return s;
+	return cstr_to_string("sd40006sd00000008f6300004");
 }
 
 static void SystemService_PreLink(void);

@@ -296,25 +296,6 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
-	static int hll_count = 0;
-	hll_count++;
-	if (hll_count <= 500 || hll_count % 1000000 == 0) {
-		WARNING("HLL #%d: %s.%s", hll_count, ain->libraries[libno].name, f->name);
-	}
-	// Trace SystemService.GetTime (lib=32, func=33)
-	if (libno == 32 && fno == 33) {
-		static int gt_trace = 0;
-		if (gt_trace < 3) {
-			WARNING("GetTime: nargs=%d hll_arg3=%d sp=%d",
-				f->nr_arguments, hll_arg3, stack_ptr);
-			for (int _k = 0; _k < f->nr_arguments; _k++)
-				WARNING("  arg[%d] type=%d name=%s", _k,
-					f->arguments[_k].type.data, f->arguments[_k].name);
-			for (int _k = 0; _k < 8 && _k < stack_ptr; _k++)
-				WARNING("  stack[sp-%d] = %d", _k+1, stack[stack_ptr-1-_k].i);
-			gt_trace++;
-		}
-	}
 
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
 		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
@@ -380,21 +361,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 	int heap_slots[HLL_MAX_ARGS];
 	(void)hll_arg3; // reserved for future use
 
-	// Trace String.GetPart arg processing (lib=30 func=22)
-	static int getpart_call = 0;
-	static int getpart_trace = 0;
-	if (libno == 30 && fno == 22) getpart_call++;
-	bool trace_this = (libno == 30 && fno == 22 && getpart_call >= 28 && getpart_trace < 10);
-	if (trace_this) {
-		getpart_trace++;
-		WARNING("GetPart ffi #%d: nargs=%d sp=%d", getpart_call, f->nr_arguments, stack_ptr);
-		for (int _k = 0; _k < f->nr_arguments; _k++)
-			WARNING("  arg[%d] type=%d", _k, f->arguments[_k].type.data);
-		for (int _k = 0; _k < 4 && _k < stack_ptr; _k++)
-			WARNING("  stack[sp-%d] = .i=%d .ref=%p", _k+1,
-				stack[stack_ptr-1-_k].i, stack[stack_ptr-1-_k].ref);
-	}
-
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
@@ -425,23 +391,16 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_REF_STRING: {
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
-			heap_slots[i] = slot;
-			if (slot >= 0 && (size_t)slot < heap_size)
+			if (slot >= 0 && (size_t)slot < heap_size
+			    && heap[slot].type == VM_STRING) {
+				heap_slots[i] = slot;
 				heap_ptrs[i] = heap[slot].s;
-			else
+			} else {
+				heap_slots[i] = -1;
 				heap_ptrs[i] = NULL;
+			}
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
-			if (trace_this) {
-				WARNING("  REF_STRING: slot=%d heap[%d].s=%p heap_ptrs=%p ptrs=%p args=%p",
-					slot, slot, (void*)heap[slot].s, (void*)heap_ptrs[i],
-					(void*)ptrs[i], (void*)args[i]);
-				if (heap_ptrs[i]) {
-					struct string *_ts = heap_ptrs[i];
-					WARNING("  string: %p size=%d text='%.30s'",
-						(void*)_ts, _ts->size, _ts->text);
-				}
-			}
 			break;
 		}
 		case AIN_STRUCT:
@@ -463,7 +422,8 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_REF_DELEGATE: {
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
-			if (slot >= 0 && (size_t)slot < heap_size) {
+			if (slot >= 0 && (size_t)slot < heap_size
+			    && heap[slot].type == VM_PAGE) {
 				heap_slots[i] = slot;
 				heap_ptrs[i] = heap[slot].page;
 			} else {
@@ -481,7 +441,8 @@ void hll_call(int libno, int fno, int hll_arg3)
 			int slot = stack[stack_ptr].i;
 			heap_slots[i] = slot;
 			if (slot > 0 && (size_t)slot < heap_size
-			    && heap[slot].type == VM_PAGE && heap[slot].ref > 0)
+			    && heap[slot].type == VM_PAGE && heap[slot].ref > 0
+			    && (!heap[slot].page || heap[slot].page->type == ARRAY_PAGE))
 				heap_ptrs[i] = heap[slot].page;
 			else
 				heap_ptrs[i] = NULL;
@@ -490,18 +451,26 @@ void hll_call(int libno, int fno, int hll_arg3)
 			break;
 		}
 		case AIN_HLL_FUNC: {
-			// v14: 2-slot reference (page + varno) → resolve to function number
+			// v14: 2-slot value — (object, function)
+			// When object=-1 (static function), function is already
+			// the resolved function number (from DG_STR_TO_METHOD).
+			// When object>=0, it's a page reference to dereference.
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
 			int varno  = stack[stack_ptr+1].i;
-			struct page *p = NULL;
-			if (pageno >= 0 && (size_t)pageno < heap_size
-			    && heap[pageno].ref > 0 && heap[pageno].type == VM_PAGE)
-				p = heap[pageno].page;
-			if (p && varno >= 0 && varno < p->nr_vars) {
-				stack[stack_ptr] = p->values[varno];
+			if (pageno == -1) {
+				// Static function: varno is the function number directly
+				stack[stack_ptr].i = varno;
 			} else {
-				stack[stack_ptr].i = -1;
+				struct page *p = NULL;
+				if (pageno >= 0 && (size_t)pageno < heap_size
+				    && heap[pageno].ref > 0 && heap[pageno].type == VM_PAGE)
+					p = heap[pageno].page;
+				if (p && varno >= 0 && varno < p->nr_vars) {
+					stack[stack_ptr] = p->values[varno];
+				} else {
+					stack[stack_ptr].i = -1;
+				}
 			}
 			args[i] = &stack[stack_ptr];
 			break;
@@ -534,19 +503,24 @@ void hll_call(int libno, int fno, int hll_arg3)
 			j++;
 			break;
 		case AIN_REF_STRING:
-			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size)
+			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size
+			    && heap[heap_slots[i]].type == VM_STRING)
 				heap[heap_slots[i]].s = heap_ptrs[i];
 			break;
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
 		case AIN_REF_DELEGATE:
-			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size)
+			if (heap_slots[i] >= 0 && (size_t)heap_slots[i] < heap_size
+			    && heap[heap_slots[i]].type == VM_PAGE)
 				heap[heap_slots[i]].page = heap_ptrs[i];
 			break;
 		case AIN_REF_ARRAY: {
 			// v14: 1-slot — write back directly to heap slot
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size) {
-				heap[heap_slots[i]].page = heap_ptrs[i];
+				struct page *old = heap[heap_slots[i]].page;
+				if (!old || old->type == ARRAY_PAGE) {
+					heap[heap_slots[i]].page = heap_ptrs[i];
+				}
 			}
 			break;
 		}

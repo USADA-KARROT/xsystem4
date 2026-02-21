@@ -187,6 +187,32 @@ static int Array_First(struct page **array, int func)
 	return -1;
 }
 
+// Any: return true if any element matches the predicate
+static bool Array_Any(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0 || func < 0)
+		return false;
+
+	struct ain_function *cb = &ain->functions[func];
+
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+		if (cb->nr_args >= 2) {
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+		vm_call_nopop(func, cb->nr_args);
+		int result = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (result)
+			return true;
+	}
+	return false;
+}
+
 static void Array_Free(struct page **array)
 {
 	if (array && *array && (*array)->type == ARRAY_PAGE) {
@@ -390,6 +416,24 @@ static void Array_Unique(struct page **array)
 		free_page(a);
 		*array = new_a;
 	}
+}
+
+static int qsort_int_cmp(const void *a, const void *b)
+{
+	int ia = ((const union vm_value *)a)->i;
+	int ib = ((const union vm_value *)b)->i;
+	return (ia > ib) - (ia < ib);
+}
+
+// QuickSort: sort array using comparator function.
+// For now, we ignore the comparator and do simple integer ascending sort.
+static void Array_QuickSort(struct page **array, int comparator)
+{
+	(void)comparator;
+	if (!array || !*array || (*array)->nr_vars <= 1)
+		return;
+	struct page *a = *array;
+	qsort(a->values, a->nr_vars, sizeof(union vm_value), qsort_int_cmp);
 }
 
 //void Array_NV_copy(struct page **nArray, int nNum);
@@ -667,6 +711,8 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Insert, Array_Insert),
 	    HLL_EXPORT(Sort, Array_Sort),
 	    HLL_EXPORT(Unique, Array_Unique),
+	    HLL_EXPORT(QuickSort, Array_QuickSort),
+	    HLL_EXPORT(Any, Array_Any),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),

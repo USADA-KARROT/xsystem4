@@ -35,6 +35,7 @@
 #include "system4/utfsjis.h"
 
 #include "debugger.h"
+#include "gfx/gfx.h"
 #include "input.h"
 #include "savedata.h"
 #include "vm.h"
@@ -415,19 +416,6 @@ static int _function_call(int fno, int return_address)
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 	heap[slot].page->local.struct_ptr = -1;
-	// Trace slot 1 allocations
-	if (slot == 1) {
-		static int fc1_trace = 0;
-		if (fc1_trace < 10) {
-			WARNING("_function_call: fno=%d got slot 1 (ref=%d csp=%d nr_vars=%d)",
-				fno, heap[1].ref, call_stack_ptr, f->nr_vars);
-			fc1_trace++;
-		}
-	}
-	// Trace main's page slot
-	if (fno == 20590) {
-		WARNING("_function_call: MAIN(20590) got slot=%d ref=%d", slot, heap[slot].ref);
-	}
 
 	call_stack[call_stack_ptr++] = (struct function_call) {
 		.fno = fno,
@@ -781,6 +769,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_PEEK: {// system.Peek(void)
 		handle_events();
+		gfx_swap();
 		break;
 	}
 	case SYS_SLEEP: {// system.Sleep(int nSleep)
@@ -1203,28 +1192,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case CALLHLL: {
 		int hll_arg2 = (ain->version >= 11) ? get_argument(2) : -1;
-		int sp_before = stack_ptr;
 		hll_call(get_argument(0), get_argument(1), hll_arg2);
-		// Always trace GetGameVersionByText (lib=32 func=31)
-		if (get_argument(0) == 32 && get_argument(1) == 31) {
-			static int gvbt_log = 0;
-			if (gvbt_log < 5) {
-				struct ain_hll_function *_f = &ain->libraries[32].functions[31];
-				WARNING("CALLHLL GetGameVersionByText: sp %d→%d (Δ=%d) rettype=%d, stack_top=%d",
-					sp_before, stack_ptr, stack_ptr - sp_before,
-					_f->return_type.data, stack[stack_ptr-1].i);
-				// Check what's in the heap slot
-				int slot = stack[stack_ptr-1].i;
-				if (slot >= 0 && (size_t)slot < heap_size) {
-					WARNING("  heap[%d]: ref=%d type=%d s=%p '%s'",
-						slot, heap[slot].ref, heap[slot].type,
-						(void*)heap[slot].s,
-						(heap[slot].type == VM_STRING && heap[slot].s) ?
-							heap[slot].s->text : "(null)");
-				}
-				gvbt_log++;
-			}
-		}
 		break;
 	}
 	case RETURN: {
@@ -1732,9 +1700,6 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int a = stack_pop().i;
 		struct string *sa = heap_get_string(a);
 		struct string *sb = heap_get_string(b);
-		WARNING("S_ADD: a=%d sa=%p '%s', b=%d sb=%p '%s'",
-			a, (void*)sa, sa ? sa->text : "(null)",
-			b, (void*)sb, sb ? sb->text : "(null)");
 		if (!sa) sa = &EMPTY_STRING;
 		if (!sb) sb = &EMPTY_STRING;
 		stack_push_string(string_concatenate(sa, sb));
@@ -2643,17 +2608,6 @@ static enum opcode execute_instruction(enum opcode opcode)
 				stack_push(page->values[var_idx + i]);
 			}
 		} else {
-			static int xref_fail = 0;
-			if (xref_fail < 10) {
-				WARNING("X_REF FAIL: heap_idx=%d var_idx=%d n=%d ip=0x%lX page=%p "
-					"valid=%d type=%d ref=%d",
-					heap_idx, var_idx, n, (unsigned long)instr_ptr,
-					page ? (void*)page : NULL,
-					heap_index_valid(heap_idx),
-					heap_idx >= 0 && (size_t)heap_idx < heap_size ? heap[heap_idx].type : -1,
-					heap_idx >= 0 && (size_t)heap_idx < heap_size ? heap[heap_idx].ref : -1);
-				xref_fail++;
-			}
 			for (int i = 0; i < n; i++) {
 				stack_push(0);
 			}
@@ -2665,26 +2619,12 @@ static enum opcode execute_instruction(enum opcode opcode)
 		// Pop n values, pop 2-slot ref, write values, push values back
 		int n = get_argument(0);
 		if (n <= 0) n = 1;
-		// Trace for main version check
-		bool xa_in_main = (instr_ptr >= 0x49A080 && instr_ptr <= 0x49A098);
-		static int xa_trace = 0;
-		if (xa_in_main && xa_trace < 5) {
-			WARNING("X_ASSIGN@main: ip=0x%lX n=%d sp=%d stack=[%d,%d,%d]",
-				(unsigned long)instr_ptr, n, stack_ptr,
-				stack[stack_ptr-1].i, stack[stack_ptr-2].i, stack[stack_ptr-3].i);
-		}
 		union vm_value small_buf[64];
 		union vm_value *vals = (n <= 64) ? small_buf : malloc(n * sizeof(union vm_value));
 		for (int i = n - 1; i >= 0; i--) {
 			vals[i] = stack_pop();
 		}
 		union vm_value *var = stack_pop_var();
-		if (xa_in_main && xa_trace < 5) {
-			WARNING("  vals[0].i=%d var=%p var==dummy=%d page_slot=%d",
-				vals[0].i, (void*)var, (var == &dummy_var),
-				local_page_slot());
-			xa_trace++;
-		}
 		if (var) {
 			for (int i = 0; i < n; i++) {
 				var[i] = vals[i];
@@ -2857,8 +2797,6 @@ static void vm_execute(void)
 	for (;;) {
 		uint16_t opcode;
 		if (instr_ptr == VM_RETURN) {
-			WARNING("vm_execute: hit VM_RETURN (insn#%llu sp=%d csp=%d)",
-				insn_count, stack_ptr, call_stack_ptr);
 			return;
 		}
 		if (unlikely(instr_ptr >= ain->code_size)) {
@@ -2866,37 +2804,18 @@ static void vm_execute(void)
 		}
 		opcode = get_opcode(instr_ptr);
 		insn_count++;
+		// Periodically process SDL events and throttle CPU
+		if (unlikely(insn_count % 10000 == 0)) {
+			handle_events();
+			// Yield CPU briefly to prevent 100% usage in tight loops
+			if (insn_count % 100000 == 0)
+				SDL_Delay(1);
+		}
 		trace_buf[trace_buf_idx].ip = instr_ptr;
 		trace_buf[trace_buf_idx].op = opcode;
 		trace_buf[trace_buf_idx].sp = stack_ptr;
 		trace_buf_idx = (trace_buf_idx + 1) % TRACE_BUF_SIZE;
-		if (insn_count % 500000 == 0) {
-			WARNING("VM #%llu: ip=0x%lX sp=%d fno=%d",
-				insn_count, (unsigned long)instr_ptr, stack_ptr,
-				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1);
-			/* Print top 3 call stack frames for diagnostics */
-			for (int _f = 0; _f < 3 && _f < call_stack_ptr; _f++) {
-				int _idx = call_stack_ptr - 1 - _f;
-				int _fno = call_stack[_idx].fno;
-				const char *_name = (_fno >= 0 && _fno < ain->nr_functions)
-					? ain->functions[_fno].name : "???";
-				WARNING("  frame[%d]: fno=%d %s", _f, _fno, _name);
-			}
-		}
-		// Canary: detect when heap[1].ref drops from >0 to 0
-		int _pre_ref1 = (heap_size > 1) ? heap[1].ref : -99;
 		opcode = execute_instruction(opcode);
-		if (_pre_ref1 > 0 && heap_size > 1 && heap[1].ref <= 0) {
-			static int canary1 = 0;
-			if (canary1 < 3) {
-				WARNING("CANARY: heap[1].ref %d->%d after opcode=%d ip=0x%lX fno=%d csp=%d insn#%llu",
-					_pre_ref1, heap[1].ref, opcode, (unsigned long)instr_ptr,
-					call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
-					call_stack_ptr, insn_count);
-				dump_trace_buf();
-				canary1++;
-			}
-		}
 		instr_ptr += instructions[opcode].ip_inc;
 	}
 }

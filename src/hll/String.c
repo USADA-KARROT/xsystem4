@@ -356,9 +356,6 @@ static struct string *String_ReplaceRegex(struct string **self, struct string *r
 static struct string *String_GetPartChar(struct string **self, int index)
 {
 	struct string *s = SELF_STR(self);
-	if (s && s->size == 25 && s->text[0] == 's' && s->text[1] == 'd') {
-		WARNING("GetPartChar(ver): s=%p '%s' index=%d", (void*)s, s->text, index);
-	}
 	if (!s || index < 0) return string_ref(&EMPTY_STRING);
 	int byte_idx = sjis_index(s->text, index);
 	if (byte_idx < 0 || byte_idx >= s->size) return string_ref(&EMPTY_STRING);
@@ -370,13 +367,6 @@ static struct string *String_GetPartChar(struct string **self, int index)
 static struct string *String_GetPart(struct string **self, int begin, int length)
 {
 	struct string *s = SELF_STR(self);
-	static int gp_count = 0;
-	gp_count++;
-	if (gp_count <= 50 || gp_count % 1000000 == 0) {
-		WARNING("GetPart #%d: s=%p '%.*s' size=%d begin=%d len=%d",
-			gp_count, (void*)s, s ? (s->size > 40 ? 40 : s->size) : 0,
-			s ? s->text : "", s ? s->size : -1, begin, length);
-	}
 	if (!s || begin < 0 || length <= 0) return string_ref(&EMPTY_STRING);
 	int byte_begin = sjis_index(s->text, begin);
 	if (byte_begin < 0 || byte_begin >= s->size) return string_ref(&EMPTY_STRING);

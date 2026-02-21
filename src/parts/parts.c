@@ -23,6 +23,8 @@
 
 #include "asset_manager.h"
 #include "audio.h"
+#include "input.h"
+#include "gfx/gfx.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "sact.h"
@@ -1024,20 +1026,24 @@ bool parts_message_window_show = true;
 
 void PE_Update(int passed_time, bool message_window_show)
 {
+	handle_events();
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
 	audio_update();
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
+	gfx_swap();
 }
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
 {
+	handle_events();
 	parts_message_window_show = message_window_show;
 	audio_update();
 	parts_update_animation(passed_time);
 	parts_render_update(passed_time);
+	gfx_swap();
 }
 
 void PE_SetDelegateIndex(int parts_no, int delegate_index)
