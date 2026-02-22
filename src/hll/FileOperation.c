@@ -147,6 +147,8 @@ static bool FileOperation_DeleteFolder(struct string *folder_name)
 
 static bool get_file_list(struct string *folder_name, struct page **out, bool folders)
 {
+	if (!folder_name || !folder_name->text || !out)
+		return false;
 	char *dir_name = unix_path(folder_name->text);
 
 	UDIR *d = opendir_utf8(dir_name);
@@ -198,11 +200,12 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 	}
 	free(names);
 
-	if (*out) {
+	if (out && *out) {
 		delete_page_vars(*out);
 		free_page(*out);
 	}
-	*out = page;
+	if (out)
+		*out = page;
 	return true;
 }
 

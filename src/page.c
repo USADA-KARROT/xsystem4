@@ -87,6 +87,7 @@ union vm_value variable_initval(enum ain_data_type type)
 		return (union vm_value) { .i = slot };
 	case AIN_STRUCT:
 	case AIN_REF_TYPE:
+	case AIN_IFACE:
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
 	case AIN_ARRAY: // v14 generic array
@@ -137,6 +138,7 @@ void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 	case AIN_IFACE_WRAP:
 	case AIN_OPTION:
 	case AIN_REF_TYPE:
+	case AIN_IFACE:
 		if (v.i == -1)
 			break;
 		if (call_dtor)
@@ -265,12 +267,15 @@ void delete_page(int slot)
 		return;  // leak memory rather than crash
 	}
 	if (page->type == STRUCT_PAGE) {
-		// Destructor needs heap[slot].page and ref > 0 for PUSHSTRUCTPAGE/X_REF.
-		// heap_unref already set ref=0 before calling us. Temporarily boost ref
-		// to a high value so X_REF works and accidental re-unref won't re-enter.
-		heap[slot].ref = 1 << 16;
-		delete_struct(page->index, slot);
-		heap[slot].ref = 0;
+		// Validate struct index before calling destructor
+		if (page->index >= 0 && page->index < ain->nr_structures) {
+			// Destructor needs heap[slot].page and ref > 0 for PUSHSTRUCTPAGE/X_REF.
+			// heap_unref already set ref=0 before calling us. Temporarily boost ref
+			// to a high value so X_REF works and accidental re-unref won't re-enter.
+			heap[slot].ref = 1 << 16;
+			delete_struct(page->index, slot);
+			heap[slot].ref = 0;
+		}
 	}
 	heap[slot].page = NULL;
 	delete_page_vars(page);
@@ -290,17 +295,21 @@ struct page *copy_page(struct page *src)
 	if (src->type >= NR_PAGE_TYPES || src->nr_vars < 0 || src->nr_vars > 1000000) {
 		static int cp_corrupt_warn = 0;
 		if (cp_corrupt_warn++ < 5)
-			WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning NULL",
+			WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning empty page",
 				src->type, src->nr_vars);
-		return NULL;
+		// Return minimal empty page to prevent NULL dereference in callers
+		return alloc_page(0, 0, 0);
 	}
 	copy_depth++;
 	if (copy_depth > 100) {
 		static int cp_depth_warn = 0;
 		if (cp_depth_warn++ < 3)
-			WARNING("copy_page: depth %d too deep (circular ref?), returning NULL", copy_depth);
+			WARNING("copy_page: depth %d too deep (circular ref?), returning empty page", copy_depth);
+		// Return empty placeholder page instead of NULL to prevent SIGSEGV in callers
+		struct page *stub = alloc_page(src->type, src->index, src->nr_vars);
+		stub->array = src->array;
 		copy_depth--;
-		return NULL;
+		return stub;
 	}
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
 	dst->array = src->array;
@@ -322,6 +331,22 @@ int alloc_struct(int no)
 			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
 		} else {
 			heap[slot].page->values[i] = variable_initval(s->members[i].type.data);
+		}
+	}
+	// v14: populate <vtable> array (member 0) with virtual method table
+	if (ain->version >= 14 && s->nr_vmethods > 0 && s->nr_members > 0
+	    && (s->members[0].type.data == AIN_ARRAY_INT
+	        || s->members[0].type.data == AIN_ARRAY)) {
+		int vt_slot = heap[slot].page->values[0].i;
+		if (heap_index_valid(vt_slot)) {
+			union vm_value dim = { .i = s->nr_vmethods };
+			struct page *vt = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
+			for (int j = 0; j < s->nr_vmethods; j++) {
+				vt->values[j].i = s->vmethods[j];
+			}
+			if (heap[vt_slot].page)
+				free_page(heap[vt_slot].page);
+			heap_set_page(vt_slot, vt);
 		}
 	}
 	return slot;
@@ -346,8 +371,10 @@ void init_struct(int no, int slot)
 
 void delete_struct(int no, int slot)
 {
+	if (no < 0 || no >= ain->nr_structures)
+		return;
 	struct ain_struct *s = &ain->structures[no];
-	if (s->destructor > 0) {
+	if (s->destructor > 0 && s->destructor < ain->nr_functions) {
 		vm_call(s->destructor, slot);
 	}
 }

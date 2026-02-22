@@ -89,7 +89,7 @@ union vm_value *stack = NULL; // the stack
 int32_t stack_ptr = 0;        // pointer to the top of the stack
 static size_t stack_size;     // current size of the stack
 
-// Stack of function call frames
+// Stack of function call frames (v14 games use deeper call chains)
 struct function_call call_stack[4096];
 int32_t call_stack_ptr = 0;
 
@@ -333,7 +333,12 @@ int vm_string_ref(struct string *s)
 int vm_copy_page(struct page *page)
 {
 	int slot = heap_alloc_slot(VM_PAGE);
-	heap_set_page(slot, copy_page(page));
+	struct page *dst = copy_page(page);
+	if (!dst && page) {
+		// copy_page returned NULL (circular ref or corrupted) — create empty placeholder
+		dst = alloc_page(page->type, page->index, page->nr_vars);
+	}
+	heap_set_page(slot, dst);
 	return slot;
 }
 
@@ -436,7 +441,25 @@ static void scenario_call(int slot)
  */
 static int _function_call(int fno, int return_address)
 {
+	if (unlikely(fno < 0 || fno >= ain->nr_functions)) {
+		WARNING("_function_call: invalid fno=%d (nr_functions=%d)", fno, ain->nr_functions);
+		return -1;
+	}
+	if (unlikely(call_stack_ptr >= 4090)) {
+		static int cso_warn = 0;
+		if (cso_warn++ < 5)
+			WARNING("_function_call: call stack near overflow (csp=%d) fno=%d '%s' [%d]",
+				call_stack_ptr, fno, ain->functions[fno].name, cso_warn);
+		return -1;
+	}
 	struct ain_function *f = &ain->functions[fno];
+
+	// Validate nr_vars
+	if (unlikely(f->nr_vars < 0 || f->nr_vars > 100000)) {
+		WARNING("_function_call: suspicious nr_vars=%d for fno=%d '%s'",
+			f->nr_vars, fno, f->name);
+		return -1;
+	}
 
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
@@ -463,9 +486,32 @@ static int _function_call(int fno, int return_address)
 	return slot;
 }
 
+static int ain_return_slots(enum ain_data_type type)
+{
+	if (ain->version < 14) {
+		return (type != AIN_VOID) ? 1 : 0;
+	}
+	switch (type) {
+	case AIN_VOID:
+		return 0;
+	// v14 2-slot types: interfaces, options, wraps
+	case AIN_IFACE:
+	case AIN_OPTION:
+	case AIN_WRAP:
+	case AIN_IFACE_WRAP:
+		return 2;
+	// v14 reference return types: [page_slot, var_index]
+	case AIN_REF_TYPE:
+		return 2;
+	default:
+		return 1;
+	}
+}
+
 static void function_call(int fno, int return_address)
 {
 	int slot = _function_call(fno, return_address);
+	if (unlikely(slot < 0)) return;
 
 	// pop arguments, store in local page
 	struct ain_function *f = &ain->functions[fno];
@@ -510,11 +556,16 @@ static void method_call(int fno, int return_address)
 				WARNING("method_call: skip fno=%d '%s' struct_page=%d (invalid/null) sp=%d ip=0x%lX",
 					fno, name, struct_page, stack_ptr, (unsigned long)instr_ptr);
 		}
-		// Push default return value if function has non-void return type
-		if (ain->functions[fno].return_type.data == AIN_STRING) {
-			stack_push(vm_string_ref(string_ref(&EMPTY_STRING)));
-		} else if (ain->functions[fno].return_type.data != AIN_VOID) {
-			stack_push((union vm_value){.i = 0});
+		// Push default return value(s) based on return type slot count
+		int ret_slots = ain_return_slots(ain->functions[fno].return_type.data);
+		if (ret_slots > 0) {
+			if (ain->functions[fno].return_type.data == AIN_STRING)
+				stack_push(vm_string_ref(string_ref(&EMPTY_STRING)));
+			else
+				stack_push((union vm_value){.i = -1});
+			// Push secondary slot for 2-valued types (e.g. AIN_IFACE vtable offset)
+			for (int i = 1; i < ret_slots; i++)
+				stack_push((union vm_value){.i = 0});
 		}
 		function_return();
 		return;
@@ -554,6 +605,7 @@ static void delegate_call(int dg_no, int return_address)
 		stack[stack_ptr - 1].i++;
 
 		int slot = _function_call(fun, instr_ptr + instruction_width(DG_CALL));
+		if (unlikely(slot < 0)) return;
 		// Set base_sp so function_return won't destroy delegate stack state
 		call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 
@@ -601,9 +653,11 @@ void vm_call(int fno, int struct_page)
 // the bytecode to consume directly (used by v14 HLL callback calling convention).
 void vm_call_nopop(int fno, int nargs)
 {
+	if (unlikely(fno < 0 || fno >= ain->nr_functions)) return;
 	size_t saved_ip = instr_ptr;
 	struct ain_function *f = &ain->functions[fno];
 	int slot = _function_call(fno, VM_RETURN);
+	if (unlikely(slot < 0)) { instr_ptr = saved_ip; return; }
 	call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 
 	// Copy args from stack to local page WITHOUT popping
@@ -638,25 +692,23 @@ static void function_return(void)
 	int fno = call_stack[call_stack_ptr-1].fno;
 	int base_sp = call_stack[call_stack_ptr-1].base_sp;
 
-	// Determine expected return values based on function's declared return type
+	// Determine expected return slots based on function's declared return type.
+	// v14 2-valued types (AIN_IFACE, AIN_OPTION) push 2 slots on return.
 	int expected_return = 0;
-	if (fno >= 0 && fno < ain->nr_functions &&
-	    ain->functions[fno].return_type.data != AIN_VOID)
-		expected_return = 1;
+	if (fno >= 0 && fno < ain->nr_functions)
+		expected_return = ain_return_slots(ain->functions[fno].return_type.data);
 
 	// Enforce stack balance: pop extra values that the caller won't consume.
-	// This handles cases like dynamic dispatch where the implementation returns
-	// a value but the caller expects void (common in v14 with interface methods).
 	int delta = stack_ptr - base_sp;
 	if (delta > expected_return) {
-		// Save the return value (topmost) if the function should return one
-		union vm_value retval = {0};
-		if (expected_return > 0)
-			retval = stack[stack_ptr - 1];
+		// Save return value(s) (topmost expected_return slots)
+		union vm_value retvals[2] = {{0}, {0}};
+		for (int i = 0; i < expected_return && i < 2; i++)
+			retvals[i] = stack[stack_ptr - expected_return + i];
 		// Pop down to expected level
 		stack_ptr = base_sp + expected_return;
-		if (expected_return > 0)
-			stack[stack_ptr - 1] = retval;
+		for (int i = 0; i < expected_return && i < 2; i++)
+			stack[base_sp + i] = retvals[i];
 	}
 
 	heap_unref(page_slot);
@@ -1248,8 +1300,13 @@ static enum opcode execute_instruction(enum opcode opcode)
 			// Handle nargs vs function's nr_args mismatch
 			if (funcno < 0 || funcno >= ain->nr_functions) {
 				static int bad_fno = 0;
-				if (bad_fno++ < 5)
-					WARNING("CALLMETHOD: invalid funcno=%d nargs=%d sp=%d", funcno, nargs, stack_ptr);
+				if (bad_fno++ < 5) {
+					int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+					WARNING("CALLMETHOD: invalid funcno=%d nargs=%d ip=0x%lX caller='%s'",
+						funcno, nargs, (unsigned long)instr_ptr,
+						(caller_fno >= 0 && caller_fno < ain->nr_functions)
+							? ain->functions[caller_fno].name : "?");
+				}
 			}
 			// Handle nargs vs resolved function's nr_args mismatch.
 			// When vtable dispatch resolves to the wrong function (common
@@ -1290,10 +1347,22 @@ static enum opcode execute_instruction(enum opcode opcode)
 						method_call(funcno, instr_ptr + instruction_width(CALLMETHOD));
 					}
 				} else {
-					WARNING("CALLMETHOD: invalid funcno=%d nargs=%d", funcno, nargs);
+					static int inv_cm = 0;
+					if (inv_cm++ < 5)
+						WARNING("CALLMETHOD: invalid funcno=%d nargs=%d", funcno, nargs);
 					for (int i = 0; i < nargs; i++)
 						stack_pop();
 					stack_pop(); // struct_page
+					// Advance past CALLMETHOD (ip_inc=0 for call instructions)
+					instr_ptr += instruction_width(CALLMETHOD);
+					// Push dummy return if next op expects one
+					int16_t nop = get_opcode(instr_ptr);
+					if (nop == POP || nop == DELETE || nop == X_DUP
+					    || nop == X_MOV || nop == X_ASSIGN
+					    || nop == ASSIGN || nop == F_ASSIGN
+					    || nop == S_ASSIGN) {
+						stack_push((union vm_value){.i = -1});
+					}
 				}
 			}
 		} else {
@@ -1380,11 +1449,14 @@ static enum opcode execute_instruction(enum opcode opcode)
 		int file = stack_pop().i; // filename
 		int expr = stack_pop().i; // expression
 		if (!stack_pop().i) {
-			sys_message("Assertion failed at %s:%d: %s\n",
-					display_sjis0(heap_get_string(file)->text),
-					line,
-					display_sjis1(heap_get_string(expr)->text));
-			vm_exit(1);
+			static int assert_count = 0;
+			if (assert_count++ < 10) {
+				sys_message("Assertion failed at %s:%d: %s\n",
+						display_sjis0(heap_get_string(file)->text),
+						line,
+						display_sjis1(heap_get_string(expr)->text));
+			}
+			// Continue execution instead of vm_exit for v14 debugging
 		}
 		heap_unref(file);
 		heap_unref(expr);

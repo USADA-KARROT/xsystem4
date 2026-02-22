@@ -19,6 +19,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <execinfo.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -424,6 +425,13 @@ static void sigsegv_handler(int sig)
 	(void)sig;
 	const char msg[] = "\n*** SIGSEGV caught ***\n";
 	write(2, msg, sizeof(msg) - 1);
+	// Print backtrace
+	void *bt[64];
+	int n = backtrace(bt, 64);
+	backtrace_symbols_fd(bt, n, 2);
+	// Re-raise with default handler
+	signal(sig, SIG_DFL);
+	raise(sig);
 	_exit(139);
 }
 

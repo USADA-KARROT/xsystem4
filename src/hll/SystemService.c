@@ -428,6 +428,75 @@ static void SystemService_AddBackupSaveFileName(struct string *name)
 	// stub — backup save file name tracking not needed
 }
 
+static void SystemService_ShowWaitMessage(bool show)
+{
+	// stub — wait message overlay not implemented
+}
+
+/* GameVariable: simple key-value string store (persisted per session) */
+#define GAMEVAR_MAX 128
+static struct { char *key; char *value; } game_vars[GAMEVAR_MAX];
+static int game_var_count = 0;
+
+static int gamevar_find(const char *key)
+{
+	for (int i = 0; i < game_var_count; i++) {
+		if (game_vars[i].key && !strcmp(game_vars[i].key, key))
+			return i;
+	}
+	return -1;
+}
+
+static bool SystemService_GameVariable_IsExist(struct string *key)
+{
+	return gamevar_find(key->text) >= 0;
+}
+
+static void SystemService_GameVariable_Set(struct string *key, struct string *value)
+{
+	int idx = gamevar_find(key->text);
+	if (idx >= 0) {
+		free(game_vars[idx].value);
+		game_vars[idx].value = strdup(value->text);
+		return;
+	}
+	if (game_var_count >= GAMEVAR_MAX) return;
+	game_vars[game_var_count].key = strdup(key->text);
+	game_vars[game_var_count].value = strdup(value->text);
+	game_var_count++;
+}
+
+static struct string *SystemService_GameVariable_Get(struct string *key)
+{
+	int idx = gamevar_find(key->text);
+	if (idx >= 0)
+		return cstr_to_string(game_vars[idx].value);
+	return string_ref(&EMPTY_STRING);
+}
+
+static int SystemService_GameVariable_NumofKey(void)
+{
+	return game_var_count;
+}
+
+static struct string *SystemService_GameVariable_GetKey(int index)
+{
+	if (index >= 0 && index < game_var_count && game_vars[index].key)
+		return cstr_to_string(game_vars[index].key);
+	return string_ref(&EMPTY_STRING);
+}
+
+static void SystemService_GameVariable_Erase(struct string *key)
+{
+	int idx = gamevar_find(key->text);
+	if (idx < 0) return;
+	free(game_vars[idx].key);
+	free(game_vars[idx].value);
+	if (idx < game_var_count - 1)
+		game_vars[idx] = game_vars[game_var_count - 1];
+	game_var_count--;
+}
+
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
@@ -475,7 +544,14 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(Test, SystemService_Test),
 	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
 	    HLL_EXPORT(GetGameVersionByText, SystemService_GetGameVersionByText),
-	    HLL_EXPORT(AddBackupSaveFileName, SystemService_AddBackupSaveFileName)
+	    HLL_EXPORT(AddBackupSaveFileName, SystemService_AddBackupSaveFileName),
+	    HLL_EXPORT(ShowWaitMessage, SystemService_ShowWaitMessage),
+	    HLL_EXPORT(GameVariable_IsExist, SystemService_GameVariable_IsExist),
+	    HLL_EXPORT(GameVariable_Set, SystemService_GameVariable_Set),
+	    HLL_EXPORT(GameVariable_Get, SystemService_GameVariable_Get),
+	    HLL_EXPORT(GameVariable_NumofKey, SystemService_GameVariable_NumofKey),
+	    HLL_EXPORT(GameVariable_GetKey, SystemService_GameVariable_GetKey),
+	    HLL_EXPORT(GameVariable_Erase, SystemService_GameVariable_Erase)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

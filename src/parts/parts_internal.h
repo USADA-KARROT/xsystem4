@@ -328,6 +328,8 @@ struct parts {
 	int draw_filter;
 	bool message_window;
 	struct parts_motion_list motion;
+	int component_type;   // v14 component widget type
+	int unique_id;        // v14 unique ID for event dispatch
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
