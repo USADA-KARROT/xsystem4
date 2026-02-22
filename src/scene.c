@@ -75,18 +75,26 @@ void scene_unregister_sprite(struct sprite *sp)
 
 void scene_render(void)
 {
+	static int sr_log = 0;
 	gfx_clear();
 	if (wp.handle) {
 		Rectangle r = RECT(0, 0, wp.w, wp.h);
 		gfx_render_texture(&wp, &r);
 	}
 
+	int count = 0;
 	struct sprite *sp;
 	TAILQ_FOREACH(sp, &sprite_list, entry) {
+		count++;
 		if (sp->render)
 			sp->render(sp);
 		else
 			WARNING("sprite in scene without render function");
+	}
+	if (sr_log < 3) {
+		WARNING("scene_render: %d sprite(s) in scene, wp=%s, dirty=%d",
+			count, wp.handle ? "yes" : "no", scene_is_dirty);
+		sr_log++;
 	}
 }
 

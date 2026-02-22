@@ -156,6 +156,7 @@ struct function_call {
 	uint32_t return_address;
 	int32_t page_slot;
 	int32_t struct_page;
+	int32_t base_sp;        // stack pointer after args popped (diagnostic)
 };
 
 extern struct function_call call_stack[4096];

@@ -231,13 +231,13 @@ static int HashMap_GetValueList(int id)
 }
 
 // [12] bool Save(wrap<array<int>> SaveDataBuffer) — stub
-static bool HashMap_Save(struct page *buf)
+static bool HashMap_Save(int buf_slot)
 {
 	return false;
 }
 
 // [13] bool Load(wrap<array<int>> SaveDataBuffer) — stub
-static bool HashMap_Load(struct page *buf)
+static bool HashMap_Load(int buf_slot)
 {
 	return false;
 }

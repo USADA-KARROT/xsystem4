@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include "system4/ex.h"
+#include "system4/file.h"
 #include "system4/string.h"
 #include "system4/ain.h"
 
@@ -76,6 +77,7 @@ static void MainEXFile_ModuleInit(void)
 {
 	if (!config.ex_path || !(ex = ex_read_file(config.ex_path)))
 		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
+	WARNING("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
 }
 
 static void MainEXFile_ModuleFini(void)
@@ -98,6 +100,19 @@ static bool MainEXFile_ReloadDebugEXFile(void)
  */
 static int MainEXFile_AddEXReader(struct string *path)
 {
+	WARNING("MainEXFile.AddEXReader('%s') — attempting to load", display_utf0(path->text));
+	struct ex *extra = ex_read_file(path->text);
+	if (!extra) {
+		char *full = path_join(config.game_dir, path->text);
+		extra = ex_read_file(full);
+		free(full);
+	}
+	if (extra) {
+		ex_append(ex, extra);
+		WARNING("MainEXFile.AddEXReader: loaded %u blocks", extra->nr_blocks);
+		return 1;  // Return non-zero ID
+	}
+	WARNING("MainEXFile.AddEXReader('%s'): file not found", display_utf0(path->text));
 	return 0;
 }
 
@@ -113,6 +128,24 @@ static void MainEXFile_EraseEXReader(int id)
  */
 static bool MainEXFile_AddEX(struct string *path)
 {
+	WARNING("MainEXFile.AddEX('%s') — attempting to load", display_utf0(path->text));
+	struct ex *extra = ex_read_file(path->text);
+	if (extra) {
+		ex_append(ex, extra);
+		WARNING("MainEXFile.AddEX: loaded %u blocks", extra->nr_blocks);
+		return true;
+	}
+	// Try relative to game dir
+	char *full = path_join(config.game_dir, path->text);
+	extra = ex_read_file(full);
+	if (extra) {
+		ex_append(ex, extra);
+		WARNING("MainEXFile.AddEX('%s'): loaded %u blocks", full, extra->nr_blocks);
+		free(full);
+		return true;
+	}
+	WARNING("MainEXFile.AddEX('%s'): file not found", display_utf0(path->text));
+	free(full);
 	return false;
 }
 
@@ -121,6 +154,7 @@ static bool MainEXFile_AddEX(struct string *path)
  */
 static bool MainEXFile_AddEXText(struct string *path)
 {
+	WARNING("MainEXFile.AddEXText('%s') stub", display_utf0(path->text));
 	return false;
 }
 
@@ -128,12 +162,12 @@ static bool MainEXFile_AddEXText(struct string *path)
  * [ 5] bool Save(wrap image) — stub
  * [ 6] bool Load(wrap image) — stub
  */
-static bool MainEXFile_Save(union vm_value *image)
+static bool MainEXFile_Save(int image_slot)
 {
 	return false;
 }
 
-static bool MainEXFile_Load(union vm_value *image)
+static bool MainEXFile_Load(int image_slot)
 {
 	return false;
 }
@@ -237,8 +271,19 @@ static float MainEXFile_Float(struct string *name, float dflt, int id)
 static struct string *MainEXFile_String(struct string *name, struct string *dflt, int id)
 {
 	struct ex_value *v = resolve(name);
-	if (v && v->type == EX_STRING)
+	if (v && v->type == EX_STRING) {
 		return string_ref(v->s);
+	}
+	static int miss_log = 0;
+	if (miss_log++ < 5) {
+		char hex[128] = {0};
+		int nlen = name->size < 20 ? name->size : 20;
+		for (int j = 0; j < nlen; j++)
+			sprintf(hex + j*3, "%02X ", (unsigned char)name->text[j]);
+		WARNING("MainEXFile.String MISS: hex=[%s] len=%d dflt='%s'",
+			hex, name->size,
+			dflt ? (dflt->size > 0 ? "..." : "") : "NULL");
+	}
 	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
 
@@ -328,6 +373,7 @@ static int MainEXFile_GetRowAtIntKey(struct string *name, int key, int id)
  */
 static int MainEXFile_GetRowAtStringKey(struct string *name, struct string *key, int id)
 {
+	if (!key) return -1;
 	struct ex_table *t = resolve_table(name);
 	return t ? ex_row_at_string_key(t, key->text) : -1;
 }
@@ -376,7 +422,7 @@ static int MainEXFile_GetEXNameCount(struct string *tree_path, int id)
  *
  * wrap<string> — the vm_value pointed to by node_name is a string heap slot
  */
-static bool MainEXFile_GetNodeName(struct string *tree_path, int index, union vm_value *node_name, int id)
+static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int name_slot, int id)
 {
 	struct ex_tree *tree = resolve_tree(tree_path);
 	if (!tree) return false;
@@ -386,9 +432,7 @@ static bool MainEXFile_GetNodeName(struct string *tree_path, int index, union vm
 		if (tree->children[i].is_leaf)
 			continue;
 		if (count == index) {
-			if (node_name->i > 0)
-				heap_unref(node_name->i);
-			node_name->i = heap_alloc_string(string_ref(tree->children[i].name));
+			wrap_set_string(name_slot, string_ref(tree->children[i].name));
 			return true;
 		}
 		count++;
@@ -399,7 +443,7 @@ static bool MainEXFile_GetNodeName(struct string *tree_path, int index, union vm
 /*
  * [30] bool GetEXName(string TreePath, int Index, wrap EXName, int ID)
  */
-static bool MainEXFile_GetEXName(struct string *tree_path, int index, union vm_value *ex_name, int id)
+static bool MainEXFile_GetEXName(struct string *tree_path, int index, int name_slot, int id)
 {
 	struct ex_tree *tree = resolve_tree(tree_path);
 	if (!tree) return false;
@@ -409,9 +453,7 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, union vm_v
 		if (!tree->children[i].is_leaf)
 			continue;
 		if (count == index) {
-			if (ex_name->i > 0)
-				heap_unref(ex_name->i);
-			ex_name->i = heap_alloc_string(string_ref(tree->children[i].leaf.name));
+			wrap_set_string(name_slot, string_ref(tree->children[i].leaf.name));
 			return true;
 		}
 		count++;
@@ -424,37 +466,41 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, union vm_v
  *
  * wrap<array<string>> — write an array page of strings to the wrap value
  */
-static bool MainEXFile_GetNodeNameList(struct string *tree_path, union vm_value *list, int id)
+static bool MainEXFile_GetNodeNameList(struct string *tree_path, int list_slot, int id)
 {
 	struct ex_tree *tree = resolve_tree(tree_path);
-	if (!tree) return false;
+	if (!tree || tree->nr_children == 0) return false;
+	if (!tree->children) return false;
 
 	int count = 0;
 	for (unsigned i = 0; i < tree->nr_children; i++) {
 		if (!tree->children[i].is_leaf)
 			count++;
 	}
+	if (count == 0) return false;
 
 	union vm_value dim = { .i = count };
 	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
+	if (!array) return false;
 	int idx = 0;
-	for (unsigned i = 0; i < tree->nr_children; i++) {
-		if (!tree->children[i].is_leaf) {
-			array->values[idx].i = heap_alloc_string(string_ref(tree->children[i].name));
+	for (unsigned i = 0; i < tree->nr_children && idx < count; i++) {
+		struct ex_tree *child = &tree->children[i];
+		if (!child->is_leaf) {
+			struct string *child_name = child->name;
+			if (!child_name) child_name = &EMPTY_STRING;
+			array->values[idx].i = heap_alloc_string(string_ref(child_name));
 			idx++;
 		}
 	}
 
-	if (list->i > 0)
-		heap_unref(list->i);
-	list->i = heap_alloc_page(array);
+	wrap_set_slot(list_slot, heap_alloc_page(array));
 	return true;
 }
 
 /*
  * [32] bool GetEXNameList(string TreePath, wrap EXNameList, int ID)
  */
-static bool MainEXFile_GetEXNameList(struct string *tree_path, union vm_value *list, int id)
+static bool MainEXFile_GetEXNameList(struct string *tree_path, int list_slot, int id)
 {
 	struct ex_tree *tree = resolve_tree(tree_path);
 	if (!tree) return false;
@@ -470,14 +516,14 @@ static bool MainEXFile_GetEXNameList(struct string *tree_path, union vm_value *l
 	int idx = 0;
 	for (unsigned i = 0; i < tree->nr_children; i++) {
 		if (tree->children[i].is_leaf) {
-			array->values[idx].i = heap_alloc_string(string_ref(tree->children[i].leaf.name));
+			struct string *leaf_name = tree->children[i].leaf.name;
+			if (!leaf_name) leaf_name = &EMPTY_STRING;
+			array->values[idx].i = heap_alloc_string(string_ref(leaf_name));
 			idx++;
 		}
 	}
 
-	if (list->i > 0)
-		heap_unref(list->i);
-	list->i = heap_alloc_page(array);
+	wrap_set_slot(list_slot, heap_alloc_page(array));
 	return true;
 }
 
@@ -486,7 +532,7 @@ static bool MainEXFile_GetEXNameList(struct string *tree_path, union vm_value *l
  *
  * Returns column/field names for a table
  */
-static bool MainEXFile_GetFormatNameList(struct string *name, union vm_value *list, int id)
+static bool MainEXFile_GetFormatNameList(struct string *name, int list_slot, int id)
 {
 	struct ex_table *t = resolve_table(name);
 	if (!t) return false;
@@ -497,9 +543,7 @@ static bool MainEXFile_GetFormatNameList(struct string *name, union vm_value *li
 		array->values[i].i = heap_alloc_string(string_ref(t->fields[i].name));
 	}
 
-	if (list->i > 0)
-		heap_unref(list->i);
-	list->i = heap_alloc_page(array);
+	wrap_set_slot(list_slot, heap_alloc_page(array));
 	return true;
 }
 

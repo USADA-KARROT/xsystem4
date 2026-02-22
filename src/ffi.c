@@ -293,9 +293,30 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 }
 #endif /* TRACE_HLL */
 
+/* Ring buffer of last HLL calls for crash diagnostics */
+#define HLL_RING_SIZE 8
+static struct { int libno; int fno; } hll_ring[HLL_RING_SIZE];
+static int hll_ring_idx = 0;
+
+void hll_dump_ring(void)
+{
+	WARNING("=== Last %d HLL calls ===", HLL_RING_SIZE);
+	for (int i = 0; i < HLL_RING_SIZE; i++) {
+		int idx = (hll_ring_idx - HLL_RING_SIZE + i + HLL_RING_SIZE * 2) % HLL_RING_SIZE;
+		int lib = hll_ring[idx].libno, fn = hll_ring[idx].fno;
+		if (lib >= 0 && lib < ain->nr_libraries && fn >= 0 && fn < ain->libraries[lib].nr_functions)
+			WARNING("  [%d] %s.%s", i, ain->libraries[lib].name, ain->libraries[lib].functions[fn].name);
+	}
+}
+
 void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
+
+	/* Record in ring buffer */
+	hll_ring[hll_ring_idx % HLL_RING_SIZE].libno = libno;
+	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
+	hll_ring_idx++;
 
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
 		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
@@ -331,9 +352,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 			case AIN_REF_BOOL:
 			case AIN_REF_FLOAT:
 			case AIN_REF_HLL_PARAM:
-			case AIN_REF_FUNC_TYPE:
-			case AIN_WRAP: // v14: wrap args are 2-slot refs (page_slot + var_index)
-				stack_ptr -= 2; break;
+				stack_ptr -= 2; break; // 2-slot reference (pageno, varno)
+			case AIN_HLL_FUNC:
+				stack_ptr -= 2; break; // 2-slot (object, function)
+			case AIN_WRAP:
 			case AIN_REF_ARRAY:
 				stack_ptr--; break; // v14: 1-slot (resolved heap slot)
 			default:
@@ -367,14 +389,22 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
-		case AIN_REF_HLL_PARAM:
-		case AIN_WRAP: { // v14: wrap args are 2-slot refs (page_slot + var_index)
+		case AIN_REF_HLL_PARAM: {
 			// need to create pointer for immediate ref types (2-slot)
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
 			int varno  = stack[stack_ptr+1].i;
 			ptrs[i] = &heap[pageno].page->values[varno];
 			args[i] = &ptrs[i];
+			break;
+		}
+		case AIN_WRAP: {
+			// v14: wrap<T> parameter — 1-slot (heap slot index)
+			// Pass the slot index as int (Lua registry handle pattern).
+			// HLL functions handle VM_PAGE (wrap page) and VM_STRING
+			// (direct string) cases internally.
+			stack_ptr--;
+			args[i] = &stack[stack_ptr];
 			break;
 		}
 		case AIN_STRING: {
@@ -483,6 +513,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 	}
 
 	union vm_value r;
+
 #ifdef TRACE_HLL
 	trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
 #else
@@ -498,9 +529,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
 		case AIN_REF_HLL_PARAM:
-		case AIN_WRAP: // v14: wrap args are 2-slot refs
 		case AIN_HLL_FUNC:
 			j++;
+			break;
+		case AIN_WRAP: // v14: int handle, HLL writes directly to heap
 			break;
 		case AIN_REF_STRING:
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
@@ -841,13 +873,13 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 	case AIN_HLL_PARAM:
 	case AIN_REF_HLL_PARAM:
 	case AIN_ARRAY:
-	case AIN_WRAP:
 	case AIN_OPTION:
 	case AIN_UNKNOWN_TYPE_87:
 	case AIN_IFACE:
 	case AIN_IFACE_WRAP:
 	case AIN_IMAIN_SYSTEM: // ???
 		return &ffi_type_pointer;
+	case AIN_WRAP: // v14: pass heap slot index as int handle
 	case AIN_ENUM2:
 	case AIN_ENUM:
 	case AIN_REF_ENUM:
@@ -860,7 +892,8 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 	}
 }
 
-static void link_static_library_function(struct hll_function *dst, struct ain_hll_function *src, void *funcptr)
+static void link_static_library_function(struct hll_function *dst, struct ain_hll_function *src,
+					  void *funcptr)
 {
 	dst->fun = funcptr;
 	dst->nr_args = src->nr_arguments;
@@ -943,7 +976,9 @@ static void link_libraries(void)
 			}
 		}
 		if (!libraries[i])
-			WARNING("Unimplemented library: %s", ain->libraries[i].name);
+			WARNING("Unimplemented library: %s (lib[%d], %d funcs)", ain->libraries[i].name, i, ain->libraries[i].nr_functions);
+		else
+			WARNING("Linked library: %s (lib[%d], %d funcs)", ain->libraries[i].name, i, ain->libraries[i].nr_functions);
 	}
 }
 

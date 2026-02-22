@@ -27,6 +27,7 @@
 #include "mixer.h"
 #include "savedata.h"
 #include "vm.h"
+#include "vm/page.h"
 #include "xsystem4.h"
 #include "hll.h"
 #include "system4/file.h"
@@ -206,34 +207,30 @@ static bool SystemService_SetWindowSetting(int type, int value)
 	return true;
 }
 
-static bool SystemService_GetWindowSetting(int type, int *value)
+// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> value_slot
+static bool SystemService_GetWindowSetting(int type, int value_slot)
 {
+	int v;
 	switch (type) {
 	case WINDOW_SETTINGS_ASPECT_RATIO:
-		*value = window_settings.aspect_ratio;
-		break;
+		v = window_settings.aspect_ratio; break;
 	case WINDOW_SETTINGS_SCALING_TYPE:
-		*value = window_settings.scaling_type;
-		break;
+		v = window_settings.scaling_type; break;
 	case WINDOW_SETTINGS_WAIT_VSYNC:
-		*value = window_settings.wait_vsync;
-		break;
+		v = window_settings.wait_vsync; break;
 	case WINDOW_SETTINGS_RECORD_POS_SIZE:
-		*value = window_settings.record_pos_size;
-		break;
+		v = window_settings.record_pos_size; break;
 	case WINDOW_SETTINGS_MINIMIZE_BY_FULL_SCREEN_INACTIVE:
-		*value = window_settings.minimize_by_full_screen_inactive;
-		break;
+		v = window_settings.minimize_by_full_screen_inactive; break;
 	case WINDOW_SETTINGS_BACK_TO_TITLE_CONFIRM:
-		*value = window_settings.back_to_title_confirm;
-		break;
+		v = window_settings.back_to_title_confirm; break;
 	case WINDOW_SETTINGS_CLOSE_GAME_CONFIRM:
-		*value = window_settings.close_game_confirm;
-		break;
+		v = window_settings.close_game_confirm; break;
 	default:
 		WARNING("Invalid window setting type: %d", type);
 		return false;
 	}
+	wrap_set_int(value_slot, v);
 	return true;
 }
 
@@ -251,14 +248,14 @@ static bool SystemService_SetMouseCursorConfig(int type, int value)
 	return true;
 }
 
-static bool SystemService_GetMouseCursorConfig(int type, int *value)
+// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> value_slot
+static bool SystemService_GetMouseCursorConfig(int type, int value_slot)
 {
 	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
-	// XXX: the value returned here is always 1 or 0
-	*value = !!mouse_cursor_config[type];
+	wrap_set_int(value_slot, !!mouse_cursor_config[type]);
 	return true;
 }
 
@@ -278,10 +275,24 @@ void SystemService_GetGameFolderPath(struct string **folder_path)
 	*folder_path = cstr_to_string(config.game_dir);
 }
 
-static void SystemService_GetTime(int *hour, int *min, int *sec)
+static void SystemService_GetTime(int hour_slot, int min_slot, int sec_slot)
 {
-	int ms;
-	get_time(hour, min, sec, &ms);
+	// v14: wrap<int> — receives heap slot index
+	int hour, min, sec, ms;
+	get_time(&hour, &min, &sec, &ms);
+	wrap_set_int(hour_slot, hour);
+	wrap_set_int(min_slot, min);
+	wrap_set_int(sec_slot, sec);
+}
+
+static void SystemService_GetDate(int year_slot, int month_slot, int mday_slot, int wday_slot)
+{
+	int year, month, mday, wday;
+	get_date(&year, &month, &mday, &wday);
+	wrap_set_int(year_slot, year);
+	wrap_set_int(month_slot, month);
+	wrap_set_int(mday_slot, mday);
+	wrap_set_int(wday_slot, wday);
 }
 
 static bool SystemService_IsResetOnce(void)
@@ -450,7 +461,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_TODO_EXPORT(RunProgram, SystemService_RunProgram),
 	    HLL_TODO_EXPORT(IsOpenedMutex, SystemService_IsOpenedMutex),
 	    HLL_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
-	    HLL_EXPORT(GetDate, get_date),
+	    HLL_EXPORT(GetDate, SystemService_GetDate),
 	    HLL_EXPORT(GetTime, SystemService_GetTime),
 	    HLL_EXPORT(IsResetOnce, SystemService_IsResetOnce),
 	    HLL_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),

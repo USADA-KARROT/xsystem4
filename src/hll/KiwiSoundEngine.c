@@ -21,6 +21,32 @@
 
 HLL_WARN_UNIMPLEMENTED( , void, KiwiSoundEngine, SetGlobalFocus, possibly_unused int nNum);
 
+// Generic channel operations (used by v14 game code)
+static int KiwiSoundEngine_GetPos(int ch)
+{
+	return 0;  // stub: no generic wav_get_pos in audio API
+}
+
+static bool KiwiSoundEngine_IsExistFile(int ch)
+{
+	return wav_exists(ch);
+}
+
+static void KiwiSoundEngine_Fade(int ch, int vol, int time, bool stop, int ease)
+{
+	wav_fade(ch, time, vol, stop);
+}
+
+static void KiwiSoundEngine_Stop(int ch)
+{
+	wav_stop(ch);
+}
+
+static void KiwiSoundEngine_SetSeParam(int group, int param, int value)
+{
+	// SE parameter adjustment — stub (no direct mapping in xsystem4 audio)
+}
+
 //int KiwiSoundEngine_Sound_GetGroupNum(int nCh);
 //static bool KiwiSoundEngine_Sound_PrepareFromFile(int ch, struct string *filename);
 //static int KiwiSoundEngine_Sound_GetDataLength(int data_number);
@@ -99,5 +125,10 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(GetSEGroup, KiwiSoundEngine_GetSEGroup),
 	    HLL_EXPORT(GetVoiceGroup, KiwiSoundEngine_GetVoiceGroup),
 	    HLL_EXPORT(GetGimicSEGroup, KiwiSoundEngine_GetGimicSEGroup),
-	    HLL_EXPORT(GetBackVoiceGroup, KiwiSoundEngine_GetBackVoiceGroup)
+	    HLL_EXPORT(GetBackVoiceGroup, KiwiSoundEngine_GetBackVoiceGroup),
+	    HLL_EXPORT(GetPos, KiwiSoundEngine_GetPos),
+	    HLL_EXPORT(IsExistFile, KiwiSoundEngine_IsExistFile),
+	    HLL_EXPORT(Fade, KiwiSoundEngine_Fade),
+	    HLL_EXPORT(Stop, KiwiSoundEngine_Stop),
+	    HLL_EXPORT(SetSeParam, KiwiSoundEngine_SetSeParam)
 	);

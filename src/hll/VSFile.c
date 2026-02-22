@@ -174,29 +174,31 @@ static bool VSFile_WriteString(struct string *str)
 	return true;
 }
 
-static bool VSFile_ReadByte(int *data)
+// v14: AIN declares Read* arg[0] as AIN_WRAP — wrap handle, not pointer
+
+static bool VSFile_ReadByte(int data_slot)
 {
 	vsf_read_type(VSF_BYTE);
 
 	uint8_t b;
 	if (!vsf_read(&b, 1))
 		return false;
-	*data = b;
+	wrap_set_int(data_slot, b);
 	return true;
 }
 
-static bool VSFile_ReadInt(int *data)
+static bool VSFile_ReadInt(int data_slot)
 {
 	vsf_read_type(VSF_INT);
 
 	uint8_t b[4];
 	if (!vsf_read(b, 4))
 		return false;
-	*data = LittleEndian_getDW(b, 0);
+	wrap_set_int(data_slot, LittleEndian_getDW(b, 0));
 	return true;
 }
 
-static bool VSFile_ReadFloat(float *data)
+static bool VSFile_ReadFloat(int data_slot)
 {
 	vsf_read_type(VSF_FLOAT);
 
@@ -208,11 +210,11 @@ static bool VSFile_ReadFloat(float *data)
 	if (!vsf_read(b, 4))
 		return false;
 	cast.i = LittleEndian_getDW(b, 0);
-	*data = cast.f;
+	wrap_set_float(data_slot, cast.f);
 	return true;
 }
 
-static bool VSFile_ReadString(struct string **str)
+static bool VSFile_ReadString(int str_slot)
 {
 	vsf_read_type(VSF_STRING);
 
@@ -228,9 +230,7 @@ static bool VSFile_ReadString(struct string **str)
 		string_append_cstr(&s, &b, 1);
 	}
 
-	if (*str)
-		free_string(*str);
-	*str = s;
+	wrap_set_string(str_slot, s);
 	return true;
 }
 

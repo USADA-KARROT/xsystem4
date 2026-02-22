@@ -151,21 +151,24 @@ static bool String_EndsWith(struct string **self, struct string *suffix)
 	return memcmp(s->text + s->size - suffix->size, suffix->text, suffix->size) == 0;
 }
 
-// [14] bool Search(ref string self, string regex) — stub
-static bool String_Search(struct string **self, struct string *regex)
+// Forward declaration for SearchAll (used by Search and Match)
+static bool String_SearchAll(struct string **self, int matchList_slot, struct string *regex);
+
+// [14] bool Search(ref string self, wrap<array<array<string>>> matchList, string regex)
+// v14: AIN_WRAP — matchList is heap slot index (int).
+// Same logic as SearchAll.
+static bool String_Search(struct string **self, int matchList_slot, struct string *regex)
 {
-	return false;
+	return String_SearchAll(self, matchList_slot, regex);
 }
 
 // [15] bool Search(ref string self, ref array<array<string>> matchList, string regex)
-// [16] bool SearchAll(ref string self, ref array<array<string>> matchList, string regex)
+// [16] bool SearchAll(ref string self, wrap<array<array<string>>> matchList, string regex)
 //
 // The game uses regex: ([^\[\]]+?)+|\[[^\]]+?\]
 // This is a bracket tokenizer: match [bracketed] tokens and non-bracket text.
-// matchList is AIN_WRAP (dt=82) — passed as struct page * (by-value page pointer).
-// Each match is an array<string> with group[0] = full match.
-// matchList is an array<array<string>>.
-static bool String_SearchAll(struct string **self, struct page *matchList, struct string *regex)
+// v14: AIN_WRAP — matchList is heap slot index (int).
+static bool String_SearchAll(struct string **self, int matchList_slot, struct string *regex)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0)
@@ -174,25 +177,18 @@ static bool String_SearchAll(struct string **self, struct page *matchList, struc
 	const char *text = s->text;
 	int len = s->size;
 
-	// Simple bracket tokenizer for the specific regex pattern used by the game:
-	// ([^\[\]]+?)+|\[[^\]]+?\]
-	// - Match [bracketed] sections (including brackets)
-	// - Match non-bracket text sections
-
-	// First pass: count tokens
+	// Simple bracket tokenizer for the specific regex pattern used by the game
 	int count = 0;
 	int i = 0;
 	while (i < len) {
 		if (text[i] == '[') {
-			// Find closing bracket
 			int j = i + 1;
 			while (j < len && text[j] != ']')
 				j++;
-			if (j < len) j++; // include ']'
+			if (j < len) j++;
 			count++;
 			i = j;
 		} else if (text[i] != ']') {
-			// Non-bracket text
 			int j = i;
 			while (j < len && text[j] != '[' && text[j] != ']')
 				j++;
@@ -206,19 +202,10 @@ static bool String_SearchAll(struct string **self, struct page *matchList, struc
 	if (count == 0)
 		return false;
 
-	// Build the outer array (array<array<string>>)
-	// matchList is passed by value but we can modify its contents if pre-allocated,
-	// or we need to build a new page. Since the page is in the heap, we modify
-	// the heap slot's page directly.
-	// Actually, for AIN_WRAP by-value, we receive the page pointer.
-	// We need to resize the array to hold 'count' elements.
-	// Each element is a heap slot pointing to an inner array<string> page.
-
-	// Allocate outer array
+	// Build outer array (array<array<string>>)
 	struct page *outer = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRUCT, count);
 	outer->array.rank = 1;
 
-	// Second pass: fill tokens
 	int idx = 0;
 	i = 0;
 	while (i < len && idx < count) {
@@ -244,13 +231,10 @@ static bool String_SearchAll(struct string **self, struct page *matchList, struc
 		}
 
 		if (end > start) {
-			// Create inner array<string> with 1 element (group 0 = full match)
 			struct page *inner = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRING, 1);
 			inner->array.rank = 1;
 			struct string *token = make_string(text + start, end - start);
-			int str_slot = heap_alloc_slot(VM_STRING);
-			heap[str_slot].s = token;
-			inner->values[0].i = str_slot;
+			inner->values[0].i = heap_alloc_string(token);
 
 			int inner_slot = heap_alloc_slot(VM_PAGE);
 			heap_set_page(inner_slot, inner);
@@ -259,47 +243,17 @@ static bool String_SearchAll(struct string **self, struct page *matchList, struc
 		}
 	}
 
-	// Store the outer array in matchList's heap slot
-	// Since matchList is AIN_WRAP by-value, we received the page pointer.
-	// We need to find the heap slot. Actually, for AIN_WRAP handling in ffi.c,
-	// args[i] = &heap[slot].page, so matchList IS heap[slot].page.
-	// We can't replace it from here. Instead, we'll need to modify the
-	// existing page or use a different approach.
-	//
-	// The simplest approach: since we can't modify the heap slot through
-	// a by-value parameter, we'll check if matchList is NULL/empty and
-	// just not store results. The game likely checks the return value.
-	//
-	// Actually, a better approach for v14: the game probably expects us
-	// to modify the matchList array in-place, or the parameter passing
-	// gives us write access. Since matchList comes as &heap[slot].page
-	// through ffi, we DO have write access - ffi passes the pointer value
-	// stored at args[i], which IS heap[slot].page itself.
-	// But we can't change heap[slot].page to point to our new outer page.
-	//
-	// For now, return true if matches found. The game checks return value.
-	// If needed, we can rework parameter handling later.
-
-	// Clean up — we built the array but can't return it through matchList
-	// with the current parameter passing. Free it.
-	// Actually, let me try a different approach: return the match count
-	// through the existing matchList page if it's an array.
-
-	// For now, just leak the outer array and return true/false.
-	// The game's SearchAll on empty strings returns false anyway.
-	// When called on non-empty strings, returning true tells the caller
-	// matches were found, even if matchList isn't populated.
-
-	// TODO: proper matchList population requires modifying ffi.c
-	// to handle AIN_WRAP as ref for this specific case.
-
-	return count > 0;
+	// Write outer array to wrap slot
+	wrap_set_slot(matchList_slot, heap_alloc_page(outer));
+	return true;
 }
 
-// [17] bool Match(ref string self, string regex) — stub
-static bool String_Match(struct string **self, struct string *regex)
+// [17] bool Match(ref string self, wrap<array<array<string>>> matchList, string regex)
+// v14: AIN_WRAP — matchList is heap slot index (int).
+// Same logic as SearchAll.
+static bool String_Match(struct string **self, int matchList_slot, struct string *regex)
 {
-	return false;
+	return String_SearchAll(self, matchList_slot, regex);
 }
 
 // [19] string Replace(ref string self, string key, string replacer)

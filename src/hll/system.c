@@ -8,12 +8,15 @@
 
 #include "system4/string.h"
 #include "hll.h"
+#include "input.h"
+#include "gfx/gfx.h"
 #include "vm.h"
 
-// [0] ResumeSave(keyName, fileName, result) -> bool
-static bool system_ResumeSave(struct string *keyName, struct string *fileName, int result)
+// [0] ResumeSave(keyName, fileName, wrap<int> result) -> bool
+// v14: arg[2] is AIN_WRAP — wrap slot index
+static bool system_ResumeSave(struct string *keyName, struct string *fileName, int result_slot)
 {
-	WARNING("system.ResumeSave('%s', '%s', %d) stub", keyName->text, fileName->text, result);
+	WARNING("system.ResumeSave('%s', '%s', slot=%d) stub", keyName->text, fileName->text, result_slot);
 	return true;
 }
 
@@ -23,21 +26,27 @@ static void system_ResumeLoad(struct string *keyName, struct string *fileName)
 	WARNING("system.ResumeLoad('%s', '%s') stub", keyName->text, fileName->text);
 }
 
-// [2] Peek() -> void
+// [2] Peek() -> void — process one pending event
 static void system_Peek(void)
 {
+	handle_events();
 }
 
-// [3] PeekAll() -> void
+// [3] PeekAll() -> void — process all pending events
 static void system_PeekAll(void)
 {
+	handle_events();
 }
 
 // [4] Exit(result) -> void
 static void system_Exit(int result)
 {
-	WARNING("system.Exit(%d)", result);
-	vm_exit(result);
+	static int exit_calls = 0;
+	exit_calls++;
+	if (exit_calls <= 5)
+		WARNING("system.Exit(%d) — suppressing (call #%d)", result, exit_calls);
+	// Don't actually exit — game assertions call Exit(1) for non-fatal errors.
+	// Let the game continue and recover if possible.
 }
 
 // [5] Reset() -> void
@@ -52,29 +61,33 @@ static bool system_IsDebugMode(void)
 	return false;
 }
 
-// [7] ResumeWriteComment
-static bool system_ResumeWriteComment(struct string *keyName, struct string *fileName, struct string **commentList)
+// [7] ResumeWriteComment(keyName, fileName, wrap<string> commentList) -> bool
+// v14: arg[2] is AIN_WRAP — wrap slot index
+static bool system_ResumeWriteComment(struct string *keyName, struct string *fileName, int commentList_slot)
 {
 	WARNING("system.ResumeWriteComment stub");
 	return true;
 }
 
-// [8] ResumeReadComment
-static bool system_ResumeReadComment(struct string *keyName, struct string *fileName, struct string **commentList)
+// [8] ResumeReadComment(keyName, fileName, wrap<string> commentList) -> bool
+// v14: arg[2] is AIN_WRAP — wrap slot index
+static bool system_ResumeReadComment(struct string *keyName, struct string *fileName, int commentList_slot)
 {
 	WARNING("system.ResumeReadComment stub");
 	return true;
 }
 
-// [9] GroupSave
-static bool system_GroupSave(struct string *keyName, struct string *fileName, struct string *group, int numofSave)
+// [9] GroupSave(keyName, fileName, group, wrap<int> numofSave) -> bool
+// v14: arg[3] is AIN_WRAP — wrap slot index
+static bool system_GroupSave(struct string *keyName, struct string *fileName, struct string *group, int numofSave_slot)
 {
 	WARNING("system.GroupSave stub");
 	return true;
 }
 
-// [10] GroupLoad
-static bool system_GroupLoad(struct string *keyName, struct string *fileName, struct string *group, int numofLoad)
+// [10] GroupLoad(keyName, fileName, group, wrap<int> numofLoad) -> bool
+// v14: arg[3] is AIN_WRAP — wrap slot index
+static bool system_GroupLoad(struct string *keyName, struct string *fileName, struct string *group, int numofLoad_slot)
 {
 	WARNING("system.GroupLoad stub");
 	return true;
@@ -87,8 +100,9 @@ static bool system_WriteGroupSaveComment(struct string *keyName, struct string *
 	return true;
 }
 
-// [12] ReadGroupSaveComment
-static bool system_ReadGroupSaveComment(struct string *keyName, struct string *fileName, struct string **log)
+// [12] ReadGroupSaveComment(keyName, fileName, wrap<string> log) -> bool
+// v14: arg[2] is AIN_WRAP — wrap slot index
+static bool system_ReadGroupSaveComment(struct string *keyName, struct string *fileName, int log_slot)
 {
 	WARNING("system.ReadGroupSaveComment stub");
 	return true;
@@ -114,8 +128,9 @@ static bool system_WriteSerializeStructComment(struct string *fileName, struct s
 	return true;
 }
 
-// [16] ReadSerializeStructComment
-static bool system_ReadSerializeStructComment(struct string *fileName, struct string **comment, bool saveFolder)
+// [16] ReadSerializeStructComment(fileName, wrap<string> comment, saveFolder) -> bool
+// v14: arg[1] is AIN_WRAP — wrap slot index
+static bool system_ReadSerializeStructComment(struct string *fileName, int comment_slot, bool saveFolder)
 {
 	return false;
 }
@@ -123,14 +138,18 @@ static bool system_ReadSerializeStructComment(struct string *fileName, struct st
 // [17] ExistSaveFile(fileName) -> bool
 static bool system_ExistSaveFile(struct string *fileName)
 {
-	WARNING("system.ExistSaveFile('%s') -> false", fileName->text);
+	static int esf_log = 0;
+	if (esf_log++ < 3)
+		WARNING("system.ExistSaveFile('%s') -> false", fileName->text);
 	return false;
 }
 
 // [18] DeleteSaveFile
 static bool system_DeleteSaveFile(struct string *fileName)
 {
-	WARNING("system.DeleteSaveFile('%s') stub", fileName->text);
+	static int dsf_log = 0;
+	if (dsf_log++ < 3)
+		WARNING("system.DeleteSaveFile('%s') stub", fileName->text);
 	return true;
 }
 
@@ -187,10 +206,13 @@ static int system_MsgBoxOkCancel(struct string *text)
 static struct string *system_Error(struct string *text)
 {
 	static int error_count = 0;
-	if (error_count++ < 10)
+	error_count++;
+	if (error_count <= 10)
 		WARNING("system.Error: %s", text->text);
 	else if (error_count == 11)
-		WARNING("system.Error: (suppressing further errors)");
+		WARNING("system.Error: (suppressing further errors, count=%d)", error_count);
+	else if (error_count == 1000 || error_count == 10000)
+		WARNING("system.Error: count=%d (continuing)", error_count);
 	return string_ref(text);
 }
 

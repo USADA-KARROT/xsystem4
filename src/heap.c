@@ -147,6 +147,39 @@ void heap_unref(int slot)
 		heap[slot].ref--;
 		return;
 	}
+	// About to free this slot — check if any PARENT call frame still uses it
+	// (exclude the topmost frame since function_return unrefs it before decrementing csp)
+	{
+		extern struct function_call call_stack[];
+		extern int32_t call_stack_ptr;
+		bool parent_uses = false;
+		for (int i = 0; i < call_stack_ptr - 1; i++) {
+			if (call_stack[i].page_slot == slot) {
+				if (!parent_uses) {
+					static int lpf_warn = 0;
+					if (lpf_warn++ < 10) {
+						extern struct ain *ain;
+						int ff = call_stack[i].fno;
+						int top_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+						WARNING("LIVE_PAGE_FREE blocked: slot=%d frame[%d] fno=%d '%s' "
+							"caller=%d '%s' ip=0x%lX csp=%d",
+							slot, i, ff,
+							(ain && ff >= 0 && ff < ain->nr_functions) ? ain->functions[ff].name : "?",
+							top_fno,
+							(ain && top_fno >= 0 && top_fno < ain->nr_functions) ? ain->functions[top_fno].name : "?",
+							(unsigned long)instr_ptr, call_stack_ptr);
+					}
+				}
+				parent_uses = true;
+			}
+		}
+		if (parent_uses) {
+			// Keep the slot alive — a parent frame still references it.
+			// Bumping ref prevents cascading corruption from freeing live pages.
+			heap[slot].ref = 1;
+			return;
+		}
+	}
 	heap[slot].ref = 0;
 	switch (heap[slot].type) {
 	case VM_PAGE:
@@ -237,7 +270,7 @@ struct page *heap_get_page(int index)
 {
 	if (unlikely(!page_index_valid(index))) {
 		static int page_warn_count = 0;
-		if (page_warn_count++ < 20) {
+		if (page_warn_count++ < 5) {
 			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
 			if (index >= 0 && (size_t)index < heap_size)
 				WARNING("heap_get_page: invalid page index %d (ref=%d type=%d) ip=0x%lX fno=%d '%s'",
@@ -256,18 +289,21 @@ struct page *heap_get_page(int index)
 struct string *heap_get_string(int index)
 {
 	if (unlikely(!string_index_valid(index))) {
-		int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-		if (index >= 0 && (size_t)index < heap_size) {
-			if (heap[index].type == VM_PAGE && heap[index].page)
-				WARNING("heap_get_string: invalid string index %d (ref=%d type=VM_PAGE page_type=%d a_type=%d nr_vars=%d) ip=0x%lX fno=%d",
-					index, heap[index].ref, heap[index].page->type, heap[index].page->a_type, heap[index].page->nr_vars,
-					(unsigned long)instr_ptr, fno);
-			else
-				WARNING("heap_get_string: invalid string index %d (ref=%d type=%d) ip=0x%lX fno=%d",
-					index, heap[index].ref, heap[index].type, (unsigned long)instr_ptr, fno);
-		} else
-			WARNING("heap_get_string: invalid string index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
-				index, heap_size, (unsigned long)instr_ptr, fno);
+		static int str_warn_count = 0;
+		if (str_warn_count++ < 5) {
+			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			if (index >= 0 && (size_t)index < heap_size) {
+				if (heap[index].type == VM_PAGE && heap[index].page)
+					WARNING("heap_get_string: invalid string index %d (ref=%d type=VM_PAGE page_type=%d a_type=%d nr_vars=%d) ip=0x%lX fno=%d",
+						index, heap[index].ref, heap[index].page->type, heap[index].page->a_type, heap[index].page->nr_vars,
+						(unsigned long)instr_ptr, fno);
+				else
+					WARNING("heap_get_string: invalid string index %d (ref=%d type=%d) ip=0x%lX fno=%d",
+						index, heap[index].ref, heap[index].type, (unsigned long)instr_ptr, fno);
+			} else
+				WARNING("heap_get_string: invalid string index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
+					index, heap_size, (unsigned long)instr_ptr, fno);
+		}
 		return &EMPTY_STRING;
 	}
 	return heap[index].s;
@@ -278,7 +314,7 @@ struct page *heap_get_delegate_page(int index)
 {
 	struct page *page = heap_get_page(index);
 	if (unlikely(page && page->type != DELEGATE_PAGE)) {
-		if (delegate_page_warn_count++ < 10) {
+		if (delegate_page_warn_count++ < 5) {
 			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
 			WARNING("heap_get_delegate_page: slot %d type=%d ip=0x%lX fno=%d '%s'",
 				index, page->type, (unsigned long)instr_ptr, fno,
@@ -297,7 +333,7 @@ void heap_set_page(int slot, struct page *page)
 #endif
 	if (unlikely(slot == 0 && page && page->type != GLOBAL_PAGE)) {
 		static int hp0_warn = 0;
-		if (hp0_warn++ < 5)
+		if (hp0_warn++ < 3)
 			WARNING("heap_set_page: BUG! overwriting slot 0 (global page) with type=%d idx=%d",
 				page->type, page->index);
 		return;
@@ -327,18 +363,17 @@ void heap_struct_assign(int lval, int rval)
 	}
 	if (lval == rval)
 		return;
-#ifdef DEBUG_HEAP
-	if (unlikely(!page_index_valid(lval)))
-		VM_ERROR("Invalid page index: %d", lval);
-	if (unlikely(!page_index_valid(rval)))
-		VM_ERROR("Invalid page index: %d", rval);
-	if (unlikely(heap[lval].page && heap[lval].page->type != STRUCT_PAGE))
-		VM_ERROR("SR_ASSIGN to non-struct page");
-	if (unlikely(heap[rval].page && heap[rval].page->type != STRUCT_PAGE))
-		VM_ERROR("SR_ASSIGN from non-struct page");
-	if (unlikely(heap[lval].page && heap[rval].page && heap[lval].page->index != heap[rval].page->index))
-		VM_ERROR("SR_ASSIGN with different struct types");
-#endif
+	// Validate rval before accessing heap[rval].page
+	if (unlikely(!page_index_valid(rval))) {
+		static int rval_warn = 0;
+		if (rval_warn++ < 10) {
+			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			WARNING("heap_struct_assign: invalid rval=%d lval=%d ip=0x%lX fno=%d '%s'",
+				rval, lval, (unsigned long)instr_ptr,
+				fno, (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
+		}
+		return;
+	}
 	if (heap[lval].page) {
 		delete_page(lval);
 	}

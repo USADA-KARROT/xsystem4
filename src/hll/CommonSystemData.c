@@ -95,43 +95,43 @@ static bool CommonSystemData_SetDataBool(struct string *name, bool value)
 	return true;
 }
 
-static bool CommonSystemData_GetDataInt(struct string *name, int *value)
+// v14: AIN declares GetData* arg[1] as AIN_WRAP — wrap handle, not pointer
+
+static bool CommonSystemData_GetDataInt(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		*value = datum.i;
+		wrap_set_int(value_slot, datum.i);
 		return true;
 	}
 	return false;
 }
 
-static bool CommonSystemData_GetDataFloat(struct string *name, float *value)
+static bool CommonSystemData_GetDataFloat(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		*value = datum.f;
+		wrap_set_float(value_slot, datum.f);
 		return true;
 	}
 	return false;
 }
 
-static bool CommonSystemData_GetDataString(struct string *name, struct string **value)
+static bool CommonSystemData_GetDataString(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		if (*value)
-			free_string(*value);
-		*value = string_dup(datum.s);
+		wrap_set_string(value_slot, string_dup(datum.s));
 		return true;
 	}
 	return false;
 }
 
-static bool CommonSystemData_GetDataBool(struct string *name, bool *value)
+static bool CommonSystemData_GetDataBool(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		*value = datum.i;
+		wrap_set_bool(value_slot, datum.i);
 		return true;
 	}
 	return false;

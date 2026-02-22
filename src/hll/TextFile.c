@@ -4,10 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "system4/string.h"
-#include "vm.h"
-#include "vm/heap.h"
-#include "vm/page.h"
 #include "hll.h"
 
 #define MAX_TEXT_FILES 32
@@ -84,15 +80,16 @@ static bool TextFile_WriteLine(int handle, struct string *text)
 }
 
 // [5] bool ReadAll(string fileName, wrap<string> text)
-// wrap<string> text = AIN_WRAP by-value. The page wraps a string.
-// For a wrap<string>, the page has 1 value which is a string heap slot.
-static bool TextFile_ReadAll(struct string *fileName, struct page *text_page)
+// v14: AIN_WRAP — FFI passes heap slot index as int.
+static bool TextFile_ReadAll(struct string *fileName, int text_slot)
 {
 	if (!fileName) return false;
 
 	FILE *fp = fopen(fileName->text, "rb");
 	if (!fp) {
-		WARNING("TextFile.ReadAll: cannot open '%s'", fileName->text);
+		static int ra_warn = 0;
+		if (ra_warn++ < 5)
+			WARNING("TextFile.ReadAll: cannot open '%s'", fileName->text);
 		return false;
 	}
 
@@ -105,16 +102,7 @@ static bool TextFile_ReadAll(struct string *fileName, struct page *text_page)
 	content->text[size] = '\0';
 	fclose(fp);
 
-	// Store into wrap page: values[0] is a string heap slot
-	if (text_page && text_page->nr_vars > 0) {
-		if (text_page->values[0].i > 0)
-			heap_unref(text_page->values[0].i);
-		int str_slot = heap_alloc_slot(VM_STRING);
-		heap[str_slot].s = content;
-		text_page->values[0].i = str_slot;
-	} else {
-		free_string(content);
-	}
+	wrap_set_string(text_slot, content);
 	return true;
 }
 
@@ -135,7 +123,7 @@ static int TextFile_OpenReader(struct string *fileName)
 }
 
 // [7] bool Read(int handle, wrap<string> text) — read all remaining
-static bool TextFile_Read(int handle, struct page *text_page)
+static bool TextFile_Read(int handle, int text_slot)
 {
 	if (handle < 0 || handle >= MAX_TEXT_FILES || !text_files[handle].active)
 		return false;
@@ -152,20 +140,12 @@ static bool TextFile_Read(int handle, struct page *text_page)
 	fread(content->text, 1, size, fp);
 	content->text[size] = '\0';
 
-	if (text_page && text_page->nr_vars > 0) {
-		if (text_page->values[0].i > 0)
-			heap_unref(text_page->values[0].i);
-		int str_slot = heap_alloc_slot(VM_STRING);
-		heap[str_slot].s = content;
-		text_page->values[0].i = str_slot;
-	} else {
-		free_string(content);
-	}
+	wrap_set_string(text_slot, content);
 	return true;
 }
 
 // [8] bool ReadLine(int handle, wrap<string> text)
-static bool TextFile_ReadLine(int handle, struct page *text_page)
+static bool TextFile_ReadLine(int handle, int text_slot)
 {
 	if (handle < 0 || handle >= MAX_TEXT_FILES || !text_files[handle].active)
 		return false;
@@ -176,22 +156,12 @@ static bool TextFile_ReadLine(int handle, struct page *text_page)
 	if (!fgets(buf, sizeof(buf), fp))
 		return false;
 
-	// Strip trailing newline
 	int len = strlen(buf);
 	while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r'))
 		len--;
 	buf[len] = '\0';
 
-	struct string *line = make_string(buf, len);
-	if (text_page && text_page->nr_vars > 0) {
-		if (text_page->values[0].i > 0)
-			heap_unref(text_page->values[0].i);
-		int str_slot = heap_alloc_slot(VM_STRING);
-		heap[str_slot].s = line;
-		text_page->values[0].i = str_slot;
-	} else {
-		free_string(line);
-	}
+	wrap_set_string(text_slot, make_string(buf, len));
 	return true;
 }
 

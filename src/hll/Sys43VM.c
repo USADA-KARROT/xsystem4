@@ -6,7 +6,8 @@
 #include "hll.h"
 
 // [0] bool GetFunctionNameList(wrap<array<string>> functionNameList)
-static bool Sys43VM_GetFunctionNameList(struct page *list)
+// v14: AIN_WRAP — functionNameList is heap slot index (int)
+static bool Sys43VM_GetFunctionNameList(int list_slot)
 {
 	return false;
 }

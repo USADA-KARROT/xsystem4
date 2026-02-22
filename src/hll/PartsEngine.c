@@ -76,6 +76,33 @@ static int PartsEngine_GetMessageType(void) { return 0; }
 static int PartsEngine_GetMessagePartsNumber(void) { return 0; }
 static int PartsEngine_GetMessageVariableInt(int idx) { return 0; }
 
+// v14: Save/SaveWithoutHideParts/Load — AIN_WRAP arg[0] is heap slot index.
+// Wrap the original PE_Save/PE_Load which take struct page **.
+static bool PartsEngine_Save_wrap(int buf_slot)
+{
+	struct page *buf = wrap_get_page(buf_slot);
+	bool ok = PE_Save(&buf);
+	if (ok)
+		wrap_set_slot(buf_slot, heap_alloc_page(buf));
+	return ok;
+}
+
+static bool PartsEngine_SaveWithoutHideParts_wrap(int buf_slot)
+{
+	struct page *buf = wrap_get_page(buf_slot);
+	bool ok = PE_SaveWithoutHideParts(&buf);
+	if (ok)
+		wrap_set_slot(buf_slot, heap_alloc_page(buf));
+	return ok;
+}
+
+static bool PartsEngine_Load_wrap(int buf_slot)
+{
+	struct page *buf = wrap_get_page(buf_slot);
+	bool ok = PE_Load(&buf);
+	return ok;
+}
+
 static void PartsEngine_PreLink(void);
 
 HLL_LIBRARY(PartsEngine,
@@ -241,9 +268,9 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(IsCursorIn, PE_IsCursorIn),
 	    HLL_EXPORT(SetThumbnailReductionSize, PE_SetThumbnailReductionSize),
 	    HLL_EXPORT(SetThumbnailMode, PE_SetThumbnailMode),
-	    HLL_EXPORT(Save, PE_Save),
-	    HLL_EXPORT(SaveWithoutHideParts, PE_SaveWithoutHideParts),
-	    HLL_EXPORT(Load, PE_Load),
+	    HLL_EXPORT(Save, PartsEngine_Save_wrap),
+	    HLL_EXPORT(SaveWithoutHideParts, PartsEngine_SaveWithoutHideParts_wrap),
+	    HLL_EXPORT(Load, PartsEngine_Load_wrap),
 	    HLL_EXPORT(GetActiveController, PartsEngine_GetActiveController),
 	    HLL_EXPORT(SetActiveController, PartsEngine_SetActiveController),
 	    HLL_EXPORT(UpdateComponent, PartsEngine_UpdateComponent),

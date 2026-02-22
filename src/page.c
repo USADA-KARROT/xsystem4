@@ -89,12 +89,38 @@ union vm_value variable_initval(enum ain_data_type type)
 	case AIN_REF_TYPE:
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY: // v14 generic array
 	case AIN_DELEGATE:
 		slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, NULL);
 		return (union vm_value) { .i = slot };
-	default:
+	case AIN_WRAP: {
+		// Allocate a 1-element wrap page with uninitialized inner value
+		slot = heap_alloc_slot(VM_PAGE);
+		struct page *wrap = alloc_page(STRUCT_PAGE, -1, 1);
+		wrap->values[0].i = -1;
+		heap_set_page(slot, wrap);
+		return (union vm_value) { .i = slot };
+	}
+	case AIN_FUNC_TYPE:
+	case AIN_IFACE_WRAP:
+	case AIN_OPTION:
+		// v14 types that need heap slots (like delegate/array)
+		slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, NULL);
+		return (union vm_value) { .i = slot };
+	default: {
+		static int initval_warn = 0;
+		// Log unexpected types that might need heap slot allocation
+		if (type != AIN_INT && type != AIN_FLOAT && type != AIN_BOOL
+		    && type != AIN_LONG_INT && type != AIN_VOID
+		    && type != AIN_ENUM && type != AIN_ENUM2
+		    && type != AIN_HLL_PARAM && type != AIN_HLL_FUNC
+		    && type != AIN_IFACE
+		    && initval_warn++ < 20)
+			WARNING("variable_initval: unhandled type %d → 0", type);
 		return (union vm_value) { .i = 0 };
+	}
 	}
 }
 
@@ -104,9 +130,12 @@ void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 	case AIN_STRING:
 	case AIN_STRUCT:
 	case AIN_DELEGATE:
+	case AIN_FUNC_TYPE:
 	case AIN_ARRAY_TYPE:
 	case AIN_ARRAY:
 	case AIN_WRAP:
+	case AIN_IFACE_WRAP:
+	case AIN_OPTION:
 	case AIN_REF_TYPE:
 		if (v.i == -1)
 			break;
@@ -228,8 +257,10 @@ void delete_page(int slot)
 		return;
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
-		WARNING("delete_page: corrupted page at slot %d (type=%d nr_vars=%d), skipping",
-			slot, page->type, page->nr_vars);
+		static int dp_corrupt_warn = 0;
+		if (dp_corrupt_warn++ < 5)
+			WARNING("delete_page: corrupted page at slot %d (type=%d nr_vars=%d), skipping",
+				slot, page->type, page->nr_vars);
 		heap[slot].page = NULL;
 		return;  // leak memory rather than crash
 	}
@@ -257,17 +288,20 @@ struct page *copy_page(struct page *src)
 		return NULL;
 	// Validate page before copying
 	if (src->type >= NR_PAGE_TYPES || src->nr_vars < 0 || src->nr_vars > 1000000) {
-		WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning NULL",
-			src->type, src->nr_vars);
+		static int cp_corrupt_warn = 0;
+		if (cp_corrupt_warn++ < 5)
+			WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning NULL",
+				src->type, src->nr_vars);
 		return NULL;
 	}
 	copy_depth++;
 	if (copy_depth > 100) {
-		WARNING("copy_page: depth %d too deep, returning NULL", copy_depth);
+		static int cp_depth_warn = 0;
+		if (cp_depth_warn++ < 3)
+			WARNING("copy_page: depth %d too deep (circular ref?), returning NULL", copy_depth);
 		copy_depth--;
 		return NULL;
 	}
-	// depth trace removed
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
 	dst->array = src->array;
 
@@ -281,11 +315,6 @@ struct page *copy_page(struct page *src)
 int alloc_struct(int no)
 {
 	struct ain_struct *s = &ain->structures[no];
-	static bool traced_577 = false;
-	if (!traced_577 && (no == 577 || no == 576 || no == 578)) {
-		WARNING("alloc_struct(%d): name='%s' nr_members=%d", no, s->name, s->nr_members);
-		if (no == 577) traced_577 = true;
-	}
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	for (int i = 0; i < s->nr_members; i++) {

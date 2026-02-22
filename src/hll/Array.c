@@ -63,7 +63,7 @@ static void Array_PushBack(struct page **array, int value)
 static bool Array_EraseAll(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0)
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return false;
 
 	struct ain_function *cb = &ain->functions[func];
@@ -111,7 +111,7 @@ static bool Array_EraseAll(struct page **array, int func)
 static int Array_Where(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0) {
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions) {
 		// Return empty array
 		struct page *result = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, 0);
 		result->array.rank = 1;
@@ -164,7 +164,7 @@ static int Array_Where(struct page **array, int func)
 static int Array_First(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0)
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return -1;
 
 	struct ain_function *cb = &ain->functions[func];
@@ -191,7 +191,7 @@ static int Array_First(struct page **array, int func)
 static bool Array_Any(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0)
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return false;
 
 	struct ain_function *cb = &ain->functions[func];
@@ -319,10 +319,20 @@ static void Array_Popback(struct page **array)
 	*array = new_a;
 }
 
-static void Array_Erase(struct page **array, int index)
+// Erase: remove element at index.
+// AIN declares arg[1] as AIN_WRAP — FFI passes heap slot index (int).
+// Unwrap to get actual index value from wrap page.
+static void Array_Erase(struct page **array, int index_wrap)
 {
 	if (!array || !*array)
 		return;
+	// Resolve wrap<int> handle to actual index value
+	int index = index_wrap;
+	if (index_wrap > 0 && (size_t)index_wrap < heap_size
+	    && heap[index_wrap].type == VM_PAGE
+	    && heap[index_wrap].page
+	    && heap[index_wrap].page->nr_vars > 0)
+		index = heap[index_wrap].page->values[0].i;
 	struct page *a = *array;
 	if (index < 0 || index >= a->nr_vars)
 		return;
@@ -693,6 +703,160 @@ static void Array_Realloc(struct page **array, int new_size)
 	*array = new_a;
 }
 
+// BinarySearch: binary search on sorted int array, returns index or -1
+static int Array_BinarySearch(struct page **self, int key)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	if (!array || array->nr_vars == 0)
+		return -1;
+	int lo = 0, hi = array->nr_vars - 1;
+	while (lo <= hi) {
+		int mid = lo + (hi - lo) / 2;
+		int val = array->values[mid].i;
+		if (val == key)
+			return mid;
+		else if (val < key)
+			lo = mid + 1;
+		else
+			hi = mid - 1;
+	}
+	return -1;
+}
+
+// LowerBound: returns index of first element >= key (like std::lower_bound)
+static int Array_LowerBound(struct page **self, int key)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	if (!array || array->nr_vars == 0)
+		return 0;
+	int lo = 0, hi = array->nr_vars;
+	while (lo < hi) {
+		int mid = lo + (hi - lo) / 2;
+		if (array->values[mid].i < key)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return lo;
+}
+
+// ShallowCopy: return a shallow copy of the array
+static int Array_ShallowCopy(struct page **self)
+{
+	struct page *src = (self && *self) ? *self : NULL;
+	if (!src || src->type != ARRAY_PAGE || src->nr_vars == 0) {
+		struct page *empty = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, 0);
+		empty->array.rank = 1;
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, empty);
+		return slot;
+	}
+	struct page *copy = alloc_page(ARRAY_PAGE, src->a_type, src->nr_vars);
+	copy->array = src->array;
+	for (int i = 0; i < src->nr_vars; i++)
+		copy->values[i] = src->values[i];
+	int slot = heap_alloc_slot(VM_PAGE);
+	heap_set_page(slot, copy);
+	return slot;
+}
+
+// IsExist: check if value exists in array (linear scan)
+static bool Array_IsExist(struct page **self, int value)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	if (!array)
+		return false;
+	for (int i = 0; i < array->nr_vars; i++) {
+		if (array->values[i].i == value)
+			return true;
+	}
+	return false;
+}
+
+// EmplaceBack: push a default value (like PushBack(0) for int arrays)
+static void Array_EmplaceBack(struct page **array)
+{
+	if (!array) return;
+	struct page *a = *array;
+	int old_size = a ? a->nr_vars : 0;
+	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	if (a) {
+		for (int i = 0; i < old_size; i++)
+			new_a->values[i] = a->values[i];
+		new_a->array = a->array;
+		free_page(a);
+	}
+	new_a->values[old_size].i = 0;
+	*array = new_a;
+}
+
+// Shuffle: Fisher-Yates in-place shuffle
+static void Array_Shuffle(struct page **array, int seed)
+{
+	struct page *a = (array && *array) ? *array : NULL;
+	if (!a || a->nr_vars <= 1)
+		return;
+	srand((unsigned)seed);
+	for (int i = a->nr_vars - 1; i > 0; i--) {
+		int j = rand() % (i + 1);
+		union vm_value tmp = a->values[i];
+		a->values[i] = a->values[j];
+		a->values[j] = tmp;
+	}
+}
+
+// Count: count elements matching predicate, or all elements if no predicate
+static int Array_Count(struct page **self)
+{
+	struct page *array = (self && *self) ? *self : NULL;
+	return array ? array->nr_vars : 0;
+}
+
+// AddRange: append all elements from src to dst
+// AIN declares: AddRange(ref array<?> dst, wrap<?> src)
+// arg[0] = AIN_REF_ARRAY → struct page **, arg[1] = AIN_WRAP → int (heap slot)
+static void Array_AddRange(struct page **dst, int src_wrap)
+{
+	if (!dst)
+		return;
+	// Resolve wrap handle to source page
+	struct page *s = NULL;
+	if (src_wrap > 0 && (size_t)src_wrap < heap_size
+	    && heap[src_wrap].type == VM_PAGE)
+		s = heap[src_wrap].page;
+	if (!s || s->type != ARRAY_PAGE || s->nr_vars <= 0)
+		return;
+	struct page *d = *dst;
+	if (d && d->type != ARRAY_PAGE)
+		return;
+	int old_size = d ? d->nr_vars : 0;
+	int new_size = old_size + s->nr_vars;
+	// Save src values before any allocation (alloc_page may trigger GC)
+	int src_count = s->nr_vars;
+	union vm_value *src_vals = malloc(src_count * sizeof(union vm_value));
+	if (!src_vals) return;
+	for (int i = 0; i < src_count; i++)
+		src_vals[i] = s->values[i];
+	struct page *new_a = alloc_page(ARRAY_PAGE, d ? d->a_type : s->a_type, new_size);
+	if (d) {
+		for (int i = 0; i < old_size; i++)
+			new_a->values[i] = d->values[i];
+		new_a->array = d->array;
+		free_page(d);
+	} else {
+		new_a->array.rank = 1;
+	}
+	for (int i = 0; i < src_count; i++)
+		new_a->values[old_size + i] = src_vals[i];
+	free(src_vals);
+	*dst = new_a;
+}
+
+// SYSTEMONLY_GetStructPageList: internal debug function, no-op
+static void Array_SYSTEMONLY_GetStructPageList(struct page **array)
+{
+}
+
 // Add: alias for Pushback (v14 generic array)
 static void Array_Add(struct page **array, int value)
 {
@@ -705,12 +869,29 @@ static int Array_Find(struct page **array, int func)
 	return Array_First(array, func);
 }
 
-// Copy: copy elements between arrays
-static void Array_Copy(struct page **dst, int dst_i, struct page **src, int src_i, int count)
+// Copy: copy elements between arrays.
+// AIN declares: Copy(ref array<?> dst, wrap<?> dst_i, wrap<array<?>> src, int src_i, int count)
+// arg[1] = AIN_WRAP (dst_i as wrap<int>), arg[2] = AIN_WRAP (src as wrap<array>)
+// FFI passes both as int (heap slot index).
+static void Array_Copy(struct page **dst, int dst_i_wrap, int src_wrap, int src_i, int count)
 {
-	if (!dst || !*dst || !src || !*src || count <= 0)
+	if (!dst || !*dst || count <= 0)
 		return;
-	array_copy(*dst, dst_i, *src, src_i, count);
+	// Resolve wrap<int> handle for dst_i
+	int dst_i = dst_i_wrap;
+	if (dst_i_wrap > 0 && (size_t)dst_i_wrap < heap_size
+	    && heap[dst_i_wrap].type == VM_PAGE
+	    && heap[dst_i_wrap].page
+	    && heap[dst_i_wrap].page->nr_vars > 0)
+		dst_i = heap[dst_i_wrap].page->values[0].i;
+	// Resolve wrap<array<?>> handle for src
+	struct page *src_page = NULL;
+	if (src_wrap > 0 && (size_t)src_wrap < heap_size
+	    && heap[src_wrap].type == VM_PAGE)
+		src_page = heap[src_wrap].page;
+	if (!src_page || src_page->type != ARRAY_PAGE)
+		return;
+	array_copy(*dst, dst_i, src_page, src_i, count);
 }
 
 //int Array_VN_or(struct page *nArray);
@@ -742,7 +923,16 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Add, Array_Add),
 	    HLL_EXPORT(Find, Array_Find),
 	    HLL_EXPORT(Realloc, Array_Realloc),
+	    HLL_EXPORT(BinarySearch, Array_BinarySearch),
+	    HLL_EXPORT(LowerBound, Array_LowerBound),
+	    HLL_EXPORT(ShallowCopy, Array_ShallowCopy),
+	    HLL_EXPORT(IsExist, Array_IsExist),
+	    HLL_EXPORT(EmplaceBack, Array_EmplaceBack),
 	    HLL_EXPORT(Copy, Array_Copy),
+	    HLL_EXPORT(Shuffle, Array_Shuffle),
+	    HLL_EXPORT(Count, Array_Count),
+	    HLL_EXPORT(AddRange, Array_AddRange),
+	    HLL_EXPORT(SYSTEMONLY_GetStructPageList, Array_SYSTEMONLY_GetStructPageList),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),
