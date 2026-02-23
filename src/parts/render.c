@@ -91,6 +91,22 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
+	static int cg_diag = 0;
+	static int cg_total = 0;
+	cg_total++;
+	if (cg_diag < 10 || (cg_total % 500 == 0 && cg_diag < 30)) {
+		cg_diag++;
+		WARNING("parts_render_cg[%d/%d]: no=%d pos=(%d,%d) w=%d h=%d tex=%u tex_w=%d tex_h=%d "
+			"alpha=%d scale=(%.2f,%.2f) show=%d mulc=(%d,%d,%d) addc=(%d,%d,%d)",
+			cg_diag, cg_total, parts->no, parts->global.pos.x, parts->global.pos.y,
+			common->w, common->h, common->texture.handle,
+			common->texture.w, common->texture.h,
+			parts->global.alpha, parts->global.scale.x, parts->global.scale.y,
+			parts->global.show,
+			parts->global.multiply_color.r, parts->global.multiply_color.g, parts->global.multiply_color.b,
+			parts->global.add_color.r, parts->global.add_color.g, parts->global.add_color.b);
+	}
+
 	switch (parts->draw_filter) {
 	case 1:
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
@@ -233,21 +249,32 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 
 void parts_render(struct parts *parts)
 {
-	if (!parts->global.show)
-		return;
-	if (parts->message_window && !parts_message_window_show)
-		return;
+	static int pr_diag = 0;
+	static int pr_hidden = 0, pr_uninit = 0, pr_no_tex = 0, pr_rendered = 0, pr_total = 0;
+	pr_total++;
+
+	if (!parts->global.show) {
+		pr_hidden++;
+		goto diag;
+	}
+	if (parts->message_window && !parts_message_window_show) {
+		pr_hidden++;
+		goto diag;
+	}
 	if (parts->linked_to >= 0) {
 		struct parts *link_parts = parts_get(parts->linked_to);
 		struct parts_state *link_state = &link_parts->states[link_parts->state];
-		if (!SDL_PointInRect(&parts_prev_pos, &link_state->common.hitbox))
-			return;
+		if (!SDL_PointInRect(&parts_prev_pos, &link_state->common.hitbox)) {
+			pr_hidden++;
+			goto diag;
+		}
 	}
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
+		pr_uninit++;
 		break;
 	case PARTS_CG:
 	case PARTS_ANIMATION:
@@ -255,15 +282,28 @@ void parts_render(struct parts *parts)
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
 	case PARTS_CONSTRUCTION_PROCESS:
-		if (state->common.texture.handle)
+		if (state->common.texture.handle) {
 			parts_render_cg(parts, &state->common);
+			pr_rendered++;
+		} else {
+			pr_no_tex++;
+		}
 		break;
 	case PARTS_TEXT:
 		parts_render_text(parts, &state->text);
+		pr_rendered++;
 		break;
 	case PARTS_FLASH:
 		parts_render_flash(parts, &state->flash);
+		pr_rendered++;
 		break;
+	}
+
+diag:
+	if (pr_diag < 3 && pr_total > 0 && pr_total % 1000 == 0) {
+		WARNING("parts_render DIAG: total=%d hidden=%d uninit=%d no_tex=%d rendered=%d",
+			pr_total, pr_hidden, pr_uninit, pr_no_tex, pr_rendered);
+		pr_diag++;
 	}
 }
 

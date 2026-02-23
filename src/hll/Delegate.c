@@ -39,6 +39,13 @@ static int Delegate_Numof(struct page **self)
 // [3] Empty(self:ref_delegate) -> bool
 static bool Delegate_Empty(struct page **self)
 {
+	static int de_trace = 0;
+	de_trace++;
+	if (de_trace <= 5 || (de_trace % 10000 == 0)) {
+		bool empty = (!self || !*self) ? true : (delegate_numof(*self) == 0);
+		WARNING("Delegate.Empty[%d]: self=%p *self=%p → %s", de_trace,
+			(void*)self, self ? (void*)*self : NULL, empty ? "true" : "false");
+	}
 	if (!self || !*self) return true;
 	return delegate_numof(*self) == 0;
 }

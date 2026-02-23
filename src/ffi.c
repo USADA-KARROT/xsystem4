@@ -16,8 +16,10 @@
 
 #define VM_PRIVATE
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <ffi.h>
 #include "system4/ain.h"
 #include "system4/string.h"
@@ -318,6 +320,21 @@ void hll_call(int libno, int fno, int hll_arg3)
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
 	hll_ring_idx++;
 
+	/* Post-release trace: log ALL HLL calls after parts_release completes */
+	{
+		extern int parts_post_release_trace;
+		static int post_trace_count = 0;
+		if (parts_post_release_trace && post_trace_count < 30) {
+			post_trace_count++;
+			int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			WARNING("POST_REL[%d]: %s.%s  caller='%s' csp=%d", post_trace_count,
+				ain->libraries[libno].name, f->name,
+				(caller_fno >= 0 && caller_fno < ain->nr_functions)
+					? ain->functions[caller_fno].name : "?",
+				call_stack_ptr);
+		}
+	}
+
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
 		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
 		{
@@ -363,11 +380,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 			}
 		}
 		// Push default return value
-		if (f->return_type.data == AIN_REF_HLL_PARAM) {
-			// v14: 2-slot option return — push None = [-1, 1]
-			stack_push(-1);
-			stack_push(1);
-		} else if (f->return_type.data != AIN_VOID) {
+		if (f->return_type.data != AIN_VOID) {
 			stack_push(0);
 		}
 		return;
@@ -520,6 +533,21 @@ void hll_call(int libno, int fno, int hll_arg3)
 	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
 #endif
 
+	/* Trace: right after ffi_call returns */
+	{
+		extern int parts_post_release_trace;
+		static int ffi_ret_trace = 0;
+		if (parts_post_release_trace && ffi_ret_trace < 10) {
+			ffi_ret_trace++;
+			char buf[256];
+			int len = snprintf(buf, sizeof(buf),
+				"FFI_RETURNED[%d]: %s.%s nr_args=%d ret_type=%d\n",
+				ffi_ret_trace, ain->libraries[libno].name, f->name,
+				f->nr_arguments, f->return_type.data);
+			write(2, buf, len);
+		}
+	}
+
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
@@ -586,14 +614,24 @@ void hll_call(int libno, int fno, int hll_arg3)
 #pragma GCC diagnostic pop
 		break;
 	case AIN_REF_HLL_PARAM:
-		// v14: 2-slot option return [value, discriminant]
-		// C function returns single value; we wrap as Some(value) = [value, 0]
+		// v14: generic return type resolved from HLL param — 1-slot
 		stack_push(r);
-		stack_push(0); // discriminant: 0 = Some
 		break;
 	default:
 		stack_push(r);
 		break;
+	}
+
+	/* Trace: confirm hll_call is about to return */
+	{
+		extern int parts_post_release_trace;
+		static int ret_trace = 0;
+		if (parts_post_release_trace && ret_trace < 10) {
+			ret_trace++;
+			WARNING("HLL_CALL_RETURN[%d]: %s.%s ret_type=%d sp=%d csp=%d",
+				ret_trace, ain->libraries[libno].name, f->name,
+				f->return_type.data, stack_ptr, call_stack_ptr);
+		}
 	}
 }
 

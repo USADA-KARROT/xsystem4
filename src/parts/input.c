@@ -36,7 +36,14 @@ static int click_down_parts = 0;
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
 {
-	Rectangle *hitbox = &parts->states[parts->state].common.hitbox;
+	// Build screen-space hitbox: local hitbox + parent global offset
+	Rectangle hitbox_local = parts->states[parts->state].common.hitbox;
+	Rectangle hitbox_screen = hitbox_local;
+	if (parts->parent) {
+		hitbox_screen.x += parts->parent->global.pos.x;
+		hitbox_screen.y += parts->parent->global.pos.y;
+	}
+	Rectangle *hitbox = &hitbox_screen;
 	bool prev_in = SDL_PointInRect(&parts_prev_pos, hitbox);
 	bool cur_in = SDL_PointInRect(&cur_pos, hitbox);
 
@@ -70,6 +77,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
+		parts_enqueue_message(1, parts->no); // type 1 = button click
 	}
 }
 
@@ -78,6 +86,45 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	Point cur_pos;
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
+
+	// Auto-click: after a few PE_UpdateInputState calls in began_click mode, simulate click
+	{
+		static int auto_click_counter = 0;
+		static int auto_click_total = 0;
+		if (parts_began_click && !clicked_parts) {
+			auto_click_counter++;
+			if (auto_click_counter >= 5) {
+				auto_click_counter = 0;
+				auto_click_total++;
+				struct parts *p;
+				int last_clickable = -1;
+				PARTS_LIST_FOREACH(p) {
+					if (p->clickable)
+						last_clickable = p->no;
+				}
+				if (last_clickable >= 0) {
+					if (auto_click_total <= 5 || (auto_click_total % 200 == 0))
+						WARNING("AUTO_CLICK[%d]: triggering click on parts %d", auto_click_total, last_clickable);
+					clicked_parts = last_clickable;
+					parts_enqueue_message(1, last_clickable);
+				}
+			}
+		} else {
+			auto_click_counter = 0;
+		}
+	}
+
+	// Diagnostic: log click state transitions
+	static int input_diag = 0;
+	if (input_diag < 10 && (cur_clicking != prev_clicking || (input_diag == 0 && parts_began_click))) {
+		int clickable_count = 0;
+		struct parts *p;
+		PARTS_LIST_FOREACH(p) { if (p->clickable) clickable_count++; }
+		input_diag++;
+		WARNING("PE_InputState[%d]: began=%d clicking=%d->%d pos=(%d,%d) clickable_parts=%d click_down=%d clicked=%d",
+			input_diag, parts_began_click, prev_clicking, cur_clicking,
+			cur_pos.x, cur_pos.y, clickable_count, click_down_parts, clicked_parts);
+	}
 
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
@@ -97,6 +144,9 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 
 void PE_SetClickable(int parts_no, bool clickable)
 {
+	static int sc_diag = 0;
+	if (sc_diag++ < 10)
+		WARNING("PE_SetClickable(%d, %s)", parts_no, clickable ? "true" : "false");
 	parts_get(parts_no)->clickable = !!clickable;
 }
 

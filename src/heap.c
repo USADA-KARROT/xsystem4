@@ -134,6 +134,126 @@ void heap_ref(int32_t slot)
 #endif
 }
 
+// Does this type hold a heap slot index? Must match variable_fini's list exactly.
+static bool type_holds_heap_slot(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_DELEGATE:
+	case AIN_FUNC_TYPE:
+	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
+	case AIN_WRAP:
+	case AIN_IFACE_WRAP:
+	case AIN_OPTION:
+	case AIN_REF_TYPE:
+	case AIN_IFACE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// v14: Boolean array marking heap slots reachable from global page + call frames.
+// Rebuilt every 10K instructions. O(1) lookup via grp_flags[slot].
+// Uses tracked marking to avoid clearing the entire heap-sized array.
+static bool *grp_flags = NULL;
+static size_t grp_flags_size = 0;
+static unsigned long long grp_rebuild_insn = 0;
+static int *grp_marked = NULL;     // list of marked slot indices
+static int grp_marked_count = 0;
+static int grp_marked_cap = 0;
+
+static inline void grp_mark_slot(int slot)
+{
+	if (slot <= 0 || (size_t)slot >= grp_flags_size) return;
+	if (grp_flags[slot]) return;
+	grp_flags[slot] = true;
+	if (grp_marked_count < grp_marked_cap)
+		grp_marked[grp_marked_count++] = slot;
+}
+
+// Helper: mark all struct page members (2 levels deep) in grp_flags
+static void grp_mark_struct_members(int struct_slot)
+{
+	if (struct_slot <= 0 || (size_t)struct_slot >= heap_size) return;
+	if (heap[struct_slot].type != VM_PAGE || !heap[struct_slot].page) return;
+	if (heap[struct_slot].page->type != STRUCT_PAGE) return;
+
+	struct page *p1 = heap[struct_slot].page;
+	for (int j = 0; j < p1->nr_vars; j++) {
+		int slot_j = p1->values[j].i;
+		grp_mark_slot(slot_j);
+
+		// Level 2: members of members
+		if (slot_j <= 0 || (size_t)slot_j >= heap_size) continue;
+		if (heap[slot_j].type != VM_PAGE || !heap[slot_j].page) continue;
+		if (heap[slot_j].page->type != STRUCT_PAGE) continue;
+
+		struct page *p2 = heap[slot_j].page;
+		for (int k = 0; k < p2->nr_vars; k++) {
+			grp_mark_slot(p2->values[k].i);
+		}
+	}
+}
+
+static void grp_rebuild(void)
+{
+	extern struct ain *ain;
+	if (!ain || !heap[0].page) return;
+
+	// Resize arrays if heap grew
+	if (grp_flags_size < heap_size) {
+		grp_flags = xrealloc(grp_flags, heap_size * sizeof(bool));
+		memset(grp_flags + grp_flags_size, 0, (heap_size - grp_flags_size) * sizeof(bool));
+		grp_flags_size = heap_size;
+	}
+	if (!grp_marked) {
+		grp_marked_cap = 8192;
+		grp_marked = xmalloc(grp_marked_cap * sizeof(int));
+	}
+
+	// Clear only previously marked slots (O(marked) instead of O(heap_size))
+	for (int i = 0; i < grp_marked_count; i++) {
+		int ms = grp_marked[i];
+		if (ms >= 0 && (size_t)ms < grp_flags_size)
+			grp_flags[ms] = false;
+	}
+	grp_marked_count = 0;
+
+	// Part 1: global page (3 levels deep)
+	struct page *global = heap[0].page;
+	for (int i = 0; i < global->nr_vars; i++) {
+		enum ain_data_type gtype = variable_type(global, i, NULL, NULL);
+		if (!type_holds_heap_slot(gtype)) continue;
+
+		int slot_i = global->values[i].i;
+		grp_mark_slot(slot_i);
+		grp_mark_struct_members(slot_i);
+	}
+
+	// Call-frame struct pages are handled by the fast inline check in heap_unref,
+	// not here in the cached set.
+}
+
+// O(1) check with periodic rebuild (every 50K instructions).
+static bool slot_reachable_from_global(int target_slot)
+{
+	extern struct ain *ain;
+	if (!ain || ain->version < 14) return false;
+	if (target_slot <= 0 || (size_t)target_slot >= heap_size) return false;
+
+	extern unsigned long long vm_call_get_insn_count(void);
+	unsigned long long insn = vm_call_get_insn_count();
+	if (!grp_flags || insn - grp_rebuild_insn > 500000) {
+		grp_rebuild();
+		grp_rebuild_insn = insn;
+	}
+
+	return (size_t)target_slot < grp_flags_size && grp_flags[target_slot];
+}
+
 void heap_unref(int slot)
 {
 	// Never unref the global page (slot 0) or invalid slots
@@ -147,17 +267,18 @@ void heap_unref(int slot)
 		heap[slot].ref--;
 		return;
 	}
-	// About to free this slot — check if any PARENT call frame still uses it
-	// (exclude the topmost frame since function_return unrefs it before decrementing csp)
+	// About to free this slot — check if any active call frame still uses it.
+	// function_return() decrements call_stack_ptr BEFORE calling heap_unref,
+	// so the returning function's frame is already removed from the stack.
 	{
 		extern struct function_call call_stack[];
 		extern int32_t call_stack_ptr;
 		bool parent_uses = false;
-		for (int i = 0; i < call_stack_ptr - 1; i++) {
+		for (int i = 0; i < call_stack_ptr; i++) {
 			if (call_stack[i].page_slot == slot) {
 				if (!parent_uses) {
 					static int lpf_warn = 0;
-					if (lpf_warn++ < 10) {
+					if (lpf_warn++ < 3) {
 						extern struct ain *ain;
 						int ff = call_stack[i].fno;
 						int top_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
@@ -180,29 +301,94 @@ void heap_unref(int slot)
 			return;
 		}
 	}
-	heap[slot].ref = 0;
-	switch (heap[slot].type) {
-	case VM_PAGE:
-		if (heap[slot].page) {
-			delete_page(slot);
+	// v14: protect objects reachable from active call frames or global page.
+	{
+		extern struct ain *ain;
+		if (ain && ain->version >= 14 && heap[slot].type == VM_PAGE) {
+			// Fast check: is this slot a direct member of any active call frame's
+			// struct page? O(frames × members) ≈ O(100), no caching needed.
+			for (int ci = 0; ci < call_stack_ptr; ci++) {
+				int sp_slot = call_stack[ci].struct_page;
+				if (sp_slot <= 0 || (size_t)sp_slot >= heap_size) continue;
+				if (heap[sp_slot].type != VM_PAGE || !heap[sp_slot].page) continue;
+				struct page *sp = heap[sp_slot].page;
+				for (int mi = 0; mi < sp->nr_vars; mi++) {
+					if (sp->values[mi].i == slot) {
+						static int cfp_warn = 0;
+						if (cfp_warn++ < 3)
+							WARNING("V14_MEMBER_PROTECT: slot=%d member[%d] of struct_page=%d frame[%d]",
+								slot, mi, sp_slot, ci);
+						heap[slot].ref = 1;
+						return;
+					}
+				}
+			}
+			// Cached check: global page reachability (O(1) lookup)
+			if (slot_reachable_from_global(slot)) {
+				static int grp_warn = 0;
+				if (grp_warn++ < 3)
+					WARNING("V14_GLOBAL_PROTECT: slot=%d reachable from global page, keeping alive", slot);
+				heap[slot].ref = 1;
+				return;
+			}
 		}
-		break;
-	case VM_STRING:
-		if (heap[slot].s)
-			free_string(heap[slot].s);
-		break;
-	default:
-		WARNING("heap_unref: unknown type %d at slot %d", heap[slot].type, slot);
-		break;
 	}
-	heap_free_slot(slot);
+	heap[slot].ref = 0;
+
+	// Deferred iterative free: instead of recursively calling delete_page
+	// (which calls variable_fini → heap_unref → delete_page → ...),
+	// add the slot to a deferred free queue and process iteratively.
+	// This prevents stack overflow on deep object graphs (Dohna Dohna's
+	// SceneLogo cleanup creates 20+ levels of recursive heap_unref).
+	{
+		static int deferred_queue[65536];
+		static int deferred_count = 0;
+		static bool deferred_processing = false;
+
+		if (deferred_count < 65536) {
+			deferred_queue[deferred_count++] = slot;
+		} else {
+			static int overflow_warn = 0;
+			if (overflow_warn++ < 3)
+				WARNING("heap_unref: deferred queue overflow, leaking slot %d", slot);
+		}
+
+		if (!deferred_processing) {
+			deferred_processing = true;
+			while (deferred_count > 0) {
+				int s = deferred_queue[--deferred_count];
+				// Slot might have been re-referenced during processing
+				if (heap[s].ref > 0)
+					continue;
+				switch (heap[s].type) {
+				case VM_PAGE:
+					if (heap[s].page) {
+						delete_page(s);
+					}
+					break;
+				case VM_STRING:
+					if (heap[s].s)
+						free_string(heap[s].s);
+					break;
+				default:
+					break;
+				}
+				heap_free_slot(s);
+			}
+			deferred_processing = false;
+		}
+	}
 }
 
 // XXX: special version of heap_unref which avoids calling destructors
 void exit_unref(int slot)
 {
 	if (slot <= 0 || (size_t)slot >= heap_size) {
-		WARNING("out of bounds heap index: %d", slot);
+		if (slot != 0) { // slot=0 is common in v14 (uninitialized members), skip silently
+			static int exit_oob_warn = 0;
+			if (exit_oob_warn++ < 5)
+				WARNING("exit_unref: out of bounds heap index: %d", slot);
+		}
 		return;
 	}
 	if (heap[slot].ref <= 0) {

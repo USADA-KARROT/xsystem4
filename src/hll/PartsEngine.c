@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <SDL.h>
 
 #include "system4/ain.h"
 #include "system4/archive.h"
@@ -41,6 +42,9 @@ static void PartsEngine_ModuleFini(void)
 
 static void PartsEngine_Update(int passed_time, bool is_skip, bool message_window_show)
 {
+	static int upd_count = 0;
+	if (upd_count++ < 3)
+		WARNING("PartsEngine_Update called #%d passed_time=%d", upd_count, passed_time);
 	PE_Update(passed_time, message_window_show);
 }
 
@@ -86,6 +90,15 @@ static int alloc_activity_parts_no(void)
 static const char GBK_BUJIAN[] = "\xb2\xbf\xbc\xfe";    /* 部件 (CN: component) */
 static const char GBK_BUPIN[]  = "\xb2\xbf\xc6\xb7";    /* 部品 (JP: parts) */
 
+/* GBK byte sequences for pactex property names (from tree dump). */
+static const char GBK_POSITION[]    = "\xd7\xf9\x98\xcb";         /* 座標 (position) - list[3]=(x,y,z) */
+static const char GBK_SHOW[]        = "\xb1\xed\xca\xbe";         /* 表示 (show/visible) - int */
+static const char GBK_ALPHA[]       = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1"; /* アルファ (alpha) - int 0-255 */
+static const char GBK_ORIGIN_MODE[] = "\xd4\xad\xfc\x63\xd7\xf9\x98\xcb\xc4\xa3\xca\xbd"; /* 原點座標模式 (origin mode) - int */
+static const char GBK_CG_BAN[]      = "\xa3\xc3\xa3\xc7\xc3\xfb"; /* ＣＧ番 (CG number) - string */
+static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; /* 加算色 (add color) - list[3] */
+static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; /* 乗算色 (multiply color) - list[3] */
+
 /* --- Pactex tree parser --- */
 
 /* Format SJIS bytes as hex for debugging. */
@@ -102,10 +115,10 @@ static const char *hex_name(const char *name)
 
 static void dump_ex_tree(struct ex_tree *tree, int depth)
 {
-	if (depth > 4) return;
-	char indent[32] = "";
+	if (depth > 10) return;
+	char indent[64] = "";
 	int n = depth * 2;
-	if (n > 30) n = 30;
+	if (n > 60) n = 60;
 	for (int i = 0; i < n; i++) indent[i] = ' ';
 	indent[n] = '\0';
 
@@ -113,31 +126,55 @@ static void dump_ex_tree(struct ex_tree *tree, int depth)
 		struct ex_value *v = &tree->leaf.value;
 		switch (v->type) {
 		case EX_INT:
-			WARNING("%sleaf [%s] = %d", indent,
-				hex_name(tree->name->text), v->i);
+			WARNING("%sleaf '%s' [%s] = %d", indent,
+				tree->name->text, hex_name(tree->name->text), v->i);
+			break;
+		case EX_FLOAT:
+			WARNING("%sleaf '%s' [%s] = %.6f", indent,
+				tree->name->text, hex_name(tree->name->text), v->f);
 			break;
 		case EX_STRING:
-			WARNING("%sleaf [%s] = str", indent,
-				hex_name(tree->name->text));
+			WARNING("%sleaf '%s' [%s] = str'%s'", indent,
+				tree->name->text, hex_name(tree->name->text),
+				v->s ? v->s->text : "(null)");
 			break;
 		case EX_LIST:
-			WARNING("%sleaf [%s] = list[%u]", indent,
-				hex_name(tree->name->text),
+			WARNING("%sleaf '%s' [%s] = list[%u]", indent,
+				tree->name->text, hex_name(tree->name->text),
 				v->list ? v->list->nr_items : 0);
+			if (v->list) {
+				unsigned lim = (v->list->nr_items < 20) ? v->list->nr_items : 20;
+				for (unsigned i = 0; i < lim; i++) {
+					struct ex_value *item = &v->list->items[i].value;
+					if (item->type == EX_INT)
+						WARNING("%s  [%u] int=%d", indent, i, item->i);
+					else if (item->type == EX_FLOAT)
+						WARNING("%s  [%u] float=%.6f", indent, i, item->f);
+					else if (item->type == EX_STRING)
+						WARNING("%s  [%u] str='%s'", indent, i,
+							item->s ? item->s->text : "(null)");
+					else
+						WARNING("%s  [%u] type=%d", indent, i, item->type);
+				}
+				if (v->list->nr_items > lim)
+					WARNING("%s  ... +%u more items", indent,
+						v->list->nr_items - lim);
+			}
 			break;
 		default:
-			WARNING("%sleaf [%s] type=%d", indent,
-				hex_name(tree->name->text), v->type);
+			WARNING("%sleaf '%s' [%s] type=%d", indent,
+				tree->name->text, hex_name(tree->name->text), v->type);
 			break;
 		}
 	} else {
-		WARNING("%sbranch [%s] (%u children)", indent,
-			hex_name(tree->name->text), tree->nr_children);
-		for (unsigned i = 0; i < tree->nr_children && i < 8; i++)
+		WARNING("%sbranch '%s' [%s] (%u children)", indent,
+			tree->name->text, hex_name(tree->name->text), tree->nr_children);
+		unsigned limit = (depth <= 3) ? 100 : 8;
+		for (unsigned i = 0; i < tree->nr_children && i < limit; i++)
 			dump_ex_tree(&tree->children[i], depth + 1);
-		if (tree->nr_children > 8)
+		if (tree->nr_children > limit)
 			WARNING("%s  ... +%u more children", indent,
-				tree->nr_children - 8);
+				tree->nr_children - limit);
 	}
 }
 
@@ -160,31 +197,153 @@ static struct ex_tree *pactex_find_child(struct ex_tree *parent, const char *pat
 }
 
 /* Find the "部件"/"部品" (parts/components) branch among children.
- * Uses GBK name match first, then structural heuristic as fallback. */
+ * IMPORTANT: Only search branch children (skip leaves) to avoid
+ * matching leaf "子部件リスト" which contains 部件 as substring.
+ * The old code matched the leaf first, then fell back to a structural
+ * heuristic that incorrectly returned 種類別情報 instead of 子部件. */
 static struct ex_tree *pactex_find_buhin(struct ex_tree *parent)
 {
 	if (parent->is_leaf) return NULL;
 
-	/* Try GBK name match: 部件 (CN) or 部品 (JP) */
-	struct ex_tree *found = pactex_find_child(parent, GBK_BUJIAN);
-	if (found && !found->is_leaf) return found;
-	found = pactex_find_child(parent, GBK_BUPIN);
-	if (found && !found->is_leaf) return found;
-
-	/* Structural heuristic: find a non-leaf child whose children
-	 * are predominantly non-leaf branches (component definitions). */
+	/* Search only branch children for name containing 部件 or 部品 */
 	for (unsigned i = 0; i < parent->nr_children; i++) {
 		struct ex_tree *child = &parent->children[i];
-		if (child->is_leaf || child->nr_children == 0) continue;
-		int branches = 0, leaves = 0;
-		for (unsigned j = 0; j < child->nr_children; j++) {
-			if (child->children[j].is_leaf) leaves++;
-			else branches++;
-		}
-		if (branches > 0 && branches >= leaves)
+		if (child->is_leaf) continue;
+		if (pactex_name_contains(child, GBK_BUJIAN) ||
+		    pactex_name_contains(child, GBK_BUPIN))
 			return child;
 	}
 	return NULL;
+}
+
+/* Find the type-specific info branch (種類別情報) among children.
+ * This is a non-leaf child that is NOT the children branch (部件/部品). */
+static struct ex_tree *pactex_find_type_info(struct ex_tree *component)
+{
+	if (component->is_leaf) return NULL;
+	for (unsigned i = 0; i < component->nr_children; i++) {
+		struct ex_tree *child = &component->children[i];
+		if (child->is_leaf) continue;
+		/* Skip children branch */
+		if (pactex_name_contains(child, GBK_BUJIAN) ||
+		    pactex_name_contains(child, GBK_BUPIN))
+			continue;
+		return child;
+	}
+	return NULL;
+}
+
+/* Extract an integer leaf property by exact name match. Returns default if not found. */
+static int pactex_get_int(struct ex_tree *node, const char *name, int def)
+{
+	if (node->is_leaf) return def;
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (!c->is_leaf) continue;
+		if (!c->name || strcmp(c->name->text, name) != 0) continue;
+		if (c->leaf.value.type == EX_INT) return c->leaf.value.i;
+		break;
+	}
+	return def;
+}
+
+/* Extract a list leaf property by exact name match. Returns NULL if not found. */
+static struct ex_list *pactex_get_list(struct ex_tree *node, const char *name)
+{
+	if (node->is_leaf) return NULL;
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (!c->is_leaf) continue;
+		if (!c->name || strcmp(c->name->text, name) != 0) continue;
+		if (c->leaf.value.type == EX_LIST) return c->leaf.value.list;
+		break;
+	}
+	return NULL;
+}
+
+/* Extract a string leaf property by name substring (strstr). Returns NULL if not found/empty. */
+static const char *pactex_get_string(struct ex_tree *node, const char *pattern)
+{
+	if (node->is_leaf) return NULL;
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (!c->is_leaf) continue;
+		if (!pactex_name_contains(c, pattern)) continue;
+		if (c->leaf.value.type == EX_STRING && c->leaf.value.s &&
+		    c->leaf.value.s->text[0])
+			return c->leaf.value.s->text;
+		break;
+	}
+	return NULL;
+}
+
+/* Apply pactex properties (position, show, alpha, CG) to a parts entry.
+ * Extracts standard properties from leaf children, and CG names from
+ * the type-specific info branch (種類別情報). */
+static void pactex_apply_properties(struct ex_tree *node, int parts_no)
+{
+	static int apply_trace = 0;
+
+	/* Extract position: 座標 = list[3] = (x, y, z) */
+	struct ex_list *pos = pactex_get_list(node, GBK_POSITION);
+	if (pos && pos->nr_items >= 2) {
+		int x = (pos->items[0].value.type == EX_FLOAT) ?
+			(int)pos->items[0].value.f : pos->items[0].value.i;
+		int y = (pos->items[1].value.type == EX_FLOAT) ?
+			(int)pos->items[1].value.f : pos->items[1].value.i;
+		PE_SetPos(parts_no, x, y);
+		/* Z order from position list item 2 */
+		if (pos->nr_items >= 3) {
+			int z = (pos->items[2].value.type == EX_FLOAT) ?
+				(int)pos->items[2].value.f : pos->items[2].value.i;
+			PE_SetZ(parts_no, z);
+		}
+	}
+
+	/* Extract show: 表示 = int (exact name match to avoid 決議上表示 etc) */
+	int show = pactex_get_int(node, GBK_SHOW, 1);
+	PE_SetShow(parts_no, show);
+
+	/* Extract alpha: アルファ = int 0-255 (exact match) */
+	int alpha = pactex_get_int(node, GBK_ALPHA, 255);
+	PE_SetAlpha(parts_no, alpha);
+
+	/* Extract origin mode: 原點座標模式 = int */
+	int origin_mode = pactex_get_int(node, GBK_ORIGIN_MODE, 1);
+	PE_SetPartsOriginPosMode(parts_no, origin_mode);
+
+	/* Find type-specific info branch (種類別情報) for CG data */
+	struct ex_tree *type_info = pactex_find_type_info(node);
+	if (!type_info) {
+		if (apply_trace < 5)
+			WARNING("pactex_apply: parts=%d '%s' — no type_info branch",
+				parts_no, node->name ? node->name->text : "?");
+		return;
+	}
+
+	/* Iterate state sub-branches within type-info.
+	 * State mapping: 0=普通状態(PE state 1), 1=オン指針(state 2), 2=キーダウン(state 3) */
+	int state_idx = 0;
+	for (unsigned i = 0; i < type_info->nr_children; i++) {
+		struct ex_tree *state = &type_info->children[i];
+		if (state->is_leaf) continue;
+
+		/* Search for ＣＧ番 (CG number) leaf in this state */
+		const char *cg_name = pactex_get_string(state, GBK_CG_BAN);
+		if (cg_name) {
+			int pe_state = state_idx + 1; /* PE_SetPartsCG uses 1-based state */
+			struct string *s = cstr_to_string(cg_name);
+			bool ok = PE_SetPartsCG(parts_no, s, 0, pe_state);
+			free_string(s);
+
+			if (apply_trace < 30) {
+				apply_trace++;
+				WARNING("pactex_apply: SetPartsCG(parts=%d, cg='%s', state=%d) → %s",
+					parts_no, cg_name, pe_state, ok ? "OK" : "FAIL");
+			}
+		}
+		state_idx++;
+	}
 }
 
 /* Recursively create PE parts entries from a pactex component branch.
@@ -199,6 +358,10 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 
 	int parts_no = alloc_activity_parts_no();
 	struct parts *p = parts_get(parts_no);
+
+	/* Store user component name from pactex tree node */
+	snprintf(p->user_component_name, sizeof(p->user_component_name),
+		"%s", node->name->text);
 
 	/* Register in activity by name (raw GBK bytes) */
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
@@ -231,6 +394,16 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 			}
 		}
 	}
+
+	/* Apply visual properties (position, show, alpha, CG) from pactex tree */
+	pactex_apply_properties(node, parts_no);
+
+	/* Auto-clickable: leaf components with CG textures are clickable.
+	 * This compensates for the game's UserComponentManager not being
+	 * properly initialized (stack_pop_var OOB on GetUserComponentManager). */
+	if (p->component_type == 1 && p->states[0].common.texture.handle) {
+		p->clickable = true;
+	}
 }
 
 /* Parse pactex EX data and populate activity with parts entries. */
@@ -253,7 +426,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 
 	/* Dump tree structure for debugging (first load only) */
 	static int dump_count = 0;
-	if (dump_count++ < 3)
+	if (dump_count++ < 2)
 		dump_ex_tree(tree, 0);
 
 	/* The tree root has one branch per activity variant (usually just one).
@@ -267,19 +440,24 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	int root_no = alloc_activity_parts_no();
 	struct parts *root = parts_get(root_no);
 
+	/* Store user component name for root */
+	snprintf(root->user_component_name, sizeof(root->user_component_name),
+		"%s", root_branch->name->text);
+
 	/* Root is always a container (type 17) since it has children */
 	struct ex_tree *root_buhin = pactex_find_buhin(root_branch);
 	root->component_type = (root_buhin && root_buhin->nr_children > 0) ? 17 : 0;
 
-	/* Register root with empty name (sentinel for fallback) and actual name */
+	/* Register root with actual name.
+	 * Also register with empty name so GetActivityPartsNumber("", "") returns root. */
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
 		struct activity_part *ap = &act->parts[act->nr_parts++];
-		ap->name[0] = '\0';
+		snprintf(ap->name, sizeof(ap->name), "%s", root_branch->name->text);
 		ap->number = root_no;
 	}
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
 		struct activity_part *ap = &act->parts[act->nr_parts++];
-		snprintf(ap->name, sizeof(ap->name), "%s", root_branch->name->text);
+		ap->name[0] = '\0';
 		ap->number = root_no;
 	}
 
@@ -297,6 +475,9 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		WARNING("pactex: no child components found in root '%s'",
 			root_branch->name->text);
 	}
+
+	/* Apply properties to root component too */
+	pactex_apply_properties(root_branch, root_no);
 
 	WARNING("pactex: loaded %d parts for activity '%s'", act->nr_parts, act->name);
 	return true;
@@ -320,7 +501,13 @@ static int find_activity(struct string *name)
 
 static bool PartsEngine_IsExistActivity(struct string *name)
 {
-	return find_activity(name) >= 0;
+	bool exists = find_activity(name) >= 0;
+	static int iea_trace = 0;
+	if (iea_trace < 30) {
+		iea_trace++;
+		WARNING("IsExistActivity('%s') → %s", name->text, exists ? "TRUE" : "FALSE");
+	}
+	return exists;
 }
 
 static bool PartsEngine_CreateActivity(struct string *name)
@@ -348,6 +535,44 @@ static bool PartsEngine_ReleaseActivity(struct string *name, int erase_list)
 
 static bool PartsEngine_ReadActivityFile(struct string *name, struct string *filename, bool edit)
 {
+	/* Detect activity creation loops.
+	 * When CALLMETHOD fails in SceneContext@Create, the game calls EraseLayer
+	 * then immediately re-reads the same activity with a ":N" suffix.
+	 * Detect this pattern and return the first instance to break the loop. */
+	static char last_base[256] = "";
+	static int loop_count = 0;
+
+	/* Extract base name (before ':' suffix) */
+	char base_name[256];
+	const char *colon = strchr(name->text, ':');
+	if (colon) {
+		int len = (int)(colon - name->text);
+		if (len >= (int)sizeof(base_name)) len = sizeof(base_name) - 1;
+		memcpy(base_name, name->text, len);
+		base_name[len] = '\0';
+	} else {
+		snprintf(base_name, sizeof(base_name), "%s", name->text);
+	}
+
+	if (strcmp(base_name, last_base) == 0) {
+		loop_count++;
+		if (loop_count > 3) {
+			static int loop_warn = 0;
+			if (loop_warn++ < 5)
+				WARNING("ReadActivityFile: loop detected for '%s' (count=%d), returning first instance",
+					base_name, loop_count);
+			/* Return first instance by name */
+			int first_idx = find_activity_idx(base_name);
+			if (first_idx >= 0)
+				return true;
+			/* No first instance, just return success to break loop */
+			return true;
+		}
+	} else {
+		snprintf(last_base, sizeof(last_base), "%s", base_name);
+		loop_count = 1;
+	}
+
 	PartsEngine_CreateActivity(name);
 	int aidx = find_activity(name);
 	if (aidx < 0)
@@ -496,9 +721,16 @@ static bool PartsEngine_IsExistActivityPartsByName(struct string *name, struct s
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
 	for (int i = 0; i < act->nr_parts; i++) {
-		if (!strcmp(act->parts[i].name, parts_name->text))
+		if (!strcmp(act->parts[i].name, parts_name->text)) {
+			static int ieapbn_hit = 0;
+			if (ieapbn_hit++ < 10)
+				WARNING("IsExistActivityPartsByName('%s', '%s') → TRUE (i=%d)", name->text, parts_name->text, i);
 			return true;
+		}
 	}
+	static int ieapbn_miss = 0;
+	if (ieapbn_miss++ < 10)
+		WARNING("IsExistActivityPartsByName('%s', '%s') → FALSE (nr_parts=%d)", name->text, parts_name->text, act->nr_parts);
 	return false;
 }
 
@@ -524,16 +756,24 @@ static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string
 	if (!parts_name->text[0]) {
 		for (int i = 0; i < act->nr_parts; i++) {
 			if (act->parts[i].name[0] == '\0' &&
-			    act->parts[i].number >= ACTIVITY_PARTS_BASE)
+			    act->parts[i].number >= ACTIVITY_PARTS_BASE) {
+				static int gapn_root = 0;
+				if (gapn_root++ < 10)
+					WARNING("GetActivityPartsNumber('%s', '') → root %d", name->text, act->parts[i].number);
 				return act->parts[i].number;
+			}
 		}
 		return -1;
 	}
 
 	/* Try exact name match */
 	for (int i = 0; i < act->nr_parts; i++) {
-		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text))
+		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text)) {
+			static int gapn_hit = 0;
+			if (gapn_hit++ < 10)
+				WARNING("GetActivityPartsNumber('%s', '%s') → %d", name->text, parts_name->text, act->parts[i].number);
 			return act->parts[i].number;
+		}
 	}
 
 	/* Not found — return -1, do NOT fallback to root.
@@ -552,10 +792,18 @@ static struct string *PartsEngine_GetActivityPartsName(struct string *name, int 
 	if (idx >= 0) {
 		struct activity *act = &activities[idx];
 		for (int i = 0; i < act->nr_parts; i++) {
-			if (act->parts[i].number == number)
+			if (act->parts[i].number == number) {
+				static int gapn_name = 0;
+				if (gapn_name++ < 10)
+					WARNING("GetActivityPartsName('%s', %d) → '%s'",
+						name->text, number, act->parts[i].name);
 				return cstr_to_string(act->parts[i].name);
+			}
 		}
 	}
+	static int gapn_name_miss = 0;
+	if (gapn_name_miss++ < 5)
+		WARNING("GetActivityPartsName('%s', %d) → NOT FOUND", name->text, number);
 	return string_ref(&EMPTY_STRING);
 }
 
@@ -576,17 +824,82 @@ static bool PartsEngine_IsExistActivityEndKey(struct string *name, int key) { re
 static int PartsEngine_NumofActivityEndKey(struct string *name) { return 0; }
 static int PartsEngine_GetActivityEndKey(struct string *name, int index) { return 0; }
 
-/* v14 Controller system */
+/* v14 Controller system — manages UI layers (input focus stack).
+ * Each controller has a unique ID and occupies a position in the stack.
+ * The game uses this to manage focus between UI layers (dialog over game, etc.) */
+#define MAX_CONTROLLERS 64
+static struct {
+	int ids[MAX_CONTROLLERS];
+	int count;
+	int active;
+	int next_id;
+} controllers = { .count = 0, .active = -1, .next_id = 1 };
+
 static int PartsEngine_AddController(int index)
 {
-	return index;
+	if (controllers.count >= MAX_CONTROLLERS) return -1;
+	int id = controllers.next_id++;
+	/* Insert at position 'index' (clamped) */
+	if (index < 0) index = 0;
+	if (index > controllers.count) index = controllers.count;
+	for (int i = controllers.count; i > index; i--)
+		controllers.ids[i] = controllers.ids[i-1];
+	controllers.ids[index] = id;
+	controllers.count++;
+	/* Auto-activate: the newly added controller becomes active so that
+	   subsequent event registrations (GetActiveController) pick it up. */
+	controllers.active = id;
+	static int ac_trace = 0;
+	if (ac_trace++ < 10)
+		WARNING("AddController(index=%d) → id=%d count=%d active=%d", index, id, controllers.count, controllers.active);
+	return id;
 }
 
-static void PartsEngine_RemoveController(int erase_list, int index) {}
-static void PartsEngine_MoveController(int id, int index) {}
-static int PartsEngine_GetControllerIndex(int id) { return 0; }
-static int PartsEngine_GetControllerID(int index) { return 0; }
-static int PartsEngine_GetControllerLength(void) { return 1; }
+static void PartsEngine_RemoveController(int erase_list, int index)
+{
+	/* Find controller by index and remove it */
+	if (index < 0 || index >= controllers.count) return;
+	static int rc_trace = 0;
+	if (rc_trace++ < 10)
+		WARNING("RemoveController(erase=%d, index=%d) id=%d count=%d→%d",
+			erase_list, index, controllers.ids[index], controllers.count, controllers.count-1);
+	for (int i = index; i < controllers.count - 1; i++)
+		controllers.ids[i] = controllers.ids[i+1];
+	controllers.count--;
+	if (controllers.active >= controllers.count)
+		controllers.active = controllers.count - 1;
+}
+
+static void PartsEngine_MoveController(int id, int new_index) {
+	/* Find and move controller to new position */
+	int old_idx = -1;
+	for (int i = 0; i < controllers.count; i++) {
+		if (controllers.ids[i] == id) { old_idx = i; break; }
+	}
+	if (old_idx < 0) return;
+	int saved_id = controllers.ids[old_idx];
+	for (int i = old_idx; i < controllers.count - 1; i++)
+		controllers.ids[i] = controllers.ids[i+1];
+	if (new_index >= controllers.count) new_index = controllers.count - 1;
+	if (new_index < 0) new_index = 0;
+	for (int i = controllers.count - 1; i > new_index; i--)
+		controllers.ids[i] = controllers.ids[i-1];
+	controllers.ids[new_index] = saved_id;
+}
+
+static int PartsEngine_GetControllerIndex(int id) {
+	for (int i = 0; i < controllers.count; i++) {
+		if (controllers.ids[i] == id) return i;
+	}
+	return -1;
+}
+
+static int PartsEngine_GetControllerID(int index) {
+	if (index < 0 || index >= controllers.count) return -1;
+	return controllers.ids[index];
+}
+
+static int PartsEngine_GetControllerLength(void) { return controllers.count; }
 static int PartsEngine_GetSystemOverlayController(void) { return 0; }
 
 // Oyako Rankan
@@ -609,12 +922,16 @@ static bool PartsEngine_AddCopyCutCGToPartsConstructionProcess_old(int parts_no,
 
 static int PartsEngine_GetActiveController(void)
 {
-	return 0;
+	return controllers.active;
 }
 
 static void PartsEngine_SetActiveController(int controller)
 {
-	// stub: no controller system yet
+	static int sac_trace = 0;
+	sac_trace++;
+	if (sac_trace <= 5 || (sac_trace % 5000 == 0))
+		WARNING("SetActiveController(%d) count=%d [call#%d]", controller, controllers.count, sac_trace);
+	controllers.active = controller;
 }
 
 /* v14 Component system — maps parts to widget types and provides
@@ -623,6 +940,9 @@ static void PartsEngine_SetActiveController(int controller)
 
 static void PartsEngine_SetComponentType(int number, int type, int state)
 {
+	static int sct_trace = 0;
+	if (sct_trace++ < 10)
+		WARNING("SetComponentType(parts=%d, type=%d, state=%d)", number, type, state);
 	struct parts *p = parts_try_get(number);
 	if (p) p->component_type = type;
 }
@@ -824,8 +1144,25 @@ static int PartsEngine_GetUniqueID(int number)
 	return p ? p->unique_id : 0;
 }
 
-static void PartsEngine_SetUserComponentName(int n, struct string *name) {}
-static struct string *PartsEngine_GetUserComponentName(int n) { return string_ref(&EMPTY_STRING); }
+static void PartsEngine_SetUserComponentName(int n, struct string *name) {
+	struct parts *p = parts_try_get(n);
+	if (p)
+		snprintf(p->user_component_name, sizeof(p->user_component_name),
+			"%s", name->text);
+}
+static struct string *PartsEngine_GetUserComponentName(int n) {
+	struct parts *p = parts_try_get(n);
+	if (p && p->user_component_name[0]) {
+		static int gucn_trace = 0;
+		if (gucn_trace++ < 20)
+			WARNING("GetUserComponentName(%d) → '%s'", n, p->user_component_name);
+		return cstr_to_string(p->user_component_name);
+	}
+	static int gucn_miss = 0;
+	if (gucn_miss++ < 5)
+		WARNING("GetUserComponentName(%d) → EMPTY", n);
+	return string_ref(&EMPTY_STRING);
+}
 static void PartsEngine_SetUserComponentData(int n, struct string *key, struct string *val) {}
 static struct string *PartsEngine_GetUserComponentData(int n, struct string *key) { return string_ref(&EMPTY_STRING); }
 
@@ -867,12 +1204,61 @@ static void PartsEngine_UpdateMatrix(bool message_window_show,
 	/* no-op: UpdateComponent already calls the full PE_Update pipeline */
 }
 
-/* Message pump quiet stubs — polled every frame in the game main loop.
- * Returning 0/"empty" causes the loop to skip message processing. */
-static void PartsEngine_PopMessage(void) {}
-static int PartsEngine_GetMessageType(void) { return 0; }
-static int PartsEngine_GetMessagePartsNumber(void) { return 0; }
-static int PartsEngine_GetMessageVariableInt(int idx) { return 0; }
+/* ---- Message queue ----
+ * When a parts button is clicked, we enqueue a message.
+ * The game polls PopMessage() each frame and reads type/parts/variables.
+ *
+ * Message types (inferred from behavior):
+ *   0 = none (queue empty)
+ *   1 = button click
+ */
+#define MSG_QUEUE_SIZE 64
+struct parts_message {
+	int type;
+	int parts_no;
+	int vars[4];
+	int nr_vars;
+};
+static struct parts_message msg_queue[MSG_QUEUE_SIZE];
+static int msg_head = 0, msg_tail = 0;
+static struct parts_message msg_current = {0};
+
+void parts_enqueue_message(int type, int parts_no)
+{
+	int next = (msg_tail + 1) % MSG_QUEUE_SIZE;
+	if (next == msg_head) {
+		WARNING("parts message queue full, dropping message type=%d parts=%d", type, parts_no);
+		return;
+	}
+	msg_queue[msg_tail].type = type;
+	msg_queue[msg_tail].parts_no = parts_no;
+	msg_queue[msg_tail].nr_vars = 0;
+	msg_tail = next;
+}
+
+static void PartsEngine_PopMessage(void)
+{
+	static int pop_log = 0;
+	if (msg_head != msg_tail) {
+		msg_current = msg_queue[msg_head];
+		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
+		if (pop_log++ < 20)
+			WARNING("PopMessage: type=%d parts=%d (remaining=%d)",
+				msg_current.type, msg_current.parts_no,
+				(msg_tail - msg_head + MSG_QUEUE_SIZE) % MSG_QUEUE_SIZE);
+	} else {
+		msg_current.type = 0;
+		msg_current.parts_no = 0;
+	}
+}
+
+static int PartsEngine_GetMessageType(void) { return msg_current.type; }
+static int PartsEngine_GetMessagePartsNumber(void) { return msg_current.parts_no; }
+static int PartsEngine_GetMessageVariableInt(int idx)
+{
+	if (idx < 0 || idx >= msg_current.nr_vars) return 0;
+	return msg_current.vars[idx];
+}
 
 // v14: Save/SaveWithoutHideParts/Load — AIN_WRAP arg[0] is heap slot index.
 // Wrap the original PE_Save/PE_Load which take struct page **.

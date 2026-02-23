@@ -286,6 +286,45 @@ void delete_page(int slot)
  * Recursively copy a page.
  */
 static int copy_depth = 0;
+static int copy_calls = 0;
+#define COPY_MAX_DEPTH 15
+#define COPY_MAX_CALLS 10000
+
+static bool type_is_heap_ref(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_STRUCT:
+	case AIN_REF_STRUCT:
+	case AIN_STRING:
+	case AIN_REF_STRING:
+	case AIN_DELEGATE:
+	case AIN_REF_DELEGATE:
+		return true;
+	default:
+		// Array types and other compound types
+		return (type >= 50 && type < 80);
+	}
+}
+
+static struct page *copy_page_shallow(struct page *src)
+{
+	struct page *stub = alloc_page(src->type, src->index, src->nr_vars);
+	stub->array = src->array;
+	for (int i = 0; i < src->nr_vars; i++) {
+		enum ain_data_type type = variable_type(src, i, NULL, NULL);
+		if (type_is_heap_ref(type)) {
+			if (src->values[i].i > 0 && heap_index_valid(src->values[i].i)) {
+				heap_ref(src->values[i].i);
+				stub->values[i] = src->values[i];
+			} else {
+				stub->values[i].i = 0;
+			}
+		} else {
+			stub->values[i] = src->values[i];
+		}
+	}
+	return stub;
+}
 
 struct page *copy_page(struct page *src)
 {
@@ -297,19 +336,19 @@ struct page *copy_page(struct page *src)
 		if (cp_corrupt_warn++ < 5)
 			WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning empty page",
 				src->type, src->nr_vars);
-		// Return minimal empty page to prevent NULL dereference in callers
 		return alloc_page(0, 0, 0);
 	}
+	bool is_top = (copy_depth == 0);
+	if (is_top) copy_calls = 0;
 	copy_depth++;
-	if (copy_depth > 100) {
-		static int cp_depth_warn = 0;
-		if (cp_depth_warn++ < 3)
-			WARNING("copy_page: depth %d too deep (circular ref?), returning empty page", copy_depth);
-		// Return empty placeholder page instead of NULL to prevent SIGSEGV in callers
-		struct page *stub = alloc_page(src->type, src->index, src->nr_vars);
-		stub->array = src->array;
+	copy_calls++;
+	if (copy_depth > COPY_MAX_DEPTH || copy_calls > COPY_MAX_CALLS) {
+		static int cp_limit_warn = 0;
+		if (cp_limit_warn++ < 5)
+			WARNING("copy_page: limit hit (depth=%d calls=%d), returning shallow copy", copy_depth, copy_calls);
+		struct page *result = copy_page_shallow(src);
 		copy_depth--;
-		return stub;
+		return result;
 	}
 	struct page *dst = alloc_page(src->type, src->index, src->nr_vars);
 	dst->array = src->array;
@@ -327,27 +366,43 @@ int alloc_struct(int no)
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	for (int i = 0; i < s->nr_members; i++) {
-		if (s->members[i].type.data == AIN_STRUCT) {
+		if (ain->version >= 14 && s->members[i].type.data == AIN_STRUCT) {
+			// v14: recursively allocate inner struct members.
+			// Constructors (e.g. SceneContext@Create) expect inner structs
+			// to already exist — they use interface dispatch on them without
+			// first creating them via NEW. If the constructor does
+			// DELETE+re-create, DELETE on a valid slot is safe.
+			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
+		} else if (ain->version >= 14) {
+			heap[slot].page->values[i].i = 0;
+		} else if (s->members[i].type.data == AIN_STRUCT) {
 			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
 		} else {
 			heap[slot].page->values[i] = variable_initval(s->members[i].type.data);
 		}
 	}
-	// v14: populate <vtable> array (member 0) with virtual method table
-	if (ain->version >= 14 && s->nr_vmethods > 0 && s->nr_members > 0
-	    && (s->members[0].type.data == AIN_ARRAY_INT
-	        || s->members[0].type.data == AIN_ARRAY)) {
+	// v14: populate <vtable> array (member 0) with virtual method table.
+	if (ain->version >= 14 && s->nr_vmethods > 0 && s->nr_members > 0) {
 		int vt_slot = heap[slot].page->values[0].i;
-		if (heap_index_valid(vt_slot)) {
-			union vm_value dim = { .i = s->nr_vmethods };
-			struct page *vt = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
-			for (int j = 0; j < s->nr_vmethods; j++) {
-				vt->values[j].i = s->vmethods[j];
+		if (vt_slot <= 0 || !heap_index_valid(vt_slot)) {
+			// member[0] wasn't properly initialized — allocate a new slot
+			vt_slot = heap_alloc_slot(VM_PAGE);
+			heap[slot].page->values[0].i = vt_slot;
+			{
+				static int alloc_vt_warn = 0;
+				if (alloc_vt_warn++ < 3)
+					WARNING("alloc_struct[%d] '%s': allocated NEW vt_slot=%d (member0 was invalid)",
+						no, s->name, vt_slot);
 			}
-			if (heap[vt_slot].page)
-				free_page(heap[vt_slot].page);
-			heap_set_page(vt_slot, vt);
 		}
+		union vm_value dim = { .i = s->nr_vmethods };
+		struct page *vt = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
+		for (int j = 0; j < s->nr_vmethods; j++) {
+			vt->values[j].i = s->vmethods[j];
+		}
+		if (heap[vt_slot].page)
+			free_page(heap[vt_slot].page);
+		heap_set_page(vt_slot, vt);
 	}
 	return slot;
 }
@@ -369,13 +424,68 @@ void init_struct(int no, int slot)
 	}
 }
 
+static int destructor_depth = 0;
+#define MAX_DESTRUCTOR_DEPTH 4
+
+// Blacklist for struct types whose destructors loop/timeout
+static bool *dtor_blacklist = NULL;
+static bool dtor_blacklist_inited = false;
+
+static void dtor_blacklist_init(void)
+{
+	if (dtor_blacklist_inited) return;
+	if (!ain || ain->nr_structures <= 0) return;
+	dtor_blacklist_inited = true;
+	dtor_blacklist = xcalloc(ain->nr_structures, sizeof(bool));
+	// Pre-blacklist known-bad destructors for v14 (sound/3D systems with uninitialized deps)
+	if (ain->version >= 14) {
+		for (int si = 0; si < ain->nr_structures; si++) {
+			const char *name = ain->structures[si].name;
+			if (name && (strcmp(name, "CASTimer") == 0 ||
+				strcmp(name, "parts::detail::CParts3DLayerManager") == 0)) {
+				dtor_blacklist[si] = true;
+				WARNING("dtor_blacklist_init: pre-blacklisted struct #%d '%s'", si, name);
+			}
+		}
+	}
+}
+
+void vm_blacklist_destructor(int struct_no)
+{
+	if (!dtor_blacklist) dtor_blacklist_init();
+	if (struct_no >= 0 && struct_no < ain->nr_structures && !dtor_blacklist[struct_no]) {
+		dtor_blacklist[struct_no] = true;
+		WARNING("vm_blacklist_destructor: blacklisted struct #%d '%s'",
+			struct_no, ain->structures[struct_no].name);
+	}
+}
+
 void delete_struct(int no, int slot)
 {
 	if (no < 0 || no >= ain->nr_structures)
 		return;
 	struct ain_struct *s = &ain->structures[no];
 	if (s->destructor > 0 && s->destructor < ain->nr_functions) {
+		if (destructor_depth >= MAX_DESTRUCTOR_DEPTH) {
+			return;
+		}
+		// Check blacklist
+		if (!dtor_blacklist) dtor_blacklist_init();
+		if (dtor_blacklist[no]) {
+			return;
+		}
+		destructor_depth++;
+		extern unsigned long long vm_call_get_insn_count(void);
+		unsigned long long before = vm_call_get_insn_count();
 		vm_call(s->destructor, slot);
+		unsigned long long after = vm_call_get_insn_count();
+		destructor_depth--;
+		// If destructor consumed >400K instructions, it likely timed out — blacklist it
+		if (after - before > 400000) {
+			dtor_blacklist[no] = true;
+			WARNING("delete_struct: blacklisting destructor '%s' (struct #%d) — took %llu insns",
+				ain->functions[s->destructor].name, no, after - before);
+		}
 	}
 }
 

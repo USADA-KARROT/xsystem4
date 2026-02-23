@@ -15,11 +15,14 @@
  */
 
 #include <assert.h>
+#include <unistd.h>
 
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
+
+int parts_post_release_trace = 0;
 
 #include "asset_manager.h"
 #include "audio.h"
@@ -97,6 +100,7 @@ static void parts_list_insert(struct parts *parts)
 		if (p->global.z > parts->global.z) {
 			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
 			parts_engine_dirty();
+			scene_register_sprite(&parts->sp);
 			return;
 		}
 	}
@@ -877,6 +881,14 @@ void parts_release(int parts_no)
 	if (!slot->value)
 		return;
 
+	static int prel_log = 0;
+	if (prel_log++ < 10) {
+		int n = 0;
+		struct parts *_p;
+		PARTS_LIST_FOREACH(_p) n++;
+		WARNING("parts_release(%d) total_before=%d", parts_no, n);
+	}
+
 	struct parts *parts = slot->value;
 	parts_clear_motion(parts);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
@@ -899,6 +911,12 @@ void parts_release(int parts_no)
 	free(parts);
 	slot->value = NULL;
 	parts_engine_dirty();
+
+	// Enable post-release HLL trace when all parts are released
+	if (TAILQ_EMPTY(&parts_list) && !parts_post_release_trace) {
+		parts_post_release_trace = 1;
+		WARNING("parts_release: ALL parts released, enabling post-release trace");
+	}
 }
 
 void parts_release_all(void)
@@ -1028,6 +1046,15 @@ bool parts_message_window_show = true;
 
 void PE_Update(int passed_time, bool message_window_show)
 {
+	static int pe_upd_count = 0;
+	pe_upd_count++;
+	if (pe_upd_count <= 5 || pe_upd_count % 500 == 0) {
+		int n = 0;
+		struct parts *_p;
+		PARTS_LIST_FOREACH(_p) n++;
+		WARNING("PE_Update called #%d passed_time=%d dirty=%d parts_count=%d",
+			pe_upd_count, passed_time, scene_is_dirty, n);
+	}
 	handle_events();
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
@@ -1036,11 +1063,11 @@ void PE_Update(int passed_time, bool message_window_show)
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
-	if (scene_is_dirty) {
-		scene_render();
-		gfx_swap();
-		scene_is_dirty = false;
-	}
+	// Always render — scene_is_dirty is never set because parts don't
+	// create sprites yet. Force render to verify pipeline.
+	scene_render();
+	gfx_swap();
+	scene_is_dirty = false;
 }
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
@@ -1071,6 +1098,10 @@ int PE_GetDelegateIndex(int parts_no)
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)
 {
+	static int setcg_trace = 0;
+	if (setcg_trace++ < 10)
+		WARNING("PE_SetPartsCG(parts=%d, cg='%s', state=%d)",
+			parts_no, cg_name ? cg_name->text : "(null)", state);
 	if (!parts_state_valid(--state))
 		return false;
 
@@ -1087,6 +1118,10 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int spr
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
 {
+	static int setcgi_trace = 0;
+	if (setcgi_trace++ < 10)
+		WARNING("PE_SetPartsCG_by_index(parts=%d, cg_no=%d, state=%d)",
+			parts_no, cg_no, state);
 	if (!parts_state_valid(--state))
 		return false;
 
@@ -1552,7 +1587,13 @@ void PE_ReleaseParts(int parts_no)
 
 void PE_ReleaseAllParts(void)
 {
+	WARNING("PE_ReleaseAllParts: entering");
 	parts_release_all();
+	WARNING("PE_ReleaseAllParts: done, post_trace=%d", parts_post_release_trace);
+	{
+		const char msg[] = "PE_ReleaseAllParts: ABOUT_TO_RETURN\n";
+		write(2, msg, sizeof(msg) - 1);
+	}
 }
 
 void PE_ReleaseAllPartsWithoutSystem(void)

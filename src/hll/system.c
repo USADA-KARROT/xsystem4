@@ -235,9 +235,14 @@ static struct string *system_GetGameName(void)
 }
 
 // [30] GetTime() -> int
+// In AliceSoft System4, this is equivalent to Win32 GetTickCount() — milliseconds.
 static int system_GetTime(void)
 {
-	return (int)time(NULL);
+	static int gt_diag = 0;
+	int t = vm_time();
+	if (gt_diag++ < 20)
+		WARNING("system.GetTime() -> %d (ms since start)", t);
+	return t;
 }
 
 // [31] GetFuncStackName(index) -> string

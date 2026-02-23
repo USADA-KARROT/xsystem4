@@ -157,6 +157,7 @@ struct function_call {
 	int32_t page_slot;
 	int32_t struct_page;
 	int32_t base_sp;        // stack pointer after args popped (diagnostic)
+	bool is_method;         // v14: struct_page left on stack below base_sp
 };
 
 extern struct function_call call_stack[4096];

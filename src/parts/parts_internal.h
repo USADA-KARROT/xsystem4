@@ -330,6 +330,7 @@ struct parts {
 	struct parts_motion_list motion;
 	int component_type;   // v14 component widget type
 	int unique_id;        // v14 unique ID for event dispatch
+	char user_component_name[256]; // v14 user component name from pactex
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -359,6 +360,9 @@ void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
 extern bool parts_message_window_show;
+
+// message queue (implemented in PartsEngine.c)
+void parts_enqueue_message(int type, int parts_no);
 
 extern struct parts_numeral_font *parts_numeral_fonts;
 extern int parts_nr_numeral_fonts;

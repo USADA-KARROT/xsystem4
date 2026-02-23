@@ -442,6 +442,30 @@ static void gfx_update_frame_rate_counter(void)
 
 void gfx_swap(void)
 {
+	// Diagnostic: read pixels from main_surface FBO before blit
+	static int swap_diag = 0;
+	// Fire early (first 3), then periodically (every 500th call, up to 5 times)
+	static int swap_call = 0;
+	static int swap_diag_late = 0;
+	swap_call++;
+	bool do_diag = (swap_diag < 3) || (swap_diag_late < 5 && swap_call % 500 == 0);
+	if (do_diag) {
+		unsigned char px[4] = {0};
+		// Read center pixel from main_surface FBO (currently bound)
+		glReadPixels(sdl.w/2, sdl.h/2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px);
+		unsigned char px2[4] = {0};
+		glReadPixels(10, 10, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px2);
+		// Also sample at 1/4 and 3/4 positions
+		unsigned char px3[4] = {0}, px4[4] = {0};
+		glReadPixels(sdl.w/4, sdl.h/4, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px3);
+		glReadPixels(sdl.w*3/4, sdl.h*3/4, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px4);
+		WARNING("gfx_swap DIAG #%d: FBO center=(%d,%d,%d,%d) corner=(%d,%d,%d,%d) "
+			"q1=(%d,%d,%d,%d) q3=(%d,%d,%d,%d) view=%ux%u fb=%u sdl=%dx%d",
+			swap_diag, px[0], px[1], px[2], px[3], px2[0], px2[1], px2[2], px2[3],
+			px3[0], px3[1], px3[2], px3[3], px4[0], px4[1], px4[2], px4[3],
+			view->w, view->h, main_surface_fb, sdl.w, sdl.h);
+	}
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
 	gfx_clear();
@@ -460,6 +484,16 @@ void gfx_swap(void)
 		.data = view
 	};
 	gfx_render(&job);
+
+	// Diagnostic: read pixel from screen after render, before swap
+	if (do_diag) {
+		unsigned char px5[4] = {0};
+		glReadPixels(sdl.viewport.w/2, sdl.viewport.h/2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px5);
+		WARNING("gfx_swap DIAG #%d: screen after blit center=(%d,%d,%d,%d)",
+			swap_diag, px5[0], px5[1], px5[2], px5[3]);
+		if (swap_diag < 3) swap_diag++;
+		else swap_diag_late++;
+	}
 
 	SDL_GL_SwapWindow(sdl.window);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);

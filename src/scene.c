@@ -76,6 +76,11 @@ void scene_unregister_sprite(struct sprite *sp)
 void scene_render(void)
 {
 	static int sr_log = 0;
+	static bool clear_color_set = false;
+	if (!clear_color_set) {
+		gfx_set_clear_color(0, 0, 0, 255);
+		clear_color_set = true;
+	}
 	gfx_clear();
 	if (wp.handle) {
 		Rectangle r = RECT(0, 0, wp.w, wp.h);
@@ -88,12 +93,9 @@ void scene_render(void)
 		count++;
 		if (sp->render)
 			sp->render(sp);
-		else
-			WARNING("sprite in scene without render function");
 	}
-	if (sr_log < 3) {
-		WARNING("scene_render: %d sprite(s) in scene, wp=%s, dirty=%d",
-			count, wp.handle ? "yes" : "no", scene_is_dirty);
+	if (sr_log < 5 || (count > 0 && sr_log < 10)) {
+		WARNING("scene_render: %d sprite(s) in scene", count);
 		sr_log++;
 	}
 }
