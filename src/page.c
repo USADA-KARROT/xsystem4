@@ -257,6 +257,15 @@ void delete_page(int slot)
 	struct page *page = heap[slot].page;
 	if (!page)
 		return;
+	// DIAG: trace deletion of CASTask (struct#504)
+	if (page->type == STRUCT_PAGE && page->index == 504) {
+		static int ct_del = 0;
+		if (ct_del++ < 5) {
+			extern size_t instr_ptr;
+			WARNING("DELETE_CASTASK: slot=%d ref=%d ip=0x%lX",
+				slot, heap[slot].ref, (unsigned long)instr_ptr);
+		}
+	}
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
 		static int dp_corrupt_warn = 0;
@@ -617,9 +626,16 @@ void array_copy(struct page *dst, int dst_i, struct page *src, int src_i, int n)
 		VM_ERROR("Out of bounds array access");
 	if (!array_index_ok(dst, dst_i + n - 1) || !array_index_ok(src, src_i + n - 1))
 		VM_ERROR("Out of bounds array access");
-	if (dst->array.rank != 1 || src->array.rank != 1)
-		VM_ERROR("Tried to copy to/from a multi-dimensional array");
-	if (dst->a_type != src->a_type)
+	if (dst->array.rank != 1 || src->array.rank != 1) {
+		// v14 generic arrays may have rank=0; treat as rank=1
+		if (ain->version >= 14) {
+			if (!dst->array.rank) dst->array.rank = 1;
+			if (!src->array.rank) src->array.rank = 1;
+		} else {
+			VM_ERROR("Tried to copy to/from a multi-dimensional array");
+		}
+	}
+	if (dst->a_type != src->a_type && ain->version < 14)
 		VM_ERROR("Array types do not match");
 
 	for (int i = 0; i < n; i++) {
@@ -944,7 +960,7 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 	for (int i = 0; i < dst->nr_vars; i += 3) {
 		if (dst->values[i].i == obj &&
 		    dst->values[i+1].i == fun &&
-		    dst->values[i+2].i == heap_get_seq(obj))
+		    (ain->version >= 14 || dst->values[i+2].i == heap_get_seq(obj)))
 			return true;
 	}
 	return false;
@@ -978,7 +994,12 @@ int delegate_numof(struct page *page)
 		return 0;
 	}
 
-	// garbage collection
+	// v14 uses different object lifecycle management; the seq-based GC
+	// incorrectly removes live handlers whose objects have ref=0 temporarily.
+	if (ain->version >= 14)
+		return page->nr_vars / 3;
+
+	// garbage collection (pre-v14)
 	for (int i = 0; i < page->nr_vars; i += 3) {
 		if (heap_get_seq(page->values[i].i) != page->values[i+2].i) {
 			for (int j = i+3; j < page->nr_vars; j += 3) {
@@ -1024,7 +1045,7 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 	}
 
 	for (int i = 0; i < add->nr_vars; i += 3) {
-		if (heap_get_seq(add->values[i].i) == add->values[i+2].i)
+		if (ain->version >= 14 || heap_get_seq(add->values[i].i) == add->values[i+2].i)
 			dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
 	}
 	return dst;
@@ -1042,7 +1063,7 @@ struct page *delegate_minusa(struct page *dst, struct page *minus)
 	}
 
 	for (int i = 0; i < minus->nr_vars; i += 3) {
-		if (heap_get_seq(minus->values[i].i) == minus->values[i+2].i)
+		if (ain->version >= 14 || heap_get_seq(minus->values[i].i) == minus->values[i+2].i)
 			delegate_erase(dst, minus->values[i].i, minus->values[i+1].i);
 	}
 
@@ -1074,6 +1095,15 @@ bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out)
 		return false;
 	if (page->type != DELEGATE_PAGE) {
 		WARNING("delegate_get: not a delegate (type=%d)", page->type);
+		return false;
+	}
+	if (ain->version >= 14) {
+		// v14: skip seq-based GC, just return the i-th handler directly
+		if (i*3 < page->nr_vars) {
+			*obj_out = page->values[i*3].i;
+			*fun_out = page->values[i*3+1].i;
+			return true;
+		}
 		return false;
 	}
 	while (i*3 < page->nr_vars) {

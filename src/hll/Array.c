@@ -21,6 +21,16 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 
+// v14: hll_arg3 from CALLHLL encodes element type info for Array operations.
+// Set by ffi.c before each HLL call. High bits indicate reference-counted elements.
+int hll_current_arg3 = -1;
+
+// Check if current Array HLL call operates on reference-counted elements
+// hll_arg3 >= 0x10000 indicates struct/wrap/delegate element types
+static inline bool array_elem_is_ref(void) {
+	return hll_current_arg3 >= 0x10000;
+}
+
 static void check_array(struct page *array)
 {
 	if (!array || array->type != ARRAY_PAGE)
@@ -56,6 +66,9 @@ static void Array_PushBack(struct page **array, int value)
 		free_page(a);
 	}
 	new_a->values[old_size].i = value;
+	// v14: ref-count the stored value if it's a heap object
+	if (array_elem_is_ref() && value > 0)
+		heap_ref(value);
 	*array = new_a;
 }
 
@@ -93,6 +106,18 @@ static bool Array_EraseAll(struct page **array, int func)
 	}
 
 	bool erased = (keep_count != src->nr_vars);
+
+	// v14: unref erased elements if they're heap objects
+	if (array_elem_is_ref()) {
+		for (int i = 0; i < src->nr_vars; i++) {
+			bool kept = false;
+			for (int j = 0; j < keep_count; j++) {
+				if (keep[j] == src->values[i].i) { kept = true; break; }
+			}
+			if (!kept && src->values[i].i > 0)
+				heap_unref(src->values[i].i);
+		}
+	}
 
 	// Rebuild array with kept elements
 	struct page *new_a = alloc_page(ARRAY_PAGE, src->a_type, keep_count);
@@ -181,7 +206,10 @@ static int Array_First(struct page **array, int func)
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
 		if (result) {
-			return src->values[i].i;
+			int val = src->values[i].i;
+			if (array_elem_is_ref() && val > 0)
+				heap_ref(val);
+			return val;
 		}
 	}
 	return -1;
@@ -239,7 +267,10 @@ static int Array_At(struct page **self, int index)
 	struct page *array = (self && *self) ? *self : NULL;
 	if (!array || index < 0 || index >= array->nr_vars)
 		return 0;
-	return array->values[index].i;
+	int result = array->values[index].i;
+	if (array_elem_is_ref() && result > 0)
+		heap_ref(result);
+	return result;
 }
 
 static int Array_Last(struct page **self)
@@ -247,7 +278,13 @@ static int Array_Last(struct page **self)
 	struct page *array = (self && *self) ? *self : NULL;
 	if (!array || array->nr_vars <= 0)
 		return 0;
-	return array->values[array->nr_vars - 1].i;
+	int result = array->values[array->nr_vars - 1].i;
+	// v14: ref the returned value so bytecode DELETE doesn't prematurely free it.
+	// The caller's X_ASSIGN stores the value without heap_ref, and the subsequent
+	// DELETE will heap_unref — so we need to add a ref here to balance.
+	if (array_elem_is_ref() && result > 0)
+		heap_ref(result);
+	return result;
 }
 
 // PopBack (capital B) — v14 name
@@ -257,6 +294,12 @@ static void Array_PopBack(struct page **array)
 		return;
 	struct page *a = *array;
 	int new_size = a->nr_vars - 1;
+	// v14: unref the removed element if it's a heap object
+	if (array_elem_is_ref()) {
+		int removed = a->values[new_size].i;
+		if (removed > 0)
+			heap_unref(removed);
+	}
 	if (new_size == 0) {
 		free_page(a);
 		*array = NULL;
@@ -333,9 +376,24 @@ static void Array_Erase(struct page **array, int index_wrap)
 	    && heap[index_wrap].page
 	    && heap[index_wrap].page->nr_vars > 0)
 		index = heap[index_wrap].page->values[0].i;
+	// DIAG: trace erase
+	{
+		static int ae_log = 0;
+		struct page *a = *array;
+		if (ae_log++ < 20) {
+			WARNING("Array.Erase: idx_wrap=%d resolved=%d size=%d",
+				index_wrap, index, a ? a->nr_vars : -1);
+		}
+	}
 	struct page *a = *array;
 	if (index < 0 || index >= a->nr_vars)
 		return;
+	// v14: unref the removed element if it's a heap object
+	if (array_elem_is_ref()) {
+		int removed = a->values[index].i;
+		if (removed > 0)
+			heap_unref(removed);
+	}
 	int new_size = a->nr_vars - 1;
 	if (new_size == 0) {
 		free_page(a);
@@ -685,6 +743,16 @@ static int Array_NV_sceq(struct page **self, int index, int num, int *out_index)
 // Realloc: resize array, preserving existing elements
 static void Array_Realloc(struct page **array, int new_size)
 {
+	// DIAG
+	{
+		static int ar_log = 0;
+		if (ar_log++ < 15) {
+			WARNING("Array.Realloc: array=%p *array=%p old_size=%d new_size=%d",
+				(void*)array, array ? (void*)*array : NULL,
+				(array && *array) ? (*array)->nr_vars : -1,
+				new_size);
+		}
+	}
 	if (!array || new_size < 0)
 		return;
 	struct page *old = *array;
@@ -774,9 +842,13 @@ static bool Array_IsExist(struct page **self, int value)
 }
 
 // EmplaceBack: push a default value (like PushBack(0) for int arrays)
-static void Array_EmplaceBack(struct page **array)
+// EmplaceBack: append a default-constructed element and return it as wrap<T>.
+// For struct elements (hll_arg3=2): create a new struct via alloc_struct().
+// For int elements (hll_arg3=1): append 0.
+// Returns the new element's value (heap slot for structs, 0 for ints).
+static int Array_EmplaceBack(struct page **array)
 {
-	if (!array) return;
+	if (!array) return 0;
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
 	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
@@ -786,8 +858,18 @@ static void Array_EmplaceBack(struct page **array)
 		new_a->array = a->array;
 		free_page(a);
 	}
-	new_a->values[old_size].i = 0;
+	int new_val = 0;
+	// For struct/wrap elements, construct a new struct object.
+	if (hll_current_arg3 == 2) {
+		int struct_type = new_a->array.struct_type;
+		if (struct_type >= 0 && struct_type < ain->nr_structures) {
+			new_val = alloc_struct(struct_type);
+			heap_ref(new_val);
+		}
+	}
+	new_a->values[old_size].i = new_val;
 	*array = new_a;
+	return new_val;
 }
 
 // Shuffle: Fisher-Yates in-place shuffle
@@ -875,6 +957,21 @@ static int Array_Find(struct page **array, int func)
 // FFI passes both as int (heap slot index).
 static void Array_Copy(struct page **dst, int dst_i_wrap, int src_wrap, int src_i, int count)
 {
+	// DIAG: trace copy
+	{
+		static int ac_log = 0;
+		if (ac_log++ < 10) {
+			struct page *sp = NULL;
+			if (src_wrap > 0 && (size_t)src_wrap < heap_size
+			    && heap[src_wrap].type == VM_PAGE)
+				sp = heap[src_wrap].page;
+			WARNING("Array.Copy: dst_size=%d src_wrap=%d src_page=%p src_size=%d count=%d",
+				(dst && *dst) ? (*dst)->nr_vars : -1,
+				src_wrap, (void*)sp,
+				(sp && sp->type == ARRAY_PAGE) ? sp->nr_vars : -1,
+				count);
+		}
+	}
 	if (!dst || !*dst || count <= 0)
 		return;
 	// Resolve wrap<int> handle for dst_i

@@ -812,13 +812,7 @@ void sact_Key_ClearFlagNoCtrl(void)
 int sact_Key_IsDown(int keycode)
 {
 	handle_events();
-	int result = key_is_down(keycode);
-	static int kid_diag = 0;
-	if (kid_diag < 30 && result) {
-		kid_diag++;
-		WARNING("Key_IsDown(%d) = %d", keycode, result);
-	}
-	return result;
+	return key_is_down(keycode);
 }
 
 int sact_CG_IsExist(int cg_no)

@@ -128,6 +128,23 @@ void heap_ref(int32_t slot)
 {
 	if (slot <= 0 || (size_t)slot >= heap_size)
 		return;
+	// DIAG: trace ref changes for CASTask (struct#504)
+	if (heap[slot].type == VM_PAGE && heap[slot].page
+	    && heap[slot].page->type == STRUCT_PAGE && heap[slot].page->index == 504) {
+		static int ct_ref_log = 0;
+		if (ct_ref_log++ < 20) {
+			extern struct ain *ain;
+			extern struct function_call call_stack[];
+			extern int32_t call_stack_ptr;
+			extern size_t instr_ptr;
+			int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			WARNING("CT_REF: slot=%d ref=%d→%d caller=%d '%s' ip=0x%lX",
+				slot, heap[slot].ref, heap[slot].ref + 1,
+				caller_fno,
+				(ain && caller_fno >= 0 && caller_fno < ain->nr_functions) ? ain->functions[caller_fno].name : "?",
+				(unsigned long)instr_ptr);
+		}
+	}
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
@@ -259,6 +276,23 @@ void heap_unref(int slot)
 	// Never unref the global page (slot 0) or invalid slots
 	if (slot <= 0 || (size_t)slot >= heap_size) {
 		return;
+	}
+	// DIAG: trace unref for CASTask (struct#504)
+	if (heap[slot].type == VM_PAGE && heap[slot].page
+	    && heap[slot].page->type == STRUCT_PAGE && heap[slot].page->index == 504) {
+		static int ct_unref_log = 0;
+		if (ct_unref_log++ < 20) {
+			extern struct ain *ain;
+			extern struct function_call call_stack[];
+			extern int32_t call_stack_ptr;
+			extern size_t instr_ptr;
+			int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
+			WARNING("CT_UNREF: slot=%d ref=%d→%d caller=%d '%s' ip=0x%lX",
+				slot, heap[slot].ref, heap[slot].ref - 1,
+				caller_fno,
+				(ain && caller_fno >= 0 && caller_fno < ain->nr_functions) ? ain->functions[caller_fno].name : "?",
+				(unsigned long)instr_ptr);
+		}
 	}
 	if (unlikely(heap[slot].ref <= 0)) {
 		return;

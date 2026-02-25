@@ -75,7 +75,6 @@ void scene_unregister_sprite(struct sprite *sp)
 
 void scene_render(void)
 {
-	static int sr_log = 0;
 	static bool clear_color_set = false;
 	if (!clear_color_set) {
 		gfx_set_clear_color(0, 0, 0, 255);
@@ -87,16 +86,10 @@ void scene_render(void)
 		gfx_render_texture(&wp, &r);
 	}
 
-	int count = 0;
 	struct sprite *sp;
 	TAILQ_FOREACH(sp, &sprite_list, entry) {
-		count++;
 		if (sp->render)
 			sp->render(sp);
-	}
-	if (sr_log < 5 || (count > 0 && sr_log < 10)) {
-		WARNING("scene_render: %d sprite(s) in scene", count);
-		sr_log++;
 	}
 }
 

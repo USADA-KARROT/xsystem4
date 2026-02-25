@@ -87,45 +87,6 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 
-	// Auto-click: after a few PE_UpdateInputState calls in began_click mode, simulate click
-	{
-		static int auto_click_counter = 0;
-		static int auto_click_total = 0;
-		if (parts_began_click && !clicked_parts) {
-			auto_click_counter++;
-			if (auto_click_counter >= 5) {
-				auto_click_counter = 0;
-				auto_click_total++;
-				struct parts *p;
-				int last_clickable = -1;
-				PARTS_LIST_FOREACH(p) {
-					if (p->clickable)
-						last_clickable = p->no;
-				}
-				if (last_clickable >= 0) {
-					if (auto_click_total <= 5 || (auto_click_total % 200 == 0))
-						WARNING("AUTO_CLICK[%d]: triggering click on parts %d", auto_click_total, last_clickable);
-					clicked_parts = last_clickable;
-					parts_enqueue_message(1, last_clickable);
-				}
-			}
-		} else {
-			auto_click_counter = 0;
-		}
-	}
-
-	// Diagnostic: log click state transitions
-	static int input_diag = 0;
-	if (input_diag < 10 && (cur_clicking != prev_clicking || (input_diag == 0 && parts_began_click))) {
-		int clickable_count = 0;
-		struct parts *p;
-		PARTS_LIST_FOREACH(p) { if (p->clickable) clickable_count++; }
-		input_diag++;
-		WARNING("PE_InputState[%d]: began=%d clicking=%d->%d pos=(%d,%d) clickable_parts=%d click_down=%d clicked=%d",
-			input_diag, parts_began_click, prev_clicking, cur_clicking,
-			cur_pos.x, cur_pos.y, clickable_count, click_down_parts, clicked_parts);
-	}
-
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		parts_update_mouse(parts, cur_pos, cur_clicking);
@@ -144,9 +105,6 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 
 void PE_SetClickable(int parts_no, bool clickable)
 {
-	static int sc_diag = 0;
-	if (sc_diag++ < 10)
-		WARNING("PE_SetClickable(%d, %s)", parts_no, clickable ? "true" : "false");
 	parts_get(parts_no)->clickable = !!clickable;
 }
 

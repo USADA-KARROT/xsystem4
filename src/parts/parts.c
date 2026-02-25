@@ -22,8 +22,6 @@
 #include "system4/hashtable.h"
 #include "system4/string.h"
 
-int parts_post_release_trace = 0;
-
 #include "asset_manager.h"
 #include "audio.h"
 #include "input.h"
@@ -912,11 +910,6 @@ void parts_release(int parts_no)
 	slot->value = NULL;
 	parts_engine_dirty();
 
-	// Enable post-release HLL trace when all parts are released
-	if (TAILQ_EMPTY(&parts_list) && !parts_post_release_trace) {
-		parts_post_release_trace = 1;
-		WARNING("parts_release: ALL parts released, enabling post-release trace");
-	}
 }
 
 void parts_release_all(void)
@@ -945,15 +938,12 @@ bool PE_Init(void)
 {
 	if (parts_engine_initialized)
 		return true;
-	WARNING("PE_Init: sact_init...");
 	// XXX: Oyako Rankan doesn't call ChipmunkSpriteEngine.Init
 	sact_init(16, CHIPMUNK_SPRITE_ENGINE);
-	WARNING("PE_Init: parts_table + render_init...");
 	parts_table = ht_create(1024);
 	parts_render_init();
 	parts_debug_init();
 	parts_engine_initialized = true;
-	WARNING("PE_Init: complete!");
 	return true;
 }
 
@@ -1046,15 +1036,6 @@ bool parts_message_window_show = true;
 
 void PE_Update(int passed_time, bool message_window_show)
 {
-	static int pe_upd_count = 0;
-	pe_upd_count++;
-	if (pe_upd_count <= 5 || pe_upd_count % 500 == 0) {
-		int n = 0;
-		struct parts *_p;
-		PARTS_LIST_FOREACH(_p) n++;
-		WARNING("PE_Update called #%d passed_time=%d dirty=%d parts_count=%d",
-			pe_upd_count, passed_time, scene_is_dirty, n);
-	}
 	handle_events();
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
@@ -1098,10 +1079,6 @@ int PE_GetDelegateIndex(int parts_no)
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)
 {
-	static int setcg_trace = 0;
-	if (setcg_trace++ < 10)
-		WARNING("PE_SetPartsCG(parts=%d, cg='%s', state=%d)",
-			parts_no, cg_name ? cg_name->text : "(null)", state);
 	if (!parts_state_valid(--state))
 		return false;
 
@@ -1118,10 +1095,6 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int spr
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
 {
-	static int setcgi_trace = 0;
-	if (setcgi_trace++ < 10)
-		WARNING("PE_SetPartsCG_by_index(parts=%d, cg_no=%d, state=%d)",
-			parts_no, cg_no, state);
 	if (!parts_state_valid(--state))
 		return false;
 
@@ -1587,13 +1560,7 @@ void PE_ReleaseParts(int parts_no)
 
 void PE_ReleaseAllParts(void)
 {
-	WARNING("PE_ReleaseAllParts: entering");
 	parts_release_all();
-	WARNING("PE_ReleaseAllParts: done, post_trace=%d", parts_post_release_trace);
-	{
-		const char msg[] = "PE_ReleaseAllParts: ABOUT_TO_RETURN\n";
-		write(2, msg, sizeof(msg) - 1);
-	}
 }
 
 void PE_ReleaseAllPartsWithoutSystem(void)

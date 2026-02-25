@@ -490,20 +490,9 @@ void sprite_bind_plugin(struct sact_sprite *sp, struct draw_plugin *plugin)
 
 void sprite_call_plugins(void)
 {
-	static int scp_log = 0;
-	int count = 0;
 	struct sact_sprite *sp;
 	LIST_FOREACH(sp, &sprites_with_plugins, entry) {
-		count++;
 		if (sp->plugin->update)
 			sp->plugin->update(sp);
-	}
-	if (scp_log < 3 && count > 0) {
-		WARNING("sprite_call_plugins: %d plugin(s) updated", count);
-		scp_log++;
-	} else if (scp_log == 0) {
-		static int empty_log = 0;
-		if (empty_log++ == 100)
-			WARNING("sprite_call_plugins: called 100+ times with 0 plugins");
 	}
 }
