@@ -842,9 +842,9 @@ void vm_call(int fno, int struct_page)
 {
 	size_t saved_ip = instr_ptr;
 	unsigned long long saved_limit = vm_call_insn_limit;
-	// Set instruction limit: max 5M instructions per vm_call (destructors, constructors, etc.)
-	// Dohna Dohna's ProfileInfo@0 and CActivityWrap@1 need ~500K+ instructions.
-	vm_call_insn_limit = insn_count + 5000000;
+	// Disable vm_call timeout — Dohna Dohna's constructors legitimately
+	// need 100M+ instructions for activity tree loading.
+	vm_call_insn_limit = 0;  // disabled
 	if (struct_page < 0) {
 		function_call(fno, VM_RETURN);
 	} else {
@@ -872,6 +872,13 @@ void vm_call_nopop(int fno, int nargs)
 	int slot = _function_call(fno, VM_RETURN);
 	if (unlikely(slot < 0)) { instr_ptr = saved_ip; return; }
 	call_stack[call_stack_ptr-1].base_sp = stack_ptr;
+
+	// Set struct_page for lambda/method callbacks invoked from HLL functions.
+	// hll_func_obj is set by FFI when processing AIN_HLL_FUNC arguments.
+	extern int hll_func_obj;
+	if (hll_func_obj >= 0) {
+		call_stack[call_stack_ptr-1].struct_page = hll_func_obj;
+	}
 
 	// Copy args from stack to local page WITHOUT popping
 	// Stack layout: [arg0, arg1, ..., argN-1] with arg0 at sp-nargs
@@ -3202,12 +3209,17 @@ static enum opcode execute_instruction(enum opcode opcode)
 				if (fno == 9038 || fno == 9040 || fno == 9042 || fno == 9163
 				    || fno == 24842 || fno == 24846 || fno == 24847
 				    || dgpa_log < 20) {
-					WARNING("DG_PLUSA: add_i=%d dst_i=%d add=%p(%d) dst=%p(%d) result=%p(%d) var_dummy=%d fno=%d '%s'",
-						add_i, dst_i,
+					WARNING("DG_PLUSA: add_i=%d(ht=%d,pt=%d) dst_i=%d(ht=%d,pt=%d) add=%p(%d) dst=%p(%d) result=%p(%d) fno=%d '%s'",
+						add_i,
+						(add_i > 0 && (size_t)add_i < heap_size) ? heap[add_i].type : -1,
+						(add_i > 0 && (size_t)add_i < heap_size && heap[add_i].type == VM_PAGE && heap[add_i].page) ? heap[add_i].page->type : -1,
+						dst_i,
+						(dst_i > 0 && (size_t)dst_i < heap_size) ? heap[dst_i].type : -1,
+						(dst_i > 0 && (size_t)dst_i < heap_size && heap[dst_i].type == VM_PAGE && heap[dst_i].page) ? heap[dst_i].page->type : -1,
 						(void*)add, add ? add->nr_vars/3 : -1,
 						(void*)dst, dst ? dst->nr_vars/3 : -1,
 						(void*)result, result ? result->nr_vars/3 : -1,
-						var == dummy_var, fno,
+						fno,
 						(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
 					dgpa_log++;
 				}
@@ -3480,11 +3492,11 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case X_GETENV: {
-		// X_GETENV: get parent environment page (lambda captures)
-		// In delegate_call, obj (the delegate's object slot) is stored as
-		// struct_page in the call frame. For lambdas, this is the enclosing
-		// function's local page slot — the captured environment.
-		stack_push(struct_page_slot());
+		// X_GETENV: replace PUSHLOCALPAGE with parent environment page.
+		// Always preceded by PUSHLOCALPAGE; replaces that value with the
+		// enclosing function's captured environment (struct_page).
+		// Equivalent to: pop local_page_slot, push struct_page_slot.
+		stack[stack_ptr - 1].i = struct_page_slot();
 		break;
 	}
 	case X_SET: {
@@ -3841,7 +3853,7 @@ static void vm_execute(void)
 					} else {
 						deep_vm_call_count = 0;
 					}
-					if (deep_vm_call_count >= 10) {
+					if (deep_vm_call_count >= 1000) { // effectively disabled
 						int bail_fno = call_stack[vm_ret_frame].fno;
 						static int bailout_count = 0;
 						if (bailout_count++ < 10) {

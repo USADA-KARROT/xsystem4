@@ -41,6 +41,11 @@ struct hll_function {
 
 static struct hll_function **libraries = NULL;
 
+// Object slot for AIN_HLL_FUNC callbacks (closure env / method receiver).
+// Set by FFI when processing AIN_HLL_FUNC arguments; read by vm_call_nopop
+// to set struct_page on the new call frame for lambda/method callbacks.
+int hll_func_obj = -1;
+
 bool library_exists(int libno)
 {
 	return libraries[libno];
@@ -315,6 +320,28 @@ void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 
+	// DIAG: trace Array.First calls (match by name)
+	if (!strcmp(ain->libraries[libno].name, "Array") && !strcmp(f->name, "First")) {
+		static int af_trace = 0;
+		if (af_trace++ < 5) {
+			WARNING("hll_call: %s.%s lib=%d fn=%d linked=%d nargs=%d sp=%d hll_arg3=%d",
+				ain->libraries[libno].name, f->name, libno, fno,
+				(libraries[libno] && libraries[libno][fno].fun) ? 1 : 0,
+				f->nr_arguments, stack_ptr, hll_arg3);
+			for (int ai = 0; ai < f->nr_arguments; ai++) {
+				WARNING("  arg[%d]: name='%s' type=%d '%s' struct_type=%d", ai,
+					f->arguments[ai].name,
+					f->arguments[ai].type.data,
+					ain_strtype(ain, f->arguments[ai].type.data, -1),
+					f->arguments[ai].type.struc);
+			}
+			for (int si = 0; si < 6 && si < stack_ptr; si++) {
+				WARNING("  stack[sp-%d] = %d (0x%x)", si+1,
+					stack[stack_ptr-1-si].i, stack[stack_ptr-1-si].i);
+			}
+		}
+	}
+
 	/* Record in ring buffer */
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].libno = libno;
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
@@ -457,8 +484,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 				static int rdl = 0;
 				if (rdl++ < 30) {
 					int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-					WARNING("FFI ref_delegate: slot=%d nr_vars=%d caller=%d '%s' lib=%s.%s",
+					WARNING("FFI ref_delegate: slot=%d ht=%d pt=%d nr_vars=%d caller=%d '%s' lib=%s.%s",
 						slot,
+						(slot >= 0 && (size_t)slot < heap_size) ? heap[slot].type : -1,
+						(slot >= 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE && heap[slot].page) ? heap[slot].page->type : -1,
 						(slot >= 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE && heap[slot].page) ? heap[slot].page->nr_vars : -1,
 						caller_fno,
 						(caller_fno >= 0 && caller_fno < ain->nr_functions) ? ain->functions[caller_fno].name : "?",
@@ -494,27 +523,16 @@ void hll_call(int libno, int fno, int hll_arg3)
 			break;
 		}
 		case AIN_HLL_FUNC: {
-			// v14: 2-slot value — (object, function)
-			// When object=-1 (static function), function is already
-			// the resolved function number (from DG_STR_TO_METHOD).
-			// When object>=0, it's a page reference to dereference.
+			// v14: 2-slot value — (object_heap_slot, function_number)
+			// object_heap_slot: -1 for static/lambda, or heap slot of closure env
+			// function_number: always the AIN function index directly
 			stack_ptr -= 2;
-			int pageno = stack[stack_ptr].i;
-			int varno  = stack[stack_ptr+1].i;
-			if (pageno == -1) {
-				// Static function: varno is the function number directly
-				stack[stack_ptr].i = varno;
-			} else {
-				struct page *p = NULL;
-				if (pageno >= 0 && (size_t)pageno < heap_size
-				    && heap[pageno].ref > 0 && heap[pageno].type == VM_PAGE)
-					p = heap[pageno].page;
-				if (p && varno >= 0 && varno < p->nr_vars) {
-					stack[stack_ptr] = p->values[varno];
-				} else {
-					stack[stack_ptr].i = -1;
-				}
-			}
+			int obj_slot = stack[stack_ptr].i;
+			int func_no  = stack[stack_ptr+1].i;
+			// Store obj_slot so vm_call_nopop can set struct_page for
+			// lambda/method callbacks (e.g. Array.First predicate).
+			hll_func_obj = obj_slot;
+			stack[stack_ptr].i = func_no;
 			args[i] = &stack[stack_ptr];
 			break;
 		}

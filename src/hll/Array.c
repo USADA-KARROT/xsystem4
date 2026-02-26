@@ -188,7 +188,14 @@ static int Array_Where(struct page **array, int func)
 // First: return first element matching predicate, or -1 if none
 static int Array_First(struct page **array, int func)
 {
+	static int first_log = 0;
 	struct page *src = (array && *array) ? *array : NULL;
+	if (first_log < 10) {
+		WARNING("Array_First: array=%p *array=%p src=%p(nr=%d) func=%d",
+			(void*)array, array ? (void*)*array : NULL,
+			(void*)src, src ? src->nr_vars : -1, func);
+		first_log++;
+	}
 	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return -1;
 
@@ -205,12 +212,23 @@ static int Array_First(struct page **array, int func)
 		vm_call_nopop(func, cb->nr_args);
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
+		if (first_log < 10 && i < 3) {
+			WARNING("  First[%d]: elem=%d result=%d", i, src->values[i].i, result);
+		}
 		if (result) {
+			if (first_log < 10) {
+				WARNING("  First: FOUND at i=%d val=%d", i, src->values[i].i);
+				first_log++;
+			}
 			int val = src->values[i].i;
 			if (array_elem_is_ref() && val > 0)
 				heap_ref(val);
 			return val;
 		}
+	}
+	if (first_log < 10) {
+		WARNING("  First: NOT FOUND (searched %d elements)", src->nr_vars);
+		first_log++;
 	}
 	return -1;
 }
