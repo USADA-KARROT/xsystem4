@@ -416,6 +416,10 @@ static struct string *SystemService_GetGameVersionByText(void)
 	return cstr_to_string("sd40006sd00000008f6300004");
 }
 
+static void SystemService_Rance96161988(struct string **text) {
+	*text = cstr_to_string("=Rance99/RANCE99=");
+}
+
 static void SystemService_PreLink(void);
 
 static void SystemService_ModuleInit(void)
@@ -544,6 +548,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(Test, SystemService_Test),
 	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
 	    HLL_EXPORT(GetGameVersionByText, SystemService_GetGameVersionByText),
+	    HLL_EXPORT(Rance96161988, SystemService_Rance96161988),
 	    HLL_EXPORT(AddBackupSaveFileName, SystemService_AddBackupSaveFileName),
 	    HLL_EXPORT(ShowWaitMessage, SystemService_ShowWaitMessage),
 	    HLL_EXPORT(GameVariable_IsExist, SystemService_GameVariable_IsExist),
