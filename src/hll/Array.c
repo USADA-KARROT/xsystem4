@@ -25,10 +25,11 @@
 // Set by ffi.c before each HLL call. High bits indicate reference-counted elements.
 int hll_current_arg3 = -1;
 
-// Check if current Array HLL call operates on reference-counted elements
-// hll_arg3 >= 0x10000 indicates struct/wrap/delegate element types
+// Check if current Array HLL call operates on reference-counted elements.
+// hll_arg3 >= 0x10000 indicates ref-counted elements (pre-v14 convention).
+// hll_arg3 == 2 indicates struct/wrap elements in v14 (needs heap_ref/unref).
 static inline bool array_elem_is_ref(void) {
-	return hll_current_arg3 >= 0x10000;
+	return hll_current_arg3 >= 0x10000 || hll_current_arg3 == 2;
 }
 
 static void check_array(struct page *array)
@@ -188,14 +189,7 @@ static int Array_Where(struct page **array, int func)
 // First: return first element matching predicate, or -1 if none
 static int Array_First(struct page **array, int func)
 {
-	static int first_log = 0;
 	struct page *src = (array && *array) ? *array : NULL;
-	if (first_log < 10) {
-		WARNING("Array_First: array=%p *array=%p src=%p(nr=%d) func=%d",
-			(void*)array, array ? (void*)*array : NULL,
-			(void*)src, src ? src->nr_vars : -1, func);
-		first_log++;
-	}
 	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return -1;
 
@@ -212,23 +206,12 @@ static int Array_First(struct page **array, int func)
 		vm_call_nopop(func, cb->nr_args);
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
-		if (first_log < 10 && i < 3) {
-			WARNING("  First[%d]: elem=%d result=%d", i, src->values[i].i, result);
-		}
 		if (result) {
-			if (first_log < 10) {
-				WARNING("  First: FOUND at i=%d val=%d", i, src->values[i].i);
-				first_log++;
-			}
 			int val = src->values[i].i;
 			if (array_elem_is_ref() && val > 0)
 				heap_ref(val);
 			return val;
 		}
-	}
-	if (first_log < 10) {
-		WARNING("  First: NOT FOUND (searched %d elements)", src->nr_vars);
-		first_log++;
 	}
 	return -1;
 }
@@ -394,15 +377,6 @@ static void Array_Erase(struct page **array, int index_wrap)
 	    && heap[index_wrap].page
 	    && heap[index_wrap].page->nr_vars > 0)
 		index = heap[index_wrap].page->values[0].i;
-	// DIAG: trace erase
-	{
-		static int ae_log = 0;
-		struct page *a = *array;
-		if (ae_log++ < 20) {
-			WARNING("Array.Erase: idx_wrap=%d resolved=%d size=%d",
-				index_wrap, index, a ? a->nr_vars : -1);
-		}
-	}
 	struct page *a = *array;
 	if (index < 0 || index >= a->nr_vars)
 		return;
@@ -761,16 +735,6 @@ static int Array_NV_sceq(struct page **self, int index, int num, int *out_index)
 // Realloc: resize array, preserving existing elements
 static void Array_Realloc(struct page **array, int new_size)
 {
-	// DIAG
-	{
-		static int ar_log = 0;
-		if (ar_log++ < 15) {
-			WARNING("Array.Realloc: array=%p *array=%p old_size=%d new_size=%d",
-				(void*)array, array ? (void*)*array : NULL,
-				(array && *array) ? (*array)->nr_vars : -1,
-				new_size);
-		}
-	}
 	if (!array || new_size < 0)
 		return;
 	struct page *old = *array;
@@ -975,21 +939,6 @@ static int Array_Find(struct page **array, int func)
 // FFI passes both as int (heap slot index).
 static void Array_Copy(struct page **dst, int dst_i_wrap, int src_wrap, int src_i, int count)
 {
-	// DIAG: trace copy
-	{
-		static int ac_log = 0;
-		if (ac_log++ < 10) {
-			struct page *sp = NULL;
-			if (src_wrap > 0 && (size_t)src_wrap < heap_size
-			    && heap[src_wrap].type == VM_PAGE)
-				sp = heap[src_wrap].page;
-			WARNING("Array.Copy: dst_size=%d src_wrap=%d src_page=%p src_size=%d count=%d",
-				(dst && *dst) ? (*dst)->nr_vars : -1,
-				src_wrap, (void*)sp,
-				(sp && sp->type == ARRAY_PAGE) ? sp->nr_vars : -1,
-				count);
-		}
-	}
 	if (!dst || !*dst || count <= 0)
 		return;
 	// Resolve wrap<int> handle for dst_i

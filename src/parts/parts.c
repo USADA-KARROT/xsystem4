@@ -139,6 +139,9 @@ struct parts *parts_get(int parts_no)
 	parts->no = parts_no;
 	slot->value = parts;
 	parts_list_insert(parts);
+	static int parts_create_log = 0;
+	if (parts_create_log++ < 5)
+		WARNING("parts_get: created parts_no=%d (total=%d)", parts_no, parts_create_log);
 	return parts;
 }
 
@@ -1079,6 +1082,10 @@ int PE_GetDelegateIndex(int parts_no)
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)
 {
+	static int setcg_log = 0;
+	if (setcg_log++ < 5)
+		WARNING("PE_SetPartsCG: parts_no=%d cg='%s' state=%d", parts_no,
+			cg_name ? cg_name->text : "(null)", state);
 	if (!parts_state_valid(--state))
 		return false;
 

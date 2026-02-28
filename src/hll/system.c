@@ -177,7 +177,10 @@ static void system_Sleep(int ms)
 // [22] Output(text) -> string
 static struct string *system_Output(struct string *text)
 {
-	sys_message("%s", text->text);
+	static int output_count = 0;
+	output_count++;
+	if (output_count <= 20 || output_count % 100000 == 0)
+		sys_message("[%d] %s", output_count, text->text);
 	return string_ref(text);
 }
 

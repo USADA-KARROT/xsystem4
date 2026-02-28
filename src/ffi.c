@@ -320,27 +320,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 
-	// DIAG: trace Array.First calls (match by name)
-	if (!strcmp(ain->libraries[libno].name, "Array") && !strcmp(f->name, "First")) {
-		static int af_trace = 0;
-		if (af_trace++ < 5) {
-			WARNING("hll_call: %s.%s lib=%d fn=%d linked=%d nargs=%d sp=%d hll_arg3=%d",
-				ain->libraries[libno].name, f->name, libno, fno,
-				(libraries[libno] && libraries[libno][fno].fun) ? 1 : 0,
-				f->nr_arguments, stack_ptr, hll_arg3);
-			for (int ai = 0; ai < f->nr_arguments; ai++) {
-				WARNING("  arg[%d]: name='%s' type=%d '%s' struct_type=%d", ai,
-					f->arguments[ai].name,
-					f->arguments[ai].type.data,
-					ain_strtype(ain, f->arguments[ai].type.data, -1),
-					f->arguments[ai].type.struc);
-			}
-			for (int si = 0; si < 6 && si < stack_ptr; si++) {
-				WARNING("  stack[sp-%d] = %d (0x%x)", si+1,
-					stack[stack_ptr-1-si].i, stack[stack_ptr-1-si].i);
-			}
-		}
-	}
 
 	/* Record in ring buffer */
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].libno = libno;
@@ -479,21 +458,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_REF_DELEGATE: {
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
-			// DIAG: trace ref_delegate resolution
-			if (f->arguments[i].type.data == AIN_REF_DELEGATE) {
-				static int rdl = 0;
-				if (rdl++ < 30) {
-					int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-					WARNING("FFI ref_delegate: slot=%d ht=%d pt=%d nr_vars=%d caller=%d '%s' lib=%s.%s",
-						slot,
-						(slot >= 0 && (size_t)slot < heap_size) ? heap[slot].type : -1,
-						(slot >= 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE && heap[slot].page) ? heap[slot].page->type : -1,
-						(slot >= 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE && heap[slot].page) ? heap[slot].page->nr_vars : -1,
-						caller_fno,
-						(caller_fno >= 0 && caller_fno < ain->nr_functions) ? ain->functions[caller_fno].name : "?",
-						ain->libraries[libno].name, f->name);
-				}
-			}
 			if (slot >= 0 && (size_t)slot < heap_size
 			    && heap[slot].type == VM_PAGE) {
 				heap_slots[i] = slot;
@@ -579,11 +543,11 @@ void hll_call(int libno, int fno, int hll_arg3)
 			break;
 		case AIN_REF_ARRAY: {
 			// v14: 1-slot — write back directly to heap slot
+			// NOTE: Always write back unconditionally. The HLL function
+			// (e.g. PushBack) may have freed the old page via free_page(),
+			// making old->type unreliable (freed memory gets reused).
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size) {
-				struct page *old = heap[heap_slots[i]].page;
-				if (!old || old->type == ARRAY_PAGE) {
-					heap[heap_slots[i]].page = heap_ptrs[i];
-				}
+				heap[heap_slots[i]].page = heap_ptrs[i];
 			}
 			break;
 		}

@@ -257,15 +257,6 @@ void delete_page(int slot)
 	struct page *page = heap[slot].page;
 	if (!page)
 		return;
-	// DIAG: trace deletion of CASTask (struct#504)
-	if (page->type == STRUCT_PAGE && page->index == 504) {
-		static int ct_del = 0;
-		if (ct_del++ < 5) {
-			extern size_t instr_ptr;
-			WARNING("DELETE_CASTASK: slot=%d ref=%d ip=0x%lX",
-				slot, heap[slot].ref, (unsigned long)instr_ptr);
-		}
-	}
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
 		static int dp_corrupt_warn = 0;
@@ -397,12 +388,6 @@ int alloc_struct(int no)
 			// member[0] wasn't properly initialized — allocate a new slot
 			vt_slot = heap_alloc_slot(VM_PAGE);
 			heap[slot].page->values[0].i = vt_slot;
-			{
-				static int alloc_vt_warn = 0;
-				if (alloc_vt_warn++ < 3)
-					WARNING("alloc_struct[%d] '%s': allocated NEW vt_slot=%d (member0 was invalid)",
-						no, s->name, vt_slot);
-			}
 		}
 		union vm_value dim = { .i = s->nr_vmethods };
 		struct page *vt = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
@@ -456,16 +441,6 @@ static void dtor_blacklist_init(void)
 				WARNING("dtor_blacklist_init: pre-blacklisted struct #%d '%s'", si, name);
 			}
 		}
-	}
-}
-
-void vm_blacklist_destructor(int struct_no)
-{
-	if (!dtor_blacklist) dtor_blacklist_init();
-	if (struct_no >= 0 && struct_no < ain->nr_structures && !dtor_blacklist[struct_no]) {
-		dtor_blacklist[struct_no] = true;
-		WARNING("vm_blacklist_destructor: blacklisted struct #%d '%s'",
-			struct_no, ain->structures[struct_no].name);
 	}
 }
 

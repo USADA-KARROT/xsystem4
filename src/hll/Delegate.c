@@ -39,21 +39,9 @@ static int Delegate_Numof(struct page **self)
 // [3] Empty(self:ref_delegate) -> bool
 static bool Delegate_Empty(struct page **self)
 {
-	if (!self || !*self) {
-		static int de_log = 0;
-		if (de_log++ < 20)
-			WARNING("Delegate_Empty: self=%p *self=%p → TRUE (null)", (void*)self, self ? (void*)*self : NULL);
+	if (!self || !*self)
 		return true;
-	}
-	bool empty = delegate_numof(*self) == 0;
-	{
-		static int de_log2 = 0;
-		if (de_log2++ < 20)
-			WARNING("Delegate_Empty: self=%p *self=%p nr_vars=%d numof=%d → %s",
-				(void*)self, (void*)*self, (*self)->nr_vars, delegate_numof(*self),
-				empty ? "TRUE" : "FALSE");
-	}
-	return empty;
+	return delegate_numof(*self) == 0;
 }
 
 // [4] Equals(self:ref_delegate, src:wrap<delegate>) -> bool

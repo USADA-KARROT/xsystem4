@@ -377,11 +377,12 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	/* Find child components branch — determines if this is a container */
 	struct ex_tree *buhin = pactex_find_buhin(node);
 
-	/* Component type: container (17) if has children, leaf (1) otherwise.
-	 * Type 17 = UserComponent triggers child recursion in the game's tree walk.
-	 * Type 1 = leaf component, no children → recursion stops. */
+	/* Component type: 0 for containers, 1 for leaves.
+	 * Type 17 = UserComponent — triggers GetUserComponentManager search in
+	 * global[22].  We must NOT use 17 for normal containers because no
+	 * component managers are registered, causing 300K+ failed lookups. */
 	if (buhin && buhin->nr_children > 0)
-		p->component_type = 17;  /* UserComponent (container) */
+		p->component_type = 0;   /* generic container */
 	else
 		p->component_type = 1;   /* Sprite (leaf) */
 
@@ -424,10 +425,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		return false;
 	}
 
-	/* Dump tree structure for debugging (first load only) */
-	static int dump_count = 0;
-	if (dump_count++ < 2)
-		dump_ex_tree(tree, 0);
+	/* Dump tree structure for debugging (disabled — too verbose) */
 
 	/* The tree root has one branch per activity variant (usually just one).
 	 * Create a root PE parts entry for the first branch. */
@@ -444,9 +442,9 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	snprintf(root->user_component_name, sizeof(root->user_component_name),
 		"%s", root_branch->name->text);
 
-	/* Root is always a container (type 17) since it has children */
+	/* Root container — type 0 (not 17, which would trigger UserComponent lookup) */
 	struct ex_tree *root_buhin = pactex_find_buhin(root_branch);
-	root->component_type = (root_buhin && root_buhin->nr_children > 0) ? 17 : 0;
+	root->component_type = 0;
 
 	/* Register root with actual name.
 	 * Also register with empty name so GetActivityPartsNumber("", "") returns root. */

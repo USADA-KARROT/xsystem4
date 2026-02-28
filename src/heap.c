@@ -28,6 +28,7 @@
 #define INITIAL_HEAP_SIZE  4096
 #define HEAP_ALLOC_STEP    4096
 
+
 struct vm_pointer *heap = NULL;
 size_t heap_size = 0;
 uint32_t heap_next_seq;
@@ -128,23 +129,6 @@ void heap_ref(int32_t slot)
 {
 	if (slot <= 0 || (size_t)slot >= heap_size)
 		return;
-	// DIAG: trace ref changes for CASTask (struct#504)
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->type == STRUCT_PAGE && heap[slot].page->index == 504) {
-		static int ct_ref_log = 0;
-		if (ct_ref_log++ < 20) {
-			extern struct ain *ain;
-			extern struct function_call call_stack[];
-			extern int32_t call_stack_ptr;
-			extern size_t instr_ptr;
-			int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-			WARNING("CT_REF: slot=%d ref=%d→%d caller=%d '%s' ip=0x%lX",
-				slot, heap[slot].ref, heap[slot].ref + 1,
-				caller_fno,
-				(ain && caller_fno >= 0 && caller_fno < ain->nr_functions) ? ain->functions[caller_fno].name : "?",
-				(unsigned long)instr_ptr);
-		}
-	}
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
@@ -277,23 +261,6 @@ void heap_unref(int slot)
 	if (slot <= 0 || (size_t)slot >= heap_size) {
 		return;
 	}
-	// DIAG: trace unref for CASTask (struct#504)
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->type == STRUCT_PAGE && heap[slot].page->index == 504) {
-		static int ct_unref_log = 0;
-		if (ct_unref_log++ < 20) {
-			extern struct ain *ain;
-			extern struct function_call call_stack[];
-			extern int32_t call_stack_ptr;
-			extern size_t instr_ptr;
-			int caller_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-			WARNING("CT_UNREF: slot=%d ref=%d→%d caller=%d '%s' ip=0x%lX",
-				slot, heap[slot].ref, heap[slot].ref - 1,
-				caller_fno,
-				(ain && caller_fno >= 0 && caller_fno < ain->nr_functions) ? ain->functions[caller_fno].name : "?",
-				(unsigned long)instr_ptr);
-		}
-	}
 	if (unlikely(heap[slot].ref <= 0)) {
 		return;
 	}
@@ -301,83 +268,71 @@ void heap_unref(int slot)
 		heap[slot].ref--;
 		return;
 	}
-	// About to free this slot — check if any active call frame still uses it.
-	// function_return() decrements call_stack_ptr BEFORE calling heap_unref,
-	// so the returning function's frame is already removed from the stack.
-	{
+	// Protection: prevent freeing objects still used by active call frames.
+	// Use a bitmap for O(1) lookups instead of O(csp) per unref.
+	static bool deferred_processing = false;
+	static uint8_t *frame_protect_map = NULL;
+	static size_t frame_protect_map_size = 0;
+
+	if (!deferred_processing) {
 		extern struct function_call call_stack[];
 		extern int32_t call_stack_ptr;
-		bool parent_uses = false;
-		for (int i = 0; i < call_stack_ptr; i++) {
-			if (call_stack[i].page_slot == slot) {
-				if (!parent_uses) {
-					static int lpf_warn = 0;
-					if (lpf_warn++ < 3) {
-						extern struct ain *ain;
-						int ff = call_stack[i].fno;
-						int top_fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-						WARNING("LIVE_PAGE_FREE blocked: slot=%d frame[%d] fno=%d '%s' "
-							"caller=%d '%s' ip=0x%lX csp=%d",
-							slot, i, ff,
-							(ain && ff >= 0 && ff < ain->nr_functions) ? ain->functions[ff].name : "?",
-							top_fno,
-							(ain && top_fno >= 0 && top_fno < ain->nr_functions) ? ain->functions[top_fno].name : "?",
-							(unsigned long)instr_ptr, call_stack_ptr);
-					}
-				}
-				parent_uses = true;
-			}
-		}
-		if (parent_uses) {
-			// Keep the slot alive — a parent frame still references it.
-			// Bumping ref prevents cascading corruption from freeing live pages.
-			heap[slot].ref = 1;
-			return;
-		}
-	}
-	// v14: protect objects reachable from active call frames or global page.
-	{
 		extern struct ain *ain;
-		if (ain && ain->version >= 14 && heap[slot].type == VM_PAGE) {
-			// Fast check: is this slot a direct member of any active call frame's
-			// struct page? O(frames × members) ≈ O(100), no caching needed.
-			for (int ci = 0; ci < call_stack_ptr; ci++) {
+
+		// Build frame protection bitmap (O(csp), done once per outermost unref)
+		if (heap_size > frame_protect_map_size) {
+			free(frame_protect_map);
+			frame_protect_map_size = heap_size;
+			frame_protect_map = calloc(heap_size, 1);
+		} else {
+			memset(frame_protect_map, 0, heap_size);
+		}
+		for (int i = 0; i < call_stack_ptr; i++) {
+			int ps = call_stack[i].page_slot;
+			if (ps > 0 && (size_t)ps < heap_size)
+				frame_protect_map[ps] = 1;
+		}
+		// Also mark struct_page members of recent frames (top 16)
+		if (ain && ain->version >= 14) {
+			int start = call_stack_ptr > 16 ? call_stack_ptr - 16 : 0;
+			for (int ci = start; ci < call_stack_ptr; ci++) {
 				int sp_slot = call_stack[ci].struct_page;
 				if (sp_slot <= 0 || (size_t)sp_slot >= heap_size) continue;
 				if (heap[sp_slot].type != VM_PAGE || !heap[sp_slot].page) continue;
 				struct page *sp = heap[sp_slot].page;
 				for (int mi = 0; mi < sp->nr_vars; mi++) {
-					if (sp->values[mi].i == slot) {
-						static int cfp_warn = 0;
-						if (cfp_warn++ < 3)
-							WARNING("V14_MEMBER_PROTECT: slot=%d member[%d] of struct_page=%d frame[%d]",
-								slot, mi, sp_slot, ci);
-						heap[slot].ref = 1;
-						return;
-					}
+					int v = sp->values[mi].i;
+					if (v > 0 && (size_t)v < heap_size)
+						frame_protect_map[v] = 1;
 				}
 			}
-			// Cached check: global page reachability (O(1) lookup)
+		}
+
+		// Check this slot against the bitmap
+		if ((size_t)slot < heap_size && frame_protect_map[slot]) {
+			heap[slot].ref = 1;
+			return;
+		}
+		// Global page reachability check
+		if (ain && ain->version >= 14 && heap[slot].type == VM_PAGE) {
 			if (slot_reachable_from_global(slot)) {
-				static int grp_warn = 0;
-				if (grp_warn++ < 3)
-					WARNING("V14_GLOBAL_PROTECT: slot=%d reachable from global page, keeping alive", slot);
 				heap[slot].ref = 1;
 				return;
 			}
 		}
+	} else {
+		// During deferred processing: O(1) bitmap lookup only
+		if ((size_t)slot < heap_size && frame_protect_map && frame_protect_map[slot]) {
+			heap[slot].ref = 1;
+			return;
+		}
 	}
 	heap[slot].ref = 0;
 
-	// Deferred iterative free: instead of recursively calling delete_page
-	// (which calls variable_fini → heap_unref → delete_page → ...),
-	// add the slot to a deferred free queue and process iteratively.
-	// This prevents stack overflow on deep object graphs (Dohna Dohna's
-	// SceneLogo cleanup creates 20+ levels of recursive heap_unref).
+	// Deferred iterative free
 	{
 		static int deferred_queue[65536];
 		static int deferred_count = 0;
-		static bool deferred_processing = false;
 
 		if (deferred_count < 65536) {
 			deferred_queue[deferred_count++] = slot;
@@ -391,7 +346,6 @@ void heap_unref(int slot)
 			deferred_processing = true;
 			while (deferred_count > 0) {
 				int s = deferred_queue[--deferred_count];
-				// Slot might have been re-referenced during processing
 				if (heap[s].ref > 0)
 					continue;
 				switch (heap[s].type) {
