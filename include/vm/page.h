@@ -117,6 +117,7 @@ void delete_page(int slot);
 // structs
 int alloc_struct(int no);
 void init_struct(int no, int slot);
+void init_global_struct_v14(int no, int slot);
 void delete_struct(int no, int slot);
 void create_struct(int no, union vm_value *var);
 

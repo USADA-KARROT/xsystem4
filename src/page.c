@@ -418,6 +418,19 @@ void init_struct(int no, int slot)
 	}
 }
 
+// v14: call constructors for top-level globals only (not recursive).
+// The alloc function uses NEW with ctor=-1 for top-level globals,
+// but nested structs are already constructed by NEW with explicit ctor.
+void init_global_struct_v14(int no, int slot)
+{
+	if (!heap_index_valid(slot) || !heap[slot].page)
+		return;
+	struct ain_struct *s = &ain->structures[no];
+	if (s->constructor > 0) {
+		vm_call(s->constructor, slot);
+	}
+}
+
 static int destructor_depth = 0;
 #define MAX_DESTRUCTOR_DEPTH 4
 

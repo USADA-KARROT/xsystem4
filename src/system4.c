@@ -374,6 +374,7 @@ static void usage(void)
 	puts("        --msgskip-delay  Specify the delay in ms to add when skipping messages with CTRL");
 	puts("        --save-folder    Override save folder location");
 	puts("        --save-format    Specify the resume save file format. json (default) or rsm");
+	puts("        --skip-title     Skip title screen and start new game directly");
 #ifdef DEBUGGER_ENABLED
 	puts("        --nodebug        Disable debugger");
 	puts("        --debug          Start in debugger");
@@ -405,6 +406,7 @@ enum {
 	LOPT_MSGSKIP_DELAY,
 	LOPT_SAVE_FOLDER,
 	LOPT_SAVE_FORMAT,
+	LOPT_SKIP_TITLE,
 #ifdef DEBUGGER_ENABLED
 	LOPT_NODEBUG,
 	LOPT_DEBUG,
@@ -474,6 +476,7 @@ int main(int argc, char *argv[])
 			{ "msgskip-delay", required_argument, 0, LOPT_MSGSKIP_DELAY },
 			{ "save-folder",   required_argument, 0, LOPT_SAVE_FOLDER },
 			{ "save-format",   required_argument, 0, LOPT_SAVE_FORMAT },
+			{ "skip-title",    no_argument,       0, LOPT_SKIP_TITLE },
 #ifdef DEBUGGER_ENABLED
 			{ "nodebug",       no_argument,       0, LOPT_NODEBUG },
 			{ "debug",         no_argument,       0, LOPT_DEBUG },
@@ -544,6 +547,9 @@ int main(int argc, char *argv[])
 			} else {
 				WARNING("Invalid value for --save-format option: \"%s\"", optarg);
 			}
+			break;
+		case LOPT_SKIP_TITLE:
+			config.skip_title = true;
 			break;
 #ifdef DEBUGGER_ENABLED
 		case LOPT_NODEBUG:

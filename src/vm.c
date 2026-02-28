@@ -1436,6 +1436,21 @@ static enum opcode execute_instruction(enum opcode opcode)
 	//
 	case CALLFUNC: {
 		int _fno = get_argument(0);
+		// --skip-title: bypass SceneLogo and SceneTitle
+		if (config.skip_title && _fno >= 0 && _fno < ain->nr_functions
+				&& ain->functions[_fno].name) {
+			if (strstr(ain->functions[_fno].name, "RunResult<SceneTitle")) {
+				WARNING("--skip-title: skipping %s, returning 0 (NewGame)", ain->functions[_fno].name);
+				stack_push((union vm_value){.i = 0});
+				instr_ptr += instruction_width(CALLFUNC);
+				break;
+			}
+			if (strstr(ain->functions[_fno].name, "Run<SceneLogo>")) {
+				WARNING("--skip-title: skipping %s", ain->functions[_fno].name);
+				instr_ptr += instruction_width(CALLFUNC);
+				break;
+			}
+		}
 		if (_fno >= 0 && _fno < ain->nr_functions
 				&& (ain->functions[_fno].address == 0xFFFFFFFF
 				    || ain->functions[_fno].address >= ain->code_size)) {
@@ -3605,30 +3620,27 @@ int vm_execute_ain(struct ain *program)
 		WARNING("VM: skipping alloc (address=0xFFFFFFFF or alloc<0)");
 	}
 
-	// Diagnostic: check key globals (1=event manager, 4..7=controller system)
-	for (int gi = 0; gi <= 7 && gi < ain->nr_globals; gi++) {
-		int gv = heap[0].page->values[gi].i;
-		WARNING("VM: after alloc: global[%d]=%d (ain_type=%d heap_valid=%d)", gi, gv,
-			ain->globals[gi].type.data, heap_index_valid(gv));
-		if (gv > 0 && heap_index_valid(gv)) {
-			if (heap[gv].page)
-				WARNING("VM:   global[%d] heap_type=%d page_type=%d nr_vars=%d a_type=%d ref=%d",
-					gi, heap[gv].type, heap[gv].page->type, heap[gv].page->nr_vars,
-					heap[gv].page->a_type, heap[gv].ref);
-			else
-				WARNING("VM:   global[%d] heap_type=%d page=NULL ref=%d",
-					gi, heap[gv].type, heap[gv].ref);
-		}
-	}
-
 	// XXX: global constructors must be called AFTER initializing non-struct variables
 	//      otherwise a global set in a constructor will be clobbered by its initval
 	WARNING("VM: initializing %d global structs...", ain->nr_globals);
-	for (int i = 0; i < ain->nr_globals; i++) {
-		if (ain->globals[i].type.data == AIN_STRUCT) {
-			int slot = heap[0].page->values[i].i;
-			if (slot > 0 && heap_index_valid(slot))
-				init_struct(ain->globals[i].type.struc, slot);
+	if (ain->version >= 14) {
+		// v14: call top-level constructors in reverse order to satisfy
+		// dependencies (e.g. CASTimer@0 depends on CASTimerManager being
+		// constructed first; CASTimerManager is at a higher global index).
+		for (int i = ain->nr_globals - 1; i >= 0; i--) {
+			if (ain->globals[i].type.data == AIN_STRUCT) {
+				int slot = heap[0].page->values[i].i;
+				if (slot > 0 && heap_index_valid(slot))
+					init_global_struct_v14(ain->globals[i].type.struc, slot);
+			}
+		}
+	} else {
+		for (int i = 0; i < ain->nr_globals; i++) {
+			if (ain->globals[i].type.data == AIN_STRUCT) {
+				int slot = heap[0].page->values[i].i;
+				if (slot > 0 && heap_index_valid(slot))
+					init_struct(ain->globals[i].type.struc, slot);
+			}
 		}
 	}
 	WARNING("VM: global structs done, calling main...");
