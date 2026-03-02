@@ -9,6 +9,7 @@
 #include "system4/string.h"
 #include "hll.h"
 #include "input.h"
+#include "parts.h"
 #include "gfx/gfx.h"
 #include "vm.h"
 
@@ -30,12 +31,14 @@ static void system_ResumeLoad(struct string *keyName, struct string *fileName)
 static void system_Peek(void)
 {
 	handle_events();
+	PE_UpdateInputState(0);
 }
 
 // [3] PeekAll() -> void — process all pending events
 static void system_PeekAll(void)
 {
 	handle_events();
+	PE_UpdateInputState(0);
 }
 
 // [4] Exit(result) -> void
@@ -56,9 +59,12 @@ static void system_Reset(void)
 }
 
 // [6] IsDebugMode() -> bool
+// NOTE: v14 games (Dohna Dohna) gate their main UpdateComponent loop behind
+// IsDebugMode(). Returning true enables the per-frame timer/component update
+// that dispatches scene delegates. Without this, scene coroutines never tick.
 static bool system_IsDebugMode(void)
 {
-	return false;
+	return ain->version >= 14;
 }
 
 // [7] ResumeWriteComment(keyName, fileName, wrap<string> commentList) -> bool

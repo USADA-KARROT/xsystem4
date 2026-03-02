@@ -28,91 +28,105 @@
 #include "system4/string.h"
 
 /*
- * wrap<T> helpers — Lua registry handle pattern.
- * AIN_WRAP parameters arrive as int (heap slot index).
- * The slot may be VM_PAGE (proper wrap page) or the inner type directly
- * (e.g., VM_STRING for wrap<string>).
+ * wrap<T> helpers — v14 AIN_WRAP parameter convention.
+ *
+ * AIN_WRAP parameters are passed as 2-slot (pageno, varno) references:
+ *   - For heap-allocated wrap<T> variables (X_REF 2 pattern):
+ *       pageno = heap slot of the wrap page, varno = 0 (discriminant)
+ *       => writes to heap[pageno].page->values[0]
+ *   - For plain local variable out-params (PUSHLOCALPAGE+PUSH n pattern):
+ *       pageno = local page heap slot, varno = var_index
+ *       => writes to heap[pageno].page->values[varno]
+ *
+ * HLL C functions receive (int pageno, int varno) for each AIN_WRAP arg.
+ * Use the wrap_set and wrap_get helpers below.
  */
 
-/* Write an int to a wrap<int> slot */
-static inline void wrap_set_int(int slot, int value)
+/* Write an int to a wrap<int> reference (pageno, varno) */
+static inline void wrap_set_int(int pageno, int varno, int value)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) return;
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->nr_vars > 0) {
-		heap[slot].page->values[0].i = value;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+		heap[pageno].page->values[varno].i = value;
 	}
 }
 
-/* Read an int from a wrap<int> slot */
-static inline int wrap_get_int(int slot)
+/* Read an int from a wrap<int> reference (pageno, varno) */
+static inline int wrap_get_int(int pageno, int varno)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) return 0;
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->nr_vars > 0)
-		return heap[slot].page->values[0].i;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return 0;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars)
+		return heap[pageno].page->values[varno].i;
 	return 0;
 }
 
-/* Write a string to a wrap<string> slot */
-static inline void wrap_set_string(int slot, struct string *s)
+/* Write a string to a wrap<string> reference (pageno, varno) */
+static inline void wrap_set_string(int pageno, int varno, struct string *s)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) return;
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->nr_vars > 0) {
-		/* Wrap page: values[0] is string heap slot */
-		int old = heap[slot].page->values[0].i;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+		/* values[varno] holds the string heap slot */
+		int old = heap[pageno].page->values[varno].i;
 		int ns = heap_alloc_slot(VM_STRING);
 		heap[ns].s = s;
-		heap[slot].page->values[0].i = ns;
+		heap[pageno].page->values[varno].i = ns;
 		if (old > 0) heap_unref(old);
-	} else if (heap[slot].type == VM_STRING) {
-		/* Direct string slot: replace in place */
-		if (heap[slot].s)
-			free_string(heap[slot].s);
-		heap[slot].s = s;
+	} else if (heap[pageno].type == VM_STRING) {
+		/* Direct string slot (legacy): replace in place */
+		if (heap[pageno].s)
+			free_string(heap[pageno].s);
+		heap[pageno].s = s;
 	}
 }
 
-/* Write a float to a wrap<float> slot */
-static inline void wrap_set_float(int slot, float value)
+/* Write a float to a wrap<float> reference (pageno, varno) */
+static inline void wrap_set_float(int pageno, int varno, float value)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) return;
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->nr_vars > 0) {
-		heap[slot].page->values[0].f = value;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+		heap[pageno].page->values[varno].f = value;
 	}
 }
 
-/* Write a bool to a wrap<bool> slot */
-static inline void wrap_set_bool(int slot, bool value)
+/* Write a bool to a wrap<bool> reference (pageno, varno) */
+static inline void wrap_set_bool(int pageno, int varno, bool value)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) return;
-	if (heap[slot].type == VM_PAGE && heap[slot].page
-	    && heap[slot].page->nr_vars > 0) {
-		heap[slot].page->values[0].i = value ? 1 : 0;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+		heap[pageno].page->values[varno].i = value ? 1 : 0;
 	}
 }
 
-/* Get the page from a wrap<struct/array/delegate> slot */
-static inline struct page *wrap_get_page(int slot)
+/* Get the page from a wrap<struct/array/delegate> reference (pageno, varno).
+ * Returns the page pointed to by the inner heap slot at values[varno]. */
+static inline struct page *wrap_get_page(int pageno, int varno)
 {
-	if (slot < 0 || (size_t)slot >= heap_size) return NULL;
-	if (heap[slot].type == VM_PAGE)
-		return heap[slot].page;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return NULL;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+		int inner = heap[pageno].page->values[varno].i;
+		if (inner > 0 && (size_t)inner < heap_size
+		    && heap[inner].type == VM_PAGE)
+			return heap[inner].page;
+	}
 	return NULL;
 }
 
-/* Set a heap slot value in a wrap page's values[0].
- * For wrap<array>, wrap<struct>, wrap<delegate>, this sets the inner heap slot.
+/* Set the inner heap slot of a wrap<struct/array/delegate> reference.
+ * For wrap<array>, wrap<struct>, wrap<delegate>: values[varno] holds the inner heap slot.
  * Handles ref counting. */
-static inline void wrap_set_slot(int wrap_slot, int new_inner_slot)
+static inline void wrap_set_slot(int pageno, int varno, int new_inner_slot)
 {
-	if (wrap_slot < 0 || (size_t)wrap_slot >= heap_size) return;
-	if (heap[wrap_slot].type == VM_PAGE && heap[wrap_slot].page
-	    && heap[wrap_slot].page->nr_vars > 0) {
-		int old = heap[wrap_slot].page->values[0].i;
-		heap[wrap_slot].page->values[0].i = new_inner_slot;
+	if (pageno < 0 || (size_t)pageno >= heap_size) return;
+	if (heap[pageno].type == VM_PAGE && heap[pageno].page
+	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+		int old = heap[pageno].page->values[varno].i;
+		heap[pageno].page->values[varno].i = new_inner_slot;
 		if (new_inner_slot > 0) heap_ref(new_inner_slot);
 		if (old > 0) heap_unref(old);
 	}

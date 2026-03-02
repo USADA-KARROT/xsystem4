@@ -14,11 +14,30 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <SDL.h>
+#include "input.h"
 #include "hll.h"
+
+extern bool key_state[];
 
 HLL_WARN_UNIMPLEMENTED(1, int,  AliceLogo, Init, void *imainsystem);
 HLL_WARN_UNIMPLEMENTED( , void, AliceLogo, SetWaveNum, int n, int wave);
-HLL_WARN_UNIMPLEMENTED( , void, AliceLogo, Run, int type, int loop_flag);
+
+static void AliceLogo_Run(int type, int loop_flag)
+{
+	// Wait up to 3 seconds or until user clicks
+	uint32_t start = SDL_GetTicks();
+	while (SDL_GetTicks() - start < 3000) {
+		handle_events();
+		if (key_is_down(VK_LBUTTON) || key_is_down(VK_RBUTTON))
+			break;
+		SDL_Delay(16);
+	}
+	// Signal completion: set LBUTTON down so the SceneLogo delegate's
+	// Key_IsDown(1) check succeeds, allowing the scene to advance.
+	key_state[VK_LBUTTON] = true;
+	WARNING("AliceLogo_Run: set LBUTTON=true, key_state[%d]=%d", VK_LBUTTON, key_state[VK_LBUTTON]);
+}
 
 HLL_LIBRARY(AliceLogo,
 	    HLL_EXPORT(Init, AliceLogo_Init),

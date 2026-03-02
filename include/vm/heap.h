@@ -30,9 +30,14 @@ enum vm_pointer_type {
 };
 #define NR_VM_POINTER_TYPES (VM_STRING+1)
 
+// Flag: slot is a temporary (owned by stack, not by any page).
+// Used to avoid double-ref when passing string args to functions.
+#define HEAP_TEMP_FLAG  0x40000000
+#define HEAP_REF(slot)  (heap[(slot)].ref & ~HEAP_TEMP_FLAG)
+
 // Heap-backed objects. Reference counted.
 struct vm_pointer {
-	int ref;
+	int ref;  // lower bits = refcount, bit 30 = temp flag
 	uint32_t seq;
 	enum vm_pointer_type type;
 	union {

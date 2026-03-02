@@ -26,8 +26,8 @@ static int IbisInputEngine_Mouse_GetPos(int x_slot, int y_slot)
 {
 	int x, y;
 	int result = sact_Mouse_GetPos(&x, &y);
-	wrap_set_int(x_slot, x);
-	wrap_set_int(y_slot, y);
+	wrap_set_int(x_slot, 0, x);
+	wrap_set_int(y_slot, 0, y);
 	return result;
 }
 
@@ -35,8 +35,8 @@ static void IbisInputEngine_MouseWheel_GetCount(int forward_slot, int back_slot)
 {
 	int forward, back;
 	mouse_get_wheel(&forward, &back);
-	wrap_set_int(forward_slot, forward);
-	wrap_set_int(back_slot, back);
+	wrap_set_int(forward_slot, 0, forward);
+	wrap_set_int(back_slot, 0, back);
 }
 
 bool IbisInputEngine_Mouse_MovePosImmediately(int x, int y)

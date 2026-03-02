@@ -83,117 +83,55 @@ static int alloc_activity_parts_no(void)
 	return next_activity_parts_no++;
 }
 
-/* Pactex files in this CN version use GBK encoding for field names.
- * We match against raw GBK byte patterns. */
+/* Pactex files use SJIS encoding for field names (confirmed from tree dump).
+ * We match against raw SJIS byte patterns. */
 
-/* GBK byte sequences for key pactex field names. */
+/* SJIS byte sequences for child component branch names. */
+static const char SJIS_KO_PARTS[]   = "\x8e\x71\x83\x70\x81\x5b\x83\x63";  /* 子パーツ (child parts) */
+static const char SJIS_BUHIN[]      = "\x95\x94\x95\x69";                    /* 部品 (parts) */
+
+/* GBK byte sequences (legacy — kept as fallback). */
 static const char GBK_BUJIAN[] = "\xb2\xbf\xbc\xfe";    /* 部件 (CN: component) */
-static const char GBK_BUPIN[]  = "\xb2\xbf\xc6\xb7";    /* 部品 (JP: parts) */
+static const char GBK_BUPIN[]  = "\xb2\xbf\xc6\xb7";    /* 部品 (JP: parts, GBK) */
 
-/* GBK byte sequences for pactex property names (from tree dump). */
-static const char GBK_POSITION[]    = "\xd7\xf9\x98\xcb";         /* 座標 (position) - list[3]=(x,y,z) */
-static const char GBK_SHOW[]        = "\xb1\xed\xca\xbe";         /* 表示 (show/visible) - int */
-static const char GBK_ALPHA[]       = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1"; /* アルファ (alpha) - int 0-255 */
-static const char GBK_ORIGIN_MODE[] = "\xd4\xad\xfc\x63\xd7\xf9\x98\xcb\xc4\xa3\xca\xbd"; /* 原點座標模式 (origin mode) - int */
-static const char GBK_CG_BAN[]      = "\xa3\xc3\xa3\xc7\xc3\xfb"; /* ＣＧ番 (CG number) - string */
-static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; /* 加算色 (add color) - list[3] */
-static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; /* 乗算色 (multiply color) - list[3] */
+/* SJIS byte sequences for pactex property names (from tree dump). */
+static const char SJIS_POSITION[]    = "\x8d\xc0\x95\x57";                     /* 座標 */
+static const char SJIS_SHOW[]        = "\x95\x5c\x8e\xa6";                     /* 表示 */
+static const char SJIS_ALPHA[]       = "\x83\x41\x83\x8b\x83\x74\x83\x40";     /* アルファ */
+static const char SJIS_ORIGIN_MODE[] = "\x8c\xb4\x93\x5f\x8d\xc0\x95\x57\x83\x82\x81\x5b\x83\x68"; /* 原点座標モード */
+static const char SJIS_TYPE_INFO[]   = "\x8e\xed\x97\xde\x95\xca\x8f\xee\x95\xf1"; /* 種類別情報 */
+static const char SJIS_PARTS_TYPE[]  = "\x83\x70\x81\x5b\x83\x63\x83\x5e\x83\x43\x83\x76"; /* パーツタイプ */
+static const char SJIS_CG_MEI[]      = "\x82\x62\x82\x66\x96\xbc";             /* ＣＧ名 (CG name) */
+static const char SJIS_SIZE[]        = "\x83\x54\x83\x43\x83\x59";             /* サイズ (size) */
+static const char SJIS_COLOR[]       = "\x90\x46";                             /* 色 (color) */
+static const char SJIS_PANEL[]       = "\x83\x70\x83\x6c\x83\x8b";             /* パネル (panel) */
+static const char SJIS_MULTI_LEVEL[] = "\x83\x7d\x83\x8b\x83\x60\x83\x8c\x83\x78\x83\x8b\x83\x70\x81\x5b\x83\x63"; /* マルチレベルパーツ */
+static const char SJIS_SCALE[]       = "\x8a\x67\x91\xe5\x8f\x6b\x8f\xac"; /* 拡大縮小 (scale) */
+static const char SJIS_ROTATION[]    = "\x89\xf1\x93\x5d";                 /* 回転 (rotation) */
+static const char SJIS_CG_PARTS[]    = "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63"; /* ＣＧパーツ */
+static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; /* アルファクリッパー */
+/* static const char SJIS_NORMAL_STATE[]= "\x92\xca\x8f\xed\x8f\xf3\x91\xd4"; */ /* 通常状態 — unused, kept for reference */
+
+/* GBK property names (legacy fallback). */
+static const char GBK_POSITION[]    = "\xd7\xf9\x98\xcb";         /* 座標 (GBK) */
+static const char GBK_SHOW[]        = "\xb1\xed\xca\xbe";         /* 表示 (GBK) */
+static const char GBK_ALPHA[]       = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1"; /* アルファ (GBK) */
+static const char GBK_ORIGIN_MODE[] = "\xd4\xad\xfc\x63\xd7\xf9\x98\xcb\xc4\xa3\xca\xbd"; /* 原點座標模式 (GBK) */
+static const char GBK_CG_MEI[]      = "\xa3\xc3\xa3\xc7\xc3\xfb"; /* ＣＧ名 (GBK) */
+static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; /* 加算色 (GBK) */
+static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; /* 乗算色 (GBK) */
+static const char GBK_PARTS_TYPE[]  = "\xb2\xbf\xbc\xfe\xa5\xbf\xa5\xa4\xa5\xd7"; /* 部件タイプ (GBK) */
+static const char GBK_PANEL[]       = "\xa5\xd1\xa5\xcd\xa5\xeb"; /* パネル (GBK) */
+static const char GBK_SIZE[]        = "\xa5\xb5\xa5\xa4\xa5\xba"; /* サイズ (GBK) */
+static const char GBK_COLOR[]       = "\xc9\xab";                 /* 色 (GBK) */
 
 /* --- Pactex tree parser --- */
 
-/* Format SJIS bytes as hex for debugging. */
-static const char *hex_name(const char *name)
-{
-	static char buf[128];
-	int pos = 0;
-	for (int i = 0; name[i] && pos < 120; i++)
-		pos += snprintf(buf + pos, sizeof(buf) - pos, "%02x ",
-				(unsigned char)name[i]);
-	if (pos > 0) buf[pos - 1] = '\0';
-	return buf;
-}
-
-static void dump_ex_tree(struct ex_tree *tree, int depth)
-{
-	if (depth > 10) return;
-	char indent[64] = "";
-	int n = depth * 2;
-	if (n > 60) n = 60;
-	for (int i = 0; i < n; i++) indent[i] = ' ';
-	indent[n] = '\0';
-
-	if (tree->is_leaf) {
-		struct ex_value *v = &tree->leaf.value;
-		switch (v->type) {
-		case EX_INT:
-			WARNING("%sleaf '%s' [%s] = %d", indent,
-				tree->name->text, hex_name(tree->name->text), v->i);
-			break;
-		case EX_FLOAT:
-			WARNING("%sleaf '%s' [%s] = %.6f", indent,
-				tree->name->text, hex_name(tree->name->text), v->f);
-			break;
-		case EX_STRING:
-			WARNING("%sleaf '%s' [%s] = str'%s'", indent,
-				tree->name->text, hex_name(tree->name->text),
-				v->s ? v->s->text : "(null)");
-			break;
-		case EX_LIST:
-			WARNING("%sleaf '%s' [%s] = list[%u]", indent,
-				tree->name->text, hex_name(tree->name->text),
-				v->list ? v->list->nr_items : 0);
-			if (v->list) {
-				unsigned lim = (v->list->nr_items < 20) ? v->list->nr_items : 20;
-				for (unsigned i = 0; i < lim; i++) {
-					struct ex_value *item = &v->list->items[i].value;
-					if (item->type == EX_INT)
-						WARNING("%s  [%u] int=%d", indent, i, item->i);
-					else if (item->type == EX_FLOAT)
-						WARNING("%s  [%u] float=%.6f", indent, i, item->f);
-					else if (item->type == EX_STRING)
-						WARNING("%s  [%u] str='%s'", indent, i,
-							item->s ? item->s->text : "(null)");
-					else
-						WARNING("%s  [%u] type=%d", indent, i, item->type);
-				}
-				if (v->list->nr_items > lim)
-					WARNING("%s  ... +%u more items", indent,
-						v->list->nr_items - lim);
-			}
-			break;
-		default:
-			WARNING("%sleaf '%s' [%s] type=%d", indent,
-				tree->name->text, hex_name(tree->name->text), v->type);
-			break;
-		}
-	} else {
-		WARNING("%sbranch '%s' [%s] (%u children)", indent,
-			tree->name->text, hex_name(tree->name->text), tree->nr_children);
-		unsigned limit = (depth <= 3) ? 100 : 8;
-		for (unsigned i = 0; i < tree->nr_children && i < limit; i++)
-			dump_ex_tree(&tree->children[i], depth + 1);
-		if (tree->nr_children > limit)
-			WARNING("%s  ... +%u more children", indent,
-				tree->nr_children - limit);
-	}
-}
-
-/* Check if tree node name contains a byte substring (raw SJIS). */
+/* Check if tree node name contains a byte substring (raw SJIS/GBK). */
 static bool pactex_name_contains(struct ex_tree *node, const char *pattern)
 {
 	if (!node->name) return false;
 	return strstr(node->name->text, pattern) != NULL;
-}
-
-/* Find a direct child branch/leaf by byte pattern in name. */
-static struct ex_tree *pactex_find_child(struct ex_tree *parent, const char *pattern)
-{
-	if (parent->is_leaf) return NULL;
-	for (unsigned i = 0; i < parent->nr_children; i++) {
-		if (pactex_name_contains(&parent->children[i], pattern))
-			return &parent->children[i];
-	}
-	return NULL;
 }
 
 /* Find the "部件"/"部品" (parts/components) branch among children.
@@ -205,11 +143,14 @@ static struct ex_tree *pactex_find_buhin(struct ex_tree *parent)
 {
 	if (parent->is_leaf) return NULL;
 
-	/* Search only branch children for name containing 部件 or 部品 */
+	/* Search branch children for child-parts container.
+	 * Try SJIS names first (confirmed from tree dump), then GBK fallback. */
 	for (unsigned i = 0; i < parent->nr_children; i++) {
 		struct ex_tree *child = &parent->children[i];
 		if (child->is_leaf) continue;
-		if (pactex_name_contains(child, GBK_BUJIAN) ||
+		if (pactex_name_contains(child, SJIS_KO_PARTS) ||
+		    pactex_name_contains(child, SJIS_BUHIN) ||
+		    pactex_name_contains(child, GBK_BUJIAN) ||
 		    pactex_name_contains(child, GBK_BUPIN))
 			return child;
 	}
@@ -217,15 +158,24 @@ static struct ex_tree *pactex_find_buhin(struct ex_tree *parent)
 }
 
 /* Find the type-specific info branch (種類別情報) among children.
- * This is a non-leaf child that is NOT the children branch (部件/部品). */
+ * This is a non-leaf child that is NOT the children branch. */
 static struct ex_tree *pactex_find_type_info(struct ex_tree *component)
 {
 	if (component->is_leaf) return NULL;
+	/* First try exact SJIS name match for 種類別情報 */
 	for (unsigned i = 0; i < component->nr_children; i++) {
 		struct ex_tree *child = &component->children[i];
 		if (child->is_leaf) continue;
-		/* Skip children branch */
-		if (pactex_name_contains(child, GBK_BUJIAN) ||
+		if (pactex_name_contains(child, SJIS_TYPE_INFO))
+			return child;
+	}
+	/* Fallback: first non-leaf child that is NOT the children branch */
+	for (unsigned i = 0; i < component->nr_children; i++) {
+		struct ex_tree *child = &component->children[i];
+		if (child->is_leaf) continue;
+		if (pactex_name_contains(child, SJIS_KO_PARTS) ||
+		    pactex_name_contains(child, SJIS_BUHIN) ||
+		    pactex_name_contains(child, GBK_BUJIAN) ||
 		    pactex_name_contains(child, GBK_BUPIN))
 			continue;
 		return child;
@@ -277,6 +227,26 @@ static const char *pactex_get_string(struct ex_tree *node, const char *pattern)
 	return NULL;
 }
 
+/* Search for ＣＧ名 leaf in a branch, recursively descending into sub-branches.
+ * In the CN/GBK version, CG names are nested inside 素材リスト/素材N/ＣＧ名
+ * (depth 2 below the state branch), not as direct children. */
+static const char *pactex_find_cg_name(struct ex_tree *branch, int depth)
+{
+	if (branch->is_leaf || depth > 3) return NULL;
+	/* Direct child search */
+	const char *cg = pactex_get_string(branch, SJIS_CG_MEI);
+	if (!cg) cg = pactex_get_string(branch, GBK_CG_MEI);
+	if (cg) return cg;
+	/* Recurse into sub-branches (素材リスト → 素材N) */
+	for (unsigned i = 0; i < branch->nr_children; i++) {
+		struct ex_tree *child = &branch->children[i];
+		if (child->is_leaf) continue;
+		cg = pactex_find_cg_name(child, depth + 1);
+		if (cg) return cg;
+	}
+	return NULL;
+}
+
 /* Apply pactex properties (position, show, alpha, CG) to a parts entry.
  * Extracts standard properties from leaf children, and CG names from
  * the type-specific info branch (種類別情報). */
@@ -285,7 +255,8 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	static int apply_trace = 0;
 
 	/* Extract position: 座標 = list[3] = (x, y, z) */
-	struct ex_list *pos = pactex_get_list(node, GBK_POSITION);
+	struct ex_list *pos = pactex_get_list(node, SJIS_POSITION);
+	if (!pos) pos = pactex_get_list(node, GBK_POSITION);
 	if (pos && pos->nr_items >= 2) {
 		int x = (pos->items[0].value.type == EX_FLOAT) ?
 			(int)pos->items[0].value.f : pos->items[0].value.i;
@@ -300,43 +271,142 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		}
 	}
 
-	/* Extract show: 表示 = int (exact name match to avoid 決議上表示 etc) */
-	int show = pactex_get_int(node, GBK_SHOW, 1);
+	/* Extract show: 表示 = int */
+	int show = pactex_get_int(node, SJIS_SHOW, -1);
+	if (show < 0) show = pactex_get_int(node, GBK_SHOW, 1);
 	PE_SetShow(parts_no, show);
 
-	/* Extract alpha: アルファ = int 0-255 (exact match) */
-	int alpha = pactex_get_int(node, GBK_ALPHA, 255);
+	/* Extract alpha: アルファ = int 0-255 */
+	int alpha = pactex_get_int(node, SJIS_ALPHA, -1);
+	if (alpha < 0) alpha = pactex_get_int(node, GBK_ALPHA, 255);
 	PE_SetAlpha(parts_no, alpha);
 
-	/* Extract origin mode: 原點座標模式 = int */
-	int origin_mode = pactex_get_int(node, GBK_ORIGIN_MODE, 1);
+	/* Alpha clipper (not yet implemented) — log but don't hide */
+	const char *clipper = pactex_get_string(node, SJIS_ALPHA_CLIPPER);
+	if (clipper && clipper[0]) {
+		/* Don't hide: PE_SetShow(parts_no, 0); */
+		static int clip_warn = 0;
+		if (clip_warn++ < 20)
+			WARNING("pactex_apply: alpha clipper parts=%d '%s' clipper='%s' (ignored)",
+				parts_no, node->name ? node->name->text : "?", clipper);
+	}
+
+	/* Extract origin mode: 原点座標モード = int */
+	int origin_mode = pactex_get_int(node, SJIS_ORIGIN_MODE, -1);
+	if (origin_mode < 0) origin_mode = pactex_get_int(node, GBK_ORIGIN_MODE, 1);
 	PE_SetPartsOriginPosMode(parts_no, origin_mode);
+
+	/* Extract scale: 拡大縮小 = list[2] = (sx, sy) as float */
+	struct ex_list *scale = pactex_get_list(node, SJIS_SCALE);
+	if (scale && scale->nr_items >= 2) {
+		float sx = (scale->items[0].value.type == EX_FLOAT) ?
+			scale->items[0].value.f : (float)scale->items[0].value.i;
+		float sy = (scale->items[1].value.type == EX_FLOAT) ?
+			scale->items[1].value.f : (float)scale->items[1].value.i;
+		if (sx != 1.0f || sy != 1.0f) {
+			PE_SetPartsMagX(parts_no, sx);
+			PE_SetPartsMagY(parts_no, sy);
+		}
+	}
+
+	/* Extract rotation: 回転 = list[3] = (rx, ry, rz) as float */
+	struct ex_list *rot = pactex_get_list(node, SJIS_ROTATION);
+	if (rot && rot->nr_items >= 3) {
+		float rz = (rot->items[2].value.type == EX_FLOAT) ?
+			rot->items[2].value.f : (float)rot->items[2].value.i;
+		if (rz != 0.0f)
+			PE_SetPartsRotateZ(parts_no, rz);
+		/* rx, ry usually 0 for 2D; apply if non-zero */
+		float rx = (rot->items[0].value.type == EX_FLOAT) ?
+			rot->items[0].value.f : (float)rot->items[0].value.i;
+		float ry = (rot->items[1].value.type == EX_FLOAT) ?
+			rot->items[1].value.f : (float)rot->items[1].value.i;
+		if (rx != 0.0f)
+			PE_SetPartsRotateX(parts_no, rx);
+		if (ry != 0.0f)
+			PE_SetPartsRotateY(parts_no, ry);
+	}
+
+	/* Summary log (first few parts only) */
+	if (apply_trace < 3)
+		WARNING("pactex_apply: parts=%d '%s' show=%d alpha=%d origin=%d",
+			parts_no, node->name ? node->name->text : "?",
+			show, alpha, origin_mode);
 
 	/* Find type-specific info branch (種類別情報) for CG data */
 	struct ex_tree *type_info = pactex_find_type_info(node);
 	if (!type_info) {
-		if (apply_trace < 5)
-			WARNING("pactex_apply: parts=%d '%s' — no type_info branch",
+		if (apply_trace++ < 3)
+			WARNING("pactex_apply: parts=%d '%s' — no type_info (container)",
 				parts_no, node->name ? node->name->text : "?");
 		return;
 	}
 
-	/* Iterate state sub-branches within type-info.
-	 * State mapping: 0=普通状態(PE state 1), 1=オン指針(state 2), 2=キーダウン(state 3) */
+	/* Determine parts type from type_info (SJIS or GBK) */
+	const char *ptype = pactex_get_string(type_info, SJIS_PARTS_TYPE);
+	if (!ptype) ptype = pactex_get_string(type_info, GBK_PARTS_TYPE);
+
+	/* --- Handle パネル (Panel) type: solid color rectangle --- */
+	if (ptype && (strstr(ptype, SJIS_PANEL) || strstr(ptype, GBK_PANEL))) {
+		/* サイズ = list[2] = [w, h] */
+		struct ex_list *sz = pactex_get_list(type_info, SJIS_SIZE);
+		if (!sz) sz = pactex_get_list(type_info, GBK_SIZE);
+		int pw = 4, ph = 4;
+		if (sz && sz->nr_items >= 2) {
+			pw = sz->items[0].value.i;
+			ph = sz->items[1].value.i;
+		}
+		/* 色 = list[4] = [r, g, b, a] */
+		struct ex_list *col = pactex_get_list(type_info, SJIS_COLOR);
+		if (!col) col = pactex_get_list(type_info, GBK_COLOR);
+		int cr = 255, cg = 255, cb = 255, ca = 255;
+		if (col && col->nr_items >= 4) {
+			cr = col->items[0].value.i;
+			cg = col->items[1].value.i;
+			cb = col->items[2].value.i;
+			ca = col->items[3].value.i;
+		}
+		if (pw > 0 && ph > 0) {
+			PE_AddCreateToPartsConstructionProcess(parts_no, pw, ph, 1);
+			PE_AddFillAlphaColorToPartsConstructionProcess(
+				parts_no, 0, 0, pw, ph, cr, cg, cb, ca, 1);
+			PE_BuildPartsConstructionProcess(parts_no, 1);
+			if (apply_trace < 5) {
+				apply_trace++;
+				WARNING("pactex_apply: Panel(parts=%d, size=%dx%d, color=%d,%d,%d,%d)",
+					parts_no, pw, ph, cr, cg, cb, ca);
+			}
+		}
+		return;
+	}
+
+	/* --- Handle マルチレベルパーツ / ＣＧパーツ: extract CG name from state branches --- */
+	/* MultiLevelParts structure:
+	 *   種類別情報/
+	 *     パーツタイプ = 'マルチレベルパーツ'
+	 *     クリップ許可 = 0
+	 *     通常状態/        ← normal (state 1)
+	 *       パーツタイプ = 'ＣＧパーツ'
+	 *       ＣＧ名 = 'resource_name'
+	 *       変形 = 0
+	 *       サーフェイスエリア = [x, y, w, h]
+	 *     オンカーソル状態/  ← on-cursor (state 2)
+	 *     キーダウン状態/    ← key-down (state 3)
+	 */
 	int state_idx = 0;
 	for (unsigned i = 0; i < type_info->nr_children; i++) {
 		struct ex_tree *state = &type_info->children[i];
 		if (state->is_leaf) continue;
 
-		/* Search for ＣＧ番 (CG number) leaf in this state */
-		const char *cg_name = pactex_get_string(state, GBK_CG_BAN);
+		/* Search for ＣＧ名 (CG name) leaf — may be nested in 素材リスト/素材N/ */
+		const char *cg_name = pactex_find_cg_name(state, 0);
 		if (cg_name) {
 			int pe_state = state_idx + 1; /* PE_SetPartsCG uses 1-based state */
 			struct string *s = cstr_to_string(cg_name);
 			bool ok = PE_SetPartsCG(parts_no, s, 0, pe_state);
 			free_string(s);
 
-			if (apply_trace < 30) {
+			if (apply_trace < 5) {
 				apply_trace++;
 				WARNING("pactex_apply: SetPartsCG(parts=%d, cg='%s', state=%d) → %s",
 					parts_no, cg_name, pe_state, ok ? "OK" : "FAIL");
@@ -425,8 +495,6 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		return false;
 	}
 
-	/* Dump tree structure for debugging (disabled — too verbose) */
-
 	/* The tree root has one branch per activity variant (usually just one).
 	 * Create a root PE parts entry for the first branch. */
 	struct ex_tree *root_branch = &tree->children[0];
@@ -478,6 +546,24 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	pactex_apply_properties(root_branch, root_no);
 
 	WARNING("pactex: loaded %d parts for activity '%s'", act->nr_parts, act->name);
+
+	/* Diagnostic: dump all parts for this activity */
+	for (int i = 0; i < act->nr_parts; i++) {
+		struct activity_part *ap = &act->parts[i];
+		struct parts *p = parts_try_get(ap->number);
+		if (!p) continue;
+		const char *type_names[] = {"UNINIT","CG","TEXT","ANIM","NUM","HGAUGE","VGAUGE","CPROC","FLASH"};
+		int st = p->states[0].type;
+		const char *tname = (st >= 0 && st < 9) ? type_names[st] : "?";
+		bool has_tex = p->states[0].common.texture.handle != 0;
+		WARNING("  part[%d] no=%d name='%s' show=%d alpha=%d z=%d type=%s tex=%s pos=(%d,%d) w=%d h=%d",
+			i, ap->number, ap->name,
+			p->local.show, p->local.alpha, p->local.z,
+			tname, has_tex ? "YES" : "NO",
+			p->local.pos.x, p->local.pos.y,
+			p->states[0].common.w, p->states[0].common.h);
+	}
+
 	return true;
 }
 
@@ -825,7 +911,7 @@ static struct {
 	int count;
 	int active;
 	int next_id;
-} controllers = { .count = 0, .active = -1, .next_id = 1 };
+} controllers = { .ids = {0}, .count = 1, .active = 0, .next_id = 1 };
 
 static int PartsEngine_AddController(int index)
 {
@@ -841,6 +927,8 @@ static int PartsEngine_AddController(int index)
 	/* Auto-activate: the newly added controller becomes active so that
 	   subsequent event registrations (GetActiveController) pick it up. */
 	controllers.active = id;
+	WARNING("AddController(index=%d) → id=%d, count=%d, active=%d",
+		index, id, controllers.count, controllers.active);
 	return id;
 }
 
@@ -881,10 +969,18 @@ static int PartsEngine_GetControllerIndex(int id) {
 
 static int PartsEngine_GetControllerID(int index) {
 	if (index < 0 || index >= controllers.count) return -1;
+	static int gcid_log = 0;
+	if (gcid_log++ < 30)
+		WARNING("GetControllerID(%d) → %d", index, controllers.ids[index]);
 	return controllers.ids[index];
 }
 
-static int PartsEngine_GetControllerLength(void) { return controllers.count; }
+static int PartsEngine_GetControllerLength(void) {
+	static int gcl_log = 0;
+	if (gcl_log++ < 30)
+		WARNING("GetControllerLength() → %d", controllers.count);
+	return controllers.count;
+}
 static int PartsEngine_GetSystemOverlayController(void) { return 0; }
 
 // Oyako Rankan
@@ -907,6 +1003,11 @@ static bool PartsEngine_AddCopyCutCGToPartsConstructionProcess_old(int parts_no,
 
 static int PartsEngine_GetActiveController(void)
 {
+	static int gac_log = 0;
+	gac_log++;
+	if (gac_log <= 30 || gac_log % 10000 == 0)
+		WARNING("GetActiveController() → %d (count=%d) [call#%d]",
+			controllers.active, controllers.count, gac_log);
 	return controllers.active;
 }
 
@@ -1058,7 +1159,7 @@ static void PartsEngine_SetComponentScrollAlphaLinkNumber(int n, int link) {}
 static int PartsEngine_GetComponentScrollAlphaLinkNumber(int n) { return -1; }
 static void PartsEngine_SetComponentCheckBoxShowLinkNumber(int n, int link) {}
 static int PartsEngine_GetComponentCheckBoxShowLinkNumber(int n) { return -1; }
-static void PartsEngine_GetComponentAbsolutePos(int n, int x_slot, int y_slot) { wrap_set_float(x_slot, 0); wrap_set_float(y_slot, 0); }
+static void PartsEngine_GetComponentAbsolutePos(int n, int x_slot, int y_slot) { wrap_set_float(x_slot, 0, 0); wrap_set_float(y_slot, 0, 0); }
 static float PartsEngine_GetComponentAbsolutePosX(int n) { return 0; }
 static float PartsEngine_GetComponentAbsolutePosY(int n) { return 0; }
 static int PartsEngine_GetComponentAbsolutePosZ(int n) { return 0; }
@@ -1075,6 +1176,301 @@ static bool PartsEngine_IsExistChild(int number, int child) {
 	}
 	return false;
 }
+/* v14 stub: Parts_SetComment/GetComment — metadata label, no visual effect */
+static void PartsEngine_Parts_SetComment(int parts_no, struct string *comment) { (void)parts_no; (void)comment; }
+static struct string *PartsEngine_Parts_GetComment(int parts_no) { (void)parts_no; return cstr_to_string(""); }
+
+/*
+ * v14: AddPartsConstructionProcess
+ *
+ * CASConstructionProcess has 4 arrays: ArrayInt, ArrayFloat, ArrayString, ArrayPos
+ * Passed as wrap<array> heap slots. ArrayInt indices (from setter method names):
+ *   [0] = Command (type enum — see v14_cp_type below)
+ *   [1] = InterpolationType
+ *   [2] = SrcX      [3] = SrcY      [4] = SrcWidth    [5] = SrcHeight
+ *   [6] = DestX     [7] = DestY     [8] = DestWidth   [9] = DestHeight
+ *  [10] = DestX2   [11] = DestY2
+ *  [12] = R        [13] = G        [14] = B          [15] = A
+ *  [16] = R2       [17] = G2       [18] = B2         [19] = A2
+ *  [20] = CharSpace [21] = LineSpace [22] = FontProperty
+ *  [30] = FullSize  [34] = LineWidth [35] = RoundEdge  [36] = RoundCorner
+ *
+ * ArrayString: [0] = Text, [1] = CGName
+ * ArrayFloat:  [0] = RadiusX?, [1] = RadiusY?, [2] = Angle?, [3] = StartAngle?, [4] = SweepAngle?
+ */
+enum v14_cp_type {
+	V14_CP_CREATE = 0,
+	V14_CP_CREATE_PIXEL_ONLY = 1,
+	V14_CP_CREATE_CG = 2,
+	V14_CP_FILL = 3,
+	V14_CP_FILL_ALPHA_COLOR = 4,
+	V14_CP_FILL_AMAP = 5,
+	V14_CP_FILL_WITH_ALPHA = 6,
+	V14_CP_FILL_GRADATION_HORIZON = 7,
+	V14_CP_DRAW_RECT = 10,
+	V14_CP_CG_BLEND = 11,
+	V14_CP_CUT_CG_BLEND = 12,
+	V14_CP_CUT_CG_COPY = 13,
+	V14_CP_CUT_CG_SCALE_BLEND = 14,
+	V14_CP_CUT_CG_SCALE_COPY = 15,
+	V14_CP_GRAY_FILTER = 16,
+	V14_CP_ADD_FILTER = 18,
+	V14_CP_MUL_FILTER = 19,
+	V14_CP_DRAW_TEXT = 23,
+	V14_CP_COPY_TEXT = 24,
+	V14_CP_DRAW_LINE_WITH_ALPHA = 30,
+};
+
+/*
+ * wrap_get_backing_array — extract the backing ARRAY_PAGE from a wrap<array<T>> slot.
+ *
+ * In v14, wrap<array<T>> may be:
+ *   (a) A simple wrap container: member[0] → inner slot → ARRAY_PAGE
+ *   (b) An IArray<T> implementation class (STRUCT_PAGE with ~40 members):
+ *       the backing array is stored in a member of AIN array type.
+ *
+ * This function handles both cases by:
+ *   1. Checking if the slot directly holds an ARRAY_PAGE
+ *   2. Trying the simple wrap path (member[0])
+ *   3. Using the AIN struct definition to find the array-type member
+ *   4. Falling back to scanning for the first ARRAY_PAGE member
+ */
+static struct page *wrap_get_backing_array(int slot)
+{
+	if (slot < 0 || (size_t)slot >= heap_size) return NULL;
+	if (heap[slot].type != VM_PAGE || !heap[slot].page) return NULL;
+	struct page *p = heap[slot].page;
+
+	// Case 1: slot directly holds an ARRAY_PAGE
+	if (p->type == ARRAY_PAGE)
+		return p;
+
+	// Case 2: simple wrap — member[0] is inner slot pointing to ARRAY_PAGE
+	if (p->nr_vars > 0) {
+		int inner = p->values[0].i;
+		if (inner > 0 && (size_t)inner < heap_size
+		    && heap[inner].type == VM_PAGE && heap[inner].page
+		    && heap[inner].page->type == ARRAY_PAGE)
+			return heap[inner].page;
+	}
+
+	// Case 3: IArray class — use AIN struct definition to find array member
+	if (p->type == STRUCT_PAGE && p->index >= 0
+	    && ain && p->index < ain->nr_structures) {
+		struct ain_struct *st = &ain->structures[p->index];
+		for (int k = 0; k < st->nr_members && k < p->nr_vars; k++) {
+			switch (st->members[k].type.data) {
+			case AIN_ARRAY_TYPE:
+			case AIN_ARRAY: {
+				int v = p->values[k].i;
+				if (v > 0 && (size_t)v < heap_size
+				    && heap[v].type == VM_PAGE && heap[v].page
+				    && heap[v].page->type == ARRAY_PAGE)
+					return heap[v].page;
+				break;
+			}
+			default:
+				break;
+			}
+		}
+	}
+
+	// Case 4: fallback — scan all members for first ARRAY_PAGE
+	if (p->type == STRUCT_PAGE) {
+		for (int k = 0; k < p->nr_vars; k++) {
+			int v = p->values[k].i;
+			if (v > 0 && (size_t)v < heap_size
+			    && heap[v].type == VM_PAGE && heap[v].page
+			    && heap[v].page->type == ARRAY_PAGE)
+				return heap[v].page;
+		}
+	}
+
+	return NULL;
+}
+
+static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, int wf_slot, int ws_slot, int wp_slot, int state)
+{
+	struct page *ints = wrap_get_backing_array(wi_slot);
+	if (!ints || ints->nr_vars < 1) {
+		static int null_log = 0;
+		if (null_log++ < 10)
+			WARNING("AddCP: parts=%d ints=NULL (slot=%d)", parts_no, wi_slot);
+		return;
+	}
+
+	int cmd = ints->values[0].i;
+	{
+		static int cp_log = 0;
+		if (cp_log++ < 50) {
+			struct page *strs = wrap_get_backing_array(ws_slot);
+			const char *cg = NULL;
+			if (strs && strs->nr_vars > 1) {
+				int si = strs->values[1].i;
+				if (si > 0 && heap_index_valid(si) && heap[si].s)
+					cg = heap[si].s->text;
+			}
+			// Dump first 12 ints for debugging
+			char ibuf[256] = {0};
+			int pos = 0;
+			for (int k = 0; k < 12 && k < ints->nr_vars; k++) {
+				pos += snprintf(ibuf+pos, sizeof(ibuf)-pos, "%s%d", k?",":"", ints->values[k].i);
+			}
+			WARNING("AddCP[%d]: parts=%d cmd=%d nr_ints=%d state=%d cg='%s' ints=[%s]",
+				cp_log, parts_no, cmd, ints->nr_vars, state,
+				cg ? cg : "(null)", ibuf);
+		}
+	}
+	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
+	int dy = ints->nr_vars > 7 ? ints->values[7].i : 0;
+	int dw = ints->nr_vars > 8 ? ints->values[8].i : 0;
+	int dh = ints->nr_vars > 9 ? ints->values[9].i : 0;
+	int r  = ints->nr_vars > 12 ? ints->values[12].i : 0;
+	int g  = ints->nr_vars > 13 ? ints->values[13].i : 0;
+	int b  = ints->nr_vars > 14 ? ints->values[14].i : 0;
+	int a  = ints->nr_vars > 15 ? ints->values[15].i : 255;
+	int interp = ints->nr_vars > 1 ? ints->values[1].i : 0;
+	int sx = ints->nr_vars > 2 ? ints->values[2].i : 0;
+	int sy = ints->nr_vars > 3 ? ints->values[3].i : 0;
+	int sw = ints->nr_vars > 4 ? ints->values[4].i : 0;
+	int sh = ints->nr_vars > 5 ? ints->values[5].i : 0;
+
+	/* Get CG name from ArrayString if available */
+	struct page *strs = wrap_get_backing_array(ws_slot);
+	struct string *cg_name = NULL;
+	struct string *text = NULL;
+	if (strs) {
+		if (strs->nr_vars > 1) {
+			int s = strs->values[1].i;
+			if (s > 0 && heap_index_valid(s) && heap[s].s)
+				cg_name = heap[s].s;
+		}
+		if (strs->nr_vars > 0) {
+			int s = strs->values[0].i;
+			if (s > 0 && heap_index_valid(s) && heap[s].s)
+				text = heap[s].s;
+		}
+	}
+
+	int dx2 = ints->nr_vars > 10 ? ints->values[10].i : 0;
+	int dy2 = ints->nr_vars > 11 ? ints->values[11].i : 0;
+
+	switch (cmd) {
+	case V14_CP_CREATE:
+		if (dw == 0 && dh == 0) {
+			dw = ints->nr_vars > 10 ? ints->values[10].i : 0;
+			dh = ints->nr_vars > 11 ? ints->values[11].i : 0;
+		}
+		PE_AddCreateToPartsConstructionProcess(parts_no, dw, dh, state);
+		break;
+	case V14_CP_CREATE_PIXEL_ONLY:
+		if (dw == 0 && dh == 0) {
+			dw = ints->nr_vars > 10 ? ints->values[10].i : 0;
+			dh = ints->nr_vars > 11 ? ints->values[11].i : 0;
+		}
+		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, dw, dh, state);
+		break;
+	case V14_CP_CREATE_CG:
+		if (cg_name)
+			PE_AddCreateCGToProcess(parts_no, cg_name, state);
+		break;
+	case V14_CP_FILL: {
+		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
+		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		PE_AddFillToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
+		break;
+	}
+	case V14_CP_FILL_ALPHA_COLOR: {
+		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
+		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_FILL_AMAP: {
+		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
+		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
+		break;
+	}
+	case V14_CP_FILL_WITH_ALPHA: {
+		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
+		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_DRAW_RECT: {
+		int fw = dx2 > 0 ? dx2 : dw;
+		int fh = dy2 > 0 ? dy2 : dh;
+		PE_AddDrawRectToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
+		break;
+	}
+	case V14_CP_DRAW_LINE_WITH_ALPHA: {
+		int x1 = dx, y1 = dy, x2 = dw, y2 = dh;
+		int lx = x1 < x2 ? x1 : x2;
+		int ly = y1 < y2 ? y1 : y2;
+		int lw = abs(x2 - x1);
+		int lh = abs(y2 - y1);
+		if (lw == 0) lw = 1;
+		if (lh == 0) lh = 1;
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, lx, ly, lw, lh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_CG_BLEND:
+	case V14_CP_CUT_CG_BLEND:
+	case V14_CP_CUT_CG_SCALE_BLEND:
+		if (cg_name)
+			PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
+		break;
+	case V14_CP_CUT_CG_COPY:
+	case V14_CP_CUT_CG_SCALE_COPY:
+		if (cg_name)
+			PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
+		break;
+	case V14_CP_DRAW_TEXT:
+		if (text) {
+			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
+			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
+			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
+			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
+			struct page *floats = wrap_get_backing_array(wf_slot);
+			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
+			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
+			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
+			PE_AddDrawTextToPartsConstructionProcess(parts_no, dx, dy, text,
+				font_type, font_size, r, g, b, bold_weight,
+				r2, g2, b2, edge_weight, char_space, line_space, state);
+		}
+		break;
+	case V14_CP_COPY_TEXT:
+		if (text) {
+			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
+			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
+			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
+			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
+			struct page *floats = wrap_get_backing_array(wf_slot);
+			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
+			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
+			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
+			PE_AddCopyTextToPartsConstructionProcess(parts_no, dx, dy, text,
+				font_type, font_size, r, g, b, bold_weight,
+				r2, g2, b2, edge_weight, char_space, line_space, state);
+		}
+		break;
+	default: {
+		static int unknown_trace = 0;
+		if (unknown_trace++ < 20)
+			WARNING("AddPartsConstructionProcess: unknown type %d parts=%d", cmd, parts_no);
+		break;
+	}
+	}
+}
+
 static void PartsEngine_ClearChild(int number) {}
 static void PartsEngine_AddChild(int number, int child) {
 	PE_SetParentPartsNumber(child, number);
@@ -1137,6 +1533,29 @@ static struct string *PartsEngine_GetUserComponentName(int n) {
 static void PartsEngine_SetUserComponentData(int n, struct string *key, struct string *val) {}
 static struct string *PartsEngine_GetUserComponentData(int n, struct string *key) { return string_ref(&EMPTY_STRING); }
 
+/* --- Panel support --- */
+static void PartsEngine_SetPanelSize(int parts_no, int w, int h)
+{
+	WARNING("SetPanelSize: parts=%d size=(%d,%d)", parts_no, w, h);
+	PE_ClearPartsConstructionProcess(parts_no, 1);
+	PE_AddCreateToPartsConstructionProcess(parts_no, w, h, 1);
+	PE_BuildPartsConstructionProcess(parts_no, 1);
+}
+
+static void PartsEngine_SetPanelColor(int parts_no, int r, int g, int b, int a)
+{
+	WARNING("SetPanelColor: parts=%d rgba=(%d,%d,%d,%d)", parts_no, r, g, b, a);
+	struct parts *p = parts_try_get(parts_no);
+	if (!p) return;
+	struct parts_construction_process *cproc =
+		parts_get_construction_process(p, 0); /* state 0 = internal index for state 1 */
+	int w = cproc->common.w;
+	int h = cproc->common.h;
+	if (w <= 0 || h <= 0) return;
+	PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, 0, 0, w, h, r, g, b, a, 1);
+	PE_BuildPartsConstructionProcess(parts_no, 1);
+}
+
 /* Part properties (v14 variants with state parameter) */
 static void PartsEngine_SetWantSaveBackScene(int n, bool enable) {}
 static bool PartsEngine_IsWantSaveBackScene(int n) { return false; }
@@ -1192,7 +1611,7 @@ struct parts_message {
 };
 static struct parts_message msg_queue[MSG_QUEUE_SIZE];
 static int msg_head = 0, msg_tail = 0;
-static struct parts_message msg_current = {0};
+static struct parts_message msg_current = { .type = -1 };
 
 void parts_enqueue_message(int type, int parts_no)
 {
@@ -1218,9 +1637,16 @@ static void PartsEngine_PopMessage(void)
 				msg_current.type, msg_current.parts_no,
 				(msg_tail - msg_head + MSG_QUEUE_SIZE) % MSG_QUEUE_SIZE);
 	} else {
-		msg_current.type = 0;
+		msg_current.type = -1;
 		msg_current.parts_no = 0;
 	}
+}
+
+static void PartsEngine_ReleaseMessage(void)
+{
+	msg_current.type = -1;
+	msg_current.parts_no = 0;
+	msg_current.nr_vars = 0;
 }
 
 static int PartsEngine_GetMessageType(void) { return msg_current.type; }
@@ -1235,25 +1661,25 @@ static int PartsEngine_GetMessageVariableInt(int idx)
 // Wrap the original PE_Save/PE_Load which take struct page **.
 static bool PartsEngine_Save_wrap(int buf_slot)
 {
-	struct page *buf = wrap_get_page(buf_slot);
+	struct page *buf = wrap_get_page(buf_slot, 0);
 	bool ok = PE_Save(&buf);
 	if (ok)
-		wrap_set_slot(buf_slot, heap_alloc_page(buf));
+		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
 	return ok;
 }
 
 static bool PartsEngine_SaveWithoutHideParts_wrap(int buf_slot)
 {
-	struct page *buf = wrap_get_page(buf_slot);
+	struct page *buf = wrap_get_page(buf_slot, 0);
 	bool ok = PE_SaveWithoutHideParts(&buf);
 	if (ok)
-		wrap_set_slot(buf_slot, heap_alloc_page(buf));
+		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
 	return ok;
 }
 
 static bool PartsEngine_Load_wrap(int buf_slot)
 {
-	struct page *buf = wrap_get_page(buf_slot);
+	struct page *buf = wrap_get_page(buf_slot, 0);
 	bool ok = PE_Load(&buf);
 	return ok;
 }
@@ -1586,7 +2012,165 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(PopMessage, PartsEngine_PopMessage),
 	    HLL_EXPORT(GetMessageType, PartsEngine_GetMessageType),
 	    HLL_EXPORT(GetMessagePartsNumber, PartsEngine_GetMessagePartsNumber),
-	    HLL_EXPORT(GetMessageVariableInt, PartsEngine_GetMessageVariableInt)
+	    HLL_EXPORT(GetMessageVariableInt, PartsEngine_GetMessageVariableInt),
+	    /* v14 Parts_ prefixed aliases (same implementations) */
+	    HLL_EXPORT(Parts_SetPartsCG, PE_SetPartsCG),
+	    HLL_EXPORT(Parts_GetPartsCGName, PE_GetPartsCGName),
+	    HLL_EXPORT(Parts_SetPartsCGSurfaceArea, PE_SetPartsCGSurfaceArea),
+	    HLL_EXPORT(Parts_SetLoopCG, PE_SetLoopCG),
+	    HLL_EXPORT(Parts_SetLoopCGSurfaceArea, PE_SetLoopCGSurfaceArea),
+	    HLL_EXPORT(Parts_SetText, PE_SetText),
+	    HLL_EXPORT(Parts_AddPartsText, PE_AddPartsText),
+	    HLL_EXPORT(Parts_SetPartsTextSurfaceArea, PE_SetPartsTextSurfaceArea),
+	    HLL_EXPORT(Parts_SetFont, PE_SetFont),
+	    HLL_EXPORT(Parts_SetPartsFontType, PE_SetPartsFontType),
+	    HLL_EXPORT(Parts_SetPartsFontSize, PE_SetPartsFontSize),
+	    HLL_EXPORT(Parts_SetPartsFontColor, PE_SetPartsFontColor),
+	    HLL_EXPORT(Parts_SetPartsFontBoldWeight, PE_SetPartsFontBoldWeight),
+	    HLL_EXPORT(Parts_SetPartsFontEdgeColor, PE_SetPartsFontEdgeColor),
+	    HLL_EXPORT(Parts_SetPartsFontEdgeWeight, PE_SetPartsFontEdgeWeight),
+	    HLL_EXPORT(Parts_SetTextCharSpace, PE_SetTextCharSpace),
+	    HLL_EXPORT(Parts_SetTextLineSpace, PE_SetTextLineSpace),
+	    HLL_EXPORT(Parts_SetParentPartsNumber, PE_SetParentPartsNumber),
+	    HLL_EXPORT(Parts_SetPos, PE_SetPos),
+	    HLL_EXPORT(Parts_SetZ, PE_SetZ),
+	    HLL_EXPORT(Parts_SetShow, PE_SetShow),
+	    HLL_EXPORT(Parts_SetAlpha, PE_SetAlpha),
+	    HLL_EXPORT(Parts_SetClickable, PE_SetClickable),
+	    HLL_EXPORT(Parts_SetPartsDrawFilter, PE_SetPartsDrawFilter),
+	    HLL_EXPORT(Parts_SetAddColor, PE_SetAddColor),
+	    HLL_EXPORT(Parts_SetMultiplyColor, PE_SetMultiplyColor),
+	    HLL_EXPORT(Parts_GetPartsX, PE_GetPartsX),
+	    HLL_EXPORT(Parts_GetPartsY, PE_GetPartsY),
+	    HLL_EXPORT(Parts_GetPartsZ, PE_GetPartsZ),
+	    HLL_EXPORT(Parts_GetPartsShow, PE_GetPartsShow),
+	    HLL_EXPORT(Parts_GetPartsAlpha, PE_GetPartsAlpha),
+	    HLL_EXPORT(Parts_GetPartsClickable, PE_GetPartsClickable),
+	    HLL_EXPORT(Parts_GetPartsUpperLeftPosX, PE_GetPartsUpperLeftPosX),
+	    HLL_EXPORT(Parts_GetPartsUpperLeftPosY, PE_GetPartsUpperLeftPosY),
+	    HLL_EXPORT(Parts_GetPartsWidth, PE_GetPartsWidth),
+	    HLL_EXPORT(Parts_GetPartsHeight, PE_GetPartsHeight),
+	    HLL_EXPORT(Parts_SetInputState, PE_SetInputState),
+	    HLL_EXPORT(Parts_GetInputState, PE_GetInputState),
+	    HLL_EXPORT(Parts_SetPartsOriginPosMode, PE_SetPartsOriginPosMode),
+	    HLL_EXPORT(Parts_GetPartsOriginPosMode, PE_GetPartsOriginPosMode),
+	    HLL_EXPORT(Parts_SetPartsGroupNumber, PE_SetPartsGroupNumber),
+	    HLL_EXPORT(Parts_SetPartsGroupDecideOnCursor, PE_SetPartsGroupDecideOnCursor),
+	    HLL_EXPORT(Parts_SetPartsGroupDecideClick, PE_SetPartsGroupDecideClick),
+	    HLL_EXPORT(Parts_SetOnCursorShowLinkPartsNumber, PE_SetOnCursorShowLinkPartsNumber),
+	    HLL_EXPORT(Parts_SetPartsMessageWindowShowLink, PE_SetPartsMessageWindowShowLink),
+	    HLL_EXPORT(Parts_GetPartsMessageWindowShowLink, PE_GetPartsMessageWindowShowLink),
+	    HLL_EXPORT(Parts_SetHGaugeCG, PE_SetHGaugeCG),
+	    HLL_EXPORT(Parts_SetHGaugeRate, PE_SetHGaugeRate_int),
+	    HLL_EXPORT(Parts_SetVGaugeCG, PE_SetVGaugeCG),
+	    HLL_EXPORT(Parts_SetVGaugeRate, PE_SetVGaugeRate_int),
+	    HLL_EXPORT(Parts_SetHGaugeSurfaceArea, PE_SetHGaugeSurfaceArea),
+	    HLL_EXPORT(Parts_SetVGaugeSurfaceArea, PE_SetVGaugeSurfaceArea),
+	    HLL_EXPORT(Parts_SetNumeralCG, PE_SetNumeralCG),
+	    HLL_EXPORT(Parts_SetNumeralLinkedCGNumberWidthWidthList, PE_SetNumeralLinkedCGNumberWidthWidthList),
+	    HLL_EXPORT(Parts_SetNumeralNumber, PE_SetNumeralNumber),
+	    HLL_EXPORT(Parts_SetNumeralShowComma, PE_SetNumeralShowComma),
+	    HLL_EXPORT(Parts_SetNumeralSpace, PE_SetNumeralSpace),
+	    HLL_EXPORT(Parts_SetNumeralLength, PE_SetNumeralLength),
+	    HLL_EXPORT(Parts_SetNumeralSurfaceArea, PE_SetNumeralSurfaceArea),
+	    HLL_EXPORT(Parts_SetPartsRectangleDetectionSize, PE_SetPartsRectangleDetectionSize),
+	    HLL_EXPORT(Parts_SetPartsCGDetectionSize, PE_SetPartsCGDetectionSize),
+	    HLL_EXPORT(Parts_SetPartsFlash, PE_SetPartsFlash),
+	    HLL_EXPORT(Parts_IsPartsFlashEnd, PE_IsPartsFlashEnd),
+	    HLL_EXPORT(Parts_GetPartsFlashCurrentFrameNumber, PE_GetPartsFlashCurrentFrameNumber),
+	    HLL_EXPORT(Parts_BackPartsFlashBeginFrame, PE_BackPartsFlashBeginFrame),
+	    HLL_EXPORT(Parts_StepPartsFlashFinalFrame, PE_StepPartsFlashFinalFrame),
+	    HLL_EXPORT(Parts_SetPartsFlashAndStop, PE_SetPartsFlashAndStop),
+	    HLL_EXPORT(Parts_StopPartsFlash, PE_StopPartsFlash),
+	    HLL_EXPORT(Parts_StartPartsFlash, PE_StartPartsFlash),
+	    HLL_EXPORT(Parts_GoFramePartsFlash, PE_GoFramePartsFlash),
+	    HLL_EXPORT(Parts_GetPartsFlashEndFrame, PE_GetPartsFlashEndFrame),
+	    HLL_EXPORT(Parts_ClearPartsConstructionProcess, PE_ClearPartsConstructionProcess),
+	    HLL_EXPORT(Parts_BuildPartsConstructionProcess, PE_BuildPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddCreateToPartsConstructionProcess, PE_AddCreateToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddCreatePixelOnlyToPartsConstructionProcess, PE_AddCreatePixelOnlyToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddCreateCGToProcess, PE_AddCreateCGToProcess),
+	    HLL_EXPORT(Parts_AddFillToPartsConstructionProcess, PE_AddFillToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddFillAlphaColorToPartsConstructionProcess, PE_AddFillAlphaColorToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddFillAMapToPartsConstructionProcess, PE_AddFillAMapToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddDrawRectToPartsConstructionProcess, PE_AddDrawRectToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddDrawTextToPartsConstructionProcess, PE_AddDrawTextToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddCopyTextToPartsConstructionProcess, PE_AddCopyTextToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_SetPartsConstructionSurfaceArea, PE_SetPartsConstructionSurfaceArea),
+	    HLL_EXPORT(Parts_ReleaseParts, PE_ReleaseParts),
+	    HLL_EXPORT(Parts_ReleaseAllParts, PE_ReleaseAllParts),
+	    HLL_EXPORT(Parts_ReleaseAllPartsWithoutSystem, PE_ReleaseAllPartsWithoutSystem),
+	    HLL_EXPORT(Parts_SetPartsMagX, PE_SetPartsMagX),
+	    HLL_EXPORT(Parts_SetPartsMagY, PE_SetPartsMagY),
+	    HLL_EXPORT(Parts_SetPartsRotateX, PE_SetPartsRotateX),
+	    HLL_EXPORT(Parts_SetPartsRotateY, PE_SetPartsRotateY),
+	    HLL_EXPORT(Parts_SetPartsRotateZ, PE_SetPartsRotateZ),
+	    HLL_EXPORT(Parts_SetPartsAlphaClipperPartsNumber, PE_SetPartsAlphaClipperPartsNumber),
+	    HLL_EXPORT(Parts_SetPartsPixelDecide, PE_SetPartsPixelDecide),
+	    HLL_EXPORT(Parts_IsCursorIn, PE_IsCursorIn),
+	    HLL_EXPORT(Parts_SetThumbnailReductionSize, PE_SetThumbnailReductionSize),
+	    HLL_EXPORT(Parts_SetThumbnailMode, PE_SetThumbnailMode),
+	    HLL_EXPORT(Parts_AddMotionPos, PE_AddMotionPos_curve),
+	    HLL_EXPORT(Parts_AddMotionAlpha, PE_AddMotionAlpha_curve),
+	    HLL_EXPORT(Parts_AddMotionHGaugeRate, PE_AddMotionHGaugeRate_curve),
+	    HLL_EXPORT(Parts_AddMotionVGaugeRate, PE_AddMotionVGaugeRate_curve),
+	    HLL_EXPORT(Parts_AddMotionNumeralNumber, PE_AddMotionNumeralNumber_curve),
+	    HLL_EXPORT(Parts_AddMotionMagX, PE_AddMotionMagX_curve),
+	    HLL_EXPORT(Parts_AddMotionMagY, PE_AddMotionMagY_curve),
+	    HLL_EXPORT(Parts_AddMotionRotateX, PE_AddMotionRotateX_curve),
+	    HLL_EXPORT(Parts_AddMotionRotateY, PE_AddMotionRotateY_curve),
+	    HLL_EXPORT(Parts_AddMotionRotateZ, PE_AddMotionRotateZ_curve),
+	    HLL_EXPORT(Parts_AddMotionVibrationSize, PE_AddMotionVibrationSize),
+	    HLL_EXPORT(Parts_AddWholeMotionVibrationSize, PE_AddWholeMotionVibrationSize),
+	    HLL_EXPORT(Parts_AddMotionSound, PE_AddMotionSound),
+	    HLL_EXPORT(Parts_SetClickMissSoundNumber, PE_SetClickMissSoundNumber),
+	    HLL_EXPORT(Parts_BeginMotion, PE_BeginMotion),
+	    HLL_EXPORT(Parts_EndMotion, PE_EndMotion),
+	    HLL_EXPORT(Parts_IsMotion, PE_IsMotion),
+	    HLL_EXPORT(Parts_SeekEndMotion, PE_SeekEndMotion),
+	    HLL_EXPORT(Parts_UpdateMotionTime, PE_UpdateMotionTime),
+	    HLL_EXPORT(Parts_SetSpeedupRateByMessageSkip, PE_SetSpeedupRateByMessageSkip),
+	    /* v14 stubs for new functions */
+	    HLL_EXPORT(Parts_SetComment, PartsEngine_Parts_SetComment),
+	    HLL_EXPORT(Parts_GetComment, PartsEngine_Parts_GetComment),
+	    HLL_TODO_EXPORT(Parts_DeletePartsTopTextLine, PartsEngine_DeletePartsTopTextLine),
+	    HLL_TODO_EXPORT(Parts_SetPartsTextHighlight, PartsEngine_SetPartsTextHighlight),
+	    HLL_TODO_EXPORT(Parts_AddPartsTextHighlight, PartsEngine_AddPartsTextHighlight),
+	    HLL_TODO_EXPORT(Parts_ClearPartsTextHighlight, PartsEngine_ClearPartsTextHighlight),
+	    HLL_TODO_EXPORT(Parts_SetPartsTextCountReturn, PartsEngine_SetPartsTextCountReturn),
+	    HLL_TODO_EXPORT(Parts_GetPartsTextCountReturn, PartsEngine_GetPartsTextCountReturn),
+	    HLL_TODO_EXPORT(Parts_SetNumeralFont, PartsEngine_SetNumeralFont),
+	    HLL_TODO_EXPORT(Parts_SetPartsRectangleDetectionSurfaceArea, PartsEngine_SetPartsRectangleDetectionSurfaceArea),
+	    HLL_TODO_EXPORT(Parts_SetPartsCGDetectionSurfaceArea, PartsEngine_SetPartsCGDetectionSurfaceArea),
+	    HLL_TODO_EXPORT(Parts_SetPartsFlashSurfaceArea, PE_SetPartsFlashSurfaceArea),
+	    HLL_TODO_EXPORT(Parts_ExistsFlashFile, PE_ExistsFlashFile),
+	    HLL_TODO_EXPORT(Parts_AddFillWithAlphaToPartsConstructionProcess, PartsEngine_AddFillWithAlphaToPartsConstructionProcess),
+	    HLL_TODO_EXPORT(Parts_AddFillGradationHorizonToPartsConstructionProcess, PartsEngine_AddFillGradationHorizonToPartsConstructionProcess),
+	    HLL_TODO_EXPORT(Parts_AddGrayFilterToPartsConstructionProcess, PartsEngine_AddGrayFilterToPartsConstructionProcess),
+	    HLL_TODO_EXPORT(Parts_AddAddFilterToPartsConstructionProcess, PartsEngine_AddAddFilterToPartsConstructionProcess),
+	    HLL_TODO_EXPORT(Parts_AddMulFilterToPartsConstructionProcess, PartsEngine_AddMulFilterToPartsConstructionProcess),
+	    HLL_TODO_EXPORT(Parts_SetResetTimerByChangeInputStatus, PartsEngine_SetResetTimerByChangeInputStatus),
+	    HLL_TODO_EXPORT(Parts_GetPartsSpeedupRateByMessageSkip, PartsEngine_GetPartsSpeedupRateByMessageSkip),
+	    HLL_TODO_EXPORT(Parts_GetResetTimerByChangeInputStatus, PartsEngine_GetResetTimerByChangeInputStatus),
+	    HLL_TODO_EXPORT(Parts_GetAddColor, PartsEngine_GetAddColor),
+	    HLL_TODO_EXPORT(Parts_GetMultiplyColor, PartsEngine_GetMultiplyColor),
+	    HLL_TODO_EXPORT(Parts_AddMotionCG, PartsEngine_AddMotionCG),
+	    HLL_TODO_EXPORT(Parts_SetSoundNumber, PartsEngine_SetSoundNumber),
+	    HLL_TODO_EXPORT(Parts_GetSoundNumber, PartsEngine_GetSoundNumber),
+	    HLL_TODO_EXPORT(Parts_GetClickMissSoundNumber, PartsEngine_GetClickMissSoundNumber),
+	    HLL_TODO_EXPORT(Parts_GetFocusPartsNumber, PartsEngine_GetFocusPartsNumber),
+	    HLL_TODO_EXPORT(Parts_SetFocusPartsNumber, PartsEngine_SetFocusPartsNumber),
+	    HLL_TODO_EXPORT(Parts_PushGUIController, PartsEngine_PushGUIController),
+	    HLL_TODO_EXPORT(Parts_PopGUIController, PartsEngine_PopGUIController),
+	    HLL_TODO_EXPORT(Parts_AddDrawCutCGToPartsConstructionProcess, PartsEngine_AddDrawCutCGToPartsConstructionProcess_old),
+	    HLL_TODO_EXPORT(Parts_AddCopyCutCGToPartsConstructionProcess, PartsEngine_AddCopyCutCGToPartsConstructionProcess_old),
+	    HLL_EXPORT(AddPartsConstructionProcess, PartsEngine_AddPartsConstructionProcess),
+	    HLL_EXPORT(SetPanelSize, PartsEngine_SetPanelSize),
+	    HLL_EXPORT(SetPanelColor, PartsEngine_SetPanelColor),
+	    // v14 additional aliases
+	    HLL_EXPORT(BeginClick, PE_BeginInput),
+	    HLL_EXPORT(EndClick, PE_EndInput),
+	    HLL_EXPORT(ReleaseMessage, PartsEngine_ReleaseMessage)
 	    );
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

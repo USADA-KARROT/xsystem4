@@ -29,7 +29,7 @@ static bool TextSurfaceManager_GetFontWidth(struct string *text, int width_slot,
 	};
 
 	float w = gfx_size_text(&ts, text->text);
-	wrap_set_int(width_slot, (int)w);
+	wrap_set_int(width_slot, 0, (int)w);
 	return true;
 }
 

@@ -95,13 +95,13 @@ static bool CommonSystemData_SetDataBool(struct string *name, bool value)
 	return true;
 }
 
-// v14: AIN declares GetData* arg[1] as AIN_WRAP — wrap handle, not pointer
+// v14: AIN declares GetData* arg[1] as AIN_WRAP — 1-slot heap index
 
 static bool CommonSystemData_GetDataInt(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		wrap_set_int(value_slot, datum.i);
+		wrap_set_int(value_slot, 0, datum.i);
 		return true;
 	}
 	return false;
@@ -111,7 +111,7 @@ static bool CommonSystemData_GetDataFloat(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		wrap_set_float(value_slot, datum.f);
+		wrap_set_float(value_slot, 0, datum.f);
 		return true;
 	}
 	return false;
@@ -121,7 +121,7 @@ static bool CommonSystemData_GetDataString(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		wrap_set_string(value_slot, string_dup(datum.s));
+		wrap_set_string(value_slot, 0, string_dup(datum.s));
 		return true;
 	}
 	return false;
@@ -131,7 +131,7 @@ static bool CommonSystemData_GetDataBool(struct string *name, int value_slot)
 {
 	union csd_datum datum;
 	if (csd_get_datum(name, &datum)) {
-		wrap_set_bool(value_slot, datum.i);
+		wrap_set_bool(value_slot, 0, datum.i);
 		return true;
 	}
 	return false;

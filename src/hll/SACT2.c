@@ -812,7 +812,18 @@ void sact_Key_ClearFlagNoCtrl(void)
 int sact_Key_IsDown(int keycode)
 {
 	handle_events();
-	return key_is_down(keycode);
+	int result = key_is_down(keycode);
+	if (keycode == 1) {
+		static int lbutton_log = 0;
+		if (lbutton_log++ < 30)
+			WARNING("Key_IsDown(LBUTTON): result=%d", result);
+	}
+	if (result && (keycode == 2 || keycode == 32)) {
+		static int key_log = 0;
+		if (key_log++ < 20)
+			WARNING("Key_IsDown: keycode=%d result=%d", keycode, result);
+	}
+	return result;
 }
 
 int sact_CG_IsExist(int cg_no)

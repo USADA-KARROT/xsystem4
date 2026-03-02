@@ -102,7 +102,7 @@ static bool TextFile_ReadAll(struct string *fileName, int text_slot)
 	content->text[size] = '\0';
 	fclose(fp);
 
-	wrap_set_string(text_slot, content);
+	wrap_set_string(text_slot, 0, content);
 	return true;
 }
 
@@ -140,7 +140,7 @@ static bool TextFile_Read(int handle, int text_slot)
 	fread(content->text, 1, size, fp);
 	content->text[size] = '\0';
 
-	wrap_set_string(text_slot, content);
+	wrap_set_string(text_slot, 0, content);
 	return true;
 }
 
@@ -161,7 +161,7 @@ static bool TextFile_ReadLine(int handle, int text_slot)
 		len--;
 	buf[len] = '\0';
 
-	wrap_set_string(text_slot, make_string(buf, len));
+	wrap_set_string(text_slot, 0, make_string(buf, len));
 	return true;
 }
 

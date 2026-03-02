@@ -43,12 +43,35 @@
 static struct ex *ex;
 
 /*
- * Helpers
+ * Helpers — cached resolve to avoid O(n) linear scan per EX call
  */
+#define RESOLVE_CACHE_SIZE 32
+static struct {
+	char name[64];
+	struct ex_value *value;
+} resolve_cache[RESOLVE_CACHE_SIZE];
+
+static uint32_t fnv1a(const char *s)
+{
+	uint32_t h = 2166136261u;
+	for (; *s; s++)
+		h = (h ^ (uint8_t)*s) * 16777619u;
+	return h;
+}
+
 static struct ex_value *resolve(struct string *name)
 {
 	if (!name) return NULL;
-	return ex_get(ex, name->text);
+	uint32_t h = fnv1a(name->text);
+	unsigned idx = h % RESOLVE_CACHE_SIZE;
+	if (resolve_cache[idx].name[0] && !strcmp(resolve_cache[idx].name, name->text))
+		return resolve_cache[idx].value;
+	struct ex_value *v = ex_get(ex, name->text);
+	if (v) {
+		snprintf(resolve_cache[idx].name, sizeof(resolve_cache[idx].name), "%s", name->text);
+		resolve_cache[idx].value = v;
+	}
+	return v;
 }
 
 static struct ex_table *resolve_table(struct string *name)
@@ -178,7 +201,11 @@ static bool MainEXFile_Load(int image_slot)
 static int MainEXFile_Row(struct string *name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	return t ? t->nr_rows : 0;
+	int result = t ? t->nr_rows : 0;
+	static int row_log = 0;
+	if (row_log++ < 10)
+		WARNING("MainEXFile.Row('%s', %d) = %d", display_utf0(name->text), id, result);
+	return result;
 }
 
 /*
@@ -353,8 +380,14 @@ static struct string *MainEXFile_A2String(struct string *name, int row, int col,
 	struct ex_table *t = resolve_table(name);
 	if (!t) goto def;
 	struct ex_value *v = ex_table_get(t, row, col);
-	if (v && v->type == EX_STRING)
+	if (v && v->type == EX_STRING) {
+		static int a2s_log = 0;
+		if (a2s_log++ < 5)
+			WARNING("MainEXFile.A2String('%s', %d, %d) = '%s'",
+				display_utf0(name->text), row, col,
+				v->s ? display_utf0(v->s->text) : "NULL");
 		return string_ref(v->s);
+	}
 def:
 	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
@@ -432,7 +465,7 @@ static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int name
 		if (tree->children[i].is_leaf)
 			continue;
 		if (count == index) {
-			wrap_set_string(name_slot, string_ref(tree->children[i].name));
+			wrap_set_string(name_slot, 0, string_ref(tree->children[i].name));
 			return true;
 		}
 		count++;
@@ -453,7 +486,7 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, int name_s
 		if (!tree->children[i].is_leaf)
 			continue;
 		if (count == index) {
-			wrap_set_string(name_slot, string_ref(tree->children[i].leaf.name));
+			wrap_set_string(name_slot, 0, string_ref(tree->children[i].leaf.name));
 			return true;
 		}
 		count++;
@@ -493,7 +526,7 @@ static bool MainEXFile_GetNodeNameList(struct string *tree_path, int list_slot, 
 		}
 	}
 
-	wrap_set_slot(list_slot, heap_alloc_page(array));
+	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
 	return true;
 }
 
@@ -523,7 +556,7 @@ static bool MainEXFile_GetEXNameList(struct string *tree_path, int list_slot, in
 		}
 	}
 
-	wrap_set_slot(list_slot, heap_alloc_page(array));
+	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
 	return true;
 }
 
@@ -543,7 +576,7 @@ static bool MainEXFile_GetFormatNameList(struct string *name, int list_slot, int
 		array->values[i].i = heap_alloc_string(string_ref(t->fields[i].name));
 	}
 
-	wrap_set_slot(list_slot, heap_alloc_page(array));
+	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
 	return true;
 }
 

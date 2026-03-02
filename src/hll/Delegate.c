@@ -45,11 +45,11 @@ static bool Delegate_Empty(struct page **self)
 }
 
 // [4] Equals(self:ref_delegate, src:wrap<delegate>) -> bool
-// v14: wrap param arrives as int heap slot index
+// v14: wrap param is 1-slot heap index
 static bool Delegate_Equals(struct page **self, int src_slot)
 {
 	struct page *a = (self && *self) ? *self : NULL;
-	struct page *src = wrap_get_page(src_slot);
+	struct page *src = wrap_get_page(src_slot, 0);
 	if (!a && !src) return true;
 	if (!a || !src) return false;
 	if (a->nr_vars != src->nr_vars) return false;

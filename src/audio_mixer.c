@@ -103,6 +103,10 @@ static SDL_AudioDeviceID audio_device = 0;
  */
 static void audio_callback(possibly_unused void *data, Uint8 *stream, int len)
 {
+	if (!master) {
+		memset(stream, 0, len);
+		return;
+	}
 	sts_mixer_mix_audio(&master->mixer, stream, len / (sizeof(float) * 2));
 	if (master->muted) {
 		memset(stream, 0, len);

@@ -22,7 +22,7 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 
-#define NR_CACHES 8
+#define NR_CACHES 32
 #define CACHE_SIZE 64
 
 static const char *pagetype_strtab[] = {
@@ -193,6 +193,50 @@ enum ain_data_type array_type(enum ain_data_type type)
 	}
 }
 
+// v14 wrap<struct> inheritance: compute the actual page size for a struct,
+// accounting for base class fields inherited via wrap<struct> at member[0].
+static int compute_struct_page_size(int struct_no)
+{
+	if (struct_no < 0 || struct_no >= ain->nr_structures)
+		return 0;
+	struct ain_struct *s = &ain->structures[struct_no];
+	int size = s->nr_members;
+
+	// In v14, if member[0] is wrap<struct>, the struct inherits from the
+	// wrapped struct.  The page must be large enough to hold both the
+	// derived class's own members AND the base class's fields.
+	if (ain->version >= 14 && size > 0 &&
+	    s->members[0].type.data == AIN_WRAP &&
+	    s->members[0].type.array_type &&
+	    s->members[0].type.array_type->data == AIN_STRUCT) {
+		int base_size = compute_struct_page_size(s->members[0].type.struc);
+		if (base_size > size)
+			size = base_size;
+	}
+	return size;
+}
+
+// v14: resolve the struct that owns a given slot index, walking the
+// inheritance chain.  Returns the ain_variable for the member, or NULL.
+static struct ain_variable *resolve_struct_member(int struct_no, int varno)
+{
+	while (struct_no >= 0 && struct_no < ain->nr_structures) {
+		struct ain_struct *s = &ain->structures[struct_no];
+		if (varno >= 0 && varno < s->nr_members)
+			return &s->members[varno];
+		// Walk to base class via wrap<struct> at member[0]
+		if (ain->version >= 14 && s->nr_members > 0 &&
+		    s->members[0].type.data == AIN_WRAP &&
+		    s->members[0].type.array_type &&
+		    s->members[0].type.array_type->data == AIN_STRUCT) {
+			struct_no = s->members[0].type.struc;
+		} else {
+			return NULL;
+		}
+	}
+	return NULL;
+}
+
 enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank)
 {
 	if (struct_type) *struct_type = -1;
@@ -213,14 +257,17 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 		if (array_rank)
 			*array_rank = ain->functions[page->index].vars[varno].type.rank;
 		return ain->functions[page->index].vars[varno].type.data;
-	case STRUCT_PAGE:
+	case STRUCT_PAGE: {
 		if (page->index < 0 || page->index >= ain->nr_structures) return AIN_VOID;
-		if (varno < 0 || varno >= ain->structures[page->index].nr_members) return AIN_VOID;
+		if (varno < 0) return AIN_VOID;
+		struct ain_variable *m = resolve_struct_member(page->index, varno);
+		if (!m) return AIN_VOID;
 		if (struct_type)
-			*struct_type = ain->structures[page->index].members[varno].type.struc;
+			*struct_type = m->type.struc;
 		if (array_rank)
-			*array_rank = ain->structures[page->index].members[varno].type.rank;
-		return ain->structures[page->index].members[varno].type.data;
+			*array_rank = m->type.rank;
+		return m->type.data;
+	}
 	case ARRAY_PAGE:
 		if (struct_type)
 			*struct_type = page->array.struct_type;
@@ -257,6 +304,11 @@ void delete_page(int slot)
 	struct page *page = heap[slot].page;
 	if (!page)
 		return;
+	// DIAG: track when struct #655 (LocalGame) is deleted
+	if (page->type == STRUCT_PAGE && page->index == 655) {
+		WARNING("WATCH: delete_page struct#655 slot=%d ref=%d",
+			slot, heap[slot].ref);
+	}
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
 		static int dp_corrupt_warn = 0;
@@ -360,32 +412,84 @@ struct page *copy_page(struct page *src)
 	return dst;
 }
 
+// Initialize a single page slot based on its type (v14).
+static void init_struct_slot(struct page *page, int idx, struct ain_variable *member)
+{
+	if (member->type.data == AIN_STRUCT) {
+		page->values[idx].i = alloc_struct(member->type.struc);
+	} else if (ain->version >= 14) {
+		switch (member->type.data) {
+		case AIN_STRING:
+		case AIN_ARRAY_TYPE:
+		case AIN_ARRAY:
+		case AIN_DELEGATE:
+		case AIN_FUNC_TYPE:
+		case AIN_WRAP:
+		case AIN_IFACE_WRAP:
+		case AIN_OPTION:
+		case AIN_REF_TYPE:
+		case AIN_IFACE:
+			page->values[idx].i = -1;
+			break;
+		default:
+			page->values[idx].i = 0;
+			break;
+		}
+	} else {
+		page->values[idx] = variable_initval(member->type.data);
+	}
+}
+
 int alloc_struct(int no)
 {
 	struct ain_struct *s = &ain->structures[no];
+	int page_size = (ain->version >= 14) ? compute_struct_page_size(no) : s->nr_members;
 	int slot = heap_alloc_slot(VM_PAGE);
-	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
+	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, page_size));
+
+	// Initialize own members (indices 0..nr_members-1).
 	for (int i = 0; i < s->nr_members; i++) {
-		if (ain->version >= 14 && s->members[i].type.data == AIN_STRUCT) {
-			// v14: recursively allocate inner struct members.
-			// Constructors (e.g. SceneContext@Create) expect inner structs
-			// to already exist — they use interface dispatch on them without
-			// first creating them via NEW. If the constructor does
-			// DELETE+re-create, DELETE on a valid slot is safe.
-			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
-		} else if (ain->version >= 14) {
-			heap[slot].page->values[i].i = 0;
-		} else if (s->members[i].type.data == AIN_STRUCT) {
-			heap[slot].page->values[i].i = alloc_struct(s->members[i].type.struc);
-		} else {
-			heap[slot].page->values[i] = variable_initval(s->members[i].type.data);
+		init_struct_slot(heap[slot].page, i, &s->members[i]);
+	}
+
+	// v14: initialize inherited members from base class chain.
+	// If member[0] is wrap<struct> (inheritance), the page is expanded
+	// to include the base struct's fields at their original indices.
+	// Slots 0..own_nr_members-1 are already initialized above (derived
+	// class's types take priority). Slots own_nr_members..page_size-1
+	// are initialized from the base class chain.
+	if (ain->version >= 14 && page_size > s->nr_members) {
+		int cursor = s->nr_members;
+		int base_no = (s->nr_members > 0 &&
+			s->members[0].type.data == AIN_WRAP &&
+			s->members[0].type.array_type &&
+			s->members[0].type.array_type->data == AIN_STRUCT)
+			? s->members[0].type.struc : -1;
+
+		while (base_no >= 0 && base_no < ain->nr_structures && cursor < page_size) {
+			struct ain_struct *base = &ain->structures[base_no];
+			for (int i = cursor; i < base->nr_members && i < page_size; i++) {
+				init_struct_slot(heap[slot].page, i, &base->members[i]);
+			}
+			if (base->nr_members > cursor)
+				cursor = base->nr_members;
+
+			// Walk to next level of inheritance
+			if (base->nr_members > 0 &&
+			    base->members[0].type.data == AIN_WRAP &&
+			    base->members[0].type.array_type &&
+			    base->members[0].type.array_type->data == AIN_STRUCT) {
+				base_no = base->members[0].type.struc;
+			} else {
+				break;
+			}
 		}
 	}
+
 	// v14: populate <vtable> array (member 0) with virtual method table.
 	if (ain->version >= 14 && s->nr_vmethods > 0 && s->nr_members > 0) {
 		int vt_slot = heap[slot].page->values[0].i;
 		if (vt_slot <= 0 || !heap_index_valid(vt_slot)) {
-			// member[0] wasn't properly initialized — allocate a new slot
 			vt_slot = heap_alloc_slot(VM_PAGE);
 			heap[slot].page->values[0].i = vt_slot;
 		}
@@ -409,8 +513,17 @@ void init_struct(int no, int slot)
 	for (int i = 0; i < s->nr_members; i++) {
 		if (s->members[i].type.data == AIN_STRUCT) {
 			int child = heap[slot].page->values[i].i;
-			if (child > 0)
+			if (child > 0) {
 				init_struct(s->members[i].type.struc, child);
+				// v14: call nested member's constructor depth-first.
+				// Top-level ctor is called by the caller (NEW handler
+				// or init_global_struct_v14), not here.
+				if (ain->version >= 14) {
+					struct ain_struct *cs = &ain->structures[s->members[i].type.struc];
+					if (cs->constructor > 0)
+						vm_call(cs->constructor, child);
+				}
+			}
 		}
 	}
 	if (s->constructor > 0 && ain->version < 14) {
@@ -418,14 +531,30 @@ void init_struct(int no, int slot)
 	}
 }
 
-// v14: call constructors for top-level globals only (not recursive).
-// The alloc function uses NEW with ctor=-1 for top-level globals,
-// but nested structs are already constructed by NEW with explicit ctor.
+// v14: call constructors for global structs, recursing into nested members.
+// alloc_struct only allocates and zero-initializes; constructors (which set up
+// arrays, delegates, etc.) must be called separately.  This recurses depth-first
+// so child constructors run before parent constructors — matching the order in
+// which the original compiler would construct aggregates.
 void init_global_struct_v14(int no, int slot)
 {
 	if (!heap_index_valid(slot) || !heap[slot].page)
 		return;
 	struct ain_struct *s = &ain->structures[no];
+	// DIAG: trace when we reach PlayerCollection
+	if (no == 674) {
+		WARNING("init_global_struct_v14: PlayerCollection (struct %d) slot=%d ctor=%d",
+			no, slot, s->constructor);
+	}
+	// Recursively initialize nested struct members first
+	for (int i = 0; i < s->nr_members; i++) {
+		if (s->members[i].type.data == AIN_STRUCT) {
+			int child = heap[slot].page->values[i].i;
+			if (child > 0)
+				init_global_struct_v14(s->members[i].type.struc, child);
+		}
+	}
+	// Then call this struct's constructor
 	if (s->constructor > 0) {
 		vm_call(s->constructor, slot);
 	}
@@ -978,7 +1107,8 @@ int delegate_numof(struct page *page)
 	if (!page)
 		return 0;
 	if (page->type != DELEGATE_PAGE) {
-		WARNING("delegate_numof: not a delegate (type=%d)", page->type);
+		// v14: uninitialized delegate fields (slot=0) point to the
+		// global page.  Treat non-delegate pages as empty delegates.
 		return 0;
 	}
 

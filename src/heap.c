@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <execinfo.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -80,10 +81,17 @@ void heap_init(void)
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
+	extern unsigned long long ha_count;
 	if (heap_free_ptr >= heap_size) {
 		heap_grow(heap_size+HEAP_ALLOC_STEP);
 	}
 
+	ha_count++;
+	{
+		extern unsigned long long ha_page, ha_string;
+		if (type == VM_PAGE) ha_page++;
+		else if (type == VM_STRING) ha_string++;
+	}
 	int32_t slot = heap_free_stack[heap_free_ptr++];
 	if (unlikely(slot == 0)) {
 		WARNING("heap_alloc_slot: BUG! allocated slot 0 (global page) type=%d free_ptr=%zu", type, heap_free_ptr);
@@ -104,11 +112,19 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	return slot;
 }
 
+static unsigned long long hf_count = 0; // free slot counter
+
 static void heap_free_slot(int32_t slot)
 {
 	if (unlikely(slot == 0)) {
 		WARNING("heap_free_slot: BUG! freeing slot 0 (global page)");
 		return;
+	}
+	hf_count++;
+	{
+		extern unsigned long long hf_page, hf_string;
+		if (heap[slot].type == VM_PAGE) hf_page++;
+		else if (heap[slot].type == VM_STRING) hf_string++;
 	}
 	heap[slot].seq = 0;
 	heap_free_stack[--heap_free_ptr] = slot;
@@ -125,10 +141,16 @@ static void heap_double_free(int32_t slot)
 #endif
 }
 
+// DIAG: count heap_ref calls by type
+static unsigned long long hr_str = 0, hr_page = 0;
+void heap_ref_type_stats(unsigned long long *s, unsigned long long *p) { *s = hr_str; *p = hr_page; }
+
 void heap_ref(int32_t slot)
 {
 	if (slot <= 0 || (size_t)slot >= heap_size)
 		return;
+	if (heap[slot].type == VM_STRING) hr_str++;
+	else hr_page++;
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
@@ -175,26 +197,36 @@ static inline void grp_mark_slot(int slot)
 		grp_marked[grp_marked_count++] = slot;
 }
 
-// Helper: mark all struct page members (2 levels deep) in grp_flags
-static void grp_mark_struct_members(int struct_slot)
+// Recursively mark all page members reachable from a given slot.
+// Uses iterative BFS with a work stack to avoid C stack overflow.
+static int grp_work_stack[4096];
+static int grp_work_count = 0;
+
+static void grp_mark_reachable(int root_slot)
 {
-	if (struct_slot <= 0 || (size_t)struct_slot >= heap_size) return;
-	if (heap[struct_slot].type != VM_PAGE || !heap[struct_slot].page) return;
-	if (heap[struct_slot].page->type != STRUCT_PAGE) return;
+	if (root_slot <= 0 || (size_t)root_slot >= heap_size) return;
+	if (heap[root_slot].type != VM_PAGE || !heap[root_slot].page) return;
 
-	struct page *p1 = heap[struct_slot].page;
-	for (int j = 0; j < p1->nr_vars; j++) {
-		int slot_j = p1->values[j].i;
-		grp_mark_slot(slot_j);
+	grp_work_count = 0;
+	grp_work_stack[grp_work_count++] = root_slot;
 
-		// Level 2: members of members
-		if (slot_j <= 0 || (size_t)slot_j >= heap_size) continue;
-		if (heap[slot_j].type != VM_PAGE || !heap[slot_j].page) continue;
-		if (heap[slot_j].page->type != STRUCT_PAGE) continue;
+	while (grp_work_count > 0) {
+		int slot = grp_work_stack[--grp_work_count];
+		if (slot <= 0 || (size_t)slot >= heap_size) continue;
+		if (heap[slot].type != VM_PAGE || !heap[slot].page) continue;
 
-		struct page *p2 = heap[slot_j].page;
-		for (int k = 0; k < p2->nr_vars; k++) {
-			grp_mark_slot(p2->values[k].i);
+		struct page *p = heap[slot].page;
+		for (int j = 0; j < p->nr_vars; j++) {
+			int child = p->values[j].i;
+			if (child <= 0 || (size_t)child >= grp_flags_size) continue;
+			if (grp_flags[child]) continue; // already marked
+			grp_mark_slot(child);
+			// If this child is a page, enqueue for further traversal
+			if ((size_t)child < heap_size &&
+			    heap[child].type == VM_PAGE && heap[child].page &&
+			    grp_work_count < 4096) {
+				grp_work_stack[grp_work_count++] = child;
+			}
 		}
 	}
 }
@@ -211,7 +243,7 @@ static void grp_rebuild(void)
 		grp_flags_size = heap_size;
 	}
 	if (!grp_marked) {
-		grp_marked_cap = 8192;
+		grp_marked_cap = 65536;
 		grp_marked = xmalloc(grp_marked_cap * sizeof(int));
 	}
 
@@ -223,7 +255,7 @@ static void grp_rebuild(void)
 	}
 	grp_marked_count = 0;
 
-	// Part 1: global page (3 levels deep)
+	// Recursively mark all slots reachable from global page
 	struct page *global = heap[0].page;
 	for (int i = 0; i < global->nr_vars; i++) {
 		enum ain_data_type gtype = variable_type(global, i, NULL, NULL);
@@ -231,23 +263,24 @@ static void grp_rebuild(void)
 
 		int slot_i = global->values[i].i;
 		grp_mark_slot(slot_i);
-		grp_mark_struct_members(slot_i);
+		grp_mark_reachable(slot_i);
 	}
-
-	// Call-frame struct pages are handled by the fast inline check in heap_unref,
-	// not here in the cached set.
 }
 
-// O(1) check with periodic rebuild (every 50K instructions).
+// O(1) check with periodic rebuild.
 static bool slot_reachable_from_global(int target_slot)
 {
 	extern struct ain *ain;
+	extern bool vm_in_alloc_phase;
 	if (!ain || ain->version < 14) return false;
 	if (target_slot <= 0 || (size_t)target_slot >= heap_size) return false;
 
 	extern unsigned long long vm_call_get_insn_count(void);
 	unsigned long long insn = vm_call_get_insn_count();
-	if (!grp_flags || insn - grp_rebuild_insn > 500000) {
+	// Periodic rebuild: 500K insns normally, 2M during alloc phase.
+	// The recursive BFS marking ensures full transitive coverage.
+	unsigned long long threshold = vm_in_alloc_phase ? 2000000ULL : 500000ULL;
+	if (!grp_flags || insn - grp_rebuild_insn > threshold) {
 		grp_rebuild();
 		grp_rebuild_insn = insn;
 	}
@@ -255,42 +288,90 @@ static bool slot_reachable_from_global(int target_slot)
 	return (size_t)target_slot < grp_flags_size && grp_flags[target_slot];
 }
 
+
+// DIAG counters for heap_unref
+static unsigned long long hu_calls = 0;
+static unsigned long long hu_invalid = 0;
+static unsigned long long hu_refgt1 = 0;
+static unsigned long long hu_fpm = 0;
+static unsigned long long hu_grp = 0;
+static unsigned long long hu_freed = 0;
+
+unsigned long long ha_count = 0; // allocation counter
+unsigned long long ha_page = 0, ha_string = 0; // alloc by type
+unsigned long long hf_page = 0, hf_string = 0; // free by type
+
+void heap_unref_stats(unsigned long long *calls, unsigned long long *refgt1,
+	unsigned long long *fpm, unsigned long long *grp, unsigned long long *freed,
+	unsigned long long *allocs, unsigned long long *fslots)
+{
+	extern unsigned long long hf_count;
+	*calls = hu_calls; *refgt1 = hu_refgt1; *fpm = hu_fpm; *grp = hu_grp; *freed = hu_freed;
+	*allocs = ha_count; *fslots = hf_count;
+}
+
+void heap_type_stats(unsigned long long *ap, unsigned long long *as,
+	unsigned long long *fp, unsigned long long *fs)
+{
+	*ap = ha_page; *as = ha_string; *fp = hf_page; *fs = hf_string;
+}
+
 void heap_unref(int slot)
 {
+	hu_calls++;
 	// Never unref the global page (slot 0) or invalid slots
 	if (slot <= 0 || (size_t)slot >= heap_size) {
+		hu_invalid++;
 		return;
 	}
-	if (unlikely(heap[slot].ref <= 0)) {
+	// Strip temp flag for ref count checks
+	int actual_ref = HEAP_REF(slot);
+	if (unlikely(actual_ref <= 0)) {
 		return;
 	}
-	if (heap[slot].ref > 1) {
-		heap[slot].ref--;
+	if (actual_ref > 1) {
+		heap[slot].ref--;  // decrement (preserves temp flag in high bits)
+		hu_refgt1++;
 		return;
 	}
+	// actual_ref == 1, about to become 0: clear any temp flag too
+	// (Fall through to free logic below)
 	// Protection: prevent freeing objects still used by active call frames.
 	// Use a bitmap for O(1) lookups instead of O(csp) per unref.
 	static bool deferred_processing = false;
 	static uint8_t *frame_protect_map = NULL;
 	static size_t frame_protect_map_size = 0;
+	// Track which entries were set for fast clearing
+	static int fpm_dirty[512];
+	static int fpm_dirty_count = 0;
 
 	if (!deferred_processing) {
 		extern struct function_call call_stack[];
 		extern int32_t call_stack_ptr;
 		extern struct ain *ain;
 
-		// Build frame protection bitmap (O(csp), done once per outermost unref)
+		// Grow bitmap if needed
 		if (heap_size > frame_protect_map_size) {
 			free(frame_protect_map);
 			frame_protect_map_size = heap_size;
 			frame_protect_map = calloc(heap_size, 1);
+			fpm_dirty_count = 0;
 		} else {
-			memset(frame_protect_map, 0, heap_size);
+			// Clear only previously set entries (O(dirty) instead of O(heap_size))
+			for (int i = 0; i < fpm_dirty_count; i++) {
+				int idx = fpm_dirty[i];
+				if ((size_t)idx < frame_protect_map_size)
+					frame_protect_map[idx] = 0;
+			}
+			fpm_dirty_count = 0;
 		}
+		// Mark call stack page slots
 		for (int i = 0; i < call_stack_ptr; i++) {
 			int ps = call_stack[i].page_slot;
-			if (ps > 0 && (size_t)ps < heap_size)
+			if (ps > 0 && (size_t)ps < heap_size) {
 				frame_protect_map[ps] = 1;
+				if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = ps;
+			}
 		}
 		// Also mark struct_page members of recent frames (top 16)
 		if (ain && ain->version >= 14) {
@@ -302,8 +383,10 @@ void heap_unref(int slot)
 				struct page *sp = heap[sp_slot].page;
 				for (int mi = 0; mi < sp->nr_vars; mi++) {
 					int v = sp->values[mi].i;
-					if (v > 0 && (size_t)v < heap_size)
+					if (v > 0 && (size_t)v < heap_size) {
 						frame_protect_map[v] = 1;
+						if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = v;
+					}
 				}
 			}
 		}
@@ -311,12 +394,14 @@ void heap_unref(int slot)
 		// Check this slot against the bitmap
 		if ((size_t)slot < heap_size && frame_protect_map[slot]) {
 			heap[slot].ref = 1;
+			hu_fpm++;
 			return;
 		}
 		// Global page reachability check
 		if (ain && ain->version >= 14 && heap[slot].type == VM_PAGE) {
 			if (slot_reachable_from_global(slot)) {
 				heap[slot].ref = 1;
+				hu_grp++;
 				return;
 			}
 		}
@@ -324,10 +409,12 @@ void heap_unref(int slot)
 		// During deferred processing: O(1) bitmap lookup only
 		if ((size_t)slot < heap_size && frame_protect_map && frame_protect_map[slot]) {
 			heap[slot].ref = 1;
+			hu_fpm++;
 			return;
 		}
 	}
 	heap[slot].ref = 0;
+	hu_freed++;
 
 	// Deferred iterative free
 	{
@@ -355,8 +442,10 @@ void heap_unref(int slot)
 					}
 					break;
 				case VM_STRING:
-					if (heap[s].s)
+					if (heap[s].s) {
 						free_string(heap[s].s);
+						heap[s].s = NULL; // prevent dangling pointer
+					}
 					break;
 				default:
 					break;
@@ -480,6 +569,8 @@ struct string *heap_get_string(int index)
 		}
 		return &EMPTY_STRING;
 	}
+	if (unlikely(!heap[index].s))
+		return &EMPTY_STRING;
 	return heap[index].s;
 }
 

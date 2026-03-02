@@ -152,14 +152,13 @@ static bool String_EndsWith(struct string **self, struct string *suffix)
 }
 
 // Forward declaration for SearchAll (used by Search and Match)
-static bool String_SearchAll(struct string **self, int matchList_slot, struct string *regex);
+static bool String_SearchAll(struct string **self, int ml_slot, struct string *regex);
 
 // [14] bool Search(ref string self, wrap<array<array<string>>> matchList, string regex)
-// v14: AIN_WRAP — matchList is heap slot index (int).
-// Same logic as SearchAll.
-static bool String_Search(struct string **self, int matchList_slot, struct string *regex)
+// v14: AIN_WRAP — matchList is 1-slot heap index.
+static bool String_Search(struct string **self, int ml_slot, struct string *regex)
 {
-	return String_SearchAll(self, matchList_slot, regex);
+	return String_SearchAll(self, ml_slot, regex);
 }
 
 // [15] bool Search(ref string self, ref array<array<string>> matchList, string regex)
@@ -167,8 +166,8 @@ static bool String_Search(struct string **self, int matchList_slot, struct strin
 //
 // The game uses regex: ([^\[\]]+?)+|\[[^\]]+?\]
 // This is a bracket tokenizer: match [bracketed] tokens and non-bracket text.
-// v14: AIN_WRAP — matchList is heap slot index (int).
-static bool String_SearchAll(struct string **self, int matchList_slot, struct string *regex)
+// v14: AIN_WRAP — matchList is 1-slot heap index.
+static bool String_SearchAll(struct string **self, int ml_slot, struct string *regex)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0)
@@ -244,16 +243,15 @@ static bool String_SearchAll(struct string **self, int matchList_slot, struct st
 	}
 
 	// Write outer array to wrap slot
-	wrap_set_slot(matchList_slot, heap_alloc_page(outer));
+	wrap_set_slot(ml_slot, 0, heap_alloc_page(outer));
 	return true;
 }
 
 // [17] bool Match(ref string self, wrap<array<array<string>>> matchList, string regex)
-// v14: AIN_WRAP — matchList is heap slot index (int).
-// Same logic as SearchAll.
-static bool String_Match(struct string **self, int matchList_slot, struct string *regex)
+// v14: AIN_WRAP — matchList is 1-slot heap index.
+static bool String_Match(struct string **self, int ml_slot, struct string *regex)
 {
-	return String_SearchAll(self, matchList_slot, regex);
+	return String_SearchAll(self, ml_slot, regex);
 }
 
 // [19] string Replace(ref string self, string key, string replacer)

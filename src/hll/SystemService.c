@@ -207,7 +207,7 @@ static bool SystemService_SetWindowSetting(int type, int value)
 	return true;
 }
 
-// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> value_slot
+// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> (1-slot heap index)
 static bool SystemService_GetWindowSetting(int type, int value_slot)
 {
 	int v;
@@ -230,7 +230,7 @@ static bool SystemService_GetWindowSetting(int type, int value_slot)
 		WARNING("Invalid window setting type: %d", type);
 		return false;
 	}
-	wrap_set_int(value_slot, v);
+	wrap_set_int(value_slot, 0, v);
 	return true;
 }
 
@@ -248,14 +248,14 @@ static bool SystemService_SetMouseCursorConfig(int type, int value)
 	return true;
 }
 
-// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> value_slot
+// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> (1-slot heap index)
 static bool SystemService_GetMouseCursorConfig(int type, int value_slot)
 {
 	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
-	wrap_set_int(value_slot, !!mouse_cursor_config[type]);
+	wrap_set_int(value_slot, 0, !!mouse_cursor_config[type]);
 	return true;
 }
 
@@ -277,22 +277,21 @@ void SystemService_GetGameFolderPath(struct string **folder_path)
 
 static void SystemService_GetTime(int hour_slot, int min_slot, int sec_slot)
 {
-	// v14: wrap<int> — receives heap slot index
 	int hour, min, sec, ms;
 	get_time(&hour, &min, &sec, &ms);
-	wrap_set_int(hour_slot, hour);
-	wrap_set_int(min_slot, min);
-	wrap_set_int(sec_slot, sec);
+	wrap_set_int(hour_slot, 0, hour);
+	wrap_set_int(min_slot, 0, min);
+	wrap_set_int(sec_slot, 0, sec);
 }
 
 static void SystemService_GetDate(int year_slot, int month_slot, int mday_slot, int wday_slot)
 {
 	int year, month, mday, wday;
 	get_date(&year, &month, &mday, &wday);
-	wrap_set_int(year_slot, year);
-	wrap_set_int(month_slot, month);
-	wrap_set_int(mday_slot, mday);
-	wrap_set_int(wday_slot, wday);
+	wrap_set_int(year_slot, 0, year);
+	wrap_set_int(month_slot, 0, month);
+	wrap_set_int(mday_slot, 0, mday);
+	wrap_set_int(wday_slot, 0, wday);
 }
 
 static bool SystemService_IsResetOnce(void)

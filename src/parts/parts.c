@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -882,14 +883,6 @@ void parts_release(int parts_no)
 	if (!slot->value)
 		return;
 
-	static int prel_log = 0;
-	if (prel_log++ < 10) {
-		int n = 0;
-		struct parts *_p;
-		PARTS_LIST_FOREACH(_p) n++;
-		WARNING("parts_release(%d) total_before=%d", parts_no, n);
-	}
-
 	struct parts *parts = slot->value;
 	parts_clear_motion(parts);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
@@ -1039,6 +1032,23 @@ bool parts_message_window_show = true;
 
 void PE_Update(int passed_time, bool message_window_show)
 {
+	// Workaround: when game timer is broken (CASTimerManager struct corruption),
+	// passed_time is always 0. Compute real elapsed time instead.
+	static struct timespec pe_last_time = {0};
+	if (passed_time == 0) {
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		if (pe_last_time.tv_sec > 0) {
+			double delta_ms = (now.tv_sec - pe_last_time.tv_sec) * 1000.0
+				+ (now.tv_nsec - pe_last_time.tv_nsec) / 1e6;
+			passed_time = (int)delta_ms;
+			if (passed_time < 0) passed_time = 0;
+			if (passed_time > 100) passed_time = 100; // cap at 100ms
+		}
+		pe_last_time = now;
+	} else {
+		clock_gettime(CLOCK_MONOTONIC, &pe_last_time);
+	}
 	handle_events();
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
@@ -1047,8 +1057,6 @@ void PE_Update(int passed_time, bool message_window_show)
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
-	// Always render — scene_is_dirty is never set because parts don't
-	// create sprites yet. Force render to verify pipeline.
 	scene_render();
 	gfx_swap();
 	scene_is_dirty = false;

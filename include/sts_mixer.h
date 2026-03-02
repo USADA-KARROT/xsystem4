@@ -313,6 +313,7 @@ void sts_mixer_mix_audio(sts_mixer_t* mixer, void* output, unsigned int samples)
     for (i = 0; i < STS_MIXER_VOICES; ++i) {
       voice = &mixer->voices[i];
       if (voice->state == STS_MIXER_VOICE_PLAYING) {
+        if (!voice->sample) { sts_mixer__reset_voice(mixer, i); continue; }
         position = (int)voice->position;
         if (position < voice->sample->length) {
           sample = sts_mixer__clamp_sample(sts_mixer__get_sample(voice->sample, position) * voice->gain);
@@ -321,6 +322,7 @@ void sts_mixer_mix_audio(sts_mixer_t* mixer, void* output, unsigned int samples)
           voice->position += (float)voice->sample->frequency * advance * voice->pitch;
         } else sts_mixer__reset_voice(mixer, i);
       } else if (voice->state == STS_MIXER_VOICE_STREAMING) {
+        if (!voice->stream) { sts_mixer__reset_voice(mixer, i); continue; }
         int status = 1;
         position = ((int)voice->position) * 2;
         if (position >= voice->stream->sample.length) {

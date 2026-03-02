@@ -14,7 +14,9 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "hll.h"
 #include "vm.h"
@@ -39,17 +41,33 @@ static void check_array(struct page *array)
 }
 
 
-// Alloc: allocate an integer array of given size
+// Alloc: allocate an array of given size.
+// For struct/wrap elements (hll_arg3 == 2), preserves struct_type metadata
+// from the old array and allocates struct instances for each element.
+// Without this, elements remain 0 (null) and method calls on them fail
+// because struct_page=0 is invalid (it's the global page).
 static void Array_Alloc(struct page **array, int numof)
 {
 	if (!array || numof < 0)
 		return;
+	// Preserve struct_type from the old array before destroying it.
+	int struct_type = -1;
 	if (*array && (*array)->type == ARRAY_PAGE) {
+		struct_type = (*array)->array.struct_type;
 		delete_page_vars(*array);
 		free_page(*array);
 	}
 	*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, numof);
 	(*array)->array.rank = 1;
+	(*array)->array.struct_type = struct_type;
+	// v14 struct/wrap arrays: allocate a struct instance for each element.
+	if (hll_current_arg3 == 2 && struct_type >= 0 && struct_type < ain->nr_structures) {
+		for (int i = 0; i < numof; i++) {
+			int slot = alloc_struct(struct_type);
+			heap_ref(slot);
+			(*array)->values[i].i = slot;
+		}
+	}
 }
 
 // PushBack (capital B) — alias for Pushback
@@ -363,30 +381,27 @@ static void Array_Popback(struct page **array)
 	*array = new_a;
 }
 
-// Erase: remove element at index.
-// AIN declares arg[1] as AIN_WRAP — FFI passes heap slot index (int).
-// Unwrap to get actual index value from wrap page.
-static void Array_Erase(struct page **array, int index_wrap)
+// Erase: remove 'length' elements starting at 'index'.
+// AIN declares: self (ref_array), index (int), length (int).
+static void Array_Erase(struct page **array, int index, int length)
 {
 	if (!array || !*array)
 		return;
-	// Resolve wrap<int> handle to actual index value
-	int index = index_wrap;
-	if (index_wrap > 0 && (size_t)index_wrap < heap_size
-	    && heap[index_wrap].type == VM_PAGE
-	    && heap[index_wrap].page
-	    && heap[index_wrap].page->nr_vars > 0)
-		index = heap[index_wrap].page->values[0].i;
 	struct page *a = *array;
-	if (index < 0 || index >= a->nr_vars)
+	if (length <= 0 || index < 0 || index >= a->nr_vars)
 		return;
-	// v14: unref the removed element if it's a heap object
+	// Clamp length to available elements
+	if (index + length > a->nr_vars)
+		length = a->nr_vars - index;
+	// v14: unref removed elements if they are heap objects
 	if (array_elem_is_ref()) {
-		int removed = a->values[index].i;
-		if (removed > 0)
-			heap_unref(removed);
+		for (int i = index; i < index + length; i++) {
+			int removed = a->values[i].i;
+			if (removed > 0)
+				heap_unref(removed);
+		}
 	}
-	int new_size = a->nr_vars - 1;
+	int new_size = a->nr_vars - length;
 	if (new_size == 0) {
 		free_page(a);
 		*array = NULL;
@@ -396,7 +411,7 @@ static void Array_Erase(struct page **array, int index_wrap)
 	for (int i = 0; i < index; i++)
 		new_a->values[i] = a->values[i];
 	for (int i = index; i < new_size; i++)
-		new_a->values[i] = a->values[i + 1];
+		new_a->values[i] = a->values[i + length];
 	new_a->array = a->array;
 	free_page(a);
 	*array = new_a;
@@ -732,7 +747,9 @@ static int Array_NV_sceq(struct page **self, int index, int num, int *out_index)
 //int Array_SS_schighest(struct page *sArray, int nMember, struct page **sArrayD, int nMemberS, int *pnIndex);
 //int Array_VN_add(struct page *nArray);
 //int Array_VN_and(struct page *nArray);
-// Realloc: resize array, preserving existing elements
+// Realloc: resize array, preserving existing elements.
+// For struct/wrap arrays (hll_arg3 == 2), allocates struct instances
+// for any newly added elements (beyond the old size).
 static void Array_Realloc(struct page **array, int new_size)
 {
 	if (!array || new_size < 0)
@@ -749,6 +766,17 @@ static void Array_Realloc(struct page **array, int new_size)
 	int copy = old_size < new_size ? old_size : new_size;
 	for (int i = 0; i < copy; i++)
 		new_a->values[i] = old->values[i];
+	// v14 struct/wrap arrays: allocate struct instances for new elements.
+	if (hll_current_arg3 == 2 && new_size > old_size) {
+		int struct_type = new_a->array.struct_type;
+		if (struct_type >= 0 && struct_type < ain->nr_structures) {
+			for (int i = old_size; i < new_size; i++) {
+				int slot = alloc_struct(struct_type);
+				heap_ref(slot);
+				new_a->values[i].i = slot;
+			}
+		}
+	}
 	free_page(old);
 	*array = new_a;
 }
@@ -927,10 +955,19 @@ static void Array_Add(struct page **array, int value)
 	Array_Pushback(array, value);
 }
 
-// Find: alias for First (v14 generic array)
-static int Array_Find(struct page **array, int func)
+// Find: value-based search in v14 generic array.
+// Searches for the first element equal to 'value' and returns its index.
+// Returns -1 if not found. Different from First (which uses a predicate callback).
+static int Array_Find(struct page **array, int value)
 {
-	return Array_First(array, func);
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0)
+		return -1;
+	for (int i = 0; i < src->nr_vars; i++) {
+		if (src->values[i].i == value)
+			return i;
+	}
+	return -1;
 }
 
 // Copy: copy elements between arrays.
@@ -956,6 +993,83 @@ static void Array_Copy(struct page **dst, int dst_i_wrap, int src_wrap, int src_
 	if (!src_page || src_page->type != ARRAY_PAGE)
 		return;
 	array_copy(*dst, dst_i, src_page, src_i, count);
+}
+
+// Fill: fill array elements with a value.
+// AIN signature: Fill(array, value, start_index, count)
+static void Array_Fill(struct page **array, int value, int start, int count)
+{
+	struct page *a = (array && *array) ? *array : NULL;
+	if (!a || count <= 0)
+		return;
+	int end = start + count;
+	if (end > a->nr_vars)
+		end = a->nr_vars;
+	for (int i = start; i < end; i++) {
+		if (array_elem_is_ref()) {
+			// Unref old, ref new
+			int old = a->values[i].i;
+			if (old > 0)
+				heap_unref(old);
+			if (value > 0)
+				heap_ref(value);
+		}
+		a->values[i].i = value;
+	}
+}
+
+// Concat: append all elements from src to self (both wrap<array>)
+// AIN: Concat(wrap<array<T>> self, wrap<array<T>> src) -> void
+static void Array_Concat(struct page **self, int src_wrap)
+{
+	// self is ref array, src is wrap<array> (heap slot)
+	Array_AddRange(self, src_wrap);
+}
+
+// Max: find element with maximum value via delegate comparison
+// AIN: Max(wrap<array<T>> self, delegate func) -> T
+// The delegate takes (T element) and returns an int/comparable value.
+// We return the element that produced the largest callback result.
+static int Array_Max(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0)
+		return 0;
+	if (func < 0 || func >= ain->nr_functions) {
+		// No comparator — return max value directly (for int arrays)
+		int max_val = src->values[0].i;
+		for (int i = 1; i < src->nr_vars; i++) {
+			if (src->values[i].i > max_val)
+				max_val = src->values[i].i;
+		}
+		return max_val;
+	}
+
+	struct ain_function *cb = &ain->functions[func];
+	int best_idx = 0;
+	int best_score = INT32_MIN;
+
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+		if (cb->nr_args >= 2) {
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+		vm_call_nopop(func, cb->nr_args);
+		int score = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (score > best_score) {
+			best_score = score;
+			best_idx = i;
+		}
+	}
+
+	int val = src->values[best_idx].i;
+	if (array_elem_is_ref() && val > 0)
+		heap_ref(val);
+	return val;
 }
 
 //int Array_VN_or(struct page *nArray);
@@ -996,7 +1110,10 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Shuffle, Array_Shuffle),
 	    HLL_EXPORT(Count, Array_Count),
 	    HLL_EXPORT(AddRange, Array_AddRange),
+	    HLL_EXPORT(Fill, Array_Fill),
 	    HLL_EXPORT(SYSTEMONLY_GetStructPageList, Array_SYSTEMONLY_GetStructPageList),
+	    HLL_EXPORT(Concat, Array_Concat),
+	    HLL_EXPORT(Max, Array_Max),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),
