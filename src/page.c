@@ -304,11 +304,6 @@ void delete_page(int slot)
 	struct page *page = heap[slot].page;
 	if (!page)
 		return;
-	// DIAG: track when struct #655 (LocalGame) is deleted
-	if (page->type == STRUCT_PAGE && page->index == 655) {
-		WARNING("WATCH: delete_page struct#655 slot=%d ref=%d",
-			slot, heap[slot].ref);
-	}
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
 		static int dp_corrupt_warn = 0;
@@ -541,11 +536,6 @@ void init_global_struct_v14(int no, int slot)
 	if (!heap_index_valid(slot) || !heap[slot].page)
 		return;
 	struct ain_struct *s = &ain->structures[no];
-	// DIAG: trace when we reach PlayerCollection
-	if (no == 674) {
-		WARNING("init_global_struct_v14: PlayerCollection (struct %d) slot=%d ctor=%d",
-			no, slot, s->constructor);
-	}
 	// Recursively initialize nested struct members first
 	for (int i = 0; i < s->nr_members; i++) {
 		if (s->members[i].type.data == AIN_STRUCT) {

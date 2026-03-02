@@ -107,14 +107,9 @@ int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 	}
 	engine_type = engine;
 
-	WARNING("sact_init: gfx_init...");
 	gfx_init();
-	WARNING("sact_init: gfx_font_init...");
 	gfx_font_init();
-	WARNING("sact_init: audio_init...");
 	audio_init();
-
-	WARNING("sact_init: creating sprites...");
 	nr_sprites = 256;
 	sprites = xmalloc(sizeof(struct sact_sprite*) * 257);
 	memset(sprites, 0, sizeof(struct sact_sprite*) * 257);
@@ -128,12 +123,10 @@ int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 	sprites++;
 
 	// initialize sprite renderer
-	WARNING("sact_init: sprite_init...");
 	if (engine == CHIPMUNK_SPRITE_ENGINE)
 		sprite_init_chipmunk();
 	else
 		sprite_init_sact();
-	WARNING("sact_init: complete!");
 
 	return 1;
 }
@@ -812,18 +805,7 @@ void sact_Key_ClearFlagNoCtrl(void)
 int sact_Key_IsDown(int keycode)
 {
 	handle_events();
-	int result = key_is_down(keycode);
-	if (keycode == 1) {
-		static int lbutton_log = 0;
-		if (lbutton_log++ < 30)
-			WARNING("Key_IsDown(LBUTTON): result=%d", result);
-	}
-	if (result && (keycode == 2 || keycode == 32)) {
-		static int key_log = 0;
-		if (key_log++ < 20)
-			WARNING("Key_IsDown: keycode=%d result=%d", keycode, result);
-	}
-	return result;
+	return key_is_down(keycode);
 }
 
 int sact_CG_IsExist(int cg_no)

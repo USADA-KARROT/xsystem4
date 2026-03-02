@@ -76,7 +76,6 @@ void scene_unregister_sprite(struct sprite *sp)
 void scene_render(void)
 {
 	static bool clear_color_set = false;
-	(void)0;
 	if (!clear_color_set) {
 		gfx_set_clear_color(0, 0, 0, 255);
 		clear_color_set = true;

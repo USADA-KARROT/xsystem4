@@ -276,7 +276,6 @@ static void parts_fini_all_motion(void)
 
 void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t)
 {
-	WARNING("AddMotionPos: parts=%d (%d,%d)->(%d,%d) t=%d..%d", parts_no, begin_x, begin_y, end_x, end_y, begin_t, end_t);
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_POS, begin_t, end_t);
 	motion->begin.x = begin_x;
@@ -295,7 +294,6 @@ void PE_AddMotionPos_curve(int parts_no, int begin_x, int begin_y, int end_x, in
 
 void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t)
 {
-	WARNING("AddMotionAlpha: parts=%d alpha %d->%d t=%d..%d", parts_no, begin_a, end_a, begin_t, end_t);
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ALPHA, begin_t, end_t);
 	motion->begin.i = begin_a;
@@ -494,7 +492,6 @@ void PE_AddMotionSound(int sound_no, int begin_t)
 
 void PE_BeginMotion(void)
 {
-	WARNING("PE_BeginMotion called (parts_began_click=%d)", parts_began_click);
 	if (parts_began_click)
 		return;
 
@@ -506,7 +503,6 @@ void PE_BeginMotion(void)
 
 void PE_EndMotion(void)
 {
-	WARNING("PE_EndMotion called (parts_began_click=%d, motion_t=%d, end_t=%d)", parts_began_click, motion_t, motion_end_t);
 	if (parts_began_click)
 		return;
 	motion_t = 0;
@@ -534,9 +530,6 @@ void PE_SeekEndMotion(void)
 
 void PE_UpdateMotionTime(int time, possibly_unused bool skip)
 {
-	static int umt_log = 0;
-	if (umt_log++ < 5)
-		WARNING("PE_UpdateMotionTime(%d) is_motion=%d t=%d end=%d", time, is_motion, motion_t, motion_end_t);
 	// TODO: use skip
 	PE_SetMotionTime(motion_t + time);
 }

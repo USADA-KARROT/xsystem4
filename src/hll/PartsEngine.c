@@ -42,9 +42,6 @@ static void PartsEngine_ModuleFini(void)
 
 static void PartsEngine_Update(int passed_time, bool is_skip, bool message_window_show)
 {
-	static int upd_count = 0;
-	if (upd_count++ < 3)
-		WARNING("PartsEngine_Update called #%d passed_time=%d", upd_count, passed_time);
 	PE_Update(passed_time, message_window_show);
 }
 
@@ -105,11 +102,11 @@ static const char SJIS_CG_MEI[]      = "\x82\x62\x82\x66\x96\xbc";             /
 static const char SJIS_SIZE[]        = "\x83\x54\x83\x43\x83\x59";             /* サイズ (size) */
 static const char SJIS_COLOR[]       = "\x90\x46";                             /* 色 (color) */
 static const char SJIS_PANEL[]       = "\x83\x70\x83\x6c\x83\x8b";             /* パネル (panel) */
-static const char SJIS_MULTI_LEVEL[] = "\x83\x7d\x83\x8b\x83\x60\x83\x8c\x83\x78\x83\x8b\x83\x70\x81\x5b\x83\x63"; /* マルチレベルパーツ */
+/* static const char SJIS_MULTI_LEVEL[] = "\x83\x7d\x83\x8b\x83\x60\x83\x8c\x83\x78\x83\x8b\x83\x70\x81\x5b\x83\x63"; */ /* マルチレベルパーツ — unused */
 static const char SJIS_SCALE[]       = "\x8a\x67\x91\xe5\x8f\x6b\x8f\xac"; /* 拡大縮小 (scale) */
 static const char SJIS_ROTATION[]    = "\x89\xf1\x93\x5d";                 /* 回転 (rotation) */
-static const char SJIS_CG_PARTS[]    = "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63"; /* ＣＧパーツ */
-static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; /* アルファクリッパー */
+/* static const char SJIS_CG_PARTS[]    = "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63"; */ /* ＣＧパーツ — unused */
+/* static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; */ /* アルファクリッパー — unused */
 /* static const char SJIS_NORMAL_STATE[]= "\x92\xca\x8f\xed\x8f\xf3\x91\xd4"; */ /* 通常状態 — unused, kept for reference */
 
 /* GBK property names (legacy fallback). */
@@ -118,8 +115,8 @@ static const char GBK_SHOW[]        = "\xb1\xed\xca\xbe";         /* 表示 (GBK
 static const char GBK_ALPHA[]       = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1"; /* アルファ (GBK) */
 static const char GBK_ORIGIN_MODE[] = "\xd4\xad\xfc\x63\xd7\xf9\x98\xcb\xc4\xa3\xca\xbd"; /* 原點座標模式 (GBK) */
 static const char GBK_CG_MEI[]      = "\xa3\xc3\xa3\xc7\xc3\xfb"; /* ＣＧ名 (GBK) */
-static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; /* 加算色 (GBK) */
-static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; /* 乗算色 (GBK) */
+/* static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; */ /* 加算色 (GBK) — unused */
+/* static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; */ /* 乗算色 (GBK) — unused */
 static const char GBK_PARTS_TYPE[]  = "\xb2\xbf\xbc\xfe\xa5\xbf\xa5\xa4\xa5\xd7"; /* 部件タイプ (GBK) */
 static const char GBK_PANEL[]       = "\xa5\xd1\xa5\xcd\xa5\xeb"; /* パネル (GBK) */
 static const char GBK_SIZE[]        = "\xa5\xb5\xa5\xa4\xa5\xba"; /* サイズ (GBK) */
@@ -252,7 +249,7 @@ static const char *pactex_find_cg_name(struct ex_tree *branch, int depth)
  * the type-specific info branch (種類別情報). */
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
-	static int apply_trace = 0;
+
 
 	/* Extract position: 座標 = list[3] = (x, y, z) */
 	struct ex_list *pos = pactex_get_list(node, SJIS_POSITION);
@@ -281,15 +278,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	if (alpha < 0) alpha = pactex_get_int(node, GBK_ALPHA, 255);
 	PE_SetAlpha(parts_no, alpha);
 
-	/* Alpha clipper (not yet implemented) — log but don't hide */
-	const char *clipper = pactex_get_string(node, SJIS_ALPHA_CLIPPER);
-	if (clipper && clipper[0]) {
-		/* Don't hide: PE_SetShow(parts_no, 0); */
-		static int clip_warn = 0;
-		if (clip_warn++ < 20)
-			WARNING("pactex_apply: alpha clipper parts=%d '%s' clipper='%s' (ignored)",
-				parts_no, node->name ? node->name->text : "?", clipper);
-	}
+	/* Alpha clipper (not yet implemented) — ignored */
 
 	/* Extract origin mode: 原点座標モード = int */
 	int origin_mode = pactex_get_int(node, SJIS_ORIGIN_MODE, -1);
@@ -327,18 +316,9 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			PE_SetPartsRotateY(parts_no, ry);
 	}
 
-	/* Summary log (first few parts only) */
-	if (apply_trace < 3)
-		WARNING("pactex_apply: parts=%d '%s' show=%d alpha=%d origin=%d",
-			parts_no, node->name ? node->name->text : "?",
-			show, alpha, origin_mode);
-
 	/* Find type-specific info branch (種類別情報) for CG data */
 	struct ex_tree *type_info = pactex_find_type_info(node);
 	if (!type_info) {
-		if (apply_trace++ < 3)
-			WARNING("pactex_apply: parts=%d '%s' — no type_info (container)",
-				parts_no, node->name ? node->name->text : "?");
 		return;
 	}
 
@@ -371,11 +351,6 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			PE_AddFillAlphaColorToPartsConstructionProcess(
 				parts_no, 0, 0, pw, ph, cr, cg, cb, ca, 1);
 			PE_BuildPartsConstructionProcess(parts_no, 1);
-			if (apply_trace < 5) {
-				apply_trace++;
-				WARNING("pactex_apply: Panel(parts=%d, size=%dx%d, color=%d,%d,%d,%d)",
-					parts_no, pw, ph, cr, cg, cb, ca);
-			}
 		}
 		return;
 	}
@@ -403,14 +378,8 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		if (cg_name) {
 			int pe_state = state_idx + 1; /* PE_SetPartsCG uses 1-based state */
 			struct string *s = cstr_to_string(cg_name);
-			bool ok = PE_SetPartsCG(parts_no, s, 0, pe_state);
+			PE_SetPartsCG(parts_no, s, 0, pe_state);
 			free_string(s);
-
-			if (apply_trace < 5) {
-				apply_trace++;
-				WARNING("pactex_apply: SetPartsCG(parts=%d, cg='%s', state=%d) → %s",
-					parts_no, cg_name, pe_state, ok ? "OK" : "FAIL");
-			}
 		}
 		state_idx++;
 	}
@@ -485,8 +454,6 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	for (unsigned i = 0; i < ex->nr_blocks; i++) {
 		if (ex->blocks[i].val.type == EX_TREE) {
 			tree = ex->blocks[i].val.tree;
-			WARNING("pactex: tree block '%s' (%u children)",
-				ex->blocks[i].name->text, tree ? tree->nr_children : 0);
 			break;
 		}
 	}
@@ -530,7 +497,6 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	/* Process children from the root's component branch */
 	struct ex_tree *buhin = root_buhin;
 	if (buhin && !buhin->is_leaf) {
-		WARNING("pactex: root has %u child components", buhin->nr_children);
 		for (unsigned i = 0; i < buhin->nr_children; i++) {
 			struct ex_tree *sub = &buhin->children[i];
 			if (!sub->is_leaf) {
@@ -544,25 +510,6 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 
 	/* Apply properties to root component too */
 	pactex_apply_properties(root_branch, root_no);
-
-	WARNING("pactex: loaded %d parts for activity '%s'", act->nr_parts, act->name);
-
-	/* Diagnostic: dump all parts for this activity */
-	for (int i = 0; i < act->nr_parts; i++) {
-		struct activity_part *ap = &act->parts[i];
-		struct parts *p = parts_try_get(ap->number);
-		if (!p) continue;
-		const char *type_names[] = {"UNINIT","CG","TEXT","ANIM","NUM","HGAUGE","VGAUGE","CPROC","FLASH"};
-		int st = p->states[0].type;
-		const char *tname = (st >= 0 && st < 9) ? type_names[st] : "?";
-		bool has_tex = p->states[0].common.texture.handle != 0;
-		WARNING("  part[%d] no=%d name='%s' show=%d alpha=%d z=%d type=%s tex=%s pos=(%d,%d) w=%d h=%d",
-			i, ap->number, ap->name,
-			p->local.show, p->local.alpha, p->local.z,
-			tname, has_tex ? "YES" : "NO",
-			p->local.pos.x, p->local.pos.y,
-			p->states[0].common.w, p->states[0].common.h);
-	}
 
 	return true;
 }
@@ -690,18 +637,9 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 		if (ex) {
 			bool ok = pactex_load(act, ex);
 			ex_free(ex);
-			if (ok) {
-				WARNING("ReadActivityFile('%s', '%s') → loaded %d parts from pactex",
-					name->text, fname, act->nr_parts);
+			if (ok)
 				return true;
-			}
-		} else {
-			WARNING("ReadActivityFile('%s'): ex_read failed for '%s'",
-				name->text, pactex_name);
 		}
-	} else {
-		WARNING("ReadActivityFile('%s'): pactex not found (tried '%s.pactex')",
-			name->text, base);
 	}
 
 	/* Fallback: create a minimal root so the game doesn't crash */
@@ -713,7 +651,6 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 		ap->name[0] = '\0';
 		ap->number = root_no;
 	}
-	WARNING("ReadActivityFile('%s') → fallback root parts=%d", name->text, root_no);
 	return true;
 }
 
@@ -799,16 +736,9 @@ static bool PartsEngine_IsExistActivityPartsByName(struct string *name, struct s
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
 	for (int i = 0; i < act->nr_parts; i++) {
-		if (!strcmp(act->parts[i].name, parts_name->text)) {
-			static int ieapbn_hit = 0;
-			if (ieapbn_hit++ < 10)
-				WARNING("IsExistActivityPartsByName('%s', '%s') → TRUE (i=%d)", name->text, parts_name->text, i);
+		if (!strcmp(act->parts[i].name, parts_name->text))
 			return true;
-		}
 	}
-	static int ieapbn_miss = 0;
-	if (ieapbn_miss++ < 10)
-		WARNING("IsExistActivityPartsByName('%s', '%s') → FALSE (nr_parts=%d)", name->text, parts_name->text, act->nr_parts);
 	return false;
 }
 
@@ -834,33 +764,21 @@ static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string
 	if (!parts_name->text[0]) {
 		for (int i = 0; i < act->nr_parts; i++) {
 			if (act->parts[i].name[0] == '\0' &&
-			    act->parts[i].number >= ACTIVITY_PARTS_BASE) {
-				static int gapn_root = 0;
-				if (gapn_root++ < 10)
-					WARNING("GetActivityPartsNumber('%s', '') → root %d", name->text, act->parts[i].number);
+			    act->parts[i].number >= ACTIVITY_PARTS_BASE)
 				return act->parts[i].number;
-			}
 		}
 		return -1;
 	}
 
 	/* Try exact name match */
 	for (int i = 0; i < act->nr_parts; i++) {
-		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text)) {
-			static int gapn_hit = 0;
-			if (gapn_hit++ < 10)
-				WARNING("GetActivityPartsNumber('%s', '%s') → %d", name->text, parts_name->text, act->parts[i].number);
+		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text))
 			return act->parts[i].number;
-		}
 	}
 
 	/* Not found — return -1, do NOT fallback to root.
 	 * Returning root for unknown names causes the game's tree walk
 	 * to create self-referential structures → infinite recursion. */
-	static int gapn_miss = 0;
-	if (gapn_miss++ < 20)
-		WARNING("GetActivityPartsNumber('%s', '%s') → not found",
-			name->text, parts_name->text);
 	return -1;
 }
 
@@ -870,18 +788,10 @@ static struct string *PartsEngine_GetActivityPartsName(struct string *name, int 
 	if (idx >= 0) {
 		struct activity *act = &activities[idx];
 		for (int i = 0; i < act->nr_parts; i++) {
-			if (act->parts[i].number == number) {
-				static int gapn_name = 0;
-				if (gapn_name++ < 10)
-					WARNING("GetActivityPartsName('%s', %d) → '%s'",
-						name->text, number, act->parts[i].name);
+			if (act->parts[i].number == number)
 				return cstr_to_string(act->parts[i].name);
-			}
 		}
 	}
-	static int gapn_name_miss = 0;
-	if (gapn_name_miss++ < 5)
-		WARNING("GetActivityPartsName('%s', %d) → NOT FOUND", name->text, number);
 	return string_ref(&EMPTY_STRING);
 }
 
@@ -927,8 +837,6 @@ static int PartsEngine_AddController(int index)
 	/* Auto-activate: the newly added controller becomes active so that
 	   subsequent event registrations (GetActiveController) pick it up. */
 	controllers.active = id;
-	WARNING("AddController(index=%d) → id=%d, count=%d, active=%d",
-		index, id, controllers.count, controllers.active);
 	return id;
 }
 
@@ -969,16 +877,10 @@ static int PartsEngine_GetControllerIndex(int id) {
 
 static int PartsEngine_GetControllerID(int index) {
 	if (index < 0 || index >= controllers.count) return -1;
-	static int gcid_log = 0;
-	if (gcid_log++ < 30)
-		WARNING("GetControllerID(%d) → %d", index, controllers.ids[index]);
 	return controllers.ids[index];
 }
 
 static int PartsEngine_GetControllerLength(void) {
-	static int gcl_log = 0;
-	if (gcl_log++ < 30)
-		WARNING("GetControllerLength() → %d", controllers.count);
 	return controllers.count;
 }
 static int PartsEngine_GetSystemOverlayController(void) { return 0; }
@@ -1003,11 +905,6 @@ static bool PartsEngine_AddCopyCutCGToPartsConstructionProcess_old(int parts_no,
 
 static int PartsEngine_GetActiveController(void)
 {
-	static int gac_log = 0;
-	gac_log++;
-	if (gac_log <= 30 || gac_log % 10000 == 0)
-		WARNING("GetActiveController() → %d (count=%d) [call#%d]",
-			controllers.active, controllers.count, gac_log);
 	return controllers.active;
 }
 
@@ -1292,35 +1189,10 @@ static struct page *wrap_get_backing_array(int slot)
 static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, int wf_slot, int ws_slot, int wp_slot, int state)
 {
 	struct page *ints = wrap_get_backing_array(wi_slot);
-	if (!ints || ints->nr_vars < 1) {
-		static int null_log = 0;
-		if (null_log++ < 10)
-			WARNING("AddCP: parts=%d ints=NULL (slot=%d)", parts_no, wi_slot);
+	if (!ints || ints->nr_vars < 1)
 		return;
-	}
 
 	int cmd = ints->values[0].i;
-	{
-		static int cp_log = 0;
-		if (cp_log++ < 50) {
-			struct page *strs = wrap_get_backing_array(ws_slot);
-			const char *cg = NULL;
-			if (strs && strs->nr_vars > 1) {
-				int si = strs->values[1].i;
-				if (si > 0 && heap_index_valid(si) && heap[si].s)
-					cg = heap[si].s->text;
-			}
-			// Dump first 12 ints for debugging
-			char ibuf[256] = {0};
-			int pos = 0;
-			for (int k = 0; k < 12 && k < ints->nr_vars; k++) {
-				pos += snprintf(ibuf+pos, sizeof(ibuf)-pos, "%s%d", k?",":"", ints->values[k].i);
-			}
-			WARNING("AddCP[%d]: parts=%d cmd=%d nr_ints=%d state=%d cg='%s' ints=[%s]",
-				cp_log, parts_no, cmd, ints->nr_vars, state,
-				cg ? cg : "(null)", ibuf);
-		}
-	}
 	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
 	int dy = ints->nr_vars > 7 ? ints->values[7].i : 0;
 	int dw = ints->nr_vars > 8 ? ints->values[8].i : 0;
@@ -1512,7 +1384,7 @@ static void PartsEngine_SetEventID(int number, int delegate_index, int unique_id
 	if (p) p->unique_id = unique_id;
 }
 
-static int PartsEngine_GetUniqueID(int number)
+static int possibly_unused PartsEngine_GetUniqueID(int number)
 {
 	struct parts *p = parts_try_get(number);
 	return p ? p->unique_id : 0;
@@ -1536,7 +1408,6 @@ static struct string *PartsEngine_GetUserComponentData(int n, struct string *key
 /* --- Panel support --- */
 static void PartsEngine_SetPanelSize(int parts_no, int w, int h)
 {
-	WARNING("SetPanelSize: parts=%d size=(%d,%d)", parts_no, w, h);
 	PE_ClearPartsConstructionProcess(parts_no, 1);
 	PE_AddCreateToPartsConstructionProcess(parts_no, w, h, 1);
 	PE_BuildPartsConstructionProcess(parts_no, 1);
@@ -1544,7 +1415,6 @@ static void PartsEngine_SetPanelSize(int parts_no, int w, int h)
 
 static void PartsEngine_SetPanelColor(int parts_no, int r, int g, int b, int a)
 {
-	WARNING("SetPanelColor: parts=%d rgba=(%d,%d,%d,%d)", parts_no, r, g, b, a);
 	struct parts *p = parts_try_get(parts_no);
 	if (!p) return;
 	struct parts_construction_process *cproc =
@@ -1628,14 +1498,9 @@ void parts_enqueue_message(int type, int parts_no)
 
 static void PartsEngine_PopMessage(void)
 {
-	static int pop_log = 0;
 	if (msg_head != msg_tail) {
 		msg_current = msg_queue[msg_head];
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
-		if (pop_log++ < 20)
-			WARNING("PopMessage: type=%d parts=%d (remaining=%d)",
-				msg_current.type, msg_current.parts_no,
-				(msg_tail - msg_head + MSG_QUEUE_SIZE) % MSG_QUEUE_SIZE);
 	} else {
 		msg_current.type = -1;
 		msg_current.parts_no = 0;

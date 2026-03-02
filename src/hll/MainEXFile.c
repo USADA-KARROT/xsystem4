@@ -201,11 +201,7 @@ static bool MainEXFile_Load(int image_slot)
 static int MainEXFile_Row(struct string *name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	int result = t ? t->nr_rows : 0;
-	static int row_log = 0;
-	if (row_log++ < 10)
-		WARNING("MainEXFile.Row('%s', %d) = %d", display_utf0(name->text), id, result);
-	return result;
+	return t ? t->nr_rows : 0;
 }
 
 /*
@@ -381,11 +377,6 @@ static struct string *MainEXFile_A2String(struct string *name, int row, int col,
 	if (!t) goto def;
 	struct ex_value *v = ex_table_get(t, row, col);
 	if (v && v->type == EX_STRING) {
-		static int a2s_log = 0;
-		if (a2s_log++ < 5)
-			WARNING("MainEXFile.A2String('%s', %d, %d) = '%s'",
-				display_utf0(name->text), row, col,
-				v->s ? display_utf0(v->s->text) : "NULL");
 		return string_ref(v->s);
 	}
 def:

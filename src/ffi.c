@@ -320,28 +320,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 
-	// One-time dump of Array library parameter types
-	{
-		static bool dumped_array = false;
-		if (!dumped_array && !strcmp(ain->libraries[libno].name, "Array")) {
-			dumped_array = true;
-			struct ain_library *lib = &ain->libraries[libno];
-			for (int fi = 0; fi < lib->nr_functions && fi < 40; fi++) {
-				struct ain_hll_function *hf = &lib->functions[fi];
-				char buf[512]; int off = 0;
-				for (int ai = 0; ai < hf->nr_arguments; ai++) {
-					off += snprintf(buf+off, sizeof(buf)-off, "%s%s:%d",
-						ai ? ", " : "",
-						hf->arguments[ai].name,
-						hf->arguments[ai].type.data);
-				}
-				WARNING("Array[%d] %s(%s) -> %d", fi, hf->name, buf, hf->return_type.data);
-			}
-		}
-	}
-
-	/* (HLL trace and AddCP dump removed) */
-
 	/* Record in ring buffer */
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].libno = libno;
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
@@ -546,22 +524,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 			if (array_slot > 0) {
 				heap_slots[i] = array_slot;
 				heap_ptrs[i] = heap[array_slot].page;
-				if (array_slot != slot) {
-					static int unwrap_log = 0;
-					if (unwrap_log++ < 5) {
-						WARNING("REF_ARRAY: unwrapped slot %d → array slot %d lib=%d func=%d",
-							slot, array_slot, libno, fno);
-					}
-				}
 			} else {
 				// No inner array found — pass NULL safely
 				heap_slots[i] = -1;
 				heap_ptrs[i] = NULL;
-				static int fail_log = 0;
-				if (fail_log++ < 10) {
-					WARNING("REF_ARRAY: slot %d no inner array found. lib=%d func=%d",
-						slot, libno, fno);
-				}
 			}
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];

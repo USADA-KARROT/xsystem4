@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <execinfo.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -81,17 +80,10 @@ void heap_init(void)
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
-	extern unsigned long long ha_count;
 	if (heap_free_ptr >= heap_size) {
 		heap_grow(heap_size+HEAP_ALLOC_STEP);
 	}
 
-	ha_count++;
-	{
-		extern unsigned long long ha_page, ha_string;
-		if (type == VM_PAGE) ha_page++;
-		else if (type == VM_STRING) ha_string++;
-	}
 	int32_t slot = heap_free_stack[heap_free_ptr++];
 	if (unlikely(slot == 0)) {
 		WARNING("heap_alloc_slot: BUG! allocated slot 0 (global page) type=%d free_ptr=%zu", type, heap_free_ptr);
@@ -112,19 +104,11 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	return slot;
 }
 
-static unsigned long long hf_count = 0; // free slot counter
-
 static void heap_free_slot(int32_t slot)
 {
 	if (unlikely(slot == 0)) {
 		WARNING("heap_free_slot: BUG! freeing slot 0 (global page)");
 		return;
-	}
-	hf_count++;
-	{
-		extern unsigned long long hf_page, hf_string;
-		if (heap[slot].type == VM_PAGE) hf_page++;
-		else if (heap[slot].type == VM_STRING) hf_string++;
 	}
 	heap[slot].seq = 0;
 	heap_free_stack[--heap_free_ptr] = slot;
@@ -141,16 +125,10 @@ static void heap_double_free(int32_t slot)
 #endif
 }
 
-// DIAG: count heap_ref calls by type
-static unsigned long long hr_str = 0, hr_page = 0;
-void heap_ref_type_stats(unsigned long long *s, unsigned long long *p) { *s = hr_str; *p = hr_page; }
-
 void heap_ref(int32_t slot)
 {
 	if (slot <= 0 || (size_t)slot >= heap_size)
 		return;
-	if (heap[slot].type == VM_STRING) hr_str++;
-	else hr_page++;
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
 	heap[slot].ref_addr[heap[slot].ref_nr++ % 16] = instr_ptr;
@@ -289,39 +267,10 @@ static bool slot_reachable_from_global(int target_slot)
 }
 
 
-// DIAG counters for heap_unref
-static unsigned long long hu_calls = 0;
-static unsigned long long hu_invalid = 0;
-static unsigned long long hu_refgt1 = 0;
-static unsigned long long hu_fpm = 0;
-static unsigned long long hu_grp = 0;
-static unsigned long long hu_freed = 0;
-
-unsigned long long ha_count = 0; // allocation counter
-unsigned long long ha_page = 0, ha_string = 0; // alloc by type
-unsigned long long hf_page = 0, hf_string = 0; // free by type
-
-void heap_unref_stats(unsigned long long *calls, unsigned long long *refgt1,
-	unsigned long long *fpm, unsigned long long *grp, unsigned long long *freed,
-	unsigned long long *allocs, unsigned long long *fslots)
-{
-	extern unsigned long long hf_count;
-	*calls = hu_calls; *refgt1 = hu_refgt1; *fpm = hu_fpm; *grp = hu_grp; *freed = hu_freed;
-	*allocs = ha_count; *fslots = hf_count;
-}
-
-void heap_type_stats(unsigned long long *ap, unsigned long long *as,
-	unsigned long long *fp, unsigned long long *fs)
-{
-	*ap = ha_page; *as = ha_string; *fp = hf_page; *fs = hf_string;
-}
-
 void heap_unref(int slot)
 {
-	hu_calls++;
 	// Never unref the global page (slot 0) or invalid slots
 	if (slot <= 0 || (size_t)slot >= heap_size) {
-		hu_invalid++;
 		return;
 	}
 	// Strip temp flag for ref count checks
@@ -331,7 +280,6 @@ void heap_unref(int slot)
 	}
 	if (actual_ref > 1) {
 		heap[slot].ref--;  // decrement (preserves temp flag in high bits)
-		hu_refgt1++;
 		return;
 	}
 	// actual_ref == 1, about to become 0: clear any temp flag too
@@ -394,14 +342,12 @@ void heap_unref(int slot)
 		// Check this slot against the bitmap
 		if ((size_t)slot < heap_size && frame_protect_map[slot]) {
 			heap[slot].ref = 1;
-			hu_fpm++;
 			return;
 		}
 		// Global page reachability check
 		if (ain && ain->version >= 14 && heap[slot].type == VM_PAGE) {
 			if (slot_reachable_from_global(slot)) {
 				heap[slot].ref = 1;
-				hu_grp++;
 				return;
 			}
 		}
@@ -409,12 +355,10 @@ void heap_unref(int slot)
 		// During deferred processing: O(1) bitmap lookup only
 		if ((size_t)slot < heap_size && frame_protect_map && frame_protect_map[slot]) {
 			heap[slot].ref = 1;
-			hu_fpm++;
 			return;
 		}
 	}
 	heap[slot].ref = 0;
-	hu_freed++;
 
 	// Deferred iterative free
 	{

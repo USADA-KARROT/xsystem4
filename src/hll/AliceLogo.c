@@ -36,7 +36,6 @@ static void AliceLogo_Run(int type, int loop_flag)
 	// Signal completion: set LBUTTON down so the SceneLogo delegate's
 	// Key_IsDown(1) check succeeds, allowing the scene to advance.
 	key_state[VK_LBUTTON] = true;
-	WARNING("AliceLogo_Run: set LBUTTON=true, key_state[%d]=%d", VK_LBUTTON, key_state[VK_LBUTTON]);
 }
 
 HLL_LIBRARY(AliceLogo,
