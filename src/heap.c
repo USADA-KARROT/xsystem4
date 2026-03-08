@@ -38,6 +38,10 @@ uint32_t heap_next_seq;
 int32_t *heap_free_stack = NULL;
 size_t heap_free_ptr = 0;
 
+// Global page heap slot. Initialized to 1 (not 0) to prevent null references
+// (method_call skip returns, failed lookups, etc.) from aliasing to the global page.
+int global_page_slot = 1;
+
 static const char *vm_ptrtype_strtab[] = {
 	[VM_PAGE] = "VM_PAGE",
 	[VM_STRING] = "VM_STRING",
@@ -74,7 +78,7 @@ void heap_init(void)
 	for (size_t i = 0; i < heap_size; i++) {
 		heap_free_stack[i] = i;
 	}
-	heap_free_ptr = 1; // global page at index 0
+	heap_free_ptr = 2; // slots 0 and 1 reserved (0=guard, 1=global page)
 	heap_next_seq = 1;
 }
 
@@ -85,8 +89,8 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 	}
 
 	int32_t slot = heap_free_stack[heap_free_ptr++];
-	if (unlikely(slot == 0)) {
-		WARNING("heap_alloc_slot: BUG! allocated slot 0 (global page) type=%d free_ptr=%zu", type, heap_free_ptr);
+	if (unlikely(slot <= 1)) {
+		WARNING("heap_alloc_slot: BUG! allocated reserved slot %d type=%d free_ptr=%zu", slot, type, heap_free_ptr);
 		slot = heap_free_stack[heap_free_ptr++];
 	}
 	heap[slot].ref = 1;
@@ -106,8 +110,8 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 
 static void heap_free_slot(int32_t slot)
 {
-	if (unlikely(slot == 0)) {
-		WARNING("heap_free_slot: BUG! freeing slot 0 (global page)");
+	if (unlikely(slot <= 1)) {
+		// slot 0 = null guard page, slot 1 = global page; never free these
 		return;
 	}
 	heap[slot].seq = 0;
@@ -127,7 +131,7 @@ static void heap_double_free(int32_t slot)
 
 void heap_ref(int32_t slot)
 {
-	if (slot <= 0 || (size_t)slot >= heap_size)
+	if (slot <= 1 || (size_t)slot >= heap_size)
 		return;
 	heap[slot].ref++;
 #ifdef DEBUG_HEAP
@@ -212,7 +216,7 @@ static void grp_mark_reachable(int root_slot)
 static void grp_rebuild(void)
 {
 	extern struct ain *ain;
-	if (!ain || !heap[0].page) return;
+	if (!ain || !heap[global_page_slot].page) return;
 
 	// Resize arrays if heap grew
 	if (grp_flags_size < heap_size) {
@@ -234,7 +238,7 @@ static void grp_rebuild(void)
 	grp_marked_count = 0;
 
 	// Recursively mark all slots reachable from global page
-	struct page *global = heap[0].page;
+	struct page *global = heap[global_page_slot].page;
 	for (int i = 0; i < global->nr_vars; i++) {
 		enum ain_data_type gtype = variable_type(global, i, NULL, NULL);
 		if (!type_holds_heap_slot(gtype)) continue;
@@ -269,8 +273,8 @@ static bool slot_reachable_from_global(int target_slot)
 
 void heap_unref(int slot)
 {
-	// Never unref the global page (slot 0) or invalid slots
-	if (slot <= 0 || (size_t)slot >= heap_size) {
+	// Never unref reserved slots (0=guard, 1=global page) or invalid slots
+	if (slot <= 1 || (size_t)slot >= heap_size) {
 		return;
 	}
 	// Strip temp flag for ref count checks
@@ -404,8 +408,8 @@ void heap_unref(int slot)
 // XXX: special version of heap_unref which avoids calling destructors
 void exit_unref(int slot)
 {
-	if (slot <= 0 || (size_t)slot >= heap_size) {
-		if (slot != 0) { // slot=0 is common in v14 (uninitialized members), skip silently
+	if (slot <= 1 || (size_t)slot >= heap_size) {
+		if (slot > 1) { // slot 0/1 are reserved (guard/global), skip silently
 			static int exit_oob_warn = 0;
 			if (exit_oob_warn++ < 5)
 				WARNING("exit_unref: out of bounds heap index: %d", slot);
@@ -540,10 +544,12 @@ void heap_set_page(int slot, struct page *page)
 	if (unlikely(!page_index_valid(slot)))
 		VM_ERROR("Invalid page index: %d", index);
 #endif
-	if (unlikely(slot == 0 && page && page->type != GLOBAL_PAGE)) {
-		static int hp0_warn = 0;
-		if (hp0_warn++ < 3)
-			WARNING("heap_set_page: BUG! overwriting slot 0 (global page) with type=%d idx=%d",
+	// Protect slot 1 (global page) from being overwritten by non-global pages.
+	// Slot 0 (guard page) may be written to by stray references — allow it.
+	if (unlikely(slot == 1 && page && page->type != GLOBAL_PAGE)) {
+		static int hp1_warn = 0;
+		if (hp1_warn++ < 3)
+			WARNING("heap_set_page: BUG! overwriting global page (slot 1) with type=%d idx=%d",
 				page->type, page->index);
 		return;
 	}

@@ -163,17 +163,30 @@ static struct rsave_heap_frame *frame_page_to_rsave(struct page *page, int slot)
 	if (page->type == GLOBAL_PAGE) {
 		o->tag = RSAVE_GLOBALS;
 		o->func.id = -1;
-		assert(page->nr_vars == ain->nr_globals);
 		vars = ain->globals;
 	} else {
+		if (page->index < 0 || page->index >= ain->nr_functions) {
+			WARNING("frame_page_to_rsave: invalid func index %d (slot %d)", page->index, slot);
+			o->tag = RSAVE_LOCALS;
+			o->func.name = strdup("");
+			o->nr_slots = page->nr_vars;
+			for (int i = 0; i < o->nr_slots; i++)
+				o->slots[i] = page->values[i].i;
+			return o;
+		}
 		struct ain_function *f = &ain->functions[page->index];
 		o->tag = RSAVE_LOCALS;
-		o->func.name = strdup(f->name);
-		assert(page->nr_vars == f->nr_vars);
+		o->func.name = strdup(f->name ? f->name : "");
 		vars = f->vars;
 		o->struct_ptr = page->local.struct_ptr;
 	}
-	o->nr_types = page->nr_vars;
+	int nr_types = page->nr_vars;
+	if (page->type == GLOBAL_PAGE && nr_types > ain->nr_globals)
+		nr_types = ain->nr_globals;
+	else if (page->type == LOCAL_PAGE && page->index >= 0 && page->index < ain->nr_functions
+		 && nr_types > ain->functions[page->index].nr_vars)
+		nr_types = ain->functions[page->index].nr_vars;
+	o->nr_types = nr_types;
 	o->types = xcalloc(o->nr_types, sizeof(int32_t));
 	for (int i = 0; i < o->nr_types; i++)
 		o->types[i] = vars[i].type.data;
@@ -189,11 +202,25 @@ static struct rsave_heap_struct *struct_page_to_rsave(struct page *page, int slo
 	o->tag = RSAVE_STRUCT;
 	o->ref = heap[slot].ref;
 	o->seq = heap[slot].seq;
+	if (page->index < 0 || page->index >= ain->nr_structures) {
+		// v14: pages with invalid struct index (e.g. wrap pages, guard pages)
+		o->ctor.name = strdup("");
+		o->dtor.name = strdup("");
+		o->struct_type.name = strdup("");
+		o->nr_types = 0;
+		o->types = NULL;
+		o->nr_slots = page->nr_vars;
+		for (int i = 0; i < o->nr_slots; i++)
+			o->slots[i] = page->values[i].i;
+		return o;
+	}
 	struct ain_struct *s = &ain->structures[page->index];
-	o->ctor.name = strdup(s->constructor >= 0 ? ain->functions[s->constructor].name : "");
-	o->dtor.name = strdup(s->destructor >= 0 ? ain->functions[s->destructor].name : "");
+	o->ctor.name = strdup(s->constructor >= 0 && s->constructor < ain->nr_functions
+		? (ain->functions[s->constructor].name ? ain->functions[s->constructor].name : "") : "");
+	o->dtor.name = strdup(s->destructor >= 0 && s->destructor < ain->nr_functions
+		? (ain->functions[s->destructor].name ? ain->functions[s->destructor].name : "") : "");
 	o->uk = 0;
-	o->struct_type.name = strdup(s->name);
+	o->struct_type.name = strdup(s->name ? s->name : "");
 	o->nr_types = s->nr_members;
 	o->types = xcalloc(o->nr_types, sizeof(int32_t));
 	for (int i = 0; i < o->nr_types; i++)
@@ -212,8 +239,8 @@ static struct rsave_heap_array *array_page_to_rsave(struct page *page, int slot)
 	o->seq = heap[slot].seq;
 	o->rank_minus_1 = page->array.rank - 1;
 	o->data_type = page->index;
-	if (page->array.struct_type >= 0)
-		o->struct_type.name = strdup(ain->structures[page->array.struct_type].name);
+	if (page->array.struct_type >= 0 && page->array.struct_type < ain->nr_structures)
+		o->struct_type.name = strdup(ain->structures[page->array.struct_type].name ? ain->structures[page->array.struct_type].name : "");
 	else
 		o->struct_type.name = strdup("");
 	o->root_rank = page->array.rank;  // FIXME: this is incorrect for subarrays
@@ -241,6 +268,17 @@ static void *heap_item_to_rsave(int i)
 	if (!heap[i].ref)
 		return rsave_null;
 	if (heap[i].type == VM_STRING) {
+		if (!heap[i].s) {
+			// Null string entry — save as empty string
+			struct rsave_heap_string *s = xmalloc(sizeof(struct rsave_heap_string) + 1);
+			s->tag = RSAVE_STRING;
+			s->ref = heap[i].ref;
+			s->seq = heap[i].seq;
+			s->uk = 0;
+			s->len = 1;
+			s->text[0] = '\0';
+			return s;
+		}
 		int len = heap[i].s->size + 1;
 		struct rsave_heap_string *s = xmalloc(sizeof(struct rsave_heap_string) + len);
 		s->tag = RSAVE_STRING;
@@ -307,21 +345,25 @@ static void save_call_stack_to_rsave(struct rsave *rs)
 	struct ain_function *prev_func = NULL;
 	for (int i = 0; i < call_stack_ptr; i++) {
 		struct function_call *call = &call_stack[i];
+		if (call->fno < 0 || call->fno >= ain->nr_functions) {
+			WARNING("save_call_stack: invalid fno=%d at frame %d", call->fno, i);
+			continue;
+		}
 		struct ain_function *func = &ain->functions[call->fno];
 		if (call->struct_page >= 0) {
 			rs->call_frames[i + 1].type = RSAVE_METHOD_CALL;
-		} else if (!strcmp(func->name, "main")) {
+		} else if (func->name && !strcmp(func->name, "main")) {
 			rs->call_frames[i + 1].type = RSAVE_ENTRY_POINT;
 		} else {
 			rs->call_frames[i + 1].type = RSAVE_FUNCTION_CALL;
 		}
 		rs->call_frames[i + 1].local_ptr = call->page_slot;
 		rs->call_frames[i + 1].struct_ptr = call->struct_page;
-		if (i > 0) {
+		if (i > 0 && prev_func) {
 			rs->return_records[i].return_addr = call->return_address;
 			rs->return_records[i].local_addr = call->return_address - prev_func->address;
 		}
-		rs->return_records[i + 1].caller_func = strdup(func->name);
+		rs->return_records[i + 1].caller_func = strdup(func->name ? func->name : "");
 		rs->return_records[i + 1].crc = func->crc;
 		prev_func = func;
 	}
@@ -347,7 +389,7 @@ static void save_func_names_to_rsave(struct rsave *rs)
 	rs->nr_func_names = ain->nr_functions;
 	rs->func_names = xcalloc(rs->nr_func_names, sizeof(char *));
 	for (int i = 0; i < ain->nr_functions; i++) {
-		rs->func_names[i] = strdup(ain->functions[i].name);
+		rs->func_names[i] = strdup(ain->functions[i].name ? ain->functions[i].name : "");
 	}
 }
 

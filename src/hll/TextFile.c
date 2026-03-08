@@ -80,8 +80,7 @@ static bool TextFile_WriteLine(int handle, struct string *text)
 }
 
 // [5] bool ReadAll(string fileName, wrap<string> text)
-// v14: AIN_WRAP — FFI passes heap slot index as int.
-static bool TextFile_ReadAll(struct string *fileName, int text_slot)
+static bool TextFile_ReadAll(struct string *fileName, int *text_out)
 {
 	if (!fileName) return false;
 
@@ -102,7 +101,7 @@ static bool TextFile_ReadAll(struct string *fileName, int text_slot)
 	content->text[size] = '\0';
 	fclose(fp);
 
-	wrap_set_string(text_slot, 0, content);
+	wrap_set_string(text_out, content);
 	return true;
 }
 
@@ -123,7 +122,7 @@ static int TextFile_OpenReader(struct string *fileName)
 }
 
 // [7] bool Read(int handle, wrap<string> text) — read all remaining
-static bool TextFile_Read(int handle, int text_slot)
+static bool TextFile_Read(int handle, int *text_out)
 {
 	if (handle < 0 || handle >= MAX_TEXT_FILES || !text_files[handle].active)
 		return false;
@@ -140,12 +139,12 @@ static bool TextFile_Read(int handle, int text_slot)
 	fread(content->text, 1, size, fp);
 	content->text[size] = '\0';
 
-	wrap_set_string(text_slot, 0, content);
+	wrap_set_string(text_out, content);
 	return true;
 }
 
 // [8] bool ReadLine(int handle, wrap<string> text)
-static bool TextFile_ReadLine(int handle, int text_slot)
+static bool TextFile_ReadLine(int handle, int *text_out)
 {
 	if (handle < 0 || handle >= MAX_TEXT_FILES || !text_files[handle].active)
 		return false;
@@ -161,7 +160,7 @@ static bool TextFile_ReadLine(int handle, int text_slot)
 		len--;
 	buf[len] = '\0';
 
-	wrap_set_string(text_slot, 0, make_string(buf, len));
+	wrap_set_string(text_out, make_string(buf, len));
 	return true;
 }
 

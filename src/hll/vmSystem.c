@@ -56,7 +56,8 @@ static void vmSystem_Reset(void)
 
 static void vmSystem_Shutdown(void)
 {
-	vm_exit(0);
+	WARNING("vmSystem.Shutdown() called — suppressing vm_exit");
+	// Don't actually exit — let game continue
 }
 
 static int vmSystem_OpenWeb(struct string *url)

@@ -22,10 +22,13 @@
 #include "system4/utfsjis.h"
 
 #include "cJSON.h"
+#include "audio.h"
 #include "input.h"
 #include "gfx/gfx.h"
 #include "mixer.h"
 #include "savedata.h"
+#include "scene.h"
+#include "sprite.h"
 #include "vm.h"
 #include "vm/page.h"
 #include "xsystem4.h"
@@ -85,8 +88,20 @@ static bool SystemService_ChangeFullScreen(void)
 
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
 
-//static bool SystemService_UpdateView(void);
-HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, UpdateView);
+// From parts_internal.h — avoid full include
+extern void parts_render_update(int passed_time);
+
+static bool SystemService_UpdateView(void)
+{
+	handle_events();
+	audio_update();
+	sprite_call_plugins();
+	parts_render_update(0);
+	scene_render();
+	gfx_swap();
+	SDL_Delay(16); // ~60fps, yield to OS for event delivery
+	return true;
+}
 
 static int SystemService_GetViewWidth(void)
 {
@@ -207,8 +222,8 @@ static bool SystemService_SetWindowSetting(int type, int value)
 	return true;
 }
 
-// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> (1-slot heap index)
-static bool SystemService_GetWindowSetting(int type, int value_slot)
+// v14: AIN declares arg[1] as AIN_WRAP — pointer-based interface
+static bool SystemService_GetWindowSetting(int type, int *value)
 {
 	int v;
 	switch (type) {
@@ -230,7 +245,7 @@ static bool SystemService_GetWindowSetting(int type, int value_slot)
 		WARNING("Invalid window setting type: %d", type);
 		return false;
 	}
-	wrap_set_int(value_slot, 0, v);
+	if (value) *value = v;
 	return true;
 }
 
@@ -248,14 +263,14 @@ static bool SystemService_SetMouseCursorConfig(int type, int value)
 	return true;
 }
 
-// v14: AIN declares arg[1] as AIN_WRAP — wrap<int> (1-slot heap index)
-static bool SystemService_GetMouseCursorConfig(int type, int value_slot)
+// v14: AIN declares arg[1] as AIN_WRAP — pointer-based interface
+static bool SystemService_GetMouseCursorConfig(int type, int *value)
 {
 	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
-	wrap_set_int(value_slot, 0, !!mouse_cursor_config[type]);
+	if (value) *value = !!mouse_cursor_config[type];
 	return true;
 }
 
@@ -275,23 +290,23 @@ void SystemService_GetGameFolderPath(struct string **folder_path)
 	*folder_path = cstr_to_string(config.game_dir);
 }
 
-static void SystemService_GetTime(int hour_slot, int min_slot, int sec_slot)
+static void SystemService_GetTime(int *hour_out, int *min_out, int *sec_out)
 {
 	int hour, min, sec, ms;
 	get_time(&hour, &min, &sec, &ms);
-	wrap_set_int(hour_slot, 0, hour);
-	wrap_set_int(min_slot, 0, min);
-	wrap_set_int(sec_slot, 0, sec);
+	if (hour_out) *hour_out = hour;
+	if (min_out) *min_out = min;
+	if (sec_out) *sec_out = sec;
 }
 
-static void SystemService_GetDate(int year_slot, int month_slot, int mday_slot, int wday_slot)
+static void SystemService_GetDate(int *year_out, int *month_out, int *mday_out, int *wday_out)
 {
 	int year, month, mday, wday;
 	get_date(&year, &month, &mday, &wday);
-	wrap_set_int(year_slot, 0, year);
-	wrap_set_int(month_slot, 0, month);
-	wrap_set_int(mday_slot, 0, mday);
-	wrap_set_int(wday_slot, 0, wday);
+	if (year_out) *year_out = year;
+	if (month_out) *month_out = month;
+	if (mday_out) *mday_out = mday;
+	if (wday_out) *wday_out = wday;
 }
 
 static bool SystemService_IsResetOnce(void)
@@ -389,6 +404,9 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, IsExistSystemMessage);
 static void SystemService_RestrainScreensaver(void) { }
 
 //static int SystemService_Debug_GetUseVideoMemorySize(void);
+
+static float SystemService_GetGameViewScaleRate(void) { return 1.0f; }
+static int SystemService_Debug_GetUseMemorySize(void) { return 0; }
 
 static void SystemService_Rance0123456789(struct string **text)
 {
@@ -500,6 +518,21 @@ static void SystemService_GameVariable_Erase(struct string *key)
 	game_var_count--;
 }
 
+// v14 save/load stubs — pretend to succeed so game logic continues
+static bool SystemService_Save(struct string *filename)
+{
+	return true;
+}
+
+static bool SystemService_Load(struct string *filename)
+{
+	return true;
+}
+
+HLL_QUIET_UNIMPLEMENTED( , void, SystemService, SetAntiAliasingMode, int mode);
+HLL_QUIET_UNIMPLEMENTED( , void, SystemService, SetHookCloseApp, bool hook);
+HLL_QUIET_UNIMPLEMENTED( , void, SystemService, SetAndroidViewKeepScreen, bool keep);
+
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
@@ -541,6 +574,8 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
 	    HLL_TODO_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
+	    HLL_EXPORT(GetGameViewScaleRate, SystemService_GetGameViewScaleRate),
+	    HLL_EXPORT(Debug_GetUseMemorySize, SystemService_Debug_GetUseMemorySize),
 	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
@@ -555,7 +590,12 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GameVariable_Get, SystemService_GameVariable_Get),
 	    HLL_EXPORT(GameVariable_NumofKey, SystemService_GameVariable_NumofKey),
 	    HLL_EXPORT(GameVariable_GetKey, SystemService_GameVariable_GetKey),
-	    HLL_EXPORT(GameVariable_Erase, SystemService_GameVariable_Erase)
+	    HLL_EXPORT(GameVariable_Erase, SystemService_GameVariable_Erase),
+	    HLL_EXPORT(Save, SystemService_Save),
+	    HLL_EXPORT(Load, SystemService_Load),
+	    HLL_EXPORT(SetAntiAliasingMode, SystemService_SetAntiAliasingMode),
+	    HLL_EXPORT(SetHookCloseApp, SystemService_SetHookCloseApp),
+	    HLL_EXPORT(SetAndroidViewKeepScreen, SystemService_SetAndroidViewKeepScreen)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

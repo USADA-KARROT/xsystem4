@@ -587,6 +587,7 @@ void handle_window_events(void)
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 		case SDL_QUIT:
+			WARNING("handle_window_events: SDL_QUIT received");
 			vm_exit(0);
 			break;
 		case SDL_WINDOWEVENT:
@@ -604,6 +605,7 @@ void handle_events(void)
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 		case SDL_QUIT:
+			WARNING("handle_events: SDL_QUIT received");
 			vm_exit(0);
 			break;
 		case SDL_WINDOWEVENT:

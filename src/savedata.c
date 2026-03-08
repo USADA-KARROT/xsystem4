@@ -90,7 +90,7 @@ static int get_group_index(const char *name)
 	return -1;
 }
 
-static int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, struct gsave *save);
+int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, struct gsave *save);
 
 static struct gsave_flat_array *collect_flat_arrays(struct page *page, struct gsave_flat_array *fa, struct gsave *save)
 {
@@ -110,7 +110,7 @@ static struct gsave_flat_array *collect_flat_arrays(struct page *page, struct gs
 	return ++fa;
 }
 
-static int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, struct gsave *save)
+int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, struct gsave *save)
 {
 	switch (type) {
 	case AIN_VOID:
@@ -128,7 +128,8 @@ static int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, s
 			struct page *page = heap_get_page(val.i);
 			assert(page->type == STRUCT_PAGE);
 			struct ain_struct *st = &ain->structures[page->index];
-			assert(st->nr_members == page->nr_vars);
+			// v14: page->nr_vars may exceed st->nr_members due to inheritance
+			assert(st->nr_members <= page->nr_vars);
 			struct gsave_record rec = {
 				.type = GSAVE_RECORD_STRUCT,
 				.struct_name = strdup(st->name),
@@ -439,7 +440,7 @@ static int struct_member_index(struct ain_struct *st, const char *name)
 	return -1;
 }
 
-static union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type type, int struct_type, int array_rank, int32_t value);
+union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type type, int struct_type, int array_rank, int32_t value);
 
 static struct gsave_flat_array *gsave_load_array(struct gsave *save, struct page *page, struct gsave_flat_array *flat_array)
 {
@@ -463,7 +464,7 @@ static struct gsave_flat_array *gsave_load_array(struct gsave *save, struct page
 	return flat_array + 1;
 }
 
-static union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type type, int struct_type, int array_rank, int32_t value)
+union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type type, int struct_type, int array_rank, int32_t value)
 {
 	switch (type) {
 	case AIN_VOID:

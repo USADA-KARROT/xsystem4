@@ -112,6 +112,7 @@ static struct font *get_font(unsigned face)
 struct font_size *gfx_font_get_size(unsigned face, float size)
 {
 	struct font *font = get_font(face);
+	if (!font) return NULL;
 	return font->get_size(font, size);
 }
 
@@ -172,7 +173,9 @@ float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_
 
 float gfx_size_text(struct text_style *ts, const char *text)
 {
+	if (!text || !*text) return 0.0f;
 	struct font_size *size = text_style_font_size(ts);
+	if (!size || !size->font) return 0.0f;
 	float edge_advance = gfx_text_advance_edges
 		? ts->edge_left + ts->edge_right + ceilf(ts->bold_width)
 		: 0.0f;

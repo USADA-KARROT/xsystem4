@@ -67,6 +67,7 @@ static struct ex_value *resolve(struct string *name)
 	if (resolve_cache[idx].name[0] && !strcmp(resolve_cache[idx].name, name->text))
 		return resolve_cache[idx].value;
 	struct ex_value *v = ex_get(ex, name->text);
+	// RESOLVE_DIAG removed (Session 51)
 	if (v) {
 		snprintf(resolve_cache[idx].name, sizeof(resolve_cache[idx].name), "%s", name->text);
 		resolve_cache[idx].value = v;
@@ -187,12 +188,14 @@ static bool MainEXFile_AddEXText(struct string *path)
  */
 static bool MainEXFile_Save(int image_slot)
 {
-	return false;
+	// No-op: ResumeSave is a stub so VM state (including EX data) stays in memory.
+	return true;
 }
 
 static bool MainEXFile_Load(int image_slot)
 {
-	return false;
+	// No-op: data is still in memory since ResumeSave doesn't actually save/restore.
+	return true;
 }
 
 /*
@@ -201,7 +204,9 @@ static bool MainEXFile_Load(int image_slot)
 static int MainEXFile_Row(struct string *name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	return t ? t->nr_rows : 0;
+	if (!t) return 0;
+	// TABLE_DUMP removed (Session 51)
+	return t->nr_rows;
 }
 
 /*
@@ -297,16 +302,7 @@ static struct string *MainEXFile_String(struct string *name, struct string *dflt
 	if (v && v->type == EX_STRING) {
 		return string_ref(v->s);
 	}
-	static int miss_log = 0;
-	if (miss_log++ < 5) {
-		char hex[128] = {0};
-		int nlen = name->size < 20 ? name->size : 20;
-		for (int j = 0; j < nlen; j++)
-			sprintf(hex + j*3, "%02X ", (unsigned char)name->text[j]);
-		WARNING("MainEXFile.String MISS: hex=[%s] len=%d dflt='%s'",
-			hex, name->size,
-			dflt ? (dflt->size > 0 ? "..." : "") : "NULL");
-	}
+	// String MISS trace removed (Session 51)
 	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
 
@@ -373,8 +369,25 @@ static float MainEXFile_A2Float(struct string *name, int row, int col, float dfl
  */
 static struct string *MainEXFile_A2String(struct string *name, int row, int col, struct string *dflt, int id)
 {
+	// A2S diagnostics removed (Session 51)
 	struct ex_table *t = resolve_table(name);
-	if (!t) goto def;
+	if (!t) {
+		// Fallback: if data is a LIST, treat each list item's sub-table
+		struct ex_list *list = resolve_list(name);
+		if (list) {
+			if ((unsigned)row < list->nr_items) {
+				struct ex_value *item = &list->items[row].value;
+				if (item->type == EX_TABLE) {
+					struct ex_value *v = ex_table_get(item->t, 0, col);
+					if (v && v->type == EX_STRING)
+						return string_ref(v->s);
+				} else if (item->type == EX_STRING) {
+					return string_ref(item->s);
+				}
+			}
+		}
+		goto def;
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
 	if (v && v->type == EX_STRING) {
 		return string_ref(v->s);
@@ -408,7 +421,13 @@ static int MainEXFile_GetRowAtStringKey(struct string *name, struct string *key,
 static int MainEXFile_GetColAtFormatName(struct string *name, struct string *format_name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	return t ? ex_col_from_name(t, format_name->text) : -1;
+	if (!t) return -1;
+	// v14: format_name can be NULL when .txtex format files are missing.
+	// Default to column 0 which typically contains the row key/ID.
+	if (!format_name || format_name->size == 0) {
+		return (t->nr_fields > 0) ? 0 : -1;
+	}
+	return ex_col_from_name(t, format_name->text);
 }
 
 /*
@@ -446,7 +465,7 @@ static int MainEXFile_GetEXNameCount(struct string *tree_path, int id)
  *
  * wrap<string> — the vm_value pointed to by node_name is a string heap slot
  */
-static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int name_slot, int id)
+static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int *name_out, int id)
 {
 	struct ex_tree *tree = resolve_tree(tree_path);
 	if (!tree) return false;
@@ -456,7 +475,7 @@ static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int name
 		if (tree->children[i].is_leaf)
 			continue;
 		if (count == index) {
-			wrap_set_string(name_slot, 0, string_ref(tree->children[i].name));
+			wrap_set_string(name_out, string_ref(tree->children[i].name));
 			return true;
 		}
 		count++;
@@ -467,7 +486,7 @@ static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int name
 /*
  * [30] bool GetEXName(string TreePath, int Index, wrap EXName, int ID)
  */
-static bool MainEXFile_GetEXName(struct string *tree_path, int index, int name_slot, int id)
+static bool MainEXFile_GetEXName(struct string *tree_path, int index, int *name_out, int id)
 {
 	struct ex_tree *tree = resolve_tree(tree_path);
 	if (!tree) return false;
@@ -477,7 +496,7 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, int name_s
 		if (!tree->children[i].is_leaf)
 			continue;
 		if (count == index) {
-			wrap_set_string(name_slot, 0, string_ref(tree->children[i].leaf.name));
+			wrap_set_string(name_out, string_ref(tree->children[i].leaf.name));
 			return true;
 		}
 		count++;

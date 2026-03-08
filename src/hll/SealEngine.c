@@ -299,15 +299,15 @@ static bool SealEngine_SetInstancePos(int plugin, int instance, float x, float y
 	return true;
 }
 
-/* [18] GetInstancePos - AIN_WRAP params: float outputs via wrap slots */
-static bool SealEngine_GetInstancePos(int plugin, int instance, int x_slot, int y_slot, int z_slot)
+/* [18] GetInstancePos - AIN_WRAP params: pointer-based interface */
+static bool SealEngine_GetInstancePos(int plugin, int instance, float *x, float *y, float *z)
 {
 	struct RE_instance *ri = se_get_instance(plugin, instance);
 	if (!ri)
 		return false;
-	wrap_set_float(x_slot, 0, ri->pos[0]);
-	wrap_set_float(y_slot, 0, ri->pos[1]);
-	wrap_set_float(z_slot, 0, -ri->pos[2]);
+	if (x) *x = ri->pos[0];
+	if (y) *y = ri->pos[1];
+	if (z) *z = -ri->pos[2];
 	return true;
 }
 
@@ -339,28 +339,28 @@ static bool SealEngine_SetInstanceAngleB(int plugin, int instance, float angle_b
 	return true;
 }
 
-/* [22-24] GetInstanceAngle / AngleP / AngleB - AIN_WRAP params */
-static bool SealEngine_GetInstanceAngle(int plugin, int instance, int a_slot)
+/* [22-24] GetInstanceAngle / AngleP / AngleB - pointer-based interface */
+static bool SealEngine_GetInstanceAngle(int plugin, int instance, float *a)
 {
 	struct RE_instance *ri = se_get_instance(plugin, instance);
 	if (!ri) return false;
-	wrap_set_float(a_slot, 0, -ri->yaw);
+	if (a) *a = -ri->yaw;
 	return true;
 }
 
-static bool SealEngine_GetInstanceAngleP(int plugin, int instance, int a_slot)
+static bool SealEngine_GetInstanceAngleP(int plugin, int instance, float *a)
 {
 	struct RE_instance *ri = se_get_instance(plugin, instance);
 	if (!ri) return false;
-	wrap_set_float(a_slot, 0, ri->pitch);
+	if (a) *a = ri->pitch;
 	return true;
 }
 
-static bool SealEngine_GetInstanceAngleB(int plugin, int instance, int a_slot)
+static bool SealEngine_GetInstanceAngleB(int plugin, int instance, float *a)
 {
 	struct RE_instance *ri = se_get_instance(plugin, instance);
 	if (!ri) return false;
-	wrap_set_float(a_slot, 0, ri->roll);
+	if (a) *a = ri->roll;
 	return true;
 }
 
@@ -398,10 +398,10 @@ static bool SealEngine_SetInstanceDiffuse(int p, int i, float r, float g, float 
 	struct RE_instance *ri = se_get_instance(p,i); if (!ri) return false;
 	ri->diffuse[0]=r; ri->diffuse[1]=g; ri->diffuse[2]=b; return true;
 }
-static bool SealEngine_GetInstanceDiffuse(int p, int i, int r_slot, int g_slot, int b_slot)
+static bool SealEngine_GetInstanceDiffuse(int p, int i, float *r, float *g, float *b)
 {
 	struct RE_instance *ri = se_get_instance(p,i); if (!ri) return false;
-	wrap_set_float(r_slot, 0, ri->diffuse[0]); wrap_set_float(g_slot, 0, ri->diffuse[1]); wrap_set_float(b_slot, 0, ri->diffuse[2]); return true;
+	if (r) *r = ri->diffuse[0]; if (g) *g = ri->diffuse[1]; if (b) *b = ri->diffuse[2]; return true;
 }
 
 /* [35-36] Ambient */
@@ -410,10 +410,10 @@ static bool SealEngine_SetInstanceAmbient(int p, int i, float r, float g, float 
 	struct RE_instance *ri = se_get_instance(p,i); if (!ri) return false;
 	ri->ambient[0]=r; ri->ambient[1]=g; ri->ambient[2]=b; return true;
 }
-static bool SealEngine_GetInstanceAmbient(int p, int i, int r_slot, int g_slot, int b_slot)
+static bool SealEngine_GetInstanceAmbient(int p, int i, float *r, float *g, float *b)
 {
 	struct RE_instance *ri = se_get_instance(p,i); if (!ri) return false;
-	wrap_set_float(r_slot, 0, ri->ambient[0]); wrap_set_float(g_slot, 0, ri->ambient[1]); wrap_set_float(b_slot, 0, ri->ambient[2]); return true;
+	if (r) *r = ri->ambient[0]; if (g) *g = ri->ambient[1]; if (b) *b = ri->ambient[2]; return true;
 }
 
 /* [37-38] Alpha */
@@ -422,10 +422,10 @@ static bool SealEngine_SetInstanceAlpha(int p, int i, float a)
 	struct RE_instance *ri = se_get_instance(p,i); if (!ri) return false;
 	ri->alpha = a; return true;
 }
-static bool SealEngine_GetInstanceAlpha(int p, int i, int a_slot)
+static bool SealEngine_GetInstanceAlpha(int p, int i, float *a)
 {
 	struct RE_instance *ri = se_get_instance(p,i); if (!ri) return false;
-	wrap_set_float(a_slot, 0, ri->alpha); return true;
+	if (a) *a = ri->alpha; return true;
 }
 
 /* [39-40] GrayscaleRate (Seal-specific) */
@@ -434,10 +434,10 @@ static bool SealEngine_SetInstanceGrayscaleRate(int p, int i, float rate)
 	if ((unsigned)p >= SE_MAX_PLUGINS || (unsigned)i >= SE_MAX_INSTANCES_PER_PLUGIN) return false;
 	se_instance_ext[p][i].grayscale_rate = rate; return true;
 }
-static bool SealEngine_GetInstanceGrayscaleRate(int p, int i, int r_slot)
+static bool SealEngine_GetInstanceGrayscaleRate(int p, int i, float *r)
 {
 	if ((unsigned)p >= SE_MAX_PLUGINS || (unsigned)i >= SE_MAX_INSTANCES_PER_PLUGIN) return false;
-	wrap_set_float(r_slot, 0, se_instance_ext[p][i].grayscale_rate); return true;
+	if (r) *r = se_instance_ext[p][i].grayscale_rate; return true;
 }
 
 /* [41-46] Draw flags */
@@ -564,12 +564,12 @@ static int SealEngine_GetInstanceBoneIndex(int p, int i, struct string *name) {
 }
 
 static bool SealEngine_TransInstanceLocalPosToWorldPosByBone(int p, int i, int bone,
-	float ox, float oy, float oz, int x_slot, int y_slot, int z_slot)
+	float ox, float oy, float oz, float *x, float *y, float *z)
 {
 	vec3 offset = {ox, oy, -oz}, result;
 	if (!RE_instance_trans_local_pos_to_world_pos_by_bone(se_get_instance(p, i), bone, offset, result))
 		return false;
-	wrap_set_float(x_slot, 0, result[0]); wrap_set_float(y_slot, 0, result[1]); wrap_set_float(z_slot, 0, -result[2]);
+	if (x) *x = result[0]; if (y) *y = result[1]; if (z) *z = -result[2];
 	return true;
 }
 
@@ -619,10 +619,10 @@ HLL_WARN_UNIMPLEMENTED(true, bool, SealEngine, GetInstanceAABB, int p, int i,
 	/*hll_param*/ int minx, /*hll_param*/ int miny, /*hll_param*/ int minz,
 	/*hll_param*/ int maxx, /*hll_param*/ int maxy, /*hll_param*/ int maxz);
 
-/* [121] CalcInstanceHeightDetection - AIN_WRAP param */
-static bool SealEngine_CalcInstanceHeightDetection(int p, int i, float x, float z, int h_slot)
+/* [121] CalcInstanceHeightDetection - pointer-based interface */
+static bool SealEngine_CalcInstanceHeightDetection(int p, int i, float x, float z, float *h)
 {
-	wrap_set_float(h_slot, 0, RE_instance_calc_height(se_get_instance(p, i), x, -z));
+	if (h) *h = RE_instance_calc_height(se_get_instance(p, i), x, -z);
 	return true;
 }
 
@@ -667,12 +667,12 @@ static bool SealEngine_SetInstanceDebugDrawShadowVolume(int p, int i, bool f) {
 HLL_WARN_UNIMPLEMENTED(true, bool, SealEngine, CreateInstanceDebugBoneList, int p, int i, int bone_inst, int on_cursor, int selected);
 HLL_WARN_UNIMPLEMENTED(true, bool, SealEngine, CreateInstanceDebugBoneCollision, int p, int i, int bone_inst, int on_cursor, int selected);
 
-/* [134] GetEffectFrameRange - AIN_WRAP params */
-static bool SealEngine_GetEffectFrameRange(int p, int i, int b_slot, int e_slot) {
+/* [134] GetEffectFrameRange - pointer-based interface */
+static bool SealEngine_GetEffectFrameRange(int p, int i, int *b, int *e) {
 	int begin_val = 0, end_val = 0;
 	bool ret = RE_effect_get_frame_range(se_get_instance(p, i), &begin_val, &end_val);
-	wrap_set_int(b_slot, 0, begin_val);
-	wrap_set_int(e_slot, 0, end_val);
+	if (b) *b = begin_val;
+	if (e) *e = end_val;
 	return ret;
 }
 
@@ -689,27 +689,27 @@ static bool SealEngine_SetCameraAngleP(int p, float a) {
 	struct RE_plugin *pl = se_get_plugin(p); if (!pl) return false;
 	pl->camera.pitch = a; return true;
 }
-static bool SealEngine_GetCameraPos(int p, int x_slot, int y_slot, int z_slot) {
+static bool SealEngine_GetCameraPos(int p, float *x, float *y, float *z) {
 	struct RE_plugin *pl = se_get_plugin(p); if (!pl) return false;
-	wrap_set_float(x_slot, 0, pl->camera.pos[0]); wrap_set_float(y_slot, 0, pl->camera.pos[1]); wrap_set_float(z_slot, 0, -pl->camera.pos[2]); return true;
+	if (x) *x = pl->camera.pos[0]; if (y) *y = pl->camera.pos[1]; if (z) *z = -pl->camera.pos[2]; return true;
 }
-static bool SealEngine_GetCameraAngle(int p, int a_slot) {
+static bool SealEngine_GetCameraAngle(int p, float *a) {
 	struct RE_plugin *pl = se_get_plugin(p); if (!pl) return false;
-	wrap_set_float(a_slot, 0, -pl->camera.yaw); return true;
+	if (a) *a = -pl->camera.yaw; return true;
 }
-static bool SealEngine_GetCameraAngleP(int p, int a_slot) {
+static bool SealEngine_GetCameraAngleP(int p, float *a) {
 	struct RE_plugin *pl = se_get_plugin(p); if (!pl) return false;
-	wrap_set_float(a_slot, 0, pl->camera.pitch); return true;
+	if (a) *a = pl->camera.pitch; return true;
 }
-static bool SealEngine_GetCameraXVector(int p, int x_slot, int y_slot, int z_slot) {
+static bool SealEngine_GetCameraXVector(int p, float *x, float *y, float *z) {
 	/* TODO: compute from camera matrix */
-	wrap_set_float(x_slot, 0, 1); wrap_set_float(y_slot, 0, 0); wrap_set_float(z_slot, 0, 0); return true;
+	if (x) *x = 1; if (y) *y = 0; if (z) *z = 0; return true;
 }
-static bool SealEngine_GetCameraYVector(int p, int x_slot, int y_slot, int z_slot) {
-	wrap_set_float(x_slot, 0, 0); wrap_set_float(y_slot, 0, 1); wrap_set_float(z_slot, 0, 0); return true;
+static bool SealEngine_GetCameraYVector(int p, float *x, float *y, float *z) {
+	if (x) *x = 0; if (y) *y = 1; if (z) *z = 0; return true;
 }
-static bool SealEngine_GetCameraZVector(int p, int x_slot, int y_slot, int z_slot) {
-	wrap_set_float(x_slot, 0, 0); wrap_set_float(y_slot, 0, 0); wrap_set_float(z_slot, 0, 1); return true;
+static bool SealEngine_GetCameraZVector(int p, float *x, float *y, float *z) {
+	if (x) *x = 0; if (y) *y = 0; if (z) *z = 1; return true;
 }
 
 /* [144-151] DOF (Seal-specific) */
@@ -720,10 +720,10 @@ static bool SealEngine_SetDrawDOF(int p, bool f) {
 static bool SealEngine_SetDOF_L(int p, float v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; se_plugin_ext[p].dof_L = v; return true; }
 static bool SealEngine_SetDOF_F(int p, float v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; se_plugin_ext[p].dof_F = v; return true; }
 static bool SealEngine_SetDOF_f(int p, float v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; se_plugin_ext[p].dof_f = v; return true; }
-static bool SealEngine_GetDrawDOF(int p, int f_slot) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; wrap_set_int(f_slot, 0, se_plugin_ext[p].draw_dof); return true; }
-static bool SealEngine_GetDOF_L(int p, int v_slot) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; wrap_set_float(v_slot, 0, se_plugin_ext[p].dof_L); return true; }
-static bool SealEngine_GetDOF_F(int p, int v_slot) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; wrap_set_float(v_slot, 0, se_plugin_ext[p].dof_F); return true; }
-static bool SealEngine_GetDOF_f(int p, int v_slot) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; wrap_set_float(v_slot, 0, se_plugin_ext[p].dof_f); return true; }
+static bool SealEngine_GetDrawDOF(int p, int *f) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; if (f) *f = se_plugin_ext[p].draw_dof; return true; }
+static bool SealEngine_GetDOF_L(int p, float *v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; if (v) *v = se_plugin_ext[p].dof_L; return true; }
+static bool SealEngine_GetDOF_F(int p, float *v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; if (v) *v = se_plugin_ext[p].dof_F; return true; }
+static bool SealEngine_GetDOF_f(int p, float *v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; if (v) *v = se_plugin_ext[p].dof_f; return true; }
 
 /* [152-166] Shadow */
 static bool SealEngine_SetShadowLightVector(int p, float x, float y, float z) {
@@ -731,9 +731,9 @@ static bool SealEngine_SetShadowLightVector(int p, float x, float y, float z) {
 	se_plugin_ext[p].shadow_light_vec[0]=x; se_plugin_ext[p].shadow_light_vec[1]=y; se_plugin_ext[p].shadow_light_vec[2]=z;
 	return true;
 }
-static bool SealEngine_GetShadowLightVector(int p, int x_slot, int y_slot, int z_slot) {
+static bool SealEngine_GetShadowLightVector(int p, float *x, float *y, float *z) {
 	if ((unsigned)p >= SE_MAX_PLUGINS) return false;
-	wrap_set_float(x_slot, 0, se_plugin_ext[p].shadow_light_vec[0]); wrap_set_float(y_slot, 0, se_plugin_ext[p].shadow_light_vec[1]); wrap_set_float(z_slot, 0, se_plugin_ext[p].shadow_light_vec[2]);
+	if (x) *x = se_plugin_ext[p].shadow_light_vec[0]; if (y) *y = se_plugin_ext[p].shadow_light_vec[1]; if (z) *z = se_plugin_ext[p].shadow_light_vec[2];
 	return true;
 }
 static bool SealEngine_SetShadowRate(int p, float r) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; se_plugin_ext[p].shadow_rate = r; return true; }
@@ -769,9 +769,9 @@ static bool SealEngine_SetFogColor(int p, float r, float g, float b) {
 static int SealEngine_GetFogType(int p) { struct RE_plugin *pl = se_get_plugin(p); return pl ? pl->fog_type : 0; }
 static float SealEngine_GetFogNear(int p) { struct RE_plugin *pl = se_get_plugin(p); return pl ? pl->fog_near : 0; }
 static float SealEngine_GetFogFar(int p) { struct RE_plugin *pl = se_get_plugin(p); return pl ? pl->fog_far : 0; }
-static void SealEngine_GetFogColor(int p, int r_slot, int g_slot, int b_slot) {
+static void SealEngine_GetFogColor(int p, float *r, float *g, float *b) {
 	struct RE_plugin *pl = se_get_plugin(p); if (!pl) return;
-	wrap_set_float(r_slot, 0, pl->fog_color[0]); wrap_set_float(g_slot, 0, pl->fog_color[1]); wrap_set_float(b_slot, 0, pl->fog_color[2]);
+	if (r) *r = pl->fog_color[0]; if (g) *g = pl->fog_color[1]; if (b) *b = pl->fog_color[2];
 }
 static bool SealEngine_SetSoftFogEdgeLength(int p, float v) { if ((unsigned)p >= SE_MAX_PLUGINS) return false; se_plugin_ext[p].soft_fog_edge_length = v; return true; }
 static float SealEngine_GetSoftFogEdgeLength(int p) { return (unsigned)p < SE_MAX_PLUGINS ? se_plugin_ext[p].soft_fog_edge_length : 0; }
@@ -783,9 +783,9 @@ static bool SealEngine_SetEdgeColor(int p, float r, float g, float b) {
 	if ((unsigned)p >= SE_MAX_PLUGINS) return false;
 	se_plugin_ext[p].edge_color[0]=r; se_plugin_ext[p].edge_color[1]=g; se_plugin_ext[p].edge_color[2]=b; return true;
 }
-static bool SealEngine_GetEdgeColor(int p, int r_slot, int g_slot, int b_slot) {
+static bool SealEngine_GetEdgeColor(int p, float *r, float *g, float *b) {
 	if ((unsigned)p >= SE_MAX_PLUGINS) return false;
-	wrap_set_float(r_slot, 0, se_plugin_ext[p].edge_color[0]); wrap_set_float(g_slot, 0, se_plugin_ext[p].edge_color[1]); wrap_set_float(b_slot, 0, se_plugin_ext[p].edge_color[2]); return true;
+	if (r) *r = se_plugin_ext[p].edge_color[0]; if (g) *g = se_plugin_ext[p].edge_color[1]; if (b) *b = se_plugin_ext[p].edge_color[2]; return true;
 }
 
 /* [183-184] Viewport / Projection */
@@ -863,16 +863,16 @@ HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, CalcIntersectEyeVec,
 	int p, int i, int mx, int my, /*hll_param*/ int fx, /*hll_param*/ int fy, /*hll_param*/ int fz);
 
 /* [218-223] 2D detection and pathfinding (from TapirEngine) */
-static bool SealEngine_Calc2DDetectionHeight(int p, float x, float z, int h_slot)
+static bool SealEngine_Calc2DDetectionHeight(int p, float x, float z, float *h)
 {
 	/* Use plugin 0's designated detection instance */
-	wrap_set_float(h_slot, 0, 0);
+	if (h) *h = 0;
 	return true;
 }
 static bool SealEngine_Calc2DDetection(int p, float x0, float y0, float z0,
-	float x1, float y1, float z1, float radius, int x2_slot, int y2_slot, int z2_slot)
+	float x1, float y1, float z1, float radius, float *x2, float *y2, float *z2)
 {
-	wrap_set_float(x2_slot, 0, x1); wrap_set_float(y2_slot, 0, y1); wrap_set_float(z2_slot, 0, z1);
+	if (x2) *x2 = x1; if (y2) *y2 = y1; if (z2) *z2 = z1;
 	return true;
 }
 HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, Calc2DDetectionIntersectEyeVector,
@@ -884,12 +884,12 @@ HLL_WARN_UNIMPLEMENTED(true, bool, SealEngine, GetPathLine,
 HLL_WARN_UNIMPLEMENTED(true, bool, SealEngine, GetOptimizedPathLine,
 	int p, /*hll_param*/ int xa, /*hll_param*/ int ya, /*hll_param*/ int za);
 
-/* [224] TransformPosToViewPos - AIN_WRAP params */
-static bool SealEngine_TransformPosToViewPos(int p, float x, float y, float z, int vx_slot, int vy_slot)
+/* [224] TransformPosToViewPos - pointer-based interface */
+static bool SealEngine_TransformPosToViewPos(int p, float x, float y, float z, int *vx, int *vy)
 {
 	/* TODO: project 3D -> 2D using camera/projection */
-	wrap_set_int(vx_slot, 0, (int)x);
-	wrap_set_int(vy_slot, 0, (int)y);
+	if (vx) *vx = (int)x;
+	if (vy) *vy = (int)y;
 	return true;
 }
 

@@ -276,6 +276,9 @@ static void parts_fini_all_motion(void)
 
 void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_y, int begin_t, int end_t)
 {
+	{ static int mp_t = 0; if (parts_no >= 1000001000 && mp_t++ < 10)
+		WARNING("PE_AddMotionPos[%d]: no=%d (%d,%d)->(%d,%d) t=%d-%d",
+			mp_t, parts_no, begin_x, begin_y, end_x, end_y, begin_t, end_t); }
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_POS, begin_t, end_t);
 	motion->begin.x = begin_x;
@@ -294,6 +297,9 @@ void PE_AddMotionPos_curve(int parts_no, int begin_x, int begin_y, int end_x, in
 
 void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t)
 {
+	{ static int ma_t = 0; if (parts_no >= 1000001000 && ma_t++ < 10)
+		WARNING("PE_AddMotionAlpha[%d]: no=%d %d->%d t=%d-%d",
+			ma_t, parts_no, begin_a, end_a, begin_t, end_t); }
 	struct parts *parts = parts_get(parts_no);
 	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ALPHA, begin_t, end_t);
 	motion->begin.i = begin_a;

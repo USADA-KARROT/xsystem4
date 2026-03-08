@@ -72,7 +72,7 @@ static struct variable *get_global_by_name(const char *name)
 			v->struct_type = ain->globals[i].type.struc;
 			v->name = to_utf(ain->globals[i].name);
 			v->varno = i;
-			v->value = &heap[0].page->values[i];
+			v->value = &heap[global_page_slot].page->values[i];
 			return v;
 		}
 	}

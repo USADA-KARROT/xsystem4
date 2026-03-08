@@ -20,6 +20,7 @@
 
 #include "system4.h"
 #include "system4/hashtable.h"
+#include "system4/string.h"
 
 #include "gfx/gfx.h"
 #include "scene.h"
@@ -270,6 +271,7 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 
 void parts_render(struct parts *parts)
 {
+	// parts_render trace removed (Session 51)
 	if (!parts->global.show)
 		return;
 	if (parts->message_window && !parts_message_window_show)
@@ -282,6 +284,7 @@ void parts_render(struct parts *parts)
 	}
 
 	struct parts_state *state = &parts->states[parts->state];
+
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
 		break;
@@ -332,6 +335,7 @@ void parts_render_update(int passed_time)
 {
 	if (passed_time < 0)
 		return;
+
 	if (pe_dirty) {
 		struct parts *p;
 		PARTS_LIST_FOREACH(p) {

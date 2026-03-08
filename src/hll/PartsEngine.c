@@ -416,14 +416,32 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	/* Find child components branch — determines if this is a container */
 	struct ex_tree *buhin = pactex_find_buhin(node);
 
-	/* Component type: 0 for containers, 1 for leaves.
-	 * Type 17 = UserComponent — triggers GetUserComponentManager search in
-	 * global[22].  We must NOT use 17 for normal containers because no
-	 * component managers are registered, causing 300K+ failed lookups. */
-	if (buhin && buhin->nr_children > 0)
+	/* Component type: 0 for containers, 1 for leaf sprites, 17 for UserComponent.
+	 * Type 17 = UserComponent — tells game code to instantiate a registered
+	 * component template via GetUserComponentManager/AddUserComponent system.
+	 * Rule: leaf nodes (no children) without a CG texture → UserComponent. */
+	if (buhin && buhin->nr_children > 0) {
 		p->component_type = 0;   /* generic container */
-	else
-		p->component_type = 1;   /* Sprite (leaf) */
+	} else {
+		/* Check if this leaf has CG data (texture) — if so, it's a sprite.
+		 * If no CG, it's a UserComponent placeholder. */
+		struct ex_tree *type_info = pactex_find_type_info(node);
+		const char *cg_name = NULL;
+		if (type_info) {
+			for (unsigned ti = 0; ti < type_info->nr_children; ti++) {
+				struct ex_tree *state = &type_info->children[ti];
+				if (!state->is_leaf) {
+					cg_name = pactex_find_cg_name(state, 0);
+					if (cg_name) break;
+				}
+			}
+		}
+		if (cg_name) {
+			p->component_type = 1;   /* Sprite (leaf with CG) */
+		} else {
+			p->component_type = 0;   /* Default — let game code determine type */
+		}
+	}
 
 	/* Recurse into child component definitions */
 	if (buhin) {
@@ -446,6 +464,8 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	}
 }
 
+// pactex_dump_components removed (Session 51)
+
 /* Parse pactex EX data and populate activity with parts entries. */
 static bool pactex_load(struct activity *act, struct ex *ex)
 {
@@ -461,6 +481,8 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		WARNING("pactex: no valid tree block found (nr_blocks=%u)", ex->nr_blocks);
 		return false;
 	}
+
+	// pactex dump removed (Session 51)
 
 	/* The tree root has one branch per activity variant (usually just one).
 	 * Create a root PE parts entry for the first branch. */
@@ -605,6 +627,10 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 
 	struct activity *act = &activities[aidx];
 
+	static int raf_trace = 0;
+	if (raf_trace++ < 30)
+		WARNING("ReadActivityFile('%s', '%s', edit=%d)", name->text, filename->text, edit);
+
 	/* Try to load .pactex from the Pact archive.
 	 * The game passes filenames like "SceneLogo" or paths like
 	 * "Scene/20_Title/Title/SceneLogo". Archive entries are "SceneLogo.pactex". */
@@ -666,7 +692,14 @@ static bool PartsEngine_IsExistActivityFile(struct string *filename)
 	base = base ? base + 1 : fname;
 	char pactex_name[512];
 	snprintf(pactex_name, sizeof(pactex_name), "%s.pactex", base);
-	return asset_exists_by_name(ASSET_PACT, pactex_name, NULL);
+	if (asset_exists_by_name(ASSET_PACT, pactex_name, NULL))
+		return true;
+	if (base != fname) {
+		snprintf(pactex_name, sizeof(pactex_name), "%s.pactex", fname);
+		if (asset_exists_by_name(ASSET_PACT, pactex_name, NULL))
+			return true;
+	}
+	return false;
 }
 
 static bool PartsEngine_SaveActivityEXText(int text_slot, struct string *name)
@@ -681,6 +714,9 @@ static bool PartsEngine_LoadActivityEXText(struct string *name, struct string *t
 
 static bool PartsEngine_AddActivityParts(struct string *name, struct string *parts_name, int number)
 {
+	static int aap_trace = 0;
+	if (aap_trace++ < 30)
+		WARNING("AddActivityParts('%s', '%s', %d)", name->text, parts_name->text, number);
 	int idx = find_activity(name);
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
@@ -919,6 +955,9 @@ static void PartsEngine_SetActiveController(int controller)
 
 static void PartsEngine_SetComponentType(int number, int type, int state)
 {
+	static int sct_trace = 0;
+	if (type == 17 && sct_trace++ < 20)
+		WARNING("SetComponentType(%d, %d, %d) — UserComponent", number, type, state);
 	struct parts *p = parts_try_get(number);
 	if (p) p->component_type = type;
 }
@@ -926,7 +965,13 @@ static void PartsEngine_SetComponentType(int number, int type, int state)
 static int PartsEngine_GetComponentType(int number, int state)
 {
 	struct parts *p = parts_try_get(number);
-	if (p) return p->component_type;
+	if (p) {
+		static int gct_trace = 0;
+		if (p->component_type == 17 && gct_trace++ < 30)
+			WARNING("GetComponentType(%d, %d) -> 17 (UserComponent '%s')",
+				number, state, p->user_component_name);
+		return p->component_type;
+	}
 	/* Non-existent parts: return -1 to signal "not a valid component".
 	 * The game's factory uses this to decide what type of wrapper to create.
 	 * Returning 0 could trigger the default case which creates phantom structs. */
@@ -1056,7 +1101,7 @@ static void PartsEngine_SetComponentScrollAlphaLinkNumber(int n, int link) {}
 static int PartsEngine_GetComponentScrollAlphaLinkNumber(int n) { return -1; }
 static void PartsEngine_SetComponentCheckBoxShowLinkNumber(int n, int link) {}
 static int PartsEngine_GetComponentCheckBoxShowLinkNumber(int n) { return -1; }
-static void PartsEngine_GetComponentAbsolutePos(int n, int x_slot, int y_slot) { wrap_set_float(x_slot, 0, 0); wrap_set_float(y_slot, 0, 0); }
+static void PartsEngine_GetComponentAbsolutePos(int n, float *x, float *y) { if (x) *x = 0; if (y) *y = 0; }
 static float PartsEngine_GetComponentAbsolutePosX(int n) { return 0; }
 static float PartsEngine_GetComponentAbsolutePosY(int n) { return 0; }
 static int PartsEngine_GetComponentAbsolutePosZ(int n) { return 0; }
@@ -1392,9 +1437,15 @@ static int possibly_unused PartsEngine_GetUniqueID(int number)
 
 static void PartsEngine_SetUserComponentName(int n, struct string *name) {
 	struct parts *p = parts_try_get(n);
-	if (p)
+	if (!p) return;
+	/* If name is NULL or empty, preserve existing name (pactex-set).
+	 * Game constructors call SetUserComponentName(n, NULL) during init,
+	 * which would clear the name set by pactex_create_component. */
+	if (name && name->text && name->text[0]) {
 		snprintf(p->user_component_name, sizeof(p->user_component_name),
 			"%s", name->text);
+	}
+	/* else: keep existing user_component_name unchanged */
 }
 static struct string *PartsEngine_GetUserComponentName(int n) {
 	struct parts *p = parts_try_get(n);
@@ -1468,14 +1519,19 @@ static void PartsEngine_UpdateMatrix(bool message_window_show,
  * When a parts button is clicked, we enqueue a message.
  * The game polls PopMessage() each frame and reads type/parts/variables.
  *
- * Message types (inferred from behavior):
- *   0 = none (queue empty)
- *   1 = button click
+ * Message types (inferred from bytecode SWITCH in CPartsMessageManager@CallDelegate):
+ *   -1 = none (queue empty)
+ *    1 = button click (per-part)
+ *    4 = mouse left click (whole screen, triggers WholeMouseLClickEvent)
+ *    5 = mouse right click
+ *    6 = mouse middle click
  */
 #define MSG_QUEUE_SIZE 64
 struct parts_message {
 	int type;
 	int parts_no;
+	int delegate_index;
+	int unique_id;
 	int vars[4];
 	int nr_vars;
 };
@@ -1483,7 +1539,13 @@ static struct parts_message msg_queue[MSG_QUEUE_SIZE];
 static int msg_head = 0, msg_tail = 0;
 static struct parts_message msg_current = { .type = -1 };
 
-void parts_enqueue_message(int type, int parts_no)
+void parts_enqueue_message(int type, int parts_no, int delegate_index, int unique_id)
+{
+	parts_enqueue_message_vars(type, parts_no, delegate_index, unique_id, 0, NULL);
+}
+
+void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
+                                int nr_vars, const int *vars)
 {
 	int next = (msg_tail + 1) % MSG_QUEUE_SIZE;
 	if (next == msg_head) {
@@ -1492,7 +1554,12 @@ void parts_enqueue_message(int type, int parts_no)
 	}
 	msg_queue[msg_tail].type = type;
 	msg_queue[msg_tail].parts_no = parts_no;
-	msg_queue[msg_tail].nr_vars = 0;
+	msg_queue[msg_tail].delegate_index = delegate_index;
+	msg_queue[msg_tail].unique_id = unique_id;
+	int nv = (nr_vars > 4) ? 4 : nr_vars;
+	msg_queue[msg_tail].nr_vars = nv;
+	for (int i = 0; i < nv; i++)
+		msg_queue[msg_tail].vars[i] = vars[i];
 	msg_tail = next;
 }
 
@@ -1500,6 +1567,12 @@ static void PartsEngine_PopMessage(void)
 {
 	if (msg_head != msg_tail) {
 		msg_current = msg_queue[msg_head];
+		static int pop_trace = 0;
+		if (pop_trace++ < 20) {
+			WARNING("PopMessage[%d]: head=%d type=%d parts=%d delegate=%d uid=%d",
+				pop_trace, msg_head, msg_current.type, msg_current.parts_no,
+				msg_current.delegate_index, msg_current.unique_id);
+		}
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
 	} else {
 		msg_current.type = -1;
@@ -1514,12 +1587,110 @@ static void PartsEngine_ReleaseMessage(void)
 	msg_current.nr_vars = 0;
 }
 
-static int PartsEngine_GetMessageType(void) { return msg_current.type; }
-static int PartsEngine_GetMessagePartsNumber(void) { return msg_current.parts_no; }
+// Getter functions PEEK at the queue head (not msg_current).
+// The bytecode message loop calls GetMessageType() BEFORE PopMessage()
+// to check if there are messages to process. After the handler runs,
+// PopMessage() copies queue[head] → msg_current and advances head.
+static int PartsEngine_GetMessageType(void)
+{
+	static int gmt_call = 0;
+	if (gmt_call++ < 10) {
+		WARNING("GetMessageType_CALL[%d]: head=%d tail=%d",
+			gmt_call, msg_head, msg_tail);
+	}
+	if (msg_head != msg_tail) {
+		static int gmt_trace = 0;
+		if (gmt_trace++ < 20) {
+			WARNING("GetMessageType[%d]: head=%d tail=%d type=%d parts=%d",
+				gmt_trace, msg_head, msg_tail,
+				msg_queue[msg_head].type, msg_queue[msg_head].parts_no);
+		}
+		return msg_queue[msg_head].type;
+	}
+	return -1;
+}
+static int PartsEngine_GetMessagePartsNumber(void)
+{
+	if (msg_head != msg_tail) {
+		static int gmpn_trace = 0;
+		if (gmpn_trace++ < 10) {
+			WARNING("GetMessagePartsNumber[%d]: head=%d tail=%d parts_no=%d type=%d",
+				gmpn_trace, msg_head, msg_tail,
+				msg_queue[msg_head].parts_no, msg_queue[msg_head].type);
+		}
+		return msg_queue[msg_head].parts_no;
+	}
+	return 0;
+}
+static int PartsEngine_GetMessageDelegateIndex(void)
+{
+	if (msg_head != msg_tail) {
+		static int gmdi_trace = 0;
+		if (gmdi_trace++ < 10) {
+			WARNING("GetMessageDelegateIndex[%d]: head=%d tail=%d delegate=%d type=%d",
+				gmdi_trace, msg_head, msg_tail,
+				msg_queue[msg_head].delegate_index, msg_queue[msg_head].type);
+		}
+		return msg_queue[msg_head].delegate_index;
+	}
+	return 0;
+}
+static int PartsEngine_GetMessageUniqueID(void)
+{
+	if (msg_head != msg_tail)
+		return msg_queue[msg_head].unique_id;
+	return 0;
+}
+
+static bool PartsEngine_SeekMessage(int target_parts_no)
+{
+	// Advance through the queue until a message for the target parts is found.
+	while (msg_head != msg_tail) {
+		if (msg_queue[msg_head].parts_no == target_parts_no) {
+			msg_current = msg_queue[msg_head];
+			msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
+			return true;
+		}
+		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
+	}
+	msg_current.type = -1;
+	return false;
+}
+
 static int PartsEngine_GetMessageVariableInt(int idx)
 {
+	// Read from queue head (like GetMessageType/PartsNumber), not msg_current.
+	// GetMessageVariable is called BEFORE PopMessage during message dispatch.
+	if (msg_head != msg_tail) {
+		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0;
+		return msg_queue[msg_head].vars[idx];
+	}
 	if (idx < 0 || idx >= msg_current.nr_vars) return 0;
 	return msg_current.vars[idx];
+}
+static float PartsEngine_GetMessageVariableFloat(int idx)
+{
+	if (msg_head != msg_tail) {
+		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0.0f;
+		union { int i; float f; } u = { .i = msg_queue[msg_head].vars[idx] };
+		return u.f;
+	}
+	if (idx < 0 || idx >= msg_current.nr_vars) return 0.0f;
+	union { int i; float f; } u = { .i = msg_current.vars[idx] };
+	return u.f;
+}
+static bool PartsEngine_GetMessageVariableBool(int idx)
+{
+	if (msg_head != msg_tail) {
+		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return false;
+		return msg_queue[msg_head].vars[idx] != 0;
+	}
+	if (idx < 0 || idx >= msg_current.nr_vars) return false;
+	return msg_current.vars[idx] != 0;
+}
+static void PartsEngine_GetMessageVariableString(possibly_unused int idx, possibly_unused struct string **out)
+{
+	// String variables not stored in message queue
 }
 
 // v14: Save/SaveWithoutHideParts/Load — AIN_WRAP arg[0] is heap slot index.
@@ -1527,6 +1698,9 @@ static int PartsEngine_GetMessageVariableInt(int idx)
 static bool PartsEngine_Save_wrap(int buf_slot)
 {
 	struct page *buf = wrap_get_page(buf_slot, 0);
+	static int save_trace = 0;
+	if (save_trace++ < 10)
+		WARNING("PartsEngine.Save: buf_slot=%d buf=%p", buf_slot, (void*)buf);
 	bool ok = PE_Save(&buf);
 	if (ok)
 		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
@@ -1545,6 +1719,9 @@ static bool PartsEngine_SaveWithoutHideParts_wrap(int buf_slot)
 static bool PartsEngine_Load_wrap(int buf_slot)
 {
 	struct page *buf = wrap_get_page(buf_slot, 0);
+	static int load_trace = 0;
+	if (load_trace++ < 10)
+		WARNING("PartsEngine.Load: buf_slot=%d buf=%p", buf_slot, (void*)buf);
 	bool ok = PE_Load(&buf);
 	return ok;
 }
@@ -1875,9 +2052,15 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(GetActiveController, PartsEngine_GetActiveController),
 	    HLL_EXPORT(SetActiveController, PartsEngine_SetActiveController),
 	    HLL_EXPORT(PopMessage, PartsEngine_PopMessage),
-	    HLL_EXPORT(GetMessageType, PartsEngine_GetMessageType),
+	    HLL_EXPORT(SeekMessage, PartsEngine_SeekMessage),
 	    HLL_EXPORT(GetMessagePartsNumber, PartsEngine_GetMessagePartsNumber),
+	    HLL_EXPORT(GetMessageDelegateIndex, PartsEngine_GetMessageDelegateIndex),
+	    HLL_EXPORT(GetMessageUniqueID, PartsEngine_GetMessageUniqueID),
+	    HLL_EXPORT(GetMessageType, PartsEngine_GetMessageType),
 	    HLL_EXPORT(GetMessageVariableInt, PartsEngine_GetMessageVariableInt),
+	    HLL_EXPORT(GetMessageVariableFloat, PartsEngine_GetMessageVariableFloat),
+	    HLL_EXPORT(GetMessageVariableBool, PartsEngine_GetMessageVariableBool),
+	    HLL_EXPORT(GetMessageVariableString, PartsEngine_GetMessageVariableString),
 	    /* v14 Parts_ prefixed aliases (same implementations) */
 	    HLL_EXPORT(Parts_SetPartsCG, PE_SetPartsCG),
 	    HLL_EXPORT(Parts_GetPartsCGName, PE_GetPartsCGName),

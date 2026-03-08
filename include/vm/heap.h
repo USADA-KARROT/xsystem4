@@ -83,6 +83,9 @@ int32_t heap_alloc_string(struct string *s);
 
 void heap_describe_slot(int slot);
 
+// Global page heap slot (non-zero to prevent null-reference aliasing)
+extern int global_page_slot;
+
 #ifdef VM_PRIVATE
 
 extern uint32_t heap_next_seq;

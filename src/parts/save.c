@@ -24,6 +24,12 @@
 
 #define CURRENT_SAVE_VERSION 3
 
+/* v14 workaround: the game uses ResumeSave/ResumeLoad to transfer PE data
+ * between save and load scopes. Since ResumeSave/ResumeLoad are stubs,
+ * PE_Load receives a NULL buffer. We keep a cached copy of the last PE_Save
+ * output so PE_Load can fall back to it. */
+static struct page *pe_save_cache = NULL;
+
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
 	iarray_write(w, params->z);
@@ -612,10 +618,19 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 		delete_page_vars(*buffer);
 		free_page(*buffer);
 	}
-	*buffer = iarray_to_page(&w);;
+	*buffer = iarray_to_page(&w);
 	iarray_free_writer(&w);
-	return true;
 
+	/* Cache a copy for PE_Load fallback (v14 ResumeSave stub workaround) */
+	if (*buffer && count > 0) {
+		if (pe_save_cache) {
+			delete_page_vars(pe_save_cache);
+			free_page(pe_save_cache);
+		}
+		pe_save_cache = copy_page(*buffer);
+	}
+
+	return true;
 }
 
 bool PE_SaveWithoutHideParts(struct page **buffer)
@@ -631,8 +646,16 @@ bool PE_Save(struct page **buffer)
 bool PE_Load(struct page **buffer)
 {
 	if (!(*buffer)) {
-		WARNING("savedata array is empty");
-		return false;
+		/* v14 fallback: use cached PE_Save data if available */
+		if (pe_save_cache) {
+			WARNING("PE_Load: using cached save data (ResumeSave stub workaround)");
+			*buffer = copy_page(pe_save_cache);
+		} else {
+			static int pe_load_warn = 0;
+			if (pe_load_warn++ < 3)
+				WARNING("PE_Load: savedata array is empty (no cache)");
+			return false;
+		}
 	}
 
 	struct iarray_reader r;

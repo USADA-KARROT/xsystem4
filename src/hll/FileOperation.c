@@ -55,8 +55,8 @@ static bool FileOperation_CopyFile(struct string *dest_file_name, struct string 
 //bool FileOperation_GetFileLastAccessTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 //bool FileOperation_GetFileLastWriteTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
 
-// v14: arg[1] is AIN_WRAP — wrap<int> (1-slot heap index)
-static bool FileOperation_GetFileSize(struct string *file_name, int size_slot)
+// v14: arg[1] is AIN_WRAP — pointer-based interface
+static bool FileOperation_GetFileSize(struct string *file_name, int *size)
 {
 	char *path = unix_path(file_name->text);
 	ustat s;
@@ -70,7 +70,7 @@ static bool FileOperation_GetFileSize(struct string *file_name, int size_slot)
 		free(path);
 		return false;
 	}
-	wrap_set_int(size_slot, 0, (int)s.st_size);
+	if (size) *size = (int)s.st_size;
 	free(path);
 	return true;
 }

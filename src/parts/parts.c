@@ -27,6 +27,7 @@
 #include "audio.h"
 #include "input.h"
 #include "gfx/gfx.h"
+#include "vm.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "sact.h"
@@ -140,9 +141,7 @@ struct parts *parts_get(int parts_no)
 	parts->no = parts_no;
 	slot->value = parts;
 	parts_list_insert(parts);
-	static int parts_create_log = 0;
-	if (parts_create_log++ < 5)
-		WARNING("parts_get: created parts_no=%d (total=%d)", parts_no, parts_create_log);
+
 	return parts;
 }
 
@@ -1038,8 +1037,12 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 
 bool parts_message_window_show = true;
 
+int pe_update_count = 0;
+int pe_updateparts_count = 0;
+
 void PE_Update(int passed_time, bool message_window_show)
 {
+	pe_update_count++;
 	// Workaround: when game timer is broken (CASTimerManager struct corruption),
 	// passed_time is always 0. Compute real elapsed time instead.
 	static struct timespec pe_last_time = {0};
@@ -1060,6 +1063,7 @@ void PE_Update(int passed_time, bool message_window_show)
 	handle_events();
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
+
 	audio_update();
 	sprite_call_plugins();
 	parts_update_animation(passed_time);
@@ -1072,6 +1076,7 @@ void PE_Update(int passed_time, bool message_window_show)
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
 {
+	pe_updateparts_count++;
 	handle_events();
 	parts_message_window_show = message_window_show;
 	audio_update();
@@ -1098,10 +1103,6 @@ int PE_GetDelegateIndex(int parts_no)
 
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int sprite_deform, int state)
 {
-	static int setcg_log = 0;
-	if (setcg_log++ < 5)
-		WARNING("PE_SetPartsCG: parts_no=%d cg='%s' state=%d", parts_no,
-			cg_name ? cg_name->text : "(null)", state);
 	if (!parts_state_valid(--state))
 		return false;
 
@@ -1739,6 +1740,20 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 {
 	struct parts *parts = parts_get(parts_no);
 	parts->pending_parent = parent_parts_no;
+
+	/* Immediately establish the parent-child link.
+	 * v14 game code calls NumofChild/GetChild right after ReadActivityFile,
+	 * before PE_UpdateComponent has a chance to process the dirty list.
+	 * Without immediate linking, the component tree is empty when traversed. */
+	struct parts *parent = parts_try_get(parent_parts_no);
+	if (parent) {
+		if (parts->parent) {
+			TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
+		}
+		parts->parent = parent;
+		TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
+	}
+
 	parts_component_dirty(parts);
 }
 

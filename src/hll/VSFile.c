@@ -174,31 +174,31 @@ static bool VSFile_WriteString(struct string *str)
 	return true;
 }
 
-// v14: AIN declares Read* arg[0] as AIN_WRAP — 1-slot heap index
+// v14: AIN declares Read* arg[0] as AIN_WRAP — pointer-based interface
 
-static bool VSFile_ReadByte(int data_slot)
+static bool VSFile_ReadByte(int *data)
 {
 	vsf_read_type(VSF_BYTE);
 
 	uint8_t b;
 	if (!vsf_read(&b, 1))
 		return false;
-	wrap_set_int(data_slot, 0, b);
+	if (data) *data = b;
 	return true;
 }
 
-static bool VSFile_ReadInt(int data_slot)
+static bool VSFile_ReadInt(int *data)
 {
 	vsf_read_type(VSF_INT);
 
 	uint8_t b[4];
 	if (!vsf_read(b, 4))
 		return false;
-	wrap_set_int(data_slot, 0, LittleEndian_getDW(b, 0));
+	if (data) *data = LittleEndian_getDW(b, 0);
 	return true;
 }
 
-static bool VSFile_ReadFloat(int data_slot)
+static bool VSFile_ReadFloat(float *data)
 {
 	vsf_read_type(VSF_FLOAT);
 
@@ -210,11 +210,11 @@ static bool VSFile_ReadFloat(int data_slot)
 	if (!vsf_read(b, 4))
 		return false;
 	cast.i = LittleEndian_getDW(b, 0);
-	wrap_set_float(data_slot, 0, cast.f);
+	if (data) *data = cast.f;
 	return true;
 }
 
-static bool VSFile_ReadString(int str_slot)
+static bool VSFile_ReadString(int *str_out)
 {
 	vsf_read_type(VSF_STRING);
 
@@ -230,7 +230,7 @@ static bool VSFile_ReadString(int str_slot)
 		string_append_cstr(&s, &b, 1);
 	}
 
-	wrap_set_string(str_slot, 0, s);
+	wrap_set_string(str_out, s);
 	return true;
 }
 

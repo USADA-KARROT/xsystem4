@@ -19,24 +19,23 @@
 #include "sact.h"
 #include "vm/heap.h"
 
-// v14 AIN_WRAP wrappers for pointer-based functions
-// AIN declares Mouse_GetPos(wrap<int> x, wrap<int> y) — wrap handles, not int*
+// v14 AIN_WRAP — pointer-based interface
 
-static int IbisInputEngine_Mouse_GetPos(int x_slot, int y_slot)
+static int IbisInputEngine_Mouse_GetPos(int *x_out, int *y_out)
 {
 	int x, y;
 	int result = sact_Mouse_GetPos(&x, &y);
-	wrap_set_int(x_slot, 0, x);
-	wrap_set_int(y_slot, 0, y);
+	if (x_out) *x_out = x;
+	if (y_out) *y_out = y;
 	return result;
 }
 
-static void IbisInputEngine_MouseWheel_GetCount(int forward_slot, int back_slot)
+static void IbisInputEngine_MouseWheel_GetCount(int *forward_out, int *back_out)
 {
 	int forward, back;
 	mouse_get_wheel(&forward, &back);
-	wrap_set_int(forward_slot, 0, forward);
-	wrap_set_int(back_slot, 0, back);
+	if (forward_out) *forward_out = forward;
+	if (back_out) *back_out = back;
 }
 
 bool IbisInputEngine_Mouse_MovePosImmediately(int x, int y)

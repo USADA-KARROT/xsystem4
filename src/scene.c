@@ -51,11 +51,13 @@ void scene_register_sprite(struct sprite *sp)
 			if (p->z2 > sp->z2) {
 				TAILQ_INSERT_BEFORE(p, sp, entry);
 				sp->in_scene = true;
+				scene_dirty();
 				return;
 			}
 		} else if (p->z > sp->z) {
 			TAILQ_INSERT_BEFORE(p, sp, entry);
 			sp->in_scene = true;
+			scene_dirty();
 			return;
 		}
 	}

@@ -27,6 +27,11 @@
 // Set by ffi.c before each HLL call. High bits indicate reference-counted elements.
 int hll_current_arg3 = -1;
 
+// v14: heap slot of the first AIN_REF_ARRAY argument (typically 'self').
+// Set by ffi.c during argument processing so HLL functions can construct
+// 2-slot references [page_slot, var_index] for AIN_REF_HLL_PARAM returns.
+int hll_self_slot = -1;
+
 // Check if current Array HLL call operates on reference-counted elements.
 // hll_arg3 >= 0x10000 indicates ref-counted elements (pre-v14 convention).
 // hll_arg3 == 2 indicates struct/wrap elements in v14 (needs heap_ref/unref).
@@ -85,9 +90,9 @@ static void Array_PushBack(struct page **array, int value)
 		free_page(a);
 	}
 	new_a->values[old_size].i = value;
-	// v14: ref-count the stored value if it's a heap object
-	if (array_elem_is_ref() && value > 0)
+	if (array_elem_is_ref() && value > 0) {
 		heap_ref(value);
+	}
 	*array = new_a;
 }
 
@@ -204,12 +209,23 @@ static int Array_Where(struct page **array, int func)
 	return slot;
 }
 
-// First: return first element matching predicate, or -1 if none
+// First: return first element matching predicate.
+// Returns AIN_REF_HLL_PARAM: pushes directly to VM stack (same as At/Last).
+// For struct types (arg3==2): push 1 slot (heap slot of found element).
+// For simple types: push 2 slots [array_heap_slot, element_index].
+// C return value is ignored by ffi.c for AIN_REF_HLL_PARAM.
 static int Array_First(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
-		return -1;
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions) {
+		if (!array_elem_is_ref()) {
+			stack_push(-1);
+			stack_push(0);
+		} else {
+			stack_push(-1);
+		}
+		return 0;
+	}
 
 	struct ain_function *cb = &ain->functions[func];
 
@@ -225,13 +241,27 @@ static int Array_First(struct page **array, int func)
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
 		if (result) {
-			int val = src->values[i].i;
-			if (array_elem_is_ref() && val > 0)
-				heap_ref(val);
-			return val;
+			if (!array_elem_is_ref()) {
+				stack_push(hll_self_slot);
+				stack_push(i);
+			} else {
+				int val = src->values[i].i;
+				if (val <= 0)
+					val = -1;
+				if (val > 0)
+					heap_ref(val);
+				stack_push(val);
+			}
+			return 0;
 		}
 	}
-	return -1;
+	if (!array_elem_is_ref()) {
+		stack_push(-1);
+		stack_push(0);
+	} else {
+		stack_push(-1);
+	}
+	return 0;
 }
 
 // Any: return true if any element matches the predicate
@@ -281,29 +311,64 @@ static int Array_Empty(struct page **self)
 	return !array || array->nr_vars == 0;
 }
 
+// Array.At: returns AIN_REF_HLL_PARAM.
+// For simple element types: push 2-slot reference [array_page_slot, index].
+// For struct/ref-counted types: push 1-slot (the struct heap slot value).
+// ffi.c does NOT push the C return value for AIN_REF_HLL_PARAM.
 static int Array_At(struct page **self, int index)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	if (!array || index < 0 || index >= array->nr_vars)
+	if (!array || index < 0 || index >= array->nr_vars) {
+		if (!array_elem_is_ref()) {
+			stack_push(-1);
+			stack_push(0);
+		} else {
+			// v14: null reference is -1, not 0
+			stack_push(-1);
+		}
 		return 0;
-	int result = array->values[index].i;
-	if (array_elem_is_ref() && result > 0)
-		heap_ref(result);
-	return result;
+	}
+	if (!array_elem_is_ref()) {
+		stack_push(hll_self_slot);
+		stack_push(index);
+	} else {
+		int result = array->values[index].i;
+		// v14: uninitialized/null elements are 0, but v14 null convention is -1
+		if (result <= 0)
+			result = -1;
+		if (result > 0)
+			heap_ref(result);
+		stack_push(result);
+	}
+	return 0;
 }
 
+// Array.Last: returns AIN_REF_HLL_PARAM (same convention as Array.At).
 static int Array_Last(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	if (!array || array->nr_vars <= 0)
+	if (!array || array->nr_vars <= 0) {
+		if (!array_elem_is_ref()) {
+			stack_push(-1);
+			stack_push(0);
+		} else {
+			stack_push(-1);
+		}
 		return 0;
-	int result = array->values[array->nr_vars - 1].i;
-	// v14: ref the returned value so bytecode DELETE doesn't prematurely free it.
-	// The caller's X_ASSIGN stores the value without heap_ref, and the subsequent
-	// DELETE will heap_unref — so we need to add a ref here to balance.
-	if (array_elem_is_ref() && result > 0)
-		heap_ref(result);
-	return result;
+	}
+	int last_idx = array->nr_vars - 1;
+	if (!array_elem_is_ref()) {
+		stack_push(hll_self_slot);
+		stack_push(last_idx);
+	} else {
+		int result = array->values[last_idx].i;
+		if (result <= 0)
+			result = -1;
+		if (result > 0)
+			heap_ref(result);
+		stack_push(result);
+	}
+	return 0;
 }
 
 // PopBack (capital B) — v14 name
@@ -1026,23 +1091,39 @@ static void Array_Concat(struct page **self, int src_wrap)
 	Array_AddRange(self, src_wrap);
 }
 
-// Max: find element with maximum value via delegate comparison
-// AIN: Max(wrap<array<T>> self, delegate func) -> T
-// The delegate takes (T element) and returns an int/comparable value.
-// We return the element that produced the largest callback result.
+// Max: find element with maximum value via delegate comparison.
+// Returns AIN_REF_HLL_PARAM: pushes directly to VM stack (same as At/Last/First).
+// For struct types (arg3==2): push 1 slot (heap slot of best element).
+// For simple types: push 2 slots [array_heap_slot, element_index].
 static int Array_Max(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0)
-		return 0;
-	if (func < 0 || func >= ain->nr_functions) {
-		// No comparator — return max value directly (for int arrays)
-		int max_val = src->values[0].i;
-		for (int i = 1; i < src->nr_vars; i++) {
-			if (src->values[i].i > max_val)
-				max_val = src->values[i].i;
+	if (!src || src->nr_vars == 0) {
+		if (!array_elem_is_ref()) {
+			stack_push(-1);
+			stack_push(0);
+		} else {
+			stack_push(0);
 		}
-		return max_val;
+		return 0;
+	}
+	if (func < 0 || func >= ain->nr_functions) {
+		// No comparator — find max value directly (for int arrays)
+		int best_idx = 0;
+		for (int i = 1; i < src->nr_vars; i++) {
+			if (src->values[i].i > src->values[best_idx].i)
+				best_idx = i;
+		}
+		if (!array_elem_is_ref()) {
+			stack_push(hll_self_slot);
+			stack_push(best_idx);
+		} else {
+			int val = src->values[best_idx].i;
+			if (val > 0)
+				heap_ref(val);
+			stack_push(val);
+		}
+		return 0;
 	}
 
 	struct ain_function *cb = &ain->functions[func];
@@ -1066,10 +1147,16 @@ static int Array_Max(struct page **array, int func)
 		}
 	}
 
-	int val = src->values[best_idx].i;
-	if (array_elem_is_ref() && val > 0)
-		heap_ref(val);
-	return val;
+	if (!array_elem_is_ref()) {
+		stack_push(hll_self_slot);
+		stack_push(best_idx);
+	} else {
+		int val = src->values[best_idx].i;
+		if (val > 0)
+			heap_ref(val);
+		stack_push(val);
+	}
+	return 0;
 }
 
 //int Array_VN_or(struct page *nArray);

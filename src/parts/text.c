@@ -201,6 +201,8 @@ bool PE_SetPartsFontType(int parts_no, int type, int state)
 
 bool PE_SetPartsFontSize(int parts_no, int size, int state)
 {
+	{ static int sfs_t = 0; if (parts_no >= 1000001000 && sfs_t++ < 10)
+		WARNING("PE_SetPartsFontSize[%d]: no=%d size=%d state=%d", sfs_t, parts_no, size, state); }
 	if (!parts_state_valid(--state))
 		return false;
 

@@ -230,16 +230,18 @@ static int HashMap_GetValueList(int id)
 	return slot;
 }
 
-// [12] bool Save(wrap<array<int>> SaveDataBuffer) — stub
+// [12] bool Save(wrap<array<int>> SaveDataBuffer) — no-op
 static bool HashMap_Save(int buf_slot)
 {
-	return false;
+	// No-op: ResumeSave is a stub so hash map data stays in memory.
+	return true;
 }
 
-// [13] bool Load(wrap<array<int>> SaveDataBuffer) — stub
+// [13] bool Load(wrap<array<int>> SaveDataBuffer) — no-op
 static bool HashMap_Load(int buf_slot)
 {
-	return false;
+	// No-op: data is still in memory since ResumeSave doesn't actually save/restore.
+	return true;
 }
 
 HLL_LIBRARY(HashMap,

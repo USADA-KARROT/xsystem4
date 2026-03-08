@@ -370,7 +370,9 @@ void parts_set_surface_area(struct parts *parts, struct parts_common *common, in
 extern bool parts_message_window_show;
 
 // message queue (implemented in PartsEngine.c)
-void parts_enqueue_message(int type, int parts_no);
+void parts_enqueue_message(int type, int parts_no, int delegate_index, int unique_id);
+void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
+                                int nr_vars, const int *vars);
 
 extern struct parts_numeral_font *parts_numeral_fonts;
 extern int parts_nr_numeral_fonts;

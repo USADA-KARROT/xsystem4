@@ -21,6 +21,7 @@
 #include "input.h"
 #include "xsystem4.h"
 #include "parts_internal.h"
+#include "vm.h"
 
 // the mouse position at last update
 Point parts_prev_pos = {0};
@@ -77,7 +78,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
-		parts_enqueue_message(1, parts->no); // type 1 = button click
+		parts_enqueue_message(1, parts->no,
+			parts->delegate_index, parts->unique_id);
 	}
 }
 
@@ -93,8 +95,18 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	}
 
 	if (prev_clicking && !cur_clicking) {
-		if (!click_down_parts) {
-			// TODO: play misclick sound
+		// Whole mouse left click event (type=4): fires on ANY left click
+		// release during active input. CallFunctionMouseClick reads var[2]
+		// as the button VK code: 1=VK_LBUTTON, 2=VK_RBUTTON, 4=VK_MBUTTON.
+		if (parts_began_click) {
+			int vars[3] = { cur_pos.x, cur_pos.y, 1 }; // VK_LBUTTON=1
+			parts_enqueue_message_vars(4, 0, 0, 0, 3, vars);
+		}
+
+		if (!click_down_parts && parts_began_click) {
+			// Background click: no clickable part was hit.
+			// Signal WaitForClick to exit via global[2].
+			global_set(2, (union vm_value){.i = 1}, false);
 		}
 		click_down_parts = 0;
 	}
@@ -165,6 +177,8 @@ bool PE_SetClickMissSoundNumber(possibly_unused int sound_no)
 	UNIMPLEMENTED("(%d)", sound_no);
 	return true;
 }
+
+static int begin_input_count = 0;
 
 void PE_BeginInput(void)
 {

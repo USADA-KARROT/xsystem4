@@ -22,6 +22,11 @@
 #include <errno.h>
 #include <limits.h>
 
+#ifdef __APPLE__
+#include <objc/runtime.h>
+#include <objc/message.h>
+#endif
+
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/file.h"
@@ -70,7 +75,7 @@ static struct texture *view = &main_surface;
 static GLint max_texture_size;
 static SDL_Color clear_color = { 0, 0, 0, 255 };
 static float frame_rate;
-static bool wait_vsync = false;
+static bool wait_vsync = true;
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -135,9 +140,9 @@ void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const c
 
 static int gl_initialize(void)
 {
-	WARNING("gl_initialize: loading shaders...");
+	// loading shaders
 	gfx_load_shader(&default_shader, "shaders/render.v.glsl", "shaders/render.f.glsl");
-	WARNING("gl_initialize: shaders loaded, setting up VAO/VBO...");
+	// VAO/VBO setup
 
 	const struct gfx_vertex vertex_data[] = {
 		//  x,   y,   z,   w,   u,   v
@@ -228,7 +233,7 @@ int gfx_init(void)
 	if (gfx_initialized)
 		return true;
 
-	WARNING("gfx_init: starting SDL_Init (view=%dx%d)...", config.view_width, config.view_height);
+	NOTICE("gfx_init: starting (view=%dx%d)", config.view_width, config.view_height);
 
 	uint32_t flags = SDL_INIT_VIDEO | SDL_INIT_AUDIO;
 	if (config.joypad)
@@ -236,7 +241,18 @@ int gfx_init(void)
 	if (SDL_Init(flags) < 0)
 		ERROR("SDL_Init failed: %s", SDL_GetError());
 
-	WARNING("gfx_init: SDL_Init OK, setting GL attributes...");
+#ifdef __APPLE__
+	// macOS: activate the process as a foreground app so that the window
+	// receives mouse/keyboard events when launched from the terminal.
+	{
+		id ns_app = ((id(*)(Class, SEL))objc_msgSend)(
+			objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+		((void(*)(id, SEL, BOOL))objc_msgSend)(
+			ns_app, sel_registerName("activateIgnoringOtherApps:"), YES);
+	}
+#endif
+
+	// SDL_Init OK
 
 #ifdef USE_GLES
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -248,7 +264,7 @@ int gfx_init(void)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
-	WARNING("gfx_init: creating window...");
+	// create window
 	sdl.format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
 	sdl.window =  SDL_CreateWindow("XSystem4",
 				       SDL_WINDOWPOS_UNDEFINED,
@@ -259,15 +275,15 @@ int gfx_init(void)
 	if (!sdl.window)
 		ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
 
-	WARNING("gfx_init: window created, setting title...");
+	// window created
 	set_window_title();
 
-	WARNING("gfx_init: creating GL context...");
+	// GL context
 	sdl.gl.context = SDL_GL_CreateContext(sdl.window);
 	if (!sdl.gl.context)
 		ERROR("SDL_GL_CreateContext failed: %s", SDL_GetError());
 
-	WARNING("gfx_init: GL context OK, initializing GLEW...");
+	// GLEW init
 
 #ifndef USE_GLES
 	glewExperimental = GL_TRUE;
@@ -276,23 +292,23 @@ int gfx_init(void)
 		ERROR("glewInit failed");
 #endif
 
-	WARNING("gfx_init: GLEW OK, SetSwapInterval...");
+	// SetSwapInterval
 	SDL_GL_SetSwapInterval(wait_vsync ? 1 : 0);
-	WARNING("gfx_init: gl_initialize...");
+	// gl_initialize
 	gl_initialize();
-	WARNING("gfx_init: gfx_draw_init...");
+	// gfx_draw_init
 	gfx_draw_init();
-	WARNING("gfx_init: gfx_set_window_logical_size...");
+	// logical size
 	gfx_set_window_logical_size(config.view_width, config.view_height);
-	WARNING("gfx_init: init_window_size...");
+	// init_window_size
 	init_window_size();
-	WARNING("gfx_init: atexit/gfx_clear...");
+	// atexit/clear
 	atexit(gfx_fini);
 	gfx_clear();
-	WARNING("gfx_init: icon_init...");
+	// icon_init
 	icon_init();
 	gfx_initialized = true;
-	WARNING("gfx_init: complete!");
+	NOTICE("gfx_init: complete");
 	return 0;
 }
 
@@ -612,6 +628,7 @@ void gfx_init_texture_with_pixels(struct texture *t, int w, int h, void *pixels)
 {
 	init_texture(t, w, h);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
 }
 
 void gfx_update_texture_with_pixels(struct texture *t, void *pixels)
@@ -708,15 +725,21 @@ GLuint gfx_set_framebuffer(GLenum target, Texture *t, int x, int y, int w, int h
 	glFramebufferTexture2D(target, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t->handle, 0);
 	glViewport(x, y, w, h);
 
-	if (glCheckFramebufferStatus(target) != GL_FRAMEBUFFER_COMPLETE)
-		ERROR("Incomplete framebuffer");
+	if (glCheckFramebufferStatus(target) != GL_FRAMEBUFFER_COMPLETE) {
+		static int fbo_warn = 0;
+		if (fbo_warn++ < 3)
+			WARNING("Incomplete framebuffer (tex=%u %dx%d)", t->handle, w, h);
+		glDeleteFramebuffers(1, &fbo);
+		return 0;
+	}
 	return fbo;
 }
 
 void gfx_reset_framebuffer(GLenum target, GLuint fbo)
 {
 	glBindFramebuffer(target, main_surface_fb);
-	glDeleteFramebuffers(1, &fbo);
+	if (fbo)
+		glDeleteFramebuffers(1, &fbo);
 	glViewport(0, 0, sdl.w, sdl.h);
 }
 

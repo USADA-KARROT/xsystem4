@@ -29,6 +29,11 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 
+// v14: source tracking for null-array FFI write-back.
+// Set by X_REF when it pushes -1 from a struct member.
+int xref_null_src_page = -1;
+int xref_null_src_var = -1;
+
 #define HLL_MAX_ARGS 64
 
 struct hll_function {
@@ -325,6 +330,8 @@ void hll_call(int libno, int fno, int hll_arg3)
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
 	hll_ring_idx++;
 
+	// Diagnostics removed (Session 51)
+
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
 		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
 		{
@@ -363,7 +370,22 @@ void hll_call(int libno, int fno, int hll_arg3)
 			case AIN_HLL_FUNC:
 				stack_ptr -= 2; break; // 2-slot (object, function)
 			case AIN_WRAP:
-				stack_ptr--; break; // v14: 1-slot (heap slot of wrapper struct)
+				stack_ptr -= 2; break; // v14: 2-slot ref [page, varno]
+			case AIN_IFACE:
+			case AIN_IFACE_WRAP:
+				stack_ptr -= 2; break; // v14: 2-slot [page, vtable_offset]
+			case AIN_OPTION:
+				stack_ptr -= 2; break; // v14: 2-slot [value, discriminant]
+			case AIN_HLL_PARAM: {
+				// v14: generic element parameter. Slot count depends on
+				// element type encoded in hll_arg3.
+				int etype = hll_arg3 & 0xFFFF;
+				bool is_2slot = (etype == 3 || etype == 5 ||
+					etype == AIN_IFACE || etype == AIN_OPTION ||
+					etype == AIN_IFACE_WRAP);
+				stack_ptr -= is_2slot ? 2 : 1;
+				break;
+			}
 			case AIN_REF_ARRAY:
 				stack_ptr--; break; // v14: 1-slot (resolved heap slot)
 			default:
@@ -389,6 +411,16 @@ void hll_call(int libno, int fno, int hll_arg3)
 	// v14: expose hll_arg3 to HLL functions (Array uses it for element type info)
 	extern int hll_current_arg3;
 	hll_current_arg3 = hll_arg3;
+	// v14: save the first AIN_REF_ARRAY argument's resolved heap slot
+	// so HLL functions can construct 2-slot references for REF_HLL_PARAM return.
+	extern int hll_self_slot;
+	hll_self_slot = -1;
+
+	// Reset null-array source tracker (set by X_REF in vm.c)
+	// before processing arguments — it will be set again if
+	// the relevant X_REF just pushed -1 for this call.
+	// (Don't reset here — the X_REF that set it is the one right
+	// before CALLHLL, so it's still valid.)
 
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
@@ -401,16 +433,56 @@ void hll_call(int libno, int fno, int hll_arg3)
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
 			int varno  = stack[stack_ptr+1].i;
-			ptrs[i] = &heap[pageno].page->values[varno];
+			if (pageno >= 0 && (size_t)pageno < heap_size
+			    && heap[pageno].page
+			    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+				ptrs[i] = &heap[pageno].page->values[varno];
+			} else {
+				// Invalid ref — provide a safe scratch location
+				heap_slots[i] = 0;
+				ptrs[i] = (void *)&heap_slots[i];
+			}
 			args[i] = &ptrs[i];
 			break;
 		}
 		case AIN_WRAP: {
-			// v14: wrap<T> parameter — 1-slot (heap slot of wrapper struct).
-			// The wrapper struct's member[0] holds the inner value.
-			// C functions receive the heap slot as a plain int.
-			stack_ptr--;
-			args[i] = &stack[stack_ptr];
+			// v14: WRAP parameter in HLL calls.
+			// Bytecode pushes a 2-slot reference [pageno, varno].
+			// Behavior depends on the inner type:
+			//   wrap<value_type> (int/float/bool): pass pointer for ref semantics
+			//   wrap<ref_type> (array/struct/string): pass inner value as int (slot)
+			stack_ptr -= 2;
+			int pageno = stack[stack_ptr].i;
+			int varno  = stack[stack_ptr+1].i;
+			enum ain_data_type inner = AIN_VOID;
+			if (f->arguments[i].type.array_type)
+				inner = f->arguments[i].type.array_type->data;
+			bool is_value_wrap = (inner == AIN_INT || inner == AIN_FLOAT
+				|| inner == AIN_BOOL || inner == AIN_LONG_INT);
+			if (pageno > 0 && heap_index_valid(pageno)
+			    && heap[pageno].type == VM_PAGE && heap[pageno].page
+			    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+				if (is_value_wrap) {
+					// Pass pointer to page value (ref semantics)
+					ptrs[i] = &heap[pageno].page->values[varno];
+					args[i] = &ptrs[i];
+				} else {
+					// Extract inner value (heap slot) and pass as int
+					heap_slots[i] = heap[pageno].page->values[varno].i;
+					args[i] = &heap_slots[i];
+				}
+			} else {
+				// Fallback: try 1-slot
+				stack_ptr += 2;
+				stack_ptr--;
+				heap_slots[i] = stack[stack_ptr].i;
+				if (is_value_wrap) {
+					ptrs[i] = (void *)&heap_slots[i];
+					args[i] = &ptrs[i];
+				} else {
+					args[i] = &heap_slots[i];
+				}
+			}
 			break;
 		}
 		case AIN_STRING: {
@@ -445,9 +517,11 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_DELEGATE: {
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
-			if (slot >= 0 && (size_t)slot < heap_size)
+			if (slot >= 0 && (size_t)slot < heap_size) {
 				args[i] = &heap[slot].page;
-			else {
+				if (f->arguments[i].type.data == AIN_ARRAY && hll_self_slot < 0)
+					hll_self_slot = slot;
+			} else {
 				heap_ptrs[i] = NULL;
 				args[i] = &heap_ptrs[i];
 			}
@@ -524,6 +598,27 @@ void hll_call(int libno, int fno, int hll_arg3)
 			if (array_slot > 0) {
 				heap_slots[i] = array_slot;
 				heap_ptrs[i] = heap[array_slot].page;
+				if (hll_self_slot < 0) hll_self_slot = array_slot;
+			} else if (slot <= 0 && xref_null_src_page >= 0) {
+				// v14: null array (-1) from a struct member.
+				// Allocate a new heap slot so the HLL function can
+				// create an array and the write-back will succeed.
+				// Then update the source struct member to point to
+				// the new slot.
+				int new_slot = heap_alloc_slot(VM_PAGE);
+				heap[new_slot].page = NULL;
+				heap_slots[i] = new_slot;
+				heap_ptrs[i] = NULL;
+				// Update the struct member that held -1
+				if ((size_t)xref_null_src_page < heap_size
+				    && heap[xref_null_src_page].type == VM_PAGE
+				    && heap[xref_null_src_page].page
+				    && xref_null_src_var >= 0
+				    && xref_null_src_var < heap[xref_null_src_page].page->nr_vars) {
+					heap[xref_null_src_page].page->values[xref_null_src_var].i = new_slot;
+				}
+				xref_null_src_page = -1;
+				xref_null_src_var = -1;
 			} else {
 				// No inner array found — pass NULL safely
 				heap_slots[i] = -1;
@@ -549,6 +644,46 @@ void hll_call(int libno, int fno, int hll_arg3)
 			// Store the clean int32 value in heap_slots[i] (int array).
 			heap_slots[i] = func_no;
 			args[i] = &heap_slots[i];
+			break;
+		}
+		case AIN_IFACE:
+		case AIN_IFACE_WRAP:
+		case AIN_OPTION: {
+			// v14: 2-slot value types
+			// AIN_IFACE: [page_slot, vtable_offset]
+			// AIN_OPTION: [value, discriminant]
+			// AIN_IFACE_WRAP: [page_slot, vtable_offset] (wrapped)
+			// Pop 2 slots, pass first slot as pointer-sized value.
+			// FFI type is ffi_type_pointer, so use heap_ptrs for storage.
+			stack_ptr -= 2;
+			int slot = stack[stack_ptr].i;
+			if (slot > 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE)
+				heap_ptrs[i] = heap[slot].page;
+			else
+				heap_ptrs[i] = (void*)(intptr_t)slot;
+			args[i] = &heap_ptrs[i];
+			break;
+		}
+		case AIN_HLL_PARAM: {
+			// v14: generic element parameter (type 74). The actual element
+			// type is encoded in hll_arg3. For 2-slot types (interface,
+			// option), bytecode pushes 2 values but AIN declares 1 param.
+			int etype = hll_current_arg3 & 0xFFFF;
+			bool is_2slot = (etype == 3 || etype == 5 ||
+				etype == AIN_IFACE || etype == AIN_OPTION ||
+				etype == AIN_IFACE_WRAP);
+			if (is_2slot) {
+				stack_ptr -= 2;
+				int slot = stack[stack_ptr].i;
+				if (slot > 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE)
+					heap_ptrs[i] = heap[slot].page;
+				else
+					heap_ptrs[i] = (void*)(intptr_t)slot;
+				args[i] = &heap_ptrs[i];
+			} else {
+				stack_ptr--;
+				args[i] = &stack[stack_ptr];
+			}
 			break;
 		}
 		default:
@@ -578,8 +713,22 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_HLL_FUNC:
 			j++;
 			break;
-		case AIN_WRAP: // v14: 1-slot (heap slot) — no extra writeback needed
+		case AIN_WRAP: // v14: 2-slot ref — written through pointer, skip extra slot
+			j++;
 			break;
+		case AIN_IFACE:
+		case AIN_IFACE_WRAP:
+		case AIN_OPTION: // v14: 2-slot value types, skip extra slot
+			j++;
+			break;
+		case AIN_HLL_PARAM: {
+			// v14: generic element — skip extra slot if 2-slot type
+			int etype = hll_current_arg3 & 0xFFFF;
+			if (etype == 3 || etype == 5 || etype == AIN_IFACE ||
+			    etype == AIN_OPTION || etype == AIN_IFACE_WRAP)
+				j++;
+			break;
+		}
 		case AIN_REF_STRING:
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
 			    && heap[heap_slots[i]].type == VM_STRING)
@@ -633,8 +782,8 @@ void hll_call(int libno, int fno, int hll_arg3)
 #pragma GCC diagnostic pop
 		break;
 	case AIN_REF_HLL_PARAM:
-		// v14: generic return type resolved from HLL param — 1-slot
-		stack_push(r);
+		// v14: The HLL function has already pushed the return value(s) directly
+		// to the stack. Do NOT push the C return value here.
 		break;
 	default:
 		stack_push(r);
@@ -642,6 +791,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 	}
 
 	hll_current_arg3 = -1;
+	hll_self_slot = -1;
 }
 
 extern struct static_library lib_ACXLoader;
@@ -944,8 +1094,8 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 	case AIN_IFACE_WRAP:
 	case AIN_IMAIN_SYSTEM: // ???
 		return &ffi_type_pointer;
-	case AIN_WRAP: // v14: 1-slot (heap slot index of wrapper struct)
-		return &ffi_type_sint32;
+	case AIN_WRAP: // v14: 2-slot ref [page, varno] — C receives int* pointer
+		return &ffi_type_pointer;
 	case AIN_ENUM2:
 	case AIN_ENUM:
 	case AIN_REF_ENUM:
@@ -967,7 +1117,19 @@ static void link_static_library_function(struct hll_function *dst, struct ain_hl
 	dst->args = xcalloc(dst->nr_args, sizeof(ffi_type*));
 
 	for (unsigned int i = 0; i < dst->nr_args; i++) {
-		dst->args[i] = ain_to_ffi_type(src->arguments[i].type.data);
+		if (src->arguments[i].type.data == AIN_WRAP
+		    && src->arguments[i].type.array_type) {
+			// wrap<value_type> → pointer (ref semantics)
+			// wrap<ref_type> → sint32 (pass inner heap slot)
+			enum ain_data_type inner = src->arguments[i].type.array_type->data;
+			if (inner == AIN_INT || inner == AIN_FLOAT
+			    || inner == AIN_BOOL || inner == AIN_LONG_INT)
+				dst->args[i] = &ffi_type_pointer;
+			else
+				dst->args[i] = &ffi_type_sint32;
+		} else {
+			dst->args[i] = ain_to_ffi_type(src->arguments[i].type.data);
+		}
 	}
 	dst->return_type = ain_to_ffi_type(src->return_type.data);
 
@@ -1047,8 +1209,6 @@ static void link_libraries(void)
 		}
 		if (!libraries[i])
 			WARNING("Unimplemented library: %s (lib[%d], %d funcs)", ain->libraries[i].name, i, ain->libraries[i].nr_functions);
-		else
-			WARNING("Linked library: %s (lib[%d], %d funcs)", ain->libraries[i].name, i, ain->libraries[i].nr_functions);
 	}
 }
 

@@ -62,24 +62,17 @@ static inline int wrap_get_int(int pageno, int varno)
 	return 0;
 }
 
-/* Write a string to a wrap<string> reference (pageno, varno) */
-static inline void wrap_set_string(int pageno, int varno, struct string *s)
+/* Write a string to a WRAP output ref.
+ * ptr points to page->values[varno] (the variable holding the string heap slot).
+ * Allocates a new string heap slot, writes it to *ptr, unrefs old. */
+static inline void wrap_set_string(int *ptr, struct string *s)
 {
-	if (pageno < 0 || (size_t)pageno >= heap_size) return;
-	if (heap[pageno].type == VM_PAGE && heap[pageno].page
-	    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
-		/* values[varno] holds the string heap slot */
-		int old = heap[pageno].page->values[varno].i;
-		int ns = heap_alloc_slot(VM_STRING);
-		heap[ns].s = s;
-		heap[pageno].page->values[varno].i = ns;
-		if (old > 0) heap_unref(old);
-	} else if (heap[pageno].type == VM_STRING) {
-		/* Direct string slot (legacy): replace in place */
-		if (heap[pageno].s)
-			free_string(heap[pageno].s);
-		heap[pageno].s = s;
-	}
+	if (!ptr) return;
+	int old = *ptr;
+	int ns = heap_alloc_slot(VM_STRING);
+	heap[ns].s = s;
+	*ptr = ns;
+	if (old > 0) heap_unref(old);
 }
 
 /* Write a float to a wrap<float> reference (pageno, varno) */
