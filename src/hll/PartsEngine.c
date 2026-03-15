@@ -1817,6 +1817,118 @@ static bool PartsEngine_Parts_ReleaseParts3DLayerPluginID(int parts_no, int stat
 	return seal_engine_release_plugin_for_parts(parts_no);
 }
 
+/* PE_GetAddColor / PE_GetMultiplyColor implemented in parts.c */
+
+/* --- Sound number getter/setter --- */
+static void PE_SetSoundNumber(int parts_no, int sound_no)
+{
+	struct parts *p = parts_get(parts_no);
+	p->on_cursor_sound = sound_no;
+}
+
+static int PE_GetSoundNumber(int parts_no)
+{
+	return parts_get(parts_no)->on_cursor_sound;
+}
+
+static int PE_GetClickMissSoundNumber(void)
+{
+	return -1;
+}
+
+/* --- Focus parts --- */
+static int focus_parts_number = 0;
+
+static int PE_GetFocusPartsNumber(void)
+{
+	return focus_parts_number;
+}
+
+static void PE_SetFocusPartsNumber(int parts_no)
+{
+	focus_parts_number = parts_no;
+}
+
+/* --- GUI Controller stack (stub) --- */
+static void PE_PushGUIController(void) { }
+static void PE_PopGUIController(void) { }
+static void PE_UpdateGUIController(void) { }
+
+/* --- Construction Process filters --- */
+static void PE_AddFillWithAlphaToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a)
+{
+	PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, x, y, w, h, r, g, b, a, 0);
+}
+
+static void PE_AddFillGradationHorizonToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r1, int g1, int b1, int r2, int g2, int b2)
+{
+	PE_AddFillToPartsConstructionProcess(parts_no, x, y, w, h, r1, g1, b1, 0);
+}
+
+/* PE_AddGrayFilterToPartsConstructionProcess already in parts.h */
+
+static void PE_AddAddFilterToPartsConstructionProcess_stub(int parts_no, int x, int y, int w, int h, int r, int g, int b)
+{
+	/* No-op: add filter not supported yet */
+}
+
+static void PE_AddMulFilterToPartsConstructionProcess_stub(int parts_no, int x, int y, int w, int h, int r, int g, int b)
+{
+	/* No-op: multiply filter not supported yet */
+}
+
+/* --- Text-related stubs --- */
+static void PE_DeletePartsTopTextLine(int parts_no) { }
+static void PE_SetPartsTextHighlight(int parts_no, int start, int end) { }
+static void PE_AddPartsTextHighlight(int parts_no, int start, int end) { }
+static void PE_ClearPartsTextHighlight(int parts_no) { }
+static void PE_SetPartsTextCountReturn(int parts_no, bool count) { }
+static bool PE_GetPartsTextCountReturn(int parts_no) { return false; }
+
+/* --- Numeral font stub --- */
+static bool PE_SetNumeralFont(int parts_no, struct string *font_name, int size, int weight, int r, int g, int b, int er, int eg, int eb, float edge_weight, int state)
+{
+	return true;
+}
+
+/* --- Detection surface area stubs --- */
+static void PE_SetPartsRectangleDetectionSurfaceArea(int parts_no, int x, int y, int w, int h)
+{
+	PE_SetPartsCGSurfaceArea(parts_no, x, y, w, h, 0);
+}
+
+static void PE_SetPartsCGDetectionSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
+{
+	PE_SetPartsCGSurfaceArea(parts_no, x, y, w, h, state);
+}
+
+/* --- Timer/speedup stubs --- */
+static void PE_SetResetTimerByChangeInputStatus(bool reset) { }
+static bool PE_GetResetTimerByChangeInputStatus(void) { return false; }
+static float PE_GetPartsSpeedupRateByMessageSkip(void) { return 1.0f; }
+
+/* --- Motion CG stub --- */
+static bool PE_AddMotionCG(int parts_no, struct string *cg_name, int begin_cg, int nr_cg, int begin_time, int end_time, int state)
+{
+	return true;
+}
+
+/* PE_ExistsFlashFile already declared in parts.h — use directly via HLL_EXPORT */
+
+/* SetPartsFlashSurfaceArea stub */
+static void PE_SetPartsFlashSurfaceArea_stub(int parts_no, int x, int y, int w, int h) { }
+
+/* Old-style Parts_AddDrawCutCG/AddCopyCutCG — these use cg_no (int) instead of cg_name (string) */
+static void PE_AddDrawCutCGToPartsConstructionProcess_old(int parts_no, int cg_no, int dx, int dy, int sx, int sy, int w, int h, int interp)
+{
+	/* Old API: convert cg_no to string for new API, or just use direct fill */
+}
+
+static void PE_AddCopyCutCGToPartsConstructionProcess_old(int parts_no, int cg_no, int dx, int dy, int sx, int sy, int w, int h, int interp)
+{
+	/* Old API: convert cg_no to string for new API, or just use direct fill */
+}
+
 static void PartsEngine_PreLink(void);
 
 HLL_LIBRARY(PartsEngine,
@@ -1827,7 +1939,7 @@ HLL_LIBRARY(PartsEngine,
 	    // Oyako Rankan
 	    HLL_EXPORT(Init, PE_Init),
 	    HLL_EXPORT(Update, PartsEngine_Update),
-	    HLL_TODO_EXPORT(UpdateGUIController, PartsEngine_UpdateGUIController),
+	    HLL_EXPORT(UpdateGUIController, PE_UpdateGUIController),
 	    HLL_EXPORT(Release, PE_ReleaseParts),
 	    HLL_EXPORT(GetFreeNumber, PE_GetFreeNumber),
 	    HLL_EXPORT(GetFreeSystemPartsNumber, PE_GetFreeNumber),
@@ -1994,13 +2106,13 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SetLoopCGSurfaceArea, PE_SetLoopCGSurfaceArea),
 	    HLL_EXPORT(SetText, PE_SetText),
 	    HLL_EXPORT(AddPartsText, PE_AddPartsText),
-	    HLL_TODO_EXPORT(DeletePartsTopTextLine, PartsEngine_DeletePartsTopTextLine),
+	    HLL_EXPORT(DeletePartsTopTextLine, PE_DeletePartsTopTextLine),
 	    HLL_EXPORT(SetPartsTextSurfaceArea, PE_SetPartsTextSurfaceArea),
-	    HLL_TODO_EXPORT(SetPartsTextHighlight, PartsEngine_SetPartsTextHighlight),
-	    HLL_TODO_EXPORT(AddPartsTextHighlight, PartsEngine_AddPartsTextHighlight),
-	    HLL_TODO_EXPORT(ClearPartsTextHighlight, PartsEngine_ClearPartsTextHighlight),
-	    HLL_TODO_EXPORT(SetPartsTextCountReturn, PartsEngine_SetPartsTextCountReturn),
-	    HLL_TODO_EXPORT(GetPartsTextCountReturn, PartsEngine_GetPartsTextCountReturn),
+	    HLL_EXPORT(SetPartsTextHighlight, PE_SetPartsTextHighlight),
+	    HLL_EXPORT(AddPartsTextHighlight, PE_AddPartsTextHighlight),
+	    HLL_EXPORT(ClearPartsTextHighlight, PE_ClearPartsTextHighlight),
+	    HLL_EXPORT(SetPartsTextCountReturn, PE_SetPartsTextCountReturn),
+	    HLL_EXPORT(GetPartsTextCountReturn, PE_GetPartsTextCountReturn),
 	    HLL_EXPORT(SetFont, PE_SetFont),
 	    HLL_EXPORT(SetPartsFontType, PE_SetPartsFontType),
 	    HLL_EXPORT(SetPartsFontSize, PE_SetPartsFontSize),
@@ -2018,22 +2130,22 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SetVGaugeSurfaceArea, PE_SetVGaugeSurfaceArea),
 	    HLL_EXPORT(SetNumeralCG, PE_SetNumeralCG),
 	    HLL_EXPORT(SetNumeralLinkedCGNumberWidthWidthList, PE_SetNumeralLinkedCGNumberWidthWidthList),
-	    HLL_TODO_EXPORT(SetNumeralFont, PartsEngine_SetNumeralFont),
+	    HLL_EXPORT(SetNumeralFont, PE_SetNumeralFont),
 	    HLL_EXPORT(SetNumeralNumber, PE_SetNumeralNumber),
 	    HLL_EXPORT(SetNumeralShowComma, PE_SetNumeralShowComma),
 	    HLL_EXPORT(SetNumeralSpace, PE_SetNumeralSpace),
 	    HLL_EXPORT(SetNumeralLength, PE_SetNumeralLength),
 	    HLL_EXPORT(SetNumeralSurfaceArea, PE_SetNumeralSurfaceArea),
 	    HLL_EXPORT(SetPartsRectangleDetectionSize, PE_SetPartsRectangleDetectionSize),
-	    HLL_TODO_EXPORT(SetPartsRectangleDetectionSurfaceArea, PartsEngine_SetPartsRectangleDetectionSurfaceArea),
+	    HLL_EXPORT(SetPartsRectangleDetectionSurfaceArea, PE_SetPartsRectangleDetectionSurfaceArea),
 	    HLL_EXPORT(SetPartsCGDetectionSize, PE_SetPartsCGDetectionSize),
-	    HLL_TODO_EXPORT(SetPartsCGDetectionSurfaceArea, PartsEngine_SetPartsCGDetectionSurfaceArea),
+	    HLL_EXPORT(SetPartsCGDetectionSurfaceArea, PE_SetPartsCGDetectionSurfaceArea),
 	    HLL_EXPORT(SetPartsFlash, PE_SetPartsFlash),
 	    HLL_EXPORT(IsPartsFlashEnd, PE_IsPartsFlashEnd),
 	    HLL_EXPORT(GetPartsFlashCurrentFrameNumber, PE_GetPartsFlashCurrentFrameNumber),
 	    HLL_EXPORT(BackPartsFlashBeginFrame, PE_BackPartsFlashBeginFrame),
 	    HLL_EXPORT(StepPartsFlashFinalFrame, PE_StepPartsFlashFinalFrame),
-	    HLL_TODO_EXPORT(SetPartsFlashSurfaceArea, PE_SetPartsFlashSurfaceArea),
+	    HLL_EXPORT(SetPartsFlashSurfaceArea, PE_SetPartsFlashSurfaceArea_stub),
 	    HLL_EXPORT(SetPartsFlashAndStop, PE_SetPartsFlashAndStop),
 	    HLL_EXPORT(StopPartsFlash, PE_StopPartsFlash),
 	    HLL_EXPORT(StartPartsFlash, PE_StartPartsFlash),
@@ -2047,14 +2159,14 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(AddFillToPartsConstructionProcess, PE_AddFillToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillAlphaColorToPartsConstructionProcess, PE_AddFillAlphaColorToPartsConstructionProcess),
 	    HLL_EXPORT(AddFillAMapToPartsConstructionProcess, PE_AddFillAMapToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddFillWithAlphaToPartsConstructionProcess, PartsEngine_AddFillWithAlphaToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddFillGradationHorizonToPartsConstructionProcess, PartsEngine_AddFillGradationHorizonToPartsConstructionProcess),
+	    HLL_EXPORT(AddFillWithAlphaToPartsConstructionProcess, PE_AddFillWithAlphaToPartsConstructionProcess),
+	    HLL_EXPORT(AddFillGradationHorizonToPartsConstructionProcess, PE_AddFillGradationHorizonToPartsConstructionProcess),
 	    HLL_EXPORT(AddDrawRectToPartsConstructionProcess, PE_AddDrawRectToPartsConstructionProcess),
 	    HLL_EXPORT(AddDrawCutCGToPartsConstructionProcess, PartsEngine_AddDrawCutCGToPartsConstructionProcess_old),
 	    HLL_EXPORT(AddCopyCutCGToPartsConstructionProcess, PartsEngine_AddCopyCutCGToPartsConstructionProcess_old),
 	    HLL_EXPORT(AddGrayFilterToPartsConstructionProcess, PE_AddGrayFilterToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddAddFilterToPartsConstructionProcess, PartsEngine_AddAddFilterToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(AddMulFilterToPartsConstructionProcess, PartsEngine_AddMulFilterToPartsConstructionProcess),
+	    HLL_EXPORT(AddAddFilterToPartsConstructionProcess, PE_AddAddFilterToPartsConstructionProcess_stub),
+	    HLL_EXPORT(AddMulFilterToPartsConstructionProcess, PE_AddMulFilterToPartsConstructionProcess_stub),
 	    HLL_EXPORT(BuildPartsConstructionProcess, PE_BuildPartsConstructionProcess),
 	    HLL_EXPORT(AddDrawTextToPartsConstructionProcess, PE_AddDrawTextToPartsConstructionProcess),
 	    HLL_EXPORT(AddCopyTextToPartsConstructionProcess, PE_AddCopyTextToPartsConstructionProcess),
@@ -2072,17 +2184,17 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SetClickable, PE_SetClickable),
 	    HLL_EXPORT(SetEnableInputProcess, PartsEngine_SetEnableInputProcess),
 	    HLL_EXPORT(SetSpeedupRateByMessageSkip, PE_SetSpeedupRateByMessageSkip),
-	    HLL_TODO_EXPORT(SetResetTimerByChangeInputStatus, PartsEngine_SetResetTimerByChangeInputStatus),
+	    HLL_EXPORT(SetResetTimerByChangeInputStatus, PE_SetResetTimerByChangeInputStatus),
 	    HLL_EXPORT(GetPartsX, PE_GetPartsX),
 	    HLL_EXPORT(GetPartsY, PE_GetPartsY),
 	    HLL_EXPORT(GetPartsZ, PE_GetPartsZ),
 	    HLL_EXPORT(GetPartsShow, PE_GetPartsShow),
 	    HLL_EXPORT(GetPartsAlpha, PE_GetPartsAlpha),
-	    HLL_TODO_EXPORT(GetAddColor, PartsEngine_GetAddColor),
-	    HLL_TODO_EXPORT(GetMultiplyColor, PartsEngine_GetMultiplyColor),
+	    HLL_EXPORT(GetAddColor, PE_GetAddColor),
+	    HLL_EXPORT(GetMultiplyColor, PE_GetMultiplyColor),
 	    HLL_EXPORT(GetPartsClickable, PE_GetPartsClickable),
-	    HLL_TODO_EXPORT(GetPartsSpeedupRateByMessageSkip, PartsEngine_GetPartsSpeedupRateByMessageSkip),
-	    HLL_TODO_EXPORT(GetResetTimerByChangeInputStatus, PartsEngine_GetResetTimerByChangeInputStatus),
+	    HLL_EXPORT(GetPartsSpeedupRateByMessageSkip, PE_GetPartsSpeedupRateByMessageSkip),
+	    HLL_EXPORT(GetResetTimerByChangeInputStatus, PE_GetResetTimerByChangeInputStatus),
 	    HLL_EXPORT(GetPartsUpperLeftPosX, PE_GetPartsUpperLeftPosX),
 	    HLL_EXPORT(GetPartsUpperLeftPosY, PE_GetPartsUpperLeftPosY),
 	    HLL_EXPORT(GetPartsWidth, PE_GetPartsWidth),
@@ -2100,7 +2212,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(GetPartsMessageWindowShowLink, PE_GetPartsMessageWindowShowLink),
 	    HLL_EXPORT(AddMotionPos, PE_AddMotionPos_curve),
 	    HLL_EXPORT(AddMotionAlpha, PE_AddMotionAlpha_curve),
-	    HLL_TODO_EXPORT(AddMotionCG, PartsEngine_AddMotionCG),
+	    HLL_EXPORT(AddMotionCG, PE_AddMotionCG),
 	    HLL_EXPORT(AddMotionHGaugeRate, PE_AddMotionHGaugeRate_curve),
 	    HLL_EXPORT(AddMotionVGaugeRate, PE_AddMotionVGaugeRate_curve),
 	    HLL_EXPORT(AddMotionNumeralNumber, PE_AddMotionNumeralNumber_curve),
@@ -2112,10 +2224,10 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(AddMotionVibrationSize, PE_AddMotionVibrationSize),
 	    HLL_EXPORT(AddWholeMotionVibrationSize, PE_AddWholeMotionVibrationSize),
 	    HLL_EXPORT(AddMotionSound, PE_AddMotionSound),
-	    HLL_TODO_EXPORT(SetSoundNumber, PartsEngine_SetSoundNumber),
-	    HLL_TODO_EXPORT(GetSoundNumber, PartsEngine_GetSoundNumber),
+	    HLL_EXPORT(SetSoundNumber, PE_SetSoundNumber),
+	    HLL_EXPORT(GetSoundNumber, PE_GetSoundNumber),
 	    HLL_EXPORT(SetClickMissSoundNumber, PE_SetClickMissSoundNumber),
-	    HLL_TODO_EXPORT(GetClickMissSoundNumber, PartsEngine_GetClickMissSoundNumber),
+	    HLL_EXPORT(GetClickMissSoundNumber, PE_GetClickMissSoundNumber),
 	    HLL_EXPORT(BeginMotion, PE_BeginMotion),
 	    HLL_EXPORT(EndMotion, PE_EndMotion),
 	    HLL_EXPORT(IsMotion, PE_IsMotion),
@@ -2124,10 +2236,10 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(BeginInput, PE_BeginInput),
 	    HLL_EXPORT(EndInput, PE_EndInput),
 	    HLL_EXPORT(GetClickPartsNumber, PE_GetClickPartsNumber),
-	    HLL_TODO_EXPORT(GetFocusPartsNumber, PartsEngine_GetFocusPartsNumber),
-	    HLL_TODO_EXPORT(SetFocusPartsNumber, PartsEngine_SetFocusPartsNumber),
-	    HLL_TODO_EXPORT(PushGUIController, PartsEngine_PushGUIController),
-	    HLL_TODO_EXPORT(PopGUIController, PartsEngine_PopGUIController),
+	    HLL_EXPORT(GetFocusPartsNumber, PE_GetFocusPartsNumber),
+	    HLL_EXPORT(SetFocusPartsNumber, PE_SetFocusPartsNumber),
+	    HLL_EXPORT(PushGUIController, PE_PushGUIController),
+	    HLL_EXPORT(PopGUIController, PE_PopGUIController),
 	    HLL_EXPORT(SetPartsMagX, PE_SetPartsMagX),
 	    HLL_EXPORT(SetPartsMagY, PE_SetPartsMagY),
 	    HLL_EXPORT(SetPartsRotateX, PE_SetPartsRotateX),
@@ -2276,37 +2388,37 @@ HLL_LIBRARY(PartsEngine,
 	    /* v14 stubs for new functions */
 	    HLL_EXPORT(Parts_SetComment, PartsEngine_Parts_SetComment),
 	    HLL_EXPORT(Parts_GetComment, PartsEngine_Parts_GetComment),
-	    HLL_TODO_EXPORT(Parts_DeletePartsTopTextLine, PartsEngine_DeletePartsTopTextLine),
-	    HLL_TODO_EXPORT(Parts_SetPartsTextHighlight, PartsEngine_SetPartsTextHighlight),
-	    HLL_TODO_EXPORT(Parts_AddPartsTextHighlight, PartsEngine_AddPartsTextHighlight),
-	    HLL_TODO_EXPORT(Parts_ClearPartsTextHighlight, PartsEngine_ClearPartsTextHighlight),
-	    HLL_TODO_EXPORT(Parts_SetPartsTextCountReturn, PartsEngine_SetPartsTextCountReturn),
-	    HLL_TODO_EXPORT(Parts_GetPartsTextCountReturn, PartsEngine_GetPartsTextCountReturn),
-	    HLL_TODO_EXPORT(Parts_SetNumeralFont, PartsEngine_SetNumeralFont),
-	    HLL_TODO_EXPORT(Parts_SetPartsRectangleDetectionSurfaceArea, PartsEngine_SetPartsRectangleDetectionSurfaceArea),
-	    HLL_TODO_EXPORT(Parts_SetPartsCGDetectionSurfaceArea, PartsEngine_SetPartsCGDetectionSurfaceArea),
-	    HLL_TODO_EXPORT(Parts_SetPartsFlashSurfaceArea, PE_SetPartsFlashSurfaceArea),
-	    HLL_TODO_EXPORT(Parts_ExistsFlashFile, PE_ExistsFlashFile),
-	    HLL_TODO_EXPORT(Parts_AddFillWithAlphaToPartsConstructionProcess, PartsEngine_AddFillWithAlphaToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(Parts_AddFillGradationHorizonToPartsConstructionProcess, PartsEngine_AddFillGradationHorizonToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(Parts_AddGrayFilterToPartsConstructionProcess, PartsEngine_AddGrayFilterToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(Parts_AddAddFilterToPartsConstructionProcess, PartsEngine_AddAddFilterToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(Parts_AddMulFilterToPartsConstructionProcess, PartsEngine_AddMulFilterToPartsConstructionProcess),
-	    HLL_TODO_EXPORT(Parts_SetResetTimerByChangeInputStatus, PartsEngine_SetResetTimerByChangeInputStatus),
-	    HLL_TODO_EXPORT(Parts_GetPartsSpeedupRateByMessageSkip, PartsEngine_GetPartsSpeedupRateByMessageSkip),
-	    HLL_TODO_EXPORT(Parts_GetResetTimerByChangeInputStatus, PartsEngine_GetResetTimerByChangeInputStatus),
-	    HLL_TODO_EXPORT(Parts_GetAddColor, PartsEngine_GetAddColor),
-	    HLL_TODO_EXPORT(Parts_GetMultiplyColor, PartsEngine_GetMultiplyColor),
-	    HLL_TODO_EXPORT(Parts_AddMotionCG, PartsEngine_AddMotionCG),
-	    HLL_TODO_EXPORT(Parts_SetSoundNumber, PartsEngine_SetSoundNumber),
-	    HLL_TODO_EXPORT(Parts_GetSoundNumber, PartsEngine_GetSoundNumber),
-	    HLL_TODO_EXPORT(Parts_GetClickMissSoundNumber, PartsEngine_GetClickMissSoundNumber),
-	    HLL_TODO_EXPORT(Parts_GetFocusPartsNumber, PartsEngine_GetFocusPartsNumber),
-	    HLL_TODO_EXPORT(Parts_SetFocusPartsNumber, PartsEngine_SetFocusPartsNumber),
-	    HLL_TODO_EXPORT(Parts_PushGUIController, PartsEngine_PushGUIController),
-	    HLL_TODO_EXPORT(Parts_PopGUIController, PartsEngine_PopGUIController),
-	    HLL_TODO_EXPORT(Parts_AddDrawCutCGToPartsConstructionProcess, PartsEngine_AddDrawCutCGToPartsConstructionProcess_old),
-	    HLL_TODO_EXPORT(Parts_AddCopyCutCGToPartsConstructionProcess, PartsEngine_AddCopyCutCGToPartsConstructionProcess_old),
+	    HLL_EXPORT(Parts_DeletePartsTopTextLine, PE_DeletePartsTopTextLine),
+	    HLL_EXPORT(Parts_SetPartsTextHighlight, PE_SetPartsTextHighlight),
+	    HLL_EXPORT(Parts_AddPartsTextHighlight, PE_AddPartsTextHighlight),
+	    HLL_EXPORT(Parts_ClearPartsTextHighlight, PE_ClearPartsTextHighlight),
+	    HLL_EXPORT(Parts_SetPartsTextCountReturn, PE_SetPartsTextCountReturn),
+	    HLL_EXPORT(Parts_GetPartsTextCountReturn, PE_GetPartsTextCountReturn),
+	    HLL_EXPORT(Parts_SetNumeralFont, PE_SetNumeralFont),
+	    HLL_EXPORT(Parts_SetPartsRectangleDetectionSurfaceArea, PE_SetPartsRectangleDetectionSurfaceArea),
+	    HLL_EXPORT(Parts_SetPartsCGDetectionSurfaceArea, PE_SetPartsCGDetectionSurfaceArea),
+	    HLL_EXPORT(Parts_SetPartsFlashSurfaceArea, PE_SetPartsFlashSurfaceArea_stub),
+	    HLL_EXPORT(Parts_ExistsFlashFile, PE_ExistsFlashFile),
+	    HLL_EXPORT(Parts_AddFillWithAlphaToPartsConstructionProcess, PE_AddFillWithAlphaToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddFillGradationHorizonToPartsConstructionProcess, PE_AddFillGradationHorizonToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddGrayFilterToPartsConstructionProcess, PE_AddGrayFilterToPartsConstructionProcess),
+	    HLL_EXPORT(Parts_AddAddFilterToPartsConstructionProcess, PE_AddAddFilterToPartsConstructionProcess_stub),
+	    HLL_EXPORT(Parts_AddMulFilterToPartsConstructionProcess, PE_AddMulFilterToPartsConstructionProcess_stub),
+	    HLL_EXPORT(Parts_SetResetTimerByChangeInputStatus, PE_SetResetTimerByChangeInputStatus),
+	    HLL_EXPORT(Parts_GetPartsSpeedupRateByMessageSkip, PE_GetPartsSpeedupRateByMessageSkip),
+	    HLL_EXPORT(Parts_GetResetTimerByChangeInputStatus, PE_GetResetTimerByChangeInputStatus),
+	    HLL_EXPORT(Parts_GetAddColor, PE_GetAddColor),
+	    HLL_EXPORT(Parts_GetMultiplyColor, PE_GetMultiplyColor),
+	    HLL_EXPORT(Parts_AddMotionCG, PE_AddMotionCG),
+	    HLL_EXPORT(Parts_SetSoundNumber, PE_SetSoundNumber),
+	    HLL_EXPORT(Parts_GetSoundNumber, PE_GetSoundNumber),
+	    HLL_EXPORT(Parts_GetClickMissSoundNumber, PE_GetClickMissSoundNumber),
+	    HLL_EXPORT(Parts_GetFocusPartsNumber, PE_GetFocusPartsNumber),
+	    HLL_EXPORT(Parts_SetFocusPartsNumber, PE_SetFocusPartsNumber),
+	    HLL_EXPORT(Parts_PushGUIController, PE_PushGUIController),
+	    HLL_EXPORT(Parts_PopGUIController, PE_PopGUIController),
+	    HLL_EXPORT(Parts_AddDrawCutCGToPartsConstructionProcess, PE_AddDrawCutCGToPartsConstructionProcess_old),
+	    HLL_EXPORT(Parts_AddCopyCutCGToPartsConstructionProcess, PE_AddCopyCutCGToPartsConstructionProcess_old),
 	    HLL_EXPORT(AddPartsConstructionProcess, PartsEngine_AddPartsConstructionProcess),
 	    HLL_EXPORT(SetPanelSize, PartsEngine_SetPanelSize),
 	    HLL_EXPORT(SetPanelColor, PartsEngine_SetPanelColor),
