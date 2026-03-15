@@ -32,22 +32,49 @@ static bool CGManager_LoadArchive(struct string *archive_name)
 	return r;
 }
 
-//static int CGManager_GetCountOfDataFromArchive(void);
-//static void CGManager_GetTitleByIndexFromArchive(int index, struct string **cg_name);
-//static int CGManager_SearchTitleFromArchive(struct string *cg_name);
-//static int CGManager_PrefixSearchTitleFromArchive(struct string *cg_name);
-//static int CGManager_SuffixSearchTitleFromArchive(struct string *cg_name);
-//static int CGManager_GetCountOfSearchDataFromArchive(void);
-//static void CGManager_GetSearchTitleByIndexFromArchive(int index, struct string **cg_name);
+static int CGManager_GetCountOfDataFromArchive(void)
+{
+	return 0;
+}
+
+static void CGManager_GetTitleByIndexFromArchive(int index, struct string **cg_name)
+{
+	if (cg_name) *cg_name = string_ref(&EMPTY_STRING);
+}
+
+static int CGManager_SearchTitleFromArchive(struct string *cg_name)
+{
+	return -1;
+}
+
+static int CGManager_PrefixSearchTitleFromArchive(struct string *cg_name)
+{
+	return -1;
+}
+
+static int CGManager_SuffixSearchTitleFromArchive(struct string *cg_name)
+{
+	return -1;
+}
+
+static int CGManager_GetCountOfSearchDataFromArchive(void)
+{
+	return 0;
+}
+
+static void CGManager_GetSearchTitleByIndexFromArchive(int index, struct string **cg_name)
+{
+	if (cg_name) *cg_name = string_ref(&EMPTY_STRING);
+}
 
 HLL_LIBRARY(CGManager,
 	    HLL_EXPORT(Init, CGManager_Init),
 	    HLL_EXPORT(LoadArchive, CGManager_LoadArchive),
-	    HLL_TODO_EXPORT(GetCountOfDataFromArchive, CGManager_GetCountOfDataFromArchive),
-	    HLL_TODO_EXPORT(GetTitleByIndexFromArchive, CGManager_GetTitleByIndexFromArchive),
-	    HLL_TODO_EXPORT(SearchTitleFromArchive, CGManager_SearchTitleFromArchive),
-	    HLL_TODO_EXPORT(PrefixSearchTitleFromArchive, CGManager_PrefixSearchTitleFromArchive),
-	    HLL_TODO_EXPORT(SuffixSearchTitleFromArchive, CGManager_SuffixSearchTitleFromArchive),
-	    HLL_TODO_EXPORT(GetCountOfSearchDataFromArchive, CGManager_GetCountOfSearchDataFromArchive),
-	    HLL_TODO_EXPORT(GetSearchTitleByIndexFromArchive, CGManager_GetSearchTitleByIndexFromArchive));
+	    HLL_EXPORT(GetCountOfDataFromArchive, CGManager_GetCountOfDataFromArchive),
+	    HLL_EXPORT(GetTitleByIndexFromArchive, CGManager_GetTitleByIndexFromArchive),
+	    HLL_EXPORT(SearchTitleFromArchive, CGManager_SearchTitleFromArchive),
+	    HLL_EXPORT(PrefixSearchTitleFromArchive, CGManager_PrefixSearchTitleFromArchive),
+	    HLL_EXPORT(SuffixSearchTitleFromArchive, CGManager_SuffixSearchTitleFromArchive),
+	    HLL_EXPORT(GetCountOfSearchDataFromArchive, CGManager_GetCountOfSearchDataFromArchive),
+	    HLL_EXPORT(GetSearchTitleByIndexFromArchive, CGManager_GetSearchTitleByIndexFromArchive));
 
