@@ -69,8 +69,15 @@ static bool KiwiSoundEngine_PlaySe(int se_id, struct string *name, struct string
 	return wav_play(se_id);
 }
 
-//int KiwiSoundEngine_Sound_GetGroupNum(int nCh);
-//static bool KiwiSoundEngine_Sound_PrepareFromFile(int ch, struct string *filename);
+static int KiwiSoundEngine_Sound_GetGroupNum(int ch)
+{
+	return wav_get_group_num_from_data_num(ch);
+}
+
+static bool KiwiSoundEngine_Sound_PrepareFromFile(int ch, struct string *filename)
+{
+	return wav_prepare_from_file(ch, (char*)filename->text) > 0;
+}
 
 static bool KiwiSoundEngine_StopSe(int se_id)
 {
@@ -340,9 +347,9 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(Sound_StopFade, wav_stop_fade),
 	    HLL_EXPORT(Sound_IsFade, wav_is_fading),
 	    HLL_EXPORT(Sound_GetTimeLength, wav_get_time_length),
-	    HLL_TODO_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
+	    HLL_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
 	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, wav_get_group_num_from_data_num),
-	    HLL_TODO_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile),
+	    HLL_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile),
 	    HLL_EXPORT(Sound_GetDataLength, wav_get_data_length),
 	    HLL_EXPORT(GetFreeSeID, KiwiSoundEngine_GetFreeSeID),
 	    HLL_EXPORT(IsExistSeID, KiwiSoundEngine_IsExistSeID),

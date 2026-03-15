@@ -564,6 +564,12 @@ HLL_QUIET_UNIMPLEMENTED( , void, SystemService, SetAntiAliasingMode, int mode);
 HLL_QUIET_UNIMPLEMENTED( , void, SystemService, SetHookCloseApp, bool hook);
 HLL_QUIET_UNIMPLEMENTED( , void, SystemService, SetAndroidViewKeepScreen, bool keep);
 
+static bool SystemService_GetHideMouseCursorByGame(void) { return false; }
+static bool SystemService_GetUsePower2Texture(void) { return false; }
+static bool SystemService_RunProgram(struct string *prog) { return false; }
+static bool SystemService_IsOpenedMutex(struct string *name) { return false; }
+static bool SystemService_PopSystemMessage(void) { return false; }
+
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
@@ -587,15 +593,15 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(GetViewHeight, SystemService_GetViewHeight),
 	    HLL_EXPORT(MoveMouseCursorPosImmediately, SystemService_MoveMouseCursorPosImmediately),
 	    HLL_EXPORT(SetHideMouseCursorByGame, SystemService_SetHideMouseCursorByGame),
-	    HLL_TODO_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
+	    HLL_EXPORT(GetHideMouseCursorByGame, SystemService_GetHideMouseCursorByGame),
 	    HLL_EXPORT(SetUsePower2Texture, SystemService_SetUsePower2Texture),
-	    HLL_TODO_EXPORT(GetUsePower2Texture, SystemService_GetUsePower2Texture),
+	    HLL_EXPORT(GetUsePower2Texture, SystemService_GetUsePower2Texture),
 	    HLL_EXPORT(SetWindowSetting, SystemService_SetWindowSetting),
 	    HLL_EXPORT(GetWindowSetting, SystemService_GetWindowSetting),
 	    HLL_EXPORT(SetMouseCursorConfig, SystemService_SetMouseCursorConfig),
 	    HLL_EXPORT(GetMouseCursorConfig, SystemService_GetMouseCursorConfig),
-	    HLL_TODO_EXPORT(RunProgram, SystemService_RunProgram),
-	    HLL_TODO_EXPORT(IsOpenedMutex, SystemService_IsOpenedMutex),
+	    HLL_EXPORT(RunProgram, SystemService_RunProgram),
+	    HLL_EXPORT(IsOpenedMutex, SystemService_IsOpenedMutex),
 	    HLL_EXPORT(GetGameFolderPath, SystemService_GetGameFolderPath),
 	    HLL_EXPORT(GetDate, SystemService_GetDate),
 	    HLL_EXPORT(GetTime, SystemService_GetTime),
@@ -603,7 +609,7 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(OpenPlayingManual, SystemService_OpenPlayingManual),
 	    HLL_EXPORT(IsExistPlayingManual, SystemService_IsExistPlayingManual),
 	    HLL_EXPORT(IsExistSystemMessage, SystemService_IsExistSystemMessage),
-	    HLL_TODO_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
+	    HLL_EXPORT(PopSystemMessage, SystemService_PopSystemMessage),
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
 	    HLL_EXPORT(GetGameViewScaleRate, SystemService_GetGameViewScaleRate),
 	    HLL_EXPORT(Debug_GetUseMemorySize, SystemService_Debug_GetUseMemorySize),

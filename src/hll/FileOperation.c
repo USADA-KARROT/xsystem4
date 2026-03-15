@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
 
@@ -39,7 +40,13 @@ static bool FileOperation_ExistFile(struct string *file_name)
 	return result;
 }
 
-//bool FileOperation_DeleteFile(string FileName);
+static bool FileOperation_DeleteFile(struct string *file_name)
+{
+	char *path = unix_path(file_name->text);
+	int result = remove(path);
+	free(path);
+	return result == 0;
+}
 
 static bool FileOperation_CopyFile(struct string *dest_file_name, struct string *src_file_name)
 {
@@ -51,9 +58,44 @@ static bool FileOperation_CopyFile(struct string *dest_file_name, struct string 
 	return result;
 }
 
-//bool FileOperation_GetFileCreationTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
-//bool FileOperation_GetFileLastAccessTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
-//bool FileOperation_GetFileLastWriteTime(string FileName, ref int nYear, ref int nMonth, ref int nDay, ref int nWeek, ref int nHour, ref int nMin, ref int nSecond);
+static bool filetime_helper(struct string *file_name, struct timespec *ts,
+	int *year, int *month, int *day, int *week, int *hour, int *min, int *sec)
+{
+	(void)ts;
+	char *path = unix_path(file_name->text);
+	ustat s;
+	if (stat_utf8(path, &s) < 0) {
+		free(path);
+		return false;
+	}
+	free(path);
+	time_t t = s.st_mtime;
+	struct tm *tm = localtime(&t);
+	if (!tm) return false;
+	if (year) *year = tm->tm_year + 1900;
+	if (month) *month = tm->tm_mon + 1;
+	if (day) *day = tm->tm_mday;
+	if (week) *week = tm->tm_wday;
+	if (hour) *hour = tm->tm_hour;
+	if (min) *min = tm->tm_min;
+	if (sec) *sec = tm->tm_sec;
+	return true;
+}
+
+static bool FileOperation_GetFileCreationTime(struct string *fn, int *y, int *mo, int *d, int *w, int *h, int *mi, int *s)
+{
+	return filetime_helper(fn, NULL, y, mo, d, w, h, mi, s);
+}
+
+static bool FileOperation_GetFileLastAccessTime(struct string *fn, int *y, int *mo, int *d, int *w, int *h, int *mi, int *s)
+{
+	return filetime_helper(fn, NULL, y, mo, d, w, h, mi, s);
+}
+
+static bool FileOperation_GetFileLastWriteTime(struct string *fn, int *y, int *mo, int *d, int *w, int *h, int *mi, int *s)
+{
+	return filetime_helper(fn, NULL, y, mo, d, w, h, mi, s);
+}
 
 // v14: arg[1] is AIN_WRAP — pointer-based interface
 static bool FileOperation_GetFileSize(struct string *file_name, int *size)
@@ -221,11 +263,11 @@ static bool FileOperation_GetFolderList(struct string *folder_name, struct page 
 
 HLL_LIBRARY(FileOperation,
 	    HLL_EXPORT(ExistFile, FileOperation_ExistFile),
-	    HLL_TODO_EXPORT(DeleteFile, FileOperation_DeleteFile),
+	    HLL_EXPORT(DeleteFile, FileOperation_DeleteFile),
 	    HLL_EXPORT(CopyFile, FileOperation_CopyFile),
-	    HLL_TODO_EXPORT(GetFileCreationTime, FileOperation_GetFileCreationTime),
-	    HLL_TODO_EXPORT(GetFileLastAccessTime, FileOperation_GetFileLastAccessTime),
-	    HLL_TODO_EXPORT(GetFileLastWriteTime, FileOperation_GetFileLastWriteTime),
+	    HLL_EXPORT(GetFileCreationTime, FileOperation_GetFileCreationTime),
+	    HLL_EXPORT(GetFileLastAccessTime, FileOperation_GetFileLastAccessTime),
+	    HLL_EXPORT(GetFileLastWriteTime, FileOperation_GetFileLastWriteTime),
 	    HLL_EXPORT(GetFileSize, FileOperation_GetFileSize),
 	    HLL_EXPORT(ExistFolder, FileOperation_ExistFolder),
 	    HLL_EXPORT(CreateFolder, FileOperation_CreateFolder),

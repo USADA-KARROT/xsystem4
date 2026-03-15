@@ -70,11 +70,13 @@ bool IbisInputEngine_Joystick_IsKeyDown(int DeviceNumber, int JoystickCode)
 //float IbisInputEngine_Joystick_GetAxis(int DeviceNumber, int AxisType);
 HLL_WARN_UNIMPLEMENTED(0.0, float, IbisInputEngine, Joystick_GetAxis, int dev, int axis);
 
+static bool IbisInputEngine_Mouse_IsHideCursorByGame(void) { return false; }
+
 HLL_LIBRARY(IbisInputEngine,
 	    HLL_EXPORT(Mouse_GetPos, IbisInputEngine_Mouse_GetPos),
 	    HLL_EXPORT(Mouse_MovePosImmediately, IbisInputEngine_Mouse_MovePosImmediately),
 	    HLL_EXPORT(Mouse_HideCursorByGame, IbisInputEngine_Mouse_HideCursorByGame),
-	    HLL_TODO_EXPORT(Mouse_IsHideCursorByGame, IbisInputEngine_Mouse_IsHideCursorByGame),
+	    HLL_EXPORT(Mouse_IsHideCursorByGame, IbisInputEngine_Mouse_IsHideCursorByGame),
 	    HLL_EXPORT(Mouse_HideByStepMessage, IbisInputEngine_Mouse_HideByStepMessage),
 	    HLL_EXPORT(MouseWheel_ClearCount, mouse_clear_wheel),
 	    HLL_EXPORT(MouseWheel_GetCount, IbisInputEngine_MouseWheel_GetCount),
