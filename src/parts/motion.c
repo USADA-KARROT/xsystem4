@@ -498,10 +498,9 @@ void PE_AddMotionSound(int sound_no, int begin_t)
 
 void PE_BeginMotion(void)
 {
-	if (parts_began_click)
-		return;
-
-	// FIXME: starting a motion seems to clear non-default states
+	// NOTE: removed parts_began_click guard here.  v14 games (e.g.
+	// DohnaDohna) start motions *inside* WaitForClick loops, so the
+	// motion system must be allowed to run while input is active.
 	motion_t = 0;
 	is_motion = true;
 	parts_init_all_motion();
@@ -509,8 +508,6 @@ void PE_BeginMotion(void)
 
 void PE_EndMotion(void)
 {
-	if (parts_began_click)
-		return;
 	motion_t = 0;
 	motion_end_t = 0;
 	is_motion = false;

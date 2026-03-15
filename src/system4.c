@@ -311,9 +311,16 @@ static bool config_init_with_dir(const char *dir)
 
 static void config_init_with_ain(const char *ain_path)
 {
-	config.ain_filename = strdup(path_basename(ain_path));
-	config.game_dir = strdup(path_dirname(ain_path));
-	config_init();
+	// Try to find and read ini file in the same directory as the .ain file
+	char *dir = strdup(path_dirname(ain_path));
+	if (!config_init_with_dir(dir)) {
+		// No ini file found; set up config manually
+		config.ain_filename = strdup(path_basename(ain_path));
+		config.game_dir = dir;
+		config_init();
+	} else {
+		free(dir);
+	}
 }
 
 static void ain_audit(FILE *f, struct ain *ain)

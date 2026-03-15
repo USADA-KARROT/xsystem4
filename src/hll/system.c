@@ -36,11 +36,6 @@ char *resume_load_path_pending = NULL;
 // with return value false (indicating a load, not a save).
 static bool system_ResumeSave(struct string *keyName, struct string *fileName, int *result_out)
 {
-	static int rs_count = 0;
-	(void)result_out; // WRAP output not used — return value carries the result
-	if (rs_count++ < 5)
-		WARNING("system.ResumeSave('%s', '%s')", keyName->text, fileName->text);
-
 	// save_stack_to_rsave assumes 2 extra values on the stack (the SYS_RESUME_SAVE
 	// arguments in the old CALLSYS path). In the HLL path, arguments have already
 	// been popped by hll_call. Push 2 dummy values to match the assumption.
@@ -52,8 +47,9 @@ static bool system_ResumeSave(struct string *keyName, struct string *fileName, i
 	stack_pop();
 	stack_pop();
 
-	if (rs_count <= 5)
-		WARNING("system.ResumeSave: %s", ok ? "saved OK" : "FAILED");
+	// Match SYS_RESUME_SAVE convention: result = vm_save_image() return (1=OK, 0=fail)
+	if (result_out)
+		*result_out = ok;
 	return ok ? true : false;
 }
 
@@ -64,7 +60,7 @@ static bool system_ResumeSave(struct string *keyName, struct string *fileName, i
 static void system_ResumeLoad(struct string *keyName, struct string *fileName)
 {
 	static int rl_count = 0;
-	if (rl_count++ < 5)
+	if (rl_count++ < 1)
 		WARNING("system.ResumeLoad('%s', '%s')", keyName->text, fileName->text);
 
 	// Check if save file exists before scheduling load
@@ -145,17 +141,21 @@ static bool system_ResumeReadComment(struct string *keyName, struct string *file
 // [9] GroupSave(keyName, fileName, group, wrap<int> numofSave) -> bool
 static bool system_GroupSave(struct string *keyName, struct string *fileName, struct string *group, int *numofSave)
 {
-	(void)numofSave;
-	WARNING("system.GroupSave stub");
-	return true;
+	int n = 0;
+	int ok = save_globals(keyName->text, fileName->text, group->text, &n);
+	if (numofSave)
+		*numofSave = n;
+	return ok ? true : false;
 }
 
 // [10] GroupLoad(keyName, fileName, group, wrap<int> numofLoad) -> bool
 static bool system_GroupLoad(struct string *keyName, struct string *fileName, struct string *group, int *numofLoad)
 {
-	(void)numofLoad;
-	WARNING("system.GroupLoad stub");
-	return true;
+	int n = 0;
+	int ok = load_globals(keyName->text, fileName->text, group->text, &n);
+	if (numofLoad)
+		*numofLoad = n;
+	return ok ? true : false;
 }
 
 // [11] WriteGroupSaveComment
@@ -179,7 +179,6 @@ static bool system_ReadGroupSaveComment(struct string *keyName, struct string *f
 static bool system_SerializeStruct(struct string *fileName, struct page *structPageList, bool saveFolder)
 {
 	extern int hll_self_slot;
-
 	if (!structPageList || structPageList->nr_vars == 0) {
 		// Empty array — nothing to serialize, but return true to avoid game errors
 		return true;
@@ -368,24 +367,23 @@ static void system_Sleep(int ms)
 // [22] Output(text) -> string
 static struct string *system_Output(struct string *text)
 {
-	static int output_count = 0;
-	output_count++;
-	if (output_count <= 20 || output_count % 100000 == 0)
-		sys_message("[%d] %s", output_count, text->text);
+	(void)text;
 	return string_ref(text);
 }
 
 // [23] OutputLine(text) -> string
 static struct string *system_OutputLine(struct string *text)
 {
-	sys_message("%s\n", text->text);
+	(void)text;
 	return string_ref(text);
 }
 
 // [24] MsgBox(text) -> string
 static struct string *system_MsgBox(struct string *text)
 {
-	WARNING("system.MsgBox: %s", text->text);
+	static int mb_warn = 0;
+	if (mb_warn++ < 2)
+		WARNING("system.MsgBox: %s", text->text);
 	return string_ref(text);
 }
 

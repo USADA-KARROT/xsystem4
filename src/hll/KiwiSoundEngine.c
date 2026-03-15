@@ -15,41 +15,67 @@
  */
 
 #include "system4.h"
+#include "system4/string.h"
 
 #include "hll.h"
 #include "audio.h"
+#include "asset_manager.h"
+#include "mixer.h"
 
-HLL_WARN_UNIMPLEMENTED( , void, KiwiSoundEngine, SetGlobalFocus, possibly_unused int nNum);
+/*
+ * KiwiSoundEngine — v14 unified sound API.
+ *
+ * AIN declares 39 functions with a unified ID-based API:
+ *   SE functions (0-6): fire-and-forget sound effects
+ *   General functions (7-25): prepare/play/stop by channel ID
+ *   File query functions (26-28): check files by name
+ *   Group/mixer functions (29-38): volume control per mixer group
+ *
+ * All channels use the wav pool internally.
+ */
 
-// Generic channel operations (used by v14 game code)
-static int KiwiSoundEngine_GetPos(int ch)
+static void KiwiSoundEngine_SetGlobalFocus(bool focus)
 {
-	return 0;  // stub: no generic wav_get_pos in audio API
+	(void)focus;
 }
 
-static bool KiwiSoundEngine_IsExistFile(int ch)
+// --- SE (sound effect) functions ---
+
+static int KiwiSoundEngine_GetFreeSeID(int min_id, int max_id)
 {
-	return wav_exists(ch);
+	(void)min_id; (void)max_id;
+	return wav_get_unused_channel();
 }
 
-static void KiwiSoundEngine_Fade(int ch, int vol, int time, bool stop, int ease)
+static bool KiwiSoundEngine_IsExistSeID(int se_id)
 {
-	wav_fade(ch, time, vol, stop);
+	return wav_is_playing(se_id);
 }
 
-static void KiwiSoundEngine_Stop(int ch)
+static bool KiwiSoundEngine_SetSeParam(int se_id, int play_span, bool multi_play)
 {
-	wav_stop(ch);
+	(void)se_id; (void)play_span; (void)multi_play;
+	return true;
 }
 
-static void KiwiSoundEngine_SetSeParam(int group, int param, int value)
+static bool KiwiSoundEngine_PlaySe(int se_id, struct string *name, struct string *filter)
 {
-	// SE parameter adjustment — stub (no direct mapping in xsystem4 audio)
+	(void)filter;
+	int no;
+	if (!asset_exists_by_name(ASSET_SOUND, name->text, &no))
+		return false;
+	if (!wav_prepare(se_id, no))
+		return false;
+	return wav_play(se_id);
 }
 
 //int KiwiSoundEngine_Sound_GetGroupNum(int nCh);
 //static bool KiwiSoundEngine_Sound_PrepareFromFile(int ch, struct string *filename);
-//static int KiwiSoundEngine_Sound_GetDataLength(int data_number);
+
+static bool KiwiSoundEngine_StopSe(int se_id)
+{
+	return wav_stop(se_id);
+}
 
 static int KiwiSoundEngine_GetMasterGroup(void)
 {
@@ -79,6 +105,204 @@ static int KiwiSoundEngine_GetGimicSEGroup(void)
 static int KiwiSoundEngine_GetBackVoiceGroup(void)
 {
 	return 0;
+}
+
+static bool KiwiSoundEngine_IsPlaySe(int se_id)
+{
+	return wav_is_playing(se_id);
+}
+
+// --- General channel functions ---
+
+static int KiwiSoundEngine_GetFreeID(int min_id, int max_id)
+{
+	(void)min_id; (void)max_id;
+	return wav_get_unused_channel();
+}
+
+static bool KiwiSoundEngine_IsExistID(int id)
+{
+	return wav_is_playing(id);
+}
+
+static bool KiwiSoundEngine_Prepare(int id, struct string *name, struct string *filter, bool streaming)
+{
+	(void)filter; (void)streaming;
+	int no;
+	if (asset_exists_by_name(ASSET_SOUND, name->text, &no))
+		return wav_prepare(id, no);
+	if (asset_exists_by_name(ASSET_BGM, name->text, &no))
+		return bgm_prepare(id, no);
+	return false;
+}
+
+static bool KiwiSoundEngine_Unprepare(int id)
+{
+	return wav_unprepare(id);
+}
+
+static bool KiwiSoundEngine_Play(int id)
+{
+	return wav_play(id);
+}
+
+static bool KiwiSoundEngine_Stop(int id)
+{
+	return wav_stop(id);
+}
+
+static bool KiwiSoundEngine_IsPlay(int id)
+{
+	return wav_is_playing(id);
+}
+
+static bool KiwiSoundEngine_SetLoopCount(int id, int count)
+{
+	return wav_set_loop_count(id, count);
+}
+
+static int KiwiSoundEngine_GetLoopCount(int id)
+{
+	return wav_get_loop_count(id);
+}
+
+static bool KiwiSoundEngine_Pause(int id)
+{
+	return wav_pause(id);
+}
+
+static bool KiwiSoundEngine_Restart(int id)
+{
+	return wav_restart(id);
+}
+
+static bool KiwiSoundEngine_IsPause(int id)
+{
+	return wav_is_paused(id);
+}
+
+static bool KiwiSoundEngine_Fade(int id, int time, float volume, bool stop, int fade_type)
+{
+	(void)fade_type;
+	int vol = (int)(volume * 100.0f);
+	if (vol < 0) vol = 0;
+	if (vol > 100) vol = 100;
+	return wav_fade(id, time, vol, stop);
+}
+
+static bool KiwiSoundEngine_StopFade(int id)
+{
+	return wav_stop_fade(id);
+}
+
+static bool KiwiSoundEngine_IsFade(int id)
+{
+	return wav_is_fading(id);
+}
+
+static bool KiwiSoundEngine_Seek(int id, int millisec)
+{
+	return wav_seek(id, millisec);
+}
+
+static int KiwiSoundEngine_GetPos(int id)
+{
+	return wav_get_pos(id);
+}
+
+static int KiwiSoundEngine_GetLength(int id)
+{
+	return wav_get_length(id);
+}
+
+static int KiwiSoundEngine_GetGroupNum(int id)
+{
+	return wav_get_group_num(id);
+}
+
+// --- File query functions ---
+
+static bool KiwiSoundEngine_IsExistFile(struct string *name)
+{
+	return asset_exists_by_name(ASSET_SOUND, name->text, NULL)
+		|| asset_exists_by_name(ASSET_BGM, name->text, NULL);
+}
+
+static int KiwiSoundEngine_GetLengthFromFile(struct string *name)
+{
+	(void)name;
+	return 0;
+}
+
+static int KiwiSoundEngine_GetGroupNumFromFile(struct string *name)
+{
+	int no;
+	if (asset_exists_by_name(ASSET_SOUND, name->text, &no))
+		return wav_get_group_num_from_data_num(no);
+	return 0;
+}
+
+// --- Group/mixer functions ---
+
+static float KiwiSoundEngine_GetGroupVolume(int group)
+{
+	int vol;
+	if (!mixer_get_volume(group, &vol))
+		return 1.0f;
+	return (float)vol / 100.0f;
+}
+
+static int KiwiSoundEngine_MillisecondsToSamples(int millisec, int samples_per_sec)
+{
+	return (int)((int64_t)millisec * samples_per_sec / 1000);
+}
+
+static int KiwiSoundEngine_GetMixerNumof(void)
+{
+	return mixer_get_numof();
+}
+
+static bool KiwiSoundEngine_GetMixerName(int n, int *name_out)
+{
+	(void)n; (void)name_out;
+	return false;
+}
+
+static bool KiwiSoundEngine_GetMixerVolume(int n, int *volume)
+{
+	if (!volume)
+		return false;
+	return mixer_get_volume(n, volume);
+}
+
+static bool KiwiSoundEngine_GetMixerDefaultVolume(int n, int *volume)
+{
+	if (!volume)
+		return false;
+	*volume = 100;
+	return true;
+}
+
+static bool KiwiSoundEngine_GetMixerMute(int n, int *mute)
+{
+	if (!mute)
+		return false;
+	return mixer_get_mute(n, mute);
+}
+
+static bool KiwiSoundEngine_SetMixerName(int n, struct string *name)
+{
+	return mixer_set_name(n, name->text);
+}
+
+static bool KiwiSoundEngine_SetMixerVolume(int n, int volume)
+{
+	return mixer_set_volume(n, volume);
+}
+
+static bool KiwiSoundEngine_SetMixerMute(int n, bool mute)
+{
+	return mixer_set_mute(n, mute);
 }
 
 HLL_LIBRARY(KiwiSoundEngine,
@@ -119,7 +343,18 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_TODO_EXPORT(Sound_GetGroupNum, KiwiSoundEngine_Sound_GetGroupNum),
 	    HLL_EXPORT(Sound_GetGroupNumFromDataNum, wav_get_group_num_from_data_num),
 	    HLL_TODO_EXPORT(Sound_PrepareFromFile, KiwiSoundEngine_Sound_PrepareFromFile),
-	    HLL_TODO_EXPORT(Sound_GetDataLength, KiwiSoundEngine_Sound_GetDataLength),
+	    HLL_EXPORT(Sound_GetDataLength, wav_get_data_length),
+	    HLL_EXPORT(GetFreeSeID, KiwiSoundEngine_GetFreeSeID),
+	    HLL_EXPORT(IsExistSeID, KiwiSoundEngine_IsExistSeID),
+	    HLL_EXPORT(SetSeParam, KiwiSoundEngine_SetSeParam),
+	    HLL_EXPORT(PlaySe, KiwiSoundEngine_PlaySe),
+	    HLL_EXPORT(StopSe, KiwiSoundEngine_StopSe),
+	    HLL_EXPORT(IsPlaySe, KiwiSoundEngine_IsPlaySe),
+	    HLL_EXPORT(GetFreeID, KiwiSoundEngine_GetFreeID),
+	    HLL_EXPORT(IsExistID, KiwiSoundEngine_IsExistID),
+	    HLL_EXPORT(Prepare, KiwiSoundEngine_Prepare),
+	    HLL_EXPORT(Unprepare, KiwiSoundEngine_Unprepare),
+	    HLL_EXPORT(Play, KiwiSoundEngine_Play),
 	    HLL_EXPORT(GetMasterGroup, KiwiSoundEngine_GetMasterGroup),
 	    HLL_EXPORT(GetBGMGroup, KiwiSoundEngine_GetBGMGroup),
 	    HLL_EXPORT(GetSEGroup, KiwiSoundEngine_GetSEGroup),
@@ -130,5 +365,30 @@ HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(IsExistFile, KiwiSoundEngine_IsExistFile),
 	    HLL_EXPORT(Fade, KiwiSoundEngine_Fade),
 	    HLL_EXPORT(Stop, KiwiSoundEngine_Stop),
-	    HLL_EXPORT(SetSeParam, KiwiSoundEngine_SetSeParam)
+	    HLL_EXPORT(IsPlay, KiwiSoundEngine_IsPlay),
+	    HLL_EXPORT(SetLoopCount, KiwiSoundEngine_SetLoopCount),
+	    HLL_EXPORT(GetLoopCount, KiwiSoundEngine_GetLoopCount),
+	    HLL_EXPORT(Pause, KiwiSoundEngine_Pause),
+	    HLL_EXPORT(Restart, KiwiSoundEngine_Restart),
+	    HLL_EXPORT(IsPause, KiwiSoundEngine_IsPause),
+	    HLL_EXPORT(Fade, KiwiSoundEngine_Fade),
+	    HLL_EXPORT(StopFade, KiwiSoundEngine_StopFade),
+	    HLL_EXPORT(IsFade, KiwiSoundEngine_IsFade),
+	    HLL_EXPORT(Seek, KiwiSoundEngine_Seek),
+	    HLL_EXPORT(GetPos, KiwiSoundEngine_GetPos),
+	    HLL_EXPORT(GetLength, KiwiSoundEngine_GetLength),
+	    HLL_EXPORT(GetGroupNum, KiwiSoundEngine_GetGroupNum),
+	    HLL_EXPORT(IsExistFile, KiwiSoundEngine_IsExistFile),
+	    HLL_EXPORT(GetLengthFromFile, KiwiSoundEngine_GetLengthFromFile),
+	    HLL_EXPORT(GetGroupNumFromFile, KiwiSoundEngine_GetGroupNumFromFile),
+	    HLL_EXPORT(GetGroupVolume, KiwiSoundEngine_GetGroupVolume),
+	    HLL_EXPORT(MillisecondsToSamples, KiwiSoundEngine_MillisecondsToSamples),
+	    HLL_EXPORT(GetMixerNumof, KiwiSoundEngine_GetMixerNumof),
+	    HLL_EXPORT(GetMixerName, KiwiSoundEngine_GetMixerName),
+	    HLL_EXPORT(GetMixerVolume, KiwiSoundEngine_GetMixerVolume),
+	    HLL_EXPORT(GetMixerDefaultVolume, KiwiSoundEngine_GetMixerDefaultVolume),
+	    HLL_EXPORT(GetMixerMute, KiwiSoundEngine_GetMixerMute),
+	    HLL_EXPORT(SetMixerName, KiwiSoundEngine_SetMixerName),
+	    HLL_EXPORT(SetMixerVolume, KiwiSoundEngine_SetMixerVolume),
+	    HLL_EXPORT(SetMixerMute, KiwiSoundEngine_SetMixerMute)
 	);

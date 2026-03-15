@@ -26,9 +26,14 @@
 #include "system4/utfsjis.h"
 
 #include "asset_manager.h"
+#include "gfx/gfx.h"
+#include "input.h"
 #include "parts.h"
 #include "../parts/parts_internal.h"
+#include "scene.h"
 #include "hll.h"
+
+extern void parts_update_animation(int passed_time);
 
 static void PartsEngine_ModuleInit(void)
 {
@@ -105,6 +110,12 @@ static const char SJIS_PANEL[]       = "\x83\x70\x83\x6c\x83\x8b";             /
 /* static const char SJIS_MULTI_LEVEL[] = "\x83\x7d\x83\x8b\x83\x60\x83\x8c\x83\x78\x83\x8b\x83\x70\x81\x5b\x83\x63"; */ /* マルチレベルパーツ — unused */
 static const char SJIS_SCALE[]       = "\x8a\x67\x91\xe5\x8f\x6b\x8f\xac"; /* 拡大縮小 (scale) */
 static const char SJIS_ROTATION[]    = "\x89\xf1\x93\x5d";                 /* 回転 (rotation) */
+static const char SJIS_BUTTON[]      = "\x83\x7b\x83\x5e\x83\x93";         /* ボタン (button) */
+static const char SJIS_BUTTON_COLOR[]= "\x83\x7b\x83\x5e\x83\x93\x82\xcc\x90\x46"; /* ボタンの色 (button color) */
+static const char SJIS_FONT_TYPE[]   = "\x83\x74\x83\x48\x83\x93\x83\x67\x8e\xed\x97\xde"; /* フォント種類 (font type) */
+static const char SJIS_FONT_SIZE[]   = "\x83\x74\x83\x48\x83\x93\x83\x67\x83\x54\x83\x43\x83\x59"; /* フォントサイズ (font size) */
+static const char SJIS_FONT_COLOR[]  = "\x83\x74\x83\x48\x83\x93\x83\x67\x90\x46"; /* フォント色 (font color) */
+static const char SJIS_FONT_EDGE_COLOR[] = "\x83\x74\x83\x48\x83\x93\x83\x67\x83\x47\x83\x62\x83\x57\x90\x46"; /* フォントエッジ色 (font edge color) */
 /* static const char SJIS_CG_PARTS[]    = "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63"; */ /* ＣＧパーツ — unused */
 /* static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; */ /* アルファクリッパー — unused */
 /* static const char SJIS_NORMAL_STATE[]= "\x92\xca\x8f\xed\x8f\xf3\x91\xd4"; */ /* 通常状態 — unused, kept for reference */
@@ -355,6 +366,94 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		return;
 	}
 
+	/* --- Handle ボタン (Button) type: clickable button with size/color/text --- */
+	if (ptype && strstr(ptype, SJIS_BUTTON)) {
+		/* サイズ = list[2] = [w, h] */
+		struct ex_list *sz = pactex_get_list(type_info, SJIS_SIZE);
+		if (!sz) sz = pactex_get_list(type_info, GBK_SIZE);
+		int pw = 4, ph = 4;
+		if (sz && sz->nr_items >= 2) {
+			pw = sz->items[0].value.i;
+			ph = sz->items[1].value.i;
+		}
+		/* ボタンの色 = list[3..4] = [r, g, b(, a)] */
+		struct ex_list *col = pactex_get_list(type_info, SJIS_BUTTON_COLOR);
+		int cr = 0, cg = 0, cb = 0, ca = 0;
+		if (col && col->nr_items >= 3) {
+			cr = col->items[0].value.i;
+			cg = col->items[1].value.i;
+			cb = col->items[2].value.i;
+		}
+		if (col && col->nr_items >= 4) {
+			ca = col->items[3].value.i;
+		}
+		if (pw > 0 && ph > 0) {
+			/* Create button surface and set up background */
+			PE_AddCreateToPartsConstructionProcess(parts_no, pw, ph, 1);
+			if (ca == 0) {
+				/* Transparent button: clear alpha to 0 so only text shows */
+				PE_AddFillAMapToPartsConstructionProcess(
+					parts_no, 0, 0, pw, ph, 0, 1);
+			} else {
+				PE_AddFillAlphaColorToPartsConstructionProcess(
+					parts_no, 0, 0, pw, ph, cr, cg, cb, ca, 1);
+			}
+
+			/* Draw button label text from ＣＧ名 field (contains pactex path like
+			 * 'システム/タイトル/ボタン/はじめから'; last segment is the label) */
+			const char *msg_name = pactex_get_string(type_info, SJIS_CG_MEI);
+			if (msg_name) {
+				/* Path uses fullwidth '／' (SJIS 81 5E) as separator.
+				 * Find the last separator to extract the label. */
+				const char *label = msg_name;
+				for (const char *p = msg_name; *p; p++) {
+					if (SJIS_2BYTE(*p)) {
+						if ((unsigned char)p[0] == 0x81 && (unsigned char)p[1] == 0x5E)
+							label = p + 2;
+						p++;
+					}
+				}
+
+				/* Get font properties */
+				int font_type = pactex_get_int(type_info, SJIS_FONT_TYPE, 0);
+				int font_size = pactex_get_int(type_info, SJIS_FONT_SIZE, 24);
+				struct ex_list *fcol = pactex_get_list(type_info, SJIS_FONT_COLOR);
+				int fr = 255, fg = 255, fb = 255;
+				if (fcol && fcol->nr_items >= 3) {
+					fr = fcol->items[0].value.i;
+					fg = fcol->items[1].value.i;
+					fb = fcol->items[2].value.i;
+				}
+				/* Font edge color for outline */
+				struct ex_list *ecol = pactex_get_list(type_info, SJIS_FONT_EDGE_COLOR);
+				int er = 0, eg = 0, eb = 0;
+				float edge_weight = 0.0f;
+				if (ecol && ecol->nr_items >= 3) {
+					er = ecol->items[0].value.i;
+					eg = ecol->items[1].value.i;
+					eb = ecol->items[2].value.i;
+					edge_weight = 1.0f;
+				}
+
+				/* Center text vertically; left-pad horizontally */
+				int tx = 8;
+				int ty = (ph - font_size) / 2;
+				if (ty < 0) ty = 0;
+
+				struct string *text = cstr_to_string(label);
+				PE_AddDrawTextToPartsConstructionProcess(
+					parts_no, tx, ty, text,
+					font_type, font_size, fr, fg, fb, 0.0f,
+					er, eg, eb, edge_weight,
+					0, 0, 1);
+				free_string(text);
+			}
+
+			PE_BuildPartsConstructionProcess(parts_no, 1);
+		}
+		return;
+	}
+
 	/* --- Handle マルチレベルパーツ / ＣＧパーツ: extract CG name from state branches --- */
 	/* MultiLevelParts structure:
 	 *   種類別情報/
@@ -439,7 +538,7 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 		if (cg_name) {
 			p->component_type = 1;   /* Sprite (leaf with CG) */
 		} else {
-			p->component_type = 0;   /* Default — let game code determine type */
+			p->component_type = 0;   /* leaf without CG — let game code handle */
 		}
 	}
 
@@ -605,7 +704,7 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 		loop_count++;
 		if (loop_count > 3) {
 			static int loop_warn = 0;
-			if (loop_warn++ < 5)
+			if (loop_warn++ < 1)
 				WARNING("ReadActivityFile: loop detected for '%s' (count=%d), returning first instance",
 					base_name, loop_count);
 			/* Return first instance by name */
@@ -626,10 +725,6 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 		return false;
 
 	struct activity *act = &activities[aidx];
-
-	static int raf_trace = 0;
-	if (raf_trace++ < 30)
-		WARNING("ReadActivityFile('%s', '%s', edit=%d)", name->text, filename->text, edit);
 
 	/* Try to load .pactex from the Pact archive.
 	 * The game passes filenames like "SceneLogo" or paths like
@@ -714,9 +809,6 @@ static bool PartsEngine_LoadActivityEXText(struct string *name, struct string *t
 
 static bool PartsEngine_AddActivityParts(struct string *name, struct string *parts_name, int number)
 {
-	static int aap_trace = 0;
-	if (aap_trace++ < 30)
-		WARNING("AddActivityParts('%s', '%s', %d)", name->text, parts_name->text, number);
 	int idx = find_activity(name);
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
@@ -812,9 +904,12 @@ static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string
 			return act->parts[i].number;
 	}
 
-	/* Not found — return -1, do NOT fallback to root.
-	 * Returning root for unknown names causes the game's tree walk
-	 * to create self-referential structures → infinite recursion. */
+	/* Not found trace */
+	static int gapn_miss = 0;
+	if (gapn_miss++ < 30)
+		WARNING("GetActivityPartsNumber('%s', '%s') -> NOT FOUND (nr_parts=%d)",
+			name->text, parts_name->text, act->nr_parts);
+
 	return -1;
 }
 
@@ -847,6 +942,12 @@ static void PartsEngine_EraseActivityEndKey(struct string *name, int key) {}
 static bool PartsEngine_IsExistActivityEndKey(struct string *name, int key) { return false; }
 static int PartsEngine_NumofActivityEndKey(struct string *name) { return 0; }
 static int PartsEngine_GetActivityEndKey(struct string *name, int index) { return 0; }
+
+// v14 stubs for input/wheel configuration
+static void PartsEngine_SetEnableInputProcess(possibly_unused int parts_no,
+	possibly_unused bool enable) {}
+static void PartsEngine_Parts_SetWheelable(possibly_unused int parts_no,
+	possibly_unused bool wheelable) {}
 
 /* v14 Controller system — manages UI layers (input focus stack).
  * Each controller has a unique ID and occupies a position in the stack.
@@ -921,6 +1022,11 @@ static int PartsEngine_GetControllerLength(void) {
 }
 static int PartsEngine_GetSystemOverlayController(void) { return 0; }
 
+static void PartsEngine_Update_Pascha3PC(struct string *xxx1, struct string *xxx2, int passed_time, bool is_skip, bool message_window_show)
+{
+	PE_Update(passed_time, message_window_show);
+}
+
 // Oyako Rankan
 static bool PartsEngine_AddDrawCutCGToPartsConstructionProcess_old(int parts_no,
 		struct string *cg_name, int dx, int dy, int sx, int sy, int w, int h,
@@ -955,9 +1061,6 @@ static void PartsEngine_SetActiveController(int controller)
 
 static void PartsEngine_SetComponentType(int number, int type, int state)
 {
-	static int sct_trace = 0;
-	if (type == 17 && sct_trace++ < 20)
-		WARNING("SetComponentType(%d, %d, %d) — UserComponent", number, type, state);
 	struct parts *p = parts_try_get(number);
 	if (p) p->component_type = type;
 }
@@ -965,13 +1068,8 @@ static void PartsEngine_SetComponentType(int number, int type, int state)
 static int PartsEngine_GetComponentType(int number, int state)
 {
 	struct parts *p = parts_try_get(number);
-	if (p) {
-		static int gct_trace = 0;
-		if (p->component_type == 17 && gct_trace++ < 30)
-			WARNING("GetComponentType(%d, %d) -> 17 (UserComponent '%s')",
-				number, state, p->user_component_name);
+	if (p)
 		return p->component_type;
-	}
 	/* Non-existent parts: return -1 to signal "not a valid component".
 	 * The game's factory uses this to decide what type of wrapper to create.
 	 * Returning 0 could trigger the default case which creates phantom structs. */
@@ -1119,7 +1217,10 @@ static bool PartsEngine_IsExistChild(int number, int child) {
 	return false;
 }
 /* v14 stub: Parts_SetComment/GetComment — metadata label, no visual effect */
-static void PartsEngine_Parts_SetComment(int parts_no, struct string *comment) { (void)parts_no; (void)comment; }
+static void PartsEngine_Parts_SetComment(int parts_no, struct string *comment) {
+	(void)parts_no;
+	(void)comment;
+}
 static struct string *PartsEngine_Parts_GetComment(int parts_no) { (void)parts_no; return cstr_to_string(""); }
 
 /*
@@ -1379,12 +1480,9 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 				r2, g2, b2, edge_weight, char_space, line_space, state);
 		}
 		break;
-	default: {
-		static int unknown_trace = 0;
-		if (unknown_trace++ < 20)
-			WARNING("AddPartsConstructionProcess: unknown type %d parts=%d", cmd, parts_no);
+	default:
+		WARNING("AddPartsConstructionProcess: unknown type %d parts=%d", cmd, parts_no);
 		break;
-	}
 	}
 }
 
@@ -1438,14 +1536,10 @@ static int possibly_unused PartsEngine_GetUniqueID(int number)
 static void PartsEngine_SetUserComponentName(int n, struct string *name) {
 	struct parts *p = parts_try_get(n);
 	if (!p) return;
-	/* If name is NULL or empty, preserve existing name (pactex-set).
-	 * Game constructors call SetUserComponentName(n, NULL) during init,
-	 * which would clear the name set by pactex_create_component. */
 	if (name && name->text && name->text[0]) {
 		snprintf(p->user_component_name, sizeof(p->user_component_name),
 			"%s", name->text);
 	}
-	/* else: keep existing user_component_name unchanged */
 }
 static struct string *PartsEngine_GetUserComponentName(int n) {
 	struct parts *p = parts_try_get(n);
@@ -1499,7 +1593,15 @@ static void PartsEngine_UpdateComponent(int passed_time, int scaled_time,
 		bool message_window_show, float mul_color_rate, float alpha_rate)
 {
 	if (in_update) {
+		// Reentrant call (e.g. from WaitForClick loop via sprite plugin).
+		// Must still process input + render so clicks are detected.
+		handle_events();
 		PE_UpdateComponent(passed_time);
+		parts_update_animation(passed_time);
+		PE_UpdateInputState(passed_time);
+		parts_render_update(passed_time);
+		scene_render();
+		gfx_swap();
 		return;
 	}
 	in_update = true;
@@ -1567,12 +1669,6 @@ static void PartsEngine_PopMessage(void)
 {
 	if (msg_head != msg_tail) {
 		msg_current = msg_queue[msg_head];
-		static int pop_trace = 0;
-		if (pop_trace++ < 20) {
-			WARNING("PopMessage[%d]: head=%d type=%d parts=%d delegate=%d uid=%d",
-				pop_trace, msg_head, msg_current.type, msg_current.parts_no,
-				msg_current.delegate_index, msg_current.unique_id);
-		}
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
 	} else {
 		msg_current.type = -1;
@@ -1593,31 +1689,14 @@ static void PartsEngine_ReleaseMessage(void)
 // PopMessage() copies queue[head] → msg_current and advances head.
 static int PartsEngine_GetMessageType(void)
 {
-	static int gmt_call = 0;
-	if (gmt_call++ < 10) {
-		WARNING("GetMessageType_CALL[%d]: head=%d tail=%d",
-			gmt_call, msg_head, msg_tail);
-	}
-	if (msg_head != msg_tail) {
-		static int gmt_trace = 0;
-		if (gmt_trace++ < 20) {
-			WARNING("GetMessageType[%d]: head=%d tail=%d type=%d parts=%d",
-				gmt_trace, msg_head, msg_tail,
-				msg_queue[msg_head].type, msg_queue[msg_head].parts_no);
-		}
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].type;
-	}
 	return -1;
 }
 static int PartsEngine_GetMessagePartsNumber(void)
 {
 	if (msg_head != msg_tail) {
-		static int gmpn_trace = 0;
-		if (gmpn_trace++ < 10) {
-			WARNING("GetMessagePartsNumber[%d]: head=%d tail=%d parts_no=%d type=%d",
-				gmpn_trace, msg_head, msg_tail,
-				msg_queue[msg_head].parts_no, msg_queue[msg_head].type);
-		}
+		(void)0;
 		return msg_queue[msg_head].parts_no;
 	}
 	return 0;
@@ -1625,12 +1704,7 @@ static int PartsEngine_GetMessagePartsNumber(void)
 static int PartsEngine_GetMessageDelegateIndex(void)
 {
 	if (msg_head != msg_tail) {
-		static int gmdi_trace = 0;
-		if (gmdi_trace++ < 10) {
-			WARNING("GetMessageDelegateIndex[%d]: head=%d tail=%d delegate=%d type=%d",
-				gmdi_trace, msg_head, msg_tail,
-				msg_queue[msg_head].delegate_index, msg_queue[msg_head].type);
-		}
+		(void)0;
 		return msg_queue[msg_head].delegate_index;
 	}
 	return 0;
@@ -1698,9 +1772,6 @@ static void PartsEngine_GetMessageVariableString(possibly_unused int idx, possib
 static bool PartsEngine_Save_wrap(int buf_slot)
 {
 	struct page *buf = wrap_get_page(buf_slot, 0);
-	static int save_trace = 0;
-	if (save_trace++ < 10)
-		WARNING("PartsEngine.Save: buf_slot=%d buf=%p", buf_slot, (void*)buf);
 	bool ok = PE_Save(&buf);
 	if (ok)
 		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
@@ -1719,11 +1790,31 @@ static bool PartsEngine_SaveWithoutHideParts_wrap(int buf_slot)
 static bool PartsEngine_Load_wrap(int buf_slot)
 {
 	struct page *buf = wrap_get_page(buf_slot, 0);
-	static int load_trace = 0;
-	if (load_trace++ < 10)
-		WARNING("PartsEngine.Load: buf_slot=%d buf=%p", buf_slot, (void*)buf);
 	bool ok = PE_Load(&buf);
 	return ok;
+}
+
+/* Parts3DLayer bridge — connects PartsEngine to SealEngine */
+extern int seal_engine_create_plugin_for_parts(int parts_no);
+extern int seal_engine_get_plugin_for_parts(int parts_no);
+extern bool seal_engine_release_plugin_for_parts(int parts_no);
+
+static int PartsEngine_Parts_CreateParts3DLayerPluginID(int parts_no, int state)
+{
+	int plugin_id = seal_engine_create_plugin_for_parts(parts_no);
+	WARNING("Parts_CreateParts3DLayerPluginID(parts=%d, state=%d) -> plugin=%d",
+		parts_no, state, plugin_id);
+	return plugin_id;
+}
+
+static int PartsEngine_Parts_GetParts3DLayerPluginID(int parts_no, int state)
+{
+	return seal_engine_get_plugin_for_parts(parts_no);
+}
+
+static bool PartsEngine_Parts_ReleaseParts3DLayerPluginID(int parts_no, int state)
+{
+	return seal_engine_release_plugin_for_parts(parts_no);
 }
 
 static void PartsEngine_PreLink(void);
@@ -1979,6 +2070,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SetAddColor, PE_SetAddColor),
 	    HLL_EXPORT(SetMultiplyColor, PE_SetMultiplyColor),
 	    HLL_EXPORT(SetClickable, PE_SetClickable),
+	    HLL_EXPORT(SetEnableInputProcess, PartsEngine_SetEnableInputProcess),
 	    HLL_EXPORT(SetSpeedupRateByMessageSkip, PE_SetSpeedupRateByMessageSkip),
 	    HLL_TODO_EXPORT(SetResetTimerByChangeInputStatus, PartsEngine_SetResetTimerByChangeInputStatus),
 	    HLL_EXPORT(GetPartsX, PE_GetPartsX),
@@ -2085,6 +2177,8 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_SetShow, PE_SetShow),
 	    HLL_EXPORT(Parts_SetAlpha, PE_SetAlpha),
 	    HLL_EXPORT(Parts_SetClickable, PE_SetClickable),
+	    HLL_EXPORT(Parts_SetPassCursor, PE_SetPassCursor),
+	    HLL_EXPORT(Parts_SetWheelable, PartsEngine_Parts_SetWheelable),
 	    HLL_EXPORT(Parts_SetPartsDrawFilter, PE_SetPartsDrawFilter),
 	    HLL_EXPORT(Parts_SetAddColor, PE_SetAddColor),
 	    HLL_EXPORT(Parts_SetMultiplyColor, PE_SetMultiplyColor),
@@ -2178,6 +2272,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_SeekEndMotion, PE_SeekEndMotion),
 	    HLL_EXPORT(Parts_UpdateMotionTime, PE_UpdateMotionTime),
 	    HLL_EXPORT(Parts_SetSpeedupRateByMessageSkip, PE_SetSpeedupRateByMessageSkip),
+	    HLL_EXPORT(SetEnableInputProcess, PartsEngine_SetEnableInputProcess),
 	    /* v14 stubs for new functions */
 	    HLL_EXPORT(Parts_SetComment, PartsEngine_Parts_SetComment),
 	    HLL_EXPORT(Parts_GetComment, PartsEngine_Parts_GetComment),
@@ -2218,7 +2313,11 @@ HLL_LIBRARY(PartsEngine,
 	    // v14 additional aliases
 	    HLL_EXPORT(BeginClick, PE_BeginInput),
 	    HLL_EXPORT(EndClick, PE_EndInput),
-	    HLL_EXPORT(ReleaseMessage, PartsEngine_ReleaseMessage)
+	    HLL_EXPORT(ReleaseMessage, PartsEngine_ReleaseMessage),
+	    // Parts3DLayer bridge (PartsEngine ↔ SealEngine)
+	    HLL_EXPORT(Parts_CreateParts3DLayerPluginID, PartsEngine_Parts_CreateParts3DLayerPluginID),
+	    HLL_EXPORT(Parts_GetParts3DLayerPluginID, PartsEngine_Parts_GetParts3DLayerPluginID),
+	    HLL_EXPORT(Parts_ReleaseParts3DLayerPluginID, PartsEngine_Parts_ReleaseParts3DLayerPluginID)
 	    );
 
 static struct ain_hll_function *get_fun(int libno, const char *name)
@@ -2242,5 +2341,10 @@ static void PartsEngine_PreLink(void)
 	if (fun && fun->nr_arguments == 12) {
 		static_library_replace(&lib_PartsEngine, "AddCopyCutCGToPartsConstructionProcess",
 				PE_AddCopyCutCGToPartsConstructionProcess);
+	}
+	fun = get_fun(libno, "Update");
+	if (fun && fun->nr_arguments == 5) {
+		static_library_replace(&lib_PartsEngine, "Update",
+				PartsEngine_Update_Pascha3PC);
 	}
 }

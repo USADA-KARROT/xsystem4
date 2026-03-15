@@ -32,6 +32,7 @@
 #include "plugin.h"
 
 static void ChipmunkSpriteEngine_PreLink(void);
+static int ChipmunkSpriteEngine_Debug_GetFillRate(void) { return 0; }
 
 static void ChipmunkSpriteEngine_ModuleFini(void)
 {
@@ -112,7 +113,7 @@ HLL_WARN_UNIMPLEMENTED(0, int,  ChipmunkSpriteEngine, SP_GetBrightness, int sp_n
 
 static bool keep_previous_view = true;
 HLL_QUIET_UNIMPLEMENTED((keep_previous_view = on, true), bool, ChipmunkSpriteEngine, KeepPreviousView_SetMode, bool on);
-HLL_WARN_UNIMPLEMENTED(keep_previous_view, bool, ChipmunkSpriteEngine, KeepPreviousView_GetMode);
+HLL_QUIET_UNIMPLEMENTED(keep_previous_view, bool, ChipmunkSpriteEngine, KeepPreviousView_GetMode);
 HLL_QUIET_UNIMPLEMENTED(false, bool, ChipmunkSpriteEngine, KeepPreviousView);
 
 static void ChipmunkSpriteEngine_Sleep(void)
@@ -314,7 +315,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_SetMultipleColor, ChipmunkSpriteEngine_SP_SetMultipleColor),
 	    HLL_EXPORT(SP_SetAddColor, ChipmunkSpriteEngine_SP_SetAddColor),
 	    HLL_EXPORT(SP_SetShow, sact_SP_SetShow),
-	    HLL_EXPORT(SP_SetDrawMethod, sact_SP_SetDrawMethod),
+	    HLL_EXPORT(SP_SetDrawMethod, StoatSpriteEngine_SP_SetDrawMethod),
 	    HLL_EXPORT(SP_SetSurfaceArea, ChipmunkSpriteEngine_SP_SetSurfaceArea),
 	    HLL_EXPORT(SP_GetSurfaceArea, ChipmunkSpriteEngine_SP_GetSurfaceArea),
 	    HLL_EXPORT(SP_SetSpriteTransformMode, ChipmunkSpriteEngine_SP_SetSpriteTransformMode),
@@ -330,7 +331,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SP_GetZ, sact_SP_GetZ),
 	    HLL_EXPORT(SP_GetBlendRate, sact_SP_GetBlendRate),
 	    HLL_EXPORT(SP_GetShow, sact_SP_GetShow),
-	    HLL_EXPORT(SP_GetDrawMethod, sact_SP_GetDrawMethod),
+	    HLL_EXPORT(SP_GetDrawMethod, StoatSpriteEngine_SP_GetDrawMethod),
 	    HLL_EXPORT(SP_RenderView, ChipmunkSpriteEngine_SP_RenderView),
 	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn),
 	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect),
@@ -416,7 +417,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SYSTEM_GetInvalidateFrameSkipWhileMessageSkip, StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip),
 	    HLL_TODO_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
 	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
+	    HLL_EXPORT(Debug_GetFillRate, ChipmunkSpriteEngine_Debug_GetFillRate),
 	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam),
 	    HLL_EXPORT(SP_Suspend, ChipmunkSpriteEngine_SP_Suspend),
 	    HLL_EXPORT(SP_Resume, ChipmunkSpriteEngine_SP_Resume),

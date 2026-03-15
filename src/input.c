@@ -558,9 +558,14 @@ static void fire_deferred_events(void)
 
 static void handle_window_event(SDL_Event *e)
 {
+	extern bool scene_is_dirty;
 	switch (e->window.event) {
 	case SDL_WINDOWEVENT_EXPOSED:
-		gfx_swap();
+		// Don't call gfx_swap() directly — it blocks on macOS
+		// Cocoa_GL_SwapWindow (pthread_cond_wait for vsync) if called
+		// during global struct init (before the main event loop starts).
+		// Mark dirty so the next regular render cycle handles it.
+		scene_is_dirty = true;
 		break;
 	case SDL_WINDOWEVENT_ENTER:
 		mouse_focus = true;
@@ -576,7 +581,7 @@ static void handle_window_event(SDL_Event *e)
 		break;
 	case SDL_WINDOWEVENT_SIZE_CHANGED:
 		gfx_update_screen_scale();
-		gfx_swap();
+		scene_is_dirty = true;
 		break;
 	}
 }
@@ -601,11 +606,44 @@ void handle_events(void)
 {
 	fire_deferred_events();
 
+	/* Auto-click mode: XSYS4_AUTO_CLICK=<ms> injects periodic mouse clicks */
+	{
+		static int auto_interval = -1;
+		static uint32_t last_auto_click = 0;
+		static int auto_count = 0;
+		if (auto_interval < 0) {
+			const char *env = getenv("XSYS4_AUTO_CLICK");
+			auto_interval = env ? atoi(env) : 0;
+			if (auto_interval > 0)
+				WARNING("Auto-click enabled: interval=%dms", auto_interval);
+		}
+		if (auto_interval > 0) {
+			uint32_t now = SDL_GetTicks();
+			if (now - last_auto_click >= (uint32_t)auto_interval) {
+				auto_count++;
+				/* Inject synthetic SDL mouse click at center */
+				SDL_Event ev;
+				memset(&ev, 0, sizeof(ev));
+				ev.type = SDL_MOUSEBUTTONDOWN;
+				ev.button.button = SDL_BUTTON_LEFT;
+				ev.button.state = SDL_PRESSED;
+				ev.button.clicks = 1;
+				ev.button.x = 640; ev.button.y = 360;
+				SDL_PushEvent(&ev);
+				ev.type = SDL_MOUSEBUTTONUP;
+				ev.button.state = SDL_RELEASED;
+				SDL_PushEvent(&ev);
+				if (auto_count <= 10 || auto_count % 100 == 0)
+					WARNING("Auto-click #%d at %ums", auto_count, now);
+				last_auto_click = now;
+			}
+		}
+	}
+
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 		case SDL_QUIT:
-			WARNING("handle_events: SDL_QUIT received");
 			vm_exit(0);
 			break;
 		case SDL_WINDOWEVENT:

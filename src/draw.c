@@ -1186,7 +1186,7 @@ void gfx_draw_quadrilateral(Texture *dst, Texture *src, struct gfx_vertex vertic
 void gfx_draw_glyph(Texture *dst, float dx, int dy, Texture *glyph, SDL_Color color, float scale_x, float bold_width, bool blend)
 {
 	if (blend) {
-		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	} else {
 		glBlendFunc(GL_ONE, GL_ZERO);
 		glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
@@ -1220,7 +1220,7 @@ void gfx_draw_glyph_to_pmap(Texture *dst, float dx, int dy, Texture *glyph, Rect
 	data.g = color.g / 255.0;
 	data.b = color.b / 255.0;
 	data.a = 0.01;  // discard threshold
-	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	run_copy_shader(&blend_rmap_color_shader.s, dst, glyph, &data);
 	restore_blend_mode();
 }

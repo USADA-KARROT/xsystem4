@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "system4/ain.h"
 #include "system4/string.h"
@@ -88,15 +89,35 @@ static bool SystemService_ChangeFullScreen(void)
 
 HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
 
-// From parts_internal.h — avoid full include
+// From parts — avoid full include of parts_internal.h
 extern void parts_render_update(int passed_time);
+extern void PE_UpdateInputState(int passed_time);
+extern void PE_UpdateComponent(int passed_time);
+extern void parts_update_animation(int passed_time);
 
 static bool SystemService_UpdateView(void)
 {
+	// Compute elapsed time for animation/motion updates
+	static struct timespec last_time = {0};
+	int passed_time = 0;
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	if (last_time.tv_sec > 0) {
+		double delta_ms = (now.tv_sec - last_time.tv_sec) * 1000.0
+			+ (now.tv_nsec - last_time.tv_nsec) / 1e6;
+		passed_time = (int)delta_ms;
+		if (passed_time < 0) passed_time = 0;
+		if (passed_time > 100) passed_time = 100;
+	}
+	last_time = now;
+
 	handle_events();
 	audio_update();
 	sprite_call_plugins();
-	parts_render_update(0);
+	PE_UpdateComponent(passed_time);
+	parts_update_animation(passed_time);
+	PE_UpdateInputState(passed_time);
+	parts_render_update(passed_time);
 	scene_render();
 	gfx_swap();
 	SDL_Delay(16); // ~60fps, yield to OS for event delivery
@@ -403,26 +424,30 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, IsExistSystemMessage);
 
 static void SystemService_RestrainScreensaver(void) { }
 
-//static int SystemService_Debug_GetUseVideoMemorySize(void);
+static int SystemService_Debug_GetUseVideoMemorySize(void) { return 0; }
 
 static float SystemService_GetGameViewScaleRate(void) { return 1.0f; }
 static int SystemService_Debug_GetUseMemorySize(void) { return 0; }
 
+// Rance 01
 static void SystemService_Rance0123456789(struct string **text)
 {
-	*text = cstr_to_string("-RANCE010ECNAR-"); // ???
+	*text = cstr_to_string("-RANCE010ECNAR-");
 }
 
+// Rance 01 trial edition
 static void SystemService_XXXXX01XXXXXXXX(struct string **text)
 {
 	*text = cstr_to_string("RANCE01RANCEKAKKOII");
 }
 
+// Drapeko
 static void SystemService_Test(struct string **text)
 {
 	*text = cstr_to_string("DELETE ALL 758490275489207548093");
 }
 
+// Drapeko trial edition
 static void SystemService_DRPKT(struct string **text)
 {
 	*text = cstr_to_string("DRPKT QWERTY NUFUAUEO 75849027582754829");
@@ -433,8 +458,14 @@ static struct string *SystemService_GetGameVersionByText(void)
 	return cstr_to_string("sd40006sd00000008f6300004");
 }
 
+// Rance 9
 static void SystemService_Rance96161988(struct string **text) {
 	*text = cstr_to_string("=Rance99/RANCE99=");
+}
+
+// Pascha3 Plus Contents
+static void SystemService_XXX(struct string **text) {
+	*text = cstr_to_string("FORMAT HDD ERASE 578205024758284076520478254092784789752384758204687293");
 }
 
 static void SystemService_PreLink(void);
@@ -576,9 +607,10 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(RestrainScreensaver, SystemService_RestrainScreensaver),
 	    HLL_EXPORT(GetGameViewScaleRate, SystemService_GetGameViewScaleRate),
 	    HLL_EXPORT(Debug_GetUseMemorySize, SystemService_Debug_GetUseMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
+	    HLL_EXPORT(Debug_GetUseVideoMemorySize, SystemService_Debug_GetUseVideoMemorySize),
 	    HLL_EXPORT(Rance0123456789, SystemService_Rance0123456789),
 	    HLL_EXPORT(XXXXX01XXXXXXXX, SystemService_XXXXX01XXXXXXXX),
+	    HLL_EXPORT(XXX, SystemService_XXX),
 	    HLL_EXPORT(Test, SystemService_Test),
 	    HLL_EXPORT(DRPKT, SystemService_DRPKT),
 	    HLL_EXPORT(GetGameVersionByText, SystemService_GetGameVersionByText),

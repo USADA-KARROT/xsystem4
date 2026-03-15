@@ -63,7 +63,6 @@ static bool CommonSystemData_LoadAtStartup(void)
 {
 	// Load common system data from save file.
 	// If no file exists, that's fine - just return true.
-	NOTICE("LoadAtStartup()");
 	return true;
 }
 

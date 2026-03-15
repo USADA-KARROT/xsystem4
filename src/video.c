@@ -16,6 +16,7 @@
  */
 
 #include <SDL.h>
+#include <SDL_syswm.h>
 #include "gfx/gl.h"
 #include <cglm/cglm.h>
 #include <string.h>
@@ -242,11 +243,16 @@ int gfx_init(void)
 		ERROR("SDL_Init failed: %s", SDL_GetError());
 
 #ifdef __APPLE__
-	// macOS: activate the process as a foreground app so that the window
+	// macOS: make this a proper foreground GUI app so that the window
 	// receives mouse/keyboard events when launched from the terminal.
+	// Without setActivationPolicy, a CLI-launched process is treated as
+	// a background tool that doesn't participate in the window system.
 	{
 		id ns_app = ((id(*)(Class, SEL))objc_msgSend)(
 			objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+		// NSApplicationActivationPolicyRegular = 0
+		((void(*)(id, SEL, long))objc_msgSend)(
+			ns_app, sel_registerName("setActivationPolicy:"), 0);
 		((void(*)(id, SEL, BOOL))objc_msgSend)(
 			ns_app, sel_registerName("activateIgnoringOtherApps:"), YES);
 	}
@@ -278,6 +284,27 @@ int gfx_init(void)
 	// window created
 	set_window_title();
 
+	// macOS: disable text input to prevent SIGSEGV in
+	// TextInputUI/ViewBridge framework (TUINSCursorUIController)
+	SDL_StopTextInput();
+
+	// macOS Sequoia: disable SwiftUI view hierarchy injected by the system
+	// into SDL's NSWindow, which causes SIGSEGV in ViewGraph/PropertyList
+	// during NSDisplayCycleFlush and CFRunLoopDoTimers.
+	{
+		SDL_SysWMinfo wminfo;
+		SDL_VERSION(&wminfo.version);
+		if (SDL_GetWindowWMInfo(sdl.window, &wminfo)) {
+			id ns_window = (id)wminfo.info.cocoa.window;
+			// Make window key and frontmost for proper event delivery
+			((void(*)(id, SEL, id))objc_msgSend)(
+				ns_window, sel_registerName("makeKeyAndOrderFront:"), NULL);
+		}
+	}
+
+	// Raise window to ensure focus and event delivery
+	SDL_RaiseWindow(sdl.window);
+
 	// GL context
 	sdl.gl.context = SDL_GL_CreateContext(sdl.window);
 	if (!sdl.gl.context)
@@ -292,8 +319,12 @@ int gfx_init(void)
 		ERROR("glewInit failed");
 #endif
 
-	// SetSwapInterval
+	// SetSwapInterval — force disable on macOS to avoid Cocoa swap blocking
+#ifdef __APPLE__
+	SDL_GL_SetSwapInterval(0);
+#else
 	SDL_GL_SetSwapInterval(wait_vsync ? 1 : 0);
+#endif
 	// gl_initialize
 	gl_initialize();
 	// gfx_draw_init
@@ -408,8 +439,15 @@ void gfx_update_screen_scale(void)
 void gfx_set_wait_vsync(bool wait)
 {
 	wait_vsync = wait;
+#ifdef __APPLE__
+	// macOS Cocoa OpenGL swap can block for 10+ seconds with vsync=1.
+	// Always keep swap interval 0 on macOS; frame pacing is handled
+	// elsewhere (PE_Update loop).
+	(void)wait;
+#else
 	if (gfx_initialized)
 		SDL_GL_SetSwapInterval(wait ? 1 : 0);
+#endif
 }
 
 void gfx_set_clear_color(int r, int g, int b, int a)
@@ -652,13 +690,19 @@ void gfx_init_texture_rgba(struct texture *t, int w, int h, SDL_Color color)
 		WARNING("Texture height %d exceeds maximum texture size %d", h, max_texture_size);
 		h = max_texture_size;
 	}
-	gfx_init_texture_blank(t, w, h);
-	if (w <= 0 || h <= 0)
+	if (w <= 0 || h <= 0) {
+		gfx_init_texture_blank(t, w, h);
 		return;
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, t, 0, 0, w, h);
-	glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, color.a / 255.f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	}
+	// Fill on CPU and upload — avoids FBO creation which is very slow on macOS
+	uint32_t pixel = ((uint32_t)color.a << 24) | ((uint32_t)color.b << 16)
+		| ((uint32_t)color.g << 8) | color.r;
+	int n = w * h;
+	uint32_t *pixels = xmalloc(n * 4);
+	for (int i = 0; i < n; i++)
+		pixels[i] = pixel;
+	gfx_init_texture_with_pixels(t, w, h, pixels);
+	free(pixels);
 }
 
 void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
@@ -671,14 +715,22 @@ void gfx_init_texture_rgb(struct texture *t, int w, int h, SDL_Color color)
 		WARNING("Texture height %d exceeds maximum texture size %d", h, max_texture_size);
 		h = max_texture_size;
 	}
-	init_texture(t, w, h);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	if (w <= 0 || h <= 0)
+	if (w <= 0 || h <= 0) {
+		init_texture(t, w, h);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 		return;
-	GLuint fbo = gfx_set_framebuffer(GL_DRAW_FRAMEBUFFER, t, 0, 0, w, h);
-	glClearColor(color.r / 255.f, color.g / 255.f, color.b / 255.f, 255.f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	gfx_reset_framebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	}
+	// Fill on CPU and upload — avoids FBO creation which is very slow on macOS
+	int n = w * h;
+	uint8_t *pixels = xmalloc(n * 3);
+	for (int i = 0; i < n; i++) {
+		pixels[i * 3]     = color.r;
+		pixels[i * 3 + 1] = color.g;
+		pixels[i * 3 + 2] = color.b;
+	}
+	init_texture(t, w, h);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	free(pixels);
 }
 
 void gfx_init_texture_amap(struct texture *t, int w, int h, uint8_t *amap, SDL_Color color)

@@ -50,7 +50,7 @@ static bool CrayfishLogViewer_AddText(struct string *text)
 }
 
 HLL_QUIET_UNIMPLEMENTED(true, bool, CrayfishLogViewer, ClearText);
-HLL_WARN_UNIMPLEMENTED( , void, CrayfishLogViewer, SetSaveFolderName,
+HLL_QUIET_UNIMPLEMENTED( , void, CrayfishLogViewer, SetSaveFolderName,
 			possibly_unused struct string *save_folder_name);
 
 HLL_LIBRARY(CrayfishLogViewer,

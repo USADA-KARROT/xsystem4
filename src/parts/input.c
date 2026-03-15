@@ -52,7 +52,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		parts_dirty(parts_get(parts->linked_from));
 	}
 
-	if (!parts_began_click || !parts->clickable)
+	if (!parts_began_click || !parts->clickable || !parts->global.show || parts->global.alpha == 0)
 		return;
 
 	if (!cur_in) {
@@ -68,7 +68,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (cur_clicking && click_down_parts == parts->no) {
 		parts_set_state(parts, PARTS_STATE_CLICKED);
 	} else {
-		if (!prev_in) {
+		if (!prev_in && parts->on_cursor_sound >= 0) {
 			audio_play_sound(parts->on_cursor_sound);
 		}
 		parts_set_state(parts, PARTS_STATE_HOVERED);
@@ -76,9 +76,10 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 
 	// click event: only if the click down event had same parts number
 	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
-		audio_play_sound(parts->on_click_sound);
+		if (parts->on_click_sound >= 0)
+			audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
-		parts_enqueue_message(1, parts->no,
+		parts_enqueue_message(4, parts->no,
 			parts->delegate_index, parts->unique_id);
 	}
 }
@@ -88,6 +89,7 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	Point cur_pos;
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
+
 
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
@@ -123,6 +125,17 @@ void PE_SetClickable(int parts_no, bool clickable)
 bool PE_GetPartsClickable(int parts_no)
 {
 	return parts_get(parts_no)->clickable;
+}
+
+void PE_SetPassCursor(possibly_unused int parts_no, possibly_unused bool pass)
+{
+	// PassCursor = cursor events pass through this part (not intercepted).
+	// Currently a no-op; clickable flag handles click interception.
+}
+
+bool PE_GetPartsPassCursor(possibly_unused int parts_no)
+{
+	return false;
 }
 
 void PE_SetPartsGroupDecideOnCursor(possibly_unused int group_no, possibly_unused bool decide_on_cursor)
@@ -177,8 +190,6 @@ bool PE_SetClickMissSoundNumber(possibly_unused int sound_no)
 	UNIMPLEMENTED("(%d)", sound_no);
 	return true;
 }
-
-static int begin_input_count = 0;
 
 void PE_BeginInput(void)
 {

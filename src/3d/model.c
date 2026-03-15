@@ -705,6 +705,110 @@ struct model *model_create_sphere(int r, int g, int b, int a)
 	return model;
 }
 
+/*
+ * Create a procedural polygon model from vertex positions and colors.
+ * verts: array of [x,y,z] floats (nr_verts * 3)
+ * colors: array of [r,g,b] floats (nr_verts * 3), normalized 0-1, or NULL
+ * nr_verts: number of vertices (must be >= 3)
+ *
+ * Creates a triangle fan from the vertex list.
+ */
+struct model *model_create_polygon(const float *verts, const float *colors, int nr_verts)
+{
+	if (nr_verts < 3)
+		return NULL;
+
+	struct model *model = xcalloc(1, sizeof(struct model));
+	model->nr_meshes = 1;
+	model->meshes = xcalloc(1, sizeof(struct mesh));
+	struct mesh *mesh = &model->meshes[0];
+
+	/* Build vertex buffer */
+	struct vertex_common *vertices = xcalloc(nr_verts, sizeof(struct vertex_common));
+	for (int i = 0; i < nr_verts; i++) {
+		vertices[i].pos[0] = verts[i * 3 + 0];
+		vertices[i].pos[1] = verts[i * 3 + 1];
+		vertices[i].pos[2] = verts[i * 3 + 2];
+		/* Simple normal pointing up */
+		vertices[i].normal[0] = 0;
+		vertices[i].normal[1] = 1;
+		vertices[i].normal[2] = 0;
+		/* UV from normalized position */
+		vertices[i].uv[0] = (float)i / (float)(nr_verts - 1);
+		vertices[i].uv[1] = 0;
+	}
+
+	/* Build index buffer as triangle fan */
+	int nr_tris = nr_verts - 2;
+	int nr_indices = nr_tris * 3;
+	GLushort *indices = xcalloc(nr_indices, sizeof(GLushort));
+	for (int i = 0; i < nr_tris; i++) {
+		indices[i * 3 + 0] = 0;
+		indices[i * 3 + 1] = i + 1;
+		indices[i * 3 + 2] = i + 2;
+	}
+
+	/* Compute AABB */
+	glm_vec3_copy(vertices[0].pos, model->aabb[0]);
+	glm_vec3_copy(vertices[0].pos, model->aabb[1]);
+	for (int i = 1; i < nr_verts; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (vertices[i].pos[j] < model->aabb[0][j])
+				model->aabb[0][j] = vertices[i].pos[j];
+			if (vertices[i].pos[j] > model->aabb[1][j])
+				model->aabb[1][j] = vertices[i].pos[j];
+		}
+	}
+
+	/* Upload to GPU */
+	mesh->flags = MESH_NOLIGHTING;
+	mesh->nr_vertices = nr_verts;
+	mesh->nr_indices = nr_indices;
+	glGenVertexArrays(1, &mesh->vao);
+	glBindVertexArray(mesh->vao);
+	glGenBuffers(1, &mesh->attr_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, mesh->attr_buffer);
+	glBufferData(GL_ARRAY_BUFFER, nr_verts * sizeof(struct vertex_common), vertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(VATTR_POS);
+	glVertexAttribPointer(VATTR_POS, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_common),
+		(void*)offsetof(struct vertex_common, pos));
+	glEnableVertexAttribArray(VATTR_NORMAL);
+	glVertexAttribPointer(VATTR_NORMAL, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex_common),
+		(void*)offsetof(struct vertex_common, normal));
+	glEnableVertexAttribArray(VATTR_UV);
+	glVertexAttribPointer(VATTR_UV, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex_common),
+		(void*)offsetof(struct vertex_common, uv));
+	glGenBuffers(1, &mesh->index_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->index_buffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, nr_indices * sizeof(GLushort), indices, GL_STATIC_DRAW);
+	glBindVertexArray(0);
+	free(vertices);
+	free(indices);
+
+	/* Create a default white material */
+	model->nr_materials = 1;
+	model->materials = xcalloc(1, sizeof(struct material));
+	struct material *mat = &model->materials[0];
+	mat->is_transparent = true;
+	mat->color_maps = xmalloc(sizeof(GLuint));
+	mat->nr_color_maps = 1;
+	glGenTextures(1, mat->color_maps);
+	glBindTexture(GL_TEXTURE_2D, mat->color_maps[0]);
+
+	/* Use vertex colors if provided, otherwise white */
+	uint8_t pixel[4] = {255, 255, 255, 255};
+	if (colors) {
+		pixel[0] = (uint8_t)(colors[0] * 255);
+		pixel[1] = (uint8_t)(colors[1] * 255);
+		pixel[2] = (uint8_t)(colors[2] * 255);
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	model->has_transparent_mesh = true;
+
+	return model;
+}
+
 static int cmp_motions_by_bone_id(const void *lhs, const void *rhs)
 {
 	return (*(struct mot_bone **)lhs)->id - (*(struct mot_bone **)rhs)->id;

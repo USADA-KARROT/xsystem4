@@ -330,8 +330,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
 	hll_ring_idx++;
 
-	// Diagnostics removed (Session 51)
-
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
 		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
 		{
@@ -350,9 +348,9 @@ void hll_call(int libno, int fno, int hll_arg3)
 				unimp_log[idx].count = 0;
 			}
 			int cnt = idx >= 0 ? ++unimp_log[idx].count : 1;
-			if (cnt <= 3) {
-				WARNING("Unimplemented HLL function: %s.%s (popping %d args, pushing 0)",
-					ain->libraries[libno].name, f->name, f->nr_arguments);
+			if (cnt <= 5) {
+				WARNING("UNIMPL HLL: %s.%s (args=%d, cnt=%d)",
+					ain->libraries[libno].name, f->name, f->nr_arguments, cnt);
 			} else if (cnt % 1000000 == 0) {
 				WARNING("Unimplemented HLL (x%dM): %s.%s",
 					cnt / 1000000, ain->libraries[libno].name, f->name);

@@ -67,7 +67,6 @@ static struct ex_value *resolve(struct string *name)
 	if (resolve_cache[idx].name[0] && !strcmp(resolve_cache[idx].name, name->text))
 		return resolve_cache[idx].value;
 	struct ex_value *v = ex_get(ex, name->text);
-	// RESOLVE_DIAG removed (Session 51)
 	if (v) {
 		snprintf(resolve_cache[idx].name, sizeof(resolve_cache[idx].name), "%s", name->text);
 		resolve_cache[idx].value = v;
@@ -84,7 +83,8 @@ static struct ex_table *resolve_table(struct string *name)
 static struct ex_list *resolve_list(struct string *name)
 {
 	struct ex_value *v = resolve(name);
-	return (v && v->type == EX_LIST) ? v->list : NULL;
+	if (v && v->type == EX_LIST) return v->list;
+	return NULL;
 }
 
 static struct ex_tree *resolve_tree(struct string *name)
@@ -95,13 +95,26 @@ static struct ex_tree *resolve_tree(struct string *name)
 }
 
 /*
+ * Helper: get the sub-table from a list item at the given row index.
+ * EX_LIST data in Dohna Dohna stores each "row" as a list item whose
+ * value is a single-row EX_TABLE.
+ */
+static struct ex_table *list_item_table(struct ex_list *list, int row)
+{
+	if (!list || row < 0 || (unsigned)row >= list->nr_items)
+		return NULL;
+	struct ex_value *item = &list->items[row].value;
+	return (item->type == EX_TABLE) ? item->t : NULL;
+}
+
+/*
  * Module lifecycle
  */
 static void MainEXFile_ModuleInit(void)
 {
 	if (!config.ex_path || !(ex = ex_read_file(config.ex_path)))
 		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
-	WARNING("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
+	NOTICE("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
 }
 
 static void MainEXFile_ModuleFini(void)
@@ -204,9 +217,10 @@ static bool MainEXFile_Load(int image_slot)
 static int MainEXFile_Row(struct string *name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	if (!t) return 0;
-	// TABLE_DUMP removed (Session 51)
-	return t->nr_rows;
+	if (t) return t->nr_rows;
+	struct ex_list *list = resolve_list(name);
+	if (list) return list->nr_items;
+	return 0;
 }
 
 /*
@@ -215,7 +229,9 @@ static int MainEXFile_Row(struct string *name, int id)
 static int MainEXFile_Col(struct string *name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	return t ? t->nr_columns : 0;
+	if (t) return t->nr_columns;
+	struct ex_table *lt = list_item_table(resolve_list(name), 0);
+	return lt ? lt->nr_columns : 0;
 }
 
 /*
@@ -244,7 +260,12 @@ static int MainEXFile_AType(struct string *name, int index, int id)
 static int MainEXFile_A2Type(struct string *name, int row, int col, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	if (!t) return 0;
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (!t) return 0;
+		struct ex_value *v = ex_table_get(t, 0, col);
+		return v ? v->type : 0;
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
 	return v ? v->type : 0;
 }
@@ -272,7 +293,9 @@ static bool MainEXFile_AExists(struct string *name, int index, int id)
 static bool MainEXFile_A2Exists(struct string *name, int row, int col, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	return t ? !!ex_table_get(t, row, col) : false;
+	if (t) return !!ex_table_get(t, row, col);
+	t = list_item_table(resolve_list(name), row);
+	return t ? !!ex_table_get(t, 0, col) : false;
 }
 
 /*
@@ -348,7 +371,12 @@ def:
 static int MainEXFile_A2Int(struct string *name, int row, int col, int dflt, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	if (!t) return dflt;
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (!t) return dflt;
+		struct ex_value *v = ex_table_get(t, 0, col);
+		return (v && v->type == EX_INT) ? v->i : dflt;
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
 	return (v && v->type == EX_INT) ? v->i : dflt;
 }
@@ -359,7 +387,12 @@ static int MainEXFile_A2Int(struct string *name, int row, int col, int dflt, int
 static float MainEXFile_A2Float(struct string *name, int row, int col, float dflt, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	if (!t) return dflt;
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (!t) return dflt;
+		struct ex_value *v = ex_table_get(t, 0, col);
+		return (v && v->type == EX_FLOAT) ? v->f : dflt;
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
 	return (v && v->type == EX_FLOAT) ? v->f : dflt;
 }
@@ -369,30 +402,19 @@ static float MainEXFile_A2Float(struct string *name, int row, int col, float dfl
  */
 static struct string *MainEXFile_A2String(struct string *name, int row, int col, struct string *dflt, int id)
 {
-	// A2S diagnostics removed (Session 51)
 	struct ex_table *t = resolve_table(name);
 	if (!t) {
-		// Fallback: if data is a LIST, treat each list item's sub-table
-		struct ex_list *list = resolve_list(name);
-		if (list) {
-			if ((unsigned)row < list->nr_items) {
-				struct ex_value *item = &list->items[row].value;
-				if (item->type == EX_TABLE) {
-					struct ex_value *v = ex_table_get(item->t, 0, col);
-					if (v && v->type == EX_STRING)
-						return string_ref(v->s);
-				} else if (item->type == EX_STRING) {
-					return string_ref(item->s);
-				}
-			}
+		t = list_item_table(resolve_list(name), row);
+		if (t) {
+			struct ex_value *v = ex_table_get(t, 0, col);
+			if (v && v->type == EX_STRING)
+				return string_ref(v->s);
 		}
-		goto def;
+		return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 	}
 	struct ex_value *v = ex_table_get(t, row, col);
-	if (v && v->type == EX_STRING) {
+	if (v && v->type == EX_STRING)
 		return string_ref(v->s);
-	}
-def:
 	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
 
@@ -402,7 +424,15 @@ def:
 static int MainEXFile_GetRowAtIntKey(struct string *name, int key, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	return t ? ex_row_at_int_key(t, key) : -1;
+	if (t) return ex_row_at_int_key(t, key);
+	struct ex_list *list = resolve_list(name);
+	if (!list) return -1;
+	for (unsigned i = 0; i < list->nr_items; i++) {
+		struct ex_table *lt = list_item_table(list, i);
+		if (lt && ex_row_at_int_key(lt, key) >= 0)
+			return i;
+	}
+	return -1;
 }
 
 /*
@@ -412,7 +442,15 @@ static int MainEXFile_GetRowAtStringKey(struct string *name, struct string *key,
 {
 	if (!key) return -1;
 	struct ex_table *t = resolve_table(name);
-	return t ? ex_row_at_string_key(t, key->text) : -1;
+	if (t) return ex_row_at_string_key(t, key->text);
+	struct ex_list *list = resolve_list(name);
+	if (!list) return -1;
+	for (unsigned i = 0; i < list->nr_items; i++) {
+		struct ex_table *lt = list_item_table(list, i);
+		if (lt && ex_row_at_string_key(lt, key->text) >= 0)
+			return i;
+	}
+	return -1;
 }
 
 /*
@@ -421,12 +459,10 @@ static int MainEXFile_GetRowAtStringKey(struct string *name, struct string *key,
 static int MainEXFile_GetColAtFormatName(struct string *name, struct string *format_name, int id)
 {
 	struct ex_table *t = resolve_table(name);
+	if (!t) t = list_item_table(resolve_list(name), 0);
 	if (!t) return -1;
-	// v14: format_name can be NULL when .txtex format files are missing.
-	// Default to column 0 which typically contains the row key/ID.
-	if (!format_name || format_name->size == 0) {
+	if (!format_name || format_name->size == 0)
 		return (t->nr_fields > 0) ? 0 : -1;
-	}
 	return ex_col_from_name(t, format_name->text);
 }
 
@@ -578,6 +614,7 @@ static bool MainEXFile_GetEXNameList(struct string *tree_path, int list_slot, in
 static bool MainEXFile_GetFormatNameList(struct string *name, int list_slot, int id)
 {
 	struct ex_table *t = resolve_table(name);
+	if (!t) t = list_item_table(resolve_list(name), 0);
 	if (!t) return false;
 
 	union vm_value dim = { .i = t->nr_fields };

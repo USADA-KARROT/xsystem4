@@ -475,7 +475,9 @@ bool PE_BuildPartsConstructionProcess(int parts_no, int state)
 	struct parts *parts = parts_get(parts_no);
 	struct parts_construction_process *cproc = parts_get_construction_process(parts, state);
 
-	return parts_build_construction_process(parts, cproc);
+	bool result = parts_build_construction_process(parts, cproc);
+
+	return result;
 }
 
 bool parts_clear_construction_process(struct parts_construction_process *cproc)

@@ -271,7 +271,6 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 
 void parts_render(struct parts *parts)
 {
-	// parts_render trace removed (Session 51)
 	if (!parts->global.show)
 		return;
 	if (parts->message_window && !parts_message_window_show)
@@ -294,8 +293,9 @@ void parts_render(struct parts *parts)
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
 	case PARTS_CONSTRUCTION_PROCESS:
-		if (state->common.texture.handle)
+		if (state->common.texture.handle) {
 			parts_render_cg(parts, &state->common);
+		}
 		break;
 	case PARTS_TEXT:
 		parts_render_text(parts, &state->text);

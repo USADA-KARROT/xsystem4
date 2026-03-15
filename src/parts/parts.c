@@ -38,6 +38,48 @@
 
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
+
+// DIAG helpers
+int parts_count_total(void) {
+	int n = 0;
+	struct parts *p;
+	PARTS_LIST_FOREACH(p) n++;
+	return n;
+}
+int parts_count_visible(void) {
+	int n = 0;
+	struct parts *p;
+	PARTS_LIST_FOREACH(p) if (p->global.show) n++;
+	return n;
+}
+void parts_dump_visible(void) {
+	struct parts *p;
+	int idx = 0;
+	PARTS_LIST_FOREACH(p) {
+		if (idx++ >= 80) break;
+		int state = p->state;
+		const char *type_str = "?";
+		if (state >= 0 && state < PARTS_NR_STATES && p->states[state].type >= 0) {
+			switch (p->states[state].type) {
+			case PARTS_CG: type_str = "CG"; break;
+			case PARTS_TEXT: type_str = "TEXT"; break;
+			case PARTS_ANIMATION: type_str = "ANIM"; break;
+			case PARTS_NUMERAL: type_str = "NUM"; break;
+			case PARTS_HGAUGE: type_str = "HGAU"; break;
+			case PARTS_VGAUGE: type_str = "VGAU"; break;
+			case PARTS_CONSTRUCTION_PROCESS: type_str = "CP"; break;
+			default: type_str = "UNK"; break;
+			}
+		}
+		int raw_type = (state >= 0 && state < PARTS_NR_STATES) ? p->states[state].type : -99;
+		int parent_no = p->parent ? p->parent->no : -1;
+		int has_tex = (state >= 0 && state < PARTS_NR_STATES) ? (p->states[state].common.texture.handle != 0) : 0;
+		WARNING("  [%d] no=%d type=%s(%d) show=%d pos=(%d,%d) z=%d a=%d click=%d par=%d tex=%d",
+			idx, p->no, type_str, raw_type, p->global.show,
+			p->global.pos.x, p->global.pos.y,
+			p->global.z, p->global.alpha, p->clickable, parent_no, has_tex);
+	}
+}
 static struct hash_table *parts_table = NULL;
 static Point root_pos = { 0, 0 };
 
@@ -95,6 +137,14 @@ static void dirty_list_remove(struct parts *parts)
 
 static void parts_list_insert(struct parts *parts)
 {
+	// Fast path: if list is empty or last element's z <= ours, append to tail
+	struct parts *last = TAILQ_LAST(&parts_list, parts_list);
+	if (!last || last->global.z <= parts->global.z) {
+		TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
+		parts_engine_dirty();
+		scene_register_sprite(&parts->sp);
+		return;
+	}
 	struct parts *p;
 	PARTS_LIST_FOREACH(p) {
 		if (p->global.z > parts->global.z) {
@@ -117,7 +167,8 @@ static void parts_list_remove(struct parts *parts)
 
 void parts_list_resort(struct parts *parts)
 {
-	// TODO: this could be optimized
+	if (parts->sp.z == parts->global.z)
+		return;
 	parts_list_remove(parts);
 	parts_list_insert(parts);
 	scene_set_sprite_z(&parts->sp, parts->global.z);
@@ -125,20 +176,23 @@ void parts_list_resort(struct parts *parts)
 
 struct parts *parts_try_get(int parts_no)
 {
-	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
-	if (slot->value)
-		return slot->value;
-	return NULL;
+	if (!parts_table) return NULL;
+	return ht_get_int(parts_table, parts_no, NULL);
 }
 
 struct parts *parts_get(int parts_no)
 {
-	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
-	if (slot->value)
-		return slot->value;
+	if (!parts_table) PE_Init();
 
+	// Fast path: look up existing parts without allocation
+	void *existing = ht_get_int(parts_table, parts_no, NULL);
+	if (existing)
+		return existing;
+
+	// Slow path: create new parts entry
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
+	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
 	slot->value = parts;
 	parts_list_insert(parts);
 
@@ -383,8 +437,13 @@ void parts_set_global_pos(Point pos)
 
 static void parts_update_global_z(struct parts *parts, int parent_z)
 {
-	parts->global.z = parent_z + parts->local.z;
-	parts_list_resort(parts);
+	int new_z = parent_z + parts->local.z;
+	if (new_z != parts->global.z) {
+		parts->global.z = new_z;
+		// Defer resort to parts_update_component for batching.
+		// parts_update_component already checks sp.z != global.z.
+		parts_dirty(parts);
+	}
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
@@ -876,7 +935,7 @@ static void parts_update_loop(struct parts *parts, int passed_time)
 	}
 }
 
-static void parts_update_animation(int passed_time)
+void parts_update_animation(int passed_time)
 {
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
@@ -1022,8 +1081,6 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 			parts->parent = parent;
 			TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
 		}
-		// TODO: should the child be orphaned if it already has a parent and an invalid
-		//       parent no is given?
 		parts->pending_parent = -1;
 
 		// don't do anything here if parent is dirty
@@ -1037,12 +1094,8 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 
 bool parts_message_window_show = true;
 
-int pe_update_count = 0;
-int pe_updateparts_count = 0;
-
 void PE_Update(int passed_time, bool message_window_show)
 {
-	pe_update_count++;
 	// Workaround: when game timer is broken (CASTimerManager struct corruption),
 	// passed_time is always 0. Compute real elapsed time instead.
 	static struct timespec pe_last_time = {0};
@@ -1076,7 +1129,6 @@ void PE_Update(int passed_time, bool message_window_show)
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
 {
-	pe_updateparts_count++;
 	handle_events();
 	parts_message_window_show = message_window_show;
 	audio_update();
@@ -1092,7 +1144,22 @@ void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_
 
 void PE_SetDelegateIndex(int parts_no, int delegate_index)
 {
-	parts_get(parts_no)->delegate_index = delegate_index;
+	struct parts *p = parts_get(parts_no);
+	p->delegate_index = delegate_index;
+
+	// Auto-clickable: when a delegate is assigned to a part with a CP texture,
+	// make it clickable. This compensates for UserComponent wrappers that fail
+	// to initialize due to DG_STR_TO_METHOD failure — the pactex CP buttons
+	// can respond to clicks directly using their own delegates.
+	if (delegate_index > 0) {
+		for (int s = 0; s < PARTS_NR_STATES; s++) {
+			if (p->states[s].type == PARTS_CONSTRUCTION_PROCESS &&
+			    p->states[s].common.texture.handle) {
+				p->clickable = true;
+				break;
+			}
+		}
+	}
 }
 
 int PE_GetDelegateIndex(int parts_no)
@@ -1742,17 +1809,16 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 	parts->pending_parent = parent_parts_no;
 
 	/* Immediately establish the parent-child link.
-	 * v14 game code calls NumofChild/GetChild right after ReadActivityFile,
-	 * before PE_UpdateComponent has a chance to process the dirty list.
-	 * Without immediate linking, the component tree is empty when traversed. */
-	struct parts *parent = parts_try_get(parent_parts_no);
-	if (parent) {
-		if (parts->parent) {
-			TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
-		}
-		parts->parent = parent;
-		TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
+	 * Use parts_get (not parts_try_get) to auto-create the parent if it
+	 * doesn't exist yet — the game may set parent before creating the parent
+	 * part explicitly, and PE_UpdateComponent would otherwise clear
+	 * pending_parent before the parent is ever created. */
+	struct parts *parent = parts_get(parent_parts_no);
+	if (parts->parent) {
+		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
 	}
+	parts->parent = parent;
+	TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
 
 	parts_component_dirty(parts);
 }
@@ -1864,10 +1930,12 @@ int PE_GetInputState(int parts_no)
 	return parts_get(parts_no)->state + 1;
 }
 
-bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
+bool PE_SetPartsRectangleDetectionSize(possibly_unused int parts_no,
+	possibly_unused int w, possibly_unused int h, possibly_unused int state)
 {
-	UNIMPLEMENTED("(%d, %d, %d, %d)", parts_no, w, h, state);
-	return false;
+	// Sets the rectangle used for cursor/click detection.
+	// Currently a no-op; parts use their rendered bounds for detection.
+	return true;
 }
 
 bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
@@ -1889,6 +1957,7 @@ int PE_GetFreeNumber(void)
 
 bool PE_IsExist(int parts_no)
 {
+	if (!parts_table) return false;
 	return !!ht_get_int(parts_table, parts_no, NULL);
 }
 

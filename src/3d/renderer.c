@@ -1006,6 +1006,21 @@ void RE_render(struct sact_sprite *sp)
 
 	setup_lights(plugin);
 
+	// DIAG: dump instance states (first render only)
+	{
+		static int dump_count = 0;
+		if (dump_count++ < 3) {
+			WARNING("RE_render: nr_instances=%d", plugin->nr_instances);
+			for (int i = 0; i < plugin->nr_instances; i++) {
+				struct RE_instance *inst = plugin->instances[i];
+				if (!inst) continue;
+				WARNING("  inst[%d]: type=%d draw=%d alpha=%.2f has_model=%d pos=(%.1f,%.1f,%.1f)",
+					i, inst->type, inst->draw, inst->alpha,
+					inst->model ? 1 : 0,
+					inst->pos[0], inst->pos[1], inst->pos[2]);
+			}
+		}
+	}
 	// Sort instances by z-order.
 	struct RE_instance **sorted_instances = sort_instances(plugin, view_transform);
 

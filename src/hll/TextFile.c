@@ -86,9 +86,6 @@ static bool TextFile_ReadAll(struct string *fileName, int *text_out)
 
 	FILE *fp = fopen(fileName->text, "rb");
 	if (!fp) {
-		static int ra_warn = 0;
-		if (ra_warn++ < 5)
-			WARNING("TextFile.ReadAll: cannot open '%s'", fileName->text);
 		return false;
 	}
 

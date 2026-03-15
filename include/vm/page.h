@@ -139,6 +139,7 @@ void array_reverse(struct page *page);
 
 // delegates
 struct page *delegate_new_from_method(int obj, int fun);
+struct page *delegate_new_from_method_env(int obj, int fun, int env);
 int delegate_numof(struct page *page);
 bool delegate_contains(struct page *dst, int obj, int fun);
 void delegate_erase(struct page *page, int obj, int fun);

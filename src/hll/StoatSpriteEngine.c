@@ -45,7 +45,7 @@ HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerMasterGroupNum,
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerSEGroupNum, int n);
 HLL_WARN_UNIMPLEMENTED( , void, StoatSpriteEngine, SetVolumeMixerBGMGroupNum, int n);
 
-static int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
+int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
 {
 	struct sact_sprite *sp = sact_get_sprite(sp_no);
 	if (!sp) return 0;
@@ -59,7 +59,7 @@ static int StoatSpriteEngine_SP_SetDrawMethod(int sp_no, int method)
 	}
 }
 
-static int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
+int StoatSpriteEngine_SP_GetDrawMethod(int sp_no)
 {
 	struct sact_sprite *sp = sact_try_get_sprite(sp_no);
 	if (!sp) return DRAW_METHOD_NORMAL;
@@ -941,9 +941,9 @@ bool StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip(void)
 	return invalidate_frame_skip_while_message_skip;
 }
 
-//static int StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize(void);
-//static int StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize(void);
-//static int StoatSpriteEngine_Debug_GetFillRate(void);
+static int StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize(void) { return 0; }
+static int StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize(void) { return 0; }
+static int StoatSpriteEngine_Debug_GetFillRate(void) { return 0; }
 //static int StoatSpriteEngine_MUSIC_ReloadParam(struct string **text);
 
 HLL_LIBRARY(StoatSpriteEngine,
@@ -1195,7 +1195,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoiceLast),
 	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
 	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load),
-	    HLL_TODO_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
+	    HLL_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
+	    HLL_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
+	    HLL_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
 	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam));

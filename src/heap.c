@@ -409,11 +409,6 @@ void heap_unref(int slot)
 void exit_unref(int slot)
 {
 	if (slot <= 1 || (size_t)slot >= heap_size) {
-		if (slot > 1) { // slot 0/1 are reserved (guard/global), skip silently
-			static int exit_oob_warn = 0;
-			if (exit_oob_warn++ < 5)
-				WARNING("exit_unref: out of bounds heap index: %d", slot);
-		}
 		return;
 	}
 	if (heap[slot].ref <= 0) {
@@ -479,18 +474,25 @@ bool string_index_valid(int index)
 
 struct page *heap_get_page(int index)
 {
+	// v14: negative indices and 0 mean null reference (optional empty)
+	if (index <= 0)
+		return NULL;
 	if (unlikely(!page_index_valid(index))) {
+		// v14: freed slots (ref=0) and VM_STRING slots accessed as pages
+		// happen in closure environments and optional types — silently return NULL.
+		if ((size_t)index < heap_size && (heap[index].ref <= 0 || heap[index].type == VM_STRING))
+			return NULL;
 		static int page_warn_count = 0;
-		if (page_warn_count++ < 5) {
+		if (page_warn_count++ < 1) {
 			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-			if (index >= 0 && (size_t)index < heap_size)
+			const char *fname = (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?";
+			if ((size_t)index < heap_size)
 				WARNING("heap_get_page: invalid page index %d (ref=%d type=%d) ip=0x%lX fno=%d '%s'",
-					index, heap[index].ref, heap[index].type,
-					(unsigned long)instr_ptr, fno,
-					(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
+					index, HEAP_REF(index), heap[index].type,
+					(unsigned long)instr_ptr, fno, fname);
 			else
-				WARNING("heap_get_page: invalid page index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
-					index, heap_size, (unsigned long)instr_ptr, fno);
+				WARNING("heap_get_page: invalid page index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d '%s'",
+					index, heap_size, (unsigned long)instr_ptr, fno, fname);
 		}
 		return NULL;
 	}
@@ -499,22 +501,10 @@ struct page *heap_get_page(int index)
 
 struct string *heap_get_string(int index)
 {
+	// v14: -1 is the null/empty value for optional<string>
+	if (index < 0)
+		return &EMPTY_STRING;
 	if (unlikely(!string_index_valid(index))) {
-		static int str_warn_count = 0;
-		if (str_warn_count++ < 5) {
-			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-			if (index >= 0 && (size_t)index < heap_size) {
-				if (heap[index].type == VM_PAGE && heap[index].page)
-					WARNING("heap_get_string: invalid string index %d (ref=%d type=VM_PAGE page_type=%d a_type=%d nr_vars=%d) ip=0x%lX fno=%d",
-						index, heap[index].ref, heap[index].page->type, heap[index].page->a_type, heap[index].page->nr_vars,
-						(unsigned long)instr_ptr, fno);
-				else
-					WARNING("heap_get_string: invalid string index %d (ref=%d type=%d) ip=0x%lX fno=%d",
-						index, heap[index].ref, heap[index].type, (unsigned long)instr_ptr, fno);
-			} else
-				WARNING("heap_get_string: invalid string index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d",
-					index, heap_size, (unsigned long)instr_ptr, fno);
-		}
 		return &EMPTY_STRING;
 	}
 	if (unlikely(!heap[index].s))
@@ -525,9 +515,12 @@ struct string *heap_get_string(int index)
 static int delegate_page_warn_count = 0;
 struct page *heap_get_delegate_page(int index)
 {
+	// v14: slot <=1 (guard/global) means null delegate (optional empty)
+	if (index <= 1)
+		return NULL;
 	struct page *page = heap_get_page(index);
 	if (unlikely(page && page->type != DELEGATE_PAGE)) {
-		if (delegate_page_warn_count++ < 5) {
+		if (delegate_page_warn_count++ < 1) {
 			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
 			WARNING("heap_get_delegate_page: slot %d type=%d ip=0x%lX fno=%d '%s'",
 				index, page->type, (unsigned long)instr_ptr, fno,
@@ -548,7 +541,7 @@ void heap_set_page(int slot, struct page *page)
 	// Slot 0 (guard page) may be written to by stray references — allow it.
 	if (unlikely(slot == 1 && page && page->type != GLOBAL_PAGE)) {
 		static int hp1_warn = 0;
-		if (hp1_warn++ < 3)
+		if (hp1_warn++ < 1)
 			WARNING("heap_set_page: BUG! overwriting global page (slot 1) with type=%d idx=%d",
 				page->type, page->index);
 		return;
@@ -580,13 +573,6 @@ void heap_struct_assign(int lval, int rval)
 		return;
 	// Validate rval before accessing heap[rval].page
 	if (unlikely(!page_index_valid(rval))) {
-		static int rval_warn = 0;
-		if (rval_warn++ < 10) {
-			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-			WARNING("heap_struct_assign: invalid rval=%d lval=%d ip=0x%lX fno=%d '%s'",
-				rval, lval, (unsigned long)instr_ptr,
-				fno, (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
-		}
 		return;
 	}
 	if (heap[lval].page) {

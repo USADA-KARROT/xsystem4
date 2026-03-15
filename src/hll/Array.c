@@ -17,6 +17,11 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
+#endif
 
 #include "hll.h"
 #include "vm.h"
@@ -82,18 +87,39 @@ static void Array_PushBack(struct page **array, int value)
 		return;
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
-	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	int new_size = old_size + 1;
+
 	if (a) {
-		for (int i = 0; i < old_size; i++)
-			new_a->values[i] = a->values[i];
-		new_a->array = a->array;
-		free_page(a);
+		// Try to grow in-place if malloc has extra room
+		size_t needed = sizeof(struct page) + sizeof(union vm_value) * new_size;
+#ifdef __APPLE__
+		size_t actual = malloc_size(a);
+#else
+		size_t actual = malloc_usable_size(a);
+#endif
+		if (needed <= actual) {
+			a->nr_vars = new_size;
+			a->values[old_size].i = value;
+			if (array_elem_is_ref() && value > 0)
+				heap_ref(value);
+			return;
+		}
+		// Exponential growth to amortize realloc
+		int grow_to = new_size * 2;
+		if (grow_to < 16) grow_to = 16;
+		a = xrealloc(a, sizeof(struct page) + sizeof(union vm_value) * grow_to);
+		a->nr_vars = new_size;
+		a->values[old_size].i = value;
+		if (array_elem_is_ref() && value > 0)
+			heap_ref(value);
+		*array = a;
+	} else {
+		struct page *new_a = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
+		new_a->values[0].i = value;
+		if (array_elem_is_ref() && value > 0)
+			heap_ref(value);
+		*array = new_a;
 	}
-	new_a->values[old_size].i = value;
-	if (array_elem_is_ref() && value > 0) {
-		heap_ref(value);
-	}
-	*array = new_a;
 }
 
 // EraseAll: erase all elements matching a predicate
@@ -416,15 +442,31 @@ static void Array_Pushback(struct page **array, int value)
 		return;
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
-	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	int new_size = old_size + 1;
+
 	if (a) {
-		for (int i = 0; i < old_size; i++)
-			new_a->values[i] = a->values[i];
-		new_a->array = a->array;
-		free_page(a);
+		size_t needed = sizeof(struct page) + sizeof(union vm_value) * new_size;
+#ifdef __APPLE__
+		size_t actual = malloc_size(a);
+#else
+		size_t actual = malloc_usable_size(a);
+#endif
+		if (needed <= actual) {
+			a->nr_vars = new_size;
+			a->values[old_size].i = value;
+			return;
+		}
+		int grow_to = new_size * 2;
+		if (grow_to < 16) grow_to = 16;
+		a = xrealloc(a, sizeof(struct page) + sizeof(union vm_value) * grow_to);
+		a->nr_vars = new_size;
+		a->values[old_size].i = value;
+		*array = a;
+	} else {
+		struct page *new_a = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
+		new_a->values[0].i = value;
+		*array = new_a;
 	}
-	new_a->values[old_size].i = value;
-	*array = new_a;
 }
 
 static void Array_Popback(struct page **array)
@@ -1164,6 +1206,13 @@ static int Array_Max(struct page **array, int func)
 //int Array_VS_and(struct page *sArray, int nMember);
 //int Array_VS_or(struct page *sArray, int nMember);
 
+static void Array_Reverse(struct page **array)
+{
+	if (!array || !*array)
+		return;
+	array_reverse(*array);
+}
+
 HLL_LIBRARY(Array,
 	    HLL_EXPORT(Alloc, Array_Alloc),
 	    HLL_EXPORT(Free, Array_Free),
@@ -1201,6 +1250,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(SYSTEMONLY_GetStructPageList, Array_SYSTEMONLY_GetStructPageList),
 	    HLL_EXPORT(Concat, Array_Concat),
 	    HLL_EXPORT(Max, Array_Max),
+	    HLL_EXPORT(Reverse, Array_Reverse),
 	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
 	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),

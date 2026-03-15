@@ -45,6 +45,15 @@ void scene_register_sprite(struct sprite *sp)
 	if (!sp->id)
 		sp->id = ++id_counter;
 
+	// Fast path: if list is empty or last element sorts before us, append
+	struct sprite *last = TAILQ_LAST(&sprite_list, listhead);
+	if (!last || last->z < sp->z || (last->z == sp->z && last->z2 <= sp->z2)) {
+		TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
+		sp->in_scene = true;
+		scene_dirty();
+		return;
+	}
+
 	struct sprite *p;
 	TAILQ_FOREACH(p, &sprite_list, entry) {
 		if (p->z == sp->z) {
@@ -93,6 +102,7 @@ void scene_render(void)
 		if (sp->render)
 			sp->render(sp);
 	}
+
 }
 
 int scene_set_wp(int cg_no) {

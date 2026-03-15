@@ -209,6 +209,7 @@ void RE_instance_update_local_transform(struct RE_instance *inst);
 struct model *model_load(struct archive *aar, const char *path);
 void model_free(struct model *model);
 struct model *model_create_sphere(int r, int g, int b, int a);
+struct model *model_create_polygon(const float *verts, const float *colors, int nr_verts);
 
 struct motion *motion_load(const char *name, struct RE_instance *instance, struct archive *aar);
 void motion_free(struct motion *motion);

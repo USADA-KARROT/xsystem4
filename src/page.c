@@ -16,6 +16,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
+#endif
 #include "system4.h"
 #include "system4/ain.h"
 #include "system4/string.h"
@@ -119,7 +124,7 @@ union vm_value variable_initval(enum ain_data_type type)
 		    && type != AIN_ENUM && type != AIN_ENUM2
 		    && type != AIN_HLL_PARAM && type != AIN_HLL_FUNC
 		    && type != AIN_IFACE
-		    && initval_warn++ < 20)
+		    && initval_warn++ < 1)
 			WARNING("variable_initval: unhandled type %d → 0", type);
 		return (union vm_value) { .i = 0 };
 	}
@@ -184,13 +189,8 @@ enum ain_data_type array_type(enum ain_data_type type)
 		// v14 generic array — element type is erased at type level.
 		// Return AIN_INT as neutral fallback (no refcounting).
 		return AIN_INT;
-	default: {
-		static int array_type_warn_count = 0;
-		if (array_type_warn_count < 10)
-			WARNING("Unknown/invalid array type: %d (count=%d)", type, array_type_warn_count);
-		array_type_warn_count++;
+	default:
 		return type;
-	}
 	}
 }
 
@@ -293,12 +293,8 @@ void delete_page(int slot)
 		return;
 	// Validate page before freeing
 	if (page->type >= NR_PAGE_TYPES || page->nr_vars < 0 || page->nr_vars > 1000000) {
-		static int dp_corrupt_warn = 0;
-		if (dp_corrupt_warn++ < 5)
-			WARNING("delete_page: corrupted page at slot %d (type=%d nr_vars=%d), skipping",
-				slot, page->type, page->nr_vars);
 		heap[slot].page = NULL;
-		return;  // leak memory rather than crash
+		return;  // corrupted page — leak memory rather than crash
 	}
 	if (page->type == STRUCT_PAGE) {
 		// Validate struct index before calling destructor
@@ -367,7 +363,7 @@ struct page *copy_page(struct page *src)
 	// Validate page before copying
 	if (src->type >= NR_PAGE_TYPES || src->nr_vars < 0 || src->nr_vars > 1000000) {
 		static int cp_corrupt_warn = 0;
-		if (cp_corrupt_warn++ < 5)
+		if (cp_corrupt_warn++ < 1)
 			WARNING("copy_page: corrupted page type=%d nr_vars=%d, returning empty page",
 				src->type, src->nr_vars);
 		return alloc_page(0, 0, 0);
@@ -378,7 +374,7 @@ struct page *copy_page(struct page *src)
 	copy_calls++;
 	if (copy_depth > COPY_MAX_DEPTH || copy_calls > COPY_MAX_CALLS) {
 		static int cp_limit_warn = 0;
-		if (cp_limit_warn++ < 5)
+		if (cp_limit_warn++ < 1)
 			WARNING("copy_page: limit hit (depth=%d calls=%d), returning shallow copy", copy_depth, copy_calls);
 		struct page *result = copy_page_shallow(src);
 		copy_depth--;
@@ -460,7 +456,6 @@ int alloc_struct(int no)
 	for (int i = 0; i < s->nr_members; i++) {
 		init_struct_slot(heap[slot].page, i, &s->members[i]);
 	}
-
 	// v14: populate <vtable> array (member 0) with virtual method table.
 	// Skip for inherited structs — their vtable is in the base class's page.
 	bool has_inheritance = (ain->version >= 14 && s->nr_members > 0 &&
@@ -525,8 +520,9 @@ void init_global_struct_v14(int no, int slot)
 				init_global_struct_v14(child_type, child);
 		}
 	}
-	// Then call this struct's constructor
-	if (s->constructor > 0) {
+	// Then call this struct's constructor (skip known-broken debug structs)
+	if (s->constructor > 0
+	    && !(s->name && strstr(s->name, "CDebug"))) {
 		vm_call(s->constructor, slot);
 	}
 }
@@ -551,7 +547,6 @@ static void dtor_blacklist_init(void)
 			if (name && (strcmp(name, "CASTimer") == 0 ||
 				strcmp(name, "parts::detail::CParts3DLayerManager") == 0)) {
 				dtor_blacklist[si] = true;
-				WARNING("dtor_blacklist_init: pre-blacklisted struct #%d '%s'", si, name);
 			}
 		}
 	}
@@ -617,7 +612,7 @@ struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_typ
 
 	data_type = unref_array_type(data_type);
 	enum ain_data_type type = array_type(data_type);
-	struct page *page = alloc_page(ARRAY_PAGE, data_type, dimensions->i);
+	struct page *page = alloc_page(ARRAY_PAGE, data_type, max(0, dimensions->i));
 	page->array.struct_type = struct_type;
 	page->array.rank = rank;
 
@@ -651,8 +646,10 @@ struct page *realloc_array(struct page *src, int rank, union vm_value *dimension
 		// v14 NEW constructors: alloc_struct pre-creates rank=1 arrays for
 		// array members, but constructors may resize with different rank.
 		// Allow this by re-allocating from scratch.
-		WARNING("realloc_array: rank mismatch (src=%d, new=%d, type=%d, struc=%d), re-creating",
-			src->array.rank, rank, data_type, struct_type);
+		{ static int ra_warn = 0; if (ra_warn++ < 1)
+			WARNING("realloc_array: rank mismatch (src=%d, new=%d), re-creating",
+				src->array.rank, rank);
+		}
 		delete_page_vars(src);
 		free_page(src);
 		return alloc_array(rank, dimensions, data_type, struct_type, init_structs);
@@ -775,8 +772,22 @@ struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_ty
 			VM_ERROR("Tried pushing to a multi-dimensional array");
 
 		int index = dst->nr_vars;
-		union vm_value dims[1] = { (union vm_value) { .i = index + 1 } };
-		dst = realloc_array(dst, 1, dims, dst->a_type, dst->array.struct_type, false);
+		size_t needed = sizeof(struct page) + sizeof(union vm_value) * (index + 1);
+#ifdef __APPLE__
+		size_t actual = malloc_size(dst);
+#else
+		size_t actual = malloc_usable_size(dst);
+#endif
+		if (needed <= actual) {
+			// Allocation already has room — skip realloc
+			dst->nr_vars = index + 1;
+		} else {
+			// Exponential growth to amortize realloc cost
+			int grow_to = (index + 1) * 2;
+			if (grow_to < 16) grow_to = 16;
+			dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * grow_to);
+			dst->nr_vars = index + 1;
+		}
 		variable_set(dst, index, array_type(data_type), v);
 	} else {
 		union vm_value dims[1] = { (union vm_value) { .i = 1 } };
@@ -1043,17 +1054,15 @@ void array_reverse(struct page *page)
 
 struct page *delegate_new_from_method(int obj, int fun)
 {
-	if (fun < 0) {
-		static int dnfm_warn = 0;
-		if (dnfm_warn++ < 20) {
-			WARNING("delegate_new_from_method[%d]: fun=%d obj=%d",
-				dnfm_warn, fun, obj);
-		}
-	}
+	return delegate_new_from_method_env(obj, fun, 0);
+}
+
+struct page *delegate_new_from_method_env(int obj, int fun, int env)
+{
 	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
 	page->values[0].i = obj;
 	page->values[1].i = fun;
-	page->values[2].i = heap_get_seq(obj);
+	page->values[2].i = (ain->version >= 14) ? env : heap_get_seq(obj);
 	return page;
 }
 
