@@ -494,6 +494,8 @@ static void gfx_update_frame_rate_counter(void)
 	}
 }
 
+static bool swap_ok = true;
+
 void gfx_swap(void)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -515,6 +517,9 @@ void gfx_swap(void)
 	};
 	gfx_render(&job);
 
+	// macOS: flush all pending GL commands before swap to avoid
+	// crash in CGLFlushDrawable when GL pipeline has stale state
+	glFinish();
 	SDL_GL_SwapWindow(sdl.window);
 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
 	glViewport(0, 0, sdl.w, sdl.h);

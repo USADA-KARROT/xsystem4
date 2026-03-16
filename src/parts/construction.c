@@ -424,6 +424,11 @@ bool parts_build_construction_process(struct parts *parts,
 {
 	struct parts_cp_op *op;
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
+		/* CREATE/CG ops initialize the texture; all others need it */
+		if (op->type != PARTS_CP_CREATE && op->type != PARTS_CP_CREATE_PIXEL_ONLY
+				&& op->type != PARTS_CP_CG && !cproc->common.texture.handle) {
+			continue;
+		}
 		switch (op->type) {
 		case PARTS_CP_CREATE:
 			build_create(parts, cproc, &op->create);

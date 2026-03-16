@@ -79,7 +79,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		if (parts->on_click_sound >= 0)
 			audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
-		parts_enqueue_message(4, parts->no,
+		// type=1 = ButtonClick (per-part), type=4 = WholeMouseLClick (screen)
+		parts_enqueue_message(1, parts->no,
 			parts->delegate_index, parts->unique_id);
 	}
 }
@@ -90,8 +91,7 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 
-
-	struct parts *parts;
+struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		parts_update_mouse(parts, cur_pos, cur_clicking);
 	}
