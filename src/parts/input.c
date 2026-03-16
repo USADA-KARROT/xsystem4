@@ -37,9 +37,10 @@ static int click_down_parts = 0;
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
 {
-	// Build screen-space hitbox: local hitbox + parent global offset
-	Rectangle hitbox_local = parts->states[parts->state].common.hitbox;
-	Rectangle hitbox_screen = hitbox_local;
+	// Build screen-space hitbox: local hitbox + parent global offset.
+	// common.hitbox includes local.pos but not parent chain, so we must
+	// add the parent's global position to get screen coordinates.
+	Rectangle hitbox_screen = parts->states[parts->state].common.hitbox;
 	if (parts->parent) {
 		hitbox_screen.x += parts->parent->global.pos.x;
 		hitbox_screen.y += parts->parent->global.pos.y;
@@ -91,7 +92,7 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 
-struct parts *parts;
+	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		parts_update_mouse(parts, cur_pos, cur_clicking);
 	}

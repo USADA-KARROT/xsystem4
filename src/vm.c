@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <execinfo.h>
+#include <pthread.h>
 #include <SDL.h> // for system.MsgBox
 
 #include "system4.h"
@@ -4253,9 +4254,14 @@ _Noreturn void vm_reset(void)
 }
 
 static volatile sig_atomic_t in_signal_handler = 0;
+static pthread_t main_thread_id;
 
 static void sigabrt_handler(int sig)
 {
+	// macOS: ignore SIGSEGV from background threads (BoardServices/XPC crashes)
+	if (sig == SIGSEGV && !pthread_equal(pthread_self(), main_thread_id)) {
+		return;  // let the background thread die quietly
+	}
 	// Prevent re-entrant crashes (e.g., SIGSEGV inside this handler)
 	if (in_signal_handler) {
 		signal(sig, SIG_DFL);
@@ -4303,6 +4309,7 @@ static void sigabrt_handler(int sig)
 int vm_execute_ain(struct ain *program)
 {
 	ain = program;
+	main_thread_id = pthread_self();
 
 	// Install signal handlers to dump trace buffer and C backtrace
 	signal(SIGABRT, sigabrt_handler);

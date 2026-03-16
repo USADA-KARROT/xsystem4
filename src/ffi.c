@@ -1150,8 +1150,6 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 				break;
 			}
 		}
-		if (!dst[i].fun)
-			; // unimplemented
 		if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}

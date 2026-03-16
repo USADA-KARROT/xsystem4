@@ -1678,6 +1678,12 @@ static void PartsEngine_PopMessage(void)
 
 static void PartsEngine_ReleaseMessage(void)
 {
+	// Advance queue head (consume the message the game just processed).
+	// Dohna Dohna calls GetMessageType to peek, processes the message,
+	// then calls ReleaseMessage to consume it (never calls PopMessage).
+	if (msg_head != msg_tail) {
+		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
+	}
 	msg_current.type = -1;
 	msg_current.parts_no = 0;
 	msg_current.nr_vars = 0;
