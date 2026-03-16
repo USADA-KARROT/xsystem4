@@ -4160,7 +4160,7 @@ static void vm_execute(void)
 					}
 				}
 				if (!in_vm_call) {
-					handle_window_events();
+					handle_events();
 					scene_render();
 					gfx_swap();
 				} else {

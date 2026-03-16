@@ -1576,7 +1576,9 @@ static void PartsEngine_SaveThumbnail_v14(struct string *name, int width) {}
 static int PartsEngine_GetActiveParts(void) { return PE_GetClickPartsNumber(); }
 static void PartsEngine_SetClickMissSoundName(struct string *name) {}
 static struct string *PartsEngine_GetClickMissSoundName(void) { return string_ref(&EMPTY_STRING); }
-static int PartsEngine_GetClickNumber(void) { return PE_GetClickPartsNumber(); }
+static int PartsEngine_GetClickNumber(void) {
+	return PE_GetClickPartsNumber();
+}
 static void PartsEngine_StopSoundWithoutSystemSound(void) {}
 static void PartsEngine_SetEnableInput(bool enable) {}
 static bool PartsEngine_IsEnableInput(void) { return true; }
@@ -1694,8 +1696,9 @@ static int PartsEngine_GetMessageType(void)
 	// GetMessageType is a peek — it signals the start of a new message
 	// processing cycle. Clear msg_current so we peek at queue head.
 	msg_current.type = -1;
-	if (msg_head != msg_tail)
+	if (msg_head != msg_tail) {
 		return msg_queue[msg_head].type;
+	}
 	return -1;
 }
 // After PopMessage, data is in msg_current (head already advanced).
@@ -1711,11 +1714,14 @@ static int PartsEngine_GetMessagePartsNumber(void)
 }
 static int PartsEngine_GetMessageDelegateIndex(void)
 {
+	int result;
 	if (msg_current.type >= 0)
-		return msg_current.delegate_index;
-	if (msg_head != msg_tail)
-		return msg_queue[msg_head].delegate_index;
-	return 0;
+		result = msg_current.delegate_index;
+	else if (msg_head != msg_tail)
+		result = msg_queue[msg_head].delegate_index;
+	else
+		result = 0;
+	return result;
 }
 static int PartsEngine_GetMessageUniqueID(void)
 {
@@ -1743,17 +1749,19 @@ static bool PartsEngine_SeekMessage(int target_parts_no)
 
 static int PartsEngine_GetMessageVariableInt(int idx)
 {
+	int result;
 	// After PopMessage, msg_current holds the popped message.
 	// Before PopMessage, peek at queue head.
 	if (msg_current.type >= 0) {
-		if (idx < 0 || idx >= msg_current.nr_vars) return 0;
-		return msg_current.vars[idx];
+		if (idx < 0 || idx >= msg_current.nr_vars) result = 0;
+		else result = msg_current.vars[idx];
+	} else if (msg_head != msg_tail) {
+		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) result = 0;
+		else result = msg_queue[msg_head].vars[idx];
+	} else {
+		result = 0;
 	}
-	if (msg_head != msg_tail) {
-		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0;
-		return msg_queue[msg_head].vars[idx];
-	}
-	return 0;
+	return result;
 }
 static float PartsEngine_GetMessageVariableFloat(int idx)
 {

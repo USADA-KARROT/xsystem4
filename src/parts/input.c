@@ -37,10 +37,10 @@ static int click_down_parts = 0;
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking)
 {
-	// Build screen-space hitbox: local hitbox + parent global offset.
-	// common.hitbox includes local.pos but not parent chain, so we must
-	// add the parent's global position to get screen coordinates.
-	Rectangle hitbox_screen = parts->states[parts->state].common.hitbox;
+	// Build screen-space hitbox: ALWAYS use DEFAULT state for hit testing.
+	// The CLICKED/HOVERED states may have different (often zero) hitboxes
+	// since they are sized for visual feedback, not input detection.
+	Rectangle hitbox_screen = parts->states[PARTS_STATE_DEFAULT].common.hitbox;
 	if (parts->parent) {
 		hitbox_screen.x += parts->parent->global.pos.x;
 		hitbox_screen.y += parts->parent->global.pos.y;
@@ -80,9 +80,11 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		if (parts->on_click_sound >= 0)
 			audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
-		// type=1 = ButtonClick (per-part), type=4 = WholeMouseLClick (screen)
-		parts_enqueue_message(1, parts->no,
-			parts->delegate_index, parts->unique_id);
+		{
+			int vars[3] = { cur_pos.x, cur_pos.y, 1 }; // x, y, VK_LBUTTON
+			parts_enqueue_message_vars(4, parts->no,
+				parts->delegate_index, parts->unique_id, 3, vars);
+		}
 	}
 }
 
@@ -98,9 +100,6 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	}
 
 	if (prev_clicking && !cur_clicking) {
-		// Whole mouse left click event (type=4): fires on ANY left click
-		// release during active input. CallFunctionMouseClick reads var[2]
-		// as the button VK code: 1=VK_LBUTTON, 2=VK_RBUTTON, 4=VK_MBUTTON.
 		if (parts_began_click) {
 			int vars[3] = { cur_pos.x, cur_pos.y, 1 }; // VK_LBUTTON=1
 			parts_enqueue_message_vars(4, 0, 0, 0, 3, vars);

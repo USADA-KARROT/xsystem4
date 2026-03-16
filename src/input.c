@@ -243,6 +243,7 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
+	WARNING("mouse_event: button=%d state=%d pos=(%d,%d)", e->button, e->state, e->x, e->y);
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code)
 		key_state[code] = e->state == SDL_PRESSED;
@@ -588,17 +589,21 @@ static void handle_window_event(SDL_Event *e)
 
 void handle_window_events(void)
 {
-	SDL_Event e;
-	while (SDL_PollEvent(&e)) {
-		switch (e.type) {
-		case SDL_QUIT:
-			WARNING("handle_window_events: SDL_QUIT received");
-			vm_exit(0);
-			break;
-		case SDL_WINDOWEVENT:
-			handle_window_event(&e);
-			break;
-		}
+	// NOTE: This function only processes QUIT and WINDOWEVENT.
+	// Using SDL_PeepEvents to avoid consuming other event types
+	// (mouse, keyboard, etc.) which need to be processed by handle_events().
+	SDL_PumpEvents();
+	SDL_Event events[32];
+	int n;
+	// Process QUIT events
+	n = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_QUIT, SDL_QUIT);
+	for (int i = 0; i < n; i++) {
+		vm_exit(0);
+	}
+	// Process WINDOWEVENT
+	n = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_WINDOWEVENT, SDL_WINDOWEVENT);
+	for (int i = 0; i < n; i++) {
+		handle_window_event(&events[i]);
 	}
 }
 
@@ -606,35 +611,37 @@ void handle_events(void)
 {
 	fire_deferred_events();
 
-	/* Auto-click mode: XSYS4_AUTO_CLICK=<ms> injects periodic mouse clicks */
+	/* Auto-click mode: XSYS4_AUTO_CLICK=<ms> injects periodic mouse clicks.
+	 * Uses XSYS4_AUTO_CLICK_X/Y for game-coordinate position (default 350,180).
+	 * Directly sets key_state + warps mouse for reliable click detection. */
 	{
 		static int auto_interval = -1;
 		static uint32_t last_auto_click = 0;
 		static int auto_count = 0;
+		static bool auto_click_down = false;
+		static int click_gx = 350, click_gy = 180;
 		if (auto_interval < 0) {
 			const char *env = getenv("XSYS4_AUTO_CLICK");
 			auto_interval = env ? atoi(env) : 0;
+			const char *cx = getenv("XSYS4_AUTO_CLICK_X");
+			const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
+			if (cx) click_gx = atoi(cx);
+			if (cy) click_gy = atoi(cy);
 			if (auto_interval > 0)
-				WARNING("Auto-click enabled: interval=%dms", auto_interval);
+				WARNING("Auto-click enabled: interval=%dms pos=(%d,%d)", auto_interval, click_gx, click_gy);
 		}
 		if (auto_interval > 0) {
 			uint32_t now = SDL_GetTicks();
-			if (now - last_auto_click >= (uint32_t)auto_interval) {
+			if (auto_click_down && now - last_auto_click >= 100) {
+				key_state[VK_LBUTTON] = false;
+				auto_click_down = false;
+			} else if (!auto_click_down && now - last_auto_click >= (uint32_t)auto_interval) {
 				auto_count++;
-				/* Inject synthetic SDL mouse click at center */
-				SDL_Event ev;
-				memset(&ev, 0, sizeof(ev));
-				ev.type = SDL_MOUSEBUTTONDOWN;
-				ev.button.button = SDL_BUTTON_LEFT;
-				ev.button.state = SDL_PRESSED;
-				ev.button.clicks = 1;
-				ev.button.x = 640; ev.button.y = 360;
-				SDL_PushEvent(&ev);
-				ev.type = SDL_MOUSEBUTTONUP;
-				ev.button.state = SDL_RELEASED;
-				SDL_PushEvent(&ev);
+				mouse_set_pos(click_gx, click_gy);
+				key_state[VK_LBUTTON] = true;
+				auto_click_down = true;
 				if (auto_count <= 10 || auto_count % 100 == 0)
-					WARNING("Auto-click #%d at %ums", auto_count, now);
+					WARNING("Auto-click #%d DOWN at %ums game=(%d,%d)", auto_count, now, click_gx, click_gy);
 				last_auto_click = now;
 			}
 		}
