@@ -923,17 +923,10 @@ static struct RE_instance **sort_instances(struct RE_plugin *plugin, mat4 view_t
 
 void RE_render(struct sact_sprite *sp)
 {
-	static int re_log = 0;
 	struct RE_plugin *plugin = (struct RE_plugin *)sp->plugin;
 	struct RE_renderer *r = plugin->renderer;
-	if (!r || plugin->suspended) {
-		if (re_log++ < 3)
-			WARNING("RE_render: skip (renderer=%p suspended=%d)", (void*)r, plugin->suspended);
+	if (!r || plugin->suspended)
 		return;
-	}
-	if (re_log++ < 3)
-		WARNING("RE_render: rendering (sprite=%d instances=%d/%d)",
-			plugin->sprite, plugin->nr_instances, plugin->nr_instances);
 
 	if (re_plugin_version == RE_TAPIR_PLUGIN) {
 		uint32_t timestamp = SDL_GetTicks();

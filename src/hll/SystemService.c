@@ -455,7 +455,9 @@ static void SystemService_DRPKT(struct string **text)
 
 static struct string *SystemService_GetGameVersionByText(void)
 {
-	return cstr_to_string("sd40006sd00000008f6300004");
+	// JAST English edition version string (extracted from dohnadohna.exe).
+	// Game reads chars at index 2 and 24 to determine edition/language.
+	return cstr_to_string("sd4gv86sdf834fs68f63qvna4");
 }
 
 // Rance 9
