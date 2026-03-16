@@ -1677,8 +1677,6 @@ static void PartsEngine_PopMessage(void)
 static void PartsEngine_ReleaseMessage(void)
 {
 	// Advance queue head (consume the message the game just processed).
-	// Dohna Dohna calls GetMessageType to peek, processes the message,
-	// then calls ReleaseMessage to consume it (never calls PopMessage).
 	if (msg_head != msg_tail) {
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
 	}
@@ -1693,28 +1691,36 @@ static void PartsEngine_ReleaseMessage(void)
 // PopMessage() copies queue[head] → msg_current and advances head.
 static int PartsEngine_GetMessageType(void)
 {
+	// GetMessageType is a peek — it signals the start of a new message
+	// processing cycle. Clear msg_current so we peek at queue head.
+	msg_current.type = -1;
 	if (msg_head != msg_tail)
 		return msg_queue[msg_head].type;
 	return -1;
 }
+// After PopMessage, data is in msg_current (head already advanced).
+// After GetMessageType peek (no PopMessage yet), data is at queue head.
+// So: if msg_current.type >= 0, read from msg_current; else peek queue head.
 static int PartsEngine_GetMessagePartsNumber(void)
 {
-	if (msg_head != msg_tail) {
-		(void)0;
+	if (msg_current.type >= 0)
+		return msg_current.parts_no;
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].parts_no;
-	}
 	return 0;
 }
 static int PartsEngine_GetMessageDelegateIndex(void)
 {
-	if (msg_head != msg_tail) {
-		(void)0;
+	if (msg_current.type >= 0)
+		return msg_current.delegate_index;
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].delegate_index;
-	}
 	return 0;
 }
 static int PartsEngine_GetMessageUniqueID(void)
 {
+	if (msg_current.type >= 0)
+		return msg_current.unique_id;
 	if (msg_head != msg_tail)
 		return msg_queue[msg_head].unique_id;
 	return 0;
@@ -1737,34 +1743,43 @@ static bool PartsEngine_SeekMessage(int target_parts_no)
 
 static int PartsEngine_GetMessageVariableInt(int idx)
 {
-	// Read from queue head (like GetMessageType/PartsNumber), not msg_current.
-	// GetMessageVariable is called BEFORE PopMessage during message dispatch.
+	// After PopMessage, msg_current holds the popped message.
+	// Before PopMessage, peek at queue head.
+	if (msg_current.type >= 0) {
+		if (idx < 0 || idx >= msg_current.nr_vars) return 0;
+		return msg_current.vars[idx];
+	}
 	if (msg_head != msg_tail) {
 		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0;
 		return msg_queue[msg_head].vars[idx];
 	}
-	if (idx < 0 || idx >= msg_current.nr_vars) return 0;
-	return msg_current.vars[idx];
+	return 0;
 }
 static float PartsEngine_GetMessageVariableFloat(int idx)
 {
+	if (msg_current.type >= 0) {
+		if (idx < 0 || idx >= msg_current.nr_vars) return 0.0f;
+		union { int i; float f; } u = { .i = msg_current.vars[idx] };
+		return u.f;
+	}
 	if (msg_head != msg_tail) {
 		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0.0f;
 		union { int i; float f; } u = { .i = msg_queue[msg_head].vars[idx] };
 		return u.f;
 	}
-	if (idx < 0 || idx >= msg_current.nr_vars) return 0.0f;
-	union { int i; float f; } u = { .i = msg_current.vars[idx] };
-	return u.f;
+	return 0.0f;
 }
 static bool PartsEngine_GetMessageVariableBool(int idx)
 {
+	if (msg_current.type >= 0) {
+		if (idx < 0 || idx >= msg_current.nr_vars) return false;
+		return msg_current.vars[idx] != 0;
+	}
 	if (msg_head != msg_tail) {
 		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return false;
 		return msg_queue[msg_head].vars[idx] != 0;
 	}
-	if (idx < 0 || idx >= msg_current.nr_vars) return false;
-	return msg_current.vars[idx] != 0;
+	return false;
 }
 static void PartsEngine_GetMessageVariableString(possibly_unused int idx, possibly_unused struct string **out)
 {
