@@ -116,6 +116,10 @@ static const char SJIS_FONT_TYPE[]   = "\x83\x74\x83\x48\x83\x93\x83\x67\x8e\xed
 static const char SJIS_FONT_SIZE[]   = "\x83\x74\x83\x48\x83\x93\x83\x67\x83\x54\x83\x43\x83\x59"; /* フォントサイズ (font size) */
 static const char SJIS_FONT_COLOR[]  = "\x83\x74\x83\x48\x83\x93\x83\x67\x90\x46"; /* フォント色 (font color) */
 static const char SJIS_FONT_EDGE_COLOR[] = "\x83\x74\x83\x48\x83\x93\x83\x67\x83\x47\x83\x62\x83\x57\x90\x46"; /* フォントエッジ色 (font edge color) */
+static const char SJIS_SURFACE_AREA[] = "\x83\x54\x81\x5b\x83\x74\x83\x46\x83\x43\x83\x58\x83\x47\x83\x8a\x83\x41"; /* サーフェイスエリア (surface area) */
+static const char SJIS_DRAW_FILTER[]  = "\x95\x60\x89\xe6\x83\x74\x83\x42\x83\x8b\x83\x5e"; /* 描画フィルタ (draw filter) */
+static const char SJIS_ADD_COLOR[]    = "\x89\xc1\x8e\x5a\x90\x46"; /* 加算色 (add color) */
+static const char SJIS_MUL_COLOR[]    = "\x8f\xe6\x8e\x5a\x90\x46"; /* 乗算色 (multiply color) */
 /* static const char SJIS_CG_PARTS[]    = "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63"; */ /* ＣＧパーツ — unused */
 /* static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; */ /* アルファクリッパー — unused */
 /* static const char SJIS_NORMAL_STATE[]= "\x92\xca\x8f\xed\x8f\xf3\x91\xd4"; */ /* 通常状態 — unused, kept for reference */
@@ -255,6 +259,37 @@ static const char *pactex_find_cg_name(struct ex_tree *branch, int depth)
 	return NULL;
 }
 
+/* Extract サーフェイスエリア (surface area / clip rect) from a state branch.
+ * The value is a list of 4 integers: [x, y, w, h].
+ * Searches direct children and recurses into sub-branches (same as CG name). */
+static bool pactex_get_surface_area(struct ex_tree *branch, int *x, int *y, int *w, int *h, int depth)
+{
+	if (branch->is_leaf || depth > 3) return false;
+	/* Direct child search */
+	for (unsigned i = 0; i < branch->nr_children; i++) {
+		struct ex_tree *c = &branch->children[i];
+		if (!c->is_leaf || !c->name) continue;
+		if (strstr(c->name->text, SJIS_SURFACE_AREA) &&
+		    c->leaf.value.type == EX_LIST && c->leaf.value.list &&
+		    c->leaf.value.list->nr_items >= 4) {
+			struct ex_list *sa = c->leaf.value.list;
+			*x = sa->items[0].value.i;
+			*y = sa->items[1].value.i;
+			*w = sa->items[2].value.i;
+			*h = sa->items[3].value.i;
+			return true;
+		}
+	}
+	/* Recurse into sub-branches */
+	for (unsigned i = 0; i < branch->nr_children; i++) {
+		struct ex_tree *child = &branch->children[i];
+		if (child->is_leaf) continue;
+		if (pactex_get_surface_area(child, x, y, w, h, depth + 1))
+			return true;
+	}
+	return false;
+}
+
 /* Apply pactex properties (position, show, alpha, CG) to a parts entry.
  * Extracts standard properties from leaf children, and CG names from
  * the type-specific info branch (種類別情報). */
@@ -326,6 +361,23 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		if (ry != 0.0f)
 			PE_SetPartsRotateY(parts_no, ry);
 	}
+
+	/* Extract draw filter: 描画フィルタ = int (0=normal, 1=additive) */
+	int draw_filter = pactex_get_int(node, SJIS_DRAW_FILTER, -1);
+	if (draw_filter >= 0)
+		PE_SetPartsDrawFilter(parts_no, draw_filter);
+
+	/* Extract add color: 加算色 = list[3] = [r, g, b] */
+	struct ex_list *add_col = pactex_get_list(node, SJIS_ADD_COLOR);
+	if (add_col && add_col->nr_items >= 3)
+		PE_SetAddColor(parts_no, add_col->items[0].value.i,
+			add_col->items[1].value.i, add_col->items[2].value.i);
+
+	/* Extract multiply color: 乗算色 = list[3] = [r, g, b] */
+	struct ex_list *mul_col = pactex_get_list(node, SJIS_MUL_COLOR);
+	if (mul_col && mul_col->nr_items >= 3)
+		PE_SetMultiplyColor(parts_no, mul_col->items[0].value.i,
+			mul_col->items[1].value.i, mul_col->items[2].value.i);
 
 	/* Find type-specific info branch (種類別情報) for CG data */
 	struct ex_tree *type_info = pactex_find_type_info(node);
@@ -411,14 +463,21 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		struct ex_tree *state = &type_info->children[i];
 		if (state->is_leaf) continue;
 
+		int pe_state = state_idx + 1; /* PE_SetPartsCG uses 1-based state */
+
 		/* Search for ＣＧ名 (CG name) leaf — may be nested in 素材リスト/素材N/ */
 		const char *cg_name = pactex_find_cg_name(state, 0);
 		if (cg_name) {
-			int pe_state = state_idx + 1; /* PE_SetPartsCG uses 1-based state */
 			struct string *s = cstr_to_string(cg_name);
 			PE_SetPartsCG(parts_no, s, 0, pe_state);
 			free_string(s);
 		}
+
+		/* Apply サーフェイスエリア (surface area / clip rect) if present */
+		int sa_x, sa_y, sa_w, sa_h;
+		if (pactex_get_surface_area(state, &sa_x, &sa_y, &sa_w, &sa_h, 0))
+			PE_SetPartsCGSurfaceArea(parts_no, sa_x, sa_y, sa_w, sa_h, pe_state);
+
 		state_idx++;
 	}
 }

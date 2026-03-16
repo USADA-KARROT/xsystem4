@@ -130,8 +130,14 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
 	switch (parts->draw_filter) {
-	case 1:
+	case 1: /* additive */
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
+		break;
+	case 2: /* multiply */
+		glBlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+		break;
+	case 3: /* screen */
+		glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_COLOR, GL_ZERO, GL_ONE);
 		break;
 	default:
 		break;
