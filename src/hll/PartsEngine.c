@@ -366,90 +366,29 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		return;
 	}
 
-	/* --- Handle ボタン (Button) type: clickable button with size/color/text --- */
+	/* --- Handle ボタン (Button) type: load CG images for each state --- */
 	if (ptype && strstr(ptype, SJIS_BUTTON)) {
-		/* サイズ = list[2] = [w, h] */
-		struct ex_list *sz = pactex_get_list(type_info, SJIS_SIZE);
-		if (!sz) sz = pactex_get_list(type_info, GBK_SIZE);
-		int pw = 4, ph = 4;
-		if (sz && sz->nr_items >= 2) {
-			pw = sz->items[0].value.i;
-			ph = sz->items[1].value.i;
-		}
-		/* ボタンの色 = list[3..4] = [r, g, b(, a)] */
-		struct ex_list *col = pactex_get_list(type_info, SJIS_BUTTON_COLOR);
-		int cr = 0, cg = 0, cb = 0, ca = 0;
-		if (col && col->nr_items >= 3) {
-			cr = col->items[0].value.i;
-			cg = col->items[1].value.i;
-			cb = col->items[2].value.i;
-		}
-		if (col && col->nr_items >= 4) {
-			ca = col->items[3].value.i;
-		}
-		if (pw > 0 && ph > 0) {
-			/* Create button surface and set up background */
-			PE_AddCreateToPartsConstructionProcess(parts_no, pw, ph, 1);
-			if (ca == 0) {
-				/* Transparent button: clear alpha to 0 so only text shows */
-				PE_AddFillAMapToPartsConstructionProcess(
-					parts_no, 0, 0, pw, ph, 0, 1);
-			} else {
-				PE_AddFillAlphaColorToPartsConstructionProcess(
-					parts_no, 0, 0, pw, ph, cr, cg, cb, ca, 1);
+		/* ＣＧ名 field has the base CG path (e.g. "システム／タイトル／ボタン／はじめから").
+		 * Button CGs are stored as <base>／通常, <base>／オン, <base>／ダウン. */
+		const char *cg_base = pactex_get_string(type_info, SJIS_CG_MEI);
+		if (cg_base) {
+			/* SJIS state suffixes: ／通常, ／オン, ／ダウン
+			 * ／ = 0x81 0x5E, 通常 = 0x92CA 0x8FED, オン = 0x8349 0x8393,
+			 * ダウン = 0x835F 0x8345 0x8393 */
+			static const char *state_suffixes[] = {
+				"\x81\x5E\x92\xCA\x8F\xED",       /* ／通常 (DEFAULT) */
+				"\x81\x5E\x83\x49\x83\x93",       /* ／オン (HOVERED) */
+				"\x81\x5E\x83\x5F\x83\x45\x83\x93" /* ／ダウン (CLICKED) */
+			};
+			for (int st = 0; st < 3; st++) {
+				char buf[512];
+				snprintf(buf, sizeof(buf), "%s%s", cg_base, state_suffixes[st]);
+				struct string *cg_name = cstr_to_string(buf);
+				PE_SetPartsCG(parts_no, cg_name, 0, st + 1); /* state is 1-indexed */
+				free_string(cg_name);
 			}
-
-			/* Draw button label text from ＣＧ名 field (contains pactex path like
-			 * 'システム/タイトル/ボタン/はじめから'; last segment is the label) */
-			const char *msg_name = pactex_get_string(type_info, SJIS_CG_MEI);
-			if (msg_name) {
-				/* Path uses fullwidth '／' (SJIS 81 5E) as separator.
-				 * Find the last separator to extract the label. */
-				const char *label = msg_name;
-				for (const char *p = msg_name; *p; p++) {
-					if (SJIS_2BYTE(*p)) {
-						if ((unsigned char)p[0] == 0x81 && (unsigned char)p[1] == 0x5E)
-							label = p + 2;
-						p++;
-					}
-				}
-
-				/* Get font properties */
-				int font_type = pactex_get_int(type_info, SJIS_FONT_TYPE, 0);
-				int font_size = pactex_get_int(type_info, SJIS_FONT_SIZE, 24);
-				struct ex_list *fcol = pactex_get_list(type_info, SJIS_FONT_COLOR);
-				int fr = 255, fg = 255, fb = 255;
-				if (fcol && fcol->nr_items >= 3) {
-					fr = fcol->items[0].value.i;
-					fg = fcol->items[1].value.i;
-					fb = fcol->items[2].value.i;
-				}
-				/* Font edge color for outline */
-				struct ex_list *ecol = pactex_get_list(type_info, SJIS_FONT_EDGE_COLOR);
-				int er = 0, eg = 0, eb = 0;
-				float edge_weight = 0.0f;
-				if (ecol && ecol->nr_items >= 3) {
-					er = ecol->items[0].value.i;
-					eg = ecol->items[1].value.i;
-					eb = ecol->items[2].value.i;
-					edge_weight = 1.0f;
-				}
-
-				/* Center text vertically; left-pad horizontally */
-				int tx = 8;
-				int ty = (ph - font_size) / 2;
-				if (ty < 0) ty = 0;
-
-				struct string *text = cstr_to_string(label);
-				PE_AddDrawTextToPartsConstructionProcess(
-					parts_no, tx, ty, text,
-					font_type, font_size, fr, fg, fb, 0.0f,
-					er, eg, eb, edge_weight,
-					0, 0, 1);
-				free_string(text);
-			}
-
-			PE_BuildPartsConstructionProcess(parts_no, 1);
+			/* Mark as clickable */
+			PE_SetClickable(parts_no, true);
 		}
 		return;
 	}
