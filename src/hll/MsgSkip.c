@@ -145,9 +145,29 @@ static int MsgSkip_GetState(void)
 	return state;
 }
 
-HLL_WARN_UNIMPLEMENTED( , void, MsgSkip, UseFlag, int use);
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofMsg, void);
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgSkip, GetNumofFlag, void);
+static void MsgSkip_UseFlag(int use)
+{
+	// Controls whether the skip function only skips already-read messages.
+	// When use=1, only messages with flag set are skippable.
+	// Currently we don't enforce this distinction.
+}
+
+static int MsgSkip_GetNumofMsg(void)
+{
+	return ain->nr_messages;
+}
+
+static int MsgSkip_GetNumofFlag(void)
+{
+	if (!flags)
+		return 0;
+	int count = 0;
+	for (int i = 0; i < nr_flags; i++) {
+		if (flags[i >> 3] & (0x80 >> (i & 7)))
+			count++;
+	}
+	return count;
+}
 
 HLL_LIBRARY(MsgSkip,
 	    HLL_EXPORT(Init, MsgSkip_Init),
