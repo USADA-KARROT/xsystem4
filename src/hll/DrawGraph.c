@@ -298,7 +298,10 @@ static void DrawGraph_SetFontSpace(int space)
 	gfx_set_font_space(space);
 }
 
-HLL_WARN_UNIMPLEMENTED(string_ref(&EMPTY_STRING), struct string*, DrawGraph, GetFontName, void);
+static struct string *DrawGraph_GetFontName(void)
+{
+	return cstr_to_string("Gothic");
+}
 
 static void DrawGraph_SetFontColor(int r, int g, int b)
 {
