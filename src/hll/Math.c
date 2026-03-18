@@ -15,6 +15,7 @@
  */
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <time.h>
 #include <cglm/cglm.h>
@@ -47,6 +48,21 @@ static struct shuffle_table *find_shuffle_table(int id)
 static inline float deg2rad(float deg)
 {
 	return deg * (M_PI / 180.0);
+}
+
+static inline float rad2deg(float rad)
+{
+	return rad * (180.0 / M_PI);
+}
+
+static float Math_Asin(float x)
+{
+	return rad2deg(asinf(x));
+}
+
+static float Math_Acos(float x)
+{
+	return rad2deg(acosf(x));
 }
 
 static float Math_Cos(float x)
@@ -186,6 +202,66 @@ static int Math_Round(float f)
 	return (int)roundf(f);
 }
 
+/* Mersenne Twister MT19937 */
+#define MT_N 624
+#define MT_M 397
+static uint32_t mt_state[MT_N];
+static int mt_index = MT_N + 1;
+
+static void mt_init(uint32_t seed)
+{
+	mt_state[0] = seed;
+	for (int i = 1; i < MT_N; i++)
+		mt_state[i] = 1812433253U * (mt_state[i-1] ^ (mt_state[i-1] >> 30)) + i;
+	mt_index = MT_N;
+}
+
+static uint32_t mt_generate(void)
+{
+	if (mt_index >= MT_N) {
+		if (mt_index > MT_N)
+			mt_init(5489);
+		for (int i = 0; i < MT_N; i++) {
+			uint32_t y = (mt_state[i] & 0x80000000U) | (mt_state[(i+1) % MT_N] & 0x7fffffffU);
+			mt_state[i] = mt_state[(i + MT_M) % MT_N] ^ (y >> 1);
+			if (y & 1)
+				mt_state[i] ^= 0x9908b0dfU;
+		}
+		mt_index = 0;
+	}
+	uint32_t y = mt_state[mt_index++];
+	y ^= y >> 11;
+	y ^= (y << 7) & 0x9d2c5680U;
+	y ^= (y << 15) & 0xefc60000U;
+	y ^= y >> 18;
+	return y;
+}
+
+static void Math_MTSetSeed(int seed)
+{
+	mt_init((uint32_t)seed);
+}
+
+static void Math_MTSetSeedByCurrentTime(void)
+{
+	mt_init((uint32_t)time(NULL));
+}
+
+static int Math_MTRand(void)
+{
+	return (int)(mt_generate() >> 1); /* positive int */
+}
+
+static float Math_MTRandF(void)
+{
+	return mt_generate() * (1.0f / 4294967296.0f); /* [0, 1) */
+}
+
+static float Math_MTRandFInclude1(void)
+{
+	return mt_generate() * (1.0f / 4294967295.0f); /* [0, 1] */
+}
+
 static bool Math_BezierCurve(struct page **x_array, struct page **y_array, int num, float t, int *result_x, int *result_y)
 {
 	vec2 *coeffs = xmalloc(num * sizeof(vec2));
@@ -238,5 +314,12 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Round, Math_Round),
 	    HLL_EXPORT(BezierCurve, Math_BezierCurve),
 	    HLL_EXPORT(Clamp, Math_Clamp),
-	    HLL_EXPORT(ClampF, Math_ClampF));
+	    HLL_EXPORT(ClampF, Math_ClampF),
+	    HLL_EXPORT(Asin, Math_Asin),
+	    HLL_EXPORT(Acos, Math_Acos),
+	    HLL_EXPORT(MTSetSeed, Math_MTSetSeed),
+	    HLL_EXPORT(MTSetSeedByCurrentTime, Math_MTSetSeedByCurrentTime),
+	    HLL_EXPORT(MTRand, Math_MTRand),
+	    HLL_EXPORT(MTRandF, Math_MTRandF),
+	    HLL_EXPORT(MTRandFInclude1, Math_MTRandFInclude1));
 

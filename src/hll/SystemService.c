@@ -571,6 +571,112 @@ static bool SystemService_GetUsePower2Texture(void) { return false; }
 static bool SystemService_RunProgram(struct string *prog) { return false; }
 static bool SystemService_IsOpenedMutex(struct string *name) { return false; }
 static bool SystemService_PopSystemMessage(void) { return false; }
+static int SystemService_GetDefaultViewWidth(void) { return config.view_width; }
+static int SystemService_GetDefaultViewHeight(void) { return config.view_height; }
+static int SystemService_GetWindowPosX(void) { return 0; }
+static int SystemService_GetWindowPosY(void) { return 0; }
+static void SystemService_SetWindowPos(int x, int y) { }
+static void SystemService_SetViewSize(int w, int h) { }
+static void SystemService_SetGameViewScaleRate2(float rate) { }
+static int SystemService_GetPlatformType(void) { return 0; /* 0=Windows */ }
+static int SystemService_GetCountryNo(void) { return 1; /* 1=Japan */ }
+static int SystemService_GetAntiAliasingMode(void) { return 0; }
+static bool SystemService_IsViewResizableMode(void) { return false; }
+static void SystemService_SetViewResizableMode(int mode) { }
+static bool SystemService_IsResizableUserControl(void) { return false; }
+static void SystemService_SetResizableUserControl(int ctrl) { }
+static bool SystemService_IsHookCloseApp(void) { return false; }
+static void SystemService_BackupSaveFile(void) { }
+static bool SystemService_EnableSystemPopup(void) { return true; }
+static void SystemService_PopSystemMessageString(struct string *msg) { }
+static void SystemService_RenderToSurfaceImage(int surface) { }
+static void SystemService_RenderToSurfaceImageByScale(int surface, float scale) { }
+static bool SystemService_SaveScreenshot(struct string *path, int x, int y, int w, int h) { return false; }
+
+/* SystemVariable — per-session key-value store (not persisted) */
+struct sys_var { char *key; char *val; };
+static struct sys_var *sys_vars = NULL;
+static int nr_sys_vars = 0;
+
+static bool SystemService_SystemVariable_IsExist(struct string *key)
+{
+	for (int i = 0; i < nr_sys_vars; i++)
+		if (!strcmp(sys_vars[i].key, key->text)) return true;
+	return false;
+}
+
+static void SystemService_SystemVariable_Set(struct string *key, struct string *val)
+{
+	for (int i = 0; i < nr_sys_vars; i++) {
+		if (!strcmp(sys_vars[i].key, key->text)) {
+			free(sys_vars[i].val);
+			sys_vars[i].val = strdup(val->text);
+			return;
+		}
+	}
+	sys_vars = xrealloc_array(sys_vars, nr_sys_vars, nr_sys_vars + 1, sizeof(struct sys_var));
+	sys_vars[nr_sys_vars].key = strdup(key->text);
+	sys_vars[nr_sys_vars].val = strdup(val->text);
+	nr_sys_vars++;
+}
+
+static struct string *SystemService_SystemVariable_Get(struct string *key)
+{
+	for (int i = 0; i < nr_sys_vars; i++)
+		if (!strcmp(sys_vars[i].key, key->text))
+			return cstr_to_string(sys_vars[i].val);
+	return string_ref(&EMPTY_STRING);
+}
+
+static int SystemService_SystemVariable_NumofKey(void) { return nr_sys_vars; }
+
+static struct string *SystemService_SystemVariable_GetKey(int index)
+{
+	if (index < 0 || index >= nr_sys_vars)
+		return string_ref(&EMPTY_STRING);
+	return cstr_to_string(sys_vars[index].key);
+}
+
+static void SystemService_SystemVariable_Erase(struct string *key)
+{
+	for (int i = 0; i < nr_sys_vars; i++) {
+		if (!strcmp(sys_vars[i].key, key->text)) {
+			free(sys_vars[i].key);
+			free(sys_vars[i].val);
+			for (int j = i + 1; j < nr_sys_vars; j++)
+				sys_vars[j-1] = sys_vars[j];
+			nr_sys_vars--;
+			return;
+		}
+	}
+}
+
+/* Debug functions */
+static bool SystemService_Debug_IsShowMipmapLevel(void) { return false; }
+static void SystemService_Debug_SetShowMipmapLevel(int level) { }
+
+/* Stubs for functions not applicable to desktop */
+static void SystemService_SetAndroidViewOrientation(int orient) { }
+
+/* CPU/Memory/OS info stubs */
+static bool SystemService_GetCPUInfo(int *vendor, int *family, int *model, int *stepping) {
+	if (vendor) *vendor = 0;
+	if (family) *family = 0;
+	if (model) *model = 0;
+	if (stepping) *stepping = 0;
+	return true;
+}
+static bool SystemService_GetMemoryInfo(int *total_mb, int *avail_mb) {
+	if (total_mb) *total_mb = 8192;
+	if (avail_mb) *avail_mb = 4096;
+	return true;
+}
+static struct string *SystemService_GetOSInfo(void) { return cstr_to_string("macOS"); }
+static struct string *SystemService_GetScreenInfo(void) {
+	char buf[64];
+	snprintf(buf, sizeof(buf), "%dx%d", config.view_width, config.view_height);
+	return cstr_to_string(buf);
+}
 
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
@@ -635,7 +741,41 @@ HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(Load, SystemService_Load),
 	    HLL_EXPORT(SetAntiAliasingMode, SystemService_SetAntiAliasingMode),
 	    HLL_EXPORT(SetHookCloseApp, SystemService_SetHookCloseApp),
-	    HLL_EXPORT(SetAndroidViewKeepScreen, SystemService_SetAndroidViewKeepScreen)
+	    HLL_EXPORT(SetAndroidViewKeepScreen, SystemService_SetAndroidViewKeepScreen),
+	    HLL_EXPORT(GetDefaultViewWidth, SystemService_GetDefaultViewWidth),
+	    HLL_EXPORT(GetDefaultViewHeight, SystemService_GetDefaultViewHeight),
+	    HLL_EXPORT(GetWindowPosX, SystemService_GetWindowPosX),
+	    HLL_EXPORT(GetWindowPosY, SystemService_GetWindowPosY),
+	    HLL_EXPORT(SetWindowPos, SystemService_SetWindowPos),
+	    HLL_EXPORT(SetViewSize, SystemService_SetViewSize),
+	    HLL_EXPORT(SetGameViewScaleRate, SystemService_SetGameViewScaleRate2),
+	    HLL_EXPORT(GetPlatformType, SystemService_GetPlatformType),
+	    HLL_EXPORT(GetCountryNo, SystemService_GetCountryNo),
+	    HLL_EXPORT(GetAntiAliasingMode, SystemService_GetAntiAliasingMode),
+	    HLL_EXPORT(IsViewResizableMode, SystemService_IsViewResizableMode),
+	    HLL_EXPORT(SetViewResizableMode, SystemService_SetViewResizableMode),
+	    HLL_EXPORT(IsResizableUserControl, SystemService_IsResizableUserControl),
+	    HLL_EXPORT(SetResizableUserControl, SystemService_SetResizableUserControl),
+	    HLL_EXPORT(IsHookCloseApp, SystemService_IsHookCloseApp),
+	    HLL_EXPORT(BackupSaveFile, SystemService_BackupSaveFile),
+	    HLL_EXPORT(EnableSystemPopup, SystemService_EnableSystemPopup),
+	    HLL_EXPORT(PopSystemMessageString, SystemService_PopSystemMessageString),
+	    HLL_EXPORT(RenderToSurfaceImage, SystemService_RenderToSurfaceImage),
+	    HLL_EXPORT(RenderToSurfaceImageByScale, SystemService_RenderToSurfaceImageByScale),
+	    HLL_EXPORT(SaveScreenshot, SystemService_SaveScreenshot),
+	    HLL_EXPORT(SetAndroidViewOrientation, SystemService_SetAndroidViewOrientation),
+	    HLL_EXPORT(SystemVariable_IsExist, SystemService_SystemVariable_IsExist),
+	    HLL_EXPORT(SystemVariable_Set, SystemService_SystemVariable_Set),
+	    HLL_EXPORT(SystemVariable_Get, SystemService_SystemVariable_Get),
+	    HLL_EXPORT(SystemVariable_NumofKey, SystemService_SystemVariable_NumofKey),
+	    HLL_EXPORT(SystemVariable_GetKey, SystemService_SystemVariable_GetKey),
+	    HLL_EXPORT(SystemVariable_Erase, SystemService_SystemVariable_Erase),
+	    HLL_EXPORT(Debug_IsShowMipmapLevel, SystemService_Debug_IsShowMipmapLevel),
+	    HLL_EXPORT(Debug_SetShowMipmapLevel, SystemService_Debug_SetShowMipmapLevel),
+	    HLL_EXPORT(GetCPUInfo, SystemService_GetCPUInfo),
+	    HLL_EXPORT(GetMemoryInfo, SystemService_GetMemoryInfo),
+	    HLL_EXPORT(GetOSInfo, SystemService_GetOSInfo),
+	    HLL_EXPORT(GetScreenInfo, SystemService_GetScreenInfo)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

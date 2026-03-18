@@ -261,6 +261,24 @@ static bool FileOperation_GetFolderList(struct string *folder_name, struct page 
 	return get_file_list(folder_name, out, true);
 }
 
+static bool FileOperation_CopyFolder(struct string *src, struct string *dst)
+{
+	/* Stub — folder copy not implemented yet */
+	return false;
+}
+
+static bool FileOperation_GetFileListWithSubFolder(struct string *folder_name, struct page **out)
+{
+	/* For now, just return the same as GetFileList (no recursion) */
+	return get_file_list(folder_name, out, false);
+}
+
+static bool FileOperation_OpenFolder(struct string *folder_name)
+{
+	/* Open folder in file manager — not applicable in headless */
+	return false;
+}
+
 HLL_LIBRARY(FileOperation,
 	    HLL_EXPORT(ExistFile, FileOperation_ExistFile),
 	    HLL_EXPORT(DeleteFile, FileOperation_DeleteFile),
@@ -273,4 +291,7 @@ HLL_LIBRARY(FileOperation,
 	    HLL_EXPORT(CreateFolder, FileOperation_CreateFolder),
 	    HLL_EXPORT(DeleteFolder, FileOperation_DeleteFolder),
 	    HLL_EXPORT(GetFileList, FileOperation_GetFileList),
-	    HLL_EXPORT(GetFolderList, FileOperation_GetFolderList));
+	    HLL_EXPORT(GetFolderList, FileOperation_GetFolderList),
+	    HLL_EXPORT(CopyFolder, FileOperation_CopyFolder),
+	    HLL_EXPORT(GetFileListWithSubFolder, FileOperation_GetFileListWithSubFolder),
+	    HLL_EXPORT(OpenFolder, FileOperation_OpenFolder));

@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "system4/cg.h"
 #include "system4/string.h"
 #include "asset_manager.h"
 #include "xsystem4.h"
@@ -67,7 +68,51 @@ static void CGManager_GetSearchTitleByIndexFromArchive(int index, struct string 
 	if (cg_name) *cg_name = string_ref(&EMPTY_STRING);
 }
 
+static bool CGManager_IsExistCG(int cg_no)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+	cg_free(cg);
+	return true;
+}
+
+static bool CGManager_GetSize(int cg_no, int *width, int *height)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return false;
+	*width = cg->metrics.w;
+	*height = cg->metrics.h;
+	cg_free(cg);
+	return true;
+}
+
+static int CGManager_GetWidth(int cg_no)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return 0;
+	int w = cg->metrics.w;
+	cg_free(cg);
+	return w;
+}
+
+static int CGManager_GetHeight(int cg_no)
+{
+	struct cg *cg = asset_cg_load(cg_no);
+	if (!cg)
+		return 0;
+	int h = cg->metrics.h;
+	cg_free(cg);
+	return h;
+}
+
 HLL_LIBRARY(CGManager,
+	    HLL_EXPORT(IsExistCG, CGManager_IsExistCG),
+	    HLL_EXPORT(GetSize, CGManager_GetSize),
+	    HLL_EXPORT(GetWidth, CGManager_GetWidth),
+	    HLL_EXPORT(GetHeight, CGManager_GetHeight),
 	    HLL_EXPORT(Init, CGManager_Init),
 	    HLL_EXPORT(LoadArchive, CGManager_LoadArchive),
 	    HLL_EXPORT(GetCountOfDataFromArchive, CGManager_GetCountOfDataFromArchive),
