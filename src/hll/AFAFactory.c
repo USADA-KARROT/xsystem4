@@ -14,10 +14,26 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <sys/stat.h>
+
 #include "system4/string.h"
+#include "system4/file.h"
+
+#include "xsystem4.h"
 #include "hll.h"
 
-HLL_WARN_UNIMPLEMENTED(false, bool, AFAFactory, IsExistArchive, struct string *ArchiveName);
+static bool AFAFactory_IsExistArchive(struct string *archive_name)
+{
+	char *path = unix_path(archive_name->text);
+	bool found = file_exists(path);
+	if (!found) {
+		char *full = path_join(config.game_dir, path);
+		found = file_exists(full);
+		free(full);
+	}
+	free(path);
+	return found;
+}
 
 static bool AFAFactory_LoadArchive(int type, struct string *archive_name)
 {
