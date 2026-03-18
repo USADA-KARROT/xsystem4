@@ -613,257 +613,785 @@ static void Array_QuickSort(struct page **array, int comparator)
 	qsort(a->values, a->nr_vars, sizeof(union vm_value), qsort_int_cmp);
 }
 
-//void Array_NV_copy(struct page **nArray, int nNum);
-//void Array_NV_add(struct page **nArray, int nNum);
-//void Array_NV_sub(struct page **nArray, int nNum);
-//void Array_NV_mul(struct page **nArray, int nNum);
-//void Array_NV_div(struct page **nArray, int nNum);
-//void Array_NV_and(struct page **nArray, int nNum);
-//void Array_NV_or(struct page **nArray, int nNum);
-//void Array_NV_xor(struct page **nArray, int nNum);
-//void Array_NV_min(struct page **nArray, int nNum);
-//void Array_NV_max(struct page **nArray, int nNum);
-//void Array_NN_copy(struct page **nArray, struct page *nArrayS);
-//void Array_NN_add(struct page **nArray, struct page *nArrayS);
-//void Array_NN_sub(struct page **nArray, struct page *nArrayS);
-//void Array_NN_mul(struct page **nArray, struct page *nArrayS);
-//void Array_NN_div(struct page **nArray, struct page *nArrayS);
-//void Array_NN_and(struct page **nArray, struct page *nArrayS);
-//void Array_NN_or(struct page **nArray, struct page *nArrayS);
-//void Array_NN_xor(struct page **nArray, struct page *nArrayS);
-//void Array_NN_min(struct page **nArray, struct page *nArrayS);
-//void Array_NN_max(struct page **nArray, struct page *nArrayS);
-//void Array_NS_copy(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_add(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_sub(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_mul(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_div(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_and(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_or(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_xor(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_min(struct page **nArray, struct page *sArray, int nMember);
-//void Array_NS_max(struct page **nArray, struct page *sArray, int nMember);
-//void Array_SV_copy(struct page **sArray, int nMember, int nNum);
-//void Array_SV_add(struct page **sArray, int nMember, int nNum);
-//void Array_SV_sub(struct page **sArray, int nMember, int nNum);
-//void Array_SV_mul(struct page **sArray, int nMember, int nNum);
-//void Array_SV_div(struct page **sArray, int nMember, int nNum);
-//void Array_SV_and(struct page **sArray, int nMember, int nNum);
-//void Array_SV_or(struct page **sArray, int nMember, int nNum);
-//void Array_SV_xor(struct page **sArray, int nMember, int nNum);
-//void Array_SV_min(struct page **sArray, int nMember, int nNum);
-//void Array_SV_max(struct page **sArray, int nMember, int nNum);
-//void Array_SN_copy(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_add(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_sub(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_mul(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_div(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_and(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_or(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_xor(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_min(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SN_max(struct page **sArray, int nMember, struct page *nArray);
-//void Array_SS_copy(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_add(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_sub(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_mul(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_div(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_and(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_or(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_xor(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_min(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_SS_max(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS);
+/* ================================================================
+ * Vector operations: {dst}{src}_{op}
+ * N=numeric array, V=scalar, S=struct array
+ * ================================================================ */
 
-static int Array_NV_eneq(struct page **self, int num)
-{
-	struct page *array = (self && *self) ? *self : NULL;
-	if (!array)
-		return 0;
-	int count = 0;
-	for (int i = 0; i < array->nr_vars; i++) {
-		if (array->values[i].i == num)
-			count++;
-	}
-	return count;
+static inline int smget(struct page *arr, int i, int m) {
+	int slot = arr->values[i].i;
+	if (slot <= 0 || (size_t)slot >= heap_size) return 0;
+	struct page *p = heap[slot].page;
+	if (!p || m < 0 || m >= p->nr_vars) return 0;
+	return p->values[m].i;
 }
 
-//int Array_NV_enne(struct page *nArray, int nNum);
-//int Array_NV_enlo(struct page *nArray, int nNum);
-//int Array_NV_enhi(struct page *nArray, int nNum);
-//int Array_NV_enra(struct page *nArray, int nMin, int nMax);
-//int Array_NN_eneq(struct page *nArray, struct page *nArrayS);
-//int Array_NN_enne(struct page *nArray, struct page *nArrayS);
-//int Array_NN_enlo(struct page *nArray, struct page *nArrayS);
-//int Array_NN_enhi(struct page *nArray, struct page *nArrayS);
-//int Array_NS_eneq(struct page *nArray, struct page *sArray, int nMember);
-//int Array_NS_enne(struct page *nArray, struct page *sArray, int nMember);
-//int Array_NS_enlo(struct page *nArray, struct page *sArray, int nMember);
-//int Array_NS_enhi(struct page *nArray, struct page *sArray, int nMember);
-//int Array_SV_eneq(struct page *sArray, int nMember, int nNum);
-//int Array_SV_enne(struct page *sArray, int nMember, int nNum);
-//int Array_SV_enlo(struct page *sArray, int nMember, int nNum);
-//int Array_SV_enhi(struct page *sArray, int nMember, int nNum);
-//int Array_SV_enra(struct page *sArray, int nMember, int nMin, int nMax);
-//int Array_SN_eneq(struct page *sArray, int nMember, struct page *nArray);
-//int Array_SN_enne(struct page *sArray, int nMember, struct page *nArray);
-//int Array_SN_enlo(struct page *sArray, int nMember, struct page *nArray);
-//int Array_SN_enhi(struct page *sArray, int nMember, struct page *nArray);
-//int Array_SS_eneq(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS);
-//int Array_SS_enne(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS);
-//int Array_SS_enlo(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS);
-//int Array_SS_enhi(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS);
-//void Array_NV_cheq(struct page **nArray, int nNum, int nChg);
-//void Array_NV_chne(struct page **nArray, int nNum, int nChg);
-//void Array_NV_chlo(struct page **nArray, int nNum, int nChg);
-//void Array_NV_chhi(struct page **nArray, int nNum, int nChg);
-//void Array_NV_chra(struct page **nArray, int nMin, int nMax, int nChg);
-//void Array_NN_cheq(struct page **nArray, struct page *nArrayS, int nChg);
-//void Array_NN_chne(struct page **nArray, struct page *nArrayS, int nChg);
-//void Array_NN_chlo(struct page **nArray, struct page *nArrayS, int nChg);
-//void Array_NN_chhi(struct page **nArray, struct page *nArrayS, int nChg);
-//void Array_NS_cheq(struct page **nArray, struct page *sArray, int nMember, int nChg);
-//void Array_NS_chne(struct page **nArray, struct page *sArray, int nMember, int nChg);
-//void Array_NS_chlo(struct page **nArray, struct page *sArray, int nMember, int nChg);
-//void Array_NS_chhi(struct page **nArray, struct page *sArray, int nMember, int nChg);
-//void Array_SV_cheq(struct page **sArray, int nMember, int nNum, int nChg);
-//void Array_SV_chne(struct page **sArray, int nMember, int nNum, int nChg);
-//void Array_SV_chlo(struct page **sArray, int nMember, int nNum, int nChg);
-//void Array_SV_chhi(struct page **sArray, int nMember, int nNum, int nChg);
-//void Array_SV_chra(struct page **sArray, int nMember, int nMin, int nMax, int nChg);
-//void Array_SN_cheq(struct page **sArray, int nMember, struct page *nArray, int nChg);
-//void Array_SN_chne(struct page **sArray, int nMember, struct page *nArray, int nChg);
-//void Array_SN_chlo(struct page **sArray, int nMember, struct page *nArray, int nChg);
-//void Array_SN_chhi(struct page **sArray, int nMember, struct page *nArray, int nChg);
-//void Array_SS_cheq(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS, int nChg);
-//void Array_SS_chne(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS, int nChg);
-//void Array_SS_chlo(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS, int nChg);
-//void Array_SS_chhi(struct page **sArray, int nMember, struct page *sArrayS, int nMemberS, int nChg);
-//void Array_NV_fweq(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fwne(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fwlo(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fwhi(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fwra(struct page *nArray, int nMin, int nMax, struct page **nArrayD);
-//void Array_NV_faeq(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fane(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_falo(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fahi(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fara(struct page *nArray, int nMin, int nMax, struct page **nArrayD);
-//void Array_NV_foeq(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fone(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_folo(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fohi(struct page *nArray, int nNum, struct page **nArrayD);
-//void Array_NV_fora(struct page *nArray, int nMin, int nMax, struct page **nArrayD);
-//void Array_NN_fweq(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fwne(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fwlo(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fwhi(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_faeq(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fane(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_falo(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fahi(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_foeq(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fone(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_folo(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NN_fohi(struct page *nArray, struct page *nArrayS, struct page **nArrayD);
-//void Array_NS_fweq(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fwne(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fwlo(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fwhi(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_faeq(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fane(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_falo(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fahi(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_foeq(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fone(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_folo(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_NS_fohi(struct page *nArray, struct page *sArray, int nMember, struct page **nArrayD);
-//void Array_SV_fweq(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fwne(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fwlo(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fwhi(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fwra(struct page *sArray, int nMember, int nMin, int nMax, struct page **nArrayD);
-//void Array_SV_faeq(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fane(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_falo(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fahi(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fara(struct page *sArray, int nMember, int nMin, int nMax, struct page **nArrayD);
-//void Array_SV_foeq(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fone(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_folo(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fohi(struct page *sArray, int nMember, int nNum, struct page **nArrayD);
-//void Array_SV_fora(struct page *sArray, int nMember, int nMin, int nMax, struct page **nArrayD);
-//void Array_SN_fweq(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fwne(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fwlo(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fwhi(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_faeq(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fane(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_falo(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fahi(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_foeq(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fone(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_folo(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SN_fohi(struct page *sArray, int nMember, struct page *nArrayS, struct page **nArrayD);
-//void Array_SS_fweq(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fwne(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fwlo(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fwhi(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_faeq(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fane(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_falo(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fahi(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_foeq(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fone(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_folo(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
-//void Array_SS_fohi(struct page *sArray, int nMember, struct page *sArrayS, int nMemberS, struct page **nArrayD);
+static inline void smset(struct page *arr, int i, int m, int v) {
+	int slot = arr->values[i].i;
+	if (slot <= 0 || (size_t)slot >= heap_size) return;
+	struct page *p = heap[slot].page;
+	if (!p || m < 0 || m >= p->nr_vars) return;
+	p->values[m].i = v;
+}
 
-static int Array_NV_sceq(struct page **self, int index, int num, int *out_index)
-{
-	struct page *array = (self && *self) ? *self : NULL;
-	if (!array)
-		return 0;
+#define OP_copy(a,b) (b)
+#define OP_add(a,b) ((a)+(b))
+#define OP_sub(a,b) ((a)-(b))
+#define OP_mul(a,b) ((a)*(b))
+#define OP_div(a,b) ((b)?(a)/(b):0)
+#define OP_and(a,b) ((a)&(b))
+#define OP_or(a,b)  ((a)|(b))
+#define OP_xor(a,b) ((a)^(b))
+#define OP_min(a,b) ((a)<(b)?(a):(b))
+#define OP_max(a,b) ((a)>(b)?(a):(b))
 
+#define DEF_NV(op) \
+static void Array_NV_##op(struct page **self, int num) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return; \
+	for (int i = 0; i < a->nr_vars; i++) \
+		a->values[i].i = OP_##op(a->values[i].i, num); \
+}
+DEF_NV(copy) DEF_NV(add) DEF_NV(sub) DEF_NV(mul) DEF_NV(div)
+DEF_NV(and) DEF_NV(or) DEF_NV(xor) DEF_NV(min) DEF_NV(max)
+
+#define DEF_NN(op) \
+static void Array_NN_##op(struct page **self, struct page **src) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		a->values[i].i = OP_##op(a->values[i].i, s->values[i].i); \
+}
+DEF_NN(copy) DEF_NN(add) DEF_NN(sub) DEF_NN(mul) DEF_NN(div)
+DEF_NN(and) DEF_NN(or) DEF_NN(xor) DEF_NN(min) DEF_NN(max)
+
+#define DEF_NS(op) \
+static void Array_NS_##op(struct page **self, struct page **sarr, int m) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		a->values[i].i = OP_##op(a->values[i].i, smget(s, i, m)); \
+}
+DEF_NS(copy) DEF_NS(add) DEF_NS(sub) DEF_NS(mul) DEF_NS(div)
+DEF_NS(and) DEF_NS(or) DEF_NS(xor) DEF_NS(min) DEF_NS(max)
+
+#define DEF_SV(op) \
+static void Array_SV_##op(struct page **self, int m, int num) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return; \
+	for (int i = 0; i < a->nr_vars; i++) \
+		smset(a, i, m, OP_##op(smget(a, i, m), num)); \
+}
+DEF_SV(copy) DEF_SV(add) DEF_SV(sub) DEF_SV(mul) DEF_SV(div)
+DEF_SV(and) DEF_SV(or) DEF_SV(xor) DEF_SV(min) DEF_SV(max)
+
+#define DEF_SN(op) \
+static void Array_SN_##op(struct page **self, int m, struct page **src) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		smset(a, i, m, OP_##op(smget(a, i, m), s->values[i].i)); \
+}
+DEF_SN(copy) DEF_SN(add) DEF_SN(sub) DEF_SN(mul) DEF_SN(div)
+DEF_SN(and) DEF_SN(or) DEF_SN(xor) DEF_SN(min) DEF_SN(max)
+
+#define DEF_SS(op) \
+static void Array_SS_##op(struct page **self, int m, struct page **sarr, int ms) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		smset(a, i, m, OP_##op(smget(a, i, m), smget(s, i, ms))); \
+}
+DEF_SS(copy) DEF_SS(add) DEF_SS(sub) DEF_SS(mul) DEF_SS(div)
+DEF_SS(and) DEF_SS(or) DEF_SS(xor) DEF_SS(min) DEF_SS(max)
+
+/* ---- Enumerate: count elements matching condition ---- */
+#define DEF_NV_EN(sfx, cmpop) \
+static int Array_NV_en##sfx(struct page **self, int num) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return 0; \
+	int c = 0; \
+	for (int i = 0; i < a->nr_vars; i++) \
+		if (a->values[i].i cmpop num) c++; \
+	return c; \
+}
+DEF_NV_EN(eq, ==) DEF_NV_EN(ne, !=) DEF_NV_EN(lo, <) DEF_NV_EN(hi, >)
+
+static int Array_NV_enra(struct page **self, int lo, int hi) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	int c = 0;
+	for (int i = 0; i < a->nr_vars; i++) {
+		int v = a->values[i].i;
+		if (v >= lo && v <= hi) c++;
+	}
+	return c;
+}
+
+#define DEF_NN_EN(sfx, cmpop) \
+static int Array_NN_en##sfx(struct page **self, struct page **src) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return 0; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	int c = 0; \
+	for (int i = 0; i < n; i++) \
+		if (a->values[i].i cmpop s->values[i].i) c++; \
+	return c; \
+}
+DEF_NN_EN(eq, ==) DEF_NN_EN(ne, !=) DEF_NN_EN(lo, <) DEF_NN_EN(hi, >)
+
+#define DEF_NS_EN(sfx, cmpop) \
+static int Array_NS_en##sfx(struct page **self, struct page **sarr, int m) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return 0; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	int c = 0; \
+	for (int i = 0; i < n; i++) \
+		if (a->values[i].i cmpop smget(s, i, m)) c++; \
+	return c; \
+}
+DEF_NS_EN(eq, ==) DEF_NS_EN(ne, !=) DEF_NS_EN(lo, <) DEF_NS_EN(hi, >)
+
+#define DEF_SV_EN(sfx, cmpop) \
+static int Array_SV_en##sfx(struct page **self, int m, int num) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return 0; \
+	int c = 0; \
+	for (int i = 0; i < a->nr_vars; i++) \
+		if (smget(a, i, m) cmpop num) c++; \
+	return c; \
+}
+DEF_SV_EN(eq, ==) DEF_SV_EN(ne, !=) DEF_SV_EN(lo, <) DEF_SV_EN(hi, >)
+
+static int Array_SV_enra(struct page **self, int m, int lo, int hi) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	int c = 0;
+	for (int i = 0; i < a->nr_vars; i++) {
+		int v = smget(a, i, m);
+		if (v >= lo && v <= hi) c++;
+	}
+	return c;
+}
+
+#define DEF_SN_EN(sfx, cmpop) \
+static int Array_SN_en##sfx(struct page **self, int m, struct page **src) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return 0; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	int c = 0; \
+	for (int i = 0; i < n; i++) \
+		if (smget(a, i, m) cmpop s->values[i].i) c++; \
+	return c; \
+}
+DEF_SN_EN(eq, ==) DEF_SN_EN(ne, !=) DEF_SN_EN(lo, <) DEF_SN_EN(hi, >)
+
+#define DEF_SS_EN(sfx, cmpop) \
+static int Array_SS_en##sfx(struct page **self, int m, struct page **sarr, int ms) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return 0; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	int c = 0; \
+	for (int i = 0; i < n; i++) \
+		if (smget(a, i, m) cmpop smget(s, i, ms)) c++; \
+	return c; \
+}
+DEF_SS_EN(eq, ==) DEF_SS_EN(ne, !=) DEF_SS_EN(lo, <) DEF_SS_EN(hi, >)
+
+/* ---- Change: replace elements matching condition with nChg ---- */
+#define DEF_NV_CH(sfx, cmpop) \
+static void Array_NV_ch##sfx(struct page **self, int num, int chg) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return; \
+	for (int i = 0; i < a->nr_vars; i++) \
+		if (a->values[i].i cmpop num) a->values[i].i = chg; \
+}
+DEF_NV_CH(eq, ==) DEF_NV_CH(ne, !=) DEF_NV_CH(lo, <) DEF_NV_CH(hi, >)
+
+static void Array_NV_chra(struct page **self, int lo, int hi, int chg) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return;
+	for (int i = 0; i < a->nr_vars; i++) {
+		int v = a->values[i].i;
+		if (v >= lo && v <= hi) a->values[i].i = chg;
+	}
+}
+
+#define DEF_NN_CH(sfx, cmpop) \
+static void Array_NN_ch##sfx(struct page **self, struct page **src, int chg) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		if (a->values[i].i cmpop s->values[i].i) a->values[i].i = chg; \
+}
+DEF_NN_CH(eq, ==) DEF_NN_CH(ne, !=) DEF_NN_CH(lo, <) DEF_NN_CH(hi, >)
+
+#define DEF_NS_CH(sfx, cmpop) \
+static void Array_NS_ch##sfx(struct page **self, struct page **sarr, int m, int chg) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		if (a->values[i].i cmpop smget(s, i, m)) a->values[i].i = chg; \
+}
+DEF_NS_CH(eq, ==) DEF_NS_CH(ne, !=) DEF_NS_CH(lo, <) DEF_NS_CH(hi, >)
+
+#define DEF_SV_CH(sfx, cmpop) \
+static void Array_SV_ch##sfx(struct page **self, int m, int num, int chg) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return; \
+	for (int i = 0; i < a->nr_vars; i++) \
+		if (smget(a, i, m) cmpop num) smset(a, i, m, chg); \
+}
+DEF_SV_CH(eq, ==) DEF_SV_CH(ne, !=) DEF_SV_CH(lo, <) DEF_SV_CH(hi, >)
+
+static void Array_SV_chra(struct page **self, int m, int lo, int hi, int chg) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return;
+	for (int i = 0; i < a->nr_vars; i++) {
+		int v = smget(a, i, m);
+		if (v >= lo && v <= hi) smset(a, i, m, chg);
+	}
+}
+
+#define DEF_SN_CH(sfx, cmpop) \
+static void Array_SN_ch##sfx(struct page **self, int m, struct page **src, int chg) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		if (smget(a, i, m) cmpop s->values[i].i) smset(a, i, m, chg); \
+}
+DEF_SN_CH(eq, ==) DEF_SN_CH(ne, !=) DEF_SN_CH(lo, <) DEF_SN_CH(hi, >)
+
+#define DEF_SS_CH(sfx, cmpop) \
+static void Array_SS_ch##sfx(struct page **self, int m, struct page **sarr, int ms, int chg) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	for (int i = 0; i < n; i++) \
+		if (smget(a, i, m) cmpop smget(s, i, ms)) smset(a, i, m, chg); \
+}
+DEF_SS_CH(eq, ==) DEF_SS_CH(ne, !=) DEF_SS_CH(lo, <) DEF_SS_CH(hi, >)
+
+/* ---- Filter helpers ---- */
+static void filter_write(bool *flags, int n, struct page **dst) {
+	if (!dst) return;
+	int c = 0;
+	for (int i = 0; i < n; i++) if (flags[i]) c++;
+	if (*dst) free_page(*dst);
+	*dst = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, c);
+	c = 0;
+	for (int i = 0; i < n; i++)
+		if (flags[i]) (*dst)->values[c++].i = i;
+}
+
+static void filter_and(bool *flags, int n, struct page **dst) {
+	if (!dst || !*dst) return;
+	struct page *d = *dst;
+	int c = 0;
+	for (int i = 0; i < d->nr_vars; i++) {
+		int idx = d->values[i].i;
+		if (idx >= 0 && idx < n && flags[idx])
+			d->values[c++] = d->values[i];
+	}
+	if (c < d->nr_vars) {
+		struct page *nd = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, c);
+		for (int i = 0; i < c; i++) nd->values[i] = d->values[i];
+		free_page(d);
+		*dst = nd;
+	}
+}
+
+static void filter_or(bool *flags, int n, struct page **dst) {
+	if (!dst) return;
+	struct page *d = *dst;
+	int d_size = d ? d->nr_vars : 0;
+	bool *exists = calloc(n, sizeof(bool));
+	for (int i = 0; i < d_size; i++) {
+		int idx = d->values[i].i;
+		if (idx >= 0 && idx < n) exists[idx] = true;
+	}
+	int add = 0;
+	for (int i = 0; i < n; i++)
+		if (flags[i] && !exists[i]) add++;
+	struct page *nd = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, d_size + add);
+	for (int i = 0; i < d_size; i++) nd->values[i] = d->values[i];
+	int c = d_size;
+	for (int i = 0; i < n; i++)
+		if (flags[i] && !exists[i]) nd->values[c++].i = i;
+	if (d) free_page(d);
+	*dst = nd;
+	free(exists);
+}
+
+/* ---- Filter: NV ---- */
+#define DEF_NV_FILTER(sfx, cmpop) \
+static void Array_NV_fw##sfx(struct page **arr, int num, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	if (!a) { filter_write(NULL, 0, dst); return; } \
+	bool *f = malloc(a->nr_vars * sizeof(bool)); \
+	for (int i = 0; i < a->nr_vars; i++) f[i] = a->values[i].i cmpop num; \
+	filter_write(f, a->nr_vars, dst); free(f); \
+} \
+static void Array_NV_fa##sfx(struct page **arr, int num, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	if (!a) return; \
+	bool *f = malloc(a->nr_vars * sizeof(bool)); \
+	for (int i = 0; i < a->nr_vars; i++) f[i] = a->values[i].i cmpop num; \
+	filter_and(f, a->nr_vars, dst); free(f); \
+} \
+static void Array_NV_fo##sfx(struct page **arr, int num, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	if (!a) return; \
+	bool *f = malloc(a->nr_vars * sizeof(bool)); \
+	for (int i = 0; i < a->nr_vars; i++) f[i] = a->values[i].i cmpop num; \
+	filter_or(f, a->nr_vars, dst); free(f); \
+}
+DEF_NV_FILTER(eq, ==) DEF_NV_FILTER(ne, !=) DEF_NV_FILTER(lo, <) DEF_NV_FILTER(hi, >)
+
+static void Array_NV_fwra(struct page **arr, int lo, int hi, struct page **dst) {
+	struct page *a = (arr && *arr) ? *arr : NULL;
+	if (!a) return;
+	bool *f = malloc(a->nr_vars * sizeof(bool));
+	for (int i = 0; i < a->nr_vars; i++) { int v = a->values[i].i; f[i] = v >= lo && v <= hi; }
+	filter_write(f, a->nr_vars, dst); free(f);
+}
+static void Array_NV_fara(struct page **arr, int lo, int hi, struct page **dst) {
+	struct page *a = (arr && *arr) ? *arr : NULL;
+	if (!a) return;
+	bool *f = malloc(a->nr_vars * sizeof(bool));
+	for (int i = 0; i < a->nr_vars; i++) { int v = a->values[i].i; f[i] = v >= lo && v <= hi; }
+	filter_and(f, a->nr_vars, dst); free(f);
+}
+static void Array_NV_fora(struct page **arr, int lo, int hi, struct page **dst) {
+	struct page *a = (arr && *arr) ? *arr : NULL;
+	if (!a) return;
+	bool *f = malloc(a->nr_vars * sizeof(bool));
+	for (int i = 0; i < a->nr_vars; i++) { int v = a->values[i].i; f[i] = v >= lo && v <= hi; }
+	filter_or(f, a->nr_vars, dst); free(f);
+}
+
+/* ---- Filter: NN ---- */
+#define DEF_NN_FILTER(sfx, cmpop) \
+static void Array_NN_fw##sfx(struct page **arr, struct page **src, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = a->values[i].i cmpop s->values[i].i; \
+	filter_write(f, n, dst); free(f); \
+} \
+static void Array_NN_fa##sfx(struct page **arr, struct page **src, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = a->values[i].i cmpop s->values[i].i; \
+	filter_and(f, n, dst); free(f); \
+} \
+static void Array_NN_fo##sfx(struct page **arr, struct page **src, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = a->values[i].i cmpop s->values[i].i; \
+	filter_or(f, n, dst); free(f); \
+}
+DEF_NN_FILTER(eq, ==) DEF_NN_FILTER(ne, !=) DEF_NN_FILTER(lo, <) DEF_NN_FILTER(hi, >)
+
+/* ---- Filter: NS ---- */
+#define DEF_NS_FILTER(sfx, cmpop) \
+static void Array_NS_fw##sfx(struct page **arr, struct page **sarr, int m, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = a->values[i].i cmpop smget(s, i, m); \
+	filter_write(f, n, dst); free(f); \
+} \
+static void Array_NS_fa##sfx(struct page **arr, struct page **sarr, int m, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = a->values[i].i cmpop smget(s, i, m); \
+	filter_and(f, n, dst); free(f); \
+} \
+static void Array_NS_fo##sfx(struct page **arr, struct page **sarr, int m, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = a->values[i].i cmpop smget(s, i, m); \
+	filter_or(f, n, dst); free(f); \
+}
+DEF_NS_FILTER(eq, ==) DEF_NS_FILTER(ne, !=) DEF_NS_FILTER(lo, <) DEF_NS_FILTER(hi, >)
+
+/* ---- Filter: SV ---- */
+#define DEF_SV_FILTER(sfx, cmpop) \
+static void Array_SV_fw##sfx(struct page **arr, int m, int num, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	if (!a) return; \
+	bool *f = malloc(a->nr_vars * sizeof(bool)); \
+	for (int i = 0; i < a->nr_vars; i++) f[i] = smget(a, i, m) cmpop num; \
+	filter_write(f, a->nr_vars, dst); free(f); \
+} \
+static void Array_SV_fa##sfx(struct page **arr, int m, int num, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	if (!a) return; \
+	bool *f = malloc(a->nr_vars * sizeof(bool)); \
+	for (int i = 0; i < a->nr_vars; i++) f[i] = smget(a, i, m) cmpop num; \
+	filter_and(f, a->nr_vars, dst); free(f); \
+} \
+static void Array_SV_fo##sfx(struct page **arr, int m, int num, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	if (!a) return; \
+	bool *f = malloc(a->nr_vars * sizeof(bool)); \
+	for (int i = 0; i < a->nr_vars; i++) f[i] = smget(a, i, m) cmpop num; \
+	filter_or(f, a->nr_vars, dst); free(f); \
+}
+DEF_SV_FILTER(eq, ==) DEF_SV_FILTER(ne, !=) DEF_SV_FILTER(lo, <) DEF_SV_FILTER(hi, >)
+
+static void Array_SV_fwra(struct page **arr, int m, int lo, int hi, struct page **dst) {
+	struct page *a = (arr && *arr) ? *arr : NULL;
+	if (!a) return;
+	bool *f = malloc(a->nr_vars * sizeof(bool));
+	for (int i = 0; i < a->nr_vars; i++) { int v = smget(a, i, m); f[i] = v >= lo && v <= hi; }
+	filter_write(f, a->nr_vars, dst); free(f);
+}
+static void Array_SV_fara(struct page **arr, int m, int lo, int hi, struct page **dst) {
+	struct page *a = (arr && *arr) ? *arr : NULL;
+	if (!a) return;
+	bool *f = malloc(a->nr_vars * sizeof(bool));
+	for (int i = 0; i < a->nr_vars; i++) { int v = smget(a, i, m); f[i] = v >= lo && v <= hi; }
+	filter_and(f, a->nr_vars, dst); free(f);
+}
+static void Array_SV_fora(struct page **arr, int m, int lo, int hi, struct page **dst) {
+	struct page *a = (arr && *arr) ? *arr : NULL;
+	if (!a) return;
+	bool *f = malloc(a->nr_vars * sizeof(bool));
+	for (int i = 0; i < a->nr_vars; i++) { int v = smget(a, i, m); f[i] = v >= lo && v <= hi; }
+	filter_or(f, a->nr_vars, dst); free(f);
+}
+
+/* ---- Filter: SN ---- */
+#define DEF_SN_FILTER(sfx, cmpop) \
+static void Array_SN_fw##sfx(struct page **arr, int m, struct page **src, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = smget(a, i, m) cmpop s->values[i].i; \
+	filter_write(f, n, dst); free(f); \
+} \
+static void Array_SN_fa##sfx(struct page **arr, int m, struct page **src, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = smget(a, i, m) cmpop s->values[i].i; \
+	filter_and(f, n, dst); free(f); \
+} \
+static void Array_SN_fo##sfx(struct page **arr, int m, struct page **src, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (src && *src) ? *src : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = smget(a, i, m) cmpop s->values[i].i; \
+	filter_or(f, n, dst); free(f); \
+}
+DEF_SN_FILTER(eq, ==) DEF_SN_FILTER(ne, !=) DEF_SN_FILTER(lo, <) DEF_SN_FILTER(hi, >)
+
+/* ---- Filter: SS ---- */
+#define DEF_SS_FILTER(sfx, cmpop) \
+static void Array_SS_fw##sfx(struct page **arr, int m, struct page **sarr, int ms, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = smget(a, i, m) cmpop smget(s, i, ms); \
+	filter_write(f, n, dst); free(f); \
+} \
+static void Array_SS_fa##sfx(struct page **arr, int m, struct page **sarr, int ms, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = smget(a, i, m) cmpop smget(s, i, ms); \
+	filter_and(f, n, dst); free(f); \
+} \
+static void Array_SS_fo##sfx(struct page **arr, int m, struct page **sarr, int ms, struct page **dst) { \
+	struct page *a = (arr && *arr) ? *arr : NULL; \
+	struct page *s = (sarr && *sarr) ? *sarr : NULL; \
+	if (!a || !s) return; \
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars; \
+	bool *f = malloc(n * sizeof(bool)); \
+	for (int i = 0; i < n; i++) f[i] = smget(a, i, m) cmpop smget(s, i, ms); \
+	filter_or(f, n, dst); free(f); \
+}
+DEF_SS_FILTER(eq, ==) DEF_SS_FILTER(ne, !=) DEF_SS_FILTER(lo, <) DEF_SS_FILTER(hi, >)
+
+/* ---- Search: linear scan with forward/backward ---- */
+#define DEF_NV_SC(sfx, cmpop) \
+static int Array_NV_sc##sfx(struct page **self, int index, int num, int *out) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return 0; \
+	if (index >= 0) { \
+		for (int i = index; i < a->nr_vars; i++) \
+			if (a->values[i].i cmpop num) { *out = i; return 1; } \
+	} else { \
+		int start = index & 0x7fffffff; \
+		if (start >= a->nr_vars) return 0; \
+		for (int i = start; i >= 0; --i) \
+			if (a->values[i].i cmpop num) { *out = i; return 1; } \
+	} \
+	return 0; \
+}
+DEF_NV_SC(eq, ==) DEF_NV_SC(ne, !=) DEF_NV_SC(lo, <) DEF_NV_SC(hi, >)
+
+static int Array_NV_scra(struct page **self, int index, int lo, int hi, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
 	if (index >= 0) {
-		for (int i = index; i < array->nr_vars; i++) {
-			if (array->values[i].i == num) {
-				*out_index = i;
-				return 1;
-			}
+		for (int i = index; i < a->nr_vars; i++) {
+			int v = a->values[i].i;
+			if (v >= lo && v <= hi) { *out = i; return 1; }
 		}
 	} else {
-		// Negative index means backwards search
-		index &= 0x7fffffff;
-		if (index >= array->nr_vars)
-			return 0;
-		for (int i = index; i >= 0; --i) {
-			if (array->values[i].i == num) {
-				*out_index = i;
-				return 1;
-			}
+		int start = index & 0x7fffffff;
+		if (start >= a->nr_vars) return 0;
+		for (int i = start; i >= 0; --i) {
+			int v = a->values[i].i;
+			if (v >= lo && v <= hi) { *out = i; return 1; }
 		}
 	}
 	return 0;
 }
 
-//int Array_NV_scne(struct page *nArray, int nIndex, int nNum, int *pnIndex);
-//int Array_NV_sclo(struct page *nArray, int nIndex, int nNum, int *pnIndex);
-//int Array_NV_schi(struct page *nArray, int nIndex, int nNum, int *pnIndex);
-//int Array_NV_scra(struct page *nArray, int nIndex, int nMin, int nMax, int *pnIndex);
-//int Array_SV_sceq(struct page *sArray, int nMember, int nIndex, int nNum, int *pnIndex);
-//int Array_SV_scne(struct page *sArray, int nMember, int nIndex, int nNum, int *pnIndex);
-//int Array_SV_sclo(struct page *sArray, int nMember, int nIndex, int nNum, int *pnIndex);
-//int Array_SV_schi(struct page *sArray, int nMember, int nIndex, int nNum, int *pnIndex);
-//int Array_SV_scra(struct page *sArray, int nMember, int nIndex, int nMin, int nMax, int *pnIndex);
-//int Array_NN_sclowest(struct page *nArray, struct page **nArrayD, int *pnIndex);
-//int Array_NN_schighest(struct page *nArray, struct page **nArrayD, int *pnIndex);
-//int Array_NS_sclowest(struct page *nArray, struct page **sArray, int nMember, int *pnIndex);
-//int Array_NS_schighest(struct page *nArray, struct page **sArray, int nMember, int *pnIndex);
-//int Array_SN_sclowest(struct page *sArray, int nMember, struct page **nArray, int *pnIndex);
-//int Array_SN_schighest(struct page *sArray, int nMember, struct page **nArray, int *pnIndex);
-//int Array_SS_sclowest(struct page *sArray, int nMember, struct page **sArrayD, int nMemberS, int *pnIndex);
-//int Array_SS_schighest(struct page *sArray, int nMember, struct page **sArrayD, int nMemberS, int *pnIndex);
-//int Array_VN_add(struct page *nArray);
-//int Array_VN_and(struct page *nArray);
+#define DEF_SV_SC(sfx, cmpop) \
+static int Array_SV_sc##sfx(struct page **self, int m, int index, int num, int *out) { \
+	struct page *a = (self && *self) ? *self : NULL; \
+	if (!a) return 0; \
+	if (index >= 0) { \
+		for (int i = index; i < a->nr_vars; i++) \
+			if (smget(a, i, m) cmpop num) { *out = i; return 1; } \
+	} else { \
+		int start = index & 0x7fffffff; \
+		if (start >= a->nr_vars) return 0; \
+		for (int i = start; i >= 0; --i) \
+			if (smget(a, i, m) cmpop num) { *out = i; return 1; } \
+	} \
+	return 0; \
+}
+DEF_SV_SC(eq, ==) DEF_SV_SC(ne, !=) DEF_SV_SC(lo, <) DEF_SV_SC(hi, >)
+
+static int Array_SV_scra(struct page **self, int m, int index, int lo, int hi, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	if (index >= 0) {
+		for (int i = index; i < a->nr_vars; i++) {
+			int v = smget(a, i, m);
+			if (v >= lo && v <= hi) { *out = i; return 1; }
+		}
+	} else {
+		int start = index & 0x7fffffff;
+		if (start >= a->nr_vars) return 0;
+		for (int i = start; i >= 0; --i) {
+			int v = smget(a, i, m);
+			if (v >= lo && v <= hi) { *out = i; return 1; }
+		}
+	}
+	return 0;
+}
+
+/* ---- Search: sclowest/schighest — find index of min/max ---- */
+static int Array_NN_sclowest(struct page **self, struct page **dst, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *d = (dst && *dst) ? *dst : NULL;
+	if (!a || !d || d->nr_vars == 0) return 0;
+	int best = 0, best_val = a->nr_vars > 0 ? a->values[d->values[0].i >= 0 && d->values[0].i < a->nr_vars ? d->values[0].i : 0].i : 0;
+	for (int i = 0; i < d->nr_vars; i++) {
+		int idx = d->values[i].i;
+		if (idx < 0 || idx >= a->nr_vars) continue;
+		if (i == 0 || a->values[idx].i < best_val) { best_val = a->values[idx].i; best = idx; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_NN_schighest(struct page **self, struct page **dst, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *d = (dst && *dst) ? *dst : NULL;
+	if (!a || !d || d->nr_vars == 0) return 0;
+	int best = 0, best_val = 0;
+	for (int i = 0; i < d->nr_vars; i++) {
+		int idx = d->values[i].i;
+		if (idx < 0 || idx >= a->nr_vars) continue;
+		if (i == 0 || a->values[idx].i > best_val) { best_val = a->values[idx].i; best = idx; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_NS_sclowest(struct page **self, struct page **sarr, int m, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *s = (sarr && *sarr) ? *sarr : NULL;
+	if (!a || !s) return 0;
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars;
+	if (n == 0) return 0;
+	int best = 0, best_val = a->values[0].i;
+	for (int i = 0; i < n; i++) {
+		int sv = smget(s, i, m);
+		if (sv < best_val) { best_val = sv; best = i; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_NS_schighest(struct page **self, struct page **sarr, int m, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *s = (sarr && *sarr) ? *sarr : NULL;
+	if (!a || !s) return 0;
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars;
+	if (n == 0) return 0;
+	int best = 0, best_val = a->values[0].i;
+	for (int i = 0; i < n; i++) {
+		int sv = smget(s, i, m);
+		if (sv > best_val) { best_val = sv; best = i; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_SN_sclowest(struct page **self, int m, struct page **src, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *s = (src && *src) ? *src : NULL;
+	if (!a || !s) return 0;
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars;
+	if (n == 0) return 0;
+	int best = 0, best_val = smget(a, 0, m);
+	for (int i = 1; i < n; i++) {
+		int v = smget(a, i, m);
+		if (v < best_val) { best_val = v; best = i; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_SN_schighest(struct page **self, int m, struct page **src, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *s = (src && *src) ? *src : NULL;
+	if (!a || !s) return 0;
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars;
+	if (n == 0) return 0;
+	int best = 0, best_val = smget(a, 0, m);
+	for (int i = 1; i < n; i++) {
+		int v = smget(a, i, m);
+		if (v > best_val) { best_val = v; best = i; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_SS_sclowest(struct page **self, int m, struct page **sarr, int ms, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *s = (sarr && *sarr) ? *sarr : NULL;
+	if (!a || !s) return 0;
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars;
+	if (n == 0) return 0;
+	int best = 0, best_val = smget(a, 0, m);
+	for (int i = 1; i < n; i++) {
+		int v = smget(a, i, m);
+		if (v < best_val) { best_val = v; best = i; }
+	}
+	*out = best; return 1;
+}
+
+static int Array_SS_schighest(struct page **self, int m, struct page **sarr, int ms, int *out) {
+	struct page *a = (self && *self) ? *self : NULL;
+	struct page *s = (sarr && *sarr) ? *sarr : NULL;
+	if (!a || !s) return 0;
+	int n = a->nr_vars < s->nr_vars ? a->nr_vars : s->nr_vars;
+	if (n == 0) return 0;
+	int best = 0, best_val = smget(a, 0, m);
+	for (int i = 1; i < n; i++) {
+		int v = smget(a, i, m);
+		if (v > best_val) { best_val = v; best = i; }
+	}
+	*out = best; return 1;
+}
+
+/* ---- Aggregate: reduce array to scalar ---- */
+static int Array_VN_add(struct page **self) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	int r = 0;
+	for (int i = 0; i < a->nr_vars; i++) r += a->values[i].i;
+	return r;
+}
+
+static int Array_VN_and(struct page **self) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a || a->nr_vars == 0) return 0;
+	int r = a->values[0].i;
+	for (int i = 1; i < a->nr_vars; i++) r &= a->values[i].i;
+	return r;
+}
+
+static int Array_VN_or(struct page **self) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	int r = 0;
+	for (int i = 0; i < a->nr_vars; i++) r |= a->values[i].i;
+	return r;
+}
+
+static int Array_VS_add(struct page **self, int m) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	int r = 0;
+	for (int i = 0; i < a->nr_vars; i++) r += smget(a, i, m);
+	return r;
+}
+
+static int Array_VS_and(struct page **self, int m) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a || a->nr_vars == 0) return 0;
+	int r = smget(a, 0, m);
+	for (int i = 1; i < a->nr_vars; i++) r &= smget(a, i, m);
+	return r;
+}
+
+static int Array_VS_or(struct page **self, int m) {
+	struct page *a = (self && *self) ? *self : NULL;
+	if (!a) return 0;
+	int r = 0;
+	for (int i = 0; i < a->nr_vars; i++) r |= smget(a, i, m);
+	return r;
+}
 // Realloc: resize array, preserving existing elements.
 // For struct/wrap arrays (hll_arg3 == 2), allocates struct instances
 // for any newly added elements (beyond the old size).
@@ -1211,10 +1739,6 @@ static int Array_Max(struct page **array, int func)
 	return 0;
 }
 
-//int Array_VN_or(struct page *nArray);
-//int Array_VS_add(struct page *sArray, int nMember);
-//int Array_VS_and(struct page *sArray, int nMember);
-//int Array_VS_or(struct page *sArray, int nMember);
 
 static void Array_Reverse(struct page **array)
 {
@@ -1443,196 +1967,196 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Concat, Array_Concat),
 	    HLL_EXPORT(Max, Array_Max),
 	    HLL_EXPORT(Reverse, Array_Reverse),
-	    HLL_TODO_EXPORT(NV_copy, Array_NV_copy),
-	    HLL_TODO_EXPORT(NV_add, Array_NV_add),
-	    HLL_TODO_EXPORT(NV_sub, Array_NV_sub),
-	    HLL_TODO_EXPORT(NV_mul, Array_NV_mul),
-	    HLL_TODO_EXPORT(NV_div, Array_NV_div),
-	    HLL_TODO_EXPORT(NV_and, Array_NV_and),
-	    HLL_TODO_EXPORT(NV_or, Array_NV_or),
-	    HLL_TODO_EXPORT(NV_xor, Array_NV_xor),
-	    HLL_TODO_EXPORT(NV_min, Array_NV_min),
-	    HLL_TODO_EXPORT(NV_max, Array_NV_max),
-	    HLL_TODO_EXPORT(NN_copy, Array_NN_copy),
-	    HLL_TODO_EXPORT(NN_add, Array_NN_add),
-	    HLL_TODO_EXPORT(NN_sub, Array_NN_sub),
-	    HLL_TODO_EXPORT(NN_mul, Array_NN_mul),
-	    HLL_TODO_EXPORT(NN_div, Array_NN_div),
-	    HLL_TODO_EXPORT(NN_and, Array_NN_and),
-	    HLL_TODO_EXPORT(NN_or, Array_NN_or),
-	    HLL_TODO_EXPORT(NN_xor, Array_NN_xor),
-	    HLL_TODO_EXPORT(NN_min, Array_NN_min),
-	    HLL_TODO_EXPORT(NN_max, Array_NN_max),
-	    HLL_TODO_EXPORT(NS_copy, Array_NS_copy),
-	    HLL_TODO_EXPORT(NS_add, Array_NS_add),
-	    HLL_TODO_EXPORT(NS_sub, Array_NS_sub),
-	    HLL_TODO_EXPORT(NS_mul, Array_NS_mul),
-	    HLL_TODO_EXPORT(NS_div, Array_NS_div),
-	    HLL_TODO_EXPORT(NS_and, Array_NS_and),
-	    HLL_TODO_EXPORT(NS_or, Array_NS_or),
-	    HLL_TODO_EXPORT(NS_xor, Array_NS_xor),
-	    HLL_TODO_EXPORT(NS_min, Array_NS_min),
-	    HLL_TODO_EXPORT(NS_max, Array_NS_max),
-	    HLL_TODO_EXPORT(SV_copy, Array_SV_copy),
-	    HLL_TODO_EXPORT(SV_add, Array_SV_add),
-	    HLL_TODO_EXPORT(SV_sub, Array_SV_sub),
-	    HLL_TODO_EXPORT(SV_mul, Array_SV_mul),
-	    HLL_TODO_EXPORT(SV_div, Array_SV_div),
-	    HLL_TODO_EXPORT(SV_and, Array_SV_and),
-	    HLL_TODO_EXPORT(SV_or, Array_SV_or),
-	    HLL_TODO_EXPORT(SV_xor, Array_SV_xor),
-	    HLL_TODO_EXPORT(SV_min, Array_SV_min),
-	    HLL_TODO_EXPORT(SV_max, Array_SV_max),
-	    HLL_TODO_EXPORT(SN_copy, Array_SN_copy),
-	    HLL_TODO_EXPORT(SN_add, Array_SN_add),
-	    HLL_TODO_EXPORT(SN_sub, Array_SN_sub),
-	    HLL_TODO_EXPORT(SN_mul, Array_SN_mul),
-	    HLL_TODO_EXPORT(SN_div, Array_SN_div),
-	    HLL_TODO_EXPORT(SN_and, Array_SN_and),
-	    HLL_TODO_EXPORT(SN_or, Array_SN_or),
-	    HLL_TODO_EXPORT(SN_xor, Array_SN_xor),
-	    HLL_TODO_EXPORT(SN_min, Array_SN_min),
-	    HLL_TODO_EXPORT(SN_max, Array_SN_max),
-	    HLL_TODO_EXPORT(SS_copy, Array_SS_copy),
-	    HLL_TODO_EXPORT(SS_add, Array_SS_add),
-	    HLL_TODO_EXPORT(SS_sub, Array_SS_sub),
-	    HLL_TODO_EXPORT(SS_mul, Array_SS_mul),
-	    HLL_TODO_EXPORT(SS_div, Array_SS_div),
-	    HLL_TODO_EXPORT(SS_and, Array_SS_and),
-	    HLL_TODO_EXPORT(SS_or, Array_SS_or),
-	    HLL_TODO_EXPORT(SS_xor, Array_SS_xor),
-	    HLL_TODO_EXPORT(SS_min, Array_SS_min),
-	    HLL_TODO_EXPORT(SS_max, Array_SS_max),
+	    HLL_EXPORT(NV_copy, Array_NV_copy),
+	    HLL_EXPORT(NV_add, Array_NV_add),
+	    HLL_EXPORT(NV_sub, Array_NV_sub),
+	    HLL_EXPORT(NV_mul, Array_NV_mul),
+	    HLL_EXPORT(NV_div, Array_NV_div),
+	    HLL_EXPORT(NV_and, Array_NV_and),
+	    HLL_EXPORT(NV_or, Array_NV_or),
+	    HLL_EXPORT(NV_xor, Array_NV_xor),
+	    HLL_EXPORT(NV_min, Array_NV_min),
+	    HLL_EXPORT(NV_max, Array_NV_max),
+	    HLL_EXPORT(NN_copy, Array_NN_copy),
+	    HLL_EXPORT(NN_add, Array_NN_add),
+	    HLL_EXPORT(NN_sub, Array_NN_sub),
+	    HLL_EXPORT(NN_mul, Array_NN_mul),
+	    HLL_EXPORT(NN_div, Array_NN_div),
+	    HLL_EXPORT(NN_and, Array_NN_and),
+	    HLL_EXPORT(NN_or, Array_NN_or),
+	    HLL_EXPORT(NN_xor, Array_NN_xor),
+	    HLL_EXPORT(NN_min, Array_NN_min),
+	    HLL_EXPORT(NN_max, Array_NN_max),
+	    HLL_EXPORT(NS_copy, Array_NS_copy),
+	    HLL_EXPORT(NS_add, Array_NS_add),
+	    HLL_EXPORT(NS_sub, Array_NS_sub),
+	    HLL_EXPORT(NS_mul, Array_NS_mul),
+	    HLL_EXPORT(NS_div, Array_NS_div),
+	    HLL_EXPORT(NS_and, Array_NS_and),
+	    HLL_EXPORT(NS_or, Array_NS_or),
+	    HLL_EXPORT(NS_xor, Array_NS_xor),
+	    HLL_EXPORT(NS_min, Array_NS_min),
+	    HLL_EXPORT(NS_max, Array_NS_max),
+	    HLL_EXPORT(SV_copy, Array_SV_copy),
+	    HLL_EXPORT(SV_add, Array_SV_add),
+	    HLL_EXPORT(SV_sub, Array_SV_sub),
+	    HLL_EXPORT(SV_mul, Array_SV_mul),
+	    HLL_EXPORT(SV_div, Array_SV_div),
+	    HLL_EXPORT(SV_and, Array_SV_and),
+	    HLL_EXPORT(SV_or, Array_SV_or),
+	    HLL_EXPORT(SV_xor, Array_SV_xor),
+	    HLL_EXPORT(SV_min, Array_SV_min),
+	    HLL_EXPORT(SV_max, Array_SV_max),
+	    HLL_EXPORT(SN_copy, Array_SN_copy),
+	    HLL_EXPORT(SN_add, Array_SN_add),
+	    HLL_EXPORT(SN_sub, Array_SN_sub),
+	    HLL_EXPORT(SN_mul, Array_SN_mul),
+	    HLL_EXPORT(SN_div, Array_SN_div),
+	    HLL_EXPORT(SN_and, Array_SN_and),
+	    HLL_EXPORT(SN_or, Array_SN_or),
+	    HLL_EXPORT(SN_xor, Array_SN_xor),
+	    HLL_EXPORT(SN_min, Array_SN_min),
+	    HLL_EXPORT(SN_max, Array_SN_max),
+	    HLL_EXPORT(SS_copy, Array_SS_copy),
+	    HLL_EXPORT(SS_add, Array_SS_add),
+	    HLL_EXPORT(SS_sub, Array_SS_sub),
+	    HLL_EXPORT(SS_mul, Array_SS_mul),
+	    HLL_EXPORT(SS_div, Array_SS_div),
+	    HLL_EXPORT(SS_and, Array_SS_and),
+	    HLL_EXPORT(SS_or, Array_SS_or),
+	    HLL_EXPORT(SS_xor, Array_SS_xor),
+	    HLL_EXPORT(SS_min, Array_SS_min),
+	    HLL_EXPORT(SS_max, Array_SS_max),
 	    HLL_EXPORT(NV_eneq, Array_NV_eneq),
-	    HLL_TODO_EXPORT(NV_enne, Array_NV_enne),
-	    HLL_TODO_EXPORT(NV_enlo, Array_NV_enlo),
-	    HLL_TODO_EXPORT(NV_enhi, Array_NV_enhi),
-	    HLL_TODO_EXPORT(NV_enra, Array_NV_enra),
-	    HLL_TODO_EXPORT(NN_eneq, Array_NN_eneq),
-	    HLL_TODO_EXPORT(NN_enne, Array_NN_enne),
-	    HLL_TODO_EXPORT(NN_enlo, Array_NN_enlo),
-	    HLL_TODO_EXPORT(NN_enhi, Array_NN_enhi),
-	    HLL_TODO_EXPORT(NS_eneq, Array_NS_eneq),
-	    HLL_TODO_EXPORT(NS_enne, Array_NS_enne),
-	    HLL_TODO_EXPORT(NS_enlo, Array_NS_enlo),
-	    HLL_TODO_EXPORT(NS_enhi, Array_NS_enhi),
-	    HLL_TODO_EXPORT(SV_eneq, Array_SV_eneq),
-	    HLL_TODO_EXPORT(SV_enne, Array_SV_enne),
-	    HLL_TODO_EXPORT(SV_enlo, Array_SV_enlo),
-	    HLL_TODO_EXPORT(SV_enhi, Array_SV_enhi),
-	    HLL_TODO_EXPORT(SV_enra, Array_SV_enra),
-	    HLL_TODO_EXPORT(SN_eneq, Array_SN_eneq),
-	    HLL_TODO_EXPORT(SN_enne, Array_SN_enne),
-	    HLL_TODO_EXPORT(SN_enlo, Array_SN_enlo),
-	    HLL_TODO_EXPORT(SN_enhi, Array_SN_enhi),
-	    HLL_TODO_EXPORT(SS_eneq, Array_SS_eneq),
-	    HLL_TODO_EXPORT(SS_enne, Array_SS_enne),
-	    HLL_TODO_EXPORT(SS_enlo, Array_SS_enlo),
-	    HLL_TODO_EXPORT(SS_enhi, Array_SS_enhi),
-	    HLL_TODO_EXPORT(NV_cheq, Array_NV_cheq),
-	    HLL_TODO_EXPORT(NV_chne, Array_NV_chne),
-	    HLL_TODO_EXPORT(NV_chlo, Array_NV_chlo),
-	    HLL_TODO_EXPORT(NV_chhi, Array_NV_chhi),
-	    HLL_TODO_EXPORT(NV_chra, Array_NV_chra),
-	    HLL_TODO_EXPORT(NN_cheq, Array_NN_cheq),
-	    HLL_TODO_EXPORT(NN_chne, Array_NN_chne),
-	    HLL_TODO_EXPORT(NN_chlo, Array_NN_chlo),
-	    HLL_TODO_EXPORT(NN_chhi, Array_NN_chhi),
-	    HLL_TODO_EXPORT(NS_cheq, Array_NS_cheq),
-	    HLL_TODO_EXPORT(NS_chne, Array_NS_chne),
-	    HLL_TODO_EXPORT(NS_chlo, Array_NS_chlo),
-	    HLL_TODO_EXPORT(NS_chhi, Array_NS_chhi),
-	    HLL_TODO_EXPORT(SV_cheq, Array_SV_cheq),
-	    HLL_TODO_EXPORT(SV_chne, Array_SV_chne),
-	    HLL_TODO_EXPORT(SV_chlo, Array_SV_chlo),
-	    HLL_TODO_EXPORT(SV_chhi, Array_SV_chhi),
-	    HLL_TODO_EXPORT(SV_chra, Array_SV_chra),
-	    HLL_TODO_EXPORT(SN_cheq, Array_SN_cheq),
-	    HLL_TODO_EXPORT(SN_chne, Array_SN_chne),
-	    HLL_TODO_EXPORT(SN_chlo, Array_SN_chlo),
-	    HLL_TODO_EXPORT(SN_chhi, Array_SN_chhi),
-	    HLL_TODO_EXPORT(SS_cheq, Array_SS_cheq),
-	    HLL_TODO_EXPORT(SS_chne, Array_SS_chne),
-	    HLL_TODO_EXPORT(SS_chlo, Array_SS_chlo),
-	    HLL_TODO_EXPORT(SS_chhi, Array_SS_chhi),
-	    HLL_TODO_EXPORT(NV_fweq, Array_NV_fweq),
-	    HLL_TODO_EXPORT(NV_fwne, Array_NV_fwne),
-	    HLL_TODO_EXPORT(NV_fwlo, Array_NV_fwlo),
-	    HLL_TODO_EXPORT(NV_fwhi, Array_NV_fwhi),
-	    HLL_TODO_EXPORT(NV_fwra, Array_NV_fwra),
-	    HLL_TODO_EXPORT(NV_faeq, Array_NV_faeq),
-	    HLL_TODO_EXPORT(NV_fane, Array_NV_fane),
-	    HLL_TODO_EXPORT(NV_falo, Array_NV_falo),
-	    HLL_TODO_EXPORT(NV_fahi, Array_NV_fahi),
-	    HLL_TODO_EXPORT(NV_fara, Array_NV_fara),
-	    HLL_TODO_EXPORT(NV_foeq, Array_NV_foeq),
-	    HLL_TODO_EXPORT(NV_fone, Array_NV_fone),
-	    HLL_TODO_EXPORT(NV_folo, Array_NV_folo),
-	    HLL_TODO_EXPORT(NV_fohi, Array_NV_fohi),
-	    HLL_TODO_EXPORT(NV_fora, Array_NV_fora),
-	    HLL_TODO_EXPORT(NN_fweq, Array_NN_fweq),
-	    HLL_TODO_EXPORT(NN_fwne, Array_NN_fwne),
-	    HLL_TODO_EXPORT(NN_fwlo, Array_NN_fwlo),
-	    HLL_TODO_EXPORT(NN_fwhi, Array_NN_fwhi),
-	    HLL_TODO_EXPORT(NN_faeq, Array_NN_faeq),
-	    HLL_TODO_EXPORT(NN_fane, Array_NN_fane),
-	    HLL_TODO_EXPORT(NN_falo, Array_NN_falo),
-	    HLL_TODO_EXPORT(NN_fahi, Array_NN_fahi),
-	    HLL_TODO_EXPORT(NN_foeq, Array_NN_foeq),
-	    HLL_TODO_EXPORT(NN_fone, Array_NN_fone),
-	    HLL_TODO_EXPORT(NN_folo, Array_NN_folo),
-	    HLL_TODO_EXPORT(NN_fohi, Array_NN_fohi),
-	    HLL_TODO_EXPORT(NS_fweq, Array_NS_fweq),
-	    HLL_TODO_EXPORT(NS_fwne, Array_NS_fwne),
-	    HLL_TODO_EXPORT(NS_fwlo, Array_NS_fwlo),
-	    HLL_TODO_EXPORT(NS_fwhi, Array_NS_fwhi),
-	    HLL_TODO_EXPORT(NS_faeq, Array_NS_faeq),
-	    HLL_TODO_EXPORT(NS_fane, Array_NS_fane),
-	    HLL_TODO_EXPORT(NS_falo, Array_NS_falo),
-	    HLL_TODO_EXPORT(NS_fahi, Array_NS_fahi),
-	    HLL_TODO_EXPORT(NS_foeq, Array_NS_foeq),
-	    HLL_TODO_EXPORT(NS_fone, Array_NS_fone),
-	    HLL_TODO_EXPORT(NS_folo, Array_NS_folo),
-	    HLL_TODO_EXPORT(NS_fohi, Array_NS_fohi),
-	    HLL_TODO_EXPORT(SV_fweq, Array_SV_fweq),
-	    HLL_TODO_EXPORT(SV_fwne, Array_SV_fwne),
-	    HLL_TODO_EXPORT(SV_fwlo, Array_SV_fwlo),
-	    HLL_TODO_EXPORT(SV_fwhi, Array_SV_fwhi),
-	    HLL_TODO_EXPORT(SV_fwra, Array_SV_fwra),
-	    HLL_TODO_EXPORT(SV_faeq, Array_SV_faeq),
-	    HLL_TODO_EXPORT(SV_fane, Array_SV_fane),
-	    HLL_TODO_EXPORT(SV_falo, Array_SV_falo),
-	    HLL_TODO_EXPORT(SV_fahi, Array_SV_fahi),
-	    HLL_TODO_EXPORT(SV_fara, Array_SV_fara),
-	    HLL_TODO_EXPORT(SV_foeq, Array_SV_foeq),
-	    HLL_TODO_EXPORT(SV_fone, Array_SV_fone),
-	    HLL_TODO_EXPORT(SV_folo, Array_SV_folo),
-	    HLL_TODO_EXPORT(SV_fohi, Array_SV_fohi),
-	    HLL_TODO_EXPORT(SV_fora, Array_SV_fora),
-	    HLL_TODO_EXPORT(SN_fweq, Array_SN_fweq),
-	    HLL_TODO_EXPORT(SN_fwne, Array_SN_fwne),
-	    HLL_TODO_EXPORT(SN_fwlo, Array_SN_fwlo),
-	    HLL_TODO_EXPORT(SN_fwhi, Array_SN_fwhi),
-	    HLL_TODO_EXPORT(SN_faeq, Array_SN_faeq),
-	    HLL_TODO_EXPORT(SN_fane, Array_SN_fane),
-	    HLL_TODO_EXPORT(SN_falo, Array_SN_falo),
-	    HLL_TODO_EXPORT(SN_fahi, Array_SN_fahi),
-	    HLL_TODO_EXPORT(SN_foeq, Array_SN_foeq),
-	    HLL_TODO_EXPORT(SN_fone, Array_SN_fone),
-	    HLL_TODO_EXPORT(SN_folo, Array_SN_folo),
-	    HLL_TODO_EXPORT(SN_fohi, Array_SN_fohi),
-	    HLL_TODO_EXPORT(SS_fweq, Array_SS_fweq),
-	    HLL_TODO_EXPORT(SS_fwne, Array_SS_fwne),
-	    HLL_TODO_EXPORT(SS_fwlo, Array_SS_fwlo),
-	    HLL_TODO_EXPORT(SS_fwhi, Array_SS_fwhi),
-	    HLL_TODO_EXPORT(SS_faeq, Array_SS_faeq),
-	    HLL_TODO_EXPORT(SS_fane, Array_SS_fane),
-	    HLL_TODO_EXPORT(SS_falo, Array_SS_falo),
-	    HLL_TODO_EXPORT(SS_fahi, Array_SS_fahi),
-	    HLL_TODO_EXPORT(SS_foeq, Array_SS_foeq),
-	    HLL_TODO_EXPORT(SS_fone, Array_SS_fone),
-	    HLL_TODO_EXPORT(SS_folo, Array_SS_folo),
-	    HLL_TODO_EXPORT(SS_fohi, Array_SS_fohi),
+	    HLL_EXPORT(NV_enne, Array_NV_enne),
+	    HLL_EXPORT(NV_enlo, Array_NV_enlo),
+	    HLL_EXPORT(NV_enhi, Array_NV_enhi),
+	    HLL_EXPORT(NV_enra, Array_NV_enra),
+	    HLL_EXPORT(NN_eneq, Array_NN_eneq),
+	    HLL_EXPORT(NN_enne, Array_NN_enne),
+	    HLL_EXPORT(NN_enlo, Array_NN_enlo),
+	    HLL_EXPORT(NN_enhi, Array_NN_enhi),
+	    HLL_EXPORT(NS_eneq, Array_NS_eneq),
+	    HLL_EXPORT(NS_enne, Array_NS_enne),
+	    HLL_EXPORT(NS_enlo, Array_NS_enlo),
+	    HLL_EXPORT(NS_enhi, Array_NS_enhi),
+	    HLL_EXPORT(SV_eneq, Array_SV_eneq),
+	    HLL_EXPORT(SV_enne, Array_SV_enne),
+	    HLL_EXPORT(SV_enlo, Array_SV_enlo),
+	    HLL_EXPORT(SV_enhi, Array_SV_enhi),
+	    HLL_EXPORT(SV_enra, Array_SV_enra),
+	    HLL_EXPORT(SN_eneq, Array_SN_eneq),
+	    HLL_EXPORT(SN_enne, Array_SN_enne),
+	    HLL_EXPORT(SN_enlo, Array_SN_enlo),
+	    HLL_EXPORT(SN_enhi, Array_SN_enhi),
+	    HLL_EXPORT(SS_eneq, Array_SS_eneq),
+	    HLL_EXPORT(SS_enne, Array_SS_enne),
+	    HLL_EXPORT(SS_enlo, Array_SS_enlo),
+	    HLL_EXPORT(SS_enhi, Array_SS_enhi),
+	    HLL_EXPORT(NV_cheq, Array_NV_cheq),
+	    HLL_EXPORT(NV_chne, Array_NV_chne),
+	    HLL_EXPORT(NV_chlo, Array_NV_chlo),
+	    HLL_EXPORT(NV_chhi, Array_NV_chhi),
+	    HLL_EXPORT(NV_chra, Array_NV_chra),
+	    HLL_EXPORT(NN_cheq, Array_NN_cheq),
+	    HLL_EXPORT(NN_chne, Array_NN_chne),
+	    HLL_EXPORT(NN_chlo, Array_NN_chlo),
+	    HLL_EXPORT(NN_chhi, Array_NN_chhi),
+	    HLL_EXPORT(NS_cheq, Array_NS_cheq),
+	    HLL_EXPORT(NS_chne, Array_NS_chne),
+	    HLL_EXPORT(NS_chlo, Array_NS_chlo),
+	    HLL_EXPORT(NS_chhi, Array_NS_chhi),
+	    HLL_EXPORT(SV_cheq, Array_SV_cheq),
+	    HLL_EXPORT(SV_chne, Array_SV_chne),
+	    HLL_EXPORT(SV_chlo, Array_SV_chlo),
+	    HLL_EXPORT(SV_chhi, Array_SV_chhi),
+	    HLL_EXPORT(SV_chra, Array_SV_chra),
+	    HLL_EXPORT(SN_cheq, Array_SN_cheq),
+	    HLL_EXPORT(SN_chne, Array_SN_chne),
+	    HLL_EXPORT(SN_chlo, Array_SN_chlo),
+	    HLL_EXPORT(SN_chhi, Array_SN_chhi),
+	    HLL_EXPORT(SS_cheq, Array_SS_cheq),
+	    HLL_EXPORT(SS_chne, Array_SS_chne),
+	    HLL_EXPORT(SS_chlo, Array_SS_chlo),
+	    HLL_EXPORT(SS_chhi, Array_SS_chhi),
+	    HLL_EXPORT(NV_fweq, Array_NV_fweq),
+	    HLL_EXPORT(NV_fwne, Array_NV_fwne),
+	    HLL_EXPORT(NV_fwlo, Array_NV_fwlo),
+	    HLL_EXPORT(NV_fwhi, Array_NV_fwhi),
+	    HLL_EXPORT(NV_fwra, Array_NV_fwra),
+	    HLL_EXPORT(NV_faeq, Array_NV_faeq),
+	    HLL_EXPORT(NV_fane, Array_NV_fane),
+	    HLL_EXPORT(NV_falo, Array_NV_falo),
+	    HLL_EXPORT(NV_fahi, Array_NV_fahi),
+	    HLL_EXPORT(NV_fara, Array_NV_fara),
+	    HLL_EXPORT(NV_foeq, Array_NV_foeq),
+	    HLL_EXPORT(NV_fone, Array_NV_fone),
+	    HLL_EXPORT(NV_folo, Array_NV_folo),
+	    HLL_EXPORT(NV_fohi, Array_NV_fohi),
+	    HLL_EXPORT(NV_fora, Array_NV_fora),
+	    HLL_EXPORT(NN_fweq, Array_NN_fweq),
+	    HLL_EXPORT(NN_fwne, Array_NN_fwne),
+	    HLL_EXPORT(NN_fwlo, Array_NN_fwlo),
+	    HLL_EXPORT(NN_fwhi, Array_NN_fwhi),
+	    HLL_EXPORT(NN_faeq, Array_NN_faeq),
+	    HLL_EXPORT(NN_fane, Array_NN_fane),
+	    HLL_EXPORT(NN_falo, Array_NN_falo),
+	    HLL_EXPORT(NN_fahi, Array_NN_fahi),
+	    HLL_EXPORT(NN_foeq, Array_NN_foeq),
+	    HLL_EXPORT(NN_fone, Array_NN_fone),
+	    HLL_EXPORT(NN_folo, Array_NN_folo),
+	    HLL_EXPORT(NN_fohi, Array_NN_fohi),
+	    HLL_EXPORT(NS_fweq, Array_NS_fweq),
+	    HLL_EXPORT(NS_fwne, Array_NS_fwne),
+	    HLL_EXPORT(NS_fwlo, Array_NS_fwlo),
+	    HLL_EXPORT(NS_fwhi, Array_NS_fwhi),
+	    HLL_EXPORT(NS_faeq, Array_NS_faeq),
+	    HLL_EXPORT(NS_fane, Array_NS_fane),
+	    HLL_EXPORT(NS_falo, Array_NS_falo),
+	    HLL_EXPORT(NS_fahi, Array_NS_fahi),
+	    HLL_EXPORT(NS_foeq, Array_NS_foeq),
+	    HLL_EXPORT(NS_fone, Array_NS_fone),
+	    HLL_EXPORT(NS_folo, Array_NS_folo),
+	    HLL_EXPORT(NS_fohi, Array_NS_fohi),
+	    HLL_EXPORT(SV_fweq, Array_SV_fweq),
+	    HLL_EXPORT(SV_fwne, Array_SV_fwne),
+	    HLL_EXPORT(SV_fwlo, Array_SV_fwlo),
+	    HLL_EXPORT(SV_fwhi, Array_SV_fwhi),
+	    HLL_EXPORT(SV_fwra, Array_SV_fwra),
+	    HLL_EXPORT(SV_faeq, Array_SV_faeq),
+	    HLL_EXPORT(SV_fane, Array_SV_fane),
+	    HLL_EXPORT(SV_falo, Array_SV_falo),
+	    HLL_EXPORT(SV_fahi, Array_SV_fahi),
+	    HLL_EXPORT(SV_fara, Array_SV_fara),
+	    HLL_EXPORT(SV_foeq, Array_SV_foeq),
+	    HLL_EXPORT(SV_fone, Array_SV_fone),
+	    HLL_EXPORT(SV_folo, Array_SV_folo),
+	    HLL_EXPORT(SV_fohi, Array_SV_fohi),
+	    HLL_EXPORT(SV_fora, Array_SV_fora),
+	    HLL_EXPORT(SN_fweq, Array_SN_fweq),
+	    HLL_EXPORT(SN_fwne, Array_SN_fwne),
+	    HLL_EXPORT(SN_fwlo, Array_SN_fwlo),
+	    HLL_EXPORT(SN_fwhi, Array_SN_fwhi),
+	    HLL_EXPORT(SN_faeq, Array_SN_faeq),
+	    HLL_EXPORT(SN_fane, Array_SN_fane),
+	    HLL_EXPORT(SN_falo, Array_SN_falo),
+	    HLL_EXPORT(SN_fahi, Array_SN_fahi),
+	    HLL_EXPORT(SN_foeq, Array_SN_foeq),
+	    HLL_EXPORT(SN_fone, Array_SN_fone),
+	    HLL_EXPORT(SN_folo, Array_SN_folo),
+	    HLL_EXPORT(SN_fohi, Array_SN_fohi),
+	    HLL_EXPORT(SS_fweq, Array_SS_fweq),
+	    HLL_EXPORT(SS_fwne, Array_SS_fwne),
+	    HLL_EXPORT(SS_fwlo, Array_SS_fwlo),
+	    HLL_EXPORT(SS_fwhi, Array_SS_fwhi),
+	    HLL_EXPORT(SS_faeq, Array_SS_faeq),
+	    HLL_EXPORT(SS_fane, Array_SS_fane),
+	    HLL_EXPORT(SS_falo, Array_SS_falo),
+	    HLL_EXPORT(SS_fahi, Array_SS_fahi),
+	    HLL_EXPORT(SS_foeq, Array_SS_foeq),
+	    HLL_EXPORT(SS_fone, Array_SS_fone),
+	    HLL_EXPORT(SS_folo, Array_SS_folo),
+	    HLL_EXPORT(SS_fohi, Array_SS_fohi),
 	    HLL_EXPORT(NV_sceq, Array_NV_sceq),
 	    HLL_EXPORT(Duplicate, Array_Duplicate),
 	    HLL_EXPORT(All, Array_All),
@@ -1644,27 +2168,27 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(UniqueSorted, Array_UniqueSorted),
 	    HLL_EXPORT(UpperBound, Array_UpperBound),
 	    HLL_EXPORT(Equals, Array_Equals),
-	    HLL_TODO_EXPORT(NV_scne, Array_NV_scne),
-	    HLL_TODO_EXPORT(NV_sclo, Array_NV_sclo),
-	    HLL_TODO_EXPORT(NV_schi, Array_NV_schi),
-	    HLL_TODO_EXPORT(NV_scra, Array_NV_scra),
-	    HLL_TODO_EXPORT(SV_sceq, Array_SV_sceq),
-	    HLL_TODO_EXPORT(SV_scne, Array_SV_scne),
-	    HLL_TODO_EXPORT(SV_sclo, Array_SV_sclo),
-	    HLL_TODO_EXPORT(SV_schi, Array_SV_schi),
-	    HLL_TODO_EXPORT(SV_scra, Array_SV_scra),
-	    HLL_TODO_EXPORT(NN_sclowest, Array_NN_sclowest),
-	    HLL_TODO_EXPORT(NN_schighest, Array_NN_schighest),
-	    HLL_TODO_EXPORT(NS_sclowest, Array_NS_sclowest),
-	    HLL_TODO_EXPORT(NS_schighest, Array_NS_schighest),
-	    HLL_TODO_EXPORT(SN_sclowest, Array_SN_sclowest),
-	    HLL_TODO_EXPORT(SN_schighest, Array_SN_schighest),
-	    HLL_TODO_EXPORT(SS_sclowest, Array_SS_sclowest),
-	    HLL_TODO_EXPORT(SS_schighest, Array_SS_schighest),
-	    HLL_TODO_EXPORT(VN_add, Array_VN_add),
-	    HLL_TODO_EXPORT(VN_and, Array_VN_and),
-	    HLL_TODO_EXPORT(VN_or, Array_VN_or),
-	    HLL_TODO_EXPORT(VS_add, Array_VS_add),
-	    HLL_TODO_EXPORT(VS_and, Array_VS_and),
-	    HLL_TODO_EXPORT(VS_or, Array_VS_or)
+	    HLL_EXPORT(NV_scne, Array_NV_scne),
+	    HLL_EXPORT(NV_sclo, Array_NV_sclo),
+	    HLL_EXPORT(NV_schi, Array_NV_schi),
+	    HLL_EXPORT(NV_scra, Array_NV_scra),
+	    HLL_EXPORT(SV_sceq, Array_SV_sceq),
+	    HLL_EXPORT(SV_scne, Array_SV_scne),
+	    HLL_EXPORT(SV_sclo, Array_SV_sclo),
+	    HLL_EXPORT(SV_schi, Array_SV_schi),
+	    HLL_EXPORT(SV_scra, Array_SV_scra),
+	    HLL_EXPORT(NN_sclowest, Array_NN_sclowest),
+	    HLL_EXPORT(NN_schighest, Array_NN_schighest),
+	    HLL_EXPORT(NS_sclowest, Array_NS_sclowest),
+	    HLL_EXPORT(NS_schighest, Array_NS_schighest),
+	    HLL_EXPORT(SN_sclowest, Array_SN_sclowest),
+	    HLL_EXPORT(SN_schighest, Array_SN_schighest),
+	    HLL_EXPORT(SS_sclowest, Array_SS_sclowest),
+	    HLL_EXPORT(SS_schighest, Array_SS_schighest),
+	    HLL_EXPORT(VN_add, Array_VN_add),
+	    HLL_EXPORT(VN_and, Array_VN_and),
+	    HLL_EXPORT(VN_or, Array_VN_or),
+	    HLL_EXPORT(VS_add, Array_VS_add),
+	    HLL_EXPORT(VS_and, Array_VS_and),
+	    HLL_EXPORT(VS_or, Array_VS_or)
 	    );
