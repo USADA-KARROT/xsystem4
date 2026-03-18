@@ -23,7 +23,10 @@
  * so the game sees an empty script and skips ADV processing.
  */
 
-HLL_WARN_UNIMPLEMENTED( , void, ADVEngine, GetFunctionList, int page, int var);
+static void ADVEngine_GetFunctionList(int page, int var)
+{
+	/* ADV function list not available in stub implementation */
+}
 HLL_QUIET_UNIMPLEMENTED(1, int,  ADVEngine, Load, int id, struct string *filename);
 HLL_QUIET_UNIMPLEMENTED(1, int,  ADVEngine, LoadByFile, int id, struct string *filename);
 HLL_QUIET_UNIMPLEMENTED(1, int,  ADVEngine, LoadByText, int id, struct string *text);

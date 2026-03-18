@@ -70,7 +70,11 @@ static void SystemService_GetGameName(struct string **game_name)
 	*game_name = cstr_to_string(config.game_name);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, AddURLMenu, struct string *title, struct string *url);
+static bool SystemService_AddURLMenu(struct string *title, struct string *url)
+{
+	/* URL menu not applicable on macOS — silently ignore */
+	return true;
+}
 
 static bool SystemService_IsFullScreen(void)
 {
@@ -87,7 +91,11 @@ static bool SystemService_ChangeFullScreen(void)
 	return gfx_set_fullscreen(true);
 }
 
-HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, InitMainWindowPosAndSize);
+static bool SystemService_InitMainWindowPosAndSize(void)
+{
+	/* window position managed by SDL/window manager */
+	return true;
+}
 
 // From parts — avoid full include of parts_internal.h
 extern void parts_render_update(int passed_time);
@@ -146,7 +154,11 @@ static bool SystemService_SetHideMouseCursorByGame(bool hide)
 }
 
 //bool SystemService_GetHideMouseCursorByGame(void);
-HLL_WARN_UNIMPLEMENTED(false, bool, SystemService, SetUsePower2Texture, bool use);
+static bool SystemService_SetUsePower2Texture(bool use)
+{
+	/* modern GPUs support NPOT textures — no-op */
+	return true;
+}
 //bool SystemService_GetUsePower2Texture(void);
 
 enum window_settings_asect_ratio {

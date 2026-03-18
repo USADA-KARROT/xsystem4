@@ -40,8 +40,10 @@ static bool CrayfishLogViewer_IsOpenedViewer(void)
 	return is_opened;
 }
 
-HLL_WARN_UNIMPLEMENTED( , void, CrayfishLogViewer, SetWindowTitleName,
-			possibly_unused struct string *window_title_name);
+static void CrayfishLogViewer_SetWindowTitleName(struct string *window_title_name)
+{
+	/* log viewer window not applicable */
+}
 
 static bool CrayfishLogViewer_AddText(struct string *text)
 {
