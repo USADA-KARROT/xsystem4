@@ -16,9 +16,11 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "system4.h"
 #include "system4/string.h"
 #include "hll.h"
+#include "xsystem4.h"
 #include "MsgLogManager.h"
 
 static size_t msg_log_size = 0;
@@ -106,8 +108,90 @@ static int MsgLogManager_GetInterface(void)
 	return 0;
 }
 
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Save, struct string *filename);
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Load, struct string *filename);
+/*
+ * Binary format: "MLG1" + count(u32) + entries[count]
+ * Entry: data_type(u8) + type(i32) + value(i32 or u32+bytes)
+ */
+static int MsgLogManager_Save(struct string *filename)
+{
+	char *path = unix_path(filename->text);
+	FILE *f = fopen(path, "wb");
+	free(path);
+	if (!f) return 0;
+
+	fwrite("MLG1", 4, 1, f);
+	uint32_t count = msg_log_i;
+	fwrite(&count, 4, 1, f);
+	for (size_t i = 0; i < msg_log_i; i++) {
+		uint8_t dt = msg_log[i].data_type;
+		fwrite(&dt, 1, 1, f);
+		int32_t type = msg_log[i].type;
+		fwrite(&type, 4, 1, f);
+		if (dt == MSG_LOG_INT) {
+			int32_t val = msg_log[i].i;
+			fwrite(&val, 4, 1, f);
+		} else {
+			const char *text = msg_log[i].s ? msg_log[i].s->text : "";
+			uint32_t len = strlen(text);
+			fwrite(&len, 4, 1, f);
+			fwrite(text, len, 1, f);
+		}
+	}
+	fclose(f);
+	return 1;
+}
+
+static int MsgLogManager_Load(struct string *filename)
+{
+	char *path = unix_path(filename->text);
+	FILE *f = fopen(path, "rb");
+	free(path);
+	if (!f) return 0;
+
+	char magic[4];
+	if (fread(magic, 4, 1, f) != 1 || memcmp(magic, "MLG1", 4)) {
+		fclose(f);
+		return 0;
+	}
+
+	uint32_t count;
+	if (fread(&count, 4, 1, f) != 1) { fclose(f); return 0; }
+
+	/* clear existing log */
+	for (size_t i = 0; i < msg_log_i; i++) {
+		if (msg_log[i].data_type == MSG_LOG_STRING && msg_log[i].s)
+			free_string(msg_log[i].s);
+	}
+	msg_log_i = 0;
+
+	for (uint32_t i = 0; i < count; i++) {
+		uint8_t dt;
+		int32_t type;
+		if (fread(&dt, 1, 1, f) != 1) break;
+		if (fread(&type, 4, 1, f) != 1) break;
+
+		msg_log_alloc();
+		msg_log[msg_log_i].data_type = dt;
+		msg_log[msg_log_i].type = type;
+
+		if (dt == MSG_LOG_INT) {
+			int32_t val;
+			if (fread(&val, 4, 1, f) != 1) break;
+			msg_log[msg_log_i].i = val;
+		} else {
+			uint32_t len;
+			if (fread(&len, 4, 1, f) != 1) break;
+			char *buf = xmalloc(len + 1);
+			if (len > 0 && fread(buf, len, 1, f) != 1) { free(buf); break; }
+			buf[len] = '\0';
+			msg_log[msg_log_i].s = cstr_to_string(buf);
+			free(buf);
+		}
+		msg_log_i++;
+	}
+	fclose(f);
+	return 1;
+}
 
 HLL_LIBRARY(MsgLogManager,
 	    HLL_EXPORT(Numof, MsgLogManager_Numof),
