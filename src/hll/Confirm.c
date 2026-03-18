@@ -16,8 +16,8 @@
 
 #include "hll.h"
 
-HLL_WARN_UNIMPLEMENTED( , void, Confirm, Init, void *imainsystem);
-HLL_WARN_UNIMPLEMENTED(1, int,  Confirm, ExistKeyFile, struct string *filename, int keynum);
+static void Confirm_Init(void *imainsystem) { }
+static int Confirm_ExistKeyFile(struct string *filename, int keynum) { return 1; }
 //int Confirm_CheckProtectFile(struct string *filename, int keynum);
 //int Confirm_CreateKeyFile(struct string *filename, int keynum);
 

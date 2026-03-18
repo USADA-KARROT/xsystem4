@@ -20,7 +20,7 @@
 
 extern bool key_state[];
 
-HLL_WARN_UNIMPLEMENTED(1, int,  AliceLogo5, Init, void *imainsystem);
+static int AliceLogo5_Init(void *imainsystem) { return 1; }
 
 static void AliceLogo5_Run(int type, int loop_flag)
 {

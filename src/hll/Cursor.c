@@ -19,7 +19,11 @@
 
 #define TT3_CURSOR_TRANSPARENT 11
 
-HLL_WARN_UNIMPLEMENTED(1, int, Cursor, Load, int nNum, int nLinkNum);
+static int Cursor_Load(int nNum, int nLinkNum)
+{
+	/* custom cursor loading not supported — use system cursor */
+	return 1;
+}
 
 static void Cursor_Set(int num)
 {
