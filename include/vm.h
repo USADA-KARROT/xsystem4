@@ -160,6 +160,7 @@ struct function_call {
 	int32_t env_page;       // v14: closure environment (enclosing function's local page)
 	bool is_method;         // v14: struct_page left on stack below base_sp
 	bool is_delegate_call;  // called via delegate: skip return-value stack adjustment
+	int32_t dg_return_slots; // delegate-call: expected return slots (from delegate type)
 };
 
 extern struct function_call call_stack[4096];

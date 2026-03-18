@@ -23,6 +23,7 @@
 #include <malloc.h>
 #endif
 
+#include "system4/ain.h"
 #include "hll.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -31,6 +32,8 @@
 // v14: hll_arg3 from CALLHLL encodes element type info for Array operations.
 // Set by ffi.c before each HLL call. High bits indicate reference-counted elements.
 int hll_current_arg3 = -1;
+// Set by ffi.c for 2-slot HLL_PARAM: stores the second slot value.
+int hll_param_slot2 = 0;
 
 // v14: heap slot of the first AIN_REF_ARRAY argument (typically 'self').
 // Set by ffi.c during argument processing so HLL functions can construct
@@ -44,12 +47,11 @@ static inline bool array_elem_is_ref(void) {
 	return hll_current_arg3 >= 0x10000 || hll_current_arg3 == 2;
 }
 
-static void check_array(struct page *array)
-{
-	if (!array || array->type != ARRAY_PAGE)
-		return;  // silently accept invalid arrays in v14
+// Check if current Array HLL call operates on 2-slot elements (wrap, option, iface, etc.)
+static inline bool array_elem_is_2slot(void) {
+	int etype = hll_current_arg3 & 0xFFFF;
+	return etype == AIN_IFACE || etype == AIN_OPTION || etype == AIN_IFACE_WRAP;
 }
-
 
 // Alloc: allocate an array of given size.
 // For struct/wrap elements (hll_arg3 == 2), preserves struct_type metadata
@@ -87,7 +89,9 @@ static void Array_PushBack(struct page **array, int value)
 		return;
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
-	int new_size = old_size + 1;
+	bool is_2slot = array_elem_is_2slot();
+	int slots = is_2slot ? 2 : 1;
+	int new_size = old_size + slots;
 
 	if (a) {
 		// Try to grow in-place if malloc has extra room
@@ -100,6 +104,8 @@ static void Array_PushBack(struct page **array, int value)
 		if (needed <= actual) {
 			a->nr_vars = new_size;
 			a->values[old_size].i = value;
+			if (is_2slot)
+				a->values[old_size + 1].i = hll_param_slot2;
 			if (array_elem_is_ref() && value > 0)
 				heap_ref(value);
 			return;
@@ -110,12 +116,16 @@ static void Array_PushBack(struct page **array, int value)
 		a = xrealloc(a, sizeof(struct page) + sizeof(union vm_value) * grow_to);
 		a->nr_vars = new_size;
 		a->values[old_size].i = value;
+		if (is_2slot)
+			a->values[old_size + 1].i = hll_param_slot2;
 		if (array_elem_is_ref() && value > 0)
 			heap_ref(value);
 		*array = a;
 	} else {
 		struct page *new_a = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
 		new_a->values[0].i = value;
+		if (is_2slot)
+			new_a->values[1].i = hll_param_slot2;
 		if (array_elem_is_ref() && value > 0)
 			heap_ref(value);
 		*array = new_a;

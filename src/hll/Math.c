@@ -181,6 +181,11 @@ static int Math_Floor(float f)
 	return (int)floorf(f);
 }
 
+static int Math_Round(float f)
+{
+	return (int)roundf(f);
+}
+
 static bool Math_BezierCurve(struct page **x_array, struct page **y_array, int num, float t, int *result_x, int *result_y)
 {
 	vec2 *coeffs = xmalloc(num * sizeof(vec2));
@@ -230,6 +235,7 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Log10, log10f),
 	    HLL_EXPORT(Ceil, Math_Ceil),
 	    HLL_EXPORT(Floor, Math_Floor),
+	    HLL_EXPORT(Round, Math_Round),
 	    HLL_EXPORT(BezierCurve, Math_BezierCurve),
 	    HLL_EXPORT(Clamp, Math_Clamp),
 	    HLL_EXPORT(ClampF, Math_ClampF));

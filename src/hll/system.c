@@ -346,15 +346,46 @@ static bool system_DeleteSaveFile(struct string *fileName)
 // [19] CopySaveFile
 static bool system_CopySaveFile(struct string *dest, struct string *src)
 {
-	WARNING("system.CopySaveFile('%s', '%s') stub", dest->text, src->text);
-	return true;
+	char *src_path = savedir_path(src->text);
+	char *dest_path = savedir_path(dest->text);
+	bool ok = false;
+
+	FILE *fin = fopen(src_path, "rb");
+	if (!fin) {
+		WARNING("system.CopySaveFile: cannot open source '%s': %s", src->text, strerror(errno));
+		goto cleanup;
+	}
+	FILE *fout = fopen(dest_path, "wb");
+	if (!fout) {
+		WARNING("system.CopySaveFile: cannot open dest '%s': %s", dest->text, strerror(errno));
+		fclose(fin);
+		goto cleanup;
+	}
+
+	char buf[8192];
+	size_t n;
+	while ((n = fread(buf, 1, sizeof(buf), fin)) > 0) {
+		if (fwrite(buf, 1, n, fout) != n) {
+			WARNING("system.CopySaveFile: write error");
+			fclose(fin);
+			fclose(fout);
+			goto cleanup;
+		}
+	}
+	fclose(fin);
+	fclose(fout);
+	ok = true;
+
+cleanup:
+	free(src_path);
+	free(dest_path);
+	return ok;
 }
 
-// [20] BackupSaveFile
+// [20] BackupSaveFile — same as CopySaveFile
 static bool system_BackupSaveFile(struct string *dest, struct string *src)
 {
-	WARNING("system.BackupSaveFile('%s', '%s') stub", dest->text, src->text);
-	return true;
+	return system_CopySaveFile(dest, src);
 }
 
 // [21] Sleep(milliSecond) -> void
@@ -411,7 +442,19 @@ static struct string *system_Error(struct string *text)
 // [27] OpenWeb(url) -> void
 static void system_OpenWeb(struct string *url)
 {
-	WARNING("system.OpenWeb('%s') stub", url->text);
+#ifdef __APPLE__
+	char cmd[2048];
+	snprintf(cmd, sizeof(cmd), "open '%s'", url->text);
+	system(cmd);
+#elif defined(_WIN32)
+	char cmd[2048];
+	snprintf(cmd, sizeof(cmd), "start \"\" \"%s\"", url->text);
+	system(cmd);
+#else
+	char cmd[2048];
+	snprintf(cmd, sizeof(cmd), "xdg-open '%s'", url->text);
+	system(cmd);
+#endif
 }
 
 // [28] GetSaveFolderName() -> string

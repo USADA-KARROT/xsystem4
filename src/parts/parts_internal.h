@@ -61,9 +61,20 @@ union parts_motion_param {
 	};
 };
 
+enum parts_motion_curve {
+	PARTS_MOTION_CURVE_LINEAR = 0,
+	PARTS_MOTION_CURVE_EASE_IN,
+	PARTS_MOTION_CURVE_EASE_OUT,
+	PARTS_MOTION_CURVE_EASE_IN_OUT,
+	PARTS_MOTION_CURVE_CUBIC_IN,
+	PARTS_MOTION_CURVE_CUBIC_OUT,
+	PARTS_MOTION_CURVE_CUBIC_IN_OUT,
+};
+
 struct parts_motion {
 	TAILQ_ENTRY(parts_motion) entry;
 	enum parts_motion_type type;
+	enum parts_motion_curve curve;
 	union parts_motion_param begin;
 	union parts_motion_param end;
 	int begin_time;

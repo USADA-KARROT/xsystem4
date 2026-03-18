@@ -664,7 +664,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 		case AIN_HLL_PARAM: {
 			// v14: generic element parameter (type 74). The actual element
-			// type is encoded in hll_arg3. For 2-slot types (interface,
+			// type is encoded in hll_arg3. For 2-slot types (wrap, interface,
 			// option), bytecode pushes 2 values but AIN declares 1 param.
 			int etype = hll_current_arg3 & 0xFFFF;
 			bool is_2slot = (etype == 3 || etype == 5 ||
@@ -672,12 +672,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 				etype == AIN_IFACE_WRAP);
 			if (is_2slot) {
 				stack_ptr -= 2;
-				int slot = stack[stack_ptr].i;
-				if (slot > 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE)
-					heap_ptrs[i] = heap[slot].page;
-				else
-					heap_ptrs[i] = (void*)(intptr_t)slot;
-				args[i] = &heap_ptrs[i];
+				extern int hll_param_slot2;
+				heap_slots[i] = stack[stack_ptr].i;
+				hll_param_slot2 = stack[stack_ptr+1].i;
+				args[i] = &heap_slots[i];
 			} else {
 				stack_ptr--;
 				args[i] = &stack[stack_ptr];

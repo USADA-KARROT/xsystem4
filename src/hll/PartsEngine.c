@@ -956,7 +956,7 @@ static struct {
 	int count;
 	int active;
 	int next_id;
-} controllers = { .ids = {0}, .count = 1, .active = 0, .next_id = 1 };
+} controllers = { .ids = {0}, .count = 0, .active = 0, .next_id = 0 };
 
 static int PartsEngine_AddController(int index)
 {
@@ -969,9 +969,6 @@ static int PartsEngine_AddController(int index)
 		controllers.ids[i] = controllers.ids[i-1];
 	controllers.ids[index] = id;
 	controllers.count++;
-	/* Auto-activate: the newly added controller becomes active so that
-	   subsequent event registrations (GetActiveController) pick it up. */
-	controllers.active = id;
 	return id;
 }
 
@@ -1593,8 +1590,6 @@ static void PartsEngine_UpdateComponent(int passed_time, int scaled_time,
 		bool message_window_show, float mul_color_rate, float alpha_rate)
 {
 	if (in_update) {
-		// Reentrant call (e.g. from WaitForClick loop via sprite plugin).
-		// Must still process input + render so clicks are detected.
 		handle_events();
 		PE_UpdateComponent(passed_time);
 		parts_update_animation(passed_time);
@@ -1706,11 +1701,14 @@ static int PartsEngine_GetMessageType(void)
 // So: if msg_current.type >= 0, read from msg_current; else peek queue head.
 static int PartsEngine_GetMessagePartsNumber(void)
 {
+	int result;
 	if (msg_current.type >= 0)
-		return msg_current.parts_no;
-	if (msg_head != msg_tail)
-		return msg_queue[msg_head].parts_no;
-	return 0;
+		result = msg_current.parts_no;
+	else if (msg_head != msg_tail)
+		result = msg_queue[msg_head].parts_no;
+	else
+		result = 0;
+	return result;
 }
 static int PartsEngine_GetMessageDelegateIndex(void)
 {
@@ -1725,11 +1723,14 @@ static int PartsEngine_GetMessageDelegateIndex(void)
 }
 static int PartsEngine_GetMessageUniqueID(void)
 {
+	int result;
 	if (msg_current.type >= 0)
-		return msg_current.unique_id;
-	if (msg_head != msg_tail)
-		return msg_queue[msg_head].unique_id;
-	return 0;
+		result = msg_current.unique_id;
+	else if (msg_head != msg_tail)
+		result = msg_queue[msg_head].unique_id;
+	else
+		result = 0;
+	return result;
 }
 
 static bool PartsEngine_SeekMessage(int target_parts_no)
@@ -2331,6 +2332,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_GetPartsUpperLeftPosY, PE_GetPartsUpperLeftPosY),
 	    HLL_EXPORT(Parts_GetPartsWidth, PE_GetPartsWidth),
 	    HLL_EXPORT(Parts_GetPartsHeight, PE_GetPartsHeight),
+	    HLL_EXPORT(Parts_GetPartsSize, PE_GetPartsSize),
 	    HLL_EXPORT(Parts_SetInputState, PE_SetInputState),
 	    HLL_EXPORT(Parts_GetInputState, PE_GetInputState),
 	    HLL_EXPORT(Parts_SetPartsOriginPosMode, PE_SetPartsOriginPosMode),

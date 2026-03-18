@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "system4.h"
 #include "system4/string.h"
 
@@ -28,6 +30,64 @@
 static inline float deg2rad(float deg)
 {
 	return deg * (M_PI / 180.0);
+}
+
+static enum parts_motion_curve parse_curve_name(struct string *name)
+{
+	if (!name || !name->size || !name->text[0])
+		return PARTS_MOTION_CURVE_LINEAR;
+	const char *s = name->text;
+	if (!strcmp(s, "linear"))
+		return PARTS_MOTION_CURVE_LINEAR;
+	if (!strcmp(s, "ease_in") || !strcmp(s, "easeIn"))
+		return PARTS_MOTION_CURVE_EASE_IN;
+	if (!strcmp(s, "ease_out") || !strcmp(s, "easeOut"))
+		return PARTS_MOTION_CURVE_EASE_OUT;
+	if (!strcmp(s, "ease_in_out") || !strcmp(s, "easeInOut"))
+		return PARTS_MOTION_CURVE_EASE_IN_OUT;
+	if (!strcmp(s, "cubic_in") || !strcmp(s, "cubicIn"))
+		return PARTS_MOTION_CURVE_CUBIC_IN;
+	if (!strcmp(s, "cubic_out") || !strcmp(s, "cubicOut"))
+		return PARTS_MOTION_CURVE_CUBIC_OUT;
+	if (!strcmp(s, "cubic_in_out") || !strcmp(s, "cubicInOut"))
+		return PARTS_MOTION_CURVE_CUBIC_IN_OUT;
+	static bool warned = false;
+	if (!warned) {
+		WARNING("Unknown motion curve '%s', using linear", s);
+		warned = true;
+	}
+	return PARTS_MOTION_CURVE_LINEAR;
+}
+
+static float apply_curve(enum parts_motion_curve curve, float t)
+{
+	switch (curve) {
+	case PARTS_MOTION_CURVE_LINEAR:
+		return t;
+	case PARTS_MOTION_CURVE_EASE_IN:
+		return t * t;
+	case PARTS_MOTION_CURVE_EASE_OUT:
+		return t * (2.0f - t);
+	case PARTS_MOTION_CURVE_EASE_IN_OUT:
+		if (t < 0.5f)
+			return 2.0f * t * t;
+		return -1.0f + (4.0f - 2.0f * t) * t;
+	case PARTS_MOTION_CURVE_CUBIC_IN:
+		return t * t * t;
+	case PARTS_MOTION_CURVE_CUBIC_OUT: {
+		float u = 1.0f - t;
+		return 1.0f - u * u * u;
+	}
+	case PARTS_MOTION_CURVE_CUBIC_IN_OUT:
+		if (t < 0.5f)
+			return 4.0f * t * t * t;
+		{
+			float u = 2.0f * t - 2.0f;
+			return 0.5f * u * u * u + 1.0f;
+		}
+	default:
+		return t;
+	}
 }
 
 static TAILQ_HEAD(sound_motion_list, sound_motion) sound_motion_list =
@@ -94,7 +154,8 @@ void parts_add_motion(struct parts *parts, struct parts_motion *motion)
 
 static inline float motion_progress(struct parts_motion *m, int t)
 {
-	return (float)(t - m->begin_time) / (m->end_time - m->begin_time);
+	float p = (float)(t - m->begin_time) / (m->end_time - m->begin_time);
+	return apply_curve(m->curve, p);
 }
 
 static int motion_calculate_i(struct parts_motion *m, int t)
@@ -291,8 +352,14 @@ void PE_AddMotionPos(int parts_no, int begin_x, int begin_y, int end_x, int end_
 void PE_AddMotionPos_curve(int parts_no, int begin_x, int begin_y, int end_x, int end_y,
 		int begin_t, int end_t, struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionPos(parts_no, begin_x, begin_y, end_x, end_y, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_POS, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.x = begin_x;
+	motion->begin.y = begin_y;
+	motion->end.x = end_x;
+	motion->end.y = end_y;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int end_t)
@@ -310,8 +377,12 @@ void PE_AddMotionAlpha(int parts_no, int begin_a, int end_a, int begin_t, int en
 void PE_AddMotionAlpha_curve(int parts_no, int begin_a, int end_a, int begin_t, int end_t,
 		struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionAlpha(parts_no, begin_a, end_a, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ALPHA, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.i = begin_a;
+	motion->end.i = end_a;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionCG_by_index(int parts_no, int begin_cg_no, int nr_cg, int begin_t, int end_t)
@@ -337,9 +408,12 @@ void PE_AddMotionHGaugeRate_curve(int parts_no, float begin_numerator, float beg
 			    float end_numerator, float end_denominator, int begin_t, int end_t,
 			    struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionHGaugeRate(parts_no, begin_numerator, begin_denominator,
-			end_numerator, end_denominator, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_HGAUGE_RATE, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = begin_numerator / begin_denominator;
+	motion->end.f = end_numerator / end_denominator;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionVGaugeRate(int parts_no, float begin_numerator, float begin_denominator,
@@ -356,9 +430,12 @@ void PE_AddMotionVGaugeRate_curve(int parts_no, float begin_numerator, float beg
 			    float end_numerator, float end_denominator, int begin_t, int end_t,
 			    struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionVGaugeRate(parts_no, begin_numerator, begin_denominator,
-			end_numerator, end_denominator, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_VGAUGE_RATE, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = begin_numerator / begin_denominator;
+	motion->end.f = end_numerator / end_denominator;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionNumeralNumber(int parts_no, int begin_n, int end_n, int begin_t, int end_t)
@@ -373,8 +450,12 @@ void PE_AddMotionNumeralNumber(int parts_no, int begin_n, int end_n, int begin_t
 void PE_AddMotionNumeralNumber_curve(int parts_no, int begin_n, int end_n, int begin_t,
 		int end_t, struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionNumeralNumber(parts_no, begin_n, end_n, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_NUMERAL_NUMBER, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.i = begin_n;
+	motion->end.i = end_n;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionMagX(int parts_no, float begin, float end, int begin_t, int end_t)
@@ -389,8 +470,12 @@ void PE_AddMotionMagX(int parts_no, float begin, float end, int begin_t, int end
 void PE_AddMotionMagX_curve(int parts_no, float begin, float end, int begin_t, int end_t,
 		struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionMagX(parts_no, begin, end, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_MAG_X, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = begin;
+	motion->end.f = end;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionMagY(int parts_no, float begin, float end, int begin_t, int end_t)
@@ -405,8 +490,12 @@ void PE_AddMotionMagY(int parts_no, float begin, float end, int begin_t, int end
 void PE_AddMotionMagY_curve(int parts_no, float begin, float end, int begin_t, int end_t,
 		struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionMagY(parts_no, begin, end, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_MAG_Y, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = begin;
+	motion->end.f = end;
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionRotateX(int parts_no, float begin, float end, int begin_t, int end_t)
@@ -421,8 +510,12 @@ void PE_AddMotionRotateX(int parts_no, float begin, float end, int begin_t, int 
 void PE_AddMotionRotateX_curve(int parts_no, float begin, float end, int begin_t, int end_t,
 		struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionRotateX(parts_no, begin, end, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ROTATE_X, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = deg2rad(begin);
+	motion->end.f = deg2rad(end);
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionRotateY(int parts_no, float begin, float end, int begin_t, int end_t)
@@ -437,8 +530,12 @@ void PE_AddMotionRotateY(int parts_no, float begin, float end, int begin_t, int 
 void PE_AddMotionRotateY_curve(int parts_no, float begin, float end, int begin_t, int end_t,
 		struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionRotateY(parts_no, begin, end, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ROTATE_Y, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = deg2rad(begin);
+	motion->end.f = deg2rad(end);
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionRotateZ(int parts_no, float begin, float end, int begin_t, int end_t)
@@ -453,8 +550,12 @@ void PE_AddMotionRotateZ(int parts_no, float begin, float end, int begin_t, int 
 void PE_AddMotionRotateZ_curve(int parts_no, float begin, float end, int begin_t, int end_t,
 		struct string *curve_name)
 {
-	// TODO: use curve
-	PE_AddMotionRotateZ(parts_no, begin, end, begin_t, end_t);
+	struct parts *parts = parts_get(parts_no);
+	struct parts_motion *motion = parts_motion_alloc(PARTS_MOTION_ROTATE_Z, begin_t, end_t);
+	motion->curve = parse_curve_name(curve_name);
+	motion->begin.f = deg2rad(begin);
+	motion->end.f = deg2rad(end);
+	parts_add_motion(parts, motion);
 }
 
 void PE_AddMotionVibrationSize(int parts_no, int begin_w, int begin_h, int begin_t, int end_t)

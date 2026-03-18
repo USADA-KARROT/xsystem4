@@ -77,11 +77,16 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 
 	// click event: only if the click down event had same parts number
 	if (prev_clicking && !cur_clicking && click_down_parts == parts->no) {
+		WARNING("CLICK parts=%d", parts->no);
 		if (parts->on_click_sound >= 0)
 			audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;
 		{
 			int vars[3] = { cur_pos.x, cur_pos.y, 1 }; // x, y, VK_LBUTTON
+			// Type 1 = ButtonClick (per-button delegate chain via func#23265)
+			// Type 4 = MouseClick (whole-mouse chain via func#23273)
+			// Per-part needs type 4 because the delegate_index is used
+			// by the mouse-click chain to dispatch to the correct handler.
 			parts_enqueue_message_vars(4, parts->no,
 				parts->delegate_index, parts->unique_id, 3, vars);
 		}

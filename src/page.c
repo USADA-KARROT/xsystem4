@@ -448,32 +448,13 @@ static void init_struct_slot(struct page *page, int idx, struct ain_variable *me
 int alloc_struct(int no)
 {
 	struct ain_struct *s = &ain->structures[no];
+	bool has_inheritance = (ain->version >= 14 && s->nr_members > 0 &&
+	    is_wrap_struct(&s->members[0]));
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	// Initialize all members.
-	// For wrap<struct> members, init_struct_slot allocates a separate
-	// inner struct page (this handles v14 inheritance automatically).
 	for (int i = 0; i < s->nr_members; i++) {
 		init_struct_slot(heap[slot].page, i, &s->members[i]);
-	}
-	// v14: populate <vtable> array (member 0) with virtual method table.
-	// Skip for inherited structs — their vtable is in the base class's page.
-	bool has_inheritance = (ain->version >= 14 && s->nr_members > 0 &&
-	    is_wrap_struct(&s->members[0]));
-	if (ain->version >= 14 && !has_inheritance && s->nr_vmethods > 0 && s->nr_members > 0) {
-		int vt_slot = heap[slot].page->values[0].i;
-		if (vt_slot <= 0 || !heap_index_valid(vt_slot)) {
-			vt_slot = heap_alloc_slot(VM_PAGE);
-			heap[slot].page->values[0].i = vt_slot;
-		}
-		union vm_value dim = { .i = s->nr_vmethods };
-		struct page *vt = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
-		for (int j = 0; j < s->nr_vmethods; j++) {
-			vt->values[j].i = s->vmethods[j];
-		}
-		if (heap[vt_slot].page)
-			free_page(heap[vt_slot].page);
-		heap_set_page(vt_slot, vt);
 	}
 	return slot;
 }

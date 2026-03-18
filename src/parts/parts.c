@@ -1731,6 +1731,18 @@ int PE_GetPartsHeight(int parts_no, int state)
 	return parts_get(parts_no)->states[state].common.h;
 }
 
+void PE_GetPartsSize(int parts_no, int state, int *width, int *height)
+{
+	if (!parts_state_valid(--state)) {
+		*width = 0;
+		*height = 0;
+		return;
+	}
+	struct parts *parts = parts_get(parts_no);
+	*width = parts->states[state].common.w;
+	*height = parts->states[state].common.h;
+}
+
 int PE_GetPartsUpperLeftPosX(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
