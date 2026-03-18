@@ -19,7 +19,10 @@
 #include "hll.h"
 #include "xsystem4.h"
 
-HLL_WARN_UNIMPLEMENTED( , void, StretchHelper, SetInternalResolution, int width, int height);
+static void StretchHelper_SetInternalResolution(int width, int height)
+{
+	/* hint only — we render at native resolution */
+}
 
 HLL_LIBRARY(StretchHelper,
 	    HLL_EXPORT(SetInternalResolution, StretchHelper_SetInternalResolution));

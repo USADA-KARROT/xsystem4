@@ -74,13 +74,40 @@ static void MsgLogManager_AddString(int type, struct string *str)
 	};
 }
 
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetType, int index);
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetInt, int index);
-HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, GetString, int index, struct string **str);
+static int MsgLogManager_GetType(int index)
+{
+	if (index < 0 || (size_t)index >= msg_log_i) return 0;
+	return msg_log[index].type;
+}
+
+static int MsgLogManager_GetInt(int index)
+{
+	if (index < 0 || (size_t)index >= msg_log_i) return 0;
+	if (msg_log[index].data_type != MSG_LOG_INT) return 0;
+	return msg_log[index].i;
+}
+
+static void MsgLogManager_GetString(int index, struct string **str)
+{
+	if (index < 0 || (size_t)index >= msg_log_i || !str) return;
+	if (msg_log[index].data_type == MSG_LOG_STRING && msg_log[index].s)
+		*str = string_ref(msg_log[index].s);
+	else
+		*str = string_ref(&EMPTY_STRING);
+}
+
+static void MsgLogManager_SetLineMax(int line_max)
+{
+	/* hint only — our circular buffer already handles overflow */
+}
+
+static int MsgLogManager_GetInterface(void)
+{
+	return 0;
+}
+
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Save, struct string *filename);
 HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, Load, struct string *filename);
-HLL_WARN_UNIMPLEMENTED( , void, MsgLogManager, SetLineMax, int line_max);
-HLL_WARN_UNIMPLEMENTED(0, int,  MsgLogManager, GetInterface, void);
 
 HLL_LIBRARY(MsgLogManager,
 	    HLL_EXPORT(Numof, MsgLogManager_Numof),

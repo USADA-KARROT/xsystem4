@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include "vm.h"
+#include "vm/heap.h"
 #include "vm/page.h"
 #include "system4/string.h"
 #include "hll.h"
@@ -46,8 +47,6 @@ static void MsgLogViewer_Clear(void)
 	log_viewer_size = 0;
 	log_viewer_i = 0;
 }
-
-HLL_WARN_UNIMPLEMENTED( , void, MsgLogViewer, Add, struct page *log);
 
 static void MsgLogViewer_Get(int index, struct page **log)
 {
@@ -82,6 +81,15 @@ static void log_viewer_push(struct string *s, int voice, int separator)
 		.voice = voice,
 		.separator = separator
 	};
+}
+
+static void MsgLogViewer_Add(struct page *log)
+{
+	if (!log || log->nr_vars < 1) return;
+	struct string *text = heap_get_string(log->values[0].i);
+	int voice = log->nr_vars > 1 ? log->values[1].i : 0;
+	int separator = log->nr_vars > 2 ? log->values[2].i : 0;
+	log_viewer_push(text ? text : &EMPTY_STRING, voice, separator);
 }
 
 int MsgLogManager_Numof(void);
