@@ -1223,6 +1223,188 @@ static void Array_Reverse(struct page **array)
 	array_reverse(*array);
 }
 
+/* Duplicate: copy array elements.
+ * AIN: Duplicate(ref array, ref array_src) — copy src into dst */
+static void Array_Duplicate(struct page **dst, struct page **src)
+{
+	if (!dst || !src || !*src)
+		return;
+	struct page *s = *src;
+	if (*dst) {
+		delete_page_vars(*dst);
+		free_page(*dst);
+	}
+	struct page *new_a = alloc_page(ARRAY_PAGE, s->a_type, s->nr_vars);
+	new_a->array = s->array;
+	for (int i = 0; i < s->nr_vars; i++) {
+		new_a->values[i] = s->values[i];
+		if (array_elem_is_ref() && s->values[i].i > 0)
+			heap_ref(s->values[i].i);
+	}
+	*dst = new_a;
+}
+
+/* All: return true if all elements pass predicate */
+static bool Array_All(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0)
+		return true;
+	if (func < 0 || func >= ain->nr_functions)
+		return false;
+	struct ain_function *cb = &ain->functions[func];
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+		if (cb->nr_args >= 2) {
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+		vm_call_nopop(func, cb->nr_args);
+		int result = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (!result)
+			return false;
+	}
+	return true;
+}
+
+static int qsort_int_asc(const void *a, const void *b)
+{
+	int ia = ((const union vm_value *)a)->i;
+	int ib = ((const union vm_value *)b)->i;
+	return (ia > ib) - (ia < ib);
+}
+
+static int qsort_int_desc(const void *a, const void *b)
+{
+	int ia = ((const union vm_value *)a)->i;
+	int ib = ((const union vm_value *)b)->i;
+	return (ib > ia) - (ib < ia);
+}
+
+/* AscSort: sort array ascending */
+static void Array_AscSort(struct page **array)
+{
+	if (!array || !*array || (*array)->nr_vars <= 1)
+		return;
+	struct page *a = *array;
+	qsort(a->values, a->nr_vars, sizeof(union vm_value), qsort_int_asc);
+}
+
+/* DescSort: sort array descending */
+static void Array_DescSort(struct page **array)
+{
+	if (!array || !*array || (*array)->nr_vars <= 1)
+		return;
+	struct page *a = *array;
+	qsort(a->values, a->nr_vars, sizeof(union vm_value), qsort_int_desc);
+}
+
+/* FindLast: find last element matching value or predicate */
+static int Array_FindLast(struct page **array, int value)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0)
+		return -1;
+	for (int i = src->nr_vars - 1; i >= 0; i--) {
+		if (src->values[i].i == value)
+			return i;
+	}
+	return -1;
+}
+
+/* Min: find minimum element */
+static int Array_Min(struct page **array)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0)
+		return 0;
+	int min_val = src->values[0].i;
+	for (int i = 1; i < src->nr_vars; i++) {
+		if (src->values[i].i < min_val)
+			min_val = src->values[i].i;
+	}
+	return min_val;
+}
+
+/* Remain: keep elements matching predicate (opposite of EraseAll) */
+static void Array_Remain(struct page **array, int func)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
+		return;
+	struct ain_function *cb = &ain->functions[func];
+	int *keep = malloc(src->nr_vars * sizeof(int));
+	int keep_count = 0;
+	for (int i = 0; i < src->nr_vars; i++) {
+		int saved_sp = stack_ptr;
+		if (cb->nr_args >= 2) {
+			stack_push(src->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(src->values[i]);
+		}
+		vm_call_nopop(func, cb->nr_args);
+		int result = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (result)
+			keep[keep_count++] = i;
+	}
+	if (keep_count < src->nr_vars) {
+		struct page *new_a = alloc_page(ARRAY_PAGE, src->a_type, keep_count);
+		new_a->array = src->array;
+		for (int i = 0; i < keep_count; i++) {
+			new_a->values[i] = src->values[keep[i]];
+			if (array_elem_is_ref() && new_a->values[i].i > 0)
+				heap_ref(new_a->values[i].i);
+		}
+		delete_page_vars(src);
+		free_page(src);
+		*array = new_a;
+	}
+	free(keep);
+}
+
+/* UniqueSorted: remove consecutive duplicates */
+static void Array_UniqueSorted(struct page **array)
+{
+	Array_Unique(array);
+}
+
+/* UpperBound: find first element > value in sorted array */
+static int Array_UpperBound(struct page **array, int value)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	if (!src || src->nr_vars == 0)
+		return 0;
+	int lo = 0, hi = src->nr_vars;
+	while (lo < hi) {
+		int mid = (lo + hi) / 2;
+		if (src->values[mid].i <= value)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return lo;
+}
+
+/* Equals: check if two arrays are equal */
+static bool Array_Equals(struct page **a, struct page **b)
+{
+	struct page *pa = (a && *a) ? *a : NULL;
+	struct page *pb = (b && *b) ? *b : NULL;
+	if (!pa && !pb) return true;
+	if (!pa || !pb) return false;
+	if (pa->nr_vars != pb->nr_vars) return false;
+	for (int i = 0; i < pa->nr_vars; i++) {
+		if (pa->values[i].i != pb->values[i].i)
+			return false;
+	}
+	return true;
+}
+
 HLL_LIBRARY(Array,
 	    HLL_EXPORT(Alloc, Array_Alloc),
 	    HLL_EXPORT(Free, Array_Free),
@@ -1452,6 +1634,16 @@ HLL_LIBRARY(Array,
 	    HLL_TODO_EXPORT(SS_folo, Array_SS_folo),
 	    HLL_TODO_EXPORT(SS_fohi, Array_SS_fohi),
 	    HLL_EXPORT(NV_sceq, Array_NV_sceq),
+	    HLL_EXPORT(Duplicate, Array_Duplicate),
+	    HLL_EXPORT(All, Array_All),
+	    HLL_EXPORT(AscSort, Array_AscSort),
+	    HLL_EXPORT(DescSort, Array_DescSort),
+	    HLL_EXPORT(FindLast, Array_FindLast),
+	    HLL_EXPORT(Min, Array_Min),
+	    HLL_EXPORT(Remain, Array_Remain),
+	    HLL_EXPORT(UniqueSorted, Array_UniqueSorted),
+	    HLL_EXPORT(UpperBound, Array_UpperBound),
+	    HLL_EXPORT(Equals, Array_Equals),
 	    HLL_TODO_EXPORT(NV_scne, Array_NV_scne),
 	    HLL_TODO_EXPORT(NV_sclo, Array_NV_sclo),
 	    HLL_TODO_EXPORT(NV_schi, Array_NV_schi),
