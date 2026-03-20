@@ -1397,6 +1397,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_PEEK: {// system.Peek(void)
 		handle_events();
+		scene_render();
 		gfx_swap();
 		break;
 	}
