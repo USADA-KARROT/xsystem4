@@ -553,12 +553,9 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	/* Apply visual properties (position, show, alpha, CG) from pactex tree */
 	pactex_apply_properties(node, parts_no);
 
-	/* Auto-clickable: leaf components with CG textures are clickable.
-	 * This compensates for the game's UserComponentManager not being
-	 * properly initialized (stack_pop_var OOB on GetUserComponentManager). */
-	if (p->component_type == 1 && p->states[0].common.texture.handle) {
-		p->clickable = true;
-	}
+	/* NOTE: auto-clickable hack removed — it marked ALL textured leaf parts as
+	 * clickable, blocking clicks on actual buttons underneath. Buttons are now
+	 * correctly marked clickable by the pactex ボタン (button) CG detection. */
 }
 
 // pactex_dump_components removed (Session 51)
@@ -901,12 +898,6 @@ static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string
 		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text))
 			return act->parts[i].number;
 	}
-
-	/* Not found trace */
-	static int gapn_miss = 0;
-	if (gapn_miss++ < 30)
-		WARNING("GetActivityPartsNumber('%s', '%s') -> NOT FOUND (nr_parts=%d)",
-			name->text, parts_name->text, act->nr_parts);
 
 	return -1;
 }
@@ -1673,7 +1664,6 @@ static void PartsEngine_PopMessage(void)
 
 static void PartsEngine_ReleaseMessage(void)
 {
-	// Advance queue head (consume the message the game just processed).
 	if (msg_head != msg_tail) {
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
 	}
@@ -1688,8 +1678,6 @@ static void PartsEngine_ReleaseMessage(void)
 // PopMessage() copies queue[head] → msg_current and advances head.
 static int PartsEngine_GetMessageType(void)
 {
-	// GetMessageType is a peek — it signals the start of a new message
-	// processing cycle. Clear msg_current so we peek at queue head.
 	msg_current.type = -1;
 	if (msg_head != msg_tail) {
 		return msg_queue[msg_head].type;
@@ -1829,10 +1817,7 @@ extern bool seal_engine_release_plugin_for_parts(int parts_no);
 
 static int PartsEngine_Parts_CreateParts3DLayerPluginID(int parts_no, int state)
 {
-	int plugin_id = seal_engine_create_plugin_for_parts(parts_no);
-	WARNING("Parts_CreateParts3DLayerPluginID(parts=%d, state=%d) -> plugin=%d",
-		parts_no, state, plugin_id);
-	return plugin_id;
+	return seal_engine_create_plugin_for_parts(parts_no);
 }
 
 static int PartsEngine_Parts_GetParts3DLayerPluginID(int parts_no, int state)

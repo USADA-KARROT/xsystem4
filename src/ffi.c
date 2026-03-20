@@ -305,30 +305,9 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 }
 #endif /* TRACE_HLL */
 
-/* Ring buffer of last HLL calls for crash diagnostics */
-#define HLL_RING_SIZE 8
-static struct { int libno; int fno; } hll_ring[HLL_RING_SIZE];
-static int hll_ring_idx = 0;
-
-void hll_dump_ring(void)
-{
-	WARNING("=== Last %d HLL calls ===", HLL_RING_SIZE);
-	for (int i = 0; i < HLL_RING_SIZE; i++) {
-		int idx = (hll_ring_idx - HLL_RING_SIZE + i + HLL_RING_SIZE * 2) % HLL_RING_SIZE;
-		int lib = hll_ring[idx].libno, fn = hll_ring[idx].fno;
-		if (lib >= 0 && lib < ain->nr_libraries && fn >= 0 && fn < ain->libraries[lib].nr_functions)
-			WARNING("  [%d] %s.%s", i, ain->libraries[lib].name, ain->libraries[lib].functions[fn].name);
-	}
-}
-
 void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
-
-	/* Record in ring buffer */
-	hll_ring[hll_ring_idx % HLL_RING_SIZE].libno = libno;
-	hll_ring[hll_ring_idx % HLL_RING_SIZE].fno = fno;
-	hll_ring_idx++;
 
 	if (!libraries[libno] || !libraries[libno][fno].fun) {
 		/* Rate-limited warning: first 3 per (lib,func), then every 1M */

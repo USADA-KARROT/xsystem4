@@ -84,19 +84,25 @@ void heap_init(void)
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
-	if (heap_free_ptr >= heap_size) {
-		heap_grow(heap_size+HEAP_ALLOC_STEP);
-	}
-
-	int32_t slot = heap_free_stack[heap_free_ptr++];
-	if (unlikely(slot <= 1)) {
-		WARNING("heap_alloc_slot: BUG! allocated reserved slot %d type=%d free_ptr=%zu", slot, type, heap_free_ptr);
+	int32_t slot;
+	for (;;) {
+		if (heap_free_ptr >= heap_size) {
+			heap_grow(heap_size+HEAP_ALLOC_STEP);
+		}
 		slot = heap_free_stack[heap_free_ptr++];
+		if (unlikely(slot <= 1))
+			continue;
+		// Skip slots that are still in use — the LIFO free stack may contain
+		// stale entries from heap_grow that were never consumed before the
+		// slot was allocated via a different path.
+		if (unlikely(heap[slot].ref > 0))
+			continue;
+		break;
 	}
 	heap[slot].ref = 1;
 	heap[slot].seq = heap_next_seq++;
 	heap[slot].type = type;
-	heap[slot].page = NULL;  // Clear stale pointer from previous allocation
+	heap[slot].page = NULL;
 #ifdef DEBUG_HEAP
 	heap[slot].alloc_addr = instr_ptr;
 	memset(heap[slot].ref_addr, 0, sizeof(heap[slot].ref_addr));
@@ -381,8 +387,12 @@ void heap_unref(int slot)
 			deferred_processing = true;
 			while (deferred_count > 0) {
 				int s = deferred_queue[--deferred_count];
-				if (heap[s].ref > 0)
+				// Skip if re-allocated (ref > 0) or already freed (ref < 0)
+				if (heap[s].ref != 0)
 					continue;
+				// Mark as freed-in-progress to prevent double-free from
+				// nested heap_unref calls during delete_page/destructor
+				heap[s].ref = -1;
 				switch (heap[s].type) {
 				case VM_PAGE:
 					if (heap[s].page) {
@@ -392,12 +402,13 @@ void heap_unref(int slot)
 				case VM_STRING:
 					if (heap[s].s) {
 						free_string(heap[s].s);
-						heap[s].s = NULL; // prevent dangling pointer
+						heap[s].s = NULL;
 					}
 					break;
 				default:
 					break;
 				}
+				heap[s].ref = 0;
 				heap_free_slot(s);
 			}
 			deferred_processing = false;
@@ -482,8 +493,7 @@ struct page *heap_get_page(int index)
 		// happen in closure environments and optional types — silently return NULL.
 		if ((size_t)index < heap_size && (heap[index].ref <= 0 || heap[index].type == VM_STRING))
 			return NULL;
-		static int page_warn_count = 0;
-		if (page_warn_count++ < 1) {
+		{
 			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
 			const char *fname = (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?";
 			if ((size_t)index < heap_size)
@@ -512,7 +522,6 @@ struct string *heap_get_string(int index)
 	return heap[index].s;
 }
 
-static int delegate_page_warn_count = 0;
 struct page *heap_get_delegate_page(int index)
 {
 	// v14: slot <=1 (guard/global) means null delegate (optional empty)
@@ -520,12 +529,6 @@ struct page *heap_get_delegate_page(int index)
 		return NULL;
 	struct page *page = heap_get_page(index);
 	if (unlikely(page && page->type != DELEGATE_PAGE)) {
-		if (delegate_page_warn_count++ < 1) {
-			int fno = call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1;
-			WARNING("heap_get_delegate_page: slot %d type=%d ip=0x%lX fno=%d '%s'",
-				index, page->type, (unsigned long)instr_ptr, fno,
-				(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?");
-		}
 		return NULL;
 	}
 	return page;

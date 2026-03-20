@@ -181,6 +181,9 @@ static size_t stack_size;     // current size of the stack
 // Stack of function call frames (v14 games use deeper call chains)
 struct function_call call_stack[4096];
 int32_t call_stack_ptr = 0;
+// Number of VM_RETURN frames on the call stack (excluding frame 0).
+// Used to quickly check if we're inside a vm_call without scanning.
+static int vm_call_depth = 0;
 
 struct ain *ain;
 
@@ -484,6 +487,7 @@ static void scenario_jump(int address)
 		heap_unref(call_stack[i].page_slot);
 	}
 	call_stack_ptr = 0;
+	vm_call_depth = 0;
 	instr_ptr = address;
 }
 
@@ -502,6 +506,7 @@ static void scenario_call(int slot)
 		.struct_page = -1,
 	};
 	call_stack_ptr = 1;
+	vm_call_depth = 0;
 	instr_ptr = ain->functions[fno].address;
 }
 
@@ -551,7 +556,13 @@ static int _function_call(int fno, int return_address)
 	}
 
 	int slot = heap_alloc_slot(VM_PAGE);
-	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
+	struct page *new_page = alloc_page(LOCAL_PAGE, fno, f->nr_vars);
+	if (!new_page) {
+		WARNING("_function_call: alloc_page returned NULL for fno=%d '%s' nr_vars=%d",
+			fno, f->name, f->nr_vars);
+		return -1;
+	}
+	heap_set_page(slot, new_page);
 	heap[slot].page->local.struct_ptr = -1;
 
 	call_stack[call_stack_ptr++] = (struct function_call) {
@@ -562,9 +573,17 @@ static int _function_call(int fno, int return_address)
 		.struct_page = -1,
 		.base_sp = stack_ptr,  // default; callers may override after args
 	};
+	if (return_address == VM_RETURN && call_stack_ptr > 1)
+		vm_call_depth++;
 	// initialize local variables
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
-		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
+		if (unlikely(f->vars[i].type.data < 0 || f->vars[i].type.data > 120)) {
+			WARNING("_function_call: bad var type data=%d for fno=%d '%s' var[%d]",
+				f->vars[i].type.data, fno, f->name, i);
+			break;
+		}
+		union vm_value initv = variable_initval(f->vars[i].type.data);
+		heap[slot].page->values[i] = initv;
 		if (ain->version <= 1 && f->vars[i].type.data == AIN_STRUCT) {
 			create_struct(f->vars[i].type.struc, &heap[slot].page->values[i]);
 		}
@@ -1167,6 +1186,8 @@ static void function_return(void)
 	// Decrement call_stack_ptr BEFORE heap_unref so that LIVE_PAGE_FREE
 	// protection can check all active frames (including what was the top).
 	// The current frame's page_slot is no longer "active" after return.
+	if (ret_addr == VM_RETURN && call_stack_ptr > 1)
+		vm_call_depth--;
 	call_stack_ptr--;
 	heap_unref(page_slot);
 	instr_ptr = ret_addr;
@@ -1790,11 +1811,9 @@ static enum opcode execute_instruction(enum opcode opcode)
 			int _retval = 0;
 			bool _has_ret = false;
 			if (strstr(ain->functions[_fno].name, "RunResult<SceneTitle")) {
-				WARNING("--skip-title: skipping %s (NewGame)", ain->functions[_fno].name);
 				_skip = true; _has_ret = true; _retval = 0; // 0 = NewGame
 			}
 			if (strstr(ain->functions[_fno].name, "Run<SceneLogo>")) {
-				WARNING("--skip-title: skipping %s (void)", ain->functions[_fno].name);
 				_skip = true; _has_ret = false;
 			}
 			if (_skip) {
@@ -1862,11 +1881,27 @@ static enum opcode execute_instruction(enum opcode opcode)
 				saved_args[i] = stack_pop();
 			}
 			int funcno = stack_pop().i;
+			// v14.1+: resolve vtable index through vmethods[].
+			// Interface dispatch (X_ICAST + ADD) produces a small vtable index.
+			// Direct method calls push actual function numbers (large).
+			// If funcno < nr_vmethods, it's a vtable index → resolve.
+			{
+				int sp_peek = stack_peek(0).i;
+				if (sp_peek > 0 && heap_index_valid(sp_peek)
+				    && heap[sp_peek].type == VM_PAGE && heap[sp_peek].page) {
+					int sidx = heap[sp_peek].page->index;
+					if (sidx >= 0 && sidx < ain->nr_structures) {
+						struct ain_struct *vs = &ain->structures[sidx];
+						if (vs->vmethods && funcno >= 0 && funcno < vs->nr_vmethods) {
+							funcno = vs->vmethods[funcno];
+						}
+					}
+				}
+			}
 			// Handle nargs vs function's nr_args mismatch
 			if (funcno >= 0 && funcno < ain->nr_functions) {
 				// Skip sentinel functions (address == code_size or 0xFFFFFFFF).
 				// These are invalid/stub entries that should never be called.
-				// funcno=0 ('NULL') commonly lands here from failed vtable lookups.
 				if (ain->functions[funcno].address >= ain->code_size
 				    || ain->functions[funcno].address == 0xFFFFFFFF) {
 					if (saved_args != small_args) free(saved_args);
@@ -1944,17 +1979,6 @@ static enum opcode execute_instruction(enum opcode opcode)
 				{
 					int sp_chk = stack_peek(0).i;
 					if (sp_chk < 0) {
-						static int null_call_total = 0;
-						null_call_total++;
-						int caller_fno = (call_stack_ptr > 0) ? call_stack[call_stack_ptr-1].fno : -1;
-						if (null_call_total <= 50) {
-							WARNING("CALLMETHOD null object[%d]: fno=%d sp=%d caller=%d '%s' → '%s'",
-								null_call_total, funcno, sp_chk,
-								caller_fno,
-								(caller_fno >= 0 && caller_fno < ain->nr_functions) ?
-									ain->functions[caller_fno].name : "?",
-								ain->functions[funcno].name ? ain->functions[funcno].name : "?");
-						}
 						if (saved_args != small_args) free(saved_args);
 						stack_pop(); // struct_page
 						instr_ptr += instruction_width(CALLMETHOD);
@@ -2087,8 +2111,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 			char *path = resume_load_path_pending;
 			resume_load_key_pending = NULL;
 			resume_load_path_pending = NULL;
-			WARNING("CALLHLL: executing deferred ResumeLoad('%s', '%s')", key, path);
-			vm_load_image(key, path);
+				vm_load_image(key, path);
 			free(key);
 			free(path);
 			// vm_load_image restored instr_ptr to the save point's CALLHLL addr.
@@ -2143,14 +2166,16 @@ static enum opcode execute_instruction(enum opcode opcode)
 		break;
 	}
 	case IFZ: { // ADDR
-		if (!stack_pop().i)
+		int ifz_val = stack_pop().i;
+		if (!ifz_val)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFZ);
 		break;
 	}
 	case IFNZ: { // ADDR
-		if (stack_pop().i)
+		int ifnz_val = stack_pop().i;
+		if (ifnz_val)
 			instr_ptr = get_argument(0);
 		else
 			instr_ptr += instruction_width(IFNZ);
@@ -3856,17 +3881,13 @@ static enum opcode execute_instruction(enum opcode opcode)
 	}
 	case X_GETENV: {
 		// X_GETENV: replace PUSHLOCALPAGE with parent environment page.
-		// Always preceded by PUSHLOCALPAGE; replaces that value with the
-		// enclosing function's captured environment.
-		// v14: use env_page (captured local page from DG_NEW_FROM_METHOD)
-		// if available; otherwise fall back to struct_page.
 		int env_result;
 		if (ain->version >= 14 && call_stack[call_stack_ptr-1].env_page > 0) {
 			env_result = call_stack[call_stack_ptr-1].env_page;
 		} else {
 			env_result = struct_page_slot();
 		}
-			stack[stack_ptr - 1].i = env_result;
+		stack[stack_ptr - 1].i = env_result;
 		break;
 	}
 	case X_SET: {
@@ -4096,25 +4117,16 @@ static void vm_execute(void)
 		insn_count++;
 		// Periodically render and process events (~every 256K instructions)
 		if (unlikely((insn_count & 0x3FFFF) == 0)) {
-			{
-					bool in_vm_call = false;
-				for (int ci = call_stack_ptr - 1; ci > 0; ci--) {
-					if (call_stack[ci].return_address == VM_RETURN) {
-						in_vm_call = true;
-						break;
-					}
-				}
-				if (!in_vm_call) {
+			if (vm_call_depth == 0) {
+				handle_events();
+				scene_render();
+				gfx_swap();
+			} else {
+				static uint32_t last_pump_ms = 0;
+				uint32_t now_ms = SDL_GetTicks();
+				if (now_ms - last_pump_ms >= 200) {
 					handle_events();
-					scene_render();
-					gfx_swap();
-				} else {
-					static uint32_t last_pump_ms = 0;
-					uint32_t now_ms = SDL_GetTicks();
-					if (now_ms - last_pump_ms >= 200) {
-						handle_events();
-						last_pump_ms = now_ms;
-					}
+					last_pump_ms = now_ms;
 				}
 			}
 			// vm_call timeout: bail out if destructor/constructor takes too long
@@ -4139,6 +4151,9 @@ static void vm_execute(void)
 					int target_sp = call_stack[vm_ret_frame].base_sp;
 					while (call_stack_ptr > vm_ret_frame) {
 						int ps = call_stack[call_stack_ptr-1].page_slot;
+						if (call_stack[call_stack_ptr-1].return_address == VM_RETURN
+								&& call_stack_ptr > 1)
+							vm_call_depth--;
 						call_stack_ptr--;
 						exit_unref(ps);
 					}
@@ -4148,7 +4163,7 @@ static void vm_execute(void)
 					continue;
 				}
 			}
-			}
+		}
 		opcode = execute_instruction(opcode);
 		instr_ptr += instructions[opcode].ip_inc;
 	}
@@ -4216,8 +4231,6 @@ static void sigabrt_handler(int sig)
 	in_signal_handler = 1;
 
 	WARNING("=== SIGNAL %d received ===", sig);
-	extern void hll_dump_ring(void);
-	hll_dump_ring();
 	if (call_stack_ptr > 0) {
 		int fno = call_stack[call_stack_ptr-1].fno;
 		WARNING("Current function: fno=%d '%s' ip=0x%lX sp=%d",
@@ -4269,6 +4282,7 @@ int vm_execute_ain(struct ain *program)
 	}
 	stack_ptr = 0;
 	call_stack_ptr = 0;
+	vm_call_depth = 0;
 
 	initialize_instructions(ain->version);
 

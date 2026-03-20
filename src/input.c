@@ -243,7 +243,6 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
-	WARNING("mouse_event: button=%d state=%d pos=(%d,%d)", e->button, e->state, e->x, e->y);
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code)
 		key_state[code] = e->state == SDL_PRESSED;

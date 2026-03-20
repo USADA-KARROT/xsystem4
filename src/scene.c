@@ -37,6 +37,42 @@ static TAILQ_HEAD(listhead, sprite) sprite_list = TAILQ_HEAD_INITIALIZER(sprite_
 
 static Texture wp = {0};
 
+static bool sprite_list_unsorted = false;
+
+static int sprite_z_compare(const void *a, const void *b)
+{
+	const struct sprite *sa = *(const struct sprite **)a;
+	const struct sprite *sb = *(const struct sprite **)b;
+	if (sa->z != sb->z)
+		return (sa->z < sb->z) ? -1 : 1;
+	if (sa->z2 != sb->z2)
+		return (sa->z2 < sb->z2) ? -1 : 1;
+	return 0;
+}
+
+static void sprite_list_ensure_sorted(void)
+{
+	if (!sprite_list_unsorted)
+		return;
+	sprite_list_unsorted = false;
+
+	int n = 0;
+	struct sprite *sp;
+	TAILQ_FOREACH(sp, &sprite_list, entry) n++;
+	if (n <= 1)
+		return;
+
+	struct sprite **arr = xmalloc(n * sizeof(*arr));
+	int i = 0;
+	TAILQ_FOREACH(sp, &sprite_list, entry) arr[i++] = sp;
+	qsort(arr, n, sizeof(*arr), sprite_z_compare);
+
+	TAILQ_INIT(&sprite_list);
+	for (i = 0; i < n; i++)
+		TAILQ_INSERT_TAIL(&sprite_list, arr[i], entry);
+	free(arr);
+}
+
 void scene_register_sprite(struct sprite *sp)
 {
 	if (sp->in_scene)
@@ -45,33 +81,10 @@ void scene_register_sprite(struct sprite *sp)
 	if (!sp->id)
 		sp->id = ++id_counter;
 
-	// Fast path: if list is empty or last element sorts before us, append
-	struct sprite *last = TAILQ_LAST(&sprite_list, listhead);
-	if (!last || last->z < sp->z || (last->z == sp->z && last->z2 <= sp->z2)) {
-		TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
-		sp->in_scene = true;
-		scene_dirty();
-		return;
-	}
-
-	struct sprite *p;
-	TAILQ_FOREACH(p, &sprite_list, entry) {
-		if (p->z == sp->z) {
-			if (p->z2 > sp->z2) {
-				TAILQ_INSERT_BEFORE(p, sp, entry);
-				sp->in_scene = true;
-				scene_dirty();
-				return;
-			}
-		} else if (p->z > sp->z) {
-			TAILQ_INSERT_BEFORE(p, sp, entry);
-			sp->in_scene = true;
-			scene_dirty();
-			return;
-		}
-	}
+	// Always append — sorting deferred to scene_render
 	TAILQ_INSERT_TAIL(&sprite_list, sp, entry);
 	sp->in_scene = true;
+	sprite_list_unsorted = true;
 	scene_dirty();
 }
 
@@ -97,6 +110,7 @@ void scene_render(void)
 		gfx_render_texture(&wp, &r);
 	}
 
+	sprite_list_ensure_sorted();
 	struct sprite *sp;
 	TAILQ_FOREACH(sp, &sprite_list, entry) {
 		if (sp->render)

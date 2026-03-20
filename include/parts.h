@@ -84,7 +84,7 @@ void PE_SetMultiplyColor(int parts_no, int r, int g, int b);
 void PE_GetMultiplyColor(int parts_no, int *r, int *g, int *b);
 int PE_GetPartsWidth(int parts_no, int state);
 int PE_GetPartsHeight(int parts_no, int state);
-void PE_GetPartsSize(int parts_no, int state, int *width, int *height);
+void PE_GetPartsSize(int parts_no, int *width, int *height, int state);
 int PE_GetPartsUpperLeftPosX(int parts_no, int state);
 int PE_GetPartsUpperLeftPosY(int parts_no, int state);
 void PE_SetPartsOriginPosMode(int parts_no, int origin_pos_mode);

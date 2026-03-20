@@ -19,6 +19,7 @@
 #include <time.h>
 
 #include "system4/ain.h"
+#include "system4/cg.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -128,6 +129,7 @@ static bool SystemService_UpdateView(void)
 	parts_render_update(passed_time);
 	scene_render();
 	gfx_swap();
+
 	SDL_Delay(16); // ~60fps, yield to OS for event delivery
 	return true;
 }

@@ -337,6 +337,7 @@ struct parts {
 	int delegate_index;
 	int sprite_deform;
 	bool clickable;
+	bool pass_cursor;
 	int on_cursor_sound;
 	int on_click_sound;
 	int origin_mode;
@@ -390,6 +391,8 @@ extern int parts_nr_numeral_fonts;
 
 // for save.c
 void parts_list_resort(struct parts *parts);
+void parts_list_ensure_sorted(void);
+void parts_ensure_scene_registered(struct parts *parts);
 void parts_component_dirty(struct parts *parts);
 void parts_recalculate_hitbox(struct parts *parts);
 void parts_state_reset(struct parts_state *state, enum parts_type type);

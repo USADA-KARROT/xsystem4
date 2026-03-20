@@ -324,6 +324,7 @@ void parts_render_family(struct parts *parts)
 
 void parts_engine_render(possibly_unused struct sprite *_)
 {
+	parts_list_ensure_sorted();
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
 		parts_render(parts);

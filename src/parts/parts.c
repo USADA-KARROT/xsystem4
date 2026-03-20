@@ -39,47 +39,6 @@
 struct parts_list parts_list = TAILQ_HEAD_INITIALIZER(parts_list);
 static struct parts_list dirty_list = TAILQ_HEAD_INITIALIZER(dirty_list);
 
-// DIAG helpers
-int parts_count_total(void) {
-	int n = 0;
-	struct parts *p;
-	PARTS_LIST_FOREACH(p) n++;
-	return n;
-}
-int parts_count_visible(void) {
-	int n = 0;
-	struct parts *p;
-	PARTS_LIST_FOREACH(p) if (p->global.show) n++;
-	return n;
-}
-void parts_dump_visible(void) {
-	struct parts *p;
-	int idx = 0;
-	PARTS_LIST_FOREACH(p) {
-		if (idx++ >= 80) break;
-		int state = p->state;
-		const char *type_str = "?";
-		if (state >= 0 && state < PARTS_NR_STATES && p->states[state].type >= 0) {
-			switch (p->states[state].type) {
-			case PARTS_CG: type_str = "CG"; break;
-			case PARTS_TEXT: type_str = "TEXT"; break;
-			case PARTS_ANIMATION: type_str = "ANIM"; break;
-			case PARTS_NUMERAL: type_str = "NUM"; break;
-			case PARTS_HGAUGE: type_str = "HGAU"; break;
-			case PARTS_VGAUGE: type_str = "VGAU"; break;
-			case PARTS_CONSTRUCTION_PROCESS: type_str = "CP"; break;
-			default: type_str = "UNK"; break;
-			}
-		}
-		int raw_type = (state >= 0 && state < PARTS_NR_STATES) ? p->states[state].type : -99;
-		int parent_no = p->parent ? p->parent->no : -1;
-		int has_tex = (state >= 0 && state < PARTS_NR_STATES) ? (p->states[state].common.texture.handle != 0) : 0;
-		WARNING("  [%d] no=%d type=%s(%d) show=%d pos=(%d,%d) z=%d a=%d click=%d par=%d tex=%d",
-			idx, p->no, type_str, raw_type, p->global.show,
-			p->global.pos.x, p->global.pos.y,
-			p->global.z, p->global.alpha, p->clickable, parent_no, has_tex);
-	}
-}
 static struct hash_table *parts_table = NULL;
 static Point root_pos = { 0, 0 };
 
@@ -135,28 +94,65 @@ static void dirty_list_remove(struct parts *parts)
 		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
 }
 
+// Flag: parts_list may be unsorted (needs sort before z-order iteration)
+static bool parts_list_unsorted = false;
+
+static int parts_z_compare(const void *a, const void *b)
+{
+	const struct parts *pa = *(const struct parts **)a;
+	const struct parts *pb = *(const struct parts **)b;
+	if (pa->global.z != pb->global.z)
+		return (pa->global.z < pb->global.z) ? -1 : 1;
+	return 0;
+}
+
+void parts_list_ensure_sorted(void)
+{
+	if (!parts_list_unsorted)
+		return;
+	parts_list_unsorted = false;
+
+	// Count elements
+	int n = 0;
+	struct parts *p;
+	PARTS_LIST_FOREACH(p) n++;
+	if (n <= 1)
+		return;
+
+	// Copy to array, sort, rebuild TAILQ
+	struct parts **arr = xmalloc(n * sizeof(*arr));
+	int i = 0;
+	PARTS_LIST_FOREACH(p) arr[i++] = p;
+	qsort(arr, n, sizeof(*arr), parts_z_compare);
+
+	TAILQ_INIT(&parts_list);
+	for (i = 0; i < n; i++)
+		TAILQ_INSERT_TAIL(&parts_list, arr[i], parts_list_entry);
+	free(arr);
+}
+
 static void parts_list_insert(struct parts *parts)
 {
-	// Fast path: if list is empty or last element's z <= ours, append to tail
-	struct parts *last = TAILQ_LAST(&parts_list, parts_list);
-	if (!last || last->global.z <= parts->global.z) {
-		TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
-		parts_engine_dirty();
-		scene_register_sprite(&parts->sp);
+	// Always append to tail — O(1). Sort deferred to parts_list_ensure_sorted().
+	TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
+	parts_list_unsorted = true;
+	parts_engine_dirty();
+	// Defer scene registration until parts has content (texture).
+	// This avoids registering millions of empty parts as scene sprites.
+}
+
+// Promote a parts to scene-visible: only registers if it has a texture in any state.
+void parts_ensure_scene_registered(struct parts *parts)
+{
+	if (parts->sp.in_scene)
 		return;
-	}
-	struct parts *p;
-	PARTS_LIST_FOREACH(p) {
-		if (p->global.z > parts->global.z) {
-			TAILQ_INSERT_BEFORE(p, parts, parts_list_entry);
-			parts_engine_dirty();
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		if (parts->states[i].common.texture.handle) {
 			scene_register_sprite(&parts->sp);
+			scene_set_sprite_z(&parts->sp, parts->global.z);
 			return;
 		}
 	}
-	TAILQ_INSERT_TAIL(&parts_list, parts, parts_list_entry);
-	parts_engine_dirty();
-	scene_register_sprite(&parts->sp);
 }
 
 static void parts_list_remove(struct parts *parts)
@@ -169,8 +165,12 @@ void parts_list_resort(struct parts *parts)
 {
 	if (parts->sp.z == parts->global.z)
 		return;
+	bool was_in_scene = parts->sp.in_scene;
 	parts_list_remove(parts);
 	parts_list_insert(parts);
+	if (was_in_scene) {
+		scene_register_sprite(&parts->sp);
+	}
 	scene_set_sprite_z(&parts->sp, parts->global.z);
 }
 
@@ -189,7 +189,6 @@ struct parts *parts_get(int parts_no)
 	if (existing)
 		return existing;
 
-	// Slow path: create new parts entry
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
 	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
@@ -643,6 +642,7 @@ void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int
 	common->w = w;
 	common->h = h;
 	parts_common_recalculate_hitbox(parts, common);
+	parts_ensure_scene_registered(parts);
 }
 
 bool _parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct cg *cg, int cg_no,
@@ -945,11 +945,10 @@ void parts_update_animation(int passed_time)
 
 void parts_release(int parts_no)
 {
-	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
-	if (!slot->value)
+	struct parts *parts = ht_get_int(parts_table, parts_no, NULL);
+	if (!parts)
 		return;
 
-	struct parts *parts = slot->value;
 	parts_clear_motion(parts);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_state_free(&parts->states[i]);
@@ -969,7 +968,7 @@ void parts_release(int parts_no)
 	parts_list_remove(parts);
 	dirty_list_remove(parts);
 	free(parts);
-	slot->value = NULL;
+	ht_remove_int(parts_table, parts_no);
 	parts_engine_dirty();
 
 }
@@ -1002,7 +1001,7 @@ bool PE_Init(void)
 		return true;
 	// XXX: Oyako Rankan doesn't call ChipmunkSpriteEngine.Init
 	sact_init(16, CHIPMUNK_SPRITE_ENGINE);
-	parts_table = ht_create(1024);
+	parts_table = ht_create(1 << 20); // 1M buckets for v14 games with millions of parts
 	parts_render_init();
 	parts_debug_init();
 	parts_engine_initialized = true;
@@ -1731,8 +1730,11 @@ int PE_GetPartsHeight(int parts_no, int state)
 	return parts_get(parts_no)->states[state].common.h;
 }
 
-void PE_GetPartsSize(int parts_no, int state, int *width, int *height)
+void PE_GetPartsSize(int parts_no, int *width, int *height, int state)
 {
+	if (!width || !height) {
+		return;
+	}
 	if (!parts_state_valid(--state)) {
 		*width = 0;
 		*height = 0;
@@ -1818,11 +1820,6 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 	struct parts *parts = parts_get(parts_no);
 	parts->pending_parent = parent_parts_no;
 
-	/* Immediately establish the parent-child link.
-	 * Use parts_get (not parts_try_get) to auto-create the parent if it
-	 * doesn't exist yet — the game may set parent before creating the parent
-	 * part explicitly, and PE_UpdateComponent would otherwise clear
-	 * pending_parent before the parent is ever created. */
 	struct parts *parent = parts_get(parent_parts_no);
 	if (parts->parent) {
 		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
@@ -1940,11 +1937,15 @@ int PE_GetInputState(int parts_no)
 	return parts_get(parts_no)->state + 1;
 }
 
-bool PE_SetPartsRectangleDetectionSize(possibly_unused int parts_no,
-	possibly_unused int w, possibly_unused int h, possibly_unused int state)
+bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
 {
-	// Sets the rectangle used for cursor/click detection.
-	// Currently a no-op; parts use their rendered bounds for detection.
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_common *common = &parts->states[state].common;
+	common->w = w;
+	common->h = h;
+	parts_common_recalculate_hitbox(parts, common);
 	return true;
 }
 

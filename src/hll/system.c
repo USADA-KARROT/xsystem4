@@ -59,21 +59,13 @@ static bool system_ResumeSave(struct string *keyName, struct string *fileName, i
 // since the write-back phase would operate on stale heap references.
 static void system_ResumeLoad(struct string *keyName, struct string *fileName)
 {
-	static int rl_count = 0;
-	if (rl_count++ < 1)
-		WARNING("system.ResumeLoad('%s', '%s')", keyName->text, fileName->text);
-
 	// Check if save file exists before scheduling load
 	char *full_path = savedir_path(fileName->text);
 	bool exists = access(full_path, F_OK) == 0;
 	free(full_path);
 
-	if (!exists) {
-		if (rl_count <= 5)
-			WARNING("system.ResumeLoad: no save file, skipping");
+	if (!exists)
 		return;
-	}
-	WARNING("system.ResumeLoad: scheduling deferred load");
 
 	free(resume_load_key_pending);
 	free(resume_load_path_pending);
