@@ -553,16 +553,28 @@ static void delete_heap(void)
 		heap[i].seq = 0;
 	}
 
-	heap_free_ptr = 0;
-	for (size_t i = 0; i < heap_size; i++) {
-		heap_free_stack[i] = i;
+	// Clear free list — will be rebuilt after load completes
+	heap_free_head = -1;
+	heap_free_count = 0;
+}
+
+// Rebuild the intrusive free list by scanning all heap slots.
+// Called after loading a save file to restore the free list.
+static void heap_rebuild_free_list(void)
+{
+	heap_free_head = -1;
+	heap_free_count = 0;
+	for (size_t i = heap_size; i > 2; ) {
+		i--;
+		if (heap[i].ref == 0) {
+			heap[i].seq = (uint32_t)heap_free_head;
+			heap_free_head = (int32_t)i;
+			heap_free_count++;
+		}
 	}
 }
 
-// Allocate a specific heap slot
-// XXX: This only works while heap_free_stack[i]=i
-//      After calling delete_heap, this can be called for INCREASING indices.
-//      Out-of-order allocations would break the above assumption!
+// Allocate a specific heap slot for save/load.
 static void alloc_heap_slot(int slot)
 {
 	if ((size_t)slot >= heap_size) {
@@ -571,8 +583,7 @@ static void alloc_heap_slot(int slot)
 			next_size *= 2;
 		heap_grow(next_size);
 	}
-	heap_free_stack[slot] = heap_free_stack[heap_free_ptr];
-	heap_free_ptr++;
+	heap[slot].ref = 1;
 }
 
 static void load_json_heap(cJSON *json)
@@ -607,6 +618,9 @@ static void load_json_heap(cJSON *json)
 			invalid_save_data("Invalid heap data");
 		}
 	}
+
+	// Rebuild free list after all slots are loaded
+	heap_rebuild_free_list();
 }
 
 static int resolve_func_symbol(struct rsave_symbol *sym)

@@ -26,17 +26,18 @@
 #include "xsystem4.h"
 
 #define INITIAL_HEAP_SIZE  4096
-#define HEAP_ALLOC_STEP    4096
+// Exponential growth: double up to 4M, then linear 4M steps
+#define HEAP_GROW_LINEAR_STEP  (4 * 1024 * 1024)
 
 
 struct vm_pointer *heap = NULL;
 size_t heap_size = 0;
 uint32_t heap_next_seq;
 
-// Heap free list
-// This is a list of unused indices into the 'heap' array.
-int32_t *heap_free_stack = NULL;
-size_t heap_free_ptr = 0;
+// Intrusive free list through heap[slot].seq (saves separate array allocation).
+// When ref == 0, seq stores the next-free-slot index (-1 = end of list).
+int32_t heap_free_head = -1;
+size_t heap_free_count = 0;
 
 // Global page heap slot. Initialized to 1 (not 0) to prevent null references
 // (method_call skip returns, failed lookups, etc.) from aliasing to the global page.
@@ -57,11 +58,13 @@ void heap_grow(size_t new_size)
 {
 	assert(new_size > heap_size);
 	heap = xrealloc(heap, sizeof(struct vm_pointer) * new_size);
-	heap_free_stack = xrealloc(heap_free_stack, sizeof(int32_t) * new_size);
+	// Chain new slots into free list (low→high, prepend range to head)
 	for (size_t i = heap_size; i < new_size; i++) {
 		heap[i].ref = 0;
-		heap_free_stack[i] = i;
+		heap[i].seq = (i + 1 < new_size) ? (uint32_t)(i + 1) : (uint32_t)heap_free_head;
 	}
+	heap_free_head = (int32_t)heap_size;
+	heap_free_count += new_size - heap_size;
 	heap_size = new_size;
 }
 
@@ -70,35 +73,35 @@ void heap_init(void)
 	if (!heap) {
 		heap_size = INITIAL_HEAP_SIZE;
 		heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
-		heap_free_stack = xmalloc(INITIAL_HEAP_SIZE * sizeof(int32_t));
 	} else {
 		memset(heap, 0, heap_size * sizeof(struct vm_pointer));
 	}
 
-	for (size_t i = 0; i < heap_size; i++) {
-		heap_free_stack[i] = i;
+	// Build free list starting at slot 2 (0=guard, 1=global page reserved)
+	heap_free_head = -1;
+	heap_free_count = 0;
+	for (size_t i = heap_size; i > 2; ) {
+		i--;
+		heap[i].seq = (uint32_t)heap_free_head;
+		heap_free_head = (int32_t)i;
+		heap_free_count++;
 	}
-	heap_free_ptr = 2; // slots 0 and 1 reserved (0=guard, 1=global page)
 	heap_next_seq = 1;
 }
 
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
-	int32_t slot;
-	for (;;) {
-		if (heap_free_ptr >= heap_size) {
-			heap_grow(heap_size+HEAP_ALLOC_STEP);
-		}
-		slot = heap_free_stack[heap_free_ptr++];
-		if (unlikely(slot <= 1))
-			continue;
-		// Skip slots that are still in use — the LIFO free stack may contain
-		// stale entries from heap_grow that were never consumed before the
-		// slot was allocated via a different path.
-		if (unlikely(heap[slot].ref > 0))
-			continue;
-		break;
+	if (heap_free_head < 0) {
+		size_t new_size;
+		if (heap_size < HEAP_GROW_LINEAR_STEP)
+			new_size = heap_size * 2;  // exponential up to 4M
+		else
+			new_size = heap_size + HEAP_GROW_LINEAR_STEP;  // linear 4M steps
+		heap_grow(new_size);
 	}
+	int32_t slot = heap_free_head;
+	heap_free_head = (int32_t)heap[slot].seq;
+	heap_free_count--;
 	heap[slot].ref = 1;
 	heap[slot].seq = heap_next_seq++;
 	heap[slot].type = type;
@@ -120,8 +123,9 @@ static void heap_free_slot(int32_t slot)
 		// slot 0 = null guard page, slot 1 = global page; never free these
 		return;
 	}
-	heap[slot].seq = 0;
-	heap_free_stack[--heap_free_ptr] = slot;
+	heap[slot].seq = (uint32_t)heap_free_head;
+	heap_free_head = slot;
+	heap_free_count++;
 }
 
 static void heap_double_free(int32_t slot)

@@ -4543,7 +4543,7 @@ _Noreturn void vm_exit(int code)
 		if (heap[i].ref > 0)
 			heap_describe_slot(i);
 	}
-	sys_message("Number of leaked objects: %d\n", heap_free_ptr);
+	sys_message("Number of free slots: %zu (leaked = %zu)\n", heap_free_count, heap_size - heap_free_count - 2);
 #endif
 	sys_exit(code);
 }

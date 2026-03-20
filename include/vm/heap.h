@@ -89,8 +89,8 @@ extern int global_page_slot;
 #ifdef VM_PRIVATE
 
 extern uint32_t heap_next_seq;
-extern int32_t *heap_free_stack;
-extern size_t heap_free_ptr;
+extern int32_t heap_free_head;   // intrusive free list head (-1 = empty)
+extern size_t heap_free_count;   // number of free slots
 
 #endif /* VM_PRIVATE */
 #endif /* SYSTEM4_HEAP_H */

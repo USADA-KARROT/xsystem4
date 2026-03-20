@@ -28,8 +28,8 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 
-#define NR_CACHES 32
-#define CACHE_SIZE 64
+#define NR_CACHES 64
+#define CACHE_SIZE 256
 
 static const char *pagetype_strtab[] = {
 	[GLOBAL_PAGE] = "GLOBAL_PAGE",
