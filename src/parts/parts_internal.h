@@ -350,7 +350,7 @@ struct parts {
 	struct parts_motion_list motion;
 	int component_type;   // v14 component widget type
 	int unique_id;        // v14 unique ID for event dispatch
-	char user_component_name[256]; // v14 user component name from pactex
+	char *user_component_name; // v14 user component name from pactex (heap-allocated)
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)

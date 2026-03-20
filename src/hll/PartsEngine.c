@@ -496,8 +496,8 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	struct parts *p = parts_get(parts_no);
 
 	/* Store user component name from pactex tree node */
-	snprintf(p->user_component_name, sizeof(p->user_component_name),
-		"%s", node->name->text);
+	free(p->user_component_name);
+	p->user_component_name = strdup(node->name->text);
 
 	/* Register in activity by name (raw GBK bytes) */
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
@@ -590,8 +590,8 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	struct parts *root = parts_get(root_no);
 
 	/* Store user component name for root */
-	snprintf(root->user_component_name, sizeof(root->user_component_name),
-		"%s", root_branch->name->text);
+	free(root->user_component_name);
+	root->user_component_name = strdup(root_branch->name->text);
 
 	/* Root container — type 0 (not 17, which would trigger UserComponent lookup) */
 	struct ex_tree *root_buhin = pactex_find_buhin(root_branch);
@@ -1523,13 +1523,13 @@ static void PartsEngine_SetUserComponentName(int n, struct string *name) {
 	struct parts *p = parts_try_get(n);
 	if (!p) return;
 	if (name && name->text && name->text[0]) {
-		snprintf(p->user_component_name, sizeof(p->user_component_name),
-			"%s", name->text);
+		free(p->user_component_name);
+		p->user_component_name = strdup(name->text);
 	}
 }
 static struct string *PartsEngine_GetUserComponentName(int n) {
 	struct parts *p = parts_try_get(n);
-	if (p && p->user_component_name[0])
+	if (p && p->user_component_name)
 		return cstr_to_string(p->user_component_name);
 	return string_ref(&EMPTY_STRING);
 }

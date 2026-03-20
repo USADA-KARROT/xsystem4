@@ -73,11 +73,35 @@ static void parts_init(struct parts *parts)
 	TAILQ_INIT(&parts->motion);
 }
 
+// Free list for parts reuse (avoids malloc/free churn for millions of parts)
+static struct parts *parts_free_list = NULL;
+static int parts_free_count = 0;
+#define PARTS_FREE_LIST_MAX 4096
+
 static struct parts *parts_alloc(void)
 {
-	struct parts *parts = xcalloc(1, sizeof(struct parts));
+	struct parts *parts;
+	if (parts_free_list) {
+		parts = parts_free_list;
+		parts_free_list = (struct parts *)parts->parent; // reuse parent pointer as next
+		parts_free_count--;
+		memset(parts, 0, sizeof(struct parts));
+	} else {
+		parts = xcalloc(1, sizeof(struct parts));
+	}
 	parts_init(parts);
 	return parts;
+}
+
+static void parts_free_to_pool(struct parts *parts)
+{
+	if (parts_free_count < PARTS_FREE_LIST_MAX) {
+		parts->parent = (struct parts *)parts_free_list; // reuse parent as next
+		parts_free_list = parts;
+		parts_free_count++;
+	} else {
+		free(parts);
+	}
 }
 
 void parts_component_dirty(struct parts *parts)
@@ -967,8 +991,10 @@ void parts_release(int parts_no)
 
 	parts_list_remove(parts);
 	dirty_list_remove(parts);
-	free(parts);
+	free(parts->user_component_name);
+	parts->user_component_name = NULL;
 	ht_remove_int(parts_table, parts_no);
+	parts_free_to_pool(parts);
 	parts_engine_dirty();
 
 }
