@@ -68,6 +68,42 @@ static unsigned long long insn_count = 0;
 // Built at AIN load time; used by CALLMETHOD to resolve overrides.
 // v14 vtable dispatch removed — bytecode handles it (see notes/language-update.md)
 
+// Per-function flags, precomputed at init to avoid strstr in hot paths.
+#define FUNC_FLAG_LAMBDA     0x01  // name contains "<lambda"
+#define FUNC_FLAG_CDEBUG     0x02  // name contains "CDebug"
+#define FUNC_FLAG_CASTIMER_MGR  0x04  // CASTimerManager methods
+#define FUNC_FLAG_CASTIMER_INST 0x08  // CASTimer@Get, CASTimer@Reset, CASTimer@GetScaled
+#define FUNC_FLAG_SKIP_TITLE    0x10  // RunResult<SceneTitle or Run<SceneLogo>
+static uint8_t *func_flags = NULL;
+
+#define STRUCT_FLAG_CDEBUG   0x01
+static uint8_t *struct_flags = NULL;
+
+static void init_func_flags(void)
+{
+	func_flags = xcalloc(ain->nr_functions, sizeof(uint8_t));
+	for (int i = 0; i < ain->nr_functions; i++) {
+		const char *name = ain->functions[i].name;
+		if (!name) continue;
+		if (ain->functions[i].is_lambda || strstr(name, "<lambda"))
+			func_flags[i] |= FUNC_FLAG_LAMBDA;
+		if (strstr(name, "CDebug"))
+			func_flags[i] |= FUNC_FLAG_CDEBUG;
+		if (strstr(name, "CASTimerManager"))
+			func_flags[i] |= FUNC_FLAG_CASTIMER_MGR;
+		else if (strstr(name, "CASTimer@Get") || strstr(name, "CASTimer@Reset")
+				|| strstr(name, "CASTimer@GetScaled"))
+			func_flags[i] |= FUNC_FLAG_CASTIMER_INST;
+		if (strstr(name, "RunResult<SceneTitle") || strstr(name, "Run<SceneLogo>"))
+			func_flags[i] |= FUNC_FLAG_SKIP_TITLE;
+	}
+	struct_flags = xcalloc(ain->nr_structures, sizeof(uint8_t));
+	for (int i = 0; i < ain->nr_structures; i++) {
+		if (ain->structures[i].name && strstr(ain->structures[i].name, "CDebug"))
+			struct_flags[i] |= STRUCT_FLAG_CDEBUG;
+	}
+}
+
 // Native CASTimer: intercept broken CASTimer method_call skips with real timers.
 // CASTimerManager's struct page gets corrupted (LOCAL_PAGE instead of STRUCT_PAGE)
 // during v14 init, causing all timer calls to be skipped and return 0.
@@ -82,7 +118,7 @@ static int cas_timer_rate = 1;  // Time scale factor (integer; ITOF'd by script)
 static bool native_cas_timer_intercept(int fno, int struct_page, union vm_value *ret)
 {
 	const char *fname = ain->functions[fno].name;
-	if (!strstr(fname, "CASTimer"))
+	if (!(func_flags[fno] & (FUNC_FLAG_CASTIMER_MGR | FUNC_FLAG_CASTIMER_INST)))
 		return false;
 
 	// CASTimerManager methods
@@ -692,7 +728,7 @@ static void function_call(int fno, int return_address)
 	// Without this, lambdas inside ArrayExtensions::Select etc. can't access
 	// the enclosing class's members (e.g. ExTable.m_keyFormatName).
 	if (ain->version >= 14 && call_stack_ptr >= 2
-	    && (f->is_lambda || (f->name && strstr(f->name, "<lambda")))) {
+	    && (func_flags[fno] & FUNC_FLAG_LAMBDA)) {
 		// Search up the call stack for the nearest frame with a valid struct_page
 		for (int fr = call_stack_ptr - 2; fr >= 0; fr--) {
 			if (call_stack[fr].struct_page > 0
@@ -715,7 +751,7 @@ static void method_call(int fno, int return_address)
 		int struct_page = stack[stack_ptr - 1].i;
 
 		// Skip CDebug methods — their struct state is corrupted (constructor skipped).
-		if (strstr(ain->functions[fno].name, "CDebug")) {
+		if (func_flags[fno] & FUNC_FLAG_CDEBUG) {
 			stack_pop(); // struct_page
 			call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 			int ret_slots = ain_return_slots_type(&ain->functions[fno].return_type);
@@ -728,7 +764,7 @@ static void method_call(int fno, int return_address)
 		// Force-intercept CASTimerManager methods with native implementation.
 		// The Manager's struct members are corrupted even when page type is
 		// valid, so we must intercept BEFORE the script code runs.
-		if (strstr(ain->functions[fno].name, "CASTimerManager")) {
+		if (func_flags[fno] & FUNC_FLAG_CASTIMER_MGR) {
 			union vm_value native_ret = {.i = 0};
 			native_cas_timer_intercept(fno, struct_page, &native_ret);
 			stack_pop(); // remove struct_page
@@ -747,8 +783,7 @@ static void method_call(int fno, int return_address)
 		// CASTimer@Get calls CASTimerManager@GetObject which returns a fake
 		// negative struct_page, then calls func#432 on it → crash/garbage.
 		// Intercept here: read timer handle from struct field0, compute natively.
-		if (strstr(ain->functions[fno].name, "CASTimer@Get")
-			|| strstr(ain->functions[fno].name, "CASTimer@Reset")) {
+		if (func_flags[fno] & FUNC_FLAG_CASTIMER_INST) {
 			int handle = 0;
 			if (struct_page > 0 && heap_index_valid(struct_page)
 				&& heap[struct_page].page && heap[struct_page].page->nr_vars > 0) {
@@ -967,8 +1002,7 @@ static void delegate_call(int dg_no, int return_address)
 		// v14 lambda closure via delegate: if obj is invalid (-1/0),
 		// search up the call stack for the enclosing method's struct_page.
 		if (ain->version >= 14 && obj <= 0) {
-			struct ain_function *fn = &ain->functions[fun];
-			if (fn->is_lambda || (fn->name && strstr(fn->name, "<lambda"))) {
+			if (func_flags[fun] & FUNC_FLAG_LAMBDA) {
 				for (int fr = call_stack_ptr - 2; fr >= 0; fr--) {
 					if (call_stack[fr].struct_page > 0
 					    && (size_t)call_stack[fr].struct_page < heap_size) {
@@ -1038,8 +1072,7 @@ void vm_call_nopop(int fno, int nargs)
 	// For closures (lambdas), X_GETENV accesses struct_page to read captured
 	// variables from the enclosing scope.
 	extern int hll_func_obj;
-	bool is_lambda = f->is_lambda
-		|| (f->name && strstr(f->name, "<lambda"));
+	bool is_lambda = (func_flags[fno] & FUNC_FLAG_LAMBDA);
 	if (is_lambda) {
 		// Lambda closure: struct_page is the 'this' object (for PUSHSTRUCTPAGE),
 		// env_page is the parent frame's local page (for X_GETENV closure access).
@@ -1527,7 +1560,7 @@ static void echo_message(int i)
 	NOTICE("MSG %d: %s", i, display_sjis0(ain->messages[i]->text));
 }
 
-static enum opcode execute_instruction(enum opcode opcode)
+static inline __attribute__((always_inline)) enum opcode execute_instruction(enum opcode opcode)
 {
 	switch (opcode) {
 	//
@@ -1730,8 +1763,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 			if (ctor_func > 0 && ain->version >= 14) {
 				// Skip known-broken constructors (debug features with corrupted struct state)
 				if (struct_type >= 0 && struct_type < ain->nr_structures
-				    && ain->structures[struct_type].name
-				    && strstr(ain->structures[struct_type].name, "CDebug")) {
+				    && (struct_flags[struct_type] & STRUCT_FLAG_CDEBUG)) {
 					stack_push(v);
 					break;
 				}
@@ -1811,11 +1843,12 @@ static enum opcode execute_instruction(enum opcode opcode)
 			bool _skip = false;
 			int _retval = 0;
 			bool _has_ret = false;
-			if (strstr(ain->functions[_fno].name, "RunResult<SceneTitle")) {
-				_skip = true; _has_ret = true; _retval = 0; // 0 = NewGame
-			}
-			if (strstr(ain->functions[_fno].name, "Run<SceneLogo>")) {
-				_skip = true; _has_ret = false;
+			if (func_flags[_fno] & FUNC_FLAG_SKIP_TITLE) {
+				if (strstr(ain->functions[_fno].name, "RunResult<SceneTitle")) {
+					_skip = true; _has_ret = true; _retval = 0;
+				} else {
+					_skip = true; _has_ret = false;
+				}
 			}
 			if (_skip) {
 				// Pop arguments that were pushed for this call
@@ -1955,7 +1988,7 @@ static enum opcode execute_instruction(enum opcode opcode)
 			// REFREF/REF/ADD instructions. No VM-level vtable lookup needed.
 			// (See notes/language-update.md: interface call convention)
 		// --skip-title: intercept SceneLogo and SceneTitle via CALLMETHOD too
-				if (config.skip_title && ain->functions[funcno].name) {
+				if (config.skip_title && (func_flags[funcno] & FUNC_FLAG_SKIP_TITLE)) {
 					const char *fn = ain->functions[funcno].name;
 					if (strstr(fn, "RunResult<SceneTitle")) {
 						NOTICE("--skip-title: CALLMETHOD skipping %s (NewGame)", fn);
@@ -1965,7 +1998,8 @@ static enum opcode execute_instruction(enum opcode opcode)
 						stack_push((union vm_value){.i = 0});
 						break;
 					}
-					if (strstr(fn, "Run<SceneLogo>")) {
+					// Must be Run<SceneLogo>
+					{
 						// Void function — do NOT push a return value.
 						NOTICE("--skip-title: CALLMETHOD skipping %s (void)", fn);
 						if (saved_args != small_args) free(saved_args);
@@ -4301,6 +4335,7 @@ int vm_execute_ain(struct ain *program)
 
 	heap_init();
 	init_libraries();
+	init_func_flags();
 
 	// v14: vtable dispatch happens in bytecode, not VM. No dispatch table needed.
 

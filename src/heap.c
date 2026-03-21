@@ -269,9 +269,9 @@ static bool slot_reachable_from_global(int target_slot)
 
 	extern unsigned long long vm_call_get_insn_count(void);
 	unsigned long long insn = vm_call_get_insn_count();
-	// Periodic rebuild: 500K insns normally, 2M during alloc phase.
+	// Periodic rebuild: 2M insns normally, 8M during alloc phase.
 	// The recursive BFS marking ensures full transitive coverage.
-	unsigned long long threshold = vm_in_alloc_phase ? 2000000ULL : 500000ULL;
+	unsigned long long threshold = vm_in_alloc_phase ? 8000000ULL : 2000000ULL;
 	if (!grp_flags || insn - grp_rebuild_insn > threshold) {
 		grp_rebuild();
 		grp_rebuild_insn = insn;
@@ -306,51 +306,57 @@ void heap_unref(int slot)
 	// Track which entries were set for fast clearing
 	static int fpm_dirty[512];
 	static int fpm_dirty_count = 0;
+	// Generation: rebuild only when call stack changes
+	static int32_t fpm_last_csp = -1;
 
 	if (!deferred_processing) {
 		extern struct function_call call_stack[];
 		extern int32_t call_stack_ptr;
 		extern struct ain *ain;
 
-		// Grow bitmap if needed
-		if (heap_size > frame_protect_map_size) {
-			free(frame_protect_map);
-			frame_protect_map_size = heap_size;
-			frame_protect_map = calloc(heap_size, 1);
-			fpm_dirty_count = 0;
-		} else {
-			// Clear only previously set entries (O(dirty) instead of O(heap_size))
-			for (int i = 0; i < fpm_dirty_count; i++) {
-				int idx = fpm_dirty[i];
-				if ((size_t)idx < frame_protect_map_size)
-					frame_protect_map[idx] = 0;
+		// Rebuild bitmap only when call stack pointer changed or heap grew
+		if (call_stack_ptr != fpm_last_csp || heap_size > frame_protect_map_size) {
+			// Grow bitmap if needed
+			if (heap_size > frame_protect_map_size) {
+				free(frame_protect_map);
+				frame_protect_map_size = heap_size;
+				frame_protect_map = calloc(heap_size, 1);
+				fpm_dirty_count = 0;
+			} else {
+				// Clear only previously set entries
+				for (int i = 0; i < fpm_dirty_count; i++) {
+					int idx = fpm_dirty[i];
+					if ((size_t)idx < frame_protect_map_size)
+						frame_protect_map[idx] = 0;
+				}
+				fpm_dirty_count = 0;
 			}
-			fpm_dirty_count = 0;
-		}
-		// Mark call stack page slots
-		for (int i = 0; i < call_stack_ptr; i++) {
-			int ps = call_stack[i].page_slot;
-			if (ps > 0 && (size_t)ps < heap_size) {
-				frame_protect_map[ps] = 1;
-				if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = ps;
+			// Mark call stack page slots
+			for (int i = 0; i < call_stack_ptr; i++) {
+				int ps = call_stack[i].page_slot;
+				if (ps > 0 && (size_t)ps < heap_size) {
+					frame_protect_map[ps] = 1;
+					if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = ps;
+				}
 			}
-		}
-		// Also mark struct_page members of recent frames (top 16)
-		if (ain && ain->version >= 14) {
-			int start = call_stack_ptr > 16 ? call_stack_ptr - 16 : 0;
-			for (int ci = start; ci < call_stack_ptr; ci++) {
-				int sp_slot = call_stack[ci].struct_page;
-				if (sp_slot <= 0 || (size_t)sp_slot >= heap_size) continue;
-				if (heap[sp_slot].type != VM_PAGE || !heap[sp_slot].page) continue;
-				struct page *sp = heap[sp_slot].page;
-				for (int mi = 0; mi < sp->nr_vars; mi++) {
-					int v = sp->values[mi].i;
-					if (v > 0 && (size_t)v < heap_size) {
-						frame_protect_map[v] = 1;
-						if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = v;
+			// Also mark struct_page members of recent frames (top 16)
+			if (ain && ain->version >= 14) {
+				int start = call_stack_ptr > 16 ? call_stack_ptr - 16 : 0;
+				for (int ci = start; ci < call_stack_ptr; ci++) {
+					int sp_slot = call_stack[ci].struct_page;
+					if (sp_slot <= 0 || (size_t)sp_slot >= heap_size) continue;
+					if (heap[sp_slot].type != VM_PAGE || !heap[sp_slot].page) continue;
+					struct page *sp = heap[sp_slot].page;
+					for (int mi = 0; mi < sp->nr_vars; mi++) {
+						int v = sp->values[mi].i;
+						if (v > 0 && (size_t)v < heap_size) {
+							frame_protect_map[v] = 1;
+							if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = v;
+						}
 					}
 				}
 			}
+			fpm_last_csp = call_stack_ptr;
 		}
 
 		// Check this slot against the bitmap
