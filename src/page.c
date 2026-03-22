@@ -445,17 +445,34 @@ static void init_struct_slot(struct page *page, int idx, struct ain_variable *me
 	}
 }
 
+static int alloc_struct_depth = 0;
+
 int alloc_struct(int no)
 {
+	if (alloc_struct_depth > 50) {
+		static int as_warn = 0;
+		if (as_warn++ < 5)
+			WARNING("alloc_struct: depth %d for struct %d '%s'",
+				alloc_struct_depth, no,
+				(no >= 0 && no < ain->nr_structures) ? ain->structures[no].name : "?");
+		// Return a minimal empty struct to avoid crash
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, alloc_page(STRUCT_PAGE, no, 0));
+		return slot;
+	}
 	struct ain_struct *s = &ain->structures[no];
 	bool has_inheritance = (ain->version >= 14 && s->nr_members > 0 &&
 	    is_wrap_struct(&s->members[0]));
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(STRUCT_PAGE, no, s->nr_members));
 	// Initialize all members.
+	heap_gc_inhibit();
+	alloc_struct_depth++;
 	for (int i = 0; i < s->nr_members; i++) {
 		init_struct_slot(heap[slot].page, i, &s->members[i]);
 	}
+	alloc_struct_depth--;
+	heap_gc_allow();
 	return slot;
 }
 

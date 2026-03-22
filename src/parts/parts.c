@@ -1858,10 +1858,10 @@ void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 
 int PE_GetParentPartsNumber(int parts_no)
 {
-	struct parts *parts = parts_get(parts_no);
-	if (parts->parent)
-		return parts->parent->no;
-	return -1;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts || !parts->parent)
+		return 0;
+	return parts->parent->no;
 }
 
 bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int GroupNumber)

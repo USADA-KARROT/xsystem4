@@ -327,12 +327,9 @@ void hll_call(int libno, int fno, int hll_arg3)
 				unimp_log[idx].count = 0;
 			}
 			int cnt = idx >= 0 ? ++unimp_log[idx].count : 1;
-			if (cnt <= 5) {
+			if (cnt <= 5 || cnt % 1000000 == 0) {
 				WARNING("UNIMPL HLL: %s.%s (args=%d, cnt=%d)",
 					ain->libraries[libno].name, f->name, f->nr_arguments, cnt);
-			} else if (cnt % 1000000 == 0) {
-				WARNING("Unimplemented HLL (x%dM): %s.%s",
-					cnt / 1000000, ain->libraries[libno].name, f->name);
 			}
 		}
 		// Pop all arguments from stack

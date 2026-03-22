@@ -1054,12 +1054,7 @@ static void PartsEngine_SetComponentType(int number, int type, int state)
 static int PartsEngine_GetComponentType(int number, int state)
 {
 	struct parts *p = parts_try_get(number);
-	if (p)
-		return p->component_type;
-	/* Non-existent parts: return -1 to signal "not a valid component".
-	 * The game's factory uses this to decide what type of wrapper to create.
-	 * Returning 0 could trigger the default case which creates phantom structs. */
-	return -1;
+	return p ? p->component_type : -1;
 }
 
 static void PartsEngine_SetComponentPos(int number, float x, float y)
@@ -1472,12 +1467,26 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	}
 }
 
-static void PartsEngine_ClearChild(int number) {}
+static void PartsEngine_ClearChild(int number) {
+	struct parts *p = parts_try_get(number);
+	if (!p) return;
+	while (!TAILQ_EMPTY(&p->children)) {
+		struct parts *child = TAILQ_FIRST(&p->children);
+		TAILQ_REMOVE(&p->children, child, child_list_entry);
+		child->parent = NULL;
+	}
+}
 static void PartsEngine_AddChild(int number, int child) {
 	PE_SetParentPartsNumber(child, number);
 }
 static void PartsEngine_InsertChild(int n, int idx, int child) { PE_SetParentPartsNumber(child, n); }
-static void PartsEngine_RemoveChild(int number, int child) {}
+static void PartsEngine_RemoveChild(int number, int child_no) {
+	struct parts *p = parts_try_get(number);
+	struct parts *c = parts_try_get(child_no);
+	if (!p || !c || c->parent != p) return;
+	TAILQ_REMOVE(&p->children, c, child_list_entry);
+	c->parent = NULL;
+}
 static int PartsEngine_NumofChild(int number) {
 	/* Count children from PE parent-child relationships */
 	struct parts *p = parts_try_get(number);
@@ -1489,14 +1498,26 @@ static int PartsEngine_NumofChild(int number) {
 	}
 	return count;
 }
-static int PartsEngine_GetChildIndex(int number, int child) { return -1; }
-static int PartsEngine_GetChild(int number, int index) {
+static int PartsEngine_GetChildIndex(int number, int child_no) {
 	struct parts *p = parts_try_get(number);
 	if (!p) return -1;
 	int i = 0;
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, p) {
-		if (i == index) return child->no;
+		if (child->no == child_no) return i;
+		i++;
+	}
+	return -1;
+}
+static int PartsEngine_GetChild(int number, int index) {
+	struct parts *p = parts_try_get(number);
+	if (!p)
+		return -1;
+	int i = 0;
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, p) {
+		if (i == index)
+			return child->no;
 		i++;
 	}
 	return -1;
@@ -2318,6 +2339,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_GetPartsWidth, PE_GetPartsWidth),
 	    HLL_EXPORT(Parts_GetPartsHeight, PE_GetPartsHeight),
 	    HLL_EXPORT(Parts_GetPartsSize, PE_GetPartsSize),
+	    HLL_EXPORT(Parts_GetParentPartsNumber, PE_GetParentPartsNumber),
 	    HLL_EXPORT(Parts_SetInputState, PE_SetInputState),
 	    HLL_EXPORT(Parts_GetInputState, PE_GetInputState),
 	    HLL_EXPORT(Parts_SetPartsOriginPosMode, PE_SetPartsOriginPosMode),

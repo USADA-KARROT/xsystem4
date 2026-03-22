@@ -19,25 +19,91 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/mman.h>
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#endif
+#include <signal.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 
+// SIGUSR1 handler: dump heap statistics
+static void heap_dump_stats(int sig)
+{
+	(void)sig;
+	size_t alive = 0, dead = 0, pages = 0, strings = 0;
+	size_t struct_pages = 0, array_pages = 0, local_pages = 0, delegate_pages = 0;
+	size_t page_vars_total = 0;
+	for (size_t i = 2; i < heap_size; i++) {
+		if (heap[i].ref > 0) {
+			alive++;
+			if (heap[i].type == VM_PAGE) {
+				pages++;
+				if (heap[i].page) {
+					page_vars_total += heap[i].page->nr_vars;
+					switch (heap[i].page->type) {
+					case STRUCT_PAGE: struct_pages++; break;
+					case ARRAY_PAGE: array_pages++; break;
+					case LOCAL_PAGE: local_pages++; break;
+					case DELEGATE_PAGE: delegate_pages++; break;
+					default: break;
+					}
+				}
+			} else if (heap[i].type == VM_STRING) {
+				strings++;
+			}
+		} else {
+			dead++;
+		}
+	}
+	WARNING("HEAP STATS: heap_size=%zu alive=%zu dead=%zu free_count=%zu",
+		heap_size, alive, dead, heap_free_count);
+	WARNING("  pages=%zu (struct=%zu array=%zu local=%zu delegate=%zu) strings=%zu",
+		pages, struct_pages, array_pages, local_pages, delegate_pages, strings);
+	WARNING("  avg vars/page=%.1f total_page_bytes=~%zuMB",
+		pages > 0 ? (double)page_vars_total / pages : 0,
+		(page_vars_total * 4 + pages * 24) / (1024*1024));
+	// Ref count distribution: how many alive slots have ref=1 vs ref>1
+	size_t ref1 = 0, ref2plus = 0;
+	for (size_t i = 2; i < heap_size; i++) {
+		int r = HEAP_REF(i);
+		if (r == 1) ref1++;
+		else if (r > 1) ref2plus++;
+	}
+	WARNING("  ref=1: %zu, ref>=2: %zu", ref1, ref2plus);
+}
+
+// Called from heap_gc to report stats
+static void heap_periodic_stats(void)
+{
+	heap_dump_stats(0);
+}
+
 #define INITIAL_HEAP_SIZE  4096
 // Exponential growth: double up to 4M, then linear 4M steps
 #define HEAP_GROW_LINEAR_STEP  (4 * 1024 * 1024)
 
+// Virtual memory reservation for heap array (8GB = ~340M slots).
+// Only physical pages that are touched get allocated by the OS.
+#define HEAP_MMAP_RESERVE  (48ULL * 1024 * 1024 * 1024)
+#define HEAP_MAX_SLOTS     (HEAP_MMAP_RESERVE / sizeof(struct vm_pointer))
 
 struct vm_pointer *heap = NULL;
 size_t heap_size = 0;
 uint32_t heap_next_seq;
+static bool heap_is_mmap = false;  // true if heap was allocated via mmap
 
 // Intrusive free list through heap[slot].seq (saves separate array allocation).
 // When ref == 0, seq stores the next-free-slot index (-1 = end of list).
 int32_t heap_free_head = -1;
 size_t heap_free_count = 0;
+
+// GC scan limit: only scan slots [2, heap_scan_limit) during mark/sweep.
+// Updated by heap_alloc_slot (high-water mark) and heap_gc (after sweep).
+static size_t heap_scan_limit = 2;
 
 // Global page heap slot. Initialized to 1 (not 0) to prevent null references
 // (method_call skip returns, failed lookups, etc.) from aliasing to the global page.
@@ -57,10 +123,18 @@ static const char *vm_ptrtype_string(enum vm_pointer_type type) {
 void heap_grow(size_t new_size)
 {
 	assert(new_size > heap_size);
-	heap = xrealloc(heap, sizeof(struct vm_pointer) * new_size);
-	// Chain new slots into free list (low→high, prepend range to head)
+	if (heap_is_mmap) {
+		// mmap reservation: just extend into pre-reserved virtual space
+		if (new_size > HEAP_MAX_SLOTS) {
+			VM_ERROR("heap_grow: exceeded mmap reservation (%zu > %zu)",
+				new_size, (size_t)HEAP_MAX_SLOTS);
+		}
+	} else {
+		heap = xrealloc(heap, sizeof(struct vm_pointer) * new_size);
+	}
+	// Zero-init new slots and chain into free list
+	memset(&heap[heap_size], 0, (new_size - heap_size) * sizeof(struct vm_pointer));
 	for (size_t i = heap_size; i < new_size; i++) {
-		heap[i].ref = 0;
 		heap[i].seq = (i + 1 < new_size) ? (uint32_t)(i + 1) : (uint32_t)heap_free_head;
 	}
 	heap_free_head = (int32_t)heap_size;
@@ -71,8 +145,18 @@ void heap_grow(size_t new_size)
 void heap_init(void)
 {
 	if (!heap) {
+		// Try mmap reservation first (avoids realloc copies during growth)
+		void *p = mmap(NULL, HEAP_MMAP_RESERVE,
+			PROT_READ | PROT_WRITE,
+			MAP_PRIVATE | MAP_ANON, -1, 0);
+		if (p != MAP_FAILED) {
+			heap = p;
+			heap_is_mmap = true;
+		} else {
+			heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
+			heap_is_mmap = false;
+		}
 		heap_size = INITIAL_HEAP_SIZE;
-		heap = xcalloc(1, INITIAL_HEAP_SIZE * sizeof(struct vm_pointer));
 	} else {
 		memset(heap, 0, heap_size * sizeof(struct vm_pointer));
 	}
@@ -89,8 +173,342 @@ void heap_init(void)
 	heap_next_seq = 1;
 }
 
+static void heap_free_slot(int32_t slot);
+
+// ---- Mark-and-sweep GC for reference cycle collection ----
+// Uses generation counter to avoid memset of multi-GB mark array.
+static uint8_t *gc_mark = NULL;
+static size_t gc_mark_size = 0;
+static uint8_t gc_gen = 0;  // generation counter (wraps at 255→1)
+#define GC_IS_MARKED(slot) (gc_mark[slot] == gc_gen)
+#define GC_SET_MARK(slot)  (gc_mark[slot] = gc_gen)
+static unsigned long long gc_alloc_counter = 0;
+static unsigned long long gc_last_alloc = 0;
+// GC is triggered based on heap occupancy, not allocation count.
+// Only run when free slots drop below 10% of heap size.
+// This avoids expensive GC sweeps during initialization/transition phases
+// where millions of cycle-garbage objects are created and discarded quickly.
+#define GC_FREE_RATIO_THRESHOLD 10  // trigger GC when free < 10% of heap
+
+// GC inhibit counter: when > 0, GC is deferred (e.g. during alloc_struct)
+static int gc_inhibit = 0;
+void heap_gc_inhibit(void) { gc_inhibit++; }
+void heap_gc_allow(void) { gc_inhibit--; }
+#define GC_WORK_STACK_SIZE 65536
+
+// ---- Precise type-aware scanning ----
+// Returns true if an AIN data type stores a heap slot reference.
+static bool gc_type_is_ref(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_DELEGATE:
+	case AIN_FUNC_TYPE:
+	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
+	case AIN_WRAP:
+	case AIN_IFACE_WRAP:
+	case AIN_OPTION:
+	case AIN_IFACE:
+		return true;
+	case AIN_REF_TYPE:
+		// REF types store [page_slot, var_index]; the page_slot is a ref
+		return true;
+	default:
+		return false;
+	}
+}
+
+// Per-struct-type ref bitmap cache: gc_struct_refmap[struct_no][member] = 1 if ref
+static uint8_t **gc_struct_refmap = NULL;
+static int gc_struct_refmap_size = 0;
+
+// Build or return cached ref bitmap for a given struct page.
+// Returns NULL for unknown/out-of-range struct (caller falls back to conservative).
+static const uint8_t *gc_get_struct_refmap(struct page *p)
+{
+	int idx = p->index;
+	if (idx < 0 || idx >= gc_struct_refmap_size)
+		return NULL;
+	if (gc_struct_refmap[idx])
+		return gc_struct_refmap[idx];
+
+	// Build bitmap using variable_type
+	int nv = p->nr_vars;
+	uint8_t *map = xcalloc(nv + 1, sizeof(uint8_t));  // +1 safety
+	for (int j = 0; j < nv; j++) {
+		enum ain_data_type vtype = variable_type(p, j, NULL, NULL);
+		if (gc_type_is_ref(vtype))
+			map[j] = 1;
+	}
+	gc_struct_refmap[idx] = map;
+	return map;
+}
+
+// Initialize struct refmap cache from AIN metadata
+static void gc_init_struct_cache(void)
+{
+	if (gc_struct_refmap) return;
+	gc_struct_refmap_size = ain->nr_structures;
+	gc_struct_refmap = xcalloc(gc_struct_refmap_size, sizeof(uint8_t *));
+}
+
+static void gc_mark_slot(int slot);
+
+// Precisely scan page members, only processing variables that hold heap refs.
+// Pushes page-type children onto work_stack for BFS traversal.
+static void gc_scan_page(struct page *p, int *work_stack, int *work_count)
+{
+	if (!p) return;
+
+	// DELEGATE_PAGE: members are weak refs (not reference counted) — skip
+	if (p->type == DELEGATE_PAGE)
+		return;
+
+	// ARRAY_PAGE: all elements have the same type
+	if (p->type == ARRAY_PAGE) {
+		if (p->array.rank <= 1) {
+			enum ain_data_type etype = array_type(p->a_type);
+			if (!gc_type_is_ref(etype))
+				return;  // int/float/bool array — no refs
+		}
+	}
+
+	// STRUCT_PAGE: use cached per-type ref bitmap
+	const uint8_t *refmap = NULL;
+	if (p->type == STRUCT_PAGE)
+		refmap = gc_get_struct_refmap(p);
+
+	for (int j = 0; j < p->nr_vars; j++) {
+		if (refmap && !refmap[j])
+			continue;
+		int child = p->values[j].i;
+		if (child <= 1 || (size_t)child >= gc_mark_size) continue;
+		if (GC_IS_MARKED(child) || heap[child].ref <= 0) continue;
+		GC_SET_MARK(child);
+		if (heap[child].type == VM_PAGE && heap[child].page
+		    && *work_count < GC_WORK_STACK_SIZE) {
+			work_stack[(*work_count)++] = child;
+		}
+	}
+}
+
+static void gc_mark_slot(int slot)
+{
+	// Iterative BFS to avoid stack overflow
+	static int work_stack[GC_WORK_STACK_SIZE];
+	int work_count = 0;
+
+	GC_SET_MARK(slot);
+	if (heap[slot].type == VM_PAGE && heap[slot].page)
+		work_stack[work_count++] = slot;
+
+	while (work_count > 0) {
+		int s = work_stack[--work_count];
+		struct page *p = heap[s].page;
+		gc_scan_page(p, work_stack, &work_count);
+	}
+}
+
+static void heap_gc(void)
+{
+	extern struct function_call call_stack[];
+	extern int32_t call_stack_ptr;
+	extern int32_t stack_ptr;
+
+	// Initialize struct ref cache on first GC
+	gc_init_struct_cache();
+
+	// Advance generation counter (avoids memset of multi-GB array)
+	gc_gen++;
+	if (gc_gen == 0) gc_gen = 1;  // skip 0 (initial/cleared value)
+
+	// Resize mark array if needed (only on first use or growth)
+	if (gc_mark_size < heap_size) {
+		free(gc_mark);
+		gc_mark = xcalloc(heap_size, sizeof(uint8_t));
+		gc_mark_size = heap_size;
+	}
+
+	// Mark roots: global page
+	GC_SET_MARK(global_page_slot);
+	if (heap[global_page_slot].page) {
+		// Global page: scan all vars (only one page, conservative is fine)
+		static int root_stack[GC_WORK_STACK_SIZE];
+		int root_count = 0;
+		gc_scan_page(heap[global_page_slot].page, root_stack, &root_count);
+		while (root_count > 0) {
+			int s = root_stack[--root_count];
+			struct page *p = heap[s].page;
+			gc_scan_page(p, root_stack, &root_count);
+		}
+	}
+
+	// Mark roots: call stack pages and their members
+	for (int i = 0; i < call_stack_ptr; i++) {
+		int ps = call_stack[i].page_slot;
+		if (ps > 1 && (size_t)ps < heap_size && heap[ps].ref > 0 && !GC_IS_MARKED(ps))
+			gc_mark_slot(ps);
+		int sp = call_stack[i].struct_page;
+		if (sp > 1 && (size_t)sp < heap_size && heap[sp].ref > 0 && !GC_IS_MARKED(sp))
+			gc_mark_slot(sp);
+	}
+
+	// Mark roots: VM value stack (conservative — stack values lack type info)
+	for (int i = 0; i < stack_ptr && i < 65536; i++) {
+		int v = stack[i].i;
+		if (v > 1 && (size_t)v < heap_size && heap[v].ref > 0 && !GC_IS_MARKED(v))
+			gc_mark_slot(v);
+	}
+
+	// Use heap_scan_limit instead of heap_size for sweep — skip unallocated tail.
+	size_t scan_end = heap_scan_limit;
+
+	// Combined sweep: find unreachable alive slots, free resources, rebuild free list.
+	size_t swept = 0;
+	size_t orphans = 0;
+	size_t new_scan_limit = 2;  // track highest alive slot
+	heap_free_head = -1;
+	heap_free_count = 0;
+
+	// Scan from high to low so free list ends with lowest slot at head
+	for (size_t i = scan_end; i-- > 2; ) {
+		if (heap[i].ref > 0) {
+			if (!GC_IS_MARKED(i)) {
+				// Unreachable cycle-garbage: free resources
+				swept++;
+				switch (heap[i].type) {
+				case VM_PAGE:
+					if (heap[i].page) {
+						free_page(heap[i].page);
+						heap[i].page = NULL;
+					}
+					break;
+				case VM_STRING:
+					if (heap[i].s) {
+						free_string(heap[i].s);
+						heap[i].s = NULL;
+					}
+					break;
+				default:
+					break;
+				}
+				heap[i].ref = 0;
+				heap[i].type = 0;
+				heap[i].seq = (uint32_t)heap_free_head;
+				heap_free_head = (int32_t)i;
+				heap_free_count++;
+			} else {
+				// Alive — track highest
+				if (i + 1 > new_scan_limit)
+					new_scan_limit = i + 1;
+			}
+		} else {
+			// Dead slot (ref <= 0)
+			if (heap[i].type != 0) {
+				// Orphaned resources
+				switch (heap[i].type) {
+				case VM_PAGE:
+					if (heap[i].page) {
+						free_page(heap[i].page);
+						heap[i].page = NULL;
+					}
+					break;
+				case VM_STRING:
+					if (heap[i].s) {
+						free_string(heap[i].s);
+						heap[i].s = NULL;
+					}
+					break;
+				default:
+					break;
+				}
+				heap[i].type = 0;
+				orphans++;
+			}
+			heap[i].ref = 0;
+			heap[i].seq = (uint32_t)heap_free_head;
+			heap_free_head = (int32_t)i;
+			heap_free_count++;
+		}
+	}
+	// Also add unscanned tail slots [scan_end, heap_size) to free list
+	for (size_t i = heap_size; i-- > scan_end; ) {
+		if (heap[i].ref <= 0) {
+			heap[i].ref = 0;
+			heap[i].seq = (uint32_t)heap_free_head;
+			heap_free_head = (int32_t)i;
+			heap_free_count++;
+		} else if (i + 1 > new_scan_limit) {
+			new_scan_limit = i + 1;
+		}
+	}
+	heap_scan_limit = new_scan_limit;
+
+	if (swept > 0 || orphans > 0) {
+		static unsigned gc_log_count = 0;
+		if (++gc_log_count <= 3 || (gc_log_count & 4095) == 0)
+			WARNING("heap_gc: swept %zu cycle-garbage, %zu orphans, free=%zu scan=%zu/%zu",
+				swept, orphans, heap_free_count, scan_end, heap_size);
+	}
+
+#ifdef __APPLE__
+	if (swept > 100000 || heap_free_count > 1000000)
+		malloc_zone_pressure_relief(NULL, 0);
+#endif
+
+	// Shrink heap: release tail memory back to OS after sweep.
+	if (heap_is_mmap && heap_size > 2000000) {
+		// heap_scan_limit already tracks highest alive slot + 1
+		size_t keep = heap_scan_limit + 262144;
+		if (keep < heap_size / 2) {
+			// Release tail physical pages via madvise
+			size_t old_size = heap_size;
+			heap_size = keep;
+			// Rebuild free list for kept region (already done above for full heap,
+			// but we need to trim entries beyond keep)
+			heap_free_head = -1;
+			heap_free_count = 0;
+			for (size_t i = keep; i-- > 2; ) {
+				if (heap[i].ref == 0) {
+					heap[i].seq = (uint32_t)heap_free_head;
+					heap_free_head = (int32_t)i;
+					heap_free_count++;
+				}
+			}
+			uintptr_t start = (uintptr_t)&heap[keep];
+			uintptr_t end = (uintptr_t)&heap[old_size];
+			// Align to 16K page boundary (Apple Silicon)
+			uintptr_t aligned = (start + 16383) & ~(uintptr_t)16383;
+			if (aligned < end) {
+				memset((void*)aligned, 0, end - aligned);
+				madvise((void*)aligned, end - aligned, MADV_FREE);
+			}
+			WARNING("heap_gc: shrunk heap %zu → %zu (released %zuMB)",
+				old_size, keep,
+				(end - aligned) / (1024*1024));
+		}
+	}
+}
+
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
+	gc_alloc_counter++;
+	// Trigger GC only when heap has grown large AND free list is nearly exhausted.
+	// During scene transitions, thousands of objects with circular refs are created and
+	// destroyed. GC is expensive (scans entire heap) so we defer it until the heap
+	// grows beyond a threshold, allowing the heap to absorb cycle-garbage via growth.
+	// GC reclaims cycle-garbage when the heap gets large enough to justify the scan cost.
+	if (gc_inhibit <= 0
+	    && heap_free_count < 1024
+	    && heap_size >= 4000000) {
+		heap_gc();
+		static unsigned gc_run_count = 0;
+		if (++gc_run_count <= 3 || (gc_run_count & 255) == 0)
+			heap_periodic_stats();
+	}
+
 	if (heap_free_head < 0) {
 		size_t new_size;
 		if (heap_size < HEAP_GROW_LINEAR_STEP)
@@ -100,11 +518,34 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 		heap_grow(new_size);
 	}
 	int32_t slot = heap_free_head;
+	// Validate free list: skip corrupt or in-use entries
+	int skip = 0;
+	while (slot >= 0 && (size_t)slot < heap_size && heap[slot].ref != 0 && skip++ < 64) {
+		slot = (int32_t)heap[slot].seq;
+	}
+	if (skip > 0) {
+		static int skip_warn = 0;
+		if (skip_warn++ < 10)
+			WARNING("heap_alloc_slot: skipped %d in-use entries (head=%d found=%d ref=%d)",
+				skip, heap_free_head, slot,
+				(slot >= 0 && (size_t)slot < heap_size) ? heap[slot].ref : -999);
+	}
+	if (slot < 0 || (size_t)slot >= heap_size || heap[slot].ref != 0) {
+		// Free list is exhausted or corrupt — grow heap
+		static int grow_warn = 0;
+		if (grow_warn++ < 5)
+			WARNING("heap_alloc_slot: free list exhausted/corrupt (head=%d slot=%d heap_size=%zu skip=%d) — growing",
+				heap_free_head, slot, heap_size, skip);
+		heap_grow(heap_size + HEAP_GROW_LINEAR_STEP);
+		slot = heap_free_head;
+	}
 	heap_free_head = (int32_t)heap[slot].seq;
 	heap_free_count--;
 	heap[slot].ref = 1;
 	heap[slot].seq = heap_next_seq++;
 	heap[slot].type = type;
+	if ((size_t)(slot + 1) > heap_scan_limit)
+		heap_scan_limit = slot + 1;
 	heap[slot].page = NULL;
 #ifdef DEBUG_HEAP
 	heap[slot].alloc_addr = instr_ptr;
@@ -123,6 +564,17 @@ static void heap_free_slot(int32_t slot)
 		// slot 0 = null guard page, slot 1 = global page; never free these
 		return;
 	}
+	if (unlikely((size_t)slot >= heap_size)) {
+		return;
+	}
+	// Guard: if ref is already 0, this is a double-free — skip silently.
+	// This happens regularly after GC sweep adds slots to free list,
+	// then VM code unrefs the same slots.
+	if (unlikely(heap[slot].ref == 0 && heap[slot].type == 0)) {
+		return;
+	}
+	heap[slot].ref = 0;
+	heap[slot].type = 0;
 	heap[slot].seq = (uint32_t)heap_free_head;
 	heap_free_head = slot;
 	heap_free_count++;
@@ -149,136 +601,6 @@ void heap_ref(int32_t slot)
 #endif
 }
 
-// Does this type hold a heap slot index? Must match variable_fini's list exactly.
-static bool type_holds_heap_slot(enum ain_data_type type)
-{
-	switch (type) {
-	case AIN_STRING:
-	case AIN_STRUCT:
-	case AIN_DELEGATE:
-	case AIN_FUNC_TYPE:
-	case AIN_ARRAY_TYPE:
-	case AIN_ARRAY:
-	case AIN_WRAP:
-	case AIN_IFACE_WRAP:
-	case AIN_OPTION:
-	case AIN_REF_TYPE:
-	case AIN_IFACE:
-		return true;
-	default:
-		return false;
-	}
-}
-
-// v14: Boolean array marking heap slots reachable from global page + call frames.
-// Rebuilt every 10K instructions. O(1) lookup via grp_flags[slot].
-// Uses tracked marking to avoid clearing the entire heap-sized array.
-static bool *grp_flags = NULL;
-static size_t grp_flags_size = 0;
-static unsigned long long grp_rebuild_insn = 0;
-static int *grp_marked = NULL;     // list of marked slot indices
-static int grp_marked_count = 0;
-static int grp_marked_cap = 0;
-
-static inline void grp_mark_slot(int slot)
-{
-	if (slot <= 0 || (size_t)slot >= grp_flags_size) return;
-	if (grp_flags[slot]) return;
-	grp_flags[slot] = true;
-	if (grp_marked_count < grp_marked_cap)
-		grp_marked[grp_marked_count++] = slot;
-}
-
-// Recursively mark all page members reachable from a given slot.
-// Uses iterative BFS with a work stack to avoid C stack overflow.
-static int grp_work_stack[4096];
-static int grp_work_count = 0;
-
-static void grp_mark_reachable(int root_slot)
-{
-	if (root_slot <= 0 || (size_t)root_slot >= heap_size) return;
-	if (heap[root_slot].type != VM_PAGE || !heap[root_slot].page) return;
-
-	grp_work_count = 0;
-	grp_work_stack[grp_work_count++] = root_slot;
-
-	while (grp_work_count > 0) {
-		int slot = grp_work_stack[--grp_work_count];
-		if (slot <= 0 || (size_t)slot >= heap_size) continue;
-		if (heap[slot].type != VM_PAGE || !heap[slot].page) continue;
-
-		struct page *p = heap[slot].page;
-		for (int j = 0; j < p->nr_vars; j++) {
-			int child = p->values[j].i;
-			if (child <= 0 || (size_t)child >= grp_flags_size) continue;
-			if (grp_flags[child]) continue; // already marked
-			grp_mark_slot(child);
-			// If this child is a page, enqueue for further traversal
-			if ((size_t)child < heap_size &&
-			    heap[child].type == VM_PAGE && heap[child].page &&
-			    grp_work_count < 4096) {
-				grp_work_stack[grp_work_count++] = child;
-			}
-		}
-	}
-}
-
-static void grp_rebuild(void)
-{
-	extern struct ain *ain;
-	if (!ain || !heap[global_page_slot].page) return;
-
-	// Resize arrays if heap grew
-	if (grp_flags_size < heap_size) {
-		grp_flags = xrealloc(grp_flags, heap_size * sizeof(bool));
-		memset(grp_flags + grp_flags_size, 0, (heap_size - grp_flags_size) * sizeof(bool));
-		grp_flags_size = heap_size;
-	}
-	if (!grp_marked) {
-		grp_marked_cap = 65536;
-		grp_marked = xmalloc(grp_marked_cap * sizeof(int));
-	}
-
-	// Clear only previously marked slots (O(marked) instead of O(heap_size))
-	for (int i = 0; i < grp_marked_count; i++) {
-		int ms = grp_marked[i];
-		if (ms >= 0 && (size_t)ms < grp_flags_size)
-			grp_flags[ms] = false;
-	}
-	grp_marked_count = 0;
-
-	// Recursively mark all slots reachable from global page
-	struct page *global = heap[global_page_slot].page;
-	for (int i = 0; i < global->nr_vars; i++) {
-		enum ain_data_type gtype = variable_type(global, i, NULL, NULL);
-		if (!type_holds_heap_slot(gtype)) continue;
-
-		int slot_i = global->values[i].i;
-		grp_mark_slot(slot_i);
-		grp_mark_reachable(slot_i);
-	}
-}
-
-// O(1) check with periodic rebuild.
-static bool slot_reachable_from_global(int target_slot)
-{
-	extern struct ain *ain;
-	extern bool vm_in_alloc_phase;
-	if (!ain || ain->version < 14) return false;
-	if (target_slot <= 0 || (size_t)target_slot >= heap_size) return false;
-
-	extern unsigned long long vm_call_get_insn_count(void);
-	unsigned long long insn = vm_call_get_insn_count();
-	// Periodic rebuild: 2M insns normally, 8M during alloc phase.
-	// The recursive BFS marking ensures full transitive coverage.
-	unsigned long long threshold = vm_in_alloc_phase ? 8000000ULL : 2000000ULL;
-	if (!grp_flags || insn - grp_rebuild_insn > threshold) {
-		grp_rebuild();
-		grp_rebuild_insn = insn;
-	}
-
-	return (size_t)target_slot < grp_flags_size && grp_flags[target_slot];
-}
 
 
 void heap_unref(int slot)
@@ -296,101 +618,41 @@ void heap_unref(int slot)
 		heap[slot].ref--;  // decrement (preserves temp flag in high bits)
 		return;
 	}
-	// actual_ref == 1, about to become 0: clear any temp flag too
-	// (Fall through to free logic below)
-	// Protection: prevent freeing objects still used by active call frames.
-	// Use a bitmap for O(1) lookups instead of O(csp) per unref.
+	// actual_ref == 1, about to become 0
 	static bool deferred_processing = false;
-	static uint8_t *frame_protect_map = NULL;
-	static size_t frame_protect_map_size = 0;
-	// Track which entries were set for fast clearing
-	static int fpm_dirty[512];
-	static int fpm_dirty_count = 0;
-	// Generation: rebuild only when call stack changes
-	static int32_t fpm_last_csp = -1;
-
-	if (!deferred_processing) {
-		extern struct function_call call_stack[];
-		extern int32_t call_stack_ptr;
-		extern struct ain *ain;
-
-		// Rebuild bitmap only when call stack pointer changed or heap grew
-		if (call_stack_ptr != fpm_last_csp || heap_size > frame_protect_map_size) {
-			// Grow bitmap if needed
-			if (heap_size > frame_protect_map_size) {
-				free(frame_protect_map);
-				frame_protect_map_size = heap_size;
-				frame_protect_map = calloc(heap_size, 1);
-				fpm_dirty_count = 0;
-			} else {
-				// Clear only previously set entries
-				for (int i = 0; i < fpm_dirty_count; i++) {
-					int idx = fpm_dirty[i];
-					if ((size_t)idx < frame_protect_map_size)
-						frame_protect_map[idx] = 0;
-				}
-				fpm_dirty_count = 0;
-			}
-			// Mark call stack page slots
-			for (int i = 0; i < call_stack_ptr; i++) {
-				int ps = call_stack[i].page_slot;
-				if (ps > 0 && (size_t)ps < heap_size) {
-					frame_protect_map[ps] = 1;
-					if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = ps;
-				}
-			}
-			// Also mark struct_page members of recent frames (top 16)
-			if (ain && ain->version >= 14) {
-				int start = call_stack_ptr > 16 ? call_stack_ptr - 16 : 0;
-				for (int ci = start; ci < call_stack_ptr; ci++) {
-					int sp_slot = call_stack[ci].struct_page;
-					if (sp_slot <= 0 || (size_t)sp_slot >= heap_size) continue;
-					if (heap[sp_slot].type != VM_PAGE || !heap[sp_slot].page) continue;
-					struct page *sp = heap[sp_slot].page;
-					for (int mi = 0; mi < sp->nr_vars; mi++) {
-						int v = sp->values[mi].i;
-						if (v > 0 && (size_t)v < heap_size) {
-							frame_protect_map[v] = 1;
-							if (fpm_dirty_count < 512) fpm_dirty[fpm_dirty_count++] = v;
-						}
-					}
-				}
-			}
-			fpm_last_csp = call_stack_ptr;
-		}
-
-		// Check this slot against the bitmap
-		if ((size_t)slot < heap_size && frame_protect_map[slot]) {
-			heap[slot].ref = 1;
-			return;
-		}
-		// Global page reachability check
-		if (ain && ain->version >= 14 && heap[slot].type == VM_PAGE) {
-			if (slot_reachable_from_global(slot)) {
-				heap[slot].ref = 1;
-				return;
-			}
-		}
-	} else {
-		// During deferred processing: O(1) bitmap lookup only
-		if ((size_t)slot < heap_size && frame_protect_map && frame_protect_map[slot]) {
-			heap[slot].ref = 1;
-			return;
-		}
-	}
 	heap[slot].ref = 0;
 
-	// Deferred iterative free
+	// Deferred iterative free — fixed-size queue.
+	// Items that don't fit are left with ref=0 for GC to reclaim.
 	{
-		static int deferred_queue[65536];
+		#define DEFERRED_QUEUE_MAX (1 << 20)  // 1M entries
+		static int deferred_queue[DEFERRED_QUEUE_MAX];
 		static int deferred_count = 0;
 
-		if (deferred_count < 65536) {
+		if (deferred_count < DEFERRED_QUEUE_MAX) {
 			deferred_queue[deferred_count++] = slot;
 		} else {
-			static int overflow_warn = 0;
-			if (overflow_warn++ < 3)
-				WARNING("heap_unref: deferred queue overflow, leaking slot %d", slot);
+			// Queue full — free resources directly without recursing
+			// (free_page, not delete_page, to avoid cascading heap_unref).
+			// Children keep their ref counts; GC will sweep them as unreachable.
+			switch (heap[slot].type) {
+			case VM_PAGE:
+				if (heap[slot].page) {
+					free_page(heap[slot].page);
+					heap[slot].page = NULL;
+				}
+				break;
+			case VM_STRING:
+				if (heap[slot].s) {
+					free_string(heap[slot].s);
+					heap[slot].s = NULL;
+				}
+				break;
+			default:
+				break;
+			}
+			heap[slot].type = 0;
+			heap_free_slot(slot);
 		}
 
 		if (!deferred_processing) {
@@ -422,6 +684,17 @@ void heap_unref(int slot)
 				heap_free_slot(s);
 			}
 			deferred_processing = false;
+#ifdef __APPLE__
+			// Periodically tell macOS malloc to return freed memory to the OS.
+			// Without this, freed small allocations stay compressed and accumulate.
+			{
+				static unsigned long long relief_counter = 0;
+				relief_counter++;
+				if (relief_counter % 10000 == 0) {
+					malloc_zone_pressure_relief(NULL, 0);
+				}
+			}
+#endif
 		}
 	}
 }

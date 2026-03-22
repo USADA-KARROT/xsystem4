@@ -555,15 +555,55 @@ static void scenario_call(int slot)
  */
 static int _function_call(int fno, int return_address)
 {
+	// C stack overflow guard: check remaining stack space
+	{
+		volatile char stack_var;
+		static void *stack_base = NULL;
+		if (!stack_base) {
+			pthread_t self = pthread_self();
+			stack_base = pthread_get_stackaddr_np(self);
+		}
+		size_t stack_used = (size_t)((char*)stack_base - (char*)&stack_var);
+		size_t stack_limit = 8 * 1024 * 1024; // 8MB default
+		if (stack_used > stack_limit - 64*1024) { // 64KB safety margin
+			static int cstack_warn = 0;
+			if (cstack_warn++ < 5) {
+				WARNING("_function_call: C stack nearly full! used=%zu/%zu fno=%d '%s' csp=%d ved=%d",
+					stack_used, stack_limit, fno,
+					(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?",
+					call_stack_ptr, 0);
+			}
+			return -1;
+		}
+	}
 	if (unlikely(fno < 0 || fno >= ain->nr_functions)) {
 		WARNING("_function_call: invalid fno=%d (nr_functions=%d)", fno, ain->nr_functions);
 		return -1;
 	}
 	if (unlikely(call_stack_ptr >= 4090)) {
 		static int cso_warn = 0;
-		if (cso_warn++ < 5)
-			WARNING("_function_call: call stack near overflow (csp=%d) fno=%d '%s' [%d]",
-				call_stack_ptr, fno, ain->functions[fno].name, cso_warn);
+		if (cso_warn++ < 3) {
+			WARNING("_function_call: call stack overflow (csp=%d) fno=%d '%s'",
+				call_stack_ptr, fno, ain->functions[fno].name);
+			// Dump bottom 10 + top 30 frames with struct pages
+			WARNING("=== Call stack (bottom 10 + top 30) ===");
+			for (int ci = 0; ci < 10 && ci < call_stack_ptr; ci++) {
+				int cfno = call_stack[ci].fno;
+				WARNING("  [%d] fno=%d page=%d '%s'", ci, cfno,
+					call_stack[ci].struct_page,
+					(cfno >= 0 && cfno < ain->nr_functions) ? ain->functions[cfno].name : "?");
+			}
+			if (call_stack_ptr > 40)
+				WARNING("  ... (%d frames omitted) ...", call_stack_ptr - 40);
+			int start = call_stack_ptr > 30 ? call_stack_ptr - 30 : 0;
+			if (start < 10) start = 10;
+			for (int ci = start; ci < call_stack_ptr; ci++) {
+				int cfno = call_stack[ci].fno;
+				WARNING("  [%d] fno=%d page=%d '%s'", ci, cfno,
+					call_stack[ci].struct_page,
+					(cfno >= 0 && cfno < ain->nr_functions) ? ain->functions[cfno].name : "?");
+			}
+		}
 		return -1;
 	}
 	struct ain_function *f = &ain->functions[fno];
@@ -4138,11 +4178,23 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	return opcode;
 }
 
+static int vm_execute_depth = 0;
+
 static void vm_execute(void)
 {
+	vm_execute_depth++;
+	if (vm_execute_depth > 10) {
+		static int ved_warn = 0;
+		if (ved_warn++ < 3)
+			WARNING("vm_execute: recursion depth %d (ip=0x%lX csp=%d)",
+				vm_execute_depth, (unsigned long)instr_ptr, call_stack_ptr);
+		vm_execute_depth--;
+		return;
+	}
 	for (;;) {
 		uint16_t opcode;
 		if (instr_ptr == VM_RETURN) {
+			vm_execute_depth--;
 			return;
 		}
 		if (unlikely(instr_ptr >= ain->code_size)) {

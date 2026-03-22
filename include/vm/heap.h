@@ -83,6 +83,10 @@ int32_t heap_alloc_string(struct string *s);
 
 void heap_describe_slot(int slot);
 
+// GC inhibit: prevent GC from running while constructing unrooted objects
+void heap_gc_inhibit(void);
+void heap_gc_allow(void);
+
 // Global page heap slot (non-zero to prevent null-reference aliasing)
 extern int global_page_slot;
 
