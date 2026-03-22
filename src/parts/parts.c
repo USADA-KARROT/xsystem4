@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <time.h>
+#include <SDL.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -1147,9 +1148,18 @@ void PE_Update(int passed_time, bool message_window_show)
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
-	scene_render();
-	gfx_swap();
-	scene_is_dirty = false;
+
+	// Throttle scene_render + gfx_swap to ~60fps.
+	// The game may call UpdateComponent hundreds of times per second
+	// during bulk init; rendering every call wastes time on GPU wait.
+	static uint32_t pe_last_render_ms = 0;
+	uint32_t now_ms = SDL_GetTicks();
+	if (now_ms - pe_last_render_ms >= 16) {
+		scene_render();
+		gfx_swap();
+		scene_is_dirty = false;
+		pe_last_render_ms = now_ms;
+	}
 }
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)

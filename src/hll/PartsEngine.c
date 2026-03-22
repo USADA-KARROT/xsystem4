@@ -1604,11 +1604,6 @@ static void PartsEngine_UpdateComponent(int passed_time, int scaled_time,
 	if (in_update) {
 		handle_events();
 		PE_UpdateComponent(passed_time);
-		parts_update_animation(passed_time);
-		PE_UpdateInputState(passed_time);
-		parts_render_update(passed_time);
-		scene_render();
-		gfx_swap();
 		return;
 	}
 	in_update = true;

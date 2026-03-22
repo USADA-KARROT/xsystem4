@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <zlib.h>
+#include <SDL.h>
 
 #include "system4/ain.h"
 #include "system4/file.h"
@@ -36,6 +37,18 @@ char *resume_load_path_pending = NULL;
 // with return value false (indicating a load, not a save).
 static bool system_ResumeSave(struct string *keyName, struct string *fileName, int *result_out)
 {
+	// Throttle: skip if called within 2 seconds of last save.
+	// The game calls ResumeSave very frequently during init/transitions;
+	// each call serializes the entire heap to disk which is expensive.
+	static uint32_t last_save_ms = 0;
+	uint32_t now_ms = SDL_GetTicks();
+	if (now_ms - last_save_ms < 2000) {
+		if (result_out)
+			*result_out = 1;
+		return true;
+	}
+	last_save_ms = now_ms;
+
 	// save_stack_to_rsave assumes 2 extra values on the stack (the SYS_RESUME_SAVE
 	// arguments in the old CALLSYS path). In the HLL path, arguments have already
 	// been popped by hll_call. Push 2 dummy values to match the assumption.

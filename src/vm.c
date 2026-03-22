@@ -4202,18 +4202,19 @@ static void vm_execute(void)
 		}
 		opcode = get_opcode(instr_ptr);
 		insn_count++;
-		// Periodically render and process events (~every 256K instructions)
+		// Periodically pump events (~every 256K instructions)
+		// to prevent OS "not responding" and keep screen alive.
 		if (unlikely((insn_count & 0x3FFFF) == 0)) {
-			if (vm_call_depth == 0) {
-				handle_events();
-				scene_render();
-				gfx_swap();
-			} else {
-				static uint32_t last_pump_ms = 0;
-				uint32_t now_ms = SDL_GetTicks();
-				if (now_ms - last_pump_ms >= 200) {
-					handle_events();
-					last_pump_ms = now_ms;
+			handle_events();
+			// Periodic buffer swap to keep OS window alive.
+			// Only gfx_swap (no scene_render to avoid O(n log n)
+			// parts sort during heavy init).
+			{
+				static uint32_t last_vm_swap = 0;
+				uint32_t now_r = SDL_GetTicks();
+				if (now_r - last_vm_swap >= 500) {
+					gfx_swap();
+					last_vm_swap = now_r;
 				}
 			}
 			// vm_call timeout: bail out if destructor/constructor takes too long

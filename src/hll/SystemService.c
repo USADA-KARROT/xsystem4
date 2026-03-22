@@ -127,10 +127,17 @@ static bool SystemService_UpdateView(void)
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
-	scene_render();
-	gfx_swap();
 
-	SDL_Delay(16); // ~60fps, yield to OS for event delivery
+	// Throttle scene_render + gfx_swap to ~60fps.
+	static uint32_t sv_last_render_ms = 0;
+	uint32_t now_ms = SDL_GetTicks();
+	if (now_ms - sv_last_render_ms >= 16) {
+		scene_render();
+		gfx_swap();
+		sv_last_render_ms = now_ms;
+	} else {
+		SDL_Delay(1); // yield to OS when render is skipped
+	}
 	return true;
 }
 

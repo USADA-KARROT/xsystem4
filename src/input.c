@@ -608,15 +608,25 @@ void handle_window_events(void)
 
 void handle_events(void)
 {
+	// Throttle: SDL_PollEvent involves system calls; avoid pumping more
+	// than once per millisecond when many HLL functions call handle_events.
+	static uint32_t last_pump_ms = 0;
+	uint32_t now_ms = SDL_GetTicks();
+	if (now_ms == last_pump_ms)
+		return;
+	last_pump_ms = now_ms;
+
 	fire_deferred_events();
 
 	/* Auto-click mode: XSYS4_AUTO_CLICK=<ms> injects periodic mouse clicks.
 	 * Uses XSYS4_AUTO_CLICK_X/Y for game-coordinate position (default 350,180).
+	 * XSYS4_AUTO_CLICK_COUNT limits total clicks (default unlimited).
 	 * Directly sets key_state + warps mouse for reliable click detection. */
 	{
 		static int auto_interval = -1;
 		static uint32_t last_auto_click = 0;
 		static int auto_count = 0;
+		static int auto_max = 0;
 		static bool auto_click_down = false;
 		static int click_gx = 350, click_gy = 180;
 		if (auto_interval < 0) {
@@ -624,12 +634,14 @@ void handle_events(void)
 			auto_interval = env ? atoi(env) : 0;
 			const char *cx = getenv("XSYS4_AUTO_CLICK_X");
 			const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
+			const char *cn = getenv("XSYS4_AUTO_CLICK_COUNT");
 			if (cx) click_gx = atoi(cx);
 			if (cy) click_gy = atoi(cy);
+			if (cn) auto_max = atoi(cn);
 			if (auto_interval > 0)
-				WARNING("Auto-click enabled: interval=%dms pos=(%d,%d)", auto_interval, click_gx, click_gy);
+				WARNING("Auto-click enabled: interval=%dms pos=(%d,%d) max=%d", auto_interval, click_gx, click_gy, auto_max);
 		}
-		if (auto_interval > 0) {
+		if (auto_interval > 0 && (auto_max <= 0 || auto_count < auto_max)) {
 			uint32_t now = SDL_GetTicks();
 			if (auto_click_down && now - last_auto_click >= 100) {
 				key_state[VK_LBUTTON] = false;
