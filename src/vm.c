@@ -379,25 +379,7 @@ static union vm_value *stack_pop_var(void)
 		return dummy_var;
 	}
 	if (unlikely(!heap[heap_index].page || page_index < 0 || page_index >= heap[heap_index].page->nr_vars)) {
-		// v14: auto-grow ARRAY_PAGE on OOB write instead of failing silently.
-		// Bytecode (e.g. CASConstructionProcess@SetCreate) writes to array
-		// indices beyond current size — grow to accommodate.
-		if (heap[heap_index].page && heap[heap_index].page->type == ARRAY_PAGE
-		    && page_index >= 0 && page_index >= heap[heap_index].page->nr_vars) {
-			struct page *p = heap[heap_index].page;
-			// Grow with exponential strategy to avoid O(n) reallocs.
-			// page_index + 2 handles 2-slot types (X_ASSIGN 2).
-			int min_size = page_index + 2;
-			int new_size = p->nr_vars * 2;
-			if (new_size < 8) new_size = 8;
-			if (new_size < min_size) new_size = min_size;
-			union vm_value dims = { .i = new_size };
-			int rank = p->array.rank > 0 ? p->array.rank : 1;
-			heap[heap_index].page = realloc_array(p, rank, &dims,
-				p->a_type, p->array.struct_type, false);
-			return &heap[heap_index].page->values[page_index];
-		}
-		// Silently ignore OOB — return dummy value
+		// OOB array/struct access — return dummy value (silently ignore)
 		dummy_var[0].i = 0;
 		return dummy_var;
 	}
@@ -4099,15 +4081,21 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		} else if (heap_index_valid(heap_idx) && heap[heap_idx].page) {
 			data_type = variable_type(heap[heap_idx].page, var_idx, &struct_type, NULL);
 		}
-		(void)arg;
+		// arg encodes element slot count: 0 = 1-slot, 1 = 2-slot, etc.
+		// For generic arrays (AIN_ARRAY), multiply physical size by (arg+1)
+		// to accommodate multi-slot element types (e.g. wrap, interface).
+		int elem_slots = arg + 1;
 		// Allocate array slot and page
 		int slot = heap_alloc_slot(VM_PAGE);
 		if (size > 0) {
 			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) {
-				// Generic array (v14 type erasure) — create flat int array
-				struct page *page = alloc_page(ARRAY_PAGE, data_type, size);
-				for (int i = 0; i < size; i++)
+				// Generic array (v14 type erasure) — create flat value array
+				int phys_size = size * elem_slots;
+				struct page *page = alloc_page(ARRAY_PAGE, data_type, phys_size);
+				for (int i = 0; i < phys_size; i++)
 					page->values[i].i = 0;
+				// Store elem_slots in struct_type for X_A_SIZE to use
+				page->array.struct_type = elem_slots;
 				heap_set_page(slot, page);
 			} else {
 				union vm_value dim = { .i = size };
@@ -4130,10 +4118,17 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case X_A_SIZE: {
-		// X_A_SIZE: push array size
+		// X_A_SIZE: push logical element count
+		// For generic arrays (AIN_ARRAY) with multi-slot elements,
+		// divide nr_vars by elem_slots (stored in array.struct_type).
 		int slot = stack_pop().i;
 		struct page *page = (heap_index_valid(slot) && heap[slot].page) ? heap[slot].page : NULL;
 		int size = page ? page->nr_vars : 0;
+		// For generic arrays with multi-slot elements, return logical size
+		if (page && (page->a_type == AIN_ARRAY || page->a_type == AIN_REF_ARRAY)
+		    && page->array.struct_type > 1) {
+			size = size / page->array.struct_type;
+		}
 		stack_push(size);
 		break;
 	}
@@ -4207,8 +4202,6 @@ static void vm_execute(void)
 		if (unlikely((insn_count & 0x3FFFF) == 0)) {
 			handle_events();
 			// Periodic buffer swap to keep OS window alive.
-			// Only gfx_swap (no scene_render to avoid O(n log n)
-			// parts sort during heavy init).
 			{
 				static uint32_t last_vm_swap = 0;
 				uint32_t now_r = SDL_GetTicks();

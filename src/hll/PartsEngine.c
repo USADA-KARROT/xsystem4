@@ -2297,6 +2297,7 @@ HLL_LIBRARY(PartsEngine,
 	    /* v14 Parts_ prefixed aliases (same implementations) */
 	    HLL_EXPORT(Parts_SetPartsCG, PE_SetPartsCG),
 	    HLL_EXPORT(Parts_GetPartsCGName, PE_GetPartsCGName),
+	    HLL_EXPORT(Parts_GetPartsCGDeform, PE_GetPartsCGDeform),
 	    HLL_EXPORT(Parts_SetPartsCGSurfaceArea, PE_SetPartsCGSurfaceArea),
 	    HLL_EXPORT(Parts_SetLoopCG, PE_SetLoopCG),
 	    HLL_EXPORT(Parts_SetLoopCGSurfaceArea, PE_SetLoopCGSurfaceArea),

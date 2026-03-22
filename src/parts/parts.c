@@ -1266,6 +1266,14 @@ bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_name,
 	}
 }
 
+int PE_GetPartsCGDeform(int parts_no, int state)
+{
+	// SpriteDeform: 0 = normal (no deformation)
+	// PE_SetPartsCG receives this but ignores it.
+	(void)parts_no; (void)state;
+	return 0;
+}
+
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
 {
 	if (!parts_state_valid(--state))

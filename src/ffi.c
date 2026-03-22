@@ -716,9 +716,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 			break;
 		case AIN_REF_ARRAY: {
 			// v14: 1-slot — write back directly to heap slot
-			// NOTE: Always write back unconditionally. The HLL function
-			// (e.g. PushBack) may have freed the old page via free_page(),
-			// making old->type unreliable (freed memory gets reused).
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size) {
 				heap[heap_slots[i]].page = heap_ptrs[i];
 			}
