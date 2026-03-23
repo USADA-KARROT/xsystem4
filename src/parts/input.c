@@ -35,6 +35,11 @@ static bool prev_clicking = false;
 static int clicked_parts = 0;
 // true if any clickable part contained the cursor on mousedown
 static bool click_down_any = false;
+// Pending background-click signal for re-delivery across nested
+// PE_UpdateInputState calls.  The outer call detects the release and
+// sets global[2]=1, but WaitForClick resets global[2]=0 before the
+// inner call runs.  This flag lets the inner call re-signal.
+static bool background_click_pending = false;
 
 static Rectangle parts_get_screen_hitbox(struct parts *parts)
 {
@@ -86,6 +91,12 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 
 void PE_UpdateInputState(possibly_unused int passed_time)
 {
+	// Re-deliver pending background click signal.
+	if (background_click_pending && parts_began_click) {
+		global_set(2, (union vm_value){.i = 1}, false);
+		background_click_pending = false;
+	}
+
 	Point cur_pos;
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
@@ -136,12 +147,21 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 				// Always send whole-mouse message for global handlers
 				parts_enqueue_message_vars(4, 0, 0, 0, 3, vars);
 			}
+
+			// If click_down_any was set by a system part but no
+			// non-system click_target was found, treat as background
+			// click so WaitForClick can exit (e.g. Logo screen).
+			if (!click_target) {
+				global_set(2, (union vm_value){.i = 1}, false);
+				background_click_pending = true;
+			}
 		}
 
 		if (!click_down_any && parts_began_click) {
 			// Background click: no clickable part was hit.
 			// Signal WaitForClick to exit via global[2].
 			global_set(2, (union vm_value){.i = 1}, false);
+			background_click_pending = true;
 		}
 		click_down_any = false;
 	}
@@ -232,6 +252,7 @@ void PE_EndInput(void)
 {
 	parts_began_click = false;
 	clicked_parts = 0;
+	background_click_pending = false;
 }
 
 int PE_GetClickPartsNumber(void)

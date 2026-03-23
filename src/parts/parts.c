@@ -1145,6 +1145,7 @@ void PE_Update(int passed_time, bool message_window_show)
 
 	audio_update();
 	sprite_call_plugins();
+	PE_UpdateMotionTime(passed_time, false);
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
@@ -1216,7 +1217,8 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, possibly_unused int spr
 	}
 
 	struct parts_cg *cg = parts_get_cg(parts, state);
-	return parts_cg_set(parts, cg, cg_name);
+	bool result = parts_cg_set(parts, cg, cg_name);
+	return result;
 }
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, possibly_unused int sprite_deform, int state)
@@ -1995,8 +1997,18 @@ bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
 
 bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
 {
-	UNIMPLEMENTED("(%d, %s, %d)", parts_no, display_sjis0(cg_name->text), state);
-	return false;
+	if (!parts_state_valid(--state))
+		return false;
+	struct cg *cg = asset_cg_load_by_name(cg_name->text, NULL);
+	if (!cg)
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_common *common = &parts->states[state].common;
+	common->w = cg->metrics.w;
+	common->h = cg->metrics.h;
+	parts_common_recalculate_hitbox(parts, common);
+	cg_free(cg);
+	return true;
 }
 
 int PE_GetFreeNumber(void)

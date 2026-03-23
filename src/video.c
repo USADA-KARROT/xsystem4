@@ -522,6 +522,7 @@ void gfx_swap(void)
 	glViewport(0, 0, sdl.w, sdl.h);
 
 	gfx_update_frame_rate_counter();
+
 }
 
 void gfx_set_view(struct texture *t)

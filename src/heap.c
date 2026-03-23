@@ -183,7 +183,7 @@ static uint8_t gc_gen = 0;  // generation counter (wraps at 255→1)
 #define GC_IS_MARKED(slot) (gc_mark[slot] == gc_gen)
 #define GC_SET_MARK(slot)  (gc_mark[slot] = gc_gen)
 static unsigned long long gc_alloc_counter = 0;
-static unsigned long long gc_last_alloc = 0;
+static unsigned long long gc_last_alloc __attribute__((unused)) = 0;
 // GC is triggered based on heap occupancy, not allocation count.
 // Only run when free slots drop below 10% of heap size.
 // This avoids expensive GC sweeps during initialization/transition phases

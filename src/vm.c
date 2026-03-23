@@ -4106,7 +4106,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			// (struct_type, data_type) for later EmplaceBack calls.
 			struct page *page = alloc_page(ARRAY_PAGE,
 				(data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) ? data_type : AIN_ARRAY_INT, 0);
-			page->array.struct_type = struct_type;
+			// For generic arrays, store elem_slots (not the struct index)
+			// so X_A_SIZE can correctly compute logical size.
+			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)
+				page->array.struct_type = elem_slots;
+			else
+				page->array.struct_type = struct_type;
 			heap_set_page(slot, page);
 		}
 		// Assign to variable

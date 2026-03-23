@@ -102,7 +102,9 @@ static bool SystemService_InitMainWindowPosAndSize(void)
 extern void parts_render_update(int passed_time);
 extern void PE_UpdateInputState(int passed_time);
 extern void PE_UpdateComponent(int passed_time);
+extern void PE_UpdateMotionTime(int time, bool skip);
 extern void parts_update_animation(int passed_time);
+extern bool parts_began_click;
 
 static bool SystemService_UpdateView(void)
 {
@@ -124,9 +126,21 @@ static bool SystemService_UpdateView(void)
 	audio_update();
 	sprite_call_plugins();
 	PE_UpdateComponent(passed_time);
+	PE_UpdateMotionTime(passed_time, false);
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
+
+	// Signal WaitForClick to yield after each frame.  WaitForClick loops
+	// until global[2]!=0, but script-level motion systems (e.g.
+	// Motion::Executer via CObserver) don't use PE_BeginMotion/PE_EndMotion,
+	// so global[2] was never set and WaitForClick deadlocked.  Setting
+	// global[2]=1 every frame lets WaitForClick return after each update,
+	// allowing callers (SceneContext@Join etc.) to check completion.
+	// Callers already loop around WaitForClick, so this is safe.
+	if (parts_began_click) {
+		global_set(2, (union vm_value){.i = 1}, false);
+	}
 
 	// Throttle scene_render + gfx_swap to ~60fps.
 	static uint32_t sv_last_render_ms = 0;
