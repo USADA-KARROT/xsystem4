@@ -412,9 +412,17 @@ static void stack_push_string(struct string *s)
 static struct string *stack_peek_string(int n)
 {
 	int slot = stack_peek(n).i;
-	if (slot < 0 || (size_t)slot >= heap_size || !heap[slot].s)
+	if (slot < 0 || (size_t)slot >= heap_size)
 		return &EMPTY_STRING;
-	return heap[slot].s;
+	if (heap[slot].type != VM_STRING || !heap[slot].s)
+		return &EMPTY_STRING;
+	struct string *s = heap[slot].s;
+	// Guard against corrupted pointers (must be 4-byte aligned, valid range)
+	if ((uintptr_t)s < 0x100000 || ((uintptr_t)s & 0x3) != 0) {
+		heap[slot].s = NULL;
+		return &EMPTY_STRING;
+	}
+	return s;
 }
 
 int vm_string_ref(struct string *s)
@@ -968,7 +976,6 @@ static void delegate_call(int dg_no, int return_address)
 {
 	if (dg_no < 0 || dg_no >= ain->nr_delegates)
 		VM_ERROR("Invalid delegate index");
-
 	// stack: [arg0, ..., dg_page, dg_index, [return_value(s)]]
 	// v14 2-slot types (AIN_IFACE, AIN_OPTION, AIN_WRAP) use 2 return slots.
 	int return_values = delegate_return_slots(&ain->delegates[dg_no].return_type);
@@ -2765,7 +2772,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case S_NOTE: {
-		bool noteq = !!strcmp(stack_peek_string(1)->text, stack_peek_string(0)->text);
+		struct string *sn1 = stack_peek_string(1);
+		struct string *sn0 = stack_peek_string(0);
+		bool noteq = (sn1 && sn0) ? !!strcmp(sn1->text, sn0->text) : (sn1 != sn0);
 		heap_unref(stack_pop().i);
 		heap_unref(stack_pop().i);
 		stack_push(noteq);

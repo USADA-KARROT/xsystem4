@@ -703,8 +703,9 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 		case AIN_REF_STRING:
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
-			    && heap[heap_slots[i]].type == VM_STRING)
+			    && heap[heap_slots[i]].type == VM_STRING) {
 				heap[heap_slots[i]].s = heap_ptrs[i];
+			}
 			break;
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:

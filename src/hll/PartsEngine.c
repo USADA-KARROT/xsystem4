@@ -676,44 +676,6 @@ static bool PartsEngine_ReleaseActivity(struct string *name, int erase_list)
 
 static bool PartsEngine_ReadActivityFile(struct string *name, struct string *filename, bool edit)
 {
-	/* Detect activity creation loops.
-	 * When CALLMETHOD fails in SceneContext@Create, the game calls EraseLayer
-	 * then immediately re-reads the same activity with a ":N" suffix.
-	 * Detect this pattern and return the first instance to break the loop. */
-	static char last_base[256] = "";
-	static int loop_count = 0;
-
-	/* Extract base name (before ':' suffix) */
-	char base_name[256];
-	const char *colon = strchr(name->text, ':');
-	if (colon) {
-		int len = (int)(colon - name->text);
-		if (len >= (int)sizeof(base_name)) len = sizeof(base_name) - 1;
-		memcpy(base_name, name->text, len);
-		base_name[len] = '\0';
-	} else {
-		snprintf(base_name, sizeof(base_name), "%s", name->text);
-	}
-
-	if (strcmp(base_name, last_base) == 0) {
-		loop_count++;
-		if (loop_count > 3) {
-			static int loop_warn = 0;
-			if (loop_warn++ < 1)
-				WARNING("ReadActivityFile: loop detected for '%s' (count=%d), returning first instance",
-					base_name, loop_count);
-			/* Return first instance by name */
-			int first_idx = find_activity_idx(base_name);
-			if (first_idx >= 0)
-				return true;
-			/* No first instance, just return success to break loop */
-			return true;
-		}
-	} else {
-		snprintf(last_base, sizeof(last_base), "%s", base_name);
-		loop_count = 1;
-	}
-
 	PartsEngine_CreateActivity(name);
 	int aidx = find_activity(name);
 	if (aidx < 0)
@@ -1696,6 +1658,11 @@ static int PartsEngine_GetMessageType(void)
 {
 	msg_current.type = -1;
 	if (msg_head != msg_tail) {
+		static int gmt_trace = 0;
+		if (gmt_trace++ < 20)
+			WARNING("GetMessageType: type=%d parts=%d delegate=%d",
+				msg_queue[msg_head].type, msg_queue[msg_head].parts_no,
+				msg_queue[msg_head].delegate_index);
 		return msg_queue[msg_head].type;
 	}
 	return -1;
@@ -1712,6 +1679,12 @@ static int PartsEngine_GetMessagePartsNumber(void)
 		result = msg_queue[msg_head].parts_no;
 	else
 		result = 0;
+	{
+		static int gmpn_trace = 0;
+		if (result != 0 && gmpn_trace++ < 20)
+			WARNING("GetMessagePartsNumber: %d (from %s)", result,
+				msg_current.type >= 0 ? "current" : "head");
+	}
 	return result;
 }
 static int PartsEngine_GetMessageDelegateIndex(void)
@@ -1723,6 +1696,12 @@ static int PartsEngine_GetMessageDelegateIndex(void)
 		result = msg_queue[msg_head].delegate_index;
 	else
 		result = 0;
+	{
+		static int gmdi_trace = 0;
+		if (result != 0 && gmdi_trace++ < 20)
+			WARNING("GetMessageDelegateIndex: %d (from %s)", result,
+				msg_current.type >= 0 ? "current" : "head");
+	}
 	return result;
 }
 static int PartsEngine_GetMessageUniqueID(void)
@@ -1904,6 +1883,28 @@ static void PE_AddAddFilterToPartsConstructionProcess_stub(int parts_no, int x, 
 static void PE_AddMulFilterToPartsConstructionProcess_stub(int parts_no, int x, int y, int w, int h, int r, int g, int b)
 {
 	/* No-op: multiply filter not supported yet */
+}
+
+/* --- Message Window --- */
+static void PE_SetMessageWindowActive(int parts_no, bool active)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return;
+	parts->message_window = true;
+	PE_SetShow(parts_no, active);
+}
+
+static void PE_SetMessageWindowText(int parts_no, struct string *text,
+	int msg_num, struct string *func_name, int ver, int step)
+{
+	// Set text on DEFAULT state (state=1 in 1-based PE_SetText)
+	PE_SetText(parts_no, text, 1);
+}
+
+static void PE_FixMessageWindowText(int parts_no)
+{
+	// Text is already rendered by SetMessageWindowText; nothing to finalize.
 }
 
 /* --- Text-related stubs --- */
@@ -2461,7 +2462,11 @@ HLL_LIBRARY(PartsEngine,
 	    // Parts3DLayer bridge (PartsEngine ↔ SealEngine)
 	    HLL_EXPORT(Parts_CreateParts3DLayerPluginID, PartsEngine_Parts_CreateParts3DLayerPluginID),
 	    HLL_EXPORT(Parts_GetParts3DLayerPluginID, PartsEngine_Parts_GetParts3DLayerPluginID),
-	    HLL_EXPORT(Parts_ReleaseParts3DLayerPluginID, PartsEngine_Parts_ReleaseParts3DLayerPluginID)
+	    HLL_EXPORT(Parts_ReleaseParts3DLayerPluginID, PartsEngine_Parts_ReleaseParts3DLayerPluginID),
+	    // Message window
+	    HLL_EXPORT(SetMessageWindowActive, PE_SetMessageWindowActive),
+	    HLL_EXPORT(SetMessageWindowText, PE_SetMessageWindowText),
+	    HLL_EXPORT(FixMessageWindowText, PE_FixMessageWindowText)
 	    );
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

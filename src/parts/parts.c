@@ -1276,16 +1276,14 @@ int PE_GetPartsCGDeform(int parts_no, int state)
 	return 0;
 }
 
-void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state)
+struct string *PE_GetPartsCGName(int parts_no, int state)
 {
 	if (!parts_state_valid(--state))
-		return;
+		return string_ref(&EMPTY_STRING);
 	struct parts_cg *cg = parts_get_cg(parts_get(parts_no), state);
-	if (cg->name) {
-		if (*cg_name)
-			free_string(*cg_name);
-		*cg_name = string_dup(cg->name);
-	}
+	if (cg->name)
+		return string_ref(cg->name);
+	return string_ref(&EMPTY_STRING);
 }
 
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state)

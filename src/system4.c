@@ -588,10 +588,10 @@ int main(int argc, char *argv[])
 	} else if (is_directory(argv[0])) {
 		if (!config_init_with_dir(argv[0]))
 			usage_error("Failed to find game in '%s'", argv[0]);
-	} else if (!strcasecmp(file_extension(argv[0]), "ini")) {
+	} else if (file_extension(argv[0]) && !strcasecmp(file_extension(argv[0]), "ini")) {
 		if (!config_init_with_ini(argv[0]))
 			usage_error("Failed to read .ini file '%s'", argv[0]);
-	} else if (!strcasecmp(file_extension(argv[0]), "ain")) {
+	} else if (file_extension(argv[0]) && !strcasecmp(file_extension(argv[0]), "ain")) {
 		config_init_with_ain(argv[0]);
 	} else {
 		usage_error("Can't initialize game with argument '%s'", argv[0]);

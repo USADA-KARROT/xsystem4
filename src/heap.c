@@ -802,6 +802,11 @@ struct string *heap_get_string(int index)
 	}
 	if (unlikely(!heap[index].s))
 		return &EMPTY_STRING;
+	// Validate pointer alignment (struct string requires 4-byte alignment)
+	if (unlikely(((uintptr_t)heap[index].s & 0x3) != 0 || (uintptr_t)heap[index].s < 0x100000)) {
+		heap[index].s = NULL;
+		return &EMPTY_STRING;
+	}
 	return heap[index].s;
 }
 

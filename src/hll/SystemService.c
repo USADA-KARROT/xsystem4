@@ -131,13 +131,7 @@ static bool SystemService_UpdateView(void)
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
 
-	// Signal WaitForClick to yield after each frame.  WaitForClick loops
-	// until global[2]!=0, but script-level motion systems (e.g.
-	// Motion::Executer via CObserver) don't use PE_BeginMotion/PE_EndMotion,
-	// so global[2] was never set and WaitForClick deadlocked.  Setting
-	// global[2]=1 every frame lets WaitForClick return after each update,
-	// allowing callers (SceneContext@Join etc.) to check completion.
-	// Callers already loop around WaitForClick, so this is safe.
+	// Signal WaitForClick to yield after each frame.
 	if (parts_began_click) {
 		global_set(2, (union vm_value){.i = 1}, false);
 	}

@@ -34,7 +34,6 @@ static bool prev_clicking = false;
 // the last (fully) clicked parts number
 static int clicked_parts = 0;
 // true if any clickable part contained the cursor on mousedown
-static bool click_down_any = false;
 // Pending background-click signal for re-delivery across nested
 // PE_UpdateInputState calls.  The outer call detects the release and
 // sets global[2]=1, but WaitForClick resets global[2]=0 before the
@@ -74,10 +73,6 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	if (parts->pass_cursor)
 		return;
 
-	// Track that at least one clickable part was under the cursor on mousedown
-	if (cur_clicking && !prev_clicking) {
-		click_down_any = true;
-	}
 
 	if (cur_clicking) {
 		parts_set_state(parts, PARTS_STATE_HOVERED);
@@ -107,63 +102,41 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 		parts_update_mouse(parts, cur_pos, cur_clicking);
 	}
 
-	if (prev_clicking && !cur_clicking) {
-		if (parts_began_click && click_down_any) {
-			// Per-button click: iterate all clickable parts, send type 4 message
-			// for the last matching part (highest z = frontmost), and also
-			// set clicked_parts for GetClickPartsNumber polling.
-			// Skip system parts (>= 1000001000) — they use delegate dispatch.
-			struct parts *click_target = NULL;
-			PARTS_LIST_FOREACH(parts) {
-				if (parts->no >= 1000001000)
-					continue;
-				if (!parts->clickable || !parts->global.show || parts->global.alpha == 0)
-					continue;
-				if (parts->pass_cursor)
-					continue;
-				Rectangle hitbox = parts_get_screen_hitbox(parts);
-				if (!SDL_PointInRect(&cur_pos, &hitbox))
-					continue;
-				click_target = parts;
-			}
-			if (click_target) {
-				if (click_target->on_click_sound >= 0)
-					audio_play_sound(click_target->on_click_sound);
-				clicked_parts = click_target->no;
-			}
-
-			// Per-button: type 4 (MouseClick) dispatches to the specific
-			// CParts's CPartsFunctionSet via delegate_index.
-			// Whole-mouse: type 4 (MouseClick) parts_no=0 dispatches to
-			// CPartsFunctionSet[0] whose field[12] (MouseLClickEvent)
-			// holds the scene-level click handler (e.g. EndWaitForClick).
-			{
-				int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-				if (click_target) {
-					parts_enqueue_message_vars(4, click_target->no,
-						click_target->delegate_index,
-						click_target->unique_id, 3, vars);
-				}
-				// Always send whole-mouse message for global handlers
-				parts_enqueue_message_vars(4, 0, 0, 0, 3, vars);
-			}
-
-			// If click_down_any was set by a system part but no
-			// non-system click_target was found, treat as background
-			// click so WaitForClick can exit (e.g. Logo screen).
-			if (!click_target) {
-				global_set(2, (union vm_value){.i = 1}, false);
-				background_click_pending = true;
-			}
+	// Process click on mouse DOWN transition (not UP).
+	// WaitForClick's bytecode key-check exits on mouse DOWN, calling
+	// PE_EndInput before UP arrives. So per-button click detection
+	// must happen on DOWN to set clicked_parts and enqueue messages
+	// before WaitForClick can exit.
+	if (cur_clicking && !prev_clicking && parts_began_click) {
+		struct parts *click_target = NULL;
+		PARTS_LIST_FOREACH(parts) {
+			if (parts->no >= 1000001000)
+				continue;
+			if (!parts->clickable || !parts->global.show || parts->global.alpha == 0)
+				continue;
+			if (parts->pass_cursor)
+				continue;
+			Rectangle hitbox = parts_get_screen_hitbox(parts);
+			if (!SDL_PointInRect(&cur_pos, &hitbox))
+				continue;
+			click_target = parts;
 		}
+		if (click_target) {
+			if (click_target->on_click_sound >= 0)
+				audio_play_sound(click_target->on_click_sound);
+			clicked_parts = click_target->no;
 
-		if (!click_down_any && parts_began_click) {
+			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
+			parts_enqueue_message_vars(4, click_target->no,
+				click_target->delegate_index,
+				click_target->unique_id, 3, vars);
+			// Also send whole-mouse message for global handlers
+			parts_enqueue_message_vars(4, 0, 0, 0, 3, vars);
+		} else {
 			// Background click: no clickable part was hit.
-			// Signal WaitForClick to exit via global[2].
 			global_set(2, (union vm_value){.i = 1}, false);
 			background_click_pending = true;
 		}
-		click_down_any = false;
 	}
 
 	prev_clicking = cur_clicking;
@@ -257,6 +230,9 @@ void PE_EndInput(void)
 
 int PE_GetClickPartsNumber(void)
 {
+	static int gcpn_trace = 0;
+	if (clicked_parts > 0 && gcpn_trace++ < 10)
+		WARNING("GetClickPartsNumber: %d", clicked_parts);
 	return clicked_parts;
 }
 

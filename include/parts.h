@@ -35,7 +35,7 @@ bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int stat
 bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
 		int sprite_deform, int state);
 int PE_GetPartsCGDeform(int parts_no, int state);
-void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state);
+struct string *PE_GetPartsCGName(int parts_no, int state);
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 int PE_GetPartsCGNumber(int parts_no, int state);
 bool PE_SetLoopCG_by_index(int parts_no, int cg_no, int nr_frames, int frame_time, int state);
