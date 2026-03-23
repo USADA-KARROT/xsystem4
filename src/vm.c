@@ -2215,13 +2215,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case _MSG: {
+		int msg_idx = get_argument(0);
 		if (config.echo)
-			echo_message(get_argument(0));
+			echo_message(msg_idx);
 		if (ain->msgf < 0)
 			break;
-		stack_push(get_argument(0));
+		stack_push(msg_idx);
 		stack_push(ain->nr_messages);
-		stack_push_string(string_ref(ain->messages[get_argument(0)]));
+		stack_push_string(string_ref(ain->messages[msg_idx]));
 		function_call(ain->msgf, instr_ptr + instruction_width(_MSG));
 		break;
 	}
@@ -3715,6 +3716,27 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case DG_NEW_FROM_METHOD: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
+		// v14 closure thunk resolution: if fun's body is a thunk
+		// (FUNC + JUMP) with an inner lambda (FUNC) immediately after,
+		// resolve to the inner lambda. Pattern:
+		//   faddr:    FUNC(fun)        [61 00 xx xx xx xx]
+		//   faddr+6:  JUMP(anywhere)   [2C 00 xx xx xx xx]
+		//   faddr+12: FUNC(inner_fun)  [61 00 yy yy yy yy]
+		if (ain->version >= 14 && fun >= 0 && fun < ain->nr_functions) {
+			// functions[fun].address points AFTER the FUNC prologue.
+			// For thunks: faddr → JUMP(past inner) → FUNC(inner)
+			uint32_t faddr = ain->functions[fun].address;
+			if (faddr + 12 <= ain->code_size) {
+				int16_t op0 = LittleEndian_getW(ain->code, faddr);
+				int16_t op1 = LittleEndian_getW(ain->code, faddr + 6);
+				if (op0 == JUMP && op1 == FUNC) {
+					int inner_fun = LittleEndian_getDW(ain->code, faddr + 8);
+					if (inner_fun >= 0 && inner_fun < ain->nr_functions) {
+						fun = inner_fun;
+					}
+				}
+			}
+		}
 		if (fun < 0 && ain->version >= 14) {
 			// v14: null method name → create empty delegate.
 			// Game code checks Delegate.Empty() and skips null delegates.
@@ -4222,6 +4244,17 @@ static void vm_execute(void)
 				if (now_r - last_vm_swap >= 500) {
 					gfx_swap();
 					last_vm_swap = now_r;
+				}
+			}
+			// Periodic GC every 10 seconds to collect cycle-garbage
+			// (e.g. CParts with delegate reference cycles)
+			{
+				static uint32_t last_periodic_gc = 0;
+				uint32_t now_gc = SDL_GetTicks();
+				if (now_gc - last_periodic_gc >= 10000) {
+					last_periodic_gc = now_gc;
+					extern void heap_gc_periodic(void);
+					heap_gc_periodic();
 				}
 			}
 			// vm_call timeout: bail out if destructor/constructor takes too long

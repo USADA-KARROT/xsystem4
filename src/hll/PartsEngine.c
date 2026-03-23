@@ -1657,14 +1657,8 @@ static void PartsEngine_ReleaseMessage(void)
 static int PartsEngine_GetMessageType(void)
 {
 	msg_current.type = -1;
-	if (msg_head != msg_tail) {
-		static int gmt_trace = 0;
-		if (gmt_trace++ < 20)
-			WARNING("GetMessageType: type=%d parts=%d delegate=%d",
-				msg_queue[msg_head].type, msg_queue[msg_head].parts_no,
-				msg_queue[msg_head].delegate_index);
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].type;
-	}
 	return -1;
 }
 // After PopMessage, data is in msg_current (head already advanced).
@@ -1672,48 +1666,27 @@ static int PartsEngine_GetMessageType(void)
 // So: if msg_current.type >= 0, read from msg_current; else peek queue head.
 static int PartsEngine_GetMessagePartsNumber(void)
 {
-	int result;
 	if (msg_current.type >= 0)
-		result = msg_current.parts_no;
+		return msg_current.parts_no;
 	else if (msg_head != msg_tail)
-		result = msg_queue[msg_head].parts_no;
-	else
-		result = 0;
-	{
-		static int gmpn_trace = 0;
-		if (result != 0 && gmpn_trace++ < 20)
-			WARNING("GetMessagePartsNumber: %d (from %s)", result,
-				msg_current.type >= 0 ? "current" : "head");
-	}
-	return result;
+		return msg_queue[msg_head].parts_no;
+	return 0;
 }
 static int PartsEngine_GetMessageDelegateIndex(void)
 {
-	int result;
 	if (msg_current.type >= 0)
-		result = msg_current.delegate_index;
+		return msg_current.delegate_index;
 	else if (msg_head != msg_tail)
-		result = msg_queue[msg_head].delegate_index;
-	else
-		result = 0;
-	{
-		static int gmdi_trace = 0;
-		if (result != 0 && gmdi_trace++ < 20)
-			WARNING("GetMessageDelegateIndex: %d (from %s)", result,
-				msg_current.type >= 0 ? "current" : "head");
-	}
-	return result;
+		return msg_queue[msg_head].delegate_index;
+	return 0;
 }
 static int PartsEngine_GetMessageUniqueID(void)
 {
-	int result;
 	if (msg_current.type >= 0)
-		result = msg_current.unique_id;
+		return msg_current.unique_id;
 	else if (msg_head != msg_tail)
-		result = msg_queue[msg_head].unique_id;
-	else
-		result = 0;
-	return result;
+		return msg_queue[msg_head].unique_id;
+	return 0;
 }
 
 static bool PartsEngine_SeekMessage(int target_parts_no)

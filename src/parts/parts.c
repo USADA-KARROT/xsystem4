@@ -1699,7 +1699,6 @@ void PE_ReleaseAllParts(void)
 
 void PE_ReleaseAllPartsWithoutSystem(void)
 {
-	// FIXME: what's the difference?
 	parts_release_all();
 }
 

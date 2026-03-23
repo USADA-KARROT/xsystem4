@@ -550,10 +550,42 @@ static void dtor_blacklist_init(void)
 	}
 }
 
+// Struct index for parts::detail::CParts — resolved once at runtime.
+// When a CParts page is freed, we auto-release its parts_no (member 0).
+static int cparts_struct_index = -2; // -2 = not yet resolved
+extern struct parts *parts_try_get(int parts_no);
+extern void parts_release(int parts_no);
+
 void delete_struct(int no, int slot)
 {
 	if (no < 0 || no >= ain->nr_structures)
 		return;
+
+	// One-time resolution of CParts struct index
+	if (cparts_struct_index == -2) {
+		cparts_struct_index = -1;
+		for (int si = 0; si < ain->nr_structures; si++) {
+			const char *name = ain->structures[si].name;
+			if (name && strcmp(name, "parts::detail::CParts") == 0) {
+				cparts_struct_index = si;
+				WARNING("delete_struct: resolved CParts struct index = %d", si);
+				break;
+			}
+		}
+	}
+
+	// Auto-release parts when CParts page is destroyed
+	if (no == cparts_struct_index && slot > 0) {
+		struct page *page = heap[slot].page;
+		if (page && page->nr_vars > 0) {
+			int parts_no = page->values[0].i;
+			struct parts *p = parts_try_get(parts_no);
+			if (p) {
+				parts_release(parts_no);
+			}
+		}
+	}
+
 	struct ain_struct *s = &ain->structures[no];
 	if (s->destructor > 0 && s->destructor < ain->nr_functions) {
 		if (destructor_depth >= MAX_DESTRUCTOR_DEPTH) {

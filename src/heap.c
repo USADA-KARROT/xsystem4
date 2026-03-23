@@ -24,6 +24,7 @@
 #include <malloc/malloc.h>
 #endif
 #include <signal.h>
+#include <SDL.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -311,6 +312,17 @@ static void gc_mark_slot(int slot)
 	}
 }
 
+static void heap_gc(void);
+
+// Public entry: run GC if inhibit allows and heap has grown enough.
+// Called periodically from VM loop to collect cycle-garbage promptly.
+void heap_gc_periodic(void)
+{
+	if (gc_inhibit > 0 || heap_size < 10000)
+		return;
+	heap_gc();
+}
+
 static void heap_gc(void)
 {
 	extern struct function_call call_stack[];
@@ -495,18 +507,28 @@ static void heap_gc(void)
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
 	gc_alloc_counter++;
-	// Trigger GC only when heap has grown large AND free list is nearly exhausted.
-	// During scene transitions, thousands of objects with circular refs are created and
-	// destroyed. GC is expensive (scans entire heap) so we defer it until the heap
-	// grows beyond a threshold, allowing the heap to absorb cycle-garbage via growth.
-	// GC reclaims cycle-garbage when the heap gets large enough to justify the scan cost.
-	if (gc_inhibit <= 0
-	    && heap_free_count < 1024
-	    && heap_size >= 4000000) {
-		heap_gc();
-		static unsigned gc_run_count = 0;
-		if (++gc_run_count <= 3 || (gc_run_count & 255) == 0)
-			heap_periodic_stats();
+	// Trigger GC when free list is nearly exhausted.
+	// For large heaps (>=4M), trigger immediately.
+	// For moderate heaps (>=10K), trigger at most every 5 seconds to clean
+	// cycle-garbage (e.g. CParts with delegate cycles) without hurting perf.
+	if (gc_inhibit <= 0 && heap_free_count < 1024) {
+		bool do_gc = false;
+		if (heap_size >= 4000000) {
+			do_gc = true;
+		} else if (heap_size >= 10000) {
+			static uint32_t last_moderate_gc = 0;
+			uint32_t now = SDL_GetTicks();
+			if (now - last_moderate_gc >= 5000) {
+				last_moderate_gc = now;
+				do_gc = true;
+			}
+		}
+		if (do_gc) {
+			heap_gc();
+			static unsigned gc_run_count = 0;
+			if (++gc_run_count <= 3 || (gc_run_count & 255) == 0)
+				heap_periodic_stats();
+		}
 	}
 
 	if (heap_free_head < 0) {
