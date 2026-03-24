@@ -2,3 +2,10 @@ build
 *.ain
 .dir-locals.el
 /subprojects/cglm
+.claude/
+
+# AI agent working files
+.claude/
+.cursor/
+.env*
+*.local
