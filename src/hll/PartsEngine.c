@@ -1633,6 +1633,12 @@ static void PartsEngine_PopMessage(void)
 {
 	if (msg_head != msg_tail) {
 		msg_current = msg_queue[msg_head];
+		if (msg_current.type == 4) {
+			static int pop4 = 0;
+			if (pop4++ < 5)
+				WARNING("PopMessage type=4: parts=%d delegate=%d uid=%d",
+					msg_current.parts_no, msg_current.delegate_index, msg_current.unique_id);
+		}
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
 	} else {
 		msg_current.type = -1;
@@ -1656,9 +1662,22 @@ static void PartsEngine_ReleaseMessage(void)
 // PopMessage() copies queue[head] → msg_current and advances head.
 static int PartsEngine_GetMessageType(void)
 {
-	msg_current.type = -1;
-	if (msg_head != msg_tail)
-		return msg_queue[msg_head].type;
+	// Do NOT reset msg_current here. After PopMessage sets msg_current,
+	// subsequent getters must still read from it (the popped message).
+	// Resetting here breaks the dispatch chain because the bytecode calls
+	// GetMessageType again (for SWITCH) between PopMessage and var reads.
+	if (msg_head != msg_tail) {
+		int t = msg_queue[msg_head].type;
+		if (t == 4) {
+			static int mt4_count = 0;
+			if (mt4_count++ < 5)
+				WARNING("GetMessageType=4: parts=%d delegate=%d uid=%d",
+					msg_queue[msg_head].parts_no,
+					msg_queue[msg_head].delegate_index,
+					msg_queue[msg_head].unique_id);
+		}
+		return t;
+	}
 	return -1;
 }
 // After PopMessage, data is in msg_current (head already advanced).

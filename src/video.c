@@ -526,14 +526,14 @@ void gfx_swap(void)
 	// Auto-screenshot at multiple timepoints
 	{
 		static int shot_count = 0;
-		static uint32_t next_shot = 60000;
-		if (shot_count < 6 && SDL_GetTicks() > next_shot) {
+		static uint32_t next_shot = 8000;
+		if (shot_count < 20 && SDL_GetTicks() > next_shot) {
 			char path[64];
 			snprintf(path, sizeof(path), "/tmp/xsys4_t%d.png", shot_count);
 			gfx_save_texture(gfx_main_surface(), path, ALCG_PNG);
 			WARNING("Auto-screenshot %d saved at t=%ums", shot_count, SDL_GetTicks());
 			shot_count++;
-			next_shot = SDL_GetTicks() + 60000;
+			next_shot = SDL_GetTicks() + 5000;
 		}
 	}
 }

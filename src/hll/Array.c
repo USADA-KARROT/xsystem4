@@ -41,10 +41,16 @@ int hll_param_slot2 = 0;
 int hll_self_slot = -1;
 
 // Check if current Array HLL call operates on reference-counted elements.
-// hll_arg3 >= 0x10000 indicates ref-counted elements (pre-v14 convention).
-// hll_arg3 == 2 indicates struct/wrap elements in v14 (needs heap_ref/unref).
+// hll_arg3 >= 0x10000 indicates ref-counted elements (v14 struct encoding).
+// hll_arg3 == 2 indicates struct/wrap elements (pre-v14 convention).
 static inline bool array_elem_is_ref(void) {
 	return hll_current_arg3 >= 0x10000 || hll_current_arg3 == 2;
+}
+
+// Check if current Array HLL call operates on struct elements that need construction.
+// v14 encodes struct types as 0x10000 + struct_index; pre-v14 uses 2.
+static inline bool array_elem_is_struct(void) {
+	return hll_current_arg3 == 2 || hll_current_arg3 >= 0x10000;
 }
 
 // Check if current Array HLL call operates on 2-slot elements (wrap, option, iface, etc.)
@@ -53,33 +59,57 @@ static inline bool array_elem_is_2slot(void) {
 	return etype == AIN_IFACE || etype == AIN_OPTION || etype == AIN_IFACE_WRAP;
 }
 
-// Alloc: allocate an array of given size.
-// For struct/wrap elements (hll_arg3 == 2), preserves struct_type metadata
-// from the old array and allocates struct instances for each element.
-// Without this, elements remain 0 (null) and method calls on them fail
-// because struct_page=0 is invalid (it's the global page).
+// Alloc: allocate/resize an array.
+// For struct/wrap elements, preserves existing elements and only creates
+// new struct instances for newly added slots (like Realloc).
+// This is critical because game code initializes struct members after
+// the first Alloc, and a subsequent Alloc must not destroy those values.
 static void Array_Alloc(struct page **array, int numof)
 {
 	if (!array || numof < 0)
 		return;
-	// Preserve struct_type from the old array before destroying it.
-	int struct_type = -1;
-	if (*array && (*array)->type == ARRAY_PAGE) {
-		struct_type = (*array)->array.struct_type;
-		delete_page_vars(*array);
-		free_page(*array);
-	}
-	*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, numof);
-	(*array)->array.rank = 1;
-	(*array)->array.struct_type = struct_type;
-	// v14 struct/wrap arrays: allocate a struct instance for each element.
-	if (hll_current_arg3 == 2 && struct_type >= 0 && struct_type < ain->nr_structures) {
-		for (int i = 0; i < numof; i++) {
-			int slot = alloc_struct(struct_type);
-			heap_ref(slot);
-			(*array)->values[i].i = slot;
+	struct page *old = *array;
+	int old_size = (old && old->type == ARRAY_PAGE) ? old->nr_vars : 0;
+	int struct_type = (old && old->type == ARRAY_PAGE) ? old->array.struct_type : -1;
+
+	struct page *new_a = alloc_page(ARRAY_PAGE, old ? old->a_type : AIN_ARRAY_INT, numof);
+	new_a->array.rank = 1;
+	if (old && old->type == ARRAY_PAGE)
+		new_a->array = old->array;
+	new_a->array.struct_type = struct_type;
+
+	// Copy existing elements (up to the smaller of old/new size)
+	int copy = old_size < numof ? old_size : numof;
+	for (int i = 0; i < copy; i++)
+		new_a->values[i] = old->values[i];
+
+	// Free excess old elements that won't be copied
+	if (old && old_size > numof) {
+		for (int i = numof; i < old_size; i++) {
+			if (old->values[i].i > 0)
+				heap_unref(old->values[i].i);
+			old->values[i].i = 0;
 		}
 	}
+
+	// For struct/wrap arrays, create struct instances for new elements only
+	if (array_elem_is_struct() && numof > old_size) {
+		if (struct_type < 0 && hll_current_arg3 >= 0x10000)
+			struct_type = hll_current_arg3 & 0xFFFF;
+		if (struct_type >= 0 && struct_type < ain->nr_structures) {
+			new_a->array.struct_type = struct_type;
+			for (int i = old_size; i < numof; i++) {
+				int slot = alloc_struct(struct_type);
+				heap_ref(slot);
+				new_a->values[i].i = slot;
+			}
+		}
+	}
+
+	// Free old array page (but NOT its vars — they were copied/freed above)
+	if (old)
+		free_page(old);
+	*array = new_a;
 }
 
 // PushBack (capital B) — alias for Pushback
@@ -1412,9 +1442,12 @@ static void Array_Realloc(struct page **array, int new_size)
 	for (int i = 0; i < copy; i++)
 		new_a->values[i] = old->values[i];
 	// v14 struct/wrap arrays: allocate struct instances for new elements.
-	if (hll_current_arg3 == 2 && new_size > old_size) {
+	if (array_elem_is_struct() && new_size > old_size) {
 		int struct_type = new_a->array.struct_type;
+		if (struct_type < 0 && hll_current_arg3 >= 0x10000)
+			struct_type = hll_current_arg3 & 0xFFFF;
 		if (struct_type >= 0 && struct_type < ain->nr_structures) {
+			new_a->array.struct_type = struct_type;
 			for (int i = old_size; i < new_size; i++) {
 				int slot = alloc_struct(struct_type);
 				heap_ref(slot);
@@ -1483,14 +1516,29 @@ static int Array_ShallowCopy(struct page **self)
 	return slot;
 }
 
-// IsExist: check if value exists in array (linear scan)
-static bool Array_IsExist(struct page **self, int value)
+// IsExist: check if any element satisfies a delegate predicate.
+// Equivalent to Array.Any — calls func(element) for each element,
+// returns true if the predicate returns nonzero for any element.
+static bool Array_IsExist(struct page **self, int func)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	if (!array)
+	if (!array || array->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return false;
+
+	struct ain_function *cb = &ain->functions[func];
+
 	for (int i = 0; i < array->nr_vars; i++) {
-		if (array->values[i].i == value)
+		int saved_sp = stack_ptr;
+		if (cb->nr_args >= 2) {
+			stack_push(array->values[i]);
+			stack_push(0);
+		} else {
+			stack_push(array->values[i]);
+		}
+		vm_call_nopop(func, cb->nr_args);
+		int result = stack_pop().i;
+		stack_ptr = saved_sp;
+		if (result)
 			return true;
 	}
 	return false;
@@ -1515,9 +1563,12 @@ static int Array_EmplaceBack(struct page **array)
 	}
 	int new_val = 0;
 	// For struct/wrap elements, construct a new struct object.
-	if (hll_current_arg3 == 2) {
+	if (array_elem_is_struct()) {
 		int struct_type = new_a->array.struct_type;
+		if (struct_type < 0 && hll_current_arg3 >= 0x10000)
+			struct_type = hll_current_arg3 & 0xFFFF;
 		if (struct_type >= 0 && struct_type < ain->nr_structures) {
+			new_a->array.struct_type = struct_type;
 			new_val = alloc_struct(struct_type);
 			heap_ref(new_val);
 		}

@@ -568,7 +568,6 @@ void delete_struct(int no, int slot)
 			const char *name = ain->structures[si].name;
 			if (name && strcmp(name, "parts::detail::CParts") == 0) {
 				cparts_struct_index = si;
-				WARNING("delete_struct: resolved CParts struct index = %d", si);
 				break;
 			}
 		}

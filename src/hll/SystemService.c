@@ -131,11 +131,6 @@ static bool SystemService_UpdateView(void)
 	PE_UpdateInputState(passed_time);
 	parts_render_update(passed_time);
 
-	// Signal WaitForClick to yield after each frame.
-	if (parts_began_click) {
-		global_set(2, (union vm_value){.i = 1}, false);
-	}
-
 	// Throttle scene_render + gfx_swap to ~60fps.
 	static uint32_t sv_last_render_ms = 0;
 	uint32_t now_ms = SDL_GetTicks();

@@ -120,7 +120,6 @@ static bool native_cas_timer_intercept(int fno, int struct_page, union vm_value 
 	const char *fname = ain->functions[fno].name;
 	if (!(func_flags[fno] & (FUNC_FLAG_CASTIMER_MGR | FUNC_FLAG_CASTIMER_INST)))
 		return false;
-
 	// CASTimerManager methods
 	if (strstr(fname, "CASTimerManager")) {
 		if (strstr(fname, "CreateHandle")) {
@@ -714,7 +713,8 @@ static int delegate_return_slots(struct ain_type *type)
 static void function_call(int fno, int return_address)
 {
 	int slot = _function_call(fno, return_address);
-	if (unlikely(slot < 0)) return;
+	if (unlikely(slot < 0))
+		return;
 
 	// pop arguments, store in local page
 	struct ain_function *f = &ain->functions[fno];
@@ -1042,6 +1042,12 @@ static void delegate_call(int dg_no, int return_address)
 			}
 		}
 	} else {
+		if (dg_no == 519 || dg_no == 113 || dg_no == 458 || dg_no == 112) {
+			static int dg_miss = 0;
+			if (dg_miss++ < 10)
+				WARNING("  → delegate_get MISS: dg#%d page=%p index=%d",
+					dg_no, (void*)dg_pg, dg_index);
+		}
 		// Save return value(s) — may be 2 slots for v14 2-slot types
 		union vm_value r[2] = {{0}, {0}};
 		for (int i = return_values - 1; i >= 0; i--)
@@ -1685,7 +1691,39 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case ASSIGN:
 	case F_ASSIGN: {
 		union vm_value val = stack_pop();
-		stack_pop_var()[0] = val;
+		// Peek at var ref for type-aware ref counting
+		int32_t assign_pidx = stack_peek(0).i;
+		int32_t assign_hidx = stack_peek(1).i;
+		union vm_value *assign_var = stack_pop_var();
+		if (assign_var && assign_var != dummy_var &&
+		    heap_index_valid(assign_hidx) && heap[assign_hidx].type == VM_PAGE &&
+		    heap[assign_hidx].page) {
+			struct page *assign_page = heap[assign_hidx].page;
+			enum ain_data_type assign_vtype = variable_type(assign_page, assign_pidx, NULL, NULL);
+			switch (assign_vtype) {
+			case AIN_STRING:
+			case AIN_STRUCT:
+			case AIN_DELEGATE:
+			case AIN_FUNC_TYPE:
+			case AIN_ARRAY_TYPE:
+			case AIN_ARRAY:
+			case AIN_WRAP:
+			case AIN_IFACE_WRAP:
+			case AIN_OPTION:
+			case AIN_REF_TYPE:
+			case AIN_IFACE: {
+				int old_slot = assign_var[0].i;
+				if (val.i > 0 && heap_index_valid(val.i))
+					heap_ref(val.i);
+				if (old_slot > 0 && heap_index_valid(old_slot))
+					heap_unref(old_slot);
+				break;
+			}
+			default:
+				break;
+			}
+		}
+		assign_var[0] = val;
 		stack_push(val);
 		break;
 	}
@@ -2073,6 +2111,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				}
 				int fnr_args = ain->functions[funcno].nr_args;
 				if (nargs != fnr_args) {
+					if (call_stack_ptr > 0 && call_stack[call_stack_ptr-1].fno == 8724) {
+						static int nm_cd = 0;
+						if (nm_cd++ < 5)
+							WARNING("CALLMETHOD from CallDelegate: NARGS MISMATCH funcno=%d nargs=%d fnr_args=%d name=%s", funcno, nargs, fnr_args, ain->functions[funcno].name);
+					}
 					// nargs mismatch: vtable resolved to a wrong function.
 					if (saved_args != small_args) free(saved_args);
 					stack_pop(); // struct_page
@@ -2383,12 +2426,23 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case GTE: {
 		int32_t b = stack_pop().i;
 		int32_t a = stack_pop().i;
+		// Trace GTE in func 23042 at IP 0x51882C
+		if (instr_ptr == 0x51882C) {
+			static int gte_23042 = 0;
+			if (gte_23042++ < 5)
+				WARNING("GTE@0x51882C (func23042): member[13]=%d >= %d → %d", a, b, a >= b);
+		}
 		stack_push(a >= b ? 1 : 0);
 		break;
 	}
 	case NOTE: {
 		int32_t b = stack_pop().i;
 		int32_t a = stack_pop().i;
+		if (instr_ptr == 0x518856) {
+			static int note_23042 = 0;
+			if (note_23042++ < 5)
+				WARNING("NOTE@0x518856 (func23042): member[12]=%d != %d → %d", a, b, a != b);
+		}
 		stack_push(a != b ? 1 : 0);
 		break;
 	}
@@ -3716,27 +3770,10 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case DG_NEW_FROM_METHOD: {
 		int fun = stack_pop().i;
 		int obj = stack_pop().i;
-		// v14 closure thunk resolution: if fun's body is a thunk
-		// (FUNC + JUMP) with an inner lambda (FUNC) immediately after,
-		// resolve to the inner lambda. Pattern:
-		//   faddr:    FUNC(fun)        [61 00 xx xx xx xx]
-		//   faddr+6:  JUMP(anywhere)   [2C 00 xx xx xx xx]
-		//   faddr+12: FUNC(inner_fun)  [61 00 yy yy yy yy]
-		if (ain->version >= 14 && fun >= 0 && fun < ain->nr_functions) {
-			// functions[fun].address points AFTER the FUNC prologue.
-			// For thunks: faddr → JUMP(past inner) → FUNC(inner)
-			uint32_t faddr = ain->functions[fun].address;
-			if (faddr + 12 <= ain->code_size) {
-				int16_t op0 = LittleEndian_getW(ain->code, faddr);
-				int16_t op1 = LittleEndian_getW(ain->code, faddr + 6);
-				if (op0 == JUMP && op1 == FUNC) {
-					int inner_fun = LittleEndian_getDW(ain->code, faddr + 8);
-					if (inner_fun >= 0 && inner_fun < ain->nr_functions) {
-						fun = inner_fun;
-					}
-				}
-			}
-		}
+		// v14: Do NOT resolve JUMP+FUNC thunks here.  The method's
+		// body lives at the JUMP target and may read struct members,
+		// create inner delegates, etc.  Resolving to the inner lambda
+		// bypasses the outer method's logic and breaks delegate dispatch.
 		if (fun < 0 && ain->version >= 14) {
 			// v14: null method name → create empty delegate.
 			// Game code checks Delegate.Empty() and skips null delegates.
@@ -3907,10 +3944,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			   && page->index >= 0 && page->index < ain->nr_structures
 			   && n > 0 && var_idx >= page->nr_vars) {
 			// v14 virtual method table lookup.
-			// Bytecode: var_idx = page->values[0] + method_offset.
-			// Original engine stores vtable inline; we look up
-			// ain_struct.vmethods[] instead, recovering method_offset
-			// from the actual values[0] content.
 			struct ain_struct *s = &ain->structures[page->index];
 			int m0 = (page->nr_vars > 0) ? page->values[0].i : 0;
 			int method_idx = var_idx - m0;
@@ -3946,10 +3979,45 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		for (int i = n - 1; i >= 0; i--) {
 			vals[i] = stack_pop();
 		}
+		// Peek at stack to get page info for ref counting before pop_var consumes it
+		int32_t xa_page_index = stack_peek(0).i;
+		int32_t xa_heap_index = stack_peek(1).i;
 		union vm_value *var = stack_pop_var();
 		if (var && var != dummy_var) {
-			for (int i = 0; i < n; i++)
+			// Get page for type-aware ref counting (v14 fix)
+			struct page *xa_page = NULL;
+			if (heap_index_valid(xa_heap_index) && heap[xa_heap_index].type == VM_PAGE)
+				xa_page = heap[xa_heap_index].page;
+			for (int i = 0; i < n; i++) {
+				if (xa_page) {
+					enum ain_data_type vtype = variable_type(xa_page, xa_page_index + i, NULL, NULL);
+					switch (vtype) {
+					case AIN_STRING:
+					case AIN_STRUCT:
+					case AIN_DELEGATE:
+					case AIN_FUNC_TYPE:
+					case AIN_ARRAY_TYPE:
+					case AIN_ARRAY:
+					case AIN_WRAP:
+					case AIN_IFACE_WRAP:
+					case AIN_OPTION:
+					case AIN_REF_TYPE:
+					case AIN_IFACE: {
+						int new_slot = vals[i].i;
+						int old_slot = var[i].i;
+						// Ref new BEFORE unref old (safe for self-assignment)
+						if (new_slot > 0 && heap_index_valid(new_slot))
+							heap_ref(new_slot);
+						if (old_slot > 0 && heap_index_valid(old_slot))
+							heap_unref(old_slot);
+						break;
+					}
+					default:
+						break;
+					}
+				}
 				var[i] = vals[i];
+			}
 		}
 		for (int i = 0; i < n; i++) {
 			stack_push(vals[i]);
@@ -4195,8 +4263,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	// -- NOOPs ---
-	case FUNC:
+	case FUNC: {
+		int _func_no = get_argument(0);
+		(void)_func_no;
 		break;
+	}
 	default:
 #ifdef DEBUGGER_ENABLED
 		if ((opcode & OPTYPE_MASK) == BREAKPOINT) {

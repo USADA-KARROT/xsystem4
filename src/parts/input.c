@@ -127,12 +127,11 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 			clicked_parts = click_target->no;
 
 			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-			// type 4 = MouseClick per-button (button=1=left)
+			// type 4 = MouseClick (CPartsFunctionSet event 4)
+			// CPartsFunctionSet events: 0=Enter,1=Move,2=Leave,3=Wheel,4=Click,...
 			parts_enqueue_message_vars(4, click_target->no,
 				click_target->delegate_index,
 				click_target->unique_id, 3, vars);
-			// type 4 = whole-mouse MouseClick (triggers WholeMouseLClickEvent)
-			parts_enqueue_message_vars(4, 0, 0, 0, 3, vars);
 		} else {
 			// Background click: no clickable part was hit.
 			global_set(2, (union vm_value){.i = 1}, false);

@@ -23,65 +23,12 @@
 #ifdef __APPLE__
 #include <malloc/malloc.h>
 #endif
-#include <signal.h>
 #include <SDL.h>
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"
-
-// SIGUSR1 handler: dump heap statistics
-static void heap_dump_stats(int sig)
-{
-	(void)sig;
-	size_t alive = 0, dead = 0, pages = 0, strings = 0;
-	size_t struct_pages = 0, array_pages = 0, local_pages = 0, delegate_pages = 0;
-	size_t page_vars_total = 0;
-	for (size_t i = 2; i < heap_size; i++) {
-		if (heap[i].ref > 0) {
-			alive++;
-			if (heap[i].type == VM_PAGE) {
-				pages++;
-				if (heap[i].page) {
-					page_vars_total += heap[i].page->nr_vars;
-					switch (heap[i].page->type) {
-					case STRUCT_PAGE: struct_pages++; break;
-					case ARRAY_PAGE: array_pages++; break;
-					case LOCAL_PAGE: local_pages++; break;
-					case DELEGATE_PAGE: delegate_pages++; break;
-					default: break;
-					}
-				}
-			} else if (heap[i].type == VM_STRING) {
-				strings++;
-			}
-		} else {
-			dead++;
-		}
-	}
-	WARNING("HEAP STATS: heap_size=%zu alive=%zu dead=%zu free_count=%zu",
-		heap_size, alive, dead, heap_free_count);
-	WARNING("  pages=%zu (struct=%zu array=%zu local=%zu delegate=%zu) strings=%zu",
-		pages, struct_pages, array_pages, local_pages, delegate_pages, strings);
-	WARNING("  avg vars/page=%.1f total_page_bytes=~%zuMB",
-		pages > 0 ? (double)page_vars_total / pages : 0,
-		(page_vars_total * 4 + pages * 24) / (1024*1024));
-	// Ref count distribution: how many alive slots have ref=1 vs ref>1
-	size_t ref1 = 0, ref2plus = 0;
-	for (size_t i = 2; i < heap_size; i++) {
-		int r = HEAP_REF(i);
-		if (r == 1) ref1++;
-		else if (r > 1) ref2plus++;
-	}
-	WARNING("  ref=1: %zu, ref>=2: %zu", ref1, ref2plus);
-}
-
-// Called from heap_gc to report stats
-static void heap_periodic_stats(void)
-{
-	heap_dump_stats(0);
-}
 
 #define INITIAL_HEAP_SIZE  4096
 // Exponential growth: double up to 4M, then linear 4M steps
@@ -263,16 +210,39 @@ static void gc_scan_page(struct page *p, int *work_stack, int *work_count)
 {
 	if (!p) return;
 
-	// DELEGATE_PAGE: members are weak refs (not reference counted) — skip
-	if (p->type == DELEGATE_PAGE)
+	// DELEGATE_PAGE: stores 3-tuples (obj_slot, fun_no, seq).
+	// obj_slot (every 3rd entry) is a heap reference that must be marked.
+	if (p->type == DELEGATE_PAGE) {
+		for (int j = 0; j < p->nr_vars; j += 3) {
+			int child = p->values[j].i;
+			if (child <= 1 || (size_t)child >= gc_mark_size) continue;
+			if (GC_IS_MARKED(child) || heap[child].ref <= 0) continue;
+			GC_SET_MARK(child);
+			if (heap[child].type == VM_PAGE && heap[child].page) {
+				if (*work_count < GC_WORK_STACK_SIZE) {
+					work_stack[(*work_count)++] = child;
+				} else {
+					static int dg_overflow = 0;
+					if (dg_overflow++ < 5)
+						WARNING("GC WORK STACK OVERFLOW (delegate): child=%d (count=%d)",
+							child, *work_count);
+				}
+			}
+		}
 		return;
+	}
 
-	// ARRAY_PAGE: all elements have the same type
-	if (p->type == ARRAY_PAGE) {
+	// ARRAY_PAGE: for v14, scan all arrays conservatively because v14 uses
+	// type-erased generic arrays that may store struct page references in
+	// arrays typed as AIN_ARRAY_INT.  For pre-v14, use element type to skip
+	// arrays that definitely contain no refs (int/float/bool).
+	if (p->type == ARRAY_PAGE && (!ain || ain->version < 14)) {
 		if (p->array.rank <= 1) {
-			enum ain_data_type etype = array_type(p->a_type);
-			if (!gc_type_is_ref(etype))
-				return;  // int/float/bool array — no refs
+			if (p->a_type != AIN_ARRAY && p->a_type != AIN_REF_ARRAY) {
+				enum ain_data_type etype = array_type(p->a_type);
+				if (!gc_type_is_ref(etype))
+					return;  // int/float/bool array — no refs
+			}
 		}
 	}
 
@@ -288,9 +258,15 @@ static void gc_scan_page(struct page *p, int *work_stack, int *work_count)
 		if (child <= 1 || (size_t)child >= gc_mark_size) continue;
 		if (GC_IS_MARKED(child) || heap[child].ref <= 0) continue;
 		GC_SET_MARK(child);
-		if (heap[child].type == VM_PAGE && heap[child].page
-		    && *work_count < GC_WORK_STACK_SIZE) {
-			work_stack[(*work_count)++] = child;
+		if (heap[child].type == VM_PAGE && heap[child].page) {
+			if (*work_count < GC_WORK_STACK_SIZE) {
+				work_stack[(*work_count)++] = child;
+			} else {
+				static int overflow_warn = 0;
+				if (overflow_warn++ < 5)
+					WARNING("GC WORK STACK OVERFLOW: child=%d not scanned (count=%d)",
+						child, *work_count);
+			}
 		}
 	}
 }
@@ -318,6 +294,8 @@ static void heap_gc(void);
 // Called periodically from VM loop to collect cycle-garbage promptly.
 void heap_gc_periodic(void)
 {
+	// TEMPORARILY DISABLED FOR DEBUGGING
+	return;
 	if (gc_inhibit > 0 || heap_size < 10000)
 		return;
 	heap_gc();
@@ -328,7 +306,6 @@ static void heap_gc(void)
 	extern struct function_call call_stack[];
 	extern int32_t call_stack_ptr;
 	extern int32_t stack_ptr;
-
 	// Initialize struct ref cache on first GC
 	gc_init_struct_cache();
 
@@ -389,7 +366,7 @@ static void heap_gc(void)
 		if (heap[i].ref > 0) {
 			if (!GC_IS_MARKED(i)) {
 				// Unreachable cycle-garbage: free resources
-				swept++;
+					swept++;
 				switch (heap[i].type) {
 				case VM_PAGE:
 					if (heap[i].page) {
@@ -525,9 +502,6 @@ int32_t heap_alloc_slot(enum vm_pointer_type type)
 		}
 		if (do_gc) {
 			heap_gc();
-			static unsigned gc_run_count = 0;
-			if (++gc_run_count <= 3 || (gc_run_count & 255) == 0)
-				heap_periodic_stats();
 		}
 	}
 
