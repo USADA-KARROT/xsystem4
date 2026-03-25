@@ -1278,8 +1278,37 @@ static struct page *wrap_get_backing_array(int slot)
 static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, int wf_slot, int ws_slot, int wp_slot, int state)
 {
 	struct page *ints = wrap_get_backing_array(wi_slot);
-	if (!ints || ints->nr_vars < 1)
+	if (!ints || ints->nr_vars < 1) {
+		static int null_warn = 0;
+		if (null_warn++ < 3)
+			WARNING("AddPartsConstructionProcess: null ints from wi_slot=%d", wi_slot);
 		return;
+	}
+	// Sanity check: ints[0] (command) should be 0-200 range
+	if (ints->values[0].i > 200 || ints->values[0].i < 0) {
+		static int bad_warn = 0;
+		if (bad_warn++ < 3) {
+			WARNING("AddPartsConstructionProcess: bad cmd=%d wi_slot=%d — dumping struct",
+				ints->values[0].i, wi_slot);
+			if (wi_slot > 0 && (size_t)wi_slot < heap_size && heap[wi_slot].page) {
+				struct page *sp = heap[wi_slot].page;
+				WARNING("  struct idx=%d nr=%d type=%d", sp->index, sp->nr_vars, sp->type);
+				// Dump all members that point to ARRAY_PAGEs
+				for (int k = 0; k < sp->nr_vars && k < 50; k++) {
+					int v = sp->values[k].i;
+					if (v > 0 && (size_t)v < heap_size
+					    && heap[v].type == VM_PAGE && heap[v].page
+					    && heap[v].page->type == ARRAY_PAGE) {
+						struct page *ap = heap[v].page;
+						WARNING("  m[%d]=%d → ARRAY nr=%d first=%d",
+							k, v, ap->nr_vars,
+							ap->nr_vars > 0 ? ap->values[0].i : -1);
+					}
+				}
+			}
+		}
+		return;
+	}
 
 	int cmd = ints->values[0].i;
 	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
@@ -1423,9 +1452,19 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 				r2, g2, b2, edge_weight, char_space, line_space, state);
 		}
 		break;
-	default:
-		WARNING("AddPartsConstructionProcess: unknown type %d parts=%d", cmd, parts_no);
+	default: {
+		static int cp_warn = 0;
+		if (cp_warn++ < 5) {
+			WARNING("AddPartsConstructionProcess: unknown type %d parts=%d "
+				"ints_nr=%d ints[0..3]=%d,%d,%d,%d",
+				cmd, parts_no, ints->nr_vars,
+				ints->nr_vars > 0 ? ints->values[0].i : -1,
+				ints->nr_vars > 1 ? ints->values[1].i : -1,
+				ints->nr_vars > 2 ? ints->values[2].i : -1,
+				ints->nr_vars > 3 ? ints->values[3].i : -1);
+		}
 		break;
+	}
 	}
 }
 
@@ -1633,12 +1672,6 @@ static void PartsEngine_PopMessage(void)
 {
 	if (msg_head != msg_tail) {
 		msg_current = msg_queue[msg_head];
-		if (msg_current.type == 4) {
-			static int pop4 = 0;
-			if (pop4++ < 5)
-				WARNING("PopMessage type=4: parts=%d delegate=%d uid=%d",
-					msg_current.parts_no, msg_current.delegate_index, msg_current.unique_id);
-		}
 		msg_head = (msg_head + 1) % MSG_QUEUE_SIZE;
 	} else {
 		msg_current.type = -1;
@@ -1656,29 +1689,19 @@ static void PartsEngine_ReleaseMessage(void)
 	msg_current.nr_vars = 0;
 }
 
-// Getter functions PEEK at the queue head (not msg_current).
-// The bytecode message loop calls GetMessageType() BEFORE PopMessage()
-// to check if there are messages to process. After the handler runs,
-// PopMessage() copies queue[head] → msg_current and advances head.
+// Getter functions: check msg_current first (set by PopMessage), then peek queue.
+// Game flow: GetMessageType() peek → PopMessage() → GetMessageType() for SWITCH.
+// After PopMessage, queue head has advanced, so we MUST check msg_current.
 static int PartsEngine_GetMessageType(void)
 {
-	// Do NOT reset msg_current here. After PopMessage sets msg_current,
-	// subsequent getters must still read from it (the popped message).
-	// Resetting here breaks the dispatch chain because the bytecode calls
-	// GetMessageType again (for SWITCH) between PopMessage and var reads.
-	if (msg_head != msg_tail) {
-		int t = msg_queue[msg_head].type;
-		if (t == 4) {
-			static int mt4_count = 0;
-			if (mt4_count++ < 5)
-				WARNING("GetMessageType=4: parts=%d delegate=%d uid=%d",
-					msg_queue[msg_head].parts_no,
-					msg_queue[msg_head].delegate_index,
-					msg_queue[msg_head].unique_id);
-		}
-		return t;
-	}
-	return -1;
+	int r;
+	if (msg_current.type >= 0)
+		r = msg_current.type;
+	else if (msg_head != msg_tail)
+		r = msg_queue[msg_head].type;
+	else
+		r = -1;
+	return r;
 }
 // After PopMessage, data is in msg_current (head already advanced).
 // After GetMessageType peek (no PopMessage yet), data is at queue head.
@@ -1707,6 +1730,7 @@ static int PartsEngine_GetMessageUniqueID(void)
 		return msg_queue[msg_head].unique_id;
 	return 0;
 }
+
 
 static bool PartsEngine_SeekMessage(int target_parts_no)
 {

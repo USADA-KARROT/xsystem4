@@ -1978,9 +1978,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			}
 			int funcno = stack_pop().i;
 			// v14.1+: resolve vtable index through vmethods[].
-			// Interface dispatch (X_ICAST + ADD) produces a small vtable index.
-			// Direct method calls push actual function numbers (large).
-			// If funcno < nr_vmethods, it's a vtable index → resolve.
 			{
 				int sp_peek = stack_peek(0).i;
 				if (sp_peek > 0 && heap_index_valid(sp_peek)
@@ -2106,11 +2103,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				}
 				int fnr_args = ain->functions[funcno].nr_args;
 				if (nargs != fnr_args) {
-					if (call_stack_ptr > 0 && call_stack[call_stack_ptr-1].fno == 8724) {
-						static int nm_cd = 0;
-						if (nm_cd++ < 5)
-							WARNING("CALLMETHOD from CallDelegate: NARGS MISMATCH funcno=%d nargs=%d fnr_args=%d name=%s", funcno, nargs, fnr_args, ain->functions[funcno].name);
-					}
 					// nargs mismatch: vtable resolved to a wrong function.
 					if (saved_args != small_args) free(saved_args);
 					stack_pop(); // struct_page
@@ -2302,9 +2294,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		int expr = stack_pop().i; // expression
 		if (!stack_pop().i) {
 			static int assert_count = 0;
+			struct string *file_s = heap_get_string(file);
+			struct string *expr_s = heap_get_string(expr);
 			if (assert_count++ < 10) {
-				struct string *file_s = heap_get_string(file);
-				struct string *expr_s = heap_get_string(expr);
 				WARNING("ASSERT FAILED: %s:%d: %s",
 					file_s ? file_s->text : "?", line,
 					expr_s ? expr_s->text : "?");
@@ -2320,7 +2312,17 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 						? ain->functions[_fno].name : "?");
 				}
 			}
-			// Continue execution instead of vm_exit for v14 debugging
+			// When "sections.Any()" assert fails in ExecuterCollection@Join,
+			// the Join loop will never terminate (sections are empty).
+			// Force a RETURN to unblock the game.
+			if (expr_s && strstr(expr_s->text, "sections")) {
+				static int sec_count = 0;
+				if (sec_count++ < 20) WARNING("sections assert: forcing return from fno=%d ip=0x%X", call_stack[call_stack_ptr-1].fno, instr_ptr);
+				heap_unref(file);
+				heap_unref(expr);
+				function_return();
+				break;
+			}
 		}
 		heap_unref(file);
 		heap_unref(expr);
@@ -2421,23 +2423,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case GTE: {
 		int32_t b = stack_pop().i;
 		int32_t a = stack_pop().i;
-		// Trace GTE in func 23042 at IP 0x51882C
-		if (instr_ptr == 0x51882C) {
-			static int gte_23042 = 0;
-			if (gte_23042++ < 5)
-				WARNING("GTE@0x51882C (func23042): member[13]=%d >= %d → %d", a, b, a >= b);
-		}
 		stack_push(a >= b ? 1 : 0);
 		break;
 	}
 	case NOTE: {
 		int32_t b = stack_pop().i;
 		int32_t a = stack_pop().i;
-		if (instr_ptr == 0x518856) {
-			static int note_23042 = 0;
-			if (note_23042++ < 5)
-				WARNING("NOTE@0x518856 (func23042): member[12]=%d != %d → %d", a, b, a != b);
-		}
 		stack_push(a != b ? 1 : 0);
 		break;
 	}
@@ -3867,7 +3858,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 					}
 				}
 			}
-			(void)fno; // may be -1 if method not found
+			if (fno < 0) {
+				static int str_fail = 0;
+				if (str_fail++ < 30)
+					WARNING("DG_STR_TO_METHOD FAIL: '%s'", name->text);
+			}
 		}
 		heap_unref(str_slot);
 		stack_push(fno);
@@ -4299,6 +4294,19 @@ static void vm_execute(void)
 		}
 		opcode = get_opcode(instr_ptr);
 		insn_count++;
+		// Heartbeat: log current function every 50M instructions
+		if (unlikely((insn_count & 0x2FFFFFF) == 0)) {
+			int cfno = (call_stack_ptr > 0) ? call_stack[call_stack_ptr-1].fno : -1;
+			WARNING("heartbeat: %lluM insns fno=%d depth=%d ip=0x%X op=0x%X",
+				insn_count/1000000, cfno, call_stack_ptr, instr_ptr, opcode);
+			if (call_stack_ptr > 1) {
+				for (int _h = call_stack_ptr-1; _h >= 0 && _h >= call_stack_ptr-4; _h--) {
+					int _hfno = call_stack[_h].fno;
+					WARNING("  stack[%d]: fno=%d '%s'", _h, _hfno,
+						(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? ain->functions[_hfno].name : "?");
+				}
+			}
+		}
 		// Periodically pump events (~every 256K instructions)
 		// to prevent OS "not responding" and keep screen alive.
 		if (unlikely((insn_count & 0x3FFFF) == 0)) {
