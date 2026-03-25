@@ -120,6 +120,9 @@ static bool KiwiSoundEngine_IsPlaySe(int se_id)
 }
 
 // --- General channel functions ---
+// These operate on a unified channel ID that may be in either the wav or bgm pool.
+// Prepare() dispatches to the correct pool based on asset type; all other functions
+// must check both pools to find the channel.
 
 static int KiwiSoundEngine_GetFreeID(int min_id, int max_id)
 {
@@ -129,7 +132,7 @@ static int KiwiSoundEngine_GetFreeID(int min_id, int max_id)
 
 static bool KiwiSoundEngine_IsExistID(int id)
 {
-	return wav_is_playing(id);
+	return wav_is_playing(id) || bgm_is_playing(id);
 }
 
 static bool KiwiSoundEngine_Prepare(int id, struct string *name, struct string *filter, bool streaming)
@@ -145,47 +148,60 @@ static bool KiwiSoundEngine_Prepare(int id, struct string *name, struct string *
 
 static bool KiwiSoundEngine_Unprepare(int id)
 {
-	return wav_unprepare(id);
+	return wav_unprepare(id) || bgm_unprepare(id);
 }
 
 static bool KiwiSoundEngine_Play(int id)
 {
-	return wav_play(id);
+	if (wav_play(id))
+		return true;
+	return bgm_play(id);
 }
 
 static bool KiwiSoundEngine_Stop(int id)
 {
-	return wav_stop(id);
+	bool r = false;
+	if (wav_stop(id)) r = true;
+	if (bgm_stop(id)) r = true;
+	return r;
 }
 
 static bool KiwiSoundEngine_IsPlay(int id)
 {
-	return wav_is_playing(id);
+	return wav_is_playing(id) || bgm_is_playing(id);
 }
 
 static bool KiwiSoundEngine_SetLoopCount(int id, int count)
 {
-	return wav_set_loop_count(id, count);
+	if (wav_set_loop_count(id, count))
+		return true;
+	return bgm_set_loop_count(id, count);
 }
 
 static int KiwiSoundEngine_GetLoopCount(int id)
 {
-	return wav_get_loop_count(id);
+	int r = wav_get_loop_count(id);
+	if (r > 0) return r;
+	return bgm_get_loop_count(id);
 }
 
 static bool KiwiSoundEngine_Pause(int id)
 {
-	return wav_pause(id);
+	if (wav_pause(id))
+		return true;
+	return bgm_pause(id);
 }
 
 static bool KiwiSoundEngine_Restart(int id)
 {
-	return wav_restart(id);
+	if (wav_restart(id))
+		return true;
+	return bgm_restart(id);
 }
 
 static bool KiwiSoundEngine_IsPause(int id)
 {
-	return wav_is_paused(id);
+	return wav_is_paused(id) || bgm_is_paused(id);
 }
 
 static bool KiwiSoundEngine_Fade(int id, int time, float volume, bool stop, int fade_type)
@@ -194,37 +210,49 @@ static bool KiwiSoundEngine_Fade(int id, int time, float volume, bool stop, int 
 	int vol = (int)(volume * 100.0f);
 	if (vol < 0) vol = 0;
 	if (vol > 100) vol = 100;
-	return wav_fade(id, time, vol, stop);
+	if (wav_fade(id, time, vol, stop))
+		return true;
+	return bgm_fade(id, time, vol, stop);
 }
 
 static bool KiwiSoundEngine_StopFade(int id)
 {
-	return wav_stop_fade(id);
+	if (wav_stop_fade(id))
+		return true;
+	return bgm_stop_fade(id);
 }
 
 static bool KiwiSoundEngine_IsFade(int id)
 {
-	return wav_is_fading(id);
+	return wav_is_fading(id) || bgm_is_fading(id);
 }
 
 static bool KiwiSoundEngine_Seek(int id, int millisec)
 {
-	return wav_seek(id, millisec);
+	if (wav_seek(id, millisec))
+		return true;
+	return bgm_seek(id, millisec);
 }
 
 static int KiwiSoundEngine_GetPos(int id)
 {
-	return wav_get_pos(id);
+	int r = wav_get_pos(id);
+	if (r >= 0) return r;
+	return bgm_get_pos(id);
 }
 
 static int KiwiSoundEngine_GetLength(int id)
 {
-	return wav_get_length(id);
+	int r = wav_get_length(id);
+	if (r > 0) return r;
+	return bgm_get_length(id);
 }
 
 static int KiwiSoundEngine_GetGroupNum(int id)
 {
-	return wav_get_group_num(id);
+	int r = wav_get_group_num(id);
+	if (r > 0) return r;
+	return 0; // bgm_get_group_num not available
 }
 
 // --- File query functions ---

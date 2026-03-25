@@ -39,12 +39,9 @@ static int Delegate_Numof(struct page **self)
 // [3] Empty(self:ref_delegate) -> bool
 static bool Delegate_Empty(struct page **self)
 {
-	bool result;
 	if (!self || !*self)
-		result = true;
-	else
-		result = delegate_numof(*self) == 0;
-	return result;
+		return true;
+	return delegate_numof(*self) == 0;
 }
 
 // [4] Equals(self:ref_delegate, src:wrap<delegate>) -> bool

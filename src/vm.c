@@ -750,6 +750,7 @@ static void function_call(int fno, int return_address)
 			break;
 		}
 	}
+
 	// Record base_sp for stack balance check
 	call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 
@@ -1042,12 +1043,6 @@ static void delegate_call(int dg_no, int return_address)
 			}
 		}
 	} else {
-		if (dg_no == 519 || dg_no == 113 || dg_no == 458 || dg_no == 112) {
-			static int dg_miss = 0;
-			if (dg_miss++ < 10)
-				WARNING("  → delegate_get MISS: dg#%d page=%p index=%d",
-					dg_no, (void*)dg_pg, dg_index);
-		}
 		// Save return value(s) — may be 2 slots for v14 2-slot types
 		union vm_value r[2] = {{0}, {0}};
 		for (int i = return_values - 1; i >= 0; i--)
