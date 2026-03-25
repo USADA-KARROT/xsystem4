@@ -331,7 +331,15 @@ static int Array_First(struct page **array, int func)
 }
 
 // Any: return true if any element matches the predicate
-static bool Array_Any(struct page **array, int func)
+// No-predicate Any: returns true if array has any elements (C# LINQ Any())
+static bool Array_Any(struct page **array)
+{
+	struct page *src = (array && *array) ? *array : NULL;
+	return src && src->nr_vars > 0;
+}
+
+// Predicate Any: returns true if any element satisfies the predicate function
+static bool Array_AnyPredicate(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
 	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)

@@ -2312,17 +2312,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 						? ain->functions[_fno].name : "?");
 				}
 			}
-			// When "sections.Any()" assert fails in ExecuterCollection@Join,
-			// the Join loop will never terminate (sections are empty).
-			// Force a RETURN to unblock the game.
-			if (expr_s && strstr(expr_s->text, "sections")) {
-				static int sec_count = 0;
-				if (sec_count++ < 20) WARNING("sections assert: forcing return from fno=%d ip=0x%X", call_stack[call_stack_ptr-1].fno, instr_ptr);
-				heap_unref(file);
-				heap_unref(expr);
-				function_return();
-				break;
-			}
+			// v14 asserts: continue execution (non-fatal)
 		}
 		heap_unref(file);
 		heap_unref(expr);
