@@ -973,7 +973,6 @@ void parts_release(int parts_no)
 	struct parts *parts = ht_get_int(parts_table, parts_no, NULL);
 	if (!parts)
 		return;
-
 	parts_clear_motion(parts);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_state_free(&parts->states[i]);

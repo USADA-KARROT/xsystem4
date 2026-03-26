@@ -107,9 +107,6 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	// PE_EndInput before UP arrives. So per-button click detection
 	// must happen on DOWN to set clicked_parts and enqueue messages
 	// before WaitForClick can exit.
-	if (cur_clicking && !prev_clicking) {
-		WARNING("PE_UpdateInputState: DOWN detected at (%d,%d) began_click=%d", cur_pos.x, cur_pos.y, parts_began_click);
-	}
 	if (cur_clicking && !prev_clicking && parts_began_click) {
 		struct parts *click_target = NULL;
 		PARTS_LIST_FOREACH(parts) {
@@ -125,7 +122,6 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 			click_target = parts;
 		}
 		if (click_target) {
-			WARNING("PE_UpdateInputState: click_target=%d delegate_idx=%d", click_target->no, click_target->delegate_index);
 			if (click_target->on_click_sound >= 0)
 				audio_play_sound(click_target->on_click_sound);
 			clicked_parts = click_target->no;

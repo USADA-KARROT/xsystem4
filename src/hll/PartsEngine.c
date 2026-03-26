@@ -1694,14 +1694,11 @@ static void PartsEngine_ReleaseMessage(void)
 // After PopMessage, queue head has advanced, so we MUST check msg_current.
 static int PartsEngine_GetMessageType(void)
 {
-	int r;
 	if (msg_current.type >= 0)
-		r = msg_current.type;
-	else if (msg_head != msg_tail)
-		r = msg_queue[msg_head].type;
-	else
-		r = -1;
-	return r;
+		return msg_current.type;
+	if (msg_head != msg_tail)
+		return msg_queue[msg_head].type;
+	return -1;
 }
 // After PopMessage, data is in msg_current (head already advanced).
 // After GetMessageType peek (no PopMessage yet), data is at queue head.
@@ -1710,7 +1707,7 @@ static int PartsEngine_GetMessagePartsNumber(void)
 {
 	if (msg_current.type >= 0)
 		return msg_current.parts_no;
-	else if (msg_head != msg_tail)
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].parts_no;
 	return 0;
 }
@@ -1718,7 +1715,7 @@ static int PartsEngine_GetMessageDelegateIndex(void)
 {
 	if (msg_current.type >= 0)
 		return msg_current.delegate_index;
-	else if (msg_head != msg_tail)
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].delegate_index;
 	return 0;
 }

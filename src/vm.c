@@ -2304,13 +2304,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 						display_sjis0(file_s ? file_s->text : "?"),
 						line,
 						display_sjis1(expr_s ? expr_s->text : "?"));
-				// Trace call stack for debugging
-				for (int _cs = call_stack_ptr - 1; _cs >= 0 && _cs >= call_stack_ptr - 8; _cs--) {
-					int _fno = call_stack[_cs].fno;
-					WARNING("  ASSERT callstack[%d]: fno=%d '%s'", _cs, _fno,
-						(_fno >= 0 && _fno < ain->nr_functions && ain->functions[_fno].name)
-						? ain->functions[_fno].name : "?");
-				}
 			}
 			// v14 asserts: continue execution (non-fatal)
 		}
@@ -3847,11 +3840,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 						}
 					}
 				}
-			}
-			if (fno < 0) {
-				static int str_fail = 0;
-				if (str_fail++ < 30)
-					WARNING("DG_STR_TO_METHOD FAIL: '%s'", name->text);
 			}
 		}
 		heap_unref(str_slot);
