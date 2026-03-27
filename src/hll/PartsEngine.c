@@ -1920,6 +1920,43 @@ static void PE_FixMessageWindowText(int parts_no)
 	// Text is already rendered by SetMessageWindowText; nothing to finalize.
 }
 
+static bool PE_IsFixedMessageWindowText(int parts_no)
+{
+	// Text is rendered synchronously in SetMessageWindowText, so always "fixed".
+	return true;
+}
+
+static struct string *PE_GetMessageWindowFlatName(int parts_no)
+{
+	return string_ref(&EMPTY_STRING);
+}
+
+static struct string *PE_GetMessageWindowText(int parts_no)
+{
+	return string_ref(&EMPTY_STRING);
+}
+
+static void PE_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
+{
+	// Text origin position mode (e.g. left/center). Stub for now.
+}
+
+static void PE_SetKeyWaitShow(int parts_no, bool show)
+{
+	// Show/hide key-wait indicator. Stub for now.
+	PE_SetShow(parts_no, show);
+}
+
+static void PE_SaveBackScene(int data)
+{
+	// Save current scene for back-log display. Stub for now.
+}
+
+static void PE_SetButtonEnable(int parts_no, bool enable)
+{
+	// Enable/disable button input. Stub for now.
+}
+
 /* --- Text-related stubs --- */
 static void PE_DeletePartsTopTextLine(int parts_no) { }
 static void PE_SetPartsTextHighlight(int parts_no, int start, int end) { }
@@ -2479,7 +2516,14 @@ HLL_LIBRARY(PartsEngine,
 	    // Message window
 	    HLL_EXPORT(SetMessageWindowActive, PE_SetMessageWindowActive),
 	    HLL_EXPORT(SetMessageWindowText, PE_SetMessageWindowText),
-	    HLL_EXPORT(FixMessageWindowText, PE_FixMessageWindowText)
+	    HLL_EXPORT(FixMessageWindowText, PE_FixMessageWindowText),
+	    HLL_EXPORT(IsFixedMessageWindowText, PE_IsFixedMessageWindowText),
+	    HLL_EXPORT(GetMessageWindowFlatName, PE_GetMessageWindowFlatName),
+	    HLL_EXPORT(GetMessageWindowText, PE_GetMessageWindowText),
+	    HLL_EXPORT(SetMessageWindowTextOriginPosMode, PE_SetMessageWindowTextOriginPosMode),
+	    HLL_EXPORT(SetKeyWaitShow, PE_SetKeyWaitShow),
+	    HLL_EXPORT(SaveBackScene, PE_SaveBackScene),
+	    HLL_EXPORT(SetButtonEnable, PE_SetButtonEnable)
 	    );
 
 static struct ain_hll_function *get_fun(int libno, const char *name)

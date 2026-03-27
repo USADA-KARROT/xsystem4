@@ -413,8 +413,9 @@ static struct string *MainEXFile_A2String(struct string *name, int row, int col,
 		return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 	}
 	struct ex_value *v = ex_table_get(t, row, col);
-	if (v && v->type == EX_STRING)
+	if (v && v->type == EX_STRING) {
 		return string_ref(v->s);
+	}
 	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
 

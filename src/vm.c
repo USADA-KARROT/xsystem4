@@ -2248,8 +2248,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		int msg_idx = get_argument(0);
 		if (config.echo)
 			echo_message(msg_idx);
-		if (ain->msgf < 0)
+		if (ain->msgf < 0) {
+			// No MSGF function (v14+): MSG is a no-op but ip_inc=0
+			// (JMP-class), so we must manually advance past the instruction.
+			instr_ptr += instruction_width(_MSG);
 			break;
+		}
 		stack_push(msg_idx);
 		stack_push(ain->nr_messages);
 		stack_push_string(string_ref(ain->messages[msg_idx]));

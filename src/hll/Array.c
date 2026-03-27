@@ -71,7 +71,6 @@ static void Array_Alloc(struct page **array, int numof)
 	struct page *old = *array;
 	int old_size = (old && old->type == ARRAY_PAGE) ? old->nr_vars : 0;
 	int struct_type = (old && old->type == ARRAY_PAGE) ? old->array.struct_type : -1;
-
 	struct page *new_a = alloc_page(ARRAY_PAGE, old ? old->a_type : AIN_ARRAY_INT, numof);
 	new_a->array.rank = 1;
 	if (old && old->type == ARRAY_PAGE)
@@ -376,7 +375,8 @@ static void Array_Free(struct page **array)
 static int Array_Numof(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	return array ? array->nr_vars : 0;
+	int n = array ? array->nr_vars : 0;
+	return n;
 }
 
 static int Array_Empty(struct page **self)
