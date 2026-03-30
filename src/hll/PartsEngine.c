@@ -1191,8 +1191,8 @@ static struct string *PartsEngine_Parts_GetComment(int parts_no) { (void)parts_n
  *   [0] = Command (type enum — see v14_cp_type below)
  *   [1] = InterpolationType
  *   [2] = SrcX      [3] = SrcY      [4] = SrcWidth    [5] = SrcHeight
- *   [6] = DestX     [7] = DestY     [8] = DestWidth   [9] = DestHeight
- *  [10] = DestX2   [11] = DestY2
+ *   [6] = DestX     [7] = DestY     [8] = DestX2       [9] = DestY2
+ *  [10] = DestWidth [11] = DestHeight
  *  [12] = R        [13] = G        [14] = B          [15] = A
  *  [16] = R2       [17] = G2       [18] = B2         [19] = A2
  *  [20] = CharSpace [21] = LineSpace [22] = FontProperty
@@ -1209,19 +1209,31 @@ enum v14_cp_type {
 	V14_CP_FILL_ALPHA_COLOR = 4,
 	V14_CP_FILL_AMAP = 5,
 	V14_CP_FILL_WITH_ALPHA = 6,
-	V14_CP_FILL_GRADATION_HORIZON = 7,
+	V14_CP_DRAW_TEXT = 7,
+	V14_CP_COPY_TEXT = 8,
+	V14_CP_FILL_GRADATION_HORIZON = 9,
 	V14_CP_DRAW_RECT = 10,
-	V14_CP_CG_BLEND = 11,
-	V14_CP_CUT_CG_BLEND = 12,
-	V14_CP_CUT_CG_COPY = 13,
-	V14_CP_CUT_CG_SCALE_BLEND = 14,
-	V14_CP_CUT_CG_SCALE_COPY = 15,
-	V14_CP_GRAY_FILTER = 16,
-	V14_CP_ADD_FILTER = 18,
-	V14_CP_MUL_FILTER = 19,
-	V14_CP_DRAW_TEXT = 23,
-	V14_CP_COPY_TEXT = 24,
+	V14_CP_CUT_CG_BLEND = 11,
+	V14_CP_CUT_CG_COPY = 12,
+	V14_CP_CUT_CG_SCALE_BLEND = 13,
+	V14_CP_CUT_CG_SCALE_COPY = 14,
+	V14_CP_GRAY_FILTER = 15,
+	V14_CP_ADD_FILTER = 16,
+	V14_CP_MUL_FILTER = 17,
+	V14_CP_DRAW_LINE = 18,
+	V14_CP_CUT_CG_ALPHA_BLEND = 19,
+	V14_CP_CUT_CG_SCALE_ALPHA_BLEND = 20,
+	V14_CP_CUT_CG_ONLY_ALPHA = 21,
+	V14_CP_CUT_CG_SCALE_ONLY_ALPHA = 22,
+	V14_CP_ALPHA_BLEND_TEXT = 23,
+	V14_CP_ONLY_ALPHA_TEXT = 24,
+	V14_CP_MUL_AMAP_GRADATION_HORIZON = 25,
+	V14_CP_MUL_AMAP_GRADATION_VERTICAL = 26,
+	V14_CP_HBLUR_FILTER = 27,
+	V14_CP_VBLUR_FILTER = 28,
+	V14_CP_CG_BLEND = 29,
 	V14_CP_DRAW_LINE_WITH_ALPHA = 30,
+	V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT = 57,
 };
 
 /*
@@ -1330,8 +1342,10 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	int cmd = ints->values[0].i;
 	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
 	int dy = ints->nr_vars > 7 ? ints->values[7].i : 0;
-	int dw = ints->nr_vars > 8 ? ints->values[8].i : 0;
-	int dh = ints->nr_vars > 9 ? ints->values[9].i : 0;
+	int dx2 = ints->nr_vars > 8 ? ints->values[8].i : 0;
+	int dy2 = ints->nr_vars > 9 ? ints->values[9].i : 0;
+	int dw = ints->nr_vars > 10 ? ints->values[10].i : 0;
+	int dh = ints->nr_vars > 11 ? ints->values[11].i : 0;
 	int r  = ints->nr_vars > 12 ? ints->values[12].i : 0;
 	int g  = ints->nr_vars > 13 ? ints->values[13].i : 0;
 	int b  = ints->nr_vars > 14 ? ints->values[14].i : 0;
@@ -1359,21 +1373,18 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		}
 	}
 
-	int dx2 = ints->nr_vars > 10 ? ints->values[10].i : 0;
-	int dy2 = ints->nr_vars > 11 ? ints->values[11].i : 0;
-
 	switch (cmd) {
 	case V14_CP_CREATE:
 		if (dw == 0 && dh == 0) {
-			dw = ints->nr_vars > 10 ? ints->values[10].i : 0;
-			dh = ints->nr_vars > 11 ? ints->values[11].i : 0;
+			dw = dx2 > 0 ? dx2 : 0;
+			dh = dy2 > 0 ? dy2 : 0;
 		}
 		PE_AddCreateToPartsConstructionProcess(parts_no, dw, dh, state);
 		break;
 	case V14_CP_CREATE_PIXEL_ONLY:
 		if (dw == 0 && dh == 0) {
-			dw = ints->nr_vars > 10 ? ints->values[10].i : 0;
-			dh = ints->nr_vars > 11 ? ints->values[11].i : 0;
+			dw = dx2 > 0 ? dx2 : 0;
+			dh = dy2 > 0 ? dy2 : 0;
 		}
 		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, dw, dh, state);
 		break;
@@ -1382,59 +1393,29 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 			PE_AddCreateCGToProcess(parts_no, cg_name, state);
 		break;
 	case V14_CP_FILL: {
-		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
-		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
 		PE_AddFillToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
 		break;
 	}
 	case V14_CP_FILL_ALPHA_COLOR: {
-		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
-		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
 		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
 		break;
 	}
 	case V14_CP_FILL_AMAP: {
-		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
-		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
 		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
 		break;
 	}
 	case V14_CP_FILL_WITH_ALPHA: {
-		int fw = dx2 > 0 ? dx2 : (dw > 0 ? dw : 16384);
-		int fh = dy2 > 0 ? dy2 : (dh > 0 ? dh : 16384);
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
 		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
 		break;
 	}
-	case V14_CP_DRAW_RECT: {
-		int fw = dx2 > 0 ? dx2 : dw;
-		int fh = dy2 > 0 ? dy2 : dh;
-		PE_AddDrawRectToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
-		break;
-	}
-	case V14_CP_DRAW_LINE_WITH_ALPHA: {
-		int x1 = dx, y1 = dy, x2 = dw, y2 = dh;
-		int lx = x1 < x2 ? x1 : x2;
-		int ly = y1 < y2 ? y1 : y2;
-		int lw = abs(x2 - x1);
-		int lh = abs(y2 - y1);
-		if (lw == 0) lw = 1;
-		if (lh == 0) lh = 1;
-		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, lx, ly, lw, lh, r, g, b, a, state);
-		break;
-	}
-	case V14_CP_CG_BLEND:
-	case V14_CP_CUT_CG_BLEND:
-	case V14_CP_CUT_CG_SCALE_BLEND:
-		if (cg_name)
-			PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
-		break;
-	case V14_CP_CUT_CG_COPY:
-	case V14_CP_CUT_CG_SCALE_COPY:
-		if (cg_name)
-			PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
-				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
-		break;
 	case V14_CP_DRAW_TEXT:
 		if (text) {
 			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
@@ -1469,9 +1450,96 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 				r2, g2, b2, edge_weight, char_space, line_space, state);
 		}
 		break;
+	case V14_CP_FILL_GRADATION_HORIZON: {
+		/* Gradient fill: use RGBA + RGBA2 for start/end colors, approximate with fill */
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_DRAW_RECT: {
+		int fw = dw > 0 ? dw : dx2;
+		int fh = dh > 0 ? dh : dy2;
+		PE_AddDrawRectToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
+		break;
+	}
+	case V14_CP_CUT_CG_BLEND:
+	case V14_CP_CUT_CG_SCALE_BLEND:
+	case V14_CP_CUT_CG_ALPHA_BLEND:
+	case V14_CP_CUT_CG_SCALE_ALPHA_BLEND:
+	case V14_CP_CG_BLEND:
+		if (cg_name)
+			PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
+		break;
+	case V14_CP_CUT_CG_COPY:
+	case V14_CP_CUT_CG_SCALE_COPY:
+	case V14_CP_CUT_CG_ONLY_ALPHA:
+	case V14_CP_CUT_CG_SCALE_ONLY_ALPHA:
+		if (cg_name)
+			PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
+		break;
+	case V14_CP_GRAY_FILTER:
+	case V14_CP_ADD_FILTER:
+	case V14_CP_MUL_FILTER:
+	case V14_CP_HBLUR_FILTER:
+	case V14_CP_VBLUR_FILTER: {
+		/* Filter stubs — no-op, the parts texture is already rendered */
+		static int filter_warn = 0;
+		if (filter_warn++ < 3)
+			WARNING("AddPartsConstructionProcess: filter type %d (stub) parts=%d", cmd, parts_no);
+		break;
+	}
+	case V14_CP_DRAW_LINE:
+	case V14_CP_DRAW_LINE_WITH_ALPHA: {
+		int x1 = dx, y1 = dy, x2 = dx2, y2 = dy2;
+		int lx = x1 < x2 ? x1 : x2;
+		int ly = y1 < y2 ? y1 : y2;
+		int lw = abs(x2 - x1);
+		int lh = abs(y2 - y1);
+		if (lw == 0) lw = 1;
+		if (lh == 0) lh = 1;
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, lx, ly, lw, lh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_ALPHA_BLEND_TEXT:
+	case V14_CP_ONLY_ALPHA_TEXT:
+		/* Text with alpha blending — use DrawText as approximation */
+		if (text) {
+			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
+			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
+			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
+			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
+			struct page *floats = wrap_get_backing_array(wf_slot);
+			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
+			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
+			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
+			PE_AddDrawTextToPartsConstructionProcess(parts_no, dx, dy, text,
+				font_type, font_size, r, g, b, bold_weight,
+				r2, g2, b2, edge_weight, char_space, line_space, state);
+		}
+		break;
+	case V14_CP_MUL_AMAP_GRADATION_HORIZON:
+	case V14_CP_MUL_AMAP_GRADATION_VERTICAL: {
+		/* Gradient alpha map — approximate with FillAMap */
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
+		break;
+	}
+	case V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT: {
+		/* Circle draw — approximate with fill alpha color */
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
 	default: {
 		static int cp_warn = 0;
-		if (cp_warn++ < 5) {
+		if (cp_warn++ < 10) {
 			WARNING("AddPartsConstructionProcess: unknown type %d parts=%d "
 				"ints_nr=%d ints[0..3]=%d,%d,%d,%d",
 				cmd, parts_no, ints->nr_vars,

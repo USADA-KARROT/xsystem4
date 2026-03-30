@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "system4.h"
 #include "system4/string.h"
 
@@ -33,6 +35,11 @@
  *
  * All channels use the wav pool internally.
  */
+
+static void KiwiSoundEngine_ModuleInit(void)
+{
+	audio_init();
+}
 
 static void KiwiSoundEngine_SetGlobalFocus(bool focus)
 {
@@ -62,11 +69,17 @@ static bool KiwiSoundEngine_PlaySe(int se_id, struct string *name, struct string
 {
 	(void)filter;
 	int no;
-	if (!asset_exists_by_name(ASSET_SOUND, name->text, &no))
-		return false;
-	if (!wav_prepare(se_id, no))
-		return false;
-	return wav_play(se_id);
+	if (asset_exists_by_name(ASSET_SOUND, name->text, &no)) {
+		if (!wav_prepare(se_id, no))
+			return false;
+		return wav_play(se_id);
+	}
+	if (asset_exists_by_name(ASSET_VOICE, name->text, &no)) {
+		if (!wav_prepare_voice(se_id, no))
+			return false;
+		return wav_play(se_id);
+	}
+	return false;
 }
 
 static int KiwiSoundEngine_Sound_GetGroupNum(int ch)
@@ -84,34 +97,63 @@ static bool KiwiSoundEngine_StopSe(int se_id)
 	return wav_stop(se_id);
 }
 
+/*
+ * Mixer group indices.
+ *
+ * The default mixer layout (no mixer config in ini) is:
+ *   0 = Music (BGM)
+ *   1 = Sound (SE/Voice)
+ *   2 = Master
+ *
+ * When the ini specifies mixer channels, the layout follows the ini order
+ * with Master either at index 0 or appended at the end. We search by name
+ * so it works for both cases.
+ */
+static int find_mixer_by_name(const char *name)
+{
+	int n = mixer_get_numof();
+	for (int i = 0; i < n; i++) {
+		const char *mname = mixer_get_name(i);
+		if (mname && !strcmp(mname, name))
+			return i;
+	}
+	return -1;
+}
+
 static int KiwiSoundEngine_GetMasterGroup(void)
 {
-	return 0;
+	int idx = find_mixer_by_name("Master");
+	return idx >= 0 ? idx : 0;
 }
 
 static int KiwiSoundEngine_GetBGMGroup(void)
 {
-	return 0;
+	int idx = find_mixer_by_name("Music");
+	return idx >= 0 ? idx : 0;
 }
 
 static int KiwiSoundEngine_GetSEGroup(void)
 {
-	return 0;
+	int idx = find_mixer_by_name("Sound");
+	return idx >= 0 ? idx : 1;
 }
 
 static int KiwiSoundEngine_GetVoiceGroup(void)
 {
-	return 0;
+	int idx = find_mixer_by_name("Voice");
+	if (idx >= 0) return idx;
+	// Fall back to Sound group if no dedicated Voice mixer
+	return KiwiSoundEngine_GetSEGroup();
 }
 
 static int KiwiSoundEngine_GetGimicSEGroup(void)
 {
-	return 0;
+	return KiwiSoundEngine_GetSEGroup();
 }
 
 static int KiwiSoundEngine_GetBackVoiceGroup(void)
 {
-	return 0;
+	return KiwiSoundEngine_GetVoiceGroup();
 }
 
 static bool KiwiSoundEngine_IsPlaySe(int se_id)
@@ -141,6 +183,8 @@ static bool KiwiSoundEngine_Prepare(int id, struct string *name, struct string *
 	int no;
 	if (asset_exists_by_name(ASSET_SOUND, name->text, &no))
 		return wav_prepare(id, no);
+	if (asset_exists_by_name(ASSET_VOICE, name->text, &no))
+		return wav_prepare_voice(id, no);
 	if (asset_exists_by_name(ASSET_BGM, name->text, &no))
 		return bgm_prepare(id, no);
 	return false;
@@ -260,6 +304,7 @@ static int KiwiSoundEngine_GetGroupNum(int id)
 static bool KiwiSoundEngine_IsExistFile(struct string *name)
 {
 	return asset_exists_by_name(ASSET_SOUND, name->text, NULL)
+		|| asset_exists_by_name(ASSET_VOICE, name->text, NULL)
 		|| asset_exists_by_name(ASSET_BGM, name->text, NULL);
 }
 
@@ -273,6 +318,8 @@ static int KiwiSoundEngine_GetGroupNumFromFile(struct string *name)
 {
 	int no;
 	if (asset_exists_by_name(ASSET_SOUND, name->text, &no))
+		return wav_get_group_num_from_data_num(no);
+	if (asset_exists_by_name(ASSET_VOICE, name->text, &no))
 		return wav_get_group_num_from_data_num(no);
 	return 0;
 }
@@ -341,6 +388,7 @@ static bool KiwiSoundEngine_SetMixerMute(int n, bool mute)
 }
 
 HLL_LIBRARY(KiwiSoundEngine,
+	    HLL_EXPORT(_ModuleInit, KiwiSoundEngine_ModuleInit),
 	    HLL_EXPORT(SetGlobalFocus, KiwiSoundEngine_SetGlobalFocus),
 	    HLL_EXPORT(Music_IsExist, bgm_exists),
 	    HLL_EXPORT(Music_Prepare, bgm_prepare),

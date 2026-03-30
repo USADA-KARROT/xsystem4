@@ -31,6 +31,7 @@ bool audio_play_archive_data(struct archive_data *dfile);
 bool wav_exists(int no);
 bool bgm_exists(int no);
 int wav_prepare(int id, int no);
+int wav_prepare_voice(int id, int no);
 int bgm_prepare(int id, int no);
 int wav_unprepare(int id);
 int bgm_unprepare(int id);

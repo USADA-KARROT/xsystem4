@@ -155,11 +155,22 @@ static void vm_msg_wait_click(void)
 	}
 }
 
+static bool vm_msg_a_was_called = false;
+
 // R handler: accumulate a line from the last MSG
 static void vm_msg_handle_R(void)
 {
 	if (!vm_msg_text || vm_msg_text->size <= 0)
 		return;
+	// If A was previously called, this R starts a new page — clear old lines
+	if (vm_msg_a_was_called) {
+		for (int i = 0; i < vm_msg_line_count; i++) {
+			free(vm_msg_lines[i]);
+			vm_msg_lines[i] = NULL;
+		}
+		vm_msg_line_count = 0;
+		vm_msg_a_was_called = false;
+	}
 	if (vm_msg_line_count < VM_MSG_MAX_LINES) {
 		vm_msg_lines[vm_msg_line_count] = strdup(vm_msg_text->text);
 		vm_msg_line_count++;
@@ -168,7 +179,7 @@ static void vm_msg_handle_R(void)
 	vm_msg_idx = -1;
 }
 
-// A handler: display accumulated lines, wait for click, then clear
+// A handler (full): display accumulated lines, wait for click, then clear
 static void vm_msg_handle_A(void)
 {
 	// Add the last line (MSG before A)
@@ -188,6 +199,27 @@ static void vm_msg_handle_A(void)
 		}
 		vm_msg_line_count = 0;
 	}
+}
+
+// A handler (overlay only): accumulate last line, don't wait
+// (game's own WaitForClick handles the wait)
+static void vm_msg_handle_A_overlay(void)
+{
+	if (vm_msg_text && vm_msg_text->size > 0 && vm_msg_line_count < VM_MSG_MAX_LINES) {
+		vm_msg_lines[vm_msg_line_count] = strdup(vm_msg_text->text);
+		vm_msg_line_count++;
+	}
+	vm_msg_text = NULL;
+	vm_msg_idx = -1;
+	vm_msg_a_was_called = true;
+	// Lines will be drawn by vm_msg_draw_overlay() during gfx_swap
+	// and cleared when the next R starts a new page
+}
+
+// Called from gfx_swap to render the text overlay
+void vm_msg_render_overlay(void)
+{
+	vm_msg_draw_overlay();
 }
 // ---- end v14 message system ----
 
@@ -2034,18 +2066,15 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	//
 	case CALLFUNC: {
 		int _fno = get_argument(0);
-		// v14 MSG system: intercept R/A when delegates are empty.
-		// We handle display + wait ourselves and skip the game's fallback
-		// (which has its own WaitForClick that would cause a double-wait).
+		// v14 MSG system: accumulate lines for overlay, but let game's
+		// own R/A fallback run (it manages the native message window).
 		if (ain->version >= 14 && ain->msgf < 0 && vm_msg_fn_R >= 0) {
 			if (_fno == vm_msg_fn_R && vm_msg_delegate_empty(103)) {
-				vm_msg_handle_R();
-				instr_ptr += instruction_width(CALLFUNC);
-				break;
+				vm_msg_handle_R();  // accumulate line for overlay
+				// fall through to game's R function
 			} else if (_fno == vm_msg_fn_A && vm_msg_delegate_empty(104)) {
-				vm_msg_handle_A();
-				instr_ptr += instruction_width(CALLFUNC);
-				break;
+				vm_msg_handle_A_overlay();  // accumulate last line, no wait
+				// fall through to game's A function (which has WaitForClick)
 			}
 		}
 		// --skip-title: bypass SceneLogo and SceneTitle

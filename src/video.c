@@ -514,6 +514,11 @@ void gfx_swap(void)
 		.data = view
 	};
 	gfx_render(&job);
+
+	// v14 MSG text overlay (drawn after scene render, before swap)
+	extern void vm_msg_render_overlay(void);
+	vm_msg_render_overlay();
+
 	// macOS: flush all pending GL commands before swap to avoid
 	// crash in CGLFlushDrawable when GL pipeline has stale state
 	glFinish();

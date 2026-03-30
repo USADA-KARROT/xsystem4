@@ -515,8 +515,8 @@ struct channel *channel_open(enum asset_type type, int no)
 		return NULL;
 	}
 
-	if (type == ASSET_SOUND) {
-		struct wai *wai = wai_get(no);
+	if (type == ASSET_SOUND || type == ASSET_VOICE) {
+		struct wai *wai = (type == ASSET_SOUND) ? wai_get(no) : NULL;
 		ch->volume = 100;
 		ch->loop_start = 0;
 		ch->loop_end = ch->info.frames;
@@ -706,21 +706,19 @@ void mixer_init(void)
 
 int mixer_get_numof(void)
 {
-	// Return the number of mixers specified in System40.ini, even if
-	// xsystem4 added more mixers.
-	return config.mixer_nr_channels;
+	return nr_mixers;
 }
 
 const char *mixer_get_name(int n)
 {
-	if (n < 0 || n >= config.mixer_nr_channels)
+	if (n < 0 || n >= nr_mixers)
 		return NULL;
 	return mixers[n].name;
 }
 
 int mixer_set_name(int n, const char *name)
 {
-	if (n < 0 || n >= config.mixer_nr_channels)
+	if (n < 0 || n >= nr_mixers)
 		return 0;
 	free(mixers[n].name);
 	mixers[n].name = strdup(name);
@@ -729,7 +727,7 @@ int mixer_set_name(int n, const char *name)
 
 int mixer_get_volume(int n, int *volume)
 {
-	if (n < 0 || n >= config.mixer_nr_channels) {
+	if (n < 0 || n >= nr_mixers) {
 		return 0;
 	}
 	SDL_LockAudioDevice(audio_device);
@@ -740,7 +738,7 @@ int mixer_get_volume(int n, int *volume)
 
 int mixer_set_volume(int n, int volume)
 {
-	if (n < 0 || n >= config.mixer_nr_channels)
+	if (n < 0 || n >= nr_mixers)
 		return 0;
 	SDL_LockAudioDevice(audio_device);
 	mixers[n].mixer.gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
@@ -749,7 +747,7 @@ int mixer_set_volume(int n, int volume)
 }
 int mixer_get_mute(int n, int *mute)
 {
-	if (n < 0 || n >= config.mixer_nr_channels)
+	if (n < 0 || n >= nr_mixers)
 		return 0;
 	*mute = mixers[n].muted;
 	return 1;
@@ -757,7 +755,7 @@ int mixer_get_mute(int n, int *mute)
 
 int mixer_set_mute(int n, int mute)
 {
-	if (n < 0 || n >= config.mixer_nr_channels)
+	if (n < 0 || n >= nr_mixers)
 		return 0;
 	mixers[n].muted = !!mute;
 	return 1;
