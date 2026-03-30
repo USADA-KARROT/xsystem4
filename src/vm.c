@@ -1978,7 +1978,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				if (ctor_func <= 0 && strt_ctor > 0 && allow && !explicit_no_ctor) {
 					ctor_func = strt_ctor;
 				}
-			}
+				}
 			// Allocate the struct.
 			// v14 alloc phase: alloc_struct only (init_global_struct_v14 handles ctors).
 			// Otherwise: create_struct which runs init_struct for child member pages.
@@ -4779,14 +4779,40 @@ int vm_execute_ain(struct ain *program)
 
 	// Global constructors must be called AFTER initializing non-struct variables
 	if (ain->version >= 14) {
-		// v14: call top-level constructors in reverse order to satisfy dependencies
+		// v14: Two-pass initialization to resolve cross-global dependencies.
+		// Pass 1 (forward): initialize infrastructure globals first
+		// (e.g. CASTimerManager must be ready before CASTimer ctors use it).
+		// Pass 2 (reverse): remaining globals that may depend on infrastructure.
+		// Track which globals are initialized to avoid double-init.
+		bool *ginited = xcalloc(ain->nr_globals, sizeof(bool));
+		for (int i = 0; i < ain->nr_globals; i++) {
+			if (ain->globals[i].type.data != AIN_STRUCT)
+				continue;
+			int slot = heap[global_page_slot].page->values[i].i;
+			if (slot <= 0 || !heap_index_valid(slot))
+				continue;
+			int st = ain->globals[i].type.struc;
+			if (st < 0 || st >= ain->nr_structures)
+				continue;
+			// Infrastructure types: timer managers, collections, singletons
+			const char *sn = ain->structures[st].name;
+			bool is_infra = (sn && (strstr(sn, "Manager") || strstr(sn, "Collection")
+					 || strstr(sn, "Map<") || strstr(sn, "IdArray")));
+			if (is_infra) {
+				init_global_struct_v14(st, slot);
+				ginited[i] = true;
+			}
+		}
 		for (int i = ain->nr_globals - 1; i >= 0; i--) {
+			if (ginited[i])
+				continue;
 			if (ain->globals[i].type.data == AIN_STRUCT) {
 				int slot = heap[global_page_slot].page->values[i].i;
 				if (slot > 0 && heap_index_valid(slot))
 					init_global_struct_v14(ain->globals[i].type.struc, slot);
 			}
 		}
+		free(ginited);
 	} else {
 		for (int i = 0; i < ain->nr_globals; i++) {
 			if (ain->globals[i].type.data == AIN_STRUCT) {

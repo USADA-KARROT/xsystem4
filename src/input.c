@@ -241,16 +241,22 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 		key_state[code] = pressed;
 }
 
+// Track mouse button hold: when DOWN arrives, hold for at least one
+// handle_events cycle so AFL_IsKeyDown can see it.  Real SDL events
+// often deliver DOWN+UP in the same event pump, making the click
+// invisible to bytecode that checks key_state between pumps.
+static uint32_t mouse_hold_until[8]; // per-button, SDL_GetTicks deadline
+
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code) {
-		key_state[code] = e->state == SDL_PRESSED;
 		if (e->state == SDL_PRESSED) {
-			int gx, gy;
-			mouse_get_pos(&gx, &gy);
-			WARNING("MOUSE_CLICK: button=%d code=%d pos=(%d,%d) game=(%d,%d) t=%u",
-				e->button, code, e->x, e->y, gx, gy, SDL_GetTicks());
+			key_state[code] = true;
+			mouse_hold_until[e->button & 7] = SDL_GetTicks() + 50;
+		} else {
+			if (SDL_GetTicks() >= mouse_hold_until[e->button & 7])
+				key_state[code] = false;
 		}
 	}
 #ifdef DEBUGGER_ENABLED
@@ -698,6 +704,18 @@ void handle_events(void)
 				if (auto_count <= 10 || auto_count % 100 == 0)
 					WARNING("Auto-click #%d DOWN at %ums game=(%d,%d)", auto_count, now, click_gx, click_gy);
 				last_auto_click = now;
+			}
+		}
+	}
+
+	// Deferred mouse release: clear held buttons whose hold period expired
+	{
+		uint32_t now_tick = SDL_GetTicks();
+		for (int btn = 1; btn <= 3; btn++) {
+			if (mouse_hold_until[btn] && now_tick >= mouse_hold_until[btn]) {
+				enum sact_keycode c = sdl_to_sact_button(btn);
+				if (c) key_state[c] = false;
+				mouse_hold_until[btn] = 0;
 			}
 		}
 	}
