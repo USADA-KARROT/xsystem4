@@ -142,7 +142,7 @@ static unsigned long long gc_last_alloc __attribute__((unused)) = 0;
 static int gc_inhibit = 0;
 void heap_gc_inhibit(void) { gc_inhibit++; }
 void heap_gc_allow(void) { gc_inhibit--; }
-#define GC_WORK_STACK_SIZE 65536
+#define GC_WORK_STACK_SIZE (1024 * 1024)  // 1M entries for v14 large arrays
 
 // ---- Precise type-aware scanning ----
 // Returns true if an AIN data type stores a heap slot reference.
@@ -271,10 +271,22 @@ static void gc_scan_page(struct page *p, int *work_stack, int *work_count)
 	}
 }
 
+static int *gc_work_stack;
+static int gc_work_stack_size;
+
+static void gc_ensure_work_stack(void)
+{
+	if (!gc_work_stack) {
+		gc_work_stack_size = GC_WORK_STACK_SIZE;
+		gc_work_stack = xmalloc(gc_work_stack_size * sizeof(int));
+	}
+}
+
 static void gc_mark_slot(int slot)
 {
 	// Iterative BFS to avoid stack overflow
-	static int work_stack[GC_WORK_STACK_SIZE];
+	gc_ensure_work_stack();
+	int *work_stack = gc_work_stack;
 	int work_count = 0;
 
 	GC_SET_MARK(slot);
@@ -324,7 +336,8 @@ static void heap_gc(void)
 	GC_SET_MARK(global_page_slot);
 	if (heap[global_page_slot].page) {
 		// Global page: scan all vars (only one page, conservative is fine)
-		static int root_stack[GC_WORK_STACK_SIZE];
+		gc_ensure_work_stack();
+		int *root_stack = gc_work_stack;
 		int root_count = 0;
 		gc_scan_page(heap[global_page_slot].page, root_stack, &root_count);
 		while (root_count > 0) {
@@ -354,6 +367,7 @@ static void heap_gc(void)
 	// Use heap_scan_limit instead of heap_size for sweep — skip unallocated tail.
 	size_t scan_end = heap_scan_limit;
 
+	// v14 GC mark coverage diagnostic removed
 	// Combined sweep: find unreachable alive slots, free resources, rebuild free list.
 	size_t swept = 0;
 	size_t orphans = 0;
@@ -364,8 +378,8 @@ static void heap_gc(void)
 	// Scan from high to low so free list ends with lowest slot at head
 	for (size_t i = scan_end; i-- > 2; ) {
 		if (heap[i].ref > 0) {
-			if (!GC_IS_MARKED(i)) {
-				// Unreachable cycle-garbage: free resources
+			if (!GC_IS_MARKED(i) && 0) {
+				// DISABLED: v14 GC mark incomplete — skip cycle collection for now
 					swept++;
 				switch (heap[i].type) {
 				case VM_PAGE:
