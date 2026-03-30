@@ -126,6 +126,7 @@ static inline void wrap_set_slot(int pageno, int varno, int new_inner_slot)
 }
 
 void static_library_replace(struct static_library *lib, const char *name, void *fun);
+void static_library_register(struct static_library *lib, const char *name, void *fun);
 
 #define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)	\
 	static rtype libname ## _ ## fname(__VA_ARGS__) {		\

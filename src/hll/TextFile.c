@@ -85,9 +85,8 @@ static bool TextFile_ReadAll(struct string *fileName, int *text_out)
 	if (!fileName) return false;
 
 	FILE *fp = fopen(fileName->text, "rb");
-	if (!fp) {
+	if (!fp)
 		return false;
-	}
 
 	fseek(fp, 0, SEEK_END);
 	long size = ftell(fp);

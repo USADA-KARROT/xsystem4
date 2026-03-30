@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <SDL.h>
 #ifdef __APPLE__
 #include <malloc/malloc.h>
 #else
@@ -117,6 +118,7 @@ static void Array_PushBack(struct page **array, int value)
 	if (!array)
 		return;
 	struct page *a = *array;
+	(void)0;
 	int old_size = a ? a->nr_vars : 0;
 	bool is_2slot = array_elem_is_2slot();
 	int slots = is_2slot ? 2 : 1;
@@ -262,10 +264,12 @@ static int Array_Where(struct page **array, int func)
 	}
 
 	// Build result array
-	struct page *result_page = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, match_count);
+	struct page *result_page = alloc_page(ARRAY_PAGE, src->a_type, match_count);
 	result_page->array.rank = 1;
 	for (int i = 0; i < match_count; i++) {
 		result_page->values[i].i = matches[i];
+		if (array_elem_is_ref() && matches[i] > 0)
+			heap_ref(matches[i]);
 	}
 	free(matches);
 
@@ -488,6 +492,9 @@ static void Array_Pushback(struct page **array, int value)
 {
 	if (!array)
 		return;
+	// heap_ref for ref-counted elements (struct/string/delegate)
+	if (array_elem_is_ref() && value > 0)
+		heap_ref(value);
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
 	int new_size = old_size + 1;
@@ -523,6 +530,9 @@ static void Array_Popback(struct page **array)
 		return;
 	struct page *a = *array;
 	int new_size = a->nr_vars - 1;
+	// heap_unref the removed element
+	if (array_elem_is_ref() && a->values[new_size].i > 0)
+		heap_unref(a->values[new_size].i);
 	if (new_size == 0) {
 		free_page(a);
 		*array = NULL;
@@ -576,6 +586,9 @@ static void Array_Insert(struct page **array, int index, int value)
 {
 	if (!array)
 		return;
+	// heap_ref for ref-counted elements (struct/string/delegate)
+	if (array_elem_is_ref() && value > 0)
+		heap_ref(value);
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
 	if (index < 0) index = 0;
@@ -1642,8 +1655,11 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 	} else {
 		new_a->array.rank = 1;
 	}
-	for (int i = 0; i < src_count; i++)
+	for (int i = 0; i < src_count; i++) {
 		new_a->values[old_size + i] = src_vals[i];
+		if (array_elem_is_ref() && src_vals[i].i > 0)
+			heap_ref(src_vals[i].i);
+	}
 	free(src_vals);
 	*dst = new_a;
 }

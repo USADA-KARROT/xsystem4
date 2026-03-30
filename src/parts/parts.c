@@ -1882,7 +1882,6 @@ int PE_GetParentPartsNumber(int parts_no)
 
 bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int GroupNumber)
 {
-	UNIMPLEMENTED("(%d, %d)", PartsNumber, GroupNumber);
 	return true;
 }
 

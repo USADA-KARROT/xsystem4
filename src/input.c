@@ -244,8 +244,15 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
 	enum sact_keycode code = sdl_to_sact_button(e->button);
-	if (code)
+	if (code) {
 		key_state[code] = e->state == SDL_PRESSED;
+		if (e->state == SDL_PRESSED) {
+			int gx, gy;
+			mouse_get_pos(&gx, &gy);
+			WARNING("MOUSE_CLICK: button=%d code=%d pos=(%d,%d) game=(%d,%d) t=%u",
+				e->button, code, e->x, e->y, gx, gy, SDL_GetTicks());
+		}
+	}
 #ifdef DEBUGGER_ENABLED
 	if (e->button == SDL_BUTTON_MIDDLE && e->state == SDL_PRESSED
 			&& (dbg_start_in_debugger || dbg_dap))
@@ -618,11 +625,15 @@ void handle_events(void)
 
 	fire_deferred_events();
 
-	/* Auto-click mode: XSYS4_AUTO_CLICK=<ms> injects periodic mouse clicks.
-	 * Uses XSYS4_AUTO_CLICK_X/Y for game-coordinate position (default 350,180).
-	 * XSYS4_AUTO_CLICK_COUNT limits total clicks (default unlimited).
-	 * Directly sets key_state + warps mouse for reliable click detection. */
+	/* Auto-click mode: two modes supported.
+	 * 1) XSYS4_AUTO_CLICK_SEQ="time,x,y;time,x,y;..." — click sequence at absolute ms times
+	 * 2) XSYS4_AUTO_CLICK=<ms> — periodic clicks (legacy mode)
+	 *    Uses XSYS4_AUTO_CLICK_X/Y for position, XSYS4_AUTO_CLICK_COUNT for max. */
 	{
+		struct auto_click_step { uint32_t time_ms; int gx, gy; };
+		static struct auto_click_step seq[32];
+		static int seq_len = 0;
+		static int seq_idx = 0;
 		static int auto_interval = -1;
 		static uint32_t last_auto_click = 0;
 		static int auto_count = 0;
@@ -630,19 +641,52 @@ void handle_events(void)
 		static bool auto_click_down = false;
 		static int click_gx = 350, click_gy = 180;
 		if (auto_interval < 0) {
-			const char *env = getenv("XSYS4_AUTO_CLICK");
-			auto_interval = env ? atoi(env) : 0;
-			const char *cx = getenv("XSYS4_AUTO_CLICK_X");
-			const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
-			const char *cn = getenv("XSYS4_AUTO_CLICK_COUNT");
-			if (cx) click_gx = atoi(cx);
-			if (cy) click_gy = atoi(cy);
-			if (cn) auto_max = atoi(cn);
-			if (auto_interval > 0)
-				WARNING("Auto-click enabled: interval=%dms pos=(%d,%d) max=%d", auto_interval, click_gx, click_gy, auto_max);
+			const char *senv = getenv("XSYS4_AUTO_CLICK_SEQ");
+			if (senv && *senv) {
+				char buf[512];
+				strncpy(buf, senv, sizeof(buf)-1);
+				buf[sizeof(buf)-1] = 0;
+				char *saveptr;
+				char *tok = strtok_r(buf, ";", &saveptr);
+				while (tok && seq_len < 32) {
+					int t, x, y;
+					if (sscanf(tok, "%d,%d,%d", &t, &x, &y) == 3) {
+						seq[seq_len].time_ms = t;
+						seq[seq_len].gx = x;
+						seq[seq_len].gy = y;
+						WARNING("Auto-click seq[%d]: t=%dms pos=(%d,%d)", seq_len, t, x, y);
+						seq_len++;
+					}
+					tok = strtok_r(NULL, ";", &saveptr);
+				}
+				auto_interval = seq_len > 0 ? 1 : 0;
+			} else {
+				const char *env = getenv("XSYS4_AUTO_CLICK");
+				auto_interval = env ? atoi(env) : 0;
+				const char *cx = getenv("XSYS4_AUTO_CLICK_X");
+				const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
+				const char *cn = getenv("XSYS4_AUTO_CLICK_COUNT");
+				if (cx) click_gx = atoi(cx);
+				if (cy) click_gy = atoi(cy);
+				if (cn) auto_max = atoi(cn);
+				if (auto_interval > 0)
+					WARNING("Auto-click enabled: interval=%dms pos=(%d,%d) max=%d", auto_interval, click_gx, click_gy, auto_max);
+			}
 		}
-		if (auto_interval > 0 && (auto_max <= 0 || auto_count < auto_max)) {
-			uint32_t now = SDL_GetTicks();
+		uint32_t now = SDL_GetTicks();
+		if (seq_len > 0) {
+			if (auto_click_down && now - last_auto_click >= 100) {
+				key_state[VK_LBUTTON] = false;
+				auto_click_down = false;
+			} else if (!auto_click_down && seq_idx < seq_len && now >= seq[seq_idx].time_ms) {
+				mouse_set_pos(seq[seq_idx].gx, seq[seq_idx].gy);
+				key_state[VK_LBUTTON] = true;
+				auto_click_down = true;
+				WARNING("Auto-click seq #%d at %ums game=(%d,%d)", seq_idx, now, seq[seq_idx].gx, seq[seq_idx].gy);
+				last_auto_click = now;
+				seq_idx++;
+			}
+		} else if (auto_interval > 0 && (auto_max <= 0 || auto_count < auto_max)) {
 			if (auto_click_down && now - last_auto_click >= 100) {
 				key_state[VK_LBUTTON] = false;
 				auto_click_down = false;

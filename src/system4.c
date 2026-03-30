@@ -625,6 +625,27 @@ int main(int argc, char *argv[])
 		ERROR("%s", ain_strerror(err));
 	}
 
+	// Auto-detect GB18030 encoding: check if STR0 strings contain
+	// GB18030 byte patterns (lead byte 0xA1-0xDF followed by valid second byte)
+	// that are NOT valid SJIS (SJIS uses 0xA1-0xDF as single-byte half-width katakana)
+	if (ain->nr_strings > 0) {
+		int gb_score = 0;
+		for (int i = 0; i < ain->nr_strings && i < 100; i++) {
+			if (!ain->strings[i]) continue;
+			const uint8_t *s = (const uint8_t *)ain->strings[i]->text;
+			for (; *s; s++) {
+				if (*s >= 0xA1 && *s <= 0xDF && *(s+1) >= 0x40) {
+					gb_score++; // This byte pair is GB18030 2-byte but SJIS 1-byte
+					break;
+				}
+			}
+		}
+		if (gb_score > 5) {
+			ain_is_gb18030 = true;
+			WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", gb_score);
+		}
+	}
+
 	if (audit) {
 		ain_audit(stdout, ain);
 		ain_free(ain);

@@ -38,6 +38,7 @@
 
 #include "debugger.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "input.h"
 #include "parts.h"
 #include "savedata.h"
@@ -63,6 +64,132 @@ static inline int32_t lint_clamp(int64_t n)
 #define VM_RETURN 0xFFFFFFFF
 
 static unsigned long long insn_count = 0;
+
+// ---- v14 message system (MSG + R/A fallback when delegates empty) ----
+// In v14, MSG opcode has no MSGF callback. The game expects delegates in
+// global[103]/[104] to handle R (render line) / A (advance/wait for click).
+// If those delegates are never registered (the AFL init chain is broken),
+// we implement the display + wait at the engine level.
+static int vm_msg_idx = -1;              // last MSG index
+static struct string *vm_msg_text = NULL; // last MSG text (borrowed ref, do not free)
+// Accumulated lines for the current page (R adds lines, A displays + waits)
+#define VM_MSG_MAX_LINES 8
+static char *vm_msg_lines[VM_MSG_MAX_LINES];
+static int vm_msg_line_count = 0;
+// Function numbers resolved at init
+static int vm_msg_fn_R = -1;   // "R"
+static int vm_msg_fn_A = -1;   // "A"
+
+static void vm_msg_init(void)
+{
+	vm_msg_fn_R = ain_get_function(ain, "R");
+	vm_msg_fn_A = ain_get_function(ain, "A");
+	if (vm_msg_fn_R >= 0 && vm_msg_fn_A >= 0)
+		NOTICE("v14 MSG fallback enabled (R=%d A=%d)", vm_msg_fn_R, vm_msg_fn_A);
+}
+
+// Check if delegate in global[slot] is empty
+static bool vm_msg_delegate_empty(int slot)
+{
+	int dg = heap[global_page_slot].page->values[slot].i;
+	if (dg <= 0 || (size_t)dg >= heap_size)
+		return true;
+	if (!heap[dg].page || heap[dg].page->nr_vars == 0)
+		return true;
+	return false;
+}
+
+// Draw dialogue overlay: semi-transparent box with text lines
+static void vm_msg_draw_overlay(void)
+{
+	if (vm_msg_line_count <= 0)
+		return;
+	Texture *surface = gfx_main_surface();
+	if (!surface)
+		return;
+
+	// Draw semi-transparent black box at bottom (matching game's style)
+	int box_h = 160;
+	int box_y = 720 - box_h;
+	gfx_fill_with_alpha(surface, 0, box_y, 1280, box_h, 0, 0, 0, 180);
+
+	// Render text lines
+	struct text_style ts = {
+		.face = FONT_GOTHIC,
+		.size = 24,
+		.bold_width = 0,
+		.weight = FW_NORMAL,
+		.color = { .r = 255, .g = 255, .b = 255, .a = 255 },
+		.edge_color = { .r = 0, .g = 0, .b = 0, .a = 255 },
+		.scale_x = 1.0f,
+		.space_scale_x = 1.0f,
+		.font_spacing = 0,
+		.font_size = NULL,
+	};
+	text_style_set_edge_width(&ts, 1.5f);
+
+	int y = box_y + 16;
+	for (int i = 0; i < vm_msg_line_count; i++) {
+		if (vm_msg_lines[i]) {
+			gfx_render_text(surface, 40, y, vm_msg_lines[i], &ts, true);
+		}
+		y += 32;
+	}
+}
+
+// Wait for left click or enter key, drawing overlay each frame
+static void vm_msg_wait_click(void)
+{
+	key_clear_flag(false);
+
+	while (!key_is_down(VK_LBUTTON) && !key_is_down(VK_RETURN)) {
+		handle_events();
+		vm_msg_draw_overlay();
+		gfx_swap();
+		SDL_Delay(16);
+	}
+	// Wait for release
+	while (key_is_down(VK_LBUTTON) || key_is_down(VK_RETURN)) {
+		handle_events();
+		SDL_Delay(8);
+	}
+}
+
+// R handler: accumulate a line from the last MSG
+static void vm_msg_handle_R(void)
+{
+	if (!vm_msg_text || vm_msg_text->size <= 0)
+		return;
+	if (vm_msg_line_count < VM_MSG_MAX_LINES) {
+		vm_msg_lines[vm_msg_line_count] = strdup(vm_msg_text->text);
+		vm_msg_line_count++;
+	}
+	vm_msg_text = NULL;
+	vm_msg_idx = -1;
+}
+
+// A handler: display accumulated lines, wait for click, then clear
+static void vm_msg_handle_A(void)
+{
+	// Add the last line (MSG before A)
+	if (vm_msg_text && vm_msg_text->size > 0 && vm_msg_line_count < VM_MSG_MAX_LINES) {
+		vm_msg_lines[vm_msg_line_count] = strdup(vm_msg_text->text);
+		vm_msg_line_count++;
+	}
+	vm_msg_text = NULL;
+	vm_msg_idx = -1;
+
+	if (vm_msg_line_count > 0) {
+		vm_msg_wait_click();
+		// Clear lines
+		for (int i = 0; i < vm_msg_line_count; i++) {
+			free(vm_msg_lines[i]);
+			vm_msg_lines[i] = NULL;
+		}
+		vm_msg_line_count = 0;
+	}
+}
+// ---- end v14 message system ----
 
 // v14 vtable dispatch: maps funcno → vtable index for virtual method resolution.
 // Built at AIN load time; used by CALLMETHOD to resolve overrides.
@@ -1050,7 +1177,15 @@ static void delegate_call(int dg_no, int return_address)
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
 		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
-			variable_fini(stack_pop(), ain->delegates[dg_no].variables[i].type.data, true);
+			union vm_value v = stack_pop();
+			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
+			switch (type) {
+			case AIN_REF_TYPE:
+				break; // ref args don't own their heap slot — skip fini
+			default:
+				variable_fini(v, type, true);
+				break;
+			}
 		}
 		for (int i = 0; i < return_values; i++)
 			stack_push(r[i]);
@@ -1899,6 +2034,20 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	//
 	case CALLFUNC: {
 		int _fno = get_argument(0);
+		// v14 MSG system: intercept R/A when delegates are empty.
+		// We handle display + wait ourselves and skip the game's fallback
+		// (which has its own WaitForClick that would cause a double-wait).
+		if (ain->version >= 14 && ain->msgf < 0 && vm_msg_fn_R >= 0) {
+			if (_fno == vm_msg_fn_R && vm_msg_delegate_empty(103)) {
+				vm_msg_handle_R();
+				instr_ptr += instruction_width(CALLFUNC);
+				break;
+			} else if (_fno == vm_msg_fn_A && vm_msg_delegate_empty(104)) {
+				vm_msg_handle_A();
+				instr_ptr += instruction_width(CALLFUNC);
+				break;
+			}
+		}
 		// --skip-title: bypass SceneLogo and SceneTitle
 		if (config.skip_title && _fno >= 0 && _fno < ain->nr_functions
 				&& ain->functions[_fno].name) {
@@ -1994,7 +2143,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			// Handle nargs vs function's nr_args mismatch
 			if (funcno >= 0 && funcno < ain->nr_functions) {
 				// Skip sentinel functions (address == code_size or 0xFFFFFFFF).
-				// These are invalid/stub entries that should never be called.
 				if (ain->functions[funcno].address >= ain->code_size
 				    || ain->functions[funcno].address == 0xFFFFFFFF) {
 					if (saved_args != small_args) free(saved_args);
@@ -2249,8 +2397,10 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		if (config.echo)
 			echo_message(msg_idx);
 		if (ain->msgf < 0) {
-			// No MSGF function (v14+): MSG is a no-op but ip_inc=0
-			// (JMP-class), so we must manually advance past the instruction.
+			// v14: store message for R/A handlers to use
+			vm_msg_idx = msg_idx;
+			vm_msg_text = (msg_idx >= 0 && msg_idx < ain->nr_messages)
+				? ain->messages[msg_idx] : NULL;
 			instr_ptr += instruction_width(_MSG);
 			break;
 		}
@@ -2304,6 +2454,15 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				WARNING("ASSERT FAILED: %s:%d: %s",
 					file_s ? file_s->text : "?", line,
 					expr_s ? expr_s->text : "?");
+				// Dump call stack for ASSERT failures
+				WARNING("  ASSERT call stack (top 8):");
+				for (int _ci = call_stack_ptr - 1; _ci >= 0 && _ci >= call_stack_ptr - 8; _ci--) {
+					int _fno = call_stack[_ci].fno;
+					WARNING("    [%d] fno=%d '%s' struct_page=%d",
+						_ci, _fno,
+						(_fno >= 0 && _fno < ain->nr_functions) ? ain->functions[_fno].name : "?",
+						call_stack[_ci].struct_page);
+				}
 				sys_message("Assertion failed at %s:%d: %s\n",
 						display_sjis0(file_s ? file_s->text : "?"),
 						line,
@@ -3569,7 +3728,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		if (ain->version >= 14) {
 			union vm_value *var = stack_pop_var();
 			int dg_i = var->i;
-			struct page *new_dg = delegate_new_from_method(obj, fun);
+				struct page *new_dg = delegate_new_from_method(obj, fun);
 			if (dg_i > 0 && (size_t)dg_i < heap_size && heap[dg_i].ref > 0) {
 				delete_page(dg_i);
 				heap_set_page(dg_i, new_dg);
@@ -3797,8 +3956,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	}
 	case DG_NEW: {
 		// DG_NEW: create empty delegate, push slot
-		// In v14 alloc context: stack=[page, idx] from X_DUP/DELETE pattern
-		// Create empty delegate page (NULL = empty)
 		int slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, NULL);
 		stack_push(slot);
@@ -3807,17 +3964,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case DG_STR_TO_METHOD: {
 		// Resolve method name string to function index
 		// v14: stack has [obj_page, string_slot], arg = delegate type
-		// Must combine obj's class name with method name: "ClassName@MethodName"
 		int str_slot = stack_pop().i;
 		struct string *name = heap_get_string(str_slot);
+
 		int fno = -1;
 		if (name && name->size > 0) {
-			// First try exact name (global functions)
 			fno = ain_get_function(ain, name->text);
-			// If not found, try with class prefix from object on stack
 			if (fno < 0 && ain->version >= 14) {
 				int obj_page = stack_peek(0).i;
-				// v14: if obj_page is null (-1/0), try enclosing method's struct_page
 				if (obj_page <= 0) {
 					for (int fr = call_stack_ptr - 1; fr >= 0 && obj_page <= 0; fr--) {
 						if (call_stack[fr].struct_page > 0)
@@ -3832,7 +3986,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 						snprintf(buf, sizeof(buf), "%s@%s",
 							ain->structures[sidx].name, name->text);
 						fno = ain_get_function(ain, buf);
-						// Try parent struct (inheritance via wrap)
 						if (fno < 0 && ain->structures[sidx].nr_members > 0
 						    && ain->structures[sidx].members[0].type.data == AIN_WRAP) {
 							int parent = ain->structures[sidx].members[0].type.struc;
@@ -3845,6 +3998,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 					}
 				}
 			}
+			// fno may be -1 if the method wasn't found; caller handles it.
 		}
 		heap_unref(str_slot);
 		stack_push(fno);
@@ -4185,10 +4339,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				page->array.struct_type = struct_type;
 			heap_set_page(slot, page);
 		}
-		// Assign to variable
+		// Assign to variable with proper ref counting
 		if (heap_index_valid(heap_idx) && heap[heap_idx].page &&
 		    var_idx >= 0 && var_idx < heap[heap_idx].page->nr_vars) {
+			int old_slot = heap[heap_idx].page->values[var_idx].i;
 			heap[heap_idx].page->values[var_idx].i = slot;
+			heap_ref(slot);
+			if (old_slot > 0 && heap_index_valid(old_slot))
+				heap_unref(old_slot);
 		}
 		stack_push(slot);
 		break;
@@ -4236,8 +4394,6 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	}
 	// -- NOOPs ---
 	case FUNC: {
-		int _func_no = get_argument(0);
-		(void)_func_no;
 		break;
 	}
 	default:
@@ -4282,10 +4438,21 @@ static void vm_execute(void)
 			WARNING("heartbeat: %lluM insns fno=%d depth=%d ip=0x%X op=0x%X",
 				insn_count/1000000, cfno, call_stack_ptr, instr_ptr, opcode);
 			if (call_stack_ptr > 1) {
-				for (int _h = call_stack_ptr-1; _h >= 0 && _h >= call_stack_ptr-4; _h--) {
+				static int _deep_dump = 0;
+				int dump_n = (call_stack_ptr > 100 && _deep_dump < 1) ? call_stack_ptr : 4;
+				if (dump_n > 4) _deep_dump++;
+				for (int _h = call_stack_ptr-1; _h >= 0 && _h >= call_stack_ptr-dump_n; _h--) {
 					int _hfno = call_stack[_h].fno;
 					WARNING("  stack[%d]: fno=%d '%s'", _h, _hfno,
 						(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? ain->functions[_hfno].name : "?");
+				}
+				// Show bottom frames (game scene context)
+				if (call_stack_ptr > 6) {
+					for (int _h = 0; _h < 6; _h++) {
+						int _hfno = call_stack[_h].fno;
+						WARNING("  base[%d]: fno=%d '%s'", _h, _hfno,
+							(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? ain->functions[_hfno].name : "?");
+					}
 				}
 			}
 		}
@@ -4486,7 +4653,10 @@ int vm_execute_ain(struct ain *program)
 	init_libraries();
 	init_func_flags();
 
-	// v14: vtable dispatch happens in bytecode, not VM. No dispatch table needed.
+	// Initialize v14 message system
+	if (ain->version >= 14 && ain->msgf < 0) {
+		vm_msg_init();
+	}
 
 	// Slot 0 = null guard page: absorbs accidental writes from null references
 	// (method_call skips, failed lookups, etc.) without crashing or corrupting globals.

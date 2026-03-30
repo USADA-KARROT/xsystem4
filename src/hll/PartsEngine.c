@@ -664,10 +664,24 @@ static bool PartsEngine_CreateActivity(struct string *name)
 	return true;
 }
 
+static void release_parts_recursive(int parts_no)
+{
+	struct parts *p = parts_try_get(parts_no);
+	if (!p) return;
+	while (!TAILQ_EMPTY(&p->children)) {
+		struct parts *child = TAILQ_FIRST(&p->children);
+		release_parts_recursive(child->no);
+	}
+	parts_release(parts_no);
+}
+
 static bool PartsEngine_ReleaseActivity(struct string *name, int erase_list)
 {
 	int idx = find_activity(name);
 	if (idx < 0) return false;
+	struct activity *act = &activities[idx];
+	for (int i = 0; i < act->nr_parts; i++)
+		release_parts_recursive(act->parts[i].number);
 	if (idx < nr_activities - 1)
 		activities[idx] = activities[nr_activities - 1];
 	nr_activities--;
@@ -795,8 +809,11 @@ static bool PartsEngine_RemoveActivityParts(struct string *name, struct string *
 static void PartsEngine_RemoveAllActivityParts(struct string *name)
 {
 	int idx = find_activity(name);
-	if (idx >= 0)
-		activities[idx].nr_parts = 0;
+	if (idx < 0) return;
+	struct activity *act = &activities[idx];
+	for (int i = 0; i < act->nr_parts; i++)
+		release_parts_recursive(act->parts[i].number);
+	act->nr_parts = 0;
 }
 
 static int PartsEngine_NumofActivityParts(struct string *name)
@@ -2009,10 +2026,22 @@ static void PE_AddCopyCutCGToPartsConstructionProcess_old(int parts_no, int cg_n
 	/* Old API: convert cg_no to string for new API, or just use direct fill */
 }
 
+static void PartsEngine_SetMotionData(int parts_no, struct string *motion_name, int time, int fps)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts) return;
+}
+static int PartsEngine_GetMotionBeginFrame(struct string *motion_name) { return 0; }
+static int PartsEngine_GetMotionEndFrame(struct string *motion_name) { return 0; }
+
+#include "pe_v14_stubs.h"
+
 static void PartsEngine_PreLink(void);
+static void PartsEngine_PostLink(void);
 
 HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(_PreLink, PartsEngine_PreLink),
+	    HLL_EXPORT(_PostLink, PartsEngine_PostLink),
 	    // for versions without PartsEngine.Init
 	    HLL_EXPORT(_ModuleInit, PartsEngine_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, PartsEngine_ModuleFini),
@@ -2313,6 +2342,9 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(IsMotion, PE_IsMotion),
 	    HLL_EXPORT(SeekEndMotion, PE_SeekEndMotion),
 	    HLL_EXPORT(UpdateMotionTime, PE_UpdateMotionTime),
+	    HLL_EXPORT(SetMotionData, PartsEngine_SetMotionData),
+	    HLL_EXPORT(GetMotionBeginFrame, PartsEngine_GetMotionBeginFrame),
+	    HLL_EXPORT(GetMotionEndFrame, PartsEngine_GetMotionEndFrame),
 	    HLL_EXPORT(BeginInput, PE_BeginInput),
 	    HLL_EXPORT(EndInput, PE_EndInput),
 	    HLL_EXPORT(GetClickPartsNumber, PE_GetClickPartsNumber),
@@ -2553,4 +2585,9 @@ static void PartsEngine_PreLink(void)
 		static_library_replace(&lib_PartsEngine, "Update",
 				PartsEngine_Update_Pascha3PC);
 	}
+}
+
+static void PartsEngine_PostLink(void)
+{
+#include "pe_v14_prelink.h"
 }

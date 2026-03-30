@@ -150,12 +150,16 @@ static uint32_t char_to_code(const char *ch, enum charmap charmap)
 	if (charmap == CHARMAP_SJIS)
 		return sjis_code(ch);
 	int c;
-	sjis_char2unicode(ch, &c);
-	if (c == '^' && game_rance02_mg)
-		return 0xE9; // é
-	// half-width katakana 'no' (ﾉ)
-	if (c == 0xFF89 && game_rance6_mg)
-		return 0xE9; // é
+	if (ain_is_gb18030) {
+		gb18030_char2unicode(ch, &c);
+	} else {
+		sjis_char2unicode(ch, &c);
+		if (c == '^' && game_rance02_mg)
+			return 0xE9; // é
+		// half-width katakana 'no' (ﾉ)
+		if (c == 0xFF89 && game_rance6_mg)
+			return 0xE9; // é
+	}
 	return c;
 }
 
@@ -210,7 +214,7 @@ float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 		// get glyph for character
 		float scale_x = *msg == ' ' ? tm->space_scale_x : tm->scale_x;
 		uint32_t code = char_to_code(msg, tm->font_size->font->charmap);
-		msg += SJIS_2BYTE(*msg) ? 2 : 1;
+		msg += ain_is_gb18030 ? gb18030_skip_char_bytes(msg) : (SJIS_2BYTE(*msg) ? 2 : 1);
 		struct glyph *glyph = font_get_glyph(tm->font_size, code, tm->weight);
 		if (!glyph)
 			continue;

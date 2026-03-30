@@ -343,8 +343,16 @@ void hll_call(int libno, int fno, int hll_arg3)
 				stack_ptr -= 2; break; // 2-slot reference (pageno, varno)
 			case AIN_HLL_FUNC:
 				stack_ptr -= 2; break; // 2-slot (object, function)
-			case AIN_WRAP:
-				stack_ptr -= 2; break; // v14: 2-slot ref [page, varno]
+			case AIN_WRAP: {
+				// v14: slot count depends on inner type
+				enum ain_data_type w_inner = AIN_VOID;
+				if (f->arguments[i].type.array_type)
+					w_inner = f->arguments[i].type.array_type->data;
+				bool w_val = (w_inner == AIN_INT || w_inner == AIN_FLOAT
+					|| w_inner == AIN_BOOL || w_inner == AIN_LONG_INT);
+				stack_ptr -= w_val ? 2 : 1;
+				break;
+			}
 			case AIN_IFACE:
 			case AIN_IFACE_WRAP:
 				stack_ptr -= 2; break; // v14: 2-slot [page, vtable_offset]
@@ -421,41 +429,31 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 		case AIN_WRAP: {
 			// v14: WRAP parameter in HLL calls.
-			// Bytecode pushes a 2-slot reference [pageno, varno].
-			// Behavior depends on the inner type:
-			//   wrap<value_type> (int/float/bool): pass pointer for ref semantics
-			//   wrap<ref_type> (array/struct/string): pass inner value as int (slot)
-			stack_ptr -= 2;
-			int pageno = stack[stack_ptr].i;
-			int varno  = stack[stack_ptr+1].i;
+			// Determine inner type to choose 1-slot vs 2-slot handling.
 			enum ain_data_type inner = AIN_VOID;
 			if (f->arguments[i].type.array_type)
 				inner = f->arguments[i].type.array_type->data;
 			bool is_value_wrap = (inner == AIN_INT || inner == AIN_FLOAT
 				|| inner == AIN_BOOL || inner == AIN_LONG_INT);
-			if (pageno > 0 && heap_index_valid(pageno)
-			    && heap[pageno].type == VM_PAGE && heap[pageno].page
-			    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
-				if (is_value_wrap) {
-					// Pass pointer to page value (ref semantics)
+			if (is_value_wrap) {
+				// wrap<value_type>: 2-slot reference [pageno, varno] for ref semantics
+				stack_ptr -= 2;
+				int pageno = stack[stack_ptr].i;
+				int varno  = stack[stack_ptr+1].i;
+				if (pageno > 0 && heap_index_valid(pageno)
+				    && heap[pageno].type == VM_PAGE && heap[pageno].page
+				    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
 					ptrs[i] = &heap[pageno].page->values[varno];
-					args[i] = &ptrs[i];
 				} else {
-					// Extract inner value (heap slot) and pass as int
-					heap_slots[i] = heap[pageno].page->values[varno].i;
-					args[i] = &heap_slots[i];
+					heap_slots[i] = 0;
+					ptrs[i] = (void *)&heap_slots[i];
 				}
+				args[i] = &ptrs[i];
 			} else {
-				// Fallback: try 1-slot
-				stack_ptr += 2;
+				// wrap<ref_type> (array/struct/string/iface): 1-slot (heap slot index)
 				stack_ptr--;
 				heap_slots[i] = stack[stack_ptr].i;
-				if (is_value_wrap) {
-					ptrs[i] = (void *)&heap_slots[i];
-					args[i] = &ptrs[i];
-				} else {
-					args[i] = &heap_slots[i];
-				}
+				args[i] = &heap_slots[i];
 			}
 			break;
 		}
@@ -685,9 +683,16 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_HLL_FUNC:
 			j++;
 			break;
-		case AIN_WRAP: // v14: 2-slot ref — written through pointer, skip extra slot
-			j++;
+		case AIN_WRAP: {
+			// v14: only skip extra slot for value wraps (2-slot)
+			enum ain_data_type wb_inner = AIN_VOID;
+			if (f->arguments[i].type.array_type)
+				wb_inner = f->arguments[i].type.array_type->data;
+			if (wb_inner == AIN_INT || wb_inner == AIN_FLOAT
+			    || wb_inner == AIN_BOOL || wb_inner == AIN_LONG_INT)
+				j++; // 2-slot value wrap: skip extra slot
 			break;
+		}
 		case AIN_IFACE:
 		case AIN_IFACE_WRAP:
 		case AIN_OPTION: // v14: 2-slot value types, skip extra slot
@@ -1115,13 +1120,16 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 	struct hll_function *dst = xcalloc(ainlib->nr_functions, sizeof(struct hll_function));
 
 	for (int i = 0; i < ainlib->nr_functions; i++) {
+		bool found = false;
 		for (int j = 0; lib->functions[j].name; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
 				if (lib->functions[j].fun)
 					link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				found = true;
 				break;
 			}
 		}
+		// Unlinked functions are handled by _PreLink dynamic registration
 		if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
@@ -1186,6 +1194,7 @@ void init_libraries(void)
 {
 	library_run_all("_PreLink");
 	link_libraries();
+	library_run_all("_PostLink");
 	library_run_all("_ModuleInit");
 	libraries_initialized = true;
 }
@@ -1205,4 +1214,26 @@ void static_library_replace(struct static_library *lib, const char *name, void *
 		}
 	}
 	ERROR("No library function '%s.%s'", lib->name, name);
+}
+
+/* Register a function into the runtime library array directly.
+ * Must be called AFTER link_libraries() has run (i.e., from _ModuleInit). */
+void static_library_register(struct static_library *lib, const char *name, void *fun)
+{
+	if (!libraries)
+		return;  // link_libraries() hasn't run yet
+	for (int i = 0; i < ain->nr_libraries; i++) {
+		if (strcmp(ain->libraries[i].name, lib->name))
+			continue;
+		if (!libraries[i])
+			continue;
+		for (int j = 0; j < ain->libraries[i].nr_functions; j++) {
+			if (!strcmp(ain->libraries[i].functions[j].name, name)) {
+				if (!libraries[i][j].fun)
+					link_static_library_function(&libraries[i][j], &ain->libraries[i].functions[j], fun);
+				return;
+			}
+		}
+	}
+	// Not found in AIN — silently ignore (function not used by this game)
 }

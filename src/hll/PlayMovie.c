@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "system4.h"
 #include "system4/string.h"
 
 #include "hll.h"
@@ -29,9 +30,11 @@ static int PlayMovie_Init(void)
 
 static int PlayMovie_Load(struct string *filename)
 {
+	WARNING("PlayMovie_Load: '%s'", filename->text);
 	if (mc)
 		movie_free(mc);
 	mc = movie_load(filename->text);
+	WARNING("PlayMovie_Load: result=%s", mc ? "OK" : "FAILED");
 	return !!mc;
 }
 
