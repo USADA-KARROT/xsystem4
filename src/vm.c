@@ -3984,9 +3984,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case DG_NEW: {
-		// DG_NEW: create empty delegate, push slot
+		// DG_NEW: create empty delegate, push slot.
+		// v14: use a proper DELEGATE_PAGE (nr_vars=0) instead of NULL page.
+		// heap_get_delegate_page rejects non-DELEGATE_PAGE, so NULL would
+		// cause delegate operations (Empty, numof, assign) to malfunction.
 		int slot = heap_alloc_slot(VM_PAGE);
-		heap_set_page(slot, NULL);
+		heap_set_page(slot, alloc_page(DELEGATE_PAGE, 0, 0));
 		stack_push(slot);
 		break;
 	}

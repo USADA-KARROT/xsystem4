@@ -97,9 +97,17 @@ union vm_value variable_initval(enum ain_data_type type)
 		return (union vm_value) { .i = -1 };
 	case AIN_ARRAY_TYPE:
 	case AIN_ARRAY: // v14 generic array
-	case AIN_DELEGATE:
 		slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, NULL);
+		return (union vm_value) { .i = slot };
+	case AIN_DELEGATE:
+		// v14: allocate a proper empty DELEGATE_PAGE so that
+		// Delegate.Empty() and delegate_numof() work correctly.
+		// A NULL page is treated as "not a delegate" by
+		// heap_get_delegate_page(), causing valid delegate slots
+		// to be cleaned up by event dispatch loops.
+		slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, alloc_page(DELEGATE_PAGE, 0, 0));
 		return (union vm_value) { .i = slot };
 	case AIN_WRAP: {
 		// Allocate a 1-element wrap page with uninitialized inner value
