@@ -4082,7 +4082,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				page = heap[inner].page;
 		}
 		if (page && var_idx >= 0 && var_idx + n <= page->nr_vars) {
-			for (int i = 0; i < n; i++) {
+				for (int i = 0; i < n; i++) {
 				stack_push(page->values[var_idx + i]);
 			}
 			// v14: track null-array source for FFI ref-array write-back.
@@ -4344,11 +4344,15 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		int slot = heap_alloc_slot(VM_PAGE);
 		if (size > 0) {
 			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) {
-				// Generic array (v14 type erasure) — create flat value array
+				// Generic array (v14 type erasure) — create flat value array.
+				// Initialize to -1 (null ref) rather than 0: game code checks
+				// for -1 to detect empty slots, and 0 = guard page would
+				// cause garbage reads. Value types (int/float) are always
+				// written before being read, so -1 is safe.
 				int phys_size = size * elem_slots;
 				struct page *page = alloc_page(ARRAY_PAGE, data_type, phys_size);
 				for (int i = 0; i < phys_size; i++)
-					page->values[i].i = 0;
+					page->values[i].i = -1;
 				// Store elem_slots in struct_type for X_A_SIZE to use
 				page->array.struct_type = elem_slots;
 				heap_set_page(slot, page);

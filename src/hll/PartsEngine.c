@@ -1308,9 +1308,6 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 {
 	struct page *ints = wrap_get_backing_array(wi_slot);
 	if (!ints || ints->nr_vars < 1) {
-		static int null_warn = 0;
-		if (null_warn++ < 3)
-			WARNING("AddPartsConstructionProcess: null ints from wi_slot=%d", wi_slot);
 		return;
 	}
 	// Sanity check: ints[0] (command) should be 0-200 range
