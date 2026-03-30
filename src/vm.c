@@ -4086,9 +4086,10 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				stack_push(page->values[var_idx + i]);
 			}
 			// v14: track null-array source for FFI ref-array write-back.
-			// When X_REF pushes a -1 value from a struct member, save
-			// the source so the FFI can allocate a slot and write it back.
-			if (ain->version >= 14 && n == 1 && page->values[var_idx].i == -1
+			// When X_REF pushes a null value (<=0) from a struct member,
+			// save the source so FFI can allocate a slot and write it back.
+			// Both -1 (uninitialized) and 0 (guard page) are invalid array refs.
+			if (ain->version >= 14 && n == 1 && page->values[var_idx].i <= 0
 			    && page->type == STRUCT_PAGE) {
 				extern int xref_null_src_page;
 				extern int xref_null_src_var;

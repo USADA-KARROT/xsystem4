@@ -429,14 +429,12 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 		case AIN_WRAP: {
 			// v14: WRAP parameter in HLL calls.
-			// Determine inner type to choose 1-slot vs 2-slot handling.
 			enum ain_data_type inner = AIN_VOID;
 			if (f->arguments[i].type.array_type)
 				inner = f->arguments[i].type.array_type->data;
 			bool is_value_wrap = (inner == AIN_INT || inner == AIN_FLOAT
 				|| inner == AIN_BOOL || inner == AIN_LONG_INT);
 			if (is_value_wrap) {
-				// wrap<value_type>: 2-slot reference [pageno, varno] for ref semantics
 				stack_ptr -= 2;
 				int pageno = stack[stack_ptr].i;
 				int varno  = stack[stack_ptr+1].i;
@@ -517,10 +515,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 			break;
 		}
 		case AIN_REF_ARRAY: {
-			// v14: 1-slot — bytecode resolves via X_REF and pushes
-			// the array's heap slot directly.
-			// In v14, arrays may be wrapped in struct pages (IArray<T>).
-			// Recursively unwrap struct wrappers to find the inner ARRAY_PAGE.
+			// v14: stack may have 2-slot ref [page, varno] from STRUCTREF,
+			// or 1-slot resolved heap slot from X_REF.
+			// Check: if previous stack entry looks like a valid page containing
+			// the current value as a member, treat as 2-slot ref.
 			stack_ptr--;
 			int slot = stack[stack_ptr].i;
 			int array_slot = -1;
@@ -571,18 +569,18 @@ void hll_call(int libno, int fno, int hll_arg3)
 				heap_slots[i] = array_slot;
 				heap_ptrs[i] = heap[array_slot].page;
 				if (hll_self_slot < 0) hll_self_slot = array_slot;
-			} else if (slot <= 0 && xref_null_src_page >= 0) {
-				// v14: null array (-1) from a struct member.
+			} else if (slot <= 0) {
+				// v14: null/uninitialized array (value -1 or 0/guard page).
 				// Allocate a new heap slot so the HLL function can
 				// create an array and the write-back will succeed.
-				// Then update the source struct member to point to
-				// the new slot.
 				int new_slot = heap_alloc_slot(VM_PAGE);
 				heap[new_slot].page = NULL;
 				heap_slots[i] = new_slot;
 				heap_ptrs[i] = NULL;
-				// Update the struct member that held -1
-				if ((size_t)xref_null_src_page < heap_size
+				// If X_REF tracked the source struct member, update it
+				// to point to the new slot for proper write-back.
+				if (xref_null_src_page >= 0
+				    && (size_t)xref_null_src_page < heap_size
 				    && heap[xref_null_src_page].type == VM_PAGE
 				    && heap[xref_null_src_page].page
 				    && xref_null_src_var >= 0
