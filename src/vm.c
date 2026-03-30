@@ -4126,12 +4126,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 					stack_push(0);
 			}
 		} else {
-			// v14: push -1 for unresolvable refs so game null checks (== -1) work.
-			// Previously pushed 0, but game code checks for -1 and treats 0 as valid,
-			// causing reads from guard page (heap[0]) which contains garbage.
-			int null_val = (ain->version >= 14) ? -1 : 0;
 			for (int i = 0; i < n; i++) {
-				stack_push(null_val);
+				stack_push(0);
 			}
 		}
 		break;
