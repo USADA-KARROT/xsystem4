@@ -703,10 +703,6 @@ static void scenario_call(int slot)
  */
 static int _function_call(int fno, int return_address)
 {
-	if (fno == 374 || fno == 373 || fno == 4 || fno == 3) {
-		static int fc374 = 0;
-		if (fc374++ < 5) WARNING("FCALL fno=%d(%s)", fno, ain->functions[fno].name);
-	}
 	// C stack overflow guard: check remaining stack space
 	{
 		volatile char stack_var;
@@ -4086,16 +4082,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				page = heap[inner].page;
 		}
 		if (page && var_idx >= 0 && var_idx + n <= page->nr_vars) {
-			// TRACE: X_REF 2 in fno=374
-			if (n == 2 && call_stack_ptr > 0 && call_stack[call_stack_ptr-1].fno == 374) {
-				static int xr2 = 0;
-				if (xr2 < 8) {
-					WARNING("XREF2@374: heap=%d var=%d page[type=%d idx=%d nr=%d] → [%d, %d]",
-						heap_idx, var_idx, page->type, page->index, page->nr_vars,
-						page->values[var_idx].i, page->values[var_idx+1].i);
-					xr2++;
-				}
-			}
+			// read from resolved page
 			for (int i = 0; i < n; i++) {
 				stack_push(page->values[var_idx + i]);
 			}
@@ -4126,8 +4113,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 					stack_push(0);
 			}
 		} else {
+			// When heap_idx <= 0 (guard page or null ref), push -1 to
+			// propagate null consistently. Bytecode null checks use
+			// "== -1", so pushing 0 would bypass them and cause garbage
+			// reads from the guard page. Only do this for null refs;
+			// other fallback cases (valid heap but bad var_idx) push 0.
+			int null_val = (heap_idx <= 0) ? -1 : 0;
 			for (int i = 0; i < n; i++) {
-				stack_push(0);
+				stack_push(null_val);
 			}
 		}
 		break;

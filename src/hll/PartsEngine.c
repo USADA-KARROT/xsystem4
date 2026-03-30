@@ -1312,31 +1312,11 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	}
 	// Sanity check: ints[0] (command) should be 0-200 range
 	if (ints->values[0].i > 200 || ints->values[0].i < 0) {
-		static int bad_warn = 0;
-		if (bad_warn++ < 3) {
-			WARNING("AddPartsConstructionProcess: bad cmd=%d wi_slot=%d — dumping struct",
-				ints->values[0].i, wi_slot);
-			if (wi_slot > 0 && (size_t)wi_slot < heap_size && heap[wi_slot].page) {
-				struct page *sp = heap[wi_slot].page;
-				WARNING("  struct idx=%d nr=%d type=%d", sp->index, sp->nr_vars, sp->type);
-				// Dump all members that point to ARRAY_PAGEs
-				for (int k = 0; k < sp->nr_vars && k < 50; k++) {
-					int v = sp->values[k].i;
-					if (v > 0 && (size_t)v < heap_size
-					    && heap[v].type == VM_PAGE && heap[v].page
-					    && heap[v].page->type == ARRAY_PAGE) {
-						struct page *ap = heap[v].page;
-						WARNING("  m[%d]=%d → ARRAY nr=%d first=%d",
-							k, v, ap->nr_vars,
-							ap->nr_vars > 0 ? ap->values[0].i : -1);
-					}
-				}
-			}
-		}
 		return;
 	}
 
 	int cmd = ints->values[0].i;
+
 	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
 	int dy = ints->nr_vars > 7 ? ints->values[7].i : 0;
 	int dx2 = ints->nr_vars > 8 ? ints->values[8].i : 0;
