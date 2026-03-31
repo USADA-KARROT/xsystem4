@@ -2013,8 +2013,12 @@ int PE_GetFreeNumber(void)
 	while (PE_IsExist(first_free)) {
 		first_free++;
 	}
-	// XXX: the ID is incremented even if the parts is not created
-	return first_free++;
+	// v14: pre-create the PE entry so that bytecode Wrap/IsValid
+	// checks work before the game explicitly creates the parts.
+	// The original engine creates entries on GetFreeNumber.
+	int no = first_free++;
+	parts_get(no);  // auto-create entry in PE hash table
+	return no;
 }
 
 bool PE_IsExist(int parts_no)

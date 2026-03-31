@@ -3966,6 +3966,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		// Stack before: [dg_page, arg0, ...]
 		// Stack after:  [arg0, ..., dg_page, 0(dg_index)]
 		int dg_page = stack_peek(dg->nr_arguments).i;
+		// v14 DG_CALLBEGIN
 		for (int i = 0; i < dg->nr_arguments; i++) {
 			int pos = (stack_ptr - dg->nr_arguments) + i;
 			stack[pos-1] = stack[pos];

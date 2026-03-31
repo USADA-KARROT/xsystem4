@@ -1033,7 +1033,15 @@ static void PartsEngine_SetComponentType(int number, int type, int state)
 static int PartsEngine_GetComponentType(int number, int state)
 {
 	struct parts *p = parts_try_get(number);
-	return p ? p->component_type : -1;
+	if (p) return p->component_type;
+	// v14: game bytecode may reference parts numbers allocated by
+	// GetFreeNumber (>=1000000000) before the PE entry exists.
+	// Auto-create the entry so Wrap/IsValid can work.
+	if (number >= 1000000000) {
+		p = parts_get(number);
+		return p->component_type;  // 0 = default
+	}
+	return -1;
 }
 
 static void PartsEngine_SetComponentPos(int number, float x, float y)
