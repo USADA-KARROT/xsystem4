@@ -145,6 +145,34 @@ static float font_size_char(struct font_size *size, uint32_t code)
 	return size->font->size_char(size, code);
 }
 
+/* GB18030 support helpers */
+static int gb18030_skip_char_bytes(const char *s)
+{
+	unsigned char c = (unsigned char)*s;
+	if (c < 0x80) return 1;
+	if (c >= 0x81 && c <= 0xFE) {
+		unsigned char c2 = (unsigned char)s[1];
+		if (c2 >= 0x30 && c2 <= 0x39) return 4; /* 4-byte */
+		return 2; /* 2-byte */
+	}
+	return 1;
+}
+
+static void gb18030_char2unicode(const char *s, int *out)
+{
+	unsigned char c = (unsigned char)*s;
+	if (c < 0x80) { *out = c; return; }
+	/* Simple 2-byte GB18030→Unicode: use iconv-like lookup.
+	 * For now, use a rough approximation via the byte values. */
+	if (c >= 0x81 && c <= 0xFE) {
+		unsigned char c2 = (unsigned char)s[1];
+		/* Pack as raw GB code for font lookup */
+		*out = (c << 8) | c2;
+		return;
+	}
+	*out = c;
+}
+
 static uint32_t char_to_code(const char *ch, enum charmap charmap)
 {
 	if (charmap == CHARMAP_SJIS)
