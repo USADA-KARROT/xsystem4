@@ -225,7 +225,7 @@ static_link_args = []
 if host_machine.system() == 'windows'
     static_link_args = ['-static', '-lstdc++']
 elif host_machine.system() == 'darwin'
-    static_link_args = ['-Wl,-stack_size,0x20000000']
+    static_link_args = ['-Wl,-stack_size,0x20000000', '-liconv']
 endif
 
 winsys = 'console'

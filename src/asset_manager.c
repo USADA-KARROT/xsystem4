@@ -21,6 +21,7 @@
 #include <dirent.h>
 #include <limits.h>
 #include <assert.h>
+#include <iconv.h>
 
 #include "system4.h"
 #include "system4/ald.h"
@@ -140,9 +141,49 @@ struct cg *asset_cg_load(int id)
 	return cg;
 }
 
+// Convert string between SJIS and GBK using iconv.
+// Returns malloc'd string or NULL on failure.
+static char *convert_encoding(const char *src, const char *from, const char *to)
+{
+	iconv_t cd = iconv_open(to, from);
+	if (cd == (iconv_t)-1)
+		return NULL;
+	size_t inlen = strlen(src);
+	size_t outlen = inlen * 3 + 1;
+	char *out = xmalloc(outlen);
+	char *inp = (char *)src;
+	char *outp = out;
+	size_t inleft = inlen, outleft = outlen - 1;
+	size_t ret = iconv(cd, &inp, &inleft, &outp, &outleft);
+	iconv_close(cd);
+	if (ret == (size_t)-1 || inleft > 0) {
+		free(out);
+		return NULL;
+	}
+	*outp = '\0';
+	return out;
+}
+
 struct cg *asset_cg_load_by_name(const char *name, int *id_out)
 {
 	struct archive_data *data = asset_get_by_name(ASSET_CG, name, id_out);
+	// Fallback: if AIN is GB18030, CG archive may use GBK names while
+	// game code / pactex uses SJIS names. Try SJIS→GBK conversion.
+	if (!data && ain_is_gb18030) {
+		char *gbk_name = convert_encoding(name, "SHIFT_JIS", "GBK");
+		if (gbk_name) {
+			data = asset_get_by_name(ASSET_CG, gbk_name, id_out);
+			free(gbk_name);
+		}
+		// Also try GBK→SJIS (pactex might be GBK, archive might be SJIS)
+		if (!data) {
+			char *sjis_name = convert_encoding(name, "GBK", "SHIFT_JIS");
+			if (sjis_name) {
+				data = asset_get_by_name(ASSET_CG, sjis_name, id_out);
+				free(sjis_name);
+			}
+		}
+	}
 	if (!data)
 		return NULL;
 	struct cg *cg = cg_load_data(data);
