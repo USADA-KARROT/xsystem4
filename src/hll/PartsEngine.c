@@ -452,7 +452,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 				char buf[512];
 				snprintf(buf, sizeof(buf), "%s%s", cg_base, suffixes[st]);
 				struct string *cg_name = cstr_to_string(buf);
-				PE_SetPartsCG(parts_no, cg_name, 0, st + 1); /* state is 1-indexed */
+				PE_SetPartsCG(parts_no, cg_name, 0, st + 1);
 				free_string(cg_name);
 			}
 			/* Mark as clickable */
@@ -1643,6 +1643,7 @@ static int PartsEngine_GetDelegateIndex(int number) { return PE_GetDelegateIndex
 
 static void PartsEngine_SetEventID(int number, int delegate_index, int unique_id)
 {
+	static int _eid_log = 0;
 	PE_SetDelegateIndex(number, delegate_index);
 	struct parts *p = parts_try_get(number);
 	if (p) p->unique_id = unique_id;

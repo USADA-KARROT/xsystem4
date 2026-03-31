@@ -125,11 +125,11 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 			if (click_target->on_click_sound >= 0)
 				audio_play_sound(click_target->on_click_sound);
 			clicked_parts = click_target->no;
-
 			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-			// type 4 = MouseClick (CPartsFunctionSet event 4)
-			// CPartsFunctionSet events: 0=Enter,1=Move,2=Leave,3=Wheel,4=Click,...
-			parts_enqueue_message_vars(4, click_target->no,
+			// type 6 = MouseClick in CPartsFunctionSet SWITCH table
+			// Bytecode SWITCH cases: 0=Created,1=Deleted,2=Enter,3=Move,
+			//   4=Leave,5=Wheel,6=Click,7=DoubleClick,8=OnCursor,...
+			parts_enqueue_message_vars(6, click_target->no,
 				click_target->delegate_index,
 				click_target->unique_id, 3, vars);
 		} else {
