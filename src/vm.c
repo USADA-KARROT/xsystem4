@@ -887,21 +887,12 @@ static int ain_return_slots_type(struct ain_type *type)
 // AIN_REF_TYPE params are 2-slot [page_idx, var_idx] on the stack.
 static int delegate_param_slots(struct ain_function_type *dg)
 {
-	if (ain->version < 14)
-		return dg->nr_arguments;
-	int slots = 0;
-	int n = dg->nr_arguments < dg->nr_variables ? dg->nr_arguments : dg->nr_variables;
-	for (int i = 0; i < n; i++) {
-		switch (dg->variables[i].type.data) {
-		case AIN_REF_TYPE:
-			slots += 2;
-			break;
-		default:
-			slots += 1;
-			break;
-		}
-	}
-	return slots;
+	// v14 delegate arguments are always 1 stack slot each, even for ref types.
+	// Ref-type args are passed as a single dereferenced value on the stack,
+	// not as [page, index] pairs. Fix #220 incorrectly counted ref types as
+	// 2 slots, which broke DG_CALLBEGIN stack layout for delegates like
+	// DG_Func<ref string, string> used by ArrayExtensions::Select.
+	return dg->nr_arguments;
 }
 
 // Return slot count for delegate return types.
