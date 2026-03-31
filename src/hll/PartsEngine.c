@@ -136,8 +136,10 @@ static const char GBK_PARTS_TYPE[]  = "\xb2\xbf\xbc\xfe\xa5\xbf\xa5\xa4\xa5\xd7"
 static const char GBK_PANEL[]       = "\xa5\xd1\xa5\xcd\xa5\xeb"; /* パネル (GBK) */
 static const char GBK_SIZE[]        = "\xa5\xb5\xa5\xa4\xa5\xba"; /* サイズ (GBK) */
 static const char GBK_COLOR[]       = "\xc9\xab";                 /* 色 (GBK) */
-static const char GBK_BUTTON[]      = "\xa5\xdc\xa5\xbf\xa5\xf3"; /* ボタン (GBK) */
+static const char GBK_BUTTON[]      = "\xa5\xdc\xa5\xbf\xa5\xf3"; /* ボタン (GBK katakana) */
+static const char GBK_CN_BUTTON[]   = "\xb0\xb4\xe2\x6f";         /* 按鈕 (GBK Chinese) */
 static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
+static const char GBK_CN_PANEL[]    = "\xb5\xcd\xb5\xc8\xbc\x89"; /* 低等級 (GBK CN panel type) */
 
 /* --- Pactex tree parser --- */
 
@@ -420,23 +422,35 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		return;
 	}
 
-	/* --- Handle ボタン (Button) type: load CG images for each state --- */
-	if (ptype && (strstr(ptype, SJIS_BUTTON) || strstr(ptype, GBK_BUTTON))) {
+	/* --- Handle ボタン / 按鈕 (Button) type: load CG images for each state --- */
+	if (ptype && (strstr(ptype, SJIS_BUTTON) || strstr(ptype, GBK_BUTTON)
+			|| strstr(ptype, GBK_CN_BUTTON))) {
 		/* ＣＧ名 field has the base CG path (e.g. "システム／タイトル／ボタン／はじめから").
 		 * Button CGs are stored as <base>／通常, <base>／オン, <base>／ダウン. */
 		const char *cg_base = pactex_get_string(type_info, SJIS_CG_MEI);
+		if (!cg_base)
+			cg_base = pactex_get_string(type_info, GBK_CG_MEI);
 		if (cg_base) {
-			/* SJIS state suffixes: ／通常, ／オン, ／ダウン
-			 * ／ = 0x81 0x5E, 通常 = 0x92CA 0x8FED, オン = 0x8349 0x8393,
-			 * ダウン = 0x835F 0x8345 0x8393 */
-			static const char *state_suffixes[] = {
+			/* Detect encoding from CG base path. GBK fullwidth ／ = A3 AF.
+			 * SJIS fullwidth ／ = 81 5E. */
+			bool is_gbk_path = (strstr(cg_base, "\xa3\xaf") != NULL);
+
+			/* SJIS: ／通常, ／オン, ／ダウン */
+			static const char *sjis_suffixes[] = {
 				"\x81\x5E\x92\xCA\x8F\xED",       /* ／通常 (DEFAULT) */
 				"\x81\x5E\x83\x49\x83\x93",       /* ／オン (HOVERED) */
 				"\x81\x5E\x83\x5F\x83\x45\x83\x93" /* ／ダウン (CLICKED) */
 			};
+			/* GBK: ／普通, ／オン, ／ダウン (CN uses 普通 instead of 通常) */
+			static const char *gbk_suffixes[] = {
+				"\xa3\xaf\xc6\xd5\xcd\xa8",             /* ／普通 (DEFAULT) */
+				"\xa3\xaf\xa5\xaa\xa5\xf3",             /* ／オン (HOVERED) */
+				"\xa3\xaf\xa5\xc0\xa5\xa6\xa5\xf3"      /* ／ダウン (CLICKED) */
+			};
+			const char **suffixes = is_gbk_path ? gbk_suffixes : sjis_suffixes;
 			for (int st = 0; st < 3; st++) {
 				char buf[512];
-				snprintf(buf, sizeof(buf), "%s%s", cg_base, state_suffixes[st]);
+				snprintf(buf, sizeof(buf), "%s%s", cg_base, suffixes[st]);
 				struct string *cg_name = cstr_to_string(buf);
 				PE_SetPartsCG(parts_no, cg_name, 0, st + 1); /* state is 1-indexed */
 				free_string(cg_name);
