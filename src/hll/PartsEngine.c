@@ -597,8 +597,11 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	struct ex_tree *root_buhin = pactex_find_buhin(root_branch);
 	root->component_type = 0;
 
-	/* Register root with actual name.
-	 * Also register with empty name so GetActivityPartsNumber("", "") returns root. */
+	/* Register root with actual name, empty name sentinel, and "ルートパーツ" alias.
+	 * The game looks up root parts by various names:
+	 *   - actual pactex name (e.g. "アクティビティ")
+	 *   - empty string ""
+	 *   - "ルートパーツ" (root parts) — hardcoded in CActivityWrap@Load */
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
 		struct activity_part *ap = &act->parts[act->nr_parts++];
 		snprintf(ap->name, sizeof(ap->name), "%s", root_branch->name->text);
@@ -607,6 +610,13 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
 		struct activity_part *ap = &act->parts[act->nr_parts++];
 		ap->name[0] = '\0';
+		ap->number = root_no;
+	}
+	/* "ルートパーツ" in SJIS = \x83\x8b\x81\x5b\x83\x67\x83\x70\x81\x5b\x83\x63 */
+	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
+		struct activity_part *ap = &act->parts[act->nr_parts++];
+		snprintf(ap->name, sizeof(ap->name),
+			"\x83\x8b\x81\x5b\x83\x67\x83\x70\x81\x5b\x83\x63");
 		ap->number = root_no;
 	}
 
@@ -859,7 +869,8 @@ static bool PartsEngine_IsExistActivityPartsByNumber(struct string *name, int nu
 static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string *parts_name)
 {
 	int idx = find_activity(name);
-	if (idx < 0) return -1;
+	if (idx < 0)
+		return -1;
 	struct activity *act = &activities[idx];
 
 	/* If parts_name is empty, return the root (sentinel entry) */

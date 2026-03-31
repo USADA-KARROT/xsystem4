@@ -235,7 +235,8 @@ void vm_msg_render_overlay(void)
 #define FUNC_FLAG_SKIP_TITLE    0x10  // RunResult<SceneTitle or Run<SceneLogo>
 static uint8_t *func_flags = NULL;
 
-#define STRUCT_FLAG_CDEBUG   0x01
+#define STRUCT_FLAG_CDEBUG      0x01
+#define STRUCT_FLAG_MEMBER_CTOR 0x02  // has member structs with no-arg constructors
 static uint8_t *struct_flags = NULL;
 
 static void init_func_flags(void)
@@ -264,6 +265,26 @@ static void init_func_flags(void)
 	for (int i = 0; i < ain->nr_structures; i++) {
 		if (ain->structures[i].name && strstr(ain->structures[i].name, "CDebug"))
 			struct_flags[i] |= STRUCT_FLAG_CDEBUG;
+		// Check if any member struct needs singleton registration via its ctor.
+		// Only flag structs whose member has a timer-like ctor (RCASTimer,
+		// VariableTimer) that registers with a singleton manager.
+		if (ain->version >= 14) {
+			for (int m = 0; m < ain->structures[i].nr_members; m++) {
+				if (ain->structures[i].members[m].type.data == AIN_STRUCT) {
+					int ms = ain->structures[i].members[m].type.struc;
+					if (ms >= 0 && ms < ain->nr_structures
+					    && ain->structures[ms].constructor > 0
+					    && ain->structures[ms].constructor < ain->nr_functions
+					    && ain->functions[ain->structures[ms].constructor].nr_args == 0
+					    && ain->structures[ms].name
+					    && (strstr(ain->structures[ms].name, "RCASTimer")
+					        || strstr(ain->structures[ms].name, "VariableTimer"))) {
+						struct_flags[i] |= STRUCT_FLAG_MEMBER_CTOR;
+						break;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -2018,6 +2039,33 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				v.i = alloc_struct(struct_type);
 			} else {
 				create_struct(struct_type, &v);
+			}
+			// v14: call no-arg STRT constructors for member structs.
+			// alloc_struct creates nested struct pages but doesn't call
+			// constructors (e.g. RCASTimer@0 which registers with its
+			// manager singleton). Only check struct types that have
+			// members needing construction (precomputed in struct_flags).
+			if (ain->version >= 14 && struct_type >= 0
+			    && struct_type < ain->nr_structures
+			    && (struct_flags[struct_type] & STRUCT_FLAG_MEMBER_CTOR)
+			    && v.i > 0 && heap_index_valid(v.i) && heap[v.i].page) {
+				struct ain_struct *s = &ain->structures[struct_type];
+				for (int mi = 0; mi < s->nr_members; mi++) {
+					if (s->members[mi].type.data == AIN_STRUCT) {
+						int mst = s->members[mi].type.struc;
+						if (mst >= 0 && mst < ain->nr_structures
+						    && ain->structures[mst].constructor > 0
+						    && ain->functions[ain->structures[mst].constructor].nr_args == 0) {
+							int member_slot = heap[v.i].page->values[mi].i;
+							if (member_slot > 0 && heap_index_valid(member_slot)) {
+								heap_ref(member_slot);
+								vm_call(ain->structures[mst].constructor, member_slot);
+								if (heap_index_valid(member_slot) && heap[member_slot].ref > 1)
+									heap_unref(member_slot);
+							}
+						}
+					}
+				}
 			}
 			if (ctor_func > 0 && ain->version >= 14) {
 				// Skip known-broken constructors (debug features with corrupted struct state)
