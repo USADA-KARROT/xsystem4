@@ -248,10 +248,14 @@ static void init_func_flags(void)
 			func_flags[i] |= FUNC_FLAG_LAMBDA;
 		if (strstr(name, "CDebug"))
 			func_flags[i] |= FUNC_FLAG_CDEBUG;
-		if (strstr(name, "CASTimerManager"))
+		// Only intercept CASTimerManager/CASTimer, NOT RCASTimerManager/RCASTimer.
+		// RCASTimer uses bytecode delegates for time accumulation and must run
+		// through the VM. Intercepting it breaks Motion system timers.
+		if (strstr(name, "CASTimerManager") && !strstr(name, "RCASTimerManager"))
 			func_flags[i] |= FUNC_FLAG_CASTIMER_MGR;
-		else if (strstr(name, "CASTimer@Get") || strstr(name, "CASTimer@Reset")
+		else if ((strstr(name, "CASTimer@Get") || strstr(name, "CASTimer@Reset")
 				|| strstr(name, "CASTimer@GetScaled"))
+				&& !strstr(name, "RCASTimer"))
 			func_flags[i] |= FUNC_FLAG_CASTIMER_INST;
 		if (strstr(name, "RunResult<SceneTitle") || strstr(name, "Run<SceneLogo>"))
 			func_flags[i] |= FUNC_FLAG_SKIP_TITLE;
