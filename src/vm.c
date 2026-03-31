@@ -2074,15 +2074,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		int _fno = get_argument(0);
 		// v14 MSG system: accumulate lines for overlay, but let game's
 		// own R/A fallback run (it manages the native message window).
-		if (ain->version >= 14 && ain->msgf < 0 && vm_msg_fn_R >= 0) {
-			if (_fno == vm_msg_fn_R && vm_msg_delegate_empty(103)) {
-				vm_msg_handle_R();  // accumulate line for overlay
-				// fall through to game's R function
-			} else if (_fno == vm_msg_fn_A && vm_msg_delegate_empty(104)) {
-				vm_msg_handle_A_overlay();  // accumulate last line, no wait
-				// fall through to game's A function (which has WaitForClick)
-			}
-		}
+		// v14 MSG fallback: disabled for now.
+		// The overlay draws dialogue text on ALL scenes including Logo/Title
+		// where MSG shouldn't appear. The game's own R/A functions handle
+		// MSG display through the native message window system.
+		// TODO: re-enable when message window rendering is properly implemented.
 		// --skip-title: bypass SceneLogo and SceneTitle
 		if (config.skip_title && _fno >= 0 && _fno < ain->nr_functions
 				&& ain->functions[_fno].name) {
