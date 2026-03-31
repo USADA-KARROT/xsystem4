@@ -858,6 +858,27 @@ static int ain_return_slots_type(struct ain_type *type)
 	}
 }
 
+// Count total stack slots for delegate parameters (for DG_CALLBEGIN).
+// Unlike nr_arguments (parameter count), this accounts for 2-slot types
+// like AIN_REF_TYPE which push [page_idx, var_idx] on the stack.
+static int delegate_param_slots(struct ain_function_type *dg)
+{
+	if (ain->version < 14)
+		return dg->nr_arguments;
+	int slots = 0;
+	for (int i = 0; i < dg->nr_arguments && i < dg->nr_variables; i++) {
+		switch (dg->variables[i].type.data) {
+		case AIN_REF_TYPE:
+			slots += 2;
+			break;
+		default:
+			slots += 1;
+			break;
+		}
+	}
+	return slots;
+}
+
 // Return slot count for delegate return types.
 // Unlike ain_return_slots_type, WRAP is always 2 here because delegate
 // bytecode (DG_CALLBEGIN/DG_CALL) and the caller (e.g. X_ASSIGN 2)
@@ -912,8 +933,6 @@ static void function_call(int fno, int return_address)
 
 	// Record base_sp for stack balance check
 	call_stack[call_stack_ptr-1].base_sp = stack_ptr;
-
-	// traces removed
 
 	// v14 lambda closure: when a lambda is called via CALLFUNC (not HLL),
 	// set struct_page to the enclosing method's object page so PUSHSTRUCTPAGE works.
@@ -1171,12 +1190,18 @@ static void delegate_call(int dg_no, int return_address)
 		call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 		call_stack[call_stack_ptr-1].is_delegate_call = true;
 		call_stack[call_stack_ptr-1].dg_return_slots = return_values;
-		// copy arguments into local page
+		// copy arguments into local page (slot-aware for multi-slot types)
 		struct ain_function_type *dg = &ain->delegates[dg_no];
 		if (heap[slot].page) {
+			int arg_slots_total = delegate_param_slots(dg);
+			// Stack: [..., arg_slot0..argN, dg_page, dg_index]
+			// dg_index at stack_ptr-1, dg_page at stack_ptr-2
+			// arg slots start at stack_ptr-2-arg_slots_total
+			int base = 2 + arg_slots_total;
 			for (int i = 0; i < dg->nr_arguments && i < heap[slot].page->nr_vars; i++) {
-				union vm_value arg = stack_peek((dg->nr_arguments + 1) - i);
+				union vm_value arg = stack_peek(base - 1);
 				heap[slot].page->values[i] = vm_copy(arg, dg->variables[i].type.data);
+				base--;
 			}
 		}
 
@@ -3965,12 +3990,13 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		if (dg_no < 0 || dg_no >= ain->nr_delegates)
 			VM_ERROR("Invalid delegate index");
 		struct ain_function_type *dg = &ain->delegates[dg_no];
-		// Stack before: [dg_page, arg0, ...]
-		// Stack after:  [arg0, ..., dg_page, 0(dg_index)]
-		int dg_page = stack_peek(dg->nr_arguments).i;
-		// v14 DG_CALLBEGIN
-		for (int i = 0; i < dg->nr_arguments; i++) {
-			int pos = (stack_ptr - dg->nr_arguments) + i;
+		// Stack before: [dg_page, arg0, ..., argN-1]  (args may be multi-slot)
+		// Stack after:  [arg0, ..., argN-1, dg_page, 0(dg_index)]
+		// Use slot count (not param count) to find dg_page position.
+		int arg_slots = delegate_param_slots(dg);
+		int dg_page = stack_peek(arg_slots).i;
+		for (int i = 0; i < arg_slots; i++) {
+			int pos = (stack_ptr - arg_slots) + i;
 			stack[pos-1] = stack[pos];
 		}
 		stack[stack_ptr-1].i = dg_page;
