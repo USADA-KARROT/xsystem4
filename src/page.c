@@ -195,8 +195,11 @@ enum ain_data_type array_type(enum ain_data_type type)
 	case AIN_ARRAY:
 	case AIN_REF_ARRAY:
 		// v14 generic array — element type is erased at type level.
-		// Return AIN_INT as neutral fallback (no refcounting).
-		return AIN_INT;
+		// Return AIN_STRUCT so that copy_page/vm_copy treats elements
+		// as heap references (with heap_ref/heap_unref). Without this,
+		// copied generic arrays lose references to inner objects
+		// (strings, structs, delegates) causing use-after-free.
+		return AIN_STRUCT;
 	default:
 		return type;
 	}

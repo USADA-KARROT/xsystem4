@@ -913,6 +913,8 @@ static void function_call(int fno, int return_address)
 	// Record base_sp for stack balance check
 	call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 
+	// traces removed
+
 	// v14 lambda closure: when a lambda is called via CALLFUNC (not HLL),
 	// set struct_page to the enclosing method's object page so PUSHSTRUCTPAGE works.
 	// Without this, lambdas inside ArrayExtensions::Select etc. can't access
