@@ -136,6 +136,8 @@ static const char GBK_PARTS_TYPE[]  = "\xb2\xbf\xbc\xfe\xa5\xbf\xa5\xa4\xa5\xd7"
 static const char GBK_PANEL[]       = "\xa5\xd1\xa5\xcd\xa5\xeb"; /* パネル (GBK) */
 static const char GBK_SIZE[]        = "\xa5\xb5\xa5\xa4\xa5\xba"; /* サイズ (GBK) */
 static const char GBK_COLOR[]       = "\xc9\xab";                 /* 色 (GBK) */
+static const char GBK_BUTTON[]      = "\xa5\xdc\xa5\xbf\xa5\xf3"; /* ボタン (GBK) */
+static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
 
 /* --- Pactex tree parser --- */
 
@@ -419,7 +421,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	}
 
 	/* --- Handle ボタン (Button) type: load CG images for each state --- */
-	if (ptype && strstr(ptype, SJIS_BUTTON)) {
+	if (ptype && (strstr(ptype, SJIS_BUTTON) || strstr(ptype, GBK_BUTTON))) {
 		/* ＣＧ名 field has the base CG path (e.g. "システム／タイトル／ボタン／はじめから").
 		 * Button CGs are stored as <base>／通常, <base>／オン, <base>／ダウン. */
 		const char *cg_base = pactex_get_string(type_info, SJIS_CG_MEI);
