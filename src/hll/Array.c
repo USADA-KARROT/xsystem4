@@ -118,7 +118,7 @@ static void Array_PushBack(struct page **array, int value)
 	if (!array)
 		return;
 	struct page *a = *array;
-
+	(void)0;
 	int old_size = a ? a->nr_vars : 0;
 	bool is_2slot = array_elem_is_2slot();
 	int slots = is_2slot ? 2 : 1;
@@ -262,7 +262,6 @@ static int Array_Where(struct page **array, int func)
 			matches[match_count++] = src->values[i].i;
 		}
 	}
-
 
 	// Build result array
 	struct page *result_page = alloc_page(ARRAY_PAGE, src->a_type, match_count);
