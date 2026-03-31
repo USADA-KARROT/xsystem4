@@ -721,9 +721,18 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 	snprintf(pactex_name, sizeof(pactex_name), "%s.pactex", base);
 	dfile = asset_get_by_name(ASSET_PACT, pactex_name, NULL);
 
-	/* Try: full path.pactex */
+	/* Try: full path.pactex (forward slash) */
 	if (!dfile && base != fname) {
 		snprintf(pactex_name, sizeof(pactex_name), "%s.pactex", fname);
+		dfile = asset_get_by_name(ASSET_PACT, pactex_name, NULL);
+	}
+
+	/* Try: full path.pactex (backslash — AlicArch v2 uses backslash separators) */
+	if (!dfile && base != fname) {
+		snprintf(pactex_name, sizeof(pactex_name), "%s.pactex", fname);
+		for (char *p = pactex_name; *p; p++) {
+			if (*p == '/') *p = '\\';
+		}
 		dfile = asset_get_by_name(ASSET_PACT, pactex_name, NULL);
 	}
 
@@ -731,6 +740,13 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 	if (!dfile) {
 		snprintf(pactex_name, sizeof(pactex_name), "%s.pactex", name->text);
 		dfile = asset_get_by_name(ASSET_PACT, pactex_name, NULL);
+	}
+
+	if (!dfile) {
+		static int pact_miss = 0;
+		if (pact_miss++ < 10)
+			WARNING("pactex NOT FOUND for activity '%s' filename '%s'",
+				name->text, fname);
 	}
 
 	if (dfile) {
