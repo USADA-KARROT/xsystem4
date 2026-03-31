@@ -877,7 +877,11 @@ void heap_struct_assign(int lval, int rval)
 		return;
 	}
 	if (heap[lval].page) {
+		// Save refcount: delete_page sets ref=0 (intended for heap_unref
+		// deferred-free path), but here the slot is being REUSED, not freed.
+		int saved_ref = heap[lval].ref;
 		delete_page(lval);
+		heap[lval].ref = saved_ref;
 	}
 	heap_set_page(lval, copy_page(heap[rval].page));
 }
