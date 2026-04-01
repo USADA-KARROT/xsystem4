@@ -640,6 +640,29 @@ void handle_events(void)
 
 	fire_deferred_events();
 
+	/* XSYS4_HOLD_KEYS: comma-separated list of key codes to hold down always.
+	 * E.g. XSYS4_HOLD_KEYS=17 holds Ctrl, triggering full-text skip in ADV scenes. */
+	{
+		static int hold_keys[32];
+		static int hold_keys_len = -1;
+		if (hold_keys_len < 0) {
+			hold_keys_len = 0;
+			const char *env = getenv("XSYS4_HOLD_KEYS");
+			if (env && *env) {
+				char buf[256];
+				strncpy(buf, env, sizeof(buf)-1);
+				buf[sizeof(buf)-1] = 0;
+				char *saveptr, *tok = strtok_r(buf, ",", &saveptr);
+				while (tok && hold_keys_len < 32) {
+					hold_keys[hold_keys_len++] = atoi(tok);
+					tok = strtok_r(NULL, ",", &saveptr);
+				}
+			}
+		}
+		for (int i = 0; i < hold_keys_len; i++)
+			key_state[hold_keys[i]] = true;
+	}
+
 	/* Auto-click mode: two modes supported.
 	 * 1) XSYS4_AUTO_CLICK_SEQ="time,x,y;time,x,y;..." — click sequence at absolute ms times
 	 * 2) XSYS4_AUTO_CLICK=<ms> — periodic clicks (legacy mode)
