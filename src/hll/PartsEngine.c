@@ -1830,13 +1830,12 @@ static void PartsEngine_ReleaseMessage(void)
 	msg_current.nr_vars = 0;
 }
 
-// Getter functions: check msg_current first (set by PopMessage), then peek queue.
-// Game flow: GetMessageType() peek → PopMessage() → GetMessageType() for SWITCH.
-// After PopMessage, queue head has advanced, so we MUST check msg_current.
+// GetMessageType always peeks the queue head (not msg_current).
+// msg_current holds the already-processed message after PopMessage; returning
+// its type would cause CPartsMessageManager@Update to re-fire the same handler
+// in nested UpdateMessage calls (e.g., inside Motion::Join's WaitForClick loop).
 static int PartsEngine_GetMessageType(void)
 {
-	if (msg_current.type >= 0)
-		return msg_current.type;
 	if (msg_head != msg_tail)
 		return msg_queue[msg_head].type;
 	return -1;
@@ -1846,25 +1845,19 @@ static int PartsEngine_GetMessageType(void)
 // So: if msg_current.type >= 0, read from msg_current; else peek queue head.
 static int PartsEngine_GetMessagePartsNumber(void)
 {
-	if (msg_current.type >= 0)
-		return msg_current.parts_no;
 	if (msg_head != msg_tail)
 		return msg_queue[msg_head].parts_no;
 	return 0;
 }
 static int PartsEngine_GetMessageDelegateIndex(void)
 {
-	if (msg_current.type >= 0)
-		return msg_current.delegate_index;
 	if (msg_head != msg_tail)
 		return msg_queue[msg_head].delegate_index;
 	return 0;
 }
 static int PartsEngine_GetMessageUniqueID(void)
 {
-	if (msg_current.type >= 0)
-		return msg_current.unique_id;
-	else if (msg_head != msg_tail)
+	if (msg_head != msg_tail)
 		return msg_queue[msg_head].unique_id;
 	return 0;
 }

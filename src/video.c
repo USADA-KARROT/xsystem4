@@ -494,8 +494,17 @@ static void gfx_update_frame_rate_counter(void)
 	}
 }
 
+static uint32_t gfx_last_frame_ticks = 0;
+
 void gfx_swap(void)
 {
+	// 60fps frame cap: ensure at least 16ms between frames so CASTimer/RCASTimer
+	// accumulate real elapsed time even without vsync (headless or macOS).
+	uint32_t now = SDL_GetTicks();
+	if (gfx_last_frame_ticks > 0 && now < gfx_last_frame_ticks + 16)
+		SDL_Delay(gfx_last_frame_ticks + 16 - now);
+	gfx_last_frame_ticks = SDL_GetTicks();
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
 	gfx_clear();

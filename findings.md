@@ -37,6 +37,9 @@
 - ✅ SceneAzito Schedule button at (70,695) — confirmed working by Fix #238
 - ✅ APEG audio playback + black frame (Fix #241/#242): extract Ogg from SOND chunk → FFmpeg audio-only decode; PartsMovie functions wait for audio completion; TV shows black frame (pixel codec proprietary/unknown)
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）：movie::detail::Play → CreatePartsMovie → 音頻 OK，影像 codec 為 proprietary 無法解碼；GUI 下顯示黑畫面 + 正確音頻；headless 因 WaitForClick 無法到達此場景
+- ❌ SceneLogo 無動畫/警告標語畫面被跳過：應有 fade in/out 動畫但卡住
+- ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
+- ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - PlayerCollection@Get assert fires (n === null) — player lookup failure, non-fatal
 
 ### Test command (working)
