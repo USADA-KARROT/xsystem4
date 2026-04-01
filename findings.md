@@ -34,8 +34,9 @@
 - Background click exits RunTurnStart WaitForClick (text-view CASClick) but NOT SceneAzito WaitForClick (nested WaitForClick race)
 - SceneAzito WaitForClick needs PARTS click on Schedule button
 - ADV scene parts (in screen bounds): parts#900013 at (1200,558), parts#900015 NEXT at (1263,653)
-- ❌ SceneAzito Schedule button position unknown — need to dump azito parts (after RunTurnStart clears)
-- ❌ APEG video codec not implemented — TV/video scenes show blank white screen
+- ✅ SceneAzito Schedule button at (70,695) — confirmed working by Fix #238
+- ✅ APEG audio playback + black frame (Fix #241/#242): extract Ogg from SOND chunk → FFmpeg audio-only decode; PartsMovie functions wait for audio completion; TV shows black frame (pixel codec proprietary/unknown)
+- ❌ APEG 影片黑畫面（GUI 驗證未完成）：movie::detail::Play → CreatePartsMovie → 音頻 OK，影像 codec 為 proprietary 無法解碼；GUI 下顯示黑畫面 + 正確音頻；headless 因 WaitForClick 無法到達此場景
 - PlayerCollection@Get assert fires (n === null) — player lookup failure, non-fatal
 
 ### Test command (working)
