@@ -500,7 +500,7 @@
 	static_library_register(&lib_PartsEngine, "SetFormGroupViewSpan", PE_stub_SetFormGroupViewSpan);
 	static_library_register(&lib_PartsEngine, "AddFormGroupVList", PE_stub_AddFormGroupVList);
 	static_library_register(&lib_PartsEngine, "AddFormGroupFormNumber", PE_stub_AddFormGroupFormNumber);
-	static_library_register(&lib_PartsEngine, "Parts_SetPartsCGThread", PE_stub_Parts_SetPartsCGThread);
+	static_library_register(&lib_PartsEngine, "Parts_SetPartsCGThread", PartsEngine_Parts_SetPartsCGThread);
 	static_library_register(&lib_PartsEngine, "GetPartsCGSurfaceArea", PE_stub_GetPartsCGSurfaceArea);
 	static_library_register(&lib_PartsEngine, "GetLoopCGSurfaceArea", PE_stub_GetLoopCGSurfaceArea);
 	static_library_register(&lib_PartsEngine, "GetLoopCGCGName", PE_stub_GetLoopCGCGName);

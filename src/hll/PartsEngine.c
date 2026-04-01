@@ -2063,6 +2063,17 @@ static void PE_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
 	// Text origin position mode (e.g. left/center). Stub for now.
 }
 
+/*
+ * Parts_SetPartsCGThread: "async" CG load. We have no real thread loader,
+ * so load the CG synchronously and return true so that the ain-side Observer
+ * (which polls Parts_IsThreadLoading == false) fires its callback immediately.
+ */
+static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname, int state)
+{
+	PE_SetPartsCG(number, cgname, 0, state);
+	return true;
+}
+
 static void PE_SetMessageWindowCGName(int parts_no, struct string *name)
 {
 	// Load CG as background for message window (state 1 = DEFAULT, 1-based)
