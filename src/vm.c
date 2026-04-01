@@ -351,9 +351,13 @@ static bool native_cas_timer_intercept(int fno, int struct_page, union vm_value 
 		return true;
 	}
 
-	// CASTimer / CASTimerImp instance methods
-	int timer_id = (struct_page < 0) ? -struct_page : 1;
-	if (timer_id <= 0 || timer_id >= CAS_TIMER_MAX) timer_id = 1;
+	// CASTimer / CASTimerImp instance methods.
+	// Negative struct_page = handle from CASTimerManager::GetObject (direct index).
+	// Positive struct_page = heap page of embedded CASTimer struct (unique per instance).
+	// Use abs(struct_page) % CAS_TIMER_MAX to give each instance a distinct slot.
+	// Slot 0 is reserved as a safe fallback; handles start at 1.
+	int timer_id = abs(struct_page) % CAS_TIMER_MAX;
+	if (timer_id <= 0) timer_id = 1;
 
 	if (!cas_timers[timer_id].active) {
 		clock_gettime(CLOCK_MONOTONIC, &cas_timers[timer_id].epoch);
