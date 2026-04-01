@@ -183,8 +183,9 @@ static struct ex_table *list_item_table(struct ex_list *list, int row)
  */
 static struct ex *load_ex_file(const char *path)
 {
-	if (ain_is_gb18030)
-		return ex_read_file_conv(path, sjis_to_gbk_string);
+	// CN .ex files are already GBK-encoded — do NOT apply sjis_to_gbk_string.
+	// The SJIS→GBK conv was only needed when the .ex used SJIS and the
+	// AIN bytecode queried with GBK. CN .ex uses GBK natively.
 	return ex_read_file(path);
 }
 
