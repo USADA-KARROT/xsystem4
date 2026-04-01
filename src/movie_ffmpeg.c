@@ -58,6 +58,7 @@ struct movie_context {
 	struct texture temp_surface;
 
 	bool has_pending_video_frame;
+	bool black_frame_drawn;  // for audio-only mode: true after first black frame
 	struct SwsContext *sws_ctx;
 	AVFrame *sws_frame;
 	void *sws_buf;
@@ -414,9 +415,22 @@ bool movie_play(struct movie_context *mc)
 
 bool movie_draw(struct movie_context *mc, struct sact_sprite *sprite)
 {
-	// Audio-only mode (e.g. APEG): no video to decode.
-	if (mc->video.finished && !mc->video.ctx)
+	// Audio-only mode (e.g. APEG): render one black frame, then just track audio.
+	if (mc->video.finished && !mc->video.ctx) {
+		if (!mc->black_frame_drawn) {
+			mc->black_frame_drawn = true;
+			struct texture *tex = sprite ? sprite_get_texture(sprite) : NULL;
+			if (tex && tex->w > 0 && tex->h > 0) {
+				int npixels = tex->w * tex->h;
+				uint32_t *black = xcalloc(npixels, sizeof(uint32_t));
+				gfx_update_texture_with_pixels(tex, black);
+				free(black);
+				if (sprite)
+					sprite_dirty(sprite);
+			}
+		}
 		return !mc->audio.finished;
+	}
 
 	struct texture *texture;
 	if (sprite) {
