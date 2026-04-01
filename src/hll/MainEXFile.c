@@ -28,6 +28,7 @@
 #define VM_PRIVATE
 
 #include <string.h>
+#include <iconv.h>
 
 #include "system4/ex.h"
 #include "system4/file.h"
@@ -39,6 +40,38 @@
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "hll.h"
+
+/*
+ * SJIS→GBK string converter for .ex file loading.
+ * The .ex file stores block/field names in SJIS, but the CN version's AIN
+ * bytecode uses GBK-encoded string constants.  Converting at load time makes
+ * name lookups match.
+ */
+static struct string *sjis_to_gbk_string(const char *src, size_t len)
+{
+	static iconv_t cd = (iconv_t)-1;
+	if (cd == (iconv_t)-1) {
+		cd = iconv_open("GBK", "SHIFT_JIS");
+		if (cd == (iconv_t)-1)
+			return make_string(src, len);
+	}
+	size_t outlen = len * 2 + 1;
+	char *out = xmalloc(outlen);
+	char *inp = (char *)src;
+	char *outp = out;
+	size_t inleft = len, outleft = outlen - 1;
+	iconv(cd, NULL, NULL, NULL, NULL); /* reset */
+	size_t ret = iconv(cd, &inp, &inleft, &outp, &outleft);
+	if (ret == (size_t)-1 || inleft > 0) {
+		/* Conversion failed — keep original bytes */
+		free(out);
+		return make_string(src, len);
+	}
+	size_t result_len = (outlen - 1) - outleft;
+	struct string *s = make_string(out, result_len);
+	free(out);
+	return s;
+}
 
 static struct ex *ex;
 
@@ -110,9 +143,16 @@ static struct ex_table *list_item_table(struct ex_list *list, int row)
 /*
  * Module lifecycle
  */
+static struct ex *load_ex_file(const char *path)
+{
+	if (ain_is_gb18030)
+		return ex_read_file_conv(path, sjis_to_gbk_string);
+	return ex_read_file(path);
+}
+
 static void MainEXFile_ModuleInit(void)
 {
-	if (!config.ex_path || !(ex = ex_read_file(config.ex_path)))
+	if (!config.ex_path || !(ex = load_ex_file(config.ex_path)))
 		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
 	NOTICE("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
 }
@@ -138,10 +178,10 @@ static bool MainEXFile_ReloadDebugEXFile(void)
 static int MainEXFile_AddEXReader(struct string *path)
 {
 	WARNING("MainEXFile.AddEXReader('%s') — attempting to load", display_utf0(path->text));
-	struct ex *extra = ex_read_file(path->text);
+	struct ex *extra = load_ex_file(path->text);
 	if (!extra) {
 		char *full = path_join(config.game_dir, path->text);
-		extra = ex_read_file(full);
+		extra = load_ex_file(full);
 		free(full);
 	}
 	if (extra) {
@@ -166,7 +206,7 @@ static void MainEXFile_EraseEXReader(int id)
 static bool MainEXFile_AddEX(struct string *path)
 {
 	WARNING("MainEXFile.AddEX('%s') — attempting to load", display_utf0(path->text));
-	struct ex *extra = ex_read_file(path->text);
+	struct ex *extra = load_ex_file(path->text);
 	if (extra) {
 		ex_append(ex, extra);
 		WARNING("MainEXFile.AddEX: loaded %u blocks", extra->nr_blocks);
@@ -174,7 +214,7 @@ static bool MainEXFile_AddEX(struct string *path)
 	}
 	// Try relative to game dir
 	char *full = path_join(config.game_dir, path->text);
-	extra = ex_read_file(full);
+	extra = load_ex_file(full);
 	if (extra) {
 		ex_append(ex, extra);
 		WARNING("MainEXFile.AddEX('%s'): loaded %u blocks", full, extra->nr_blocks);
@@ -325,7 +365,6 @@ static struct string *MainEXFile_String(struct string *name, struct string *dflt
 	if (v && v->type == EX_STRING) {
 		return string_ref(v->s);
 	}
-	// String MISS trace removed (Session 51)
 	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
 
