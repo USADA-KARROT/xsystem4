@@ -198,8 +198,15 @@ void key_clear_flag(bool no_ctrl)
 	}
 }
 
+static int override_mouse_x = -1, override_mouse_y = -1;
+
 void mouse_get_pos(int *x, int *y)
 {
+	if (override_mouse_x >= 0) {
+		*x = override_mouse_x;
+		*y = override_mouse_y;
+		return;
+	}
 	int wx, wy;
 	SDL_PumpEvents();
 	SDL_GetMouseState(&wx, &wy);
@@ -209,6 +216,8 @@ void mouse_get_pos(int *x, int *y)
 
 void mouse_set_pos(int x, int y)
 {
+	override_mouse_x = x;
+	override_mouse_y = y;
 	int wx = x * sdl.viewport.w / sdl.w + sdl.viewport.x;
 	int wy = y * sdl.viewport.h / sdl.h + sdl.viewport.y;
 	SDL_WarpMouseInWindow(sdl.window, wx, wy);
