@@ -598,13 +598,9 @@ static bool PE_stub_Parts_BuildPartsConstructionProcessThread(possibly_unused in
 static void PE_stub_GetConstructionSurfaceArea(possibly_unused int number, possibly_unused int x, possibly_unused int y, possibly_unused int width, possibly_unused int height, possibly_unused int state) { }
 static int PE_stub_Parts_GetPartsConstructionProcessCount(possibly_unused int number, possibly_unused int state) { return 0; }
 static void PE_stub_GetPartsConstructionProcess(possibly_unused int number, possibly_unused int index, possibly_unused int arrayint, possibly_unused int arrayfloat, possibly_unused int arraystring, possibly_unused int arraypos, possibly_unused int state) { }
-static bool PE_stub_CreatePartsMovie(possibly_unused int number, possibly_unused struct string * filename, possibly_unused int soundid, possibly_unused int soundgroup, possibly_unused int red, possibly_unused int green, possibly_unused int blue, possibly_unused int state) { return true; }
-static bool PE_stub_ReleasePartsMovie(possibly_unused int number, possibly_unused int state) { return true; }
-static bool PE_stub_PlayPartsMovie(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { return true; }
-static void PE_stub_SetMovieTime(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { }
-static bool PE_stub_IsEndPartsMovie(possibly_unused int number, possibly_unused int state) { return true; }
-static int PE_stub_GetPartsMovieEndTime(possibly_unused int number, possibly_unused int state) { return 0; }
-static int PE_stub_GetPartsMovieCurrentTime(possibly_unused int number, possibly_unused int state) { return 0; }
+// CreatePartsMovie, ReleasePartsMovie, PlayPartsMovie, SetMovieTime,
+// IsEndPartsMovie, GetPartsMovieEndTime, GetPartsMovieCurrentTime
+// are implemented above #include "pe_v14_stubs.h" in PartsEngine.c
 static bool PE_stub_Parts_IsThreadLoading(possibly_unused int number, possibly_unused int state) { return false; }
 static bool PE_stub_IsExistWorkerThread(void) { return false; }
 static void PE_stub_Parts_PlaySound(possibly_unused int number, possibly_unused int state) { }

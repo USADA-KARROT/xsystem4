@@ -28,6 +28,7 @@
 #include "asset_manager.h"
 #include "gfx/gfx.h"
 #include "input.h"
+#include "movie.h"
 #include "parts.h"
 #include "../parts/parts_internal.h"
 #include "scene.h"
@@ -2205,6 +2206,87 @@ static void PartsEngine_SetMotionData(int parts_no, struct string *motion_name, 
 }
 static int PartsEngine_GetMotionBeginFrame(struct string *motion_name) { return 0; }
 static int PartsEngine_GetMotionEndFrame(struct string *motion_name) { return 0; }
+
+// Parts movie implementation (APEG audio playback via movie.h)
+#define PARTS_MOVIE_MAX 16
+static struct { int number; struct movie_context *mc; } parts_movies[PARTS_MOVIE_MAX];
+
+static struct movie_context **parts_movie_get(int number)
+{
+	for (int i = 0; i < PARTS_MOVIE_MAX; i++)
+		if (parts_movies[i].number == number)
+			return &parts_movies[i].mc;
+	return NULL;
+}
+
+static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
+	possibly_unused int soundid, possibly_unused int soundgroup,
+	possibly_unused int red, possibly_unused int green, possibly_unused int blue,
+	possibly_unused int state)
+{
+	// Free any existing context for this number.
+	struct movie_context **slot = parts_movie_get(number);
+	if (slot && *slot) {
+		movie_free(*slot);
+		*slot = NULL;
+	}
+	// Find a free slot.
+	if (!slot) {
+		for (int i = 0; i < PARTS_MOVIE_MAX; i++) {
+			if (!parts_movies[i].mc && parts_movies[i].number == 0) {
+				parts_movies[i].number = number;
+				slot = &parts_movies[i].mc;
+				break;
+			}
+		}
+	}
+	if (!slot)
+		return false;
+	struct movie_context *mc = movie_load(filename->text);
+	if (!mc)
+		return false;
+	*slot = mc;
+	return true;
+}
+
+static bool PE_stub_ReleasePartsMovie(int number, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (slot && *slot) {
+		movie_free(*slot);
+		*slot = NULL;
+	}
+	return true;
+}
+
+static bool PE_stub_PlayPartsMovie(int number, int msec, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (!slot || !*slot)
+		return false;
+	(void)msec;
+	return movie_play(*slot);
+}
+
+static void PE_stub_SetMovieTime(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { }
+
+static bool PE_stub_IsEndPartsMovie(int number, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (!slot || !*slot)
+		return true;
+	return movie_is_end(*slot);
+}
+
+static int PE_stub_GetPartsMovieEndTime(possibly_unused int number, possibly_unused int state) { return 0; }
+
+static int PE_stub_GetPartsMovieCurrentTime(int number, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (!slot || !*slot)
+		return 0;
+	return movie_get_position(*slot);
+}
 
 #include "pe_v14_stubs.h"
 
