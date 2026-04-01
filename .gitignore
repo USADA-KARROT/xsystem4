@@ -10,3 +10,4 @@ build
 .env*
 *.local
 CLAUDE.md
+.mcp.json
