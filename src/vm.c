@@ -2141,33 +2141,21 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	//
 	case CALLFUNC: {
 		int _fno = get_argument(0);
-		// v14 MSG overlay: render dialogue text at screen bottom and
-		// handle click-wait at the engine level, because the native
-		// message window system has an unresolved IsEnd bug.
-		// R accumulates lines; A displays them, waits for click, then
-		// the game's own A (which has broken WaitForClick) is skipped.
+		// v14 MSG: let the game's native R and A functions handle
+		// message display.  The engine overlay is kept as a visual
+		// fallback (drawn during gfx_swap) but does not block or
+		// skip any game code.
 		if (ain->version >= 14 && ain->msgf < 0 && vm_msg_fn_R >= 0) {
 			if (_fno == vm_msg_fn_R) {
 				vm_msg_handle_R();
 				// Let game's R run too (it does window management)
 			} else if (_fno == vm_msg_fn_A) {
-				vm_msg_handle_A();  // display + wait for click (blocking)
-				// Skip game's A since we already waited
-				struct ain_function *_af = &ain->functions[_fno];
-				for (int _a = _af->nr_args - 1; _a >= 0; _a--) {
-					stack_pop();
-					switch (_af->vars[_a].type.data) {
-					case AIN_REF_INT: case AIN_REF_FLOAT: case AIN_REF_BOOL:
-					case AIN_REF_LONG_INT: case AIN_REF_STRING:
-					case AIN_REF_STRUCT: case AIN_REF_ARRAY_TYPE:
-					case AIN_REF_DELEGATE: case AIN_REF_HLL_PARAM:
-					case AIN_IFACE: case AIN_IFACE_WRAP: case AIN_OPTION:
-						stack_pop(); break;
-					default: break;
-					}
-				}
-				instr_ptr += instruction_width(CALLFUNC);
-				break;  // skip the game's A entirely
+				// Clear overlay lines so they don't persist over
+				// the native message window.
+				for (int _i = 0; _i < vm_msg_line_count; _i++)
+					free_string(vm_msg_lines[_i]);
+				vm_msg_line_count = 0;
+				// Let game's A run normally
 			}
 		}
 		// --skip-title: bypass SceneLogo and SceneTitle
