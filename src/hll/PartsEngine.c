@@ -2221,8 +2221,7 @@ static struct movie_context **parts_movie_get(int number)
 
 static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
 	possibly_unused int soundid, possibly_unused int soundgroup,
-	possibly_unused int red, possibly_unused int green, possibly_unused int blue,
-	possibly_unused int state)
+	int red, int green, int blue, int state)
 {
 	// Free any existing context for this number.
 	struct movie_context **slot = parts_movie_get(number);
@@ -2246,6 +2245,17 @@ static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
 	if (!mc)
 		return false;
 	*slot = mc;
+
+	// Fill the parts texture with the background color (shows when video not decoded).
+	struct parts *p = parts_try_get(number);
+	if (p && parts_state_valid(state - 1)) {
+		struct parts_common *common = &p->states[state - 1].common;
+		if (common->w > 0 && common->h > 0) {
+			SDL_Color bg = { (uint8_t)red, (uint8_t)green, (uint8_t)blue, 255 };
+			gfx_init_texture_rgba(&common->texture, common->w, common->h, bg);
+			parts_dirty(p);
+		}
+	}
 	return true;
 }
 
