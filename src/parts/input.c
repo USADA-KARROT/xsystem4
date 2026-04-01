@@ -126,19 +126,18 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 				audio_play_sound(click_target->on_click_sound);
 			clicked_parts = click_target->no;
 			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-			// type 4 = MouseClick in CPartsFunctionSet SWITCH table
-			// Bytecode SWITCH cases: 0=Enter,1=Move,2=Leave,3=Wheel,
-			//   4=Click,5=DoubleClick,6=OnCursor,...
-			parts_enqueue_message_vars(4, click_target->no,
+			// type 5 = MouseClick (CallFunctionMouseClick) in CPartsMessageManager SWITCH table
+			// (SWITCH case 5 dispatches to CPartsFunctionSet@CallFunctionMouseClick(x,y,keyCode=1))
+			parts_enqueue_message_vars(5, click_target->no,
 				click_target->delegate_index,
 				click_target->unique_id, 3, vars);
 		} else {
 			// Background click: no clickable part was hit.
-			// Enqueue type-4 whole-screen click (partsNumber=0) so
+			// Enqueue type-5 whole-screen click (partsNumber=0) so
 			// CPartsMessageManager@CallDelegate fires m_wholeFunctionSet
 			// (WholeMouseLClickEvent), which SceneContext uses for navigation.
 			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-			parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
+			parts_enqueue_message_vars(5, 0, -1, -1, 3, vars);
 			global_set(2, (union vm_value){.i = 1}, false);
 			background_click_pending = true;
 		}
