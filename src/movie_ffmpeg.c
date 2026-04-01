@@ -59,6 +59,7 @@ struct movie_context {
 
 	bool has_pending_video_frame;
 	bool black_frame_drawn;  // for audio-only mode: true after first black frame
+	int apeg_width, apeg_height;  // for audio-only APEG: original video dimensions
 	struct SwsContext *sws_ctx;
 	AVFrame *sws_frame;
 	void *sws_buf;
@@ -208,7 +209,8 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 
 // Extract the Ogg audio stream from an APEG file to a temp path.
 // Returns a malloc'd temp path on success (caller must free + unlink), or NULL.
-static char *apeg_extract_ogg(const char *apeg_path)
+// If out_w/out_h are non-NULL, filled with APEG video dimensions.
+static char *apeg_extract_ogg(const char *apeg_path, int *out_w, int *out_h)
 {
 	FILE *fp = fopen(apeg_path, "rb");
 	if (!fp)
@@ -220,6 +222,8 @@ static char *apeg_extract_ogg(const char *apeg_path)
 		return NULL;
 	}
 	uint32_t data_off = hdr[4] | (hdr[5]<<8) | (hdr[6]<<16) | (hdr[7]<<24);
+	if (out_w) *out_w = hdr[12] | (hdr[13]<<8);
+	if (out_h) *out_h = hdr[14] | (hdr[15]<<8);
 
 	// Chunks start 8 bytes after data_off (skip mystery bytes).
 	if (fseek(fp, (long)(data_off + 8), SEEK_SET) != 0) {
@@ -281,7 +285,7 @@ struct movie_context *movie_load(const char *filename)
 			uint8_t magic[4];
 			if (fread(magic, 1, 4, fp) == 4 && memcmp(magic, "APEG", 4) == 0) {
 				fclose(fp);
-				apeg_tmp = apeg_extract_ogg(path);
+				apeg_tmp = apeg_extract_ogg(path, &mc->apeg_width, &mc->apeg_height);
 				if (!apeg_tmp) {
 					WARNING("%s: APEG file but failed to extract audio", path);
 					free(path);
@@ -506,4 +510,15 @@ bool movie_set_volume(struct movie_context *mc, int volume)
 	if (mc->voice >= 0)
 		mixer_stream_set_volume(mc->voice, volume);
 	return true;
+}
+
+void movie_get_video_size(struct movie_context *mc, int *out_w, int *out_h)
+{
+	if (mc->video.ctx) {
+		if (out_w) *out_w = mc->video.ctx->width;
+		if (out_h) *out_h = mc->video.ctx->height;
+	} else {
+		if (out_w) *out_w = mc->apeg_width;
+		if (out_h) *out_h = mc->apeg_height;
+	}
 }

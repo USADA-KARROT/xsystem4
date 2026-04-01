@@ -2250,9 +2250,19 @@ static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
 	struct parts *p = parts_try_get(number);
 	if (p && parts_state_valid(state - 1)) {
 		struct parts_common *common = &p->states[state - 1].common;
-		if (common->w > 0 && common->h > 0) {
-			SDL_Color bg = { (uint8_t)red, (uint8_t)green, (uint8_t)blue, 255 };
-			gfx_init_texture_rgba(&common->texture, common->w, common->h, bg);
+		int tw = common->w, th = common->h;
+		// If parts has no size yet, use the movie's native dimensions.
+		if (tw <= 0 || th <= 0)
+			movie_get_video_size(mc, &tw, &th);
+		if (tw > 0 && th > 0) {
+			// Colors are in YCbCr; just use black (0,0,0) for simplicity.
+			SDL_Color bg = { 0, 0, 0, 255 };
+			(void)red; (void)green; (void)blue;
+			gfx_init_texture_rgba(&common->texture, tw, th, bg);
+			if (common->w <= 0) {
+				common->w = tw;
+				common->h = th;
+			}
 			parts_dirty(p);
 		}
 	}
