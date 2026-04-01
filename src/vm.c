@@ -2560,23 +2560,16 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			static int assert_count = 0;
 			struct string *file_s = heap_get_string(file);
 			struct string *expr_s = heap_get_string(expr);
-			if (assert_count++ < 10) {
+			if (assert_count++ < 3) {
 				WARNING("ASSERT FAILED: %s:%d: %s",
 					file_s ? file_s->text : "?", line,
 					expr_s ? expr_s->text : "?");
-				// Dump call stack for ASSERT failures
-				WARNING("  ASSERT call stack (top 8):");
-				for (int _ci = call_stack_ptr - 1; _ci >= 0 && _ci >= call_stack_ptr - 8; _ci--) {
-					int _fno = call_stack[_ci].fno;
-					WARNING("    [%d] fno=%d '%s' struct_page=%d",
-						_ci, _fno,
-						(_fno >= 0 && _fno < ain->nr_functions) ? ain->functions[_fno].name : "?",
-						call_stack[_ci].struct_page);
-				}
 				sys_message("Assertion failed at %s:%d: %s\n",
 						display_sjis0(file_s ? file_s->text : "?"),
 						line,
 						display_sjis1(expr_s ? expr_s->text : "?"));
+			} else if (assert_count == 4) {
+				WARNING("(suppressing further assert warnings)");
 			}
 			// v14 asserts: continue execution (non-fatal)
 		}
