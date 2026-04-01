@@ -646,7 +646,7 @@ void handle_events(void)
 	 *    Uses XSYS4_AUTO_CLICK_X/Y for position, XSYS4_AUTO_CLICK_COUNT for max. */
 	{
 		struct auto_click_step { uint32_t time_ms; int gx, gy; };
-		static struct auto_click_step seq[32];
+		static struct auto_click_step seq[256];
 		static int seq_len = 0;
 		static int seq_idx = 0;
 		static int auto_interval = -1;
@@ -658,12 +658,12 @@ void handle_events(void)
 		if (auto_interval < 0) {
 			const char *senv = getenv("XSYS4_AUTO_CLICK_SEQ");
 			if (senv && *senv) {
-				char buf[512];
+				char buf[4096];
 				strncpy(buf, senv, sizeof(buf)-1);
 				buf[sizeof(buf)-1] = 0;
 				char *saveptr;
 				char *tok = strtok_r(buf, ";", &saveptr);
-				while (tok && seq_len < 32) {
+				while (tok && seq_len < 256) {
 					int t, x, y;
 					if (sscanf(tok, "%d,%d,%d", &t, &x, &y) == 3) {
 						seq[seq_len].time_ms = t;
