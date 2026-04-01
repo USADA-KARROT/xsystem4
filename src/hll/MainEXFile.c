@@ -47,7 +47,7 @@
  * bytecode uses GBK-encoded string constants.  Converting at load time makes
  * name lookups match.
  */
-static struct string *sjis_to_gbk_string(const char *src, size_t len)
+struct string *sjis_to_gbk_string(const char *src, size_t len)
 {
 	static iconv_t cd = (iconv_t)-1;
 	if (cd == (iconv_t)-1) {
@@ -92,6 +92,31 @@ static uint32_t fnv1a(const char *s)
 	return h;
 }
 
+/*
+ * Convert a byte string between encodings using iconv.
+ * Returns a malloc'd buffer (caller frees) or NULL on failure.
+ */
+static char *iconv_convert(const char *from_enc, const char *to_enc,
+                           const char *src, size_t src_len, size_t *out_len)
+{
+	iconv_t cd = iconv_open(to_enc, from_enc);
+	if (cd == (iconv_t)-1) return NULL;
+	size_t buflen = src_len * 2 + 1;
+	char *buf = xmalloc(buflen);
+	char *inp = (char *)src;
+	char *outp = buf;
+	size_t inleft = src_len, outleft = buflen - 1;
+	size_t ret = iconv(cd, &inp, &inleft, &outp, &outleft);
+	iconv_close(cd);
+	if (ret == (size_t)-1 || inleft > 0) {
+		free(buf);
+		return NULL;
+	}
+	*out_len = (buflen - 1) - outleft;
+	buf[*out_len] = '\0';
+	return buf;
+}
+
 static struct ex_value *resolve(struct string *name)
 {
 	if (!name) return NULL;
@@ -100,6 +125,19 @@ static struct ex_value *resolve(struct string *name)
 	if (resolve_cache[idx].name[0] && !strcmp(resolve_cache[idx].name, name->text))
 		return resolve_cache[idx].value;
 	struct ex_value *v = ex_get(ex, name->text);
+	/*
+	 * .ex block names are EUC-JP but AIN queries arrive as SJIS.
+	 * If direct lookup fails, try converting SJIS→EUC-JP.
+	 */
+	if (!v && ain_is_gb18030) {
+		size_t conv_len;
+		char *conv = iconv_convert("SHIFT_JIS", "EUC-JP",
+		                           name->text, name->size, &conv_len);
+		if (conv) {
+			v = ex_get(ex, conv);
+			free(conv);
+		}
+	}
 	if (v) {
 		snprintf(resolve_cache[idx].name, sizeof(resolve_cache[idx].name), "%s", name->text);
 		resolve_cache[idx].value = v;

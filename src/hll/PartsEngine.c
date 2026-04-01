@@ -34,6 +34,7 @@
 #include "hll.h"
 
 extern void parts_update_animation(int passed_time);
+extern struct string *sjis_to_gbk_string(const char *src, size_t len);
 
 static void PartsEngine_ModuleInit(void)
 {
@@ -628,11 +629,19 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		ap->name[0] = '\0';
 		ap->number = root_no;
 	}
-	/* "ルートパーツ" in SJIS = \x83\x8b\x81\x5b\x83\x67\x83\x70\x81\x5b\x83\x63 */
+	/* "ルートパーツ" (root parts) — SJIS or GBK depending on AIN encoding */
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
 		struct activity_part *ap = &act->parts[act->nr_parts++];
-		snprintf(ap->name, sizeof(ap->name),
-			"\x83\x8b\x81\x5b\x83\x67\x83\x70\x81\x5b\x83\x63");
+		if (ain_is_gb18030) {
+			/* GBK encoding of "ルートパーツ" */
+			struct string *gbk = sjis_to_gbk_string(
+				"\x83\x8b\x81\x5b\x83\x67\x83\x70\x81\x5b\x83\x63", 12);
+			snprintf(ap->name, sizeof(ap->name), "%s", gbk->text);
+			free_string(gbk);
+		} else {
+			snprintf(ap->name, sizeof(ap->name),
+				"\x83\x8b\x81\x5b\x83\x67\x83\x70\x81\x5b\x83\x63");
+		}
 		ap->number = root_no;
 	}
 
