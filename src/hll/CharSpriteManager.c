@@ -152,20 +152,29 @@ void CharSpriteManager_Clear(void)
 
 static int extract_sjis_char(char *src, char *dst)
 {
-	if (SJIS_2BYTE(*src)) {
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = '\0';
+	unsigned char c = (unsigned char)*src;
+	if (ain_is_gb18030 && c >= 0x81 && c <= 0xFE) {
+		unsigned char c2 = (unsigned char)src[1];
+		if (c2 >= 0x30 && c2 <= 0x39) {
+			dst[0] = src[0]; dst[1] = src[1];
+			dst[2] = src[2]; dst[3] = src[3];
+			dst[4] = '\0';
+			return 4;
+		}
+		dst[0] = src[0]; dst[1] = src[1]; dst[2] = '\0';
 		return 2;
 	}
-	dst[0] = src[0];
-	dst[1] = '\0';
+	if (SJIS_2BYTE(*src)) {
+		dst[0] = src[0]; dst[1] = src[1]; dst[2] = '\0';
+		return 2;
+	}
+	dst[0] = src[0]; dst[1] = '\0';
 	return 1;
 }
 
 static void charsprite_render(struct charsprite *cs)
 {
-	char ch[3];
+	char ch[5];
 	extract_sjis_char(cs->ch->text, ch);
 
 	// XXX: this is handled here and not in gfx_render_text because of the

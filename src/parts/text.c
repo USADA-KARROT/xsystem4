@@ -23,8 +23,23 @@
 #include "xsystem4.h"
 #include "parts_internal.h"
 
-static int extract_sjis_char(const char *src, char *dst)
+static int extract_multibyte_char(const char *src, char *dst)
 {
+	unsigned char c = (unsigned char)*src;
+	if (ain_is_gb18030 && c >= 0x81 && c <= 0xFE) {
+		unsigned char c2 = (unsigned char)src[1];
+		if (c2 >= 0x30 && c2 <= 0x39) {
+			/* 4-byte GB18030 */
+			dst[0] = src[0]; dst[1] = src[1];
+			dst[2] = src[2]; dst[3] = src[3];
+			dst[4] = '\0';
+			return 4;
+		}
+		dst[0] = src[0];
+		dst[1] = src[1];
+		dst[2] = '\0';
+		return 2;
+	}
 	if (SJIS_2BYTE(*src)) {
 		dst[0] = src[0];
 		dst[1] = src[1];
@@ -81,7 +96,7 @@ static const char *parts_text_append_char(struct parts_text *t, const char *str)
 	struct parts_text_char *ch = &line->chars[line->nr_chars++];
 
 	ch->off = text_style_offset(&t->ts);
-	int len = extract_sjis_char(str, ch->ch);
+	int len = extract_multibyte_char(str, ch->ch);
 	int width = ceilf(text_style_width(&t->ts, ch->ch));
 	int height = text_style_height(&t->ts);
 	gfx_init_texture_rgba(&ch->t, width, height, (SDL_Color){0,0,0,0});

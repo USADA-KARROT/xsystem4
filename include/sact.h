@@ -94,6 +94,7 @@ int sact_SP_GetPixelValue(int sp_no, int x, int y, int *r, int *g, int *b);
 int sact_SP_SetBrightness(int sp_no, int brightness);
 int sact_SP_GetBrightness(int sp_no);
 int sact_GAME_MSG_GetNumOf(void);
+void sact_GAME_MSG_Get(int index, struct string **text);
 void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad);
 void sact_IntToHankaku(struct string **s, int value, int figures, int zero_pad);
 int sact_Mouse_GetPos(int *x, int *y);

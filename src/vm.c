@@ -142,11 +142,16 @@ static void vm_msg_wait_click(void)
 {
 	key_clear_flag(false);
 
+	uint32_t start = SDL_GetTicks();
 	while (!key_is_down(VK_LBUTTON) && !key_is_down(VK_RETURN)) {
 		handle_events();
 		vm_msg_draw_overlay();
 		gfx_swap();
 		SDL_Delay(16);
+		// Auto-advance after 500ms when msgskip is active (ctrl held)
+		// or after a longer timeout for automated testing
+		if (key_is_down(VK_CONTROL) && SDL_GetTicks() - start > 50)
+			break;
 	}
 	// Wait for release
 	while (key_is_down(VK_LBUTTON) || key_is_down(VK_RETURN)) {
@@ -1355,6 +1360,7 @@ static void function_return(void)
 	int page_slot = call_stack[call_stack_ptr-1].page_slot;
 	size_t ret_addr = call_stack[call_stack_ptr-1].return_address;
 	int fno = call_stack[call_stack_ptr-1].fno;
+
 	int base_sp = call_stack[call_stack_ptr-1].base_sp;
 
 	// v14 2-valued types (AIN_IFACE, AIN_OPTION) push 2 slots on return.
@@ -2135,13 +2141,35 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	//
 	case CALLFUNC: {
 		int _fno = get_argument(0);
-		// v14 MSG system: accumulate lines for overlay, but let game's
-		// own R/A fallback run (it manages the native message window).
-		// v14 MSG fallback: disabled for now.
-		// The overlay draws dialogue text on ALL scenes including Logo/Title
-		// where MSG shouldn't appear. The game's own R/A functions handle
-		// MSG display through the native message window system.
-		// TODO: re-enable when message window rendering is properly implemented.
+		// v14 MSG overlay: render dialogue text at screen bottom and
+		// handle click-wait at the engine level, because the native
+		// message window system has an unresolved IsEnd bug.
+		// R accumulates lines; A displays them, waits for click, then
+		// the game's own A (which has broken WaitForClick) is skipped.
+		if (ain->version >= 14 && ain->msgf < 0 && vm_msg_fn_R >= 0) {
+			if (_fno == vm_msg_fn_R) {
+				vm_msg_handle_R();
+				// Let game's R run too (it does window management)
+			} else if (_fno == vm_msg_fn_A) {
+				vm_msg_handle_A();  // display + wait for click (blocking)
+				// Skip game's A since we already waited
+				struct ain_function *_af = &ain->functions[_fno];
+				for (int _a = _af->nr_args - 1; _a >= 0; _a--) {
+					stack_pop();
+					switch (_af->vars[_a].type.data) {
+					case AIN_REF_INT: case AIN_REF_FLOAT: case AIN_REF_BOOL:
+					case AIN_REF_LONG_INT: case AIN_REF_STRING:
+					case AIN_REF_STRUCT: case AIN_REF_ARRAY_TYPE:
+					case AIN_REF_DELEGATE: case AIN_REF_HLL_PARAM:
+					case AIN_IFACE: case AIN_IFACE_WRAP: case AIN_OPTION:
+						stack_pop(); break;
+					default: break;
+					}
+				}
+				instr_ptr += instruction_width(CALLFUNC);
+				break;  // skip the game's A entirely
+			}
+		}
 		// --skip-title: bypass SceneLogo and SceneTitle
 		if (config.skip_title && _fno >= 0 && _fno < ain->nr_functions
 				&& ain->functions[_fno].name) {

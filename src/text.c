@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <iconv.h>
+
 #include "system4.h"
 #include "system4/fnl.h"
 #include "system4/hashtable.h"
@@ -162,15 +164,29 @@ static void gb18030_char2unicode(const char *s, int *out)
 {
 	unsigned char c = (unsigned char)*s;
 	if (c < 0x80) { *out = c; return; }
-	/* Simple 2-byte GB18030→Unicode: use iconv-like lookup.
-	 * For now, use a rough approximation via the byte values. */
-	if (c >= 0x81 && c <= 0xFE) {
-		unsigned char c2 = (unsigned char)s[1];
-		/* Pack as raw GB code for font lookup */
-		*out = (c << 8) | c2;
+
+	static iconv_t cd = (iconv_t)-1;
+	if (cd == (iconv_t)-1) {
+		cd = iconv_open("UTF-32LE", "GB18030");
+		if (cd == (iconv_t)-1) {
+			*out = '?';
+			return;
+		}
+	}
+
+	int bytes = gb18030_skip_char_bytes(s);
+	char *inp = (char *)s;
+	size_t inleft = bytes;
+	uint32_t unicode = 0;
+	char *outp = (char *)&unicode;
+	size_t outleft = sizeof(unicode);
+
+	iconv(cd, NULL, NULL, NULL, NULL); /* reset */
+	if (iconv(cd, &inp, &inleft, &outp, &outleft) == (size_t)-1 || outleft != 0) {
+		*out = '?';
 		return;
 	}
-	*out = c;
+	*out = (int)unicode;
 }
 
 static uint32_t char_to_code(const char *ch, enum charmap charmap)
@@ -215,7 +231,7 @@ float gfx_size_text(struct text_style *ts, const char *text)
 	while (*text) {
 		x += font_size_char(size, char_to_code(text, size->font->charmap));
 		x += edge_advance;
-		text = sjis_skip_char(text);
+		text += ain_is_gb18030 ? gb18030_skip_char_bytes(text) : (SJIS_2BYTE(*text) ? 2 : 1);
 	}
 	return x;
 }
