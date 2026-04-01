@@ -321,8 +321,7 @@ static void PE_stub_SetMessageWindowInactiveMultipleColor(possibly_unused int nu
 static int PE_stub_GetMessageWindowInactiveMultipleColorR(possibly_unused int number) { return 0; }
 static int PE_stub_GetMessageWindowInactiveMultipleColorG(possibly_unused int number) { return 0; }
 static int PE_stub_GetMessageWindowInactiveMultipleColorB(possibly_unused int number) { return 0; }
-static void PE_stub_SetMessageWindowCGName(possibly_unused int number, possibly_unused struct string * name) { }
-static struct string * PE_stub_GetMessageWindowCGName(possibly_unused int number) { return string_ref(&EMPTY_STRING); }
+/* SetMessageWindowCGName/GetMessageWindowCGName: implemented in PartsEngine.c */
 static void PE_stub_SetMessageWindowFlatName(possibly_unused int number, possibly_unused struct string * name) { }
 static void PE_stub_SetMessageWindowFlatShowWaitFrameNumber(possibly_unused int number, possibly_unused int framenumber) { }
 static int PE_stub_GetMessageWindowFlatShowWaitFrameNumber(possibly_unused int number) { return 0; }
@@ -338,14 +337,14 @@ static int PE_stub_GetKeyWaitPosX(possibly_unused int number) { return 0; }
 static int PE_stub_GetKeyWaitPosY(possibly_unused int number) { return 0; }
 static int PE_stub_GetKeyWaitPosZ(possibly_unused int number) { return 0; }
 static bool PE_stub_IsKeyWaitShow(possibly_unused int number) { return false; }
-static void PE_stub_SetMessageWindowTextArea(possibly_unused int number, possibly_unused int x, possibly_unused int y, possibly_unused int width, possibly_unused int height) { }
+/* SetMessageWindowTextArea: implemented in PartsEngine.c */
 static void PE_stub_GetMessageWindowTextArea(possibly_unused int number, possibly_unused int x, possibly_unused int y, possibly_unused int width, possibly_unused int height) { }
 static int PE_stub_GetMessageWindowTextOriginPosMode(possibly_unused int number) { return 0; }
-static void PE_stub_SetMessageWindowTextFont(possibly_unused int number, possibly_unused int type, possibly_unused int size, possibly_unused int r, possibly_unused int g, possibly_unused int b, possibly_unused float boldweight, possibly_unused int edger, possibly_unused int edgeg, possibly_unused int edgeb, possibly_unused float edgeweight) { }
+/* SetMessageWindowTextFont: implemented in PartsEngine.c */
 static void PE_stub_GetMessageWindowTextFont(possibly_unused int number, possibly_unused int type, possibly_unused int size, possibly_unused int r, possibly_unused int g, possibly_unused int b, possibly_unused int boldweight, possibly_unused int edger, possibly_unused int edgeg, possibly_unused int edgeb, possibly_unused int edgeweight) { }
 static void PE_stub_SetMessageWindowTextSpeed(possibly_unused int number, possibly_unused int speed) { }
 static int PE_stub_GetMessageWindowTextSpeed(possibly_unused int number) { return 0; }
-static void PE_stub_SetMessageWindowTextSpace(possibly_unused int number, possibly_unused int letterspace, possibly_unused int linespace) { }
+/* SetMessageWindowTextSpace: implemented in PartsEngine.c */
 static void PE_stub_GetMessageWindowTextSpace(possibly_unused int number, possibly_unused int letterspace, possibly_unused int linespace) { }
 static void PE_stub_SetMessageWindowRubyFont(possibly_unused int number, possibly_unused int type, possibly_unused int size, possibly_unused int r, possibly_unused int g, possibly_unused int b, possibly_unused float boldweight, possibly_unused int edger, possibly_unused int edgeg, possibly_unused int edgeb, possibly_unused float edgeweight) { }
 static void PE_stub_GetMessageWindowRubyFont(possibly_unused int number, possibly_unused int type, possibly_unused int size, possibly_unused int r, possibly_unused int g, possibly_unused int b, possibly_unused int boldweight, possibly_unused int edger, possibly_unused int edgeg, possibly_unused int edgeb, possibly_unused int edgeweight) { }
@@ -599,11 +598,11 @@ static bool PE_stub_Parts_BuildPartsConstructionProcessThread(possibly_unused in
 static void PE_stub_GetConstructionSurfaceArea(possibly_unused int number, possibly_unused int x, possibly_unused int y, possibly_unused int width, possibly_unused int height, possibly_unused int state) { }
 static int PE_stub_Parts_GetPartsConstructionProcessCount(possibly_unused int number, possibly_unused int state) { return 0; }
 static void PE_stub_GetPartsConstructionProcess(possibly_unused int number, possibly_unused int index, possibly_unused int arrayint, possibly_unused int arrayfloat, possibly_unused int arraystring, possibly_unused int arraypos, possibly_unused int state) { }
-static bool PE_stub_CreatePartsMovie(possibly_unused int number, possibly_unused struct string * filename, possibly_unused int soundid, possibly_unused int soundgroup, possibly_unused int red, possibly_unused int green, possibly_unused int blue, possibly_unused int state) { return false; }
-static bool PE_stub_ReleasePartsMovie(possibly_unused int number, possibly_unused int state) { return false; }
-static bool PE_stub_PlayPartsMovie(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { return false; }
+static bool PE_stub_CreatePartsMovie(possibly_unused int number, possibly_unused struct string * filename, possibly_unused int soundid, possibly_unused int soundgroup, possibly_unused int red, possibly_unused int green, possibly_unused int blue, possibly_unused int state) { return true; }
+static bool PE_stub_ReleasePartsMovie(possibly_unused int number, possibly_unused int state) { return true; }
+static bool PE_stub_PlayPartsMovie(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { return true; }
 static void PE_stub_SetMovieTime(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { }
-static bool PE_stub_IsEndPartsMovie(possibly_unused int number, possibly_unused int state) { return false; }
+static bool PE_stub_IsEndPartsMovie(possibly_unused int number, possibly_unused int state) { return true; }
 static int PE_stub_GetPartsMovieEndTime(possibly_unused int number, possibly_unused int state) { return 0; }
 static int PE_stub_GetPartsMovieCurrentTime(possibly_unused int number, possibly_unused int state) { return 0; }
 static bool PE_stub_Parts_IsThreadLoading(possibly_unused int number, possibly_unused int state) { return false; }

@@ -320,8 +320,8 @@
 	static_library_register(&lib_PartsEngine, "GetMessageWindowInactiveMultipleColorR", PE_stub_GetMessageWindowInactiveMultipleColorR);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowInactiveMultipleColorG", PE_stub_GetMessageWindowInactiveMultipleColorG);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowInactiveMultipleColorB", PE_stub_GetMessageWindowInactiveMultipleColorB);
-	static_library_register(&lib_PartsEngine, "SetMessageWindowCGName", PE_stub_SetMessageWindowCGName);
-	static_library_register(&lib_PartsEngine, "GetMessageWindowCGName", PE_stub_GetMessageWindowCGName);
+	static_library_register(&lib_PartsEngine, "SetMessageWindowCGName", PE_SetMessageWindowCGName);
+	static_library_register(&lib_PartsEngine, "GetMessageWindowCGName", PE_GetMessageWindowCGName);
 	static_library_register(&lib_PartsEngine, "SetMessageWindowFlatName", PE_stub_SetMessageWindowFlatName);
 	static_library_register(&lib_PartsEngine, "SetMessageWindowFlatShowWaitFrameNumber", PE_stub_SetMessageWindowFlatShowWaitFrameNumber);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowFlatShowWaitFrameNumber", PE_stub_GetMessageWindowFlatShowWaitFrameNumber);
@@ -337,14 +337,14 @@
 	static_library_register(&lib_PartsEngine, "GetKeyWaitPosY", PE_stub_GetKeyWaitPosY);
 	static_library_register(&lib_PartsEngine, "GetKeyWaitPosZ", PE_stub_GetKeyWaitPosZ);
 	static_library_register(&lib_PartsEngine, "IsKeyWaitShow", PE_stub_IsKeyWaitShow);
-	static_library_register(&lib_PartsEngine, "SetMessageWindowTextArea", PE_stub_SetMessageWindowTextArea);
+	static_library_register(&lib_PartsEngine, "SetMessageWindowTextArea", PE_SetMessageWindowTextArea);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowTextArea", PE_stub_GetMessageWindowTextArea);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowTextOriginPosMode", PE_stub_GetMessageWindowTextOriginPosMode);
-	static_library_register(&lib_PartsEngine, "SetMessageWindowTextFont", PE_stub_SetMessageWindowTextFont);
+	static_library_register(&lib_PartsEngine, "SetMessageWindowTextFont", PE_SetMessageWindowTextFont);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowTextFont", PE_stub_GetMessageWindowTextFont);
 	static_library_register(&lib_PartsEngine, "SetMessageWindowTextSpeed", PE_stub_SetMessageWindowTextSpeed);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowTextSpeed", PE_stub_GetMessageWindowTextSpeed);
-	static_library_register(&lib_PartsEngine, "SetMessageWindowTextSpace", PE_stub_SetMessageWindowTextSpace);
+	static_library_register(&lib_PartsEngine, "SetMessageWindowTextSpace", PE_SetMessageWindowTextSpace);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowTextSpace", PE_stub_GetMessageWindowTextSpace);
 	static_library_register(&lib_PartsEngine, "SetMessageWindowRubyFont", PE_stub_SetMessageWindowRubyFont);
 	static_library_register(&lib_PartsEngine, "GetMessageWindowRubyFont", PE_stub_GetMessageWindowRubyFont);

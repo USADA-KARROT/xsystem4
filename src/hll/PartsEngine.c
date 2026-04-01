@@ -2054,6 +2054,44 @@ static void PE_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
 	// Text origin position mode (e.g. left/center). Stub for now.
 }
 
+static void PE_SetMessageWindowCGName(int parts_no, struct string *name)
+{
+	// Load CG as background for message window (state 1 = DEFAULT, 1-based)
+	PE_SetPartsCG(parts_no, name, 0, 1);
+}
+
+static struct string *PE_GetMessageWindowCGName(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return string_ref(&EMPTY_STRING);
+	struct parts_cg *cg = parts_get_cg(parts, PARTS_STATE_DEFAULT);
+	if (cg && cg->name)
+		return string_ref(cg->name);
+	return string_ref(&EMPTY_STRING);
+}
+
+static void PE_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h)
+{
+	// Set text surface area on DEFAULT state (1-based)
+	PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, 1);
+}
+
+static void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
+	int r, int g, int b, float bold_weight,
+	int edge_r, int edge_g, int edge_b, float edge_weight)
+{
+	// Set font on DEFAULT state (1-based)
+	PE_SetFont(parts_no, type, size, r, g, b, bold_weight,
+		edge_r, edge_g, edge_b, edge_weight, 1);
+}
+
+static void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space)
+{
+	// Set line spacing on DEFAULT state (1-based)
+	PE_SetTextLineSpace(parts_no, line_space, 1);
+}
+
 static void PE_SetKeyWaitShow(int parts_no, bool show)
 {
 	// Show/hide key-wait indicator. Stub for now.
