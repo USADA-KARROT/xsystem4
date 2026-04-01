@@ -141,6 +141,8 @@ static const char GBK_BUTTON[]      = "\xa5\xdc\xa5\xbf\xa5\xf3"; /* ボタン (
 static const char GBK_CN_BUTTON[]   = "\xb0\xb4\xe2\x6f";         /* 按鈕 (GBK Chinese) */
 static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
 static const char GBK_CN_PANEL[]    = "\xb5\xcd\xb5\xc8\xbc\x89"; /* 低等級 (GBK CN panel type) */
+static const char GBK_CG_DETECT[]   = "\xa3\xc3\xa3\xc7\xc5\xd0\xb6\xa8\xb2\xbf\xbc\xfe"; /* ＣＧ判定部件 (GBK CG detection parts) */
+static const char SJIS_CG_DETECT[]  = "\x82\x62\x82\x66\x94\xbb\x92\xe8\x83\x70\x81\x5b\x83\x63"; /* ＣＧ判定パーツ (SJIS) */
 
 /* --- Pactex tree parser --- */
 
@@ -494,6 +496,15 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		int sa_x, sa_y, sa_w, sa_h;
 		if (pactex_get_surface_area(state, &sa_x, &sa_y, &sa_w, &sa_h, 0))
 			PE_SetPartsCGSurfaceArea(parts_no, sa_x, sa_y, sa_w, sa_h, pe_state);
+
+		/* ＣＧ判定部件 (CG Detection Parts) in normal state → mark as clickable button */
+		if (pe_state == 1) {
+			const char *stype = pactex_get_string(state, SJIS_PARTS_TYPE);
+			if (!stype) stype = pactex_get_string(state, GBK_PARTS_TYPE);
+			if (stype && (strstr(stype, GBK_CG_DETECT) || strstr(stype, SJIS_CG_DETECT))) {
+				PE_SetClickable(parts_no, true);
+			}
+		}
 
 		state_idx++;
 	}
@@ -984,13 +995,15 @@ static int PartsEngine_AddController(int index)
 {
 	if (controllers.count >= MAX_CONTROLLERS) return -1;
 	int id = controllers.next_id++;
-	/* Insert at position 'index' (clamped) */
-	if (index < 0) index = 0;
+	/* Insert at position 'index' (clamped). -1 or beyond count → append at end */
+	if (index < 0) index = controllers.count;
 	if (index > controllers.count) index = controllers.count;
 	for (int i = controllers.count; i > index; i--)
 		controllers.ids[i] = controllers.ids[i-1];
 	controllers.ids[index] = id;
 	controllers.count++;
+	/* New layer becomes the active layer (scene stack: newest = active) */
+	controllers.active = id;
 	return id;
 }
 
@@ -998,11 +1011,16 @@ static void PartsEngine_RemoveController(int erase_list, int index)
 {
 	/* Find controller by index and remove it */
 	if (index < 0 || index >= controllers.count) return;
+	int removed_id = controllers.ids[index];
 	for (int i = index; i < controllers.count - 1; i++)
 		controllers.ids[i] = controllers.ids[i+1];
 	controllers.count--;
-	if (controllers.active >= controllers.count)
-		controllers.active = controllers.count - 1;
+	/* If active was this layer, make the new top layer active (ID-based, not index) */
+	if (controllers.active == removed_id) {
+		controllers.active = (controllers.count > 0)
+			? controllers.ids[controllers.count - 1]
+			: -1;
+	}
 }
 
 static void PartsEngine_MoveController(int id, int new_index) {

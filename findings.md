@@ -3,6 +3,11 @@
 ## Session Summary (2026-04-01)
 
 ### Key Commits Today
+- `a3eabb4` Fix #238: mouse_set_pos override for headless auto-click
+  - Root cause: SDL_WarpMouseInWindow doesn't update SDL_GetMouseState in unfocused windows
+  - Effect: auto-click now correctly sets position; first click at (70,695) advances SceneAzito → RunTurnStart
+
+
 - `173d8a2` Fix #236: stop double-converting CN .ex strings — BIG FIX
   - Root cause: `load_ex_file` applied sjis_to_gbk_string to CN .ex (already GBK), garbling all block names
   - Effect: EX_String lookups now work, GameCallback executes, PlayerCollection initializes
@@ -22,22 +27,20 @@
 - Game reaches TV scene after Schedule click
 - AdvMessageWindow, AdvCaption etc. activity files all load in TV scene
 
-### Where we stopped (WaitForClick blocker)
-- TV scene loads AdvMessageWindow_main (NEXT button at parts#900015)
-- NEXT button hitbox = (1263,653,44,44) — right edge of 1280px screen
-- parts::detail::WaitForClick only exits when GetClickPartsNumber()>0
-- Tried clicking (1285,675) but no progress — possible hitbox coordinate issue
-- 9 clickable parts exist; none hit at tested positions
+### Current state
+- Game flow: skip-title → RunTurnStart (ADV text, rapid bg-clicks to advance) → RunHome/SceneAzito (WaitForClick needs PARTS click)
+- ADV text system works: Chinese text renders, CASClick detects bg click via global[2]=g_EndPartsBusyLoop
+- global[2] = parts::detail::g_EndPartsBusyLoop (confirmed from AIN globals dump)
+- Background click exits RunTurnStart WaitForClick (text-view CASClick) but NOT SceneAzito WaitForClick (nested WaitForClick race)
+- SceneAzito WaitForClick needs PARTS click on Schedule button
+- ADV scene parts (in screen bounds): parts#900013 at (1200,558), parts#900015 NEXT at (1263,653)
+- ❌ SceneAzito Schedule button position unknown — need to dump azito parts (after RunTurnStart clears)
+- ❌ APEG video codec not implemented — TV/video scenes show blank white screen
+- PlayerCollection@Get assert fires (n === null) — player lookup failure, non-fatal
 
-### Next steps to try
-1. Click center of hitbox: (1263+22, 653+22) = (1285, 675) ← tried, failed
-2. Try clicking exactly (1265, 655) — top-left of hitbox
-3. Check if AdvMessageWindow is hidden (alpha=0 or show=false) during TV scene
-4. Check if AdvMessageWindow NEXT is a different parts number during TV scene vs ADV scene
-
-### Test command
+### Test command (working)
 ```bash
-XSYS4_AUTO_CLICK_SEQ="16000,70,695;19500,1285,675" \
+XSYS4_AUTO_CLICK_SEQ="16000,70,695;19000,640,360;22000,640,360;..." \
 SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
   --skip-title "$HOME/Downloads/多娜多娜 一起幹壞事吧"
 ```

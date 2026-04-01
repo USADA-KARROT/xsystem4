@@ -134,6 +134,11 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 				click_target->unique_id, 3, vars);
 		} else {
 			// Background click: no clickable part was hit.
+			// Enqueue type-4 whole-screen click (partsNumber=0) so
+			// CPartsMessageManager@CallDelegate fires m_wholeFunctionSet
+			// (WholeMouseLClickEvent), which SceneContext uses for navigation.
+			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
+			parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
 			global_set(2, (union vm_value){.i = 1}, false);
 			background_click_pending = true;
 		}
