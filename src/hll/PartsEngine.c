@@ -1643,7 +1643,6 @@ static int PartsEngine_GetDelegateIndex(int number) { return PE_GetDelegateIndex
 
 static void PartsEngine_SetEventID(int number, int delegate_index, int unique_id)
 {
-	static int _eid_log = 0;
 	PE_SetDelegateIndex(number, delegate_index);
 	struct parts *p = parts_try_get(number);
 	if (p) p->unique_id = unique_id;

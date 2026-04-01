@@ -217,22 +217,9 @@ static bool MainEXFile_Load(int image_slot)
 static int MainEXFile_Row(struct string *name, int id)
 {
 	struct ex_table *t = resolve_table(name);
-	if (t) {
-		static int row_trace = 0;
-		if (row_trace++ < 20)
-			WARNING("MainEXFile.Row('%s') = %d (table)", display_utf0(name->text), t->nr_rows);
-		return t->nr_rows;
-	}
+	if (t) return t->nr_rows;
 	struct ex_list *list = resolve_list(name);
-	if (list) {
-		static int row_trace2 = 0;
-		if (row_trace2++ < 20)
-			WARNING("MainEXFile.Row('%s') = %d (list)", display_utf0(name->text), list->nr_items);
-		return list->nr_items;
-	}
-	static int row_trace3 = 0;
-	if (row_trace3++ < 20)
-		WARNING("MainEXFile.Row('%s') = 0 (NOT FOUND)", display_utf0(name->text));
+	if (list) return list->nr_items;
 	return 0;
 }
 
@@ -457,14 +444,7 @@ static int MainEXFile_GetRowAtStringKey(struct string *name, struct string *key,
 	if (!key) return -1;
 	struct ex_table *t = resolve_table(name);
 	if (t) {
-		int row = ex_row_at_string_key(t, key->text);
-		if (row < 0) {
-			static int rask_miss = 0;
-			if (rask_miss++ < 20)
-				WARNING("MainEXFile.GetRowAtStringKey('%s', '%s') = NOT FOUND",
-					display_utf0(name->text), display_utf1(key->text));
-		}
-		return row;
+		return ex_row_at_string_key(t, key->text);
 	}
 	struct ex_list *list = resolve_list(name);
 	if (!list) return -1;
