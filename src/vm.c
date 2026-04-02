@@ -2260,20 +2260,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				saved_args[i] = stack_pop();
 			}
 			int funcno = stack_pop().i;
-			// v14.1+: resolve vtable index through vmethods[].
-			{
-				int sp_peek = stack_peek(0).i;
-				if (sp_peek > 0 && heap_index_valid(sp_peek)
-				    && heap[sp_peek].type == VM_PAGE && heap[sp_peek].page) {
-					int sidx = heap[sp_peek].page->index;
-					if (sidx >= 0 && sidx < ain->nr_structures) {
-						struct ain_struct *vs = &ain->structures[sidx];
-						if (vs->vmethods && funcno >= 0 && funcno < vs->nr_vmethods) {
-							funcno = vs->vmethods[funcno];
-						}
-					}
-				}
-			}
+			// v14: bytecode already resolves vtable dispatch via
+			// X_REF/ADD instructions before CALLMETHOD. No VM-level
+			// vtable lookup needed — doing it here would double-dispatch.
 			// Handle nargs vs function's nr_args mismatch
 			if (funcno >= 0 && funcno < ain->nr_functions) {
 				// Skip sentinel functions (address == code_size or 0xFFFFFFFF).
@@ -4203,13 +4192,22 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			   && page->index >= 0 && page->index < ain->nr_structures
 			   && n > 0 && var_idx >= page->nr_vars) {
 			// v14 virtual method table lookup.
+			// var_idx >= nr_vars means it's an interface method call.
+			// method_idx is relative to the struct's own fields:
+			//   method_idx = var_idx - nr_vars
+			// Note: page->values[0].i is the vtable ARRAY heap ref (a large
+			// heap index), NOT a vtbase offset — do not subtract it.
 			struct ain_struct *s = &ain->structures[page->index];
-			int m0 = (page->nr_vars > 0) ? page->values[0].i : 0;
-			int method_idx = var_idx - m0;
+			int method_idx = var_idx - page->nr_vars;
 			if (s->nr_vmethods > 0 && method_idx >= 0
 			    && method_idx + n <= s->nr_vmethods) {
 				for (int i = 0; i < n; i++)
 					stack_push((union vm_value){.i = s->vmethods[method_idx + i]});
+			} else if (s->nr_vmethods > 0 && var_idx >= 0
+				   && var_idx + n <= s->nr_vmethods) {
+				// Fallback: var_idx directly as vmethods index
+				for (int i = 0; i < n; i++)
+					stack_push((union vm_value){.i = s->vmethods[var_idx + i]});
 			} else {
 				for (int i = 0; i < n; i++)
 					stack_push(0);
