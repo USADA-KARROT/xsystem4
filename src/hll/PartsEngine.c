@@ -1836,8 +1836,9 @@ static void PartsEngine_ReleaseMessage(void)
 // in nested UpdateMessage calls (e.g., inside Motion::Join's WaitForClick loop).
 static int PartsEngine_GetMessageType(void)
 {
-	if (msg_head != msg_tail)
+	if (msg_head != msg_tail) {
 		return msg_queue[msg_head].type;
+	}
 	return -1;
 }
 // After PopMessage, data is in msg_current (head already advanced).

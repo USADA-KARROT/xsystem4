@@ -107,6 +107,8 @@ void PE_UpdateInputState(possibly_unused int passed_time)
 	// PE_EndInput before UP arrives. So per-button click detection
 	// must happen on DOWN to set clicked_parts and enqueue messages
 	// before WaitForClick can exit.
+	if (cur_clicking && !prev_clicking) {
+	}
 	if (cur_clicking && !prev_clicking && parts_began_click) {
 		struct parts *click_target = NULL;
 		PARTS_LIST_FOREACH(parts) {
