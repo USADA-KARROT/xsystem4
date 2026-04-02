@@ -892,16 +892,32 @@ static int ain_return_slots_type(struct ain_type *type)
 	}
 }
 
+// Check if a delegate argument type occupies 2 stack slots.
+// v14 interface/option/iface_wrap types (and structs with is_interface flag) are
+// 2-slot inline values [struct_page, vtable_offset] on the stack.
+static bool delegate_arg_is_2slot(struct ain_type *type)
+{
+	switch (type->data) {
+	case AIN_IFACE:
+	case AIN_OPTION:
+	case AIN_IFACE_WRAP:
+		return true;
+	case AIN_STRUCT:
+		return type->struc >= 0 && type->struc < ain->nr_structures
+		       && ain->structures[type->struc].is_interface;
+	default:
+		return false;
+	}
+}
+
 // Count total stack slots for delegate parameters.
-// AIN_REF_TYPE params are 2-slot [page_idx, var_idx] on the stack.
+// Most args are 1 slot; v14 interface/option/iface_wrap types are 2 slots.
 static int delegate_param_slots(struct ain_function_type *dg)
 {
-	// v14 delegate arguments are always 1 stack slot each, even for ref types.
-	// Ref-type args are passed as a single dereferenced value on the stack,
-	// not as [page, index] pairs. Fix #220 incorrectly counted ref types as
-	// 2 slots, which broke DG_CALLBEGIN stack layout for delegates like
-	// DG_Func<ref string, string> used by ArrayExtensions::Select.
-	return dg->nr_arguments;
+	int slots = 0;
+	for (int i = 0; i < dg->nr_arguments; i++)
+		slots += delegate_arg_is_2slot(&dg->variables[i].type) ? 2 : 1;
+	return slots;
 }
 
 // Return slot count for delegate return types.
@@ -1222,10 +1238,14 @@ static void delegate_call(int dg_no, int return_address)
 		if (heap[slot].page) {
 			int arg_slots_total = delegate_param_slots(dg);
 			int base = 2 + arg_slots_total;
-			for (int i = 0; i < dg->nr_arguments && i < heap[slot].page->nr_vars; i++) {
-				union vm_value arg = stack_peek(base - 1);
-				heap[slot].page->values[i] = vm_copy(arg, dg->variables[i].type.data);
-				base--;
+			int vi = 0; // local page variable index (may advance 2 for 2-slot args)
+			for (int i = 0; i < dg->nr_arguments && vi < heap[slot].page->nr_vars; i++) {
+				bool is2 = delegate_arg_is_2slot(&dg->variables[i].type);
+				heap[slot].page->values[vi] = stack_peek(base - 1);
+				if (is2 && vi + 1 < heap[slot].page->nr_vars)
+					heap[slot].page->values[vi + 1] = stack_peek(base - 2);
+				base -= is2 ? 2 : 1;
+				vi += is2 ? 2 : 1;
 			}
 		}
 
