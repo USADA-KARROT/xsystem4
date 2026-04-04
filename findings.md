@@ -47,11 +47,14 @@
   - 修復後 Scale/ClipWidth/位置動畫可見，Logo 位置和大小正確改變
 - ❌ SceneLogo 動畫內插值全為 0：
   - PE_SetAlpha 每幀被呼叫但 alpha 永遠是 0（應從 0→255）
-  - 所有 easing 動畫值都是 0（Scale 看起來有改變但可能是 Scale:0→1 中的 0 被套用）
-  - **根因：** EasingParam 的 Start/End float 值沒有被正確設定
-  - **下一步：** 查 `Executer@InitializeParams` 如何從 ArgStart/ArgEnd (option<ArgumentDigit>) 讀取值
-    - option 是 2-slot type，可能也有 void companion dispatch 問題
-    - 或者 `EasingArgumentAnalyzer` 解析 "0 255" 時沒有正確設定 ArgumentDigit.Value
+  - EasingParam struct dump 確認：
+    - ArgStart=[-1,0]、ArgEnd=[-1,0] → option discriminant=0(Some) 但 value=-1(null)
+    - Start=0.00、End=0.00、IntStart=0、IntEnd=0（全部未初始化）
+    - EasingType=0(Linear)
+  - **根因：** ArgumentDigit 解析正確但存入 option 時 value slot 沒有被寫入（仍為初始值 -1）
+  - **下一步：** 查 `EasingArgumentAnalyzer@AnalyzeEasing` 中 ArgStart/ArgEnd 的 option 設定路徑
+    - 可能是 `X_OP_SET` 或 option property setter 沒有正確處理 wrap<ArgumentDigit> 值
+    - 注意：t 值正確遞增（0.000→0.005→0.025...），time/span 計算正確
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
