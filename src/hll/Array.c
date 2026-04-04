@@ -54,8 +54,9 @@ static inline bool array_elem_is_struct(void) {
 	return hll_current_arg3 == 2 || hll_current_arg3 >= 0x10000;
 }
 
-// Check if current Array HLL call operates on 2-slot elements (wrap, option, iface, etc.)
-// etype==3 and etype==5 are v14 encodings for interface/option types (matches ffi.c logic).
+// Check if current Array HLL call operates on 2-slot elements (iface, option, etc.)
+// v14: hll_arg3 low bits encode element category.
+// etype==3 and etype==5 are v14 encodings for interface/option types.
 static inline bool array_elem_is_2slot(void) {
 	int etype = hll_current_arg3 & 0xFFFF;
 	return etype == 3 || etype == 5 || etype == AIN_IFACE || etype == AIN_OPTION || etype == AIN_IFACE_WRAP;
@@ -400,13 +401,7 @@ static void Array_Free(struct page **array)
 static int Array_Numof(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	int n = array ? array->nr_vars : 0;
-	// v14: for multi-slot elements (interface/option), return logical count
-	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
-	    && array->array.struct_type > 1) {
-		n = n / array->array.struct_type;
-	}
-	return n;
+	return array ? array->nr_vars : 0;
 }
 
 static int Array_Empty(struct page **self)
