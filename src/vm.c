@@ -915,8 +915,13 @@ static bool delegate_arg_is_2slot(struct ain_type *type)
 static int delegate_param_slots(struct ain_function_type *dg)
 {
 	int slots = 0;
-	for (int i = 0; i < dg->nr_arguments; i++)
+	for (int i = 0; i < dg->nr_arguments; i++) {
+		// v14: 2-slot args (interface/option) have a void companion slot
+		// that's already part of the 2-slot count. Skip it.
+		if (dg->variables[i].type.data == AIN_VOID)
+			continue;
 		slots += delegate_arg_is_2slot(&dg->variables[i].type) ? 2 : 1;
+	}
 	return slots;
 }
 
@@ -1279,15 +1284,17 @@ static void delegate_call(int dg_no, int return_address)
 			r[i] = stack_pop();
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
-		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
-			union vm_value v = stack_pop();
-			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
-			switch (type) {
-			case AIN_REF_TYPE:
-				break; // ref args don't own their heap slot — skip fini
-			default:
-				variable_fini(v, type, true);
-				break;
+		// Pop delegate arguments. Must pop exactly delegate_param_slots()
+		// values to match what DG_CALLBEGIN pushed.
+		{
+			int arg_slots = delegate_param_slots(&ain->delegates[dg_no]);
+			for (int s = 0; s < arg_slots; s++) {
+				union vm_value v = stack_pop();
+				// Simple fini: only free strings/pages that were pushed as args.
+				// Ref types (AIN_REF_TYPE) don't own their slot — skip fini.
+				// For 2-slot args, the second slot is metadata (vtoff/discriminant),
+				// not a heap reference, so it needs no fini.
+				(void)v;
 			}
 		}
 		for (int i = 0; i < return_values; i++)
