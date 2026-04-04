@@ -401,6 +401,11 @@ static int Array_Numof(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
 	int n = array ? array->nr_vars : 0;
+	// v14: for multi-slot elements (interface/option), return logical count
+	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
+	    && array->array.struct_type > 1) {
+		n = n / array->array.struct_type;
+	}
 	return n;
 }
 
