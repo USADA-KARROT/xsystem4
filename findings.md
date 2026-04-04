@@ -39,23 +39,17 @@
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）：movie::detail::Play → CreatePartsMovie → 音頻 OK，影像 codec 為 proprietary 無法解碼；GUI 下顯示黑畫面 + 正確音頻；headless 因 WaitForClick 無法到達此場景
 - ✅ Fix #248: CASTimer struct 內嵌實例共用 timer_id=1 — 改用 abs(struct_page) % 2048 讓每個實例獨立計時，SceneLogo 的 KeyOrTimeWait 現在能正確超時
 - ✅ Fix #252: X_ICAST 修復 — 介面 downcast 失敗時未回傳 -1，導致 Motion::PartsParamCollection 把 EasingParam 誤認為 TimeParam，span=0 動畫立即結束。修復後 SceneLogo 時序正確（~12s），ExecuterTask 每幀持續呼叫
-- ❌ SceneLogo 動畫視覺效果不套用：
-  - ✅ X_ICAST direct type match 已修復（sidx==target_type=615 正確匹配 EasingParam）
-  - ✅ Array.Where predicate 正確返回 result=1（EasingParam 被辨識出來）
-  - ✅ m_parts 和 m_current 都是有效的（非 -1，nr_vars=10）
-  - ✅ Time=1000, Delay=0 正確（X_ICAST 修復 TimeParam 識別）
-  - ❌ m_easingParam 陣列仍然是空的（easing_nr=0）
-  - ✅ Array.Where 返回的 source 在 Select 內 X_A_SIZE=2（正確看到 2 個 EasingParam）
-  - ✅ PushBack 在 Select 迴圈中被呼叫（ref 1-slot, arg3=0x2），元素數量在增長
-  - ❌ 但 X_SET 收到的最終 array 仍然 nr_vars=0（**所有三種** param type 都是空的）
-  - **推測根因：ArrayExtensions::Select 的 PushBack 修改的 array 和最終返回的 array 不是同一個**
-    - PushBack 透過 AIN_REF_ARRAY 寫回 heap[slot].page，寫回機制正確
-    - Select 返回 `.LOCALREF result; A_REF; RETURN`，A_REF 在 v14 直接 heap_ref + push slot（引用語義，不複製）
-    - function_return 清理 local page 時會 variable_fini(result) → heap_unref
-    - **可能原因：** PushBack 的 xrealloc 產生新 page 指標，寫回到 heap[slot].page 正確，
-      但某個中間操作（如 DG_CALL 清理、SelectNext iteration 的 stack 操作）意外覆蓋了 heap[slot].page
-    - **下一步：** 在 Select 內追蹤 result 的 heap slot 值和 page 指標在 PushBack 前後的變化
-    - 注意：CN 版函數號與 JAST 版不同，用 strstr(name) 搜尋比硬編碼函數號更可靠
+- ✅ Fix #253: delegate_param_slots + DG_CALL cleanup 修復 — Motion 動畫開始部分運作
+  - 根因：delegate_param_slots() 把 void companion slot 算作獨立 arg，導致 arg_slots=3（應為2）
+  - DG_CALLBEGIN 用 arg_slots=3 peek 錯誤的 stack 位置，完全破壞 stack layout
+  - DG_CALL cleanup 用 nr_variables（含 void）pop，數量不匹配 DG_CALLBEGIN
+  - PushBack 拿到錯誤的 array ref（struct vtable array 而非 result array）
+  - 修復後 Scale/ClipWidth/位置動畫可見，Logo 位置和大小正確改變
+- ❌ SceneLogo 動畫仍有殘留問題：
+  - 背景仍然黑色（Base Alpha 0→255 可能沒有正確套用）
+  - Light bar 沒有 X 位移（X:143→904 動畫可能沒生效）
+  - Shiravune 和 Warning 場景可能沒有顯示
+  - 需要進一步調查 IParts vtable dispatch 對 Alpha/X setter 的映射
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
