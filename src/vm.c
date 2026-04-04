@@ -4346,14 +4346,17 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case X_ICAST: {
-		// X_ICAST target_type: interface cast.
+		// X_ICAST target_type: interface cast (v14).
 		// Peek at struct page on stack, look up the interface vtable offset
 		// for target_type, push [page_index, vtable_offset].
-		// Stack: [..., page_idx] → [..., page_idx, page_idx, vtable_offset]
-		// Net: +2 (peek, push 2)
+		// On failure: set the ORIGINAL stack value to -1 (bytecode checks
+		// it after popping the two pushed values), and push [-1, 0].
+		// Stack: [..., page_idx] → [..., page_idx_or_-1, result, vtoff]
+		// Net: +2
 		int target_type = get_argument(0);
 		int32_t page_idx = stack_peek(0).i;
 		int vtoff = 0;
+		bool found = false;
 		if (heap_index_valid(page_idx) && heap[page_idx].type == VM_PAGE
 		    && heap[page_idx].page) {
 			struct page *p = heap[page_idx].page;
@@ -4363,12 +4366,18 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				for (int i = 0; i < s->nr_interfaces; i++) {
 					if (s->interfaces[i].struct_type == target_type) {
 						vtoff = s->interfaces[i].vtable_offset;
+						found = true;
 						break;
 					}
 				}
 			}
 		}
-		stack_push((union vm_value){.i = page_idx});
+		if (!found) {
+			// Cast failed: set original stack value to -1 so the caller
+			// can detect failure after popping the two pushed values
+			stack[stack_ptr - 1].i = -1;
+		}
+		stack_push((union vm_value){.i = found ? page_idx : -1});
 		stack_push((union vm_value){.i = vtoff});
 		break;
 	}
