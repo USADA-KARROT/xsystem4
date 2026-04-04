@@ -922,8 +922,7 @@ static bool PartsEngine_IsExistActivityPartsByNumber(struct string *name, int nu
 static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string *parts_name)
 {
 	int idx = find_activity(name);
-	if (idx < 0)
-		return -1;
+	if (idx < 0) { WARNING("GetActivityPartsNumber: act='%s' NOT FOUND (looking for '%s')", name->text, parts_name->text); return -1; }
 	struct activity *act = &activities[idx];
 
 	/* If parts_name is empty, return the root (sentinel entry) */
@@ -938,10 +937,12 @@ static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string
 
 	/* Try exact name match */
 	for (int i = 0; i < act->nr_parts; i++) {
-		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text))
+		if (act->parts[i].name[0] && !strcmp(act->parts[i].name, parts_name->text)) {
 			return act->parts[i].number;
+		}
 	}
 
+	WARNING("GetActivityPartsNumber: act='%s' parts='%s' NOT FOUND", name->text, parts_name->text);
 	return -1;
 }
 
@@ -1112,6 +1113,7 @@ static int PartsEngine_GetComponentType(int number, int state)
 		p = parts_get(number);
 		return p->component_type;  // 0 = default
 	}
+	WARNING("GetComponentType: parts %d not found (state=%d) - caller may have wrong parts number from vtable dispatch", number, state);
 	return -1;
 }
 

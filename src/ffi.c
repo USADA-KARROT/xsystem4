@@ -544,6 +544,16 @@ void hll_call(int libno, int fno, int hll_arg3)
 							found = true;
 							break;
 						}
+						// v14: wrap<array<T>> initialized with inner slot = -1.
+						// Allocate a new array slot and store it in the wrap.
+						if (ms <= 0 && sp->index == -1) {
+							int new_slot = heap_alloc_slot(VM_PAGE);
+							heap[new_slot].page = NULL;
+							sp->values[m].i = new_slot;
+							array_slot = new_slot;
+							found = true;
+							break;
+						}
 					}
 					if (found)
 						break;

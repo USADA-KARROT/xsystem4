@@ -38,7 +38,8 @@
 - ✅ APEG audio playback + black frame (Fix #241/#242): extract Ogg from SOND chunk → FFmpeg audio-only decode; PartsMovie functions wait for audio completion; TV shows black frame (pixel codec proprietary/unknown)
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）：movie::detail::Play → CreatePartsMovie → 音頻 OK，影像 codec 為 proprietary 無法解碼；GUI 下顯示黑畫面 + 正確音頻；headless 因 WaitForClick 無法到達此場景
 - ✅ Fix #248: CASTimer struct 內嵌實例共用 timer_id=1 — 改用 abs(struct_page) % 2048 讓每個實例獨立計時，SceneLogo 的 KeyOrTimeWait 現在能正確超時
-- ❌ SceneLogo 動畫/警告標語：Fix #248 後待驗證是否完全正常
+- ✅ Fix #252: X_ICAST 修復 — 介面 downcast 失敗時未回傳 -1，導致 Motion::PartsParamCollection 把 EasingParam 誤認為 TimeParam，span=0 動畫立即結束。修復後 SceneLogo 時序正確（~12s），ExecuterTask 每幀持續呼叫
+- ❌ SceneLogo 動畫視覺效果不套用：ExecuterTask@Update 正確每幀觸發，但 IParts 屬性設定（Alpha/X/Scale/ClipWidth）未到達 PE_SetAlpha 等 C 函數。可能是 Executer@SetPartsValue 的 IParts vtable dispatch 或 m_parts.IsValid() 檢查失敗
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
@@ -58,3 +59,46 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 - Each chunk: tag(4) + body_size(4) + body[body_size], first 4 body bytes = timestamp_ms
 - Op.apeg: 1280x720, 30fps, 102.6s, 3078 frames (208 I + 892 P + 1978 B)
 - Pixel codec: proprietary, not standard MPEG DCT
+
+### Session 2026-04-02 調查進度（未完成）
+
+#### SceneLogo Motion 動畫問題調查
+
+**症狀（headless 截圖確認）：**
+- t=2s, 4s, 6s：全部顯示相同靜態畫面（黑底 + ALICESOFT logo 偏右 + 左側黃色縱條）
+- t=8s：已進入 SceneTitle
+- 正常應為 ~18s（KotW 2000+5000+5000 + Motion::Join 時間）
+- 實際只跑 ~7s → 等同 KotW(2000)+KotW(5000) 剛好 7s
+
+**視覺問題根因假設：**
+- `Base` parts alpha=0（白背景不顯示）= Motion 初始狀態設定生效但沒有動畫更新
+- `Light` parts 停在 X=143（左端）= 初始位置，動畫未執行
+- `Alicesoft`/`Logo` parts 靜止可見 = ClipWidth/Scale 未實作或初始值不影響顯示
+
+**時序問題根因假設：**
+- Motion::Create → Motion::Executer@Start → CreateTask 返回 false → m_isFinish=true 立即
+- Motion::Join("Logo") 完成後，m_motions 裡的 motions 全都是 isFinish=true
+- IsEndWaitSection 立即返回 true → Motion::Join 在 1 frame (~16ms) 內完成
+- KotW(2000) 正確等 2000ms，KotW(5000) 正確等 5000ms
+- **但第三個 KotW(5000) 沒有執行** → 這意味著只有 2 個 KotW 被跑完
+
+**尚未釐清的問題：**
+- CreateTask 為什麼失敗：可能是 Motion::ParsedObjectCache 解析字串失敗，m_params 為空
+- 第三個 KotW(5000) 是否真的沒執行，還是有其他提早退出的原因
+- 視覺上，如果 motions 瞬間完成（end=true, progress=1.0），最終狀態應被套用（Base alpha=255），但實際顯示仍是黑底 → 說明 OnUpdate 從未被呼叫，或套用的 parts property 未影響渲染
+
+**已確認的更新鏈（正確）：**
+- WaitForClick → AFL_View_Update → view::detail::View_Update → SystemService.UpdateView（C）+ parts::detail::Update → CallBeginUpdateEvent → ExecuterTask@Update
+- ExecuterTask 使用 RCASTimer（純 bytecode）累積時間
+- RCASTimer 透過 AFL_Parts_AddEndUpdateEvent 在每 frame 累積 passedTime
+
+**下一步（待執行）：**
+1. 確認 Motion::ParsedObjectCache 是否正確解析 "Section:Logo[Alpha:0 255|Time:1000]"
+2. 確認 CreateTask 路徑（m_params 是否空）
+3. 若 CreateTask 失敗 → 找 ParsedObjectCache::Get 實作 (bytecode fno 27160)，看解析哪一步出錯
+4. 另一條路：直接在 C 側確認 parts alpha/X 設定是否生效（IParts 的 SetAlpha 等 HLL 方法是否對應正確實作）
+
+### Fix df2257f (2026-04-01)
+- ✅ heap_get_page WARNINGs 27050/27049/27120/27121/27114/27115 修復
+  - 根因：delegate_call 的 delegate_param_slots() 對 Motion::IArgument (is_interface struct) 計 1 slot，但呼叫方 push 了 2 slots，導致 lambda ARG 0 收到 dg_page 而非 interface value
+  - 修法：加 delegate_arg_is_2slot()，對 AIN_IFACE/OPTION/IFACE_WRAP 或 is_interface struct 計 2 slots；delegate_call 迴圈用 vi 獨立追蹤 local var index

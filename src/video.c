@@ -540,7 +540,7 @@ void gfx_swap(void)
 	// Auto-screenshot at multiple timepoints
 	{
 		static int shot_count = 0;
-		static uint32_t next_shot = 15000;
+		static uint32_t next_shot = 2000;
 		if (shot_count < 40 && SDL_GetTicks() > next_shot) {
 			char path[64];
 			snprintf(path, sizeof(path), "/tmp/xsys4_t%d.png", shot_count);

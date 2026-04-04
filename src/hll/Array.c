@@ -55,9 +55,10 @@ static inline bool array_elem_is_struct(void) {
 }
 
 // Check if current Array HLL call operates on 2-slot elements (wrap, option, iface, etc.)
+// etype==3 and etype==5 are v14 encodings for interface/option types (matches ffi.c logic).
 static inline bool array_elem_is_2slot(void) {
 	int etype = hll_current_arg3 & 0xFFFF;
-	return etype == AIN_IFACE || etype == AIN_OPTION || etype == AIN_IFACE_WRAP;
+	return etype == 3 || etype == 5 || etype == AIN_IFACE || etype == AIN_OPTION || etype == AIN_IFACE_WRAP;
 }
 
 // Alloc: allocate/resize an array.
@@ -118,7 +119,6 @@ static void Array_PushBack(struct page **array, int value)
 	if (!array)
 		return;
 	struct page *a = *array;
-	(void)0;
 	int old_size = a ? a->nr_vars : 0;
 	bool is_2slot = array_elem_is_2slot();
 	int slots = is_2slot ? 2 : 1;
@@ -153,7 +153,12 @@ static void Array_PushBack(struct page **array, int value)
 			heap_ref(value);
 		*array = a;
 	} else {
-		struct page *new_a = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
+		// For 2-slot interface/option elements, set AIN_ARRAY type and struct_type=2
+		// so X_A_SIZE correctly divides nr_vars by stride to get logical element count.
+		int a_type = is_2slot ? AIN_ARRAY : AIN_ARRAY_INT;
+		struct page *new_a = alloc_page(ARRAY_PAGE, a_type, new_size);
+		if (is_2slot)
+			new_a->array.struct_type = 2;
 		new_a->values[0].i = value;
 		if (is_2slot)
 			new_a->values[1].i = hll_param_slot2;
@@ -237,17 +242,23 @@ static int Array_Where(struct page **array, int func)
 	}
 
 	struct ain_function *cb = &ain->functions[func];
+	bool is_2slot = array_elem_is_2slot();
+	int stride = is_2slot ? 2 : 1;
 
-	// Collect matching elements by calling the predicate function for each
-	int *matches = malloc(src->nr_vars * sizeof(int));
-	int match_count = 0;
+	// Collect matching elements by calling the predicate function for each.
+	// For 2-slot elements (interface/option), matches stores interleaved [page_idx, vtoff] pairs.
+	union vm_value *matches = malloc(src->nr_vars * sizeof(union vm_value));
+	int match_count = 0;  // number of matched elements (not slots)
 
-	for (int i = 0; i < src->nr_vars; i++) {
+	for (int i = 0; i < src->nr_vars; i += stride) {
 		int saved_sp = stack_ptr;
 
-		// Push args on stack (they stay for the bytecode to consume via nopop)
-		if (cb->nr_args >= 2) {
-			// Ref parameter: push element value (struct heap slot) and 0
+		if (is_2slot) {
+			// 2-slot interface element: push [page_idx, vtoff]
+			stack_push(src->values[i]);
+			stack_push(src->values[i + 1]);
+		} else if (cb->nr_args >= 2) {
+			// Ref/struct parameter: push element value and 0
 			stack_push(src->values[i]);
 			stack_push(0);
 		} else {
@@ -259,17 +270,27 @@ static int Array_Where(struct page **array, int func)
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
 		if (result) {
-			matches[match_count++] = src->values[i].i;
+			matches[match_count * stride] = src->values[i];
+			if (is_2slot)
+				matches[match_count * stride + 1] = src->values[i + 1];
+			match_count++;
 		}
 	}
 
-	// Build result array
-	struct page *result_page = alloc_page(ARRAY_PAGE, src->a_type, match_count);
+	// Build result array: preserve a_type and struct_type for X_A_SIZE correctness.
+	// For 2-slot elements, force AIN_ARRAY type and struct_type=stride so X_A_SIZE
+	// returns the logical element count (nr_vars / stride) not the raw slot count.
+	int result_slots = match_count * stride;
+	int result_a_type = is_2slot ? AIN_ARRAY : src->a_type;
+	struct page *result_page = alloc_page(ARRAY_PAGE, result_a_type, result_slots);
 	result_page->array.rank = 1;
+	result_page->array.struct_type = is_2slot ? stride : src->array.struct_type;
 	for (int i = 0; i < match_count; i++) {
-		result_page->values[i].i = matches[i];
-		if (array_elem_is_ref() && matches[i] > 0)
-			heap_ref(matches[i]);
+		result_page->values[i * stride] = matches[i * stride];
+		if (is_2slot)
+			result_page->values[i * stride + 1] = matches[i * stride + 1];
+		if (array_elem_is_ref() && matches[i * stride].i > 0)
+			heap_ref(matches[i * stride].i);
 	}
 	free(matches);
 
@@ -397,6 +418,7 @@ static int Array_At(struct page **self, int index)
 {
 	struct page *array = (self && *self) ? *self : NULL;
 	if (!array || index < 0 || index >= array->nr_vars) {
+		(void)0;
 		if (!array_elem_is_ref()) {
 			stack_push(-1);
 			stack_push(0);

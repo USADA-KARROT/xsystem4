@@ -4362,12 +4362,20 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			struct page *p = heap[page_idx].page;
 			int sidx = p->index;
 			if (sidx >= 0 && sidx < ain->nr_structures) {
-				struct ain_struct *s = &ain->structures[sidx];
-				for (int i = 0; i < s->nr_interfaces; i++) {
-					if (s->interfaces[i].struct_type == target_type) {
-						vtoff = s->interfaces[i].vtable_offset;
-						found = true;
-						break;
+				// Direct type match: struct IS the target type
+				if (sidx == target_type) {
+					found = true;
+					vtoff = 0;
+				}
+				// Interface check: struct implements target interface
+				if (!found) {
+					struct ain_struct *s = &ain->structures[sidx];
+					for (int i = 0; i < s->nr_interfaces; i++) {
+						if (s->interfaces[i].struct_type == target_type) {
+							vtoff = s->interfaces[i].vtable_offset;
+							found = true;
+							break;
+						}
 					}
 				}
 			}

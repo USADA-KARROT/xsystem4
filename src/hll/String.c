@@ -154,19 +154,20 @@ static bool String_EndsWith(struct string **self, struct string *suffix)
 // Forward declaration for SearchAll (used by Search and Match)
 static bool String_SearchAll(struct string **self, int ml_slot, struct string *regex);
 
-// [14] bool Search(ref string self, wrap<array<array<string>>> matchList, string regex)
+// [14] bool Search(ref string self, wrap<array<string>> matchList, string regex)
 // v14: AIN_WRAP — matchList is 1-slot heap index.
 static bool String_Search(struct string **self, int ml_slot, struct string *regex)
 {
 	return String_SearchAll(self, ml_slot, regex);
 }
 
-// [15] bool Search(ref string self, ref array<array<string>> matchList, string regex)
-// [16] bool SearchAll(ref string self, wrap<array<array<string>>> matchList, string regex)
+// [15] bool Search(ref string self, ref array<string> matchList, string regex)
+// [16] bool SearchAll(ref string self, wrap<array<string>> matchList, string regex)
 //
+// AIN library signature: wrap<array<string>> matchList (flat string array).
 // The game uses regex: ([^\[\]]+?)+|\[[^\]]+?\]
 // This is a bracket tokenizer: match [bracketed] tokens and non-bracket text.
-// v14: AIN_WRAP — matchList is 1-slot heap index.
+// v14: ml_slot is either a wrap STRUCT_PAGE slot or a direct ARRAY_PAGE slot.
 static bool String_SearchAll(struct string **self, int ml_slot, struct string *regex)
 {
 	struct string *s = SELF_STR(self);
@@ -201,9 +202,9 @@ static bool String_SearchAll(struct string **self, int ml_slot, struct string *r
 	if (count == 0)
 		return false;
 
-	// Build outer array (array<array<string>>)
-	struct page *outer = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRUCT, count);
-	outer->array.rank = 1;
+	// Build flat array<string> of tokens (matches AIN signature: wrap<array<string>>)
+	struct page *flat = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRING, count);
+	flat->array.rank = 1;
 
 	int idx = 0;
 	i = 0;
@@ -230,20 +231,28 @@ static bool String_SearchAll(struct string **self, int ml_slot, struct string *r
 		}
 
 		if (end > start) {
-			struct page *inner = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRING, 1);
-			inner->array.rank = 1;
 			struct string *token = make_string(text + start, end - start);
-			inner->values[0].i = heap_alloc_string(token);
-
-			int inner_slot = heap_alloc_slot(VM_PAGE);
-			heap_set_page(inner_slot, inner);
-			outer->values[idx].i = inner_slot;
+			flat->values[idx].i = heap_alloc_string(token);
 			idx++;
 		}
 	}
 
-	// Write outer array to wrap slot
-	wrap_set_slot(ml_slot, 0, heap_alloc_page(outer));
+	// Write flat array back to ml_slot.
+	// ml_slot may be a wrap STRUCT_PAGE (values[0] = inner array slot)
+	// OR a direct ARRAY_PAGE heap slot (local array<string> variable).
+	if (ml_slot > 0 && (size_t)ml_slot < heap_size
+	    && heap[ml_slot].type == VM_PAGE && heap[ml_slot].page
+	    && heap[ml_slot].page->type == STRUCT_PAGE
+	    && heap[ml_slot].page->nr_vars >= 1) {
+		// wrap<array<string>>: store flat array as the wrap's inner slot
+		wrap_set_slot(ml_slot, 0, heap_alloc_page(flat));
+	} else if (ml_slot > 0 && (size_t)ml_slot < heap_size
+	           && heap[ml_slot].type == VM_PAGE) {
+		// Direct array slot: replace the page in-place
+		heap_set_page(ml_slot, flat);
+	} else {
+		free_page(flat);
+	}
 	return true;
 }
 
