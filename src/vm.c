@@ -915,13 +915,8 @@ static bool delegate_arg_is_2slot(struct ain_type *type)
 static int delegate_param_slots(struct ain_function_type *dg)
 {
 	int slots = 0;
-	for (int i = 0; i < dg->nr_arguments; i++) {
-		// v14: 2-slot args (interface/option) have a void companion slot
-		// that's already part of the 2-slot count. Skip it.
-		if (dg->variables[i].type.data == AIN_VOID)
-			continue;
+	for (int i = 0; i < dg->nr_arguments; i++)
 		slots += delegate_arg_is_2slot(&dg->variables[i].type) ? 2 : 1;
-	}
 	return slots;
 }
 
@@ -1285,14 +1280,13 @@ static void delegate_call(int dg_no, int return_address)
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
 		// Pop delegate arguments (kichikuou PR #311).
-		// Skip variable_fini for ref types — caller pushes raw values
-		// without incrementing refcount, so fini would cause double-free.
+		// Skip variable_fini for ref types to prevent double-free.
 		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
 			union vm_value v = stack_pop();
 			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
 			switch (type) {
 			case AIN_REF_TYPE:
-				break; // ref args don't own their heap slot
+				break;
 			default:
 				variable_fini(v, type, true);
 				break;
