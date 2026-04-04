@@ -45,16 +45,12 @@
   - DG_CALL cleanup 用 nr_variables（含 void）pop，數量不匹配 DG_CALLBEGIN
   - PushBack 拿到錯誤的 array ref（struct vtable array 而非 result array）
   - 修復後 Scale/ClipWidth/位置動畫可見，Logo 位置和大小正確改變
-- ❌ SceneLogo 動畫內插值全為 0：
-  - PE_SetAlpha 每幀被呼叫但 alpha 永遠是 0（應從 0→255）
-  - EasingParam struct dump 確認：
-    - ArgStart=[-1,0]、ArgEnd=[-1,0] → option discriminant=0(Some) 但 value=-1(null)
-    - Start=0.00、End=0.00、IntStart=0、IntEnd=0（全部未初始化）
-    - EasingType=0(Linear)
-  - **根因：** ArgumentDigit 解析正確但存入 option 時 value slot 沒有被寫入（仍為初始值 -1）
-  - **下一步：** 查 `EasingArgumentAnalyzer@AnalyzeEasing` 中 ArgStart/ArgEnd 的 option 設定路徑
-    - 可能是 `X_OP_SET` 或 option property setter 沒有正確處理 wrap<ArgumentDigit> 值
-    - 注意：t 值正確遞增（0.000→0.005→0.025...），time/span 計算正確
+- ✅ Fix #254: Array_Numof 修復 — Motion 動畫完全運作
+  - 根因：Array_Numof 返回 raw nr_vars（slot count=4）而非 logical count（=2）
+  - AnalyzeEasingAugument 用 `Numof==2` 檢查 2-arg，得到 4 → 2-arg 路徑永不執行
+  - ArgEnd 從未被設定，所有 Start/End 值為 0
+  - 修復後 SceneLogo 動畫全部可見：Scale bounce、ClipWidth reveal、X sweep、Alpha fade
+- ❌ SceneLogo 背景仍然黑色（Base Alpha 0→255 可能未生效，或白背景 CG 未載入）
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
