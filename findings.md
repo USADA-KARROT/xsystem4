@@ -45,11 +45,13 @@
   - DG_CALL cleanup 用 nr_variables（含 void）pop，數量不匹配 DG_CALLBEGIN
   - PushBack 拿到錯誤的 array ref（struct vtable array 而非 result array）
   - 修復後 Scale/ClipWidth/位置動畫可見，Logo 位置和大小正確改變
-- ❌ SceneLogo 動畫仍有殘留問題：
-  - 背景仍然黑色（Base Alpha 0→255 可能沒有正確套用）
-  - Light bar 沒有 X 位移（X:143→904 動畫可能沒生效）
-  - Shiravune 和 Warning 場景可能沒有顯示
-  - 需要進一步調查 IParts vtable dispatch 對 Alpha/X setter 的映射
+- ❌ SceneLogo 動畫內插值全為 0：
+  - PE_SetAlpha 每幀被呼叫但 alpha 永遠是 0（應從 0→255）
+  - 所有 easing 動畫值都是 0（Scale 看起來有改變但可能是 Scale:0→1 中的 0 被套用）
+  - **根因：** EasingParam 的 Start/End float 值沒有被正確設定
+  - **下一步：** 查 `Executer@InitializeParams` 如何從 ArgStart/ArgEnd (option<ArgumentDigit>) 讀取值
+    - option 是 2-slot type，可能也有 void companion dispatch 問題
+    - 或者 `EasingArgumentAnalyzer` 解析 "0 255" 時沒有正確設定 ArgumentDigit.Value
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
