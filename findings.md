@@ -51,7 +51,14 @@
   - ArgEnd 從未被設定，所有 Start/End 值為 0
   - 修復後 SceneLogo 動畫全部可見：Scale bounce、ClipWidth reveal、X sweep、Alpha fade
 - ✅ SceneLogo Alpha 動畫確認正常（parts 900002 alpha 0→1→6→13→...→255 每幀遞增）
-- ❌ SceneLogo 背景仍然黑色：Base parts 900002 alpha 正確遞增，PE_BuildConstructionProcess 有被呼叫（ops=1），但可能只有 CREATE_PIXEL_ONLY 沒有 FILL_ALPHA_COLOR（需要 2 ops 才能產生白色矩形）。Activity .ex 檔案載入/解析可能不完整。
+- ❌ SceneLogo GUI 實測仍有多個問題（用戶親眼確認）：
+  1. Logo 太大（Scale 可能算錯或 origin mode 問題）
+  2. 黃色光條有移動但沒有閃亮光效（Light 的 CG 可能不對）
+  3. 白色背景缺失（黑底）：Construction ops=1 但需要 CREATE+FILL
+  4. 場景卡住：18s 後仍在 ALICESOFT Logo，沒有進入 Shiravune/Warning 階段
+     - 可能是 Motion::Join("Logo") 卡住（動畫完成但 Join 不結束）
+     - 或 KotW 計時器壞了（Fix #254 的 Numof 修改可能影響了其他 Array 操作）
+  5. 最終會到標題畫面（用戶確認）但延遲很長
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
