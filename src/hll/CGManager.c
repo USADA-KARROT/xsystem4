@@ -33,6 +33,26 @@ static bool CGManager_LoadArchive(struct string *archive_name)
 	return r;
 }
 
+static bool CGManager_IsExist(struct string *cg_name)
+{
+	if (!cg_name)
+		return false;
+	return asset_exists_by_name(ASSET_CG, cg_name->text, NULL);
+}
+
+static bool CGManager_GetInfo(struct string *cg_name, int *width, int *height, int *bpp, bool *exist_pixel, bool *exist_alpha)
+{
+	struct cg_metrics metrics;
+	if (!cg_name || !asset_cg_get_metrics_by_name(cg_name->text, &metrics))
+		return false;
+	*width = metrics.w;
+	*height = metrics.h;
+	*bpp = metrics.bpp;
+	*exist_pixel = metrics.has_pixel;
+	*exist_alpha = metrics.has_alpha;
+	return true;
+}
+
 static int CGManager_GetCountOfDataFromArchive(void)
 {
 	return 0;
@@ -115,11 +135,13 @@ HLL_LIBRARY(CGManager,
 	    HLL_EXPORT(GetHeight, CGManager_GetHeight),
 	    HLL_EXPORT(Init, CGManager_Init),
 	    HLL_EXPORT(LoadArchive, CGManager_LoadArchive),
-	    HLL_EXPORT(GetCountOfDataFromArchive, CGManager_GetCountOfDataFromArchive),
-	    HLL_EXPORT(GetTitleByIndexFromArchive, CGManager_GetTitleByIndexFromArchive),
-	    HLL_EXPORT(SearchTitleFromArchive, CGManager_SearchTitleFromArchive),
-	    HLL_EXPORT(PrefixSearchTitleFromArchive, CGManager_PrefixSearchTitleFromArchive),
-	    HLL_EXPORT(SuffixSearchTitleFromArchive, CGManager_SuffixSearchTitleFromArchive),
-	    HLL_EXPORT(GetCountOfSearchDataFromArchive, CGManager_GetCountOfSearchDataFromArchive),
-	    HLL_EXPORT(GetSearchTitleByIndexFromArchive, CGManager_GetSearchTitleByIndexFromArchive));
+	    HLL_EXPORT(IsExist, CGManager_IsExist),
+	    HLL_EXPORT(GetInfo, CGManager_GetInfo),
+	    HLL_TODO_EXPORT(GetCountOfDataFromArchive, CGManager_GetCountOfDataFromArchive),
+	    HLL_TODO_EXPORT(GetTitleByIndexFromArchive, CGManager_GetTitleByIndexFromArchive),
+	    HLL_TODO_EXPORT(SearchTitleFromArchive, CGManager_SearchTitleFromArchive),
+	    HLL_TODO_EXPORT(PrefixSearchTitleFromArchive, CGManager_PrefixSearchTitleFromArchive),
+	    HLL_TODO_EXPORT(SuffixSearchTitleFromArchive, CGManager_SuffixSearchTitleFromArchive),
+	    HLL_TODO_EXPORT(GetCountOfSearchDataFromArchive, CGManager_GetCountOfSearchDataFromArchive),
+	    HLL_TODO_EXPORT(GetSearchTitleByIndexFromArchive, CGManager_GetSearchTitleByIndexFromArchive));
 

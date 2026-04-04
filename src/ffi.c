@@ -1001,6 +1001,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SealEngine,
 	&lib_SACT2,
 	&lib_SACTDX,
+	&lib_SealEngine,
 	&lib_SengokuRanceFont,
 	&lib_Sound2ex,
 	&lib_SoundFilePlayer,

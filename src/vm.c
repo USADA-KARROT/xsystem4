@@ -1284,17 +1284,18 @@ static void delegate_call(int dg_no, int return_address)
 			r[i] = stack_pop();
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
-		// Pop delegate arguments. Must pop exactly delegate_param_slots()
-		// values to match what DG_CALLBEGIN pushed.
-		{
-			int arg_slots = delegate_param_slots(&ain->delegates[dg_no]);
-			for (int s = 0; s < arg_slots; s++) {
-				union vm_value v = stack_pop();
-				// Simple fini: only free strings/pages that were pushed as args.
-				// Ref types (AIN_REF_TYPE) don't own their slot — skip fini.
-				// For 2-slot args, the second slot is metadata (vtoff/discriminant),
-				// not a heap reference, so it needs no fini.
-				(void)v;
+		// Pop delegate arguments (kichikuou PR #311).
+		// Skip variable_fini for ref types — caller pushes raw values
+		// without incrementing refcount, so fini would cause double-free.
+		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
+			union vm_value v = stack_pop();
+			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
+			switch (type) {
+			case AIN_REF_TYPE:
+				break; // ref args don't own their heap slot
+			default:
+				variable_fini(v, type, true);
+				break;
 			}
 		}
 		for (int i = 0; i < return_values; i++)
@@ -4083,9 +4084,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		// v14: use a proper DELEGATE_PAGE (nr_vars=0) instead of NULL page.
 		// heap_get_delegate_page rejects non-DELEGATE_PAGE, so NULL would
 		// cause delegate operations (Empty, numof, assign) to malfunction.
-		int slot = heap_alloc_slot(VM_PAGE);
-		heap_set_page(slot, alloc_page(DELEGATE_PAGE, 0, 0));
-		stack_push(slot);
+		stack_push(heap_alloc_page(alloc_page(DELEGATE_PAGE, 0, 0)));
 		break;
 	}
 	case DG_STR_TO_METHOD: {

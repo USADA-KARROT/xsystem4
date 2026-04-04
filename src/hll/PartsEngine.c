@@ -2013,11 +2013,6 @@ static void PE_PopGUIController(void) { }
 static void PE_UpdateGUIController(void) { }
 
 /* --- Construction Process filters --- */
-static void PE_AddFillWithAlphaToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r, int g, int b, int a)
-{
-	PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, x, y, w, h, r, g, b, a, 0);
-}
-
 static void PE_AddFillGradationHorizonToPartsConstructionProcess(int parts_no, int x, int y, int w, int h, int r1, int g1, int b1, int r2, int g2, int b2)
 {
 	PE_AddFillToPartsConstructionProcess(parts_no, x, y, w, h, r1, g1, b1, 0);
@@ -2707,6 +2702,7 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(Parts_SetVGaugeSurfaceArea, PE_SetVGaugeSurfaceArea),
 	    HLL_EXPORT(Parts_SetNumeralCG, PE_SetNumeralCG),
 	    HLL_EXPORT(Parts_SetNumeralLinkedCGNumberWidthWidthList, PE_SetNumeralLinkedCGNumberWidthWidthList),
+
 	    HLL_EXPORT(Parts_SetNumeralNumber, PE_SetNumeralNumber),
 	    HLL_EXPORT(Parts_SetNumeralShowComma, PE_SetNumeralShowComma),
 	    HLL_EXPORT(Parts_SetNumeralSpace, PE_SetNumeralSpace),
