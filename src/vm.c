@@ -4397,10 +4397,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case X_OP_SET: {
-		// X_OP_SET arg: assign to multi-slot variable (option/wrap/iface_wrap types)
-		// arg encoding: low 16 bits = type hint, actual slot count = max(2, low16)
-		// stack = [..., heap_idx, page_idx, val0, ..., val(n-1)]
-		// Pop n values, pop 2-slot var ref, write n consecutive slots, push n values
+		// X_OP_SET arg: assign to multi-slot variable
 		int arg = get_argument(0);
 		int n = arg & 0xFFFF;
 		if (n < 2) n = 2;  // v14 multi-slot types are always >= 2 slots
