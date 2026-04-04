@@ -39,7 +39,17 @@
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）：movie::detail::Play → CreatePartsMovie → 音頻 OK，影像 codec 為 proprietary 無法解碼；GUI 下顯示黑畫面 + 正確音頻；headless 因 WaitForClick 無法到達此場景
 - ✅ Fix #248: CASTimer struct 內嵌實例共用 timer_id=1 — 改用 abs(struct_page) % 2048 讓每個實例獨立計時，SceneLogo 的 KeyOrTimeWait 現在能正確超時
 - ✅ Fix #252: X_ICAST 修復 — 介面 downcast 失敗時未回傳 -1，導致 Motion::PartsParamCollection 把 EasingParam 誤認為 TimeParam，span=0 動畫立即結束。修復後 SceneLogo 時序正確（~12s），ExecuterTask 每幀持續呼叫
-- ❌ SceneLogo 動畫視覺效果不套用：ExecuterTask@Update 正確每幀觸發，但 IParts 屬性設定（Alpha/X/Scale/ClipWidth）未到達 PE_SetAlpha 等 C 函數。可能是 Executer@SetPartsValue 的 IParts vtable dispatch 或 m_parts.IsValid() 檢查失敗
+- ❌ SceneLogo 動畫視覺效果不套用：
+  - ✅ X_ICAST direct type match 已修復（sidx==target_type=615 正確匹配 EasingParam）
+  - ✅ Array.Where predicate 正確返回 result=1（EasingParam 被辨識出來）
+  - ✅ m_parts 和 m_current 都是有效的（非 -1，nr_vars=10）
+  - ✅ Time=1000, Delay=0 正確（X_ICAST 修復 TimeParam 識別）
+  - ❌ m_easingParam 陣列仍然是空的（easing_nr=0）
+  - **下一步：追蹤 GetParamByType<EasingParam> 的 ArrayExtensions::Select 結果**
+    - Select 用 DG_CALLBEGIN/DG_CALL 呼叫 cast lambda，然後 PushBack 收集結果
+    - 問題可能在 Select 的 PushBack 目標 array 或 delegate 呼叫的返回值處理
+    - 也可能是 GetParamByType 返回的 array 沒有正確透過 X_SET 寫入 m_easingParam
+    - 注意：CN 版函數號與 JAST 版不同，用 strstr(name) 搜尋比硬編碼函數號更可靠
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
