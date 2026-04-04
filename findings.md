@@ -45,10 +45,16 @@
   - ✅ m_parts 和 m_current 都是有效的（非 -1，nr_vars=10）
   - ✅ Time=1000, Delay=0 正確（X_ICAST 修復 TimeParam 識別）
   - ❌ m_easingParam 陣列仍然是空的（easing_nr=0）
-  - **下一步：追蹤 GetParamByType<EasingParam> 的 ArrayExtensions::Select 結果**
-    - Select 用 DG_CALLBEGIN/DG_CALL 呼叫 cast lambda，然後 PushBack 收集結果
-    - 問題可能在 Select 的 PushBack 目標 array 或 delegate 呼叫的返回值處理
-    - 也可能是 GetParamByType 返回的 array 沒有正確透過 X_SET 寫入 m_easingParam
+  - ✅ Array.Where 返回的 source 在 Select 內 X_A_SIZE=2（正確看到 2 個 EasingParam）
+  - ✅ PushBack 在 Select 迴圈中被呼叫（ref 1-slot, arg3=0x2），元素數量在增長
+  - ❌ 但 X_SET 收到的最終 array 仍然 nr_vars=0（**所有三種** param type 都是空的）
+  - **推測根因：ArrayExtensions::Select 的 PushBack 修改的 array 和最終返回的 array 不是同一個**
+    - PushBack 透過 AIN_REF_ARRAY 寫回 heap[slot].page，寫回機制正確
+    - Select 返回 `.LOCALREF result; A_REF; RETURN`，A_REF 在 v14 直接 heap_ref + push slot（引用語義，不複製）
+    - function_return 清理 local page 時會 variable_fini(result) → heap_unref
+    - **可能原因：** PushBack 的 xrealloc 產生新 page 指標，寫回到 heap[slot].page 正確，
+      但某個中間操作（如 DG_CALL 清理、SelectNext iteration 的 stack 操作）意外覆蓋了 heap[slot].page
+    - **下一步：** 在 Select 內追蹤 result 的 heap slot 值和 page 指標在 PushBack 前後的變化
     - 注意：CN 版函數號與 JAST 版不同，用 strstr(name) 搜尋比硬編碼函數號更可靠
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
