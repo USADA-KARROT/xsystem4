@@ -39,22 +39,11 @@
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）：movie::detail::Play → CreatePartsMovie → 音頻 OK，影像 codec 為 proprietary 無法解碼；GUI 下顯示黑畫面 + 正確音頻；headless 因 WaitForClick 無法到達此場景
 - ✅ Fix #248: CASTimer struct 內嵌實例共用 timer_id=1 — 改用 abs(struct_page) % 2048 讓每個實例獨立計時，SceneLogo 的 KeyOrTimeWait 現在能正確超時
 - ✅ Fix #252: X_ICAST 修復 — 介面 downcast 失敗時未回傳 -1，導致 Motion::PartsParamCollection 把 EasingParam 誤認為 TimeParam，span=0 動畫立即結束。修復後 SceneLogo 時序正確（~12s），ExecuterTask 每幀持續呼叫
-- ✅ Fix #253: delegate_param_slots + DG_CALL cleanup 修復 — Motion 動畫開始部分運作
-  - 根因：delegate_param_slots() 把 void companion slot 算作獨立 arg，導致 arg_slots=3（應為2）
-  - DG_CALLBEGIN 用 arg_slots=3 peek 錯誤的 stack 位置，完全破壞 stack layout
-  - DG_CALL cleanup 用 nr_variables（含 void）pop，數量不匹配 DG_CALLBEGIN
-  - PushBack 拿到錯誤的 array ref（struct vtable array 而非 result array）
-  - 修復後 Scale/ClipWidth/位置動畫可見，Logo 位置和大小正確改變
-- ✅ Fix #254: Array_Numof 修復 — Motion 動畫完全運作
-  - 根因：Array_Numof 返回 raw nr_vars（slot count=4）而非 logical count（=2）
-  - AnalyzeEasingAugument 用 `Numof==2` 檢查 2-arg，得到 4 → 2-arg 路徑永不執行
-  - ArgEnd 從未被設定，所有 Start/End 值為 0
-  - 修復後 SceneLogo 動畫全部可見：Scale bounce、ClipWidth reveal、X sweep、Alpha fade
-- ✅ SceneLogo Alpha 動畫確認正常（parts 900002 alpha 0→1→6→13→...→255 每幀遞增）
-- ❌ SceneLogo 動畫 easing 值全為 0（場景推進正常但動畫無效果）
-  - 根因：Array_Numof 返回 raw slot count（4 而非 logical 2），AnalyzeEasingAugument 的 2-arg 路徑被跳過
-  - 修 Numof 讓動畫值正確（截圖確認 Scale/ClipWidth/X 動畫全部可見）
-  - **但修 Numof 導致場景卡死**：即使同時修了 At/Erase 的 stride，場景仍然永遠停在 Logo
+- ✅ Fix #255: selective void-companion skip + Array stride — **動畫 + 場景推進同時正確**
+  - delegate_param_slots: 只 skip 2-slot arg 後的 void（不影響其他 delegate）
+  - DG_CALL cleanup: 用 delegate_param_slots 精確 pop（不用 nr_variables）
+  - Array_Numof/At/Erase: 對 struct_type>1 的 array 用 logical index
+  - SceneLogo 動畫全部可見（Scale/ClipWidth/X/Alpha）且場景正確推進到 SceneTitle
   - 根因不只在 Numof — 整套 Array HLL（Numof/At/Erase/First/EraseAll）都用 raw index，改一部分會破壞另一部分
   - **需要系統性修復**：所有 Array HLL 函數對 struct_type>1 的 array 統一用 logical index
   - 已 revert，等待系統性方案
