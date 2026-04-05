@@ -47,8 +47,9 @@
   - 根因不只在 Numof — 整套 Array HLL（Numof/At/Erase/First/EraseAll）都用 raw index，改一部分會破壞另一部分
   - **需要系統性修復**：所有 Array HLL 函數對 struct_type>1 的 array 統一用 logical index
   - 已 revert，等待系統性方案
-- ❌ SceneLogo 白色背景缺失（黑底）：Construction CREATE(4x4)+FILL(white) 是真實的 bytecode 值（不是 OOB 問題）。4x4 white texture 渲染為 4x4 pixel quad 太小看不見。Fix #256 加了 X_ASSIGN auto-grow 但不影響此問題。需要查 activity 載入系統如何設定 Base parts 的 Size 和 Construction 參數
-- ❌ SceneLogo 黃色光條沒有閃亮光效
+- ✅ Fix #257: Panel Size=(4,4) 改用螢幕大小 — 白色背景正確顯示，fade-in 灰→白 跟 CN 參考圖匹配
+- ⚠️ SceneLogo 時序偏快（Logo 3s→Warning 4s，參考 Logo 持續 ~12s）— 可能 CN bytecode 的 section 結構不同
+- ⚠️ Logo→Warning 過渡時 Logo 殘影和黃色光條仍可見（可能是正確的 overlay 行為）
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
