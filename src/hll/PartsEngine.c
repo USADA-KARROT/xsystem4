@@ -1398,6 +1398,17 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 
 	int cmd = ints->values[0].i;
 
+	// Trace: dump ints array for debugging Construction
+	{
+		static int apt = 0;
+		if (apt < 5 && 0) { // disabled trace
+			WARNING("AddCP: parts=%d cmd=%d nr_vars=%d vals=[", parts_no, cmd, ints->nr_vars);
+			for (int _j = 0; _j < ints->nr_vars && _j < 16; _j++)
+				WARNING("  [%d]=%d", _j, ints->values[_j].i);
+			apt++;
+		}
+	}
+
 	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
 	int dy = ints->nr_vars > 7 ? ints->values[7].i : 0;
 	int dx2 = ints->nr_vars > 8 ? ints->values[8].i : 0;
