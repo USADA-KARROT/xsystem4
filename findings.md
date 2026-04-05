@@ -47,7 +47,7 @@
   - 根因不只在 Numof — 整套 Array HLL（Numof/At/Erase/First/EraseAll）都用 raw index，改一部分會破壞另一部分
   - **需要系統性修復**：所有 Array HLL 函數對 struct_type>1 的 array 統一用 logical index
   - 已 revert，等待系統性方案
-- ❌ SceneLogo 白色背景缺失（黑底）：CREATE(4x4)+FILL_ALPHA_COLOR(255,255,255,255) — 尺寸 4x4 太小（應為 1280x720）。bytecode/activity 傳入 w=4 h=4 給 AddCreateToPartsConstructionProcess。可能是 activity 解析 CASConstructionProcess 時 Size 欄位讀取錯誤
+- ❌ SceneLogo 白色背景缺失（黑底）：Construction CREATE(4x4)+FILL(white) 是真實的 bytecode 值（不是 OOB 問題）。4x4 white texture 渲染為 4x4 pixel quad 太小看不見。Fix #256 加了 X_ASSIGN auto-grow 但不影響此問題。需要查 activity 載入系統如何設定 Base parts 的 Size 和 Construction 參數
 - ❌ SceneLogo 黃色光條沒有閃亮光效
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
