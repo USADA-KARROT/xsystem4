@@ -401,7 +401,12 @@ static void Array_Free(struct page **array)
 static int Array_Numof(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	return array ? array->nr_vars : 0;
+	int n = array ? array->nr_vars : 0;
+	// v14: return logical element count for multi-slot arrays
+	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
+	    && array->array.struct_type > 1)
+		n /= array->array.struct_type;
+	return n;
 }
 
 static int Array_Empty(struct page **self)
@@ -417,6 +422,10 @@ static int Array_Empty(struct page **self)
 static int Array_At(struct page **self, int index)
 {
 	struct page *array = (self && *self) ? *self : NULL;
+	// v14: convert logical index to physical for multi-slot arrays
+	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
+	    && array->array.struct_type > 1)
+		index *= array->array.struct_type;
 	if (!array || index < 0 || index >= array->nr_vars) {
 		(void)0;
 		if (!array_elem_is_ref()) {
@@ -575,6 +584,12 @@ static void Array_Erase(struct page **array, int index, int length)
 	if (!array || !*array)
 		return;
 	struct page *a = *array;
+	// v14: convert logical index/length to physical for multi-slot arrays
+	if ((a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
+	    && a->array.struct_type > 1) {
+		index *= a->array.struct_type;
+		length *= a->array.struct_type;
+	}
 	if (length <= 0 || index < 0 || index >= a->nr_vars)
 		return;
 	// Clamp length to available elements

@@ -915,8 +915,16 @@ static bool delegate_arg_is_2slot(struct ain_type *type)
 static int delegate_param_slots(struct ain_function_type *dg)
 {
 	int slots = 0;
-	for (int i = 0; i < dg->nr_arguments; i++)
+	for (int i = 0; i < dg->nr_arguments; i++) {
+		// v14: a 2-slot arg (interface/option) is followed by a void
+		// companion slot in the variable list. The bytecode pushes only
+		// the 2-slot value (no separate void push), so skip the void
+		// companion to match the actual push count.
+		if (dg->variables[i].type.data == AIN_VOID
+		    && i > 0 && delegate_arg_is_2slot(&dg->variables[i-1].type))
+			continue;
 		slots += delegate_arg_is_2slot(&dg->variables[i].type) ? 2 : 1;
+	}
 	return slots;
 }
 
@@ -1279,18 +1287,13 @@ static void delegate_call(int dg_no, int return_address)
 			r[i] = stack_pop();
 		stack_pop(); // dg_index
 		stack_pop(); // dg_page
-		// Pop delegate arguments (kichikuou PR #311).
-		// Skip variable_fini for ref types to prevent double-free.
-		for (int i = ain->delegates[dg_no].nr_variables - 1; i >= 0; i--) {
-			union vm_value v = stack_pop();
-			enum ain_data_type type = ain->delegates[dg_no].variables[i].type.data;
-			switch (type) {
-			case AIN_REF_TYPE:
-				break;
-			default:
-				variable_fini(v, type, true);
-				break;
-			}
+		// Pop delegate arguments. Pop exactly delegate_param_slots()
+		// values to match DG_CALLBEGIN's push count. No variable_fini
+		// needed — delegate args are borrowed refs without ownership.
+		{
+			int _arg_slots = delegate_param_slots(&ain->delegates[dg_no]);
+			for (int _s = 0; _s < _arg_slots; _s++)
+				stack_pop();
 		}
 		for (int i = 0; i < return_values; i++)
 			stack_push(r[i]);
