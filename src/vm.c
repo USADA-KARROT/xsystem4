@@ -570,10 +570,24 @@ static union vm_value *stack_pop_var(void)
 		dummy_var[0].i = 0;
 		return dummy_var;
 	}
-	if (unlikely(!heap[heap_index].page || page_index < 0 || page_index >= heap[heap_index].page->nr_vars)) {
-		// OOB array/struct access — return dummy value (silently ignore)
+	if (unlikely(!heap[heap_index].page || page_index < 0)) {
 		dummy_var[0].i = 0;
 		return dummy_var;
+	}
+	// v14: auto-grow arrays on OOB write access
+	if (unlikely(page_index >= heap[heap_index].page->nr_vars)) {
+		struct page *p = heap[heap_index].page;
+		if (p->type == ARRAY_PAGE && ain->version >= 14) {
+			int new_size = page_index + 1;
+			p = xrealloc(p, sizeof(struct page) + sizeof(union vm_value) * new_size);
+			for (int _g = p->nr_vars; _g < new_size; _g++)
+				p->values[_g].i = 0;
+			p->nr_vars = new_size;
+			heap[heap_index].page = p;
+		} else {
+			dummy_var[0].i = 0;
+			return dummy_var;
+		}
 	}
 	return &heap[heap_index].page->values[page_index];
 }
