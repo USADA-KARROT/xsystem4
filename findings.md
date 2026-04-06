@@ -103,11 +103,32 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 - ExecuterTask 使用 RCASTimer（純 bytecode）累積時間
 - RCASTimer 透過 AFL_Parts_AddEndUpdateEvent 在每 frame 累積 passedTime
 
-**下一步（待執行）：**
-1. 確認 Motion::ParsedObjectCache 是否正確解析 "Section:Logo[Alpha:0 255|Time:1000]"
-2. 確認 CreateTask 路徑（m_params 是否空）
-3. 若 CreateTask 失敗 → 找 ParsedObjectCache::Get 實作 (bytecode fno 27160)，看解析哪一步出錯
-4. 另一條路：直接在 C 側確認 parts alpha/X 設定是否生效（IParts 的 SetAlpha 等 HLL 方法是否對應正確實作）
+**Session 2026-04-06 調查進度：**
+
+已確認：
+1. ✅ SearchAll 正確解析所有 5 個 motion 字串（"Section:Logo[Alpha:0 255|Time:1000]" 等）
+2. ✅ Motion::Parser 的 Where/EraseAll 正確執行（SplitParams 正常）
+3. ✅ MotionSet struct[608] 有 2 個 member：m_param(AIN_ARRAY,struc=616) + m_section(AIN_STRUCT,struc=617)
+4. ✅ PushBack 成功添加 PartsParamCollection 到 m_param array（slot=14, nr_vars=1）
+5. ✅ copy_page 正確深拷貝 MotionSet（m_param 在拷貝源有 nr_vars=1）
+6. ✅ heap_struct_assign 正確拷貝 MotionSet（rval_nr=2, copy_nr=2）
+7. ❌ PE_AddMotionAlpha_curve 從未被呼叫 → 確認 motion 系統完全沒觸發 C 層
+
+關鍵發現：
+- PushBack 用 hll_self_slot=14 添加元素到 array
+- Array_At 用 hll_self_slot=489 讀取 array（nr_vars=0，空的）
+- **兩者是不同的 heap slot！** PB 寫入 slot 14，At 讀取 slot 489
+- Executer@2（init method 27008）在構造函式之前 `NEW Motion::MotionSet -1` 創建空 MotionSet → 然後構造函式 SR_ASSIGN 覆蓋
+- SR_ASSIGN 深拷貝正確，但 Executer 的 Param getter 可能跟隨了錯誤的 wrap 層級
+
+根因假設：
+- wrap<MotionSet> 在 Executer 內部的解引用路徑可能因 wrap 層級不匹配導致讀到空的默認 MotionSet
+- 或 Executer@2 的 `NEW Motion::MotionSet -1` 創建的空 MotionSet 被 SR_ASSIGN 覆蓋後，Param getter 的 wrap 導航跳過了覆蓋層讀到內層的空 array
+
+下一步：
+1. 追蹤 Executer.member[0] 的 heap slot chain：member[0] → wrap → inner → m_param
+2. 確認 wrap 解引用是否跳過了 SR_ASSIGN 覆蓋的那層
+3. 可能需要修改 SR_ASSIGN 或 Executer 構造函式的 wrap 處理
 
 ### Fix df2257f (2026-04-01)
 - ✅ heap_get_page WARNINGs 27050/27049/27120/27121/27114/27115 修復
