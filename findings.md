@@ -103,32 +103,32 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 - ExecuterTask 使用 RCASTimer（純 bytecode）累積時間
 - RCASTimer 透過 AFL_Parts_AddEndUpdateEvent 在每 frame 累積 passedTime
 
-**Session 2026-04-06 調查進度：**
+**Session 2026-04-06 調查進度（已修正）：**
 
 已確認：
-1. ✅ SearchAll 正確解析所有 5 個 motion 字串（"Section:Logo[Alpha:0 255|Time:1000]" 等）
-2. ✅ Motion::Parser 的 Where/EraseAll 正確執行（SplitParams 正常）
-3. ✅ MotionSet struct[608] 有 2 個 member：m_param(AIN_ARRAY,struc=616) + m_section(AIN_STRUCT,struc=617)
-4. ✅ PushBack 成功添加 PartsParamCollection 到 m_param array（slot=14, nr_vars=1）
-5. ✅ copy_page 正確深拷貝 MotionSet（m_param 在拷貝源有 nr_vars=1）
-6. ✅ heap_struct_assign 正確拷貝 MotionSet（rval_nr=2, copy_nr=2）
-7. ❌ PE_AddMotionAlpha_curve 從未被呼叫 → 確認 motion 系統完全沒觸發 C 層
+1. ✅ Motion 系統完整運作：GetCompiled → Parser → Executer → ExecuterTask → delegate dispatch 全部正常
+2. ✅ ExecuterTask@Update 每幀被 dispatch（via DG_CALLBEGIN DG_PARTS_UpdateHandler → CallPartsUpdateEvent）
+3. ✅ 4 個 ExecuterTask 被創建和更新（obj=604947, 605587, 606238, 606900）
+4. ✅ 白底背景正確顯示（Fix #258 GBK scale fallback 效果持續）
+5. ✅ Logo + sparkle + 黃色光條都可見
 
-關鍵發現：
-- PushBack 用 hll_self_slot=14 添加元素到 array
-- Array_At 用 hll_self_slot=489 讀取 array（nr_vars=0，空的）
-- **兩者是不同的 heap slot！** PB 寫入 slot 14，At 讀取 slot 489
-- Executer@2（init method 27008）在構造函式之前 `NEW Motion::MotionSet -1` 創建空 MotionSet → 然後構造函式 SR_ASSIGN 覆蓋
-- SR_ASSIGN 深拷貝正確，但 Executer 的 Param getter 可能跟隨了錯誤的 wrap 層級
+~~之前的 "slot 14 vs 489" 發現是誤判~~ — slot 14 是 parts event 系統的 array，slot 489 是 ParamAnalyzer@0 的 local array（因空字串 Split 後為空）。這兩個分屬不同子系統。ParamAnalyzer 空字串問題被 bytecode 正確處理（-1 check → fallback ""）。
 
-根因假設：
-- wrap<MotionSet> 在 Executer 內部的解引用路徑可能因 wrap 層級不匹配導致讀到空的默認 MotionSet
-- 或 Executer@2 的 `NEW Motion::MotionSet -1` 創建的空 MotionSet 被 SR_ASSIGN 覆蓋後，Param getter 的 wrap 導航跳過了覆蓋層讀到內層的空 array
+**仍待解決：**
+- ⚠️ 時序偏快：Logo→Warning 在 ~4s（參考 ~12s）。Motion 動畫在跑，但 KotW/Section 推進太快。
+- ⚠️ Logo 殘影：Logo 在 Warning 畫面上可見（t1 at 4s），應先 fade-out 再切 Warning。
+- ❌ 標題畫面 Logo 被切（底部超出 y=720）
+- ❌ APEG 影片黑畫面（GUI 驗證未完成）
 
-下一步：
-1. 追蹤 Executer.member[0] 的 heap slot chain：member[0] → wrap → inner → m_param
-2. 確認 wrap 解引用是否跳過了 SR_ASSIGN 覆蓋的那層
-3. 可能需要修改 SR_ASSIGN 或 Executer 構造函式的 wrap 處理
+**時序偏快的根因假設：**
+- KotW（KeyOrTimeWait）等待時間可能因 CASTimer 問題提前結束
+- 或 Motion::Join 判定 section 完成的邏輯有問題（IsEndWaitSection 過早返回 true）
+- 或 motion span（動畫持續時間）計算不正確
+
+**下一步：**
+1. 追蹤 KotW 等待時間和 Motion::Join 行為
+2. 確認 ExecuterTask 的 span 值是否正確（應為 1000ms 或更長）
+3. 確認 RCASTimer.Get() 返回的時間值是否合理
 
 ### Fix df2257f (2026-04-01)
 - ✅ heap_get_page WARNINGs 27050/27049/27120/27121/27114/27115 修復

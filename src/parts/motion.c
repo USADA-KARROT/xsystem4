@@ -625,7 +625,12 @@ void PE_SetMotionTime(int t)
 		return;
 	motion_t = t;
 	parts_update_all_motion();
-	if (t >= motion_end_t)
+	// Only fire EndMotion when motion_end_t was actually set (>0).
+	// v14 games manage motion lifecycle in bytecode (Motion::Create/Join);
+	// the C-level motion_end_t stays 0.  Firing PE_EndMotion with
+	// motion_end_t=0 sets global[2]=1 every frame, making WaitForClick
+	// exit immediately and breaking Motion::Join and KotW timing.
+	if (motion_end_t > 0 && t >= motion_end_t)
 		PE_EndMotion();
 }
 

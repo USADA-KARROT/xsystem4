@@ -916,6 +916,14 @@ static bool delegate_arg_is_2slot(struct ain_type *type)
 	case AIN_OPTION:
 	case AIN_IFACE_WRAP:
 		return true;
+	// v14: ref value types are 2-slot [page, index] on the stack.
+	// Only include primitive ref types here — AIN_REF_STRUCT etc. may
+	// use 1-slot (heap ref) semantics depending on delegate encoding.
+	case AIN_REF_BOOL:
+	case AIN_REF_INT:
+	case AIN_REF_FLOAT:
+	case AIN_REF_LONG_INT:
+		return true;
 	case AIN_STRUCT:
 		return type->struc >= 0 && type->struc < ain->nr_structures
 		       && ain->structures[type->struc].is_interface;
@@ -1129,6 +1137,11 @@ static void method_call(int fno, int return_address)
 					int new_slot = alloc_struct(stype);
 					heap_ref(new_slot);
 					heap[struct_page].page->values[0].i = new_slot;
+					{ static int wa_warn = 0; if (wa_warn++ < 10)
+					WARNING("MTRACE wrap-autoalloc: fn=%s wrap=%d inner_was=%d new=%d stype=%s",
+						ain->functions[fno].name ? ain->functions[fno].name : "?",
+						struct_page, inner, new_slot,
+						ain->structures[stype].name ? ain->structures[stype].name : "?"); }
 					struct_page = new_slot;
 					stack[stack_ptr - 1].i = new_slot;
 					}
