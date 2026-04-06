@@ -127,7 +127,7 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 **仍待解決：**
 - ✅ 標題畫面 Logo 被切已修復（Fix #258 GBK scale fallback 效果）
 - ❌ APEG 影片黑畫面（proprietary pixel codec，全世界無公開解碼器）
-- ⚠️ GetComponentType: parts -1（TitleCharacterView 更新時，non-fatal）
+- ✅ Fix #262: GetComponentType: parts -1 靜默處理（-1 是 vtable dispatch 的有效 sentinel）
 
 ### Fix df2257f (2026-04-01)
 - ✅ heap_get_page WARNINGs 27050/27049/27120/27121/27114/27115 修復
