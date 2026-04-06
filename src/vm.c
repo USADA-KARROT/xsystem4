@@ -659,13 +659,15 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
 	case AIN_ARRAY:
+		if (v.i <= 0 || !heap_index_valid(v.i))
+			return v; // null, empty, or type-mismatch (e.g. float in struct slot)
 		return (union vm_value) { .i = vm_copy_page(heap_get_page(v.i)) };
 	case AIN_WRAP:
 	case AIN_OPTION:
 	case AIN_IFACE_WRAP:
 	case AIN_IFACE:
 		// v14 types: deep copy the heap page (wrap/option/iface_wrap are 1-element pages)
-		if (v.i <= 0)
+		if (v.i <= 0 || !heap_index_valid(v.i))
 			return v;
 		return (union vm_value) { .i = vm_copy_page(heap_get_page(v.i)) };
 	case AIN_REF_TYPE:
@@ -1137,11 +1139,6 @@ static void method_call(int fno, int return_address)
 					int new_slot = alloc_struct(stype);
 					heap_ref(new_slot);
 					heap[struct_page].page->values[0].i = new_slot;
-					{ static int wa_warn = 0; if (wa_warn++ < 10)
-					WARNING("MTRACE wrap-autoalloc: fn=%s wrap=%d inner_was=%d new=%d stype=%s",
-						ain->functions[fno].name ? ain->functions[fno].name : "?",
-						struct_page, inner, new_slot,
-						ain->structures[stype].name ? ain->structures[stype].name : "?"); }
 					struct_page = new_slot;
 					stack[stack_ptr - 1].i = new_slot;
 					}

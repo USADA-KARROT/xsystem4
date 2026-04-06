@@ -51,7 +51,7 @@
 - ✅ Fix #258: GBK scale fallback — pactex 只搜 SJIS_SCALE，CN 版 GBK scale (320,180) 未讀取，4x4 texture 沒放大。加 GBK_SCALE 後 4×320=1280, 4×180=720，白色背景正確且不影響其他 panel
 - ✅ Fix #260: SceneLogo 時序修復 — delegate ref param 2-slot + PE_EndMotion guard，~12.4s（正確）
 - ⚠️ Logo→Warning 過渡時 Logo 殘影和黃色光條仍可見（參考截圖 A_023 也有類似效果，可能正確）
-- ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
+- ✅ 標題畫面 Logo 被切已修復（Fix #258 GBK scale fallback 效果）
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
 - ✅ Fix #249: 標題畫面按鈕點擊確認正常 — parts#900016 (NewGame) click 正確 exit WaitForClick，遊戲載入 ~45s 後進入 ADV 場景（RunTurnStart），parts#900019 背景點擊可推進文字
@@ -121,7 +121,7 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 - ⚠️ Logo 殘影在 Warning 畫面上可見（參考截圖 A_023 也有類似效果，可能是正確的 overlay 過渡）
 
 **仍待解決：**
-- ❌ 標題畫面 Logo 被切（底部超出 y=720）
+- ✅ 標題畫面 Logo 被切已修復（Fix #258 GBK scale fallback 效果）
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）
 
 ### Fix df2257f (2026-04-01)
