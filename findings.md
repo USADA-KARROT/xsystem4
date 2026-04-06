@@ -120,9 +120,14 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 - ✅ SceneLogo ~12.4s（Logo 2.7s → KotW 2s → Warning 1.2s → KotW 5s → fade 1.5s → Title）
 - ⚠️ Logo 殘影在 Warning 畫面上可見（參考截圖 A_023 也有類似效果，可能是正確的 overlay 過渡）
 
+**已修復（Fix #261，8d788ea）：**
+- ✅ vm_copy bounds check：float bit pattern (10.0/30.0/50.0/70.0) 被 variable_type 誤判為 AIN_STRUCT/WRAP，heap_get_page 報 out of range。加 heap_index_valid guard，保留原始值不破壞 copy。
+- 觸發路徑：AdvStandImage@Action → Motion::Create → Executer@0 → SR_ASSIGN → heap_struct_assign → copy_page → vm_copy
+
 **仍待解決：**
 - ✅ 標題畫面 Logo 被切已修復（Fix #258 GBK scale fallback 效果）
-- ❌ APEG 影片黑畫面（GUI 驗證未完成）
+- ❌ APEG 影片黑畫面（proprietary pixel codec，全世界無公開解碼器）
+- ⚠️ GetComponentType: parts -1（TitleCharacterView 更新時，non-fatal）
 
 ### Fix df2257f (2026-04-01)
 - ✅ heap_get_page WARNINGs 27050/27049/27120/27121/27114/27115 修復
