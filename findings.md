@@ -47,7 +47,8 @@
   - 根因不只在 Numof — 整套 Array HLL（Numof/At/Erase/First/EraseAll）都用 raw index，改一部分會破壞另一部分
   - **需要系統性修復**：所有 Array HLL 函數對 struct_type>1 的 array 統一用 logical index
   - 已 revert，等待系統性方案
-- ✅ Fix #257: Panel Size=(4,4) 改用螢幕大小 — 白色背景正確顯示，fade-in 灰→白 跟 CN 參考圖匹配
+- ✅ Fix #257: Panel Size=(4,4) 改用螢幕大小 — **已 revert**（破壞 SceneTitle 小 panel）
+- ✅ Fix #258: GBK scale fallback — pactex 只搜 SJIS_SCALE，CN 版 GBK scale (320,180) 未讀取，4x4 texture 沒放大。加 GBK_SCALE 後 4×320=1280, 4×180=720，白色背景正確且不影響其他 panel
 - ⚠️ SceneLogo 時序偏快（Logo 3s→Warning 4s，參考 Logo 持續 ~12s）— 可能 CN bytecode 的 section 結構不同
 - ⚠️ Logo→Warning 過渡時 Logo 殘影和黃色光條仍可見（可能是正確的 overlay 行為）
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出

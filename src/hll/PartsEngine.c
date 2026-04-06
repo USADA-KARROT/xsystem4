@@ -145,6 +145,8 @@ static const char GBK_CN_BUTTON[]   = "\xb0\xb4\xe2\x6f";         /* 按鈕 (GBK
 static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
 static const char GBK_CN_PANEL[]    = "\xb5\xcd\xb5\xc8\xbc\x89"; /* 低等級 (GBK CN panel type) */
 static const char GBK_SCALE[]       = "\x92\x88\xb4\xf3\xbf\x73\xd0\xa1"; /* 拡大縮小 (GBK) */
+static const char GBK_ROTATION[]    = "\xd0\xfd\xde\x44"; /* 回転 (GBK) */
+static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; /* 乗算色 (GBK) */
 static const char GBK_CG_DETECT[]   = "\xa3\xc3\xa3\xc7\xc5\xd0\xb6\xa8\xb2\xbf\xbc\xfe"; /* ＣＧ判定部件 (GBK CG detection parts) */
 static const char SJIS_CG_DETECT[]  = "\x82\x62\x82\x66\x94\xbb\x92\xe8\x83\x70\x81\x5b\x83\x63"; /* ＣＧ判定パーツ (SJIS) */
 
@@ -358,6 +360,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 
 	/* Extract rotation: 回転 = list[3] = (rx, ry, rz) as float */
 	struct ex_list *rot = pactex_get_list(node, SJIS_ROTATION);
+	if (!rot) rot = pactex_get_list(node, GBK_ROTATION);
 	if (rot && rot->nr_items >= 3) {
 		float rz = (rot->items[2].value.type == EX_FLOAT) ?
 			rot->items[2].value.f : (float)rot->items[2].value.i;
@@ -387,6 +390,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 
 	/* Extract multiply color: 乗算色 = list[3] = [r, g, b] */
 	struct ex_list *mul_col = pactex_get_list(node, SJIS_MUL_COLOR);
+	if (!mul_col) mul_col = pactex_get_list(node, GBK_MUL_COLOR);
 	if (mul_col && mul_col->nr_items >= 3)
 		PE_SetMultiplyColor(parts_no, mul_col->items[0].value.i,
 			mul_col->items[1].value.i, mul_col->items[2].value.i);
