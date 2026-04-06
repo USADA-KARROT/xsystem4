@@ -49,8 +49,8 @@
   - 已 revert，等待系統性方案
 - ✅ Fix #257: Panel Size=(4,4) 改用螢幕大小 — **已 revert**（破壞 SceneTitle 小 panel）
 - ✅ Fix #258: GBK scale fallback — pactex 只搜 SJIS_SCALE，CN 版 GBK scale (320,180) 未讀取，4x4 texture 沒放大。加 GBK_SCALE 後 4×320=1280, 4×180=720，白色背景正確且不影響其他 panel
-- ⚠️ SceneLogo 時序偏快（Logo 3s→Warning 4s，參考 Logo 持續 ~12s）— 可能 CN bytecode 的 section 結構不同
-- ⚠️ Logo→Warning 過渡時 Logo 殘影和黃色光條仍可見（可能是正確的 overlay 行為）
+- ✅ Fix #260: SceneLogo 時序修復 — delegate ref param 2-slot + PE_EndMotion guard，~12.4s（正確）
+- ⚠️ Logo→Warning 過渡時 Logo 殘影和黃色光條仍可見（參考截圖 A_023 也有類似效果，可能正確）
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）：pos=(193,625) origin_mode=5（中心點），Logo CG 高度 > 190px 時底部溢出
 - ✅ Fix #246: 標題畫面按鈕點擊修復 — messageType 4→5（SWITCH case 5 = CallFunctionMouseClick），按鈕 delegate 現在正確觸發
 - ✅ Fix #247: GetMessagePartsNumber/DelegateIndex/UniqueID 改為只 peek queue head，不用 msg_current — 修正 UniqueID 比對失敗導致按鈕點擊被丟棄
@@ -114,21 +114,15 @@ SDL_AUDIODRIVER=dummy ~/xsystem4-dev/xsystem4/builddir/src/xsystem4 \
 
 ~~之前的 "slot 14 vs 489" 發現是誤判~~ — slot 14 是 parts event 系統的 array，slot 489 是 ParamAnalyzer@0 的 local array（因空字串 Split 後為空）。這兩個分屬不同子系統。ParamAnalyzer 空字串問題被 bytecode 正確處理（-1 check → fallback ""）。
 
+**已修復（Fix #260，ca3b161）：**
+- ✅ 時序修復：delegate_arg_is_2slot 加 AIN_REF_BOOL/INT/FLOAT/LONG_INT → observer ref bool 正確傳遞 → EndWaitForClick 不再每幀觸發
+- ✅ PE_SetMotionTime guard：motion_end_t <= 0 不觸發 PE_EndMotion → global[2] 不再被 C 層污染
+- ✅ SceneLogo ~12.4s（Logo 2.7s → KotW 2s → Warning 1.2s → KotW 5s → fade 1.5s → Title）
+- ⚠️ Logo 殘影在 Warning 畫面上可見（參考截圖 A_023 也有類似效果，可能是正確的 overlay 過渡）
+
 **仍待解決：**
-- ⚠️ 時序偏快：Logo→Warning 在 ~4s（參考 ~12s）。Motion 動畫在跑，但 KotW/Section 推進太快。
-- ⚠️ Logo 殘影：Logo 在 Warning 畫面上可見（t1 at 4s），應先 fade-out 再切 Warning。
 - ❌ 標題畫面 Logo 被切（底部超出 y=720）
 - ❌ APEG 影片黑畫面（GUI 驗證未完成）
-
-**時序偏快的根因假設：**
-- KotW（KeyOrTimeWait）等待時間可能因 CASTimer 問題提前結束
-- 或 Motion::Join 判定 section 完成的邏輯有問題（IsEndWaitSection 過早返回 true）
-- 或 motion span（動畫持續時間）計算不正確
-
-**下一步：**
-1. 追蹤 KotW 等待時間和 Motion::Join 行為
-2. 確認 ExecuterTask 的 span 值是否正確（應為 1000ms 或更長）
-3. 確認 RCASTimer.Get() 返回的時間值是否合理
 
 ### Fix df2257f (2026-04-01)
 - ✅ heap_get_page WARNINGs 27050/27049/27120/27121/27114/27115 修復
