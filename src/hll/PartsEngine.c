@@ -72,6 +72,8 @@ struct activity {
 	char name[256];
 	struct activity_part parts[MAX_ACTIVITY_PARTS];
 	int nr_parts;
+	char close_parts[MAX_ACTIVITY_PARTS][256];
+	int nr_close_parts;
 };
 
 static struct activity activities[MAX_ACTIVITIES];
@@ -712,6 +714,7 @@ static bool PartsEngine_CreateActivity(struct string *name)
 	struct activity *act = &activities[nr_activities];
 	snprintf(act->name, sizeof(act->name), "%s", name->text);
 	act->nr_parts = 0;
+	act->nr_close_parts = 0;
 	nr_activities++;
 	return true;
 }
@@ -970,8 +973,27 @@ static struct string *PartsEngine_GetActivityEXText(struct string *name) { retur
 static void PartsEngine_SetActivityBG(struct string *name, struct string *cg) {}
 static struct string *PartsEngine_GetActivityBG(struct string *name) { return string_ref(&EMPTY_STRING); }
 
-static void PartsEngine_AddActivityCloseParts(struct string *name, struct string *parts) {}
-static bool PartsEngine_IsExistActivityCloseParts(struct string *name, struct string *parts) { return false; }
+static void PartsEngine_AddActivityCloseParts(struct string *name, struct string *parts_name)
+{
+	int idx = find_activity(name);
+	if (idx < 0) return;
+	struct activity *act = &activities[idx];
+	if (act->nr_close_parts >= MAX_ACTIVITY_PARTS) return;
+	snprintf(act->close_parts[act->nr_close_parts], 256, "%s", parts_name->text);
+	act->nr_close_parts++;
+}
+
+static bool PartsEngine_IsExistActivityCloseParts(struct string *name, struct string *parts_name)
+{
+	int idx = find_activity(name);
+	if (idx < 0) return false;
+	struct activity *act = &activities[idx];
+	for (int i = 0; i < act->nr_close_parts; i++) {
+		if (!strcmp(act->close_parts[i], parts_name->text))
+			return true;
+	}
+	return false;
+}
 static void PartsEngine_AddActivityLockedParts(struct string *name, struct string *parts) {}
 static bool PartsEngine_IsExistActivityLockedParts(struct string *name, struct string *parts) { return false; }
 
