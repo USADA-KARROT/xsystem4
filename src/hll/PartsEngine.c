@@ -409,13 +409,9 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			ph = (sz->items[1].value.type == EX_FLOAT) ?
 				(int)sz->items[1].value.f : sz->items[1].value.i;
 		}
-		/* v14: panel with tiny size (<=4) is likely a full-screen background.
-		 * The original engine stretches small panels to fill the screen.
-		 * Use the view size as a pragmatic fallback. */
-		if (pw <= 4 && ph <= 4) {
-			pw = 1280;
-			ph = 720;
-		}
+		/* Note: Panel Size=(4,4) from .pactex is the actual intended size.
+		 * The white background issue is NOT solved by resizing here —
+		 * it broke other small panels (buttons, indicators). */
 		/* 色 = list[4] = [r, g, b, a] */
 		struct ex_list *col = pactex_get_list(type_info, SJIS_COLOR);
 		if (!col) col = pactex_get_list(type_info, GBK_COLOR);
