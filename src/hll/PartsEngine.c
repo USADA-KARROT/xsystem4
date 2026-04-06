@@ -1137,6 +1137,8 @@ static void PartsEngine_SetComponentType(int number, int type, int state)
 
 static int PartsEngine_GetComponentType(int number, int state)
 {
+	if (number < 0)
+		return -1; // -1 = no parts (valid sentinel from vtable dispatch)
 	struct parts *p = parts_try_get(number);
 	if (p) return p->component_type;
 	// v14: game bytecode may reference parts numbers allocated by
@@ -1146,7 +1148,7 @@ static int PartsEngine_GetComponentType(int number, int state)
 		p = parts_get(number);
 		return p->component_type;  // 0 = default
 	}
-	WARNING("GetComponentType: parts %d not found (state=%d) - caller may have wrong parts number from vtable dispatch", number, state);
+	WARNING("GetComponentType: parts %d not found (state=%d)", number, state);
 	return -1;
 }
 
