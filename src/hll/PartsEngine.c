@@ -144,6 +144,7 @@ static const char GBK_BUTTON[]      = "\xa5\xdc\xa5\xbf\xa5\xf3"; /* ボタン (
 static const char GBK_CN_BUTTON[]   = "\xb0\xb4\xe2\x6f";         /* 按鈕 (GBK Chinese) */
 static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
 static const char GBK_CN_PANEL[]    = "\xb5\xcd\xb5\xc8\xbc\x89"; /* 低等級 (GBK CN panel type) */
+static const char GBK_SCALE[]       = "\x92\x88\xb4\xf3\xbf\x73\xd0\xa1"; /* 拡大縮小 (GBK) */
 static const char GBK_CG_DETECT[]   = "\xa3\xc3\xa3\xc7\xc5\xd0\xb6\xa8\xb2\xbf\xbc\xfe"; /* ＣＧ判定部件 (GBK CG detection parts) */
 static const char SJIS_CG_DETECT[]  = "\x82\x62\x82\x66\x94\xbb\x92\xe8\x83\x70\x81\x5b\x83\x63"; /* ＣＧ判定パーツ (SJIS) */
 
@@ -343,6 +344,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 
 	/* Extract scale: 拡大縮小 = list[2] = (sx, sy) as float */
 	struct ex_list *scale = pactex_get_list(node, SJIS_SCALE);
+	if (!scale) scale = pactex_get_list(node, GBK_SCALE);
 	if (scale && scale->nr_items >= 2) {
 		float sx = (scale->items[0].value.type == EX_FLOAT) ?
 			scale->items[0].value.f : (float)scale->items[0].value.i;
