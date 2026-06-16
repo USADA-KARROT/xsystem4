@@ -49,6 +49,13 @@
 #include "sprite.h"
 #include "xsystem4.h"
 
+/* free_deferred_strings() lived in the fork's libsys4 (submodule pin 7f8d5298,
+ * now GC'd/unrecoverable). That build deferred string frees during the alloc
+ * phase and flushed them here. The current libsys4 (d9f4a138) frees strings
+ * immediately and downgrades double-free to a warning, so there is nothing to
+ * defer or flush — a no-op preserves the original observable behavior. */
+static void free_deferred_strings(void) {}
+
 static inline int32_t lint_clamp(int64_t n)
 {
 	if (n < 0)
@@ -2206,7 +2213,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				// Clear overlay lines so they don't persist over
 				// the native message window.
 				for (int _i = 0; _i < vm_msg_line_count; _i++)
-					free_string(vm_msg_lines[_i]);
+					free(vm_msg_lines[_i]);
 				vm_msg_line_count = 0;
 				// Let game's A run normally
 			}

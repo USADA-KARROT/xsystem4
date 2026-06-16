@@ -1,3 +1,4 @@
 [submodule "subprojects/libsys4"]
 	path = subprojects/libsys4
-	url = https://github.com/nunuhara/libsys4
+	url = https://github.com/USADA-KARROT/libsys4
+	branch = v14-dohnadohna

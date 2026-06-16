@@ -33,6 +33,7 @@
 #include "../parts/parts_internal.h"
 #include "scene.h"
 #include "hll.h"
+#include "xsystem4.h"
 
 extern void parts_update_animation(int passed_time);
 extern struct string *sjis_to_gbk_string(const char *src, size_t len);
