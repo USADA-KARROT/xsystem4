@@ -153,8 +153,12 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		parts_set_state(parts, PARTS_STATE_HOVERED);
 	}
 
-	// click event: only if the click down event had same parts number
-	if (parts->clickable && prev_clicking && !cur_clicking
+	// click event: only if the click down event had same parts number.
+	// v14 dispatches clicks on the DOWN transition (see PE_UpdateInputState);
+	// the release-time path would set clicked_parts a second time after the
+	// title's WaitForClick already consumed it, and the stale value made
+	// every later WaitForClick exit immediately (dialogue auto-skipped).
+	if (ain->version < 14 && parts->clickable && prev_clicking && !cur_clicking
 			&& click_down_parts == parts->no) {
 		audio_play_sound(parts->on_click_sound);
 		clicked_parts = parts->no;

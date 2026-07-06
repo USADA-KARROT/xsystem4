@@ -290,6 +290,30 @@ static void PE_v14_SetKeyWaitShow(int parts_no, bool show)
 	PE_SetShow(parts_no, show);
 }
 
+/* --- click/input state queries (v14 WaitForClick contract) ---
+ * GetActiveParts returns the clicked parts number: the game's
+ * IsInputPartsActive checks its component type to decide whether the
+ * click hit an input widget (keep waiting) or empty space (advance). */
+
+static int PE_v14_GetActiveParts(void)
+{
+	return PE_GetClickPartsNumber();
+}
+
+static int PE_v14_GetClickNumber(void)
+{
+	return PE_GetClickPartsNumber();
+}
+
+static void PE_v14_SetClickMissSoundName(possibly_unused struct string *name) {}
+static struct string *PE_v14_GetClickMissSoundName(void) { return string_ref(&EMPTY_STRING); }
+static void PE_v14_StopSoundWithoutSystemSound(void) {}
+static void PE_v14_SetEnableInput(possibly_unused bool enable) {}
+static bool PE_v14_IsEnableInput(void) { return true; }
+static void PE_v14_SetWantSaveBackScene(possibly_unused int n, possibly_unused bool enable) {}
+static bool PE_v14_IsWantSaveBackScene(possibly_unused int n) { return false; }
+static void PE_v14_SaveThumbnail(possibly_unused struct string *name, possibly_unused int width) {}
+
 /* Replace existing bindings with v14 semantics. Must run at _PreLink:
  * static_library_replace edits the static export table, which
  * link_libraries() copies into the runtime table — replacing after the
@@ -334,4 +358,14 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "SetMessageWindowTextFont", PE_v14_SetMessageWindowTextFont);
 	static_library_register(lib, "SetMessageWindowTextSpace", PE_v14_SetMessageWindowTextSpace);
 	static_library_register(lib, "SetKeyWaitShow", PE_v14_SetKeyWaitShow);
+	static_library_register(lib, "GetActiveParts", PE_v14_GetActiveParts);
+	static_library_register(lib, "GetClickNumber", PE_v14_GetClickNumber);
+	static_library_register(lib, "SetClickMissSoundName", PE_v14_SetClickMissSoundName);
+	static_library_register(lib, "GetClickMissSoundName", PE_v14_GetClickMissSoundName);
+	static_library_register(lib, "StopSoundWithoutSystemSound", PE_v14_StopSoundWithoutSystemSound);
+	static_library_register(lib, "SetEnableInput", PE_v14_SetEnableInput);
+	static_library_register(lib, "IsEnableInput", PE_v14_IsEnableInput);
+	static_library_register(lib, "SetWantSaveBackScene", PE_v14_SetWantSaveBackScene);
+	static_library_register(lib, "IsWantSaveBackScene", PE_v14_IsWantSaveBackScene);
+	static_library_register(lib, "SaveThumbnail", PE_v14_SaveThumbnail);
 }
