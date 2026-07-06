@@ -19,6 +19,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <SDL.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -56,6 +58,8 @@ struct movie_context {
 	struct texture temp_surface;
 
 	bool has_pending_video_frame;
+	bool black_frame_drawn;  // for audio-only mode: true after first black frame
+	int apeg_width, apeg_height;  // for audio-only APEG: original video dimensions
 	struct SwsContext *sws_ctx;
 	AVFrame *sws_frame;
 	void *sws_buf;
@@ -114,10 +118,10 @@ static void read_packet(struct movie_context *mc)
 	AVPacket *packet = av_packet_alloc();
 
 	while (av_read_frame(mc->format_ctx, packet) == 0) {
-		if (packet->stream_index == mc->video.stream->index) {
+		if (mc->video.stream && packet->stream_index == mc->video.stream->index) {
 			av_fifo_write(mc->video.queue, &packet, 1);
 			return;
-		} else if (packet->stream_index == mc->audio.stream->index) {
+		} else if (mc->audio.stream && packet->stream_index == mc->audio.stream->index) {
 			av_fifo_write(mc->audio.queue, &packet, 1);
 			return;
 		}
@@ -126,7 +130,8 @@ static void read_packet(struct movie_context *mc)
 	av_packet_free(&packet);
 	packet = NULL;
 	mc->format_eof = true;
-	av_fifo_write(mc->video.queue, &packet, 1);
+	if (mc->video.queue)
+		av_fifo_write(mc->video.queue, &packet, 1);
 	av_fifo_write(mc->audio.queue, &packet, 1);
 }
 
@@ -202,6 +207,65 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 	return STS_STREAM_CONTINUE;
 }
 
+// Extract the Ogg audio stream from an APEG file to a temp path.
+// Returns a malloc'd temp path on success (caller must free + unlink), or NULL.
+// If out_w/out_h are non-NULL, filled with APEG video dimensions.
+static char *apeg_extract_ogg(const char *apeg_path, int *out_w, int *out_h)
+{
+	FILE *fp = fopen(apeg_path, "rb");
+	if (!fp)
+		return NULL;
+
+	uint8_t hdr[16];
+	if (fread(hdr, 1, 16, fp) != 16 || memcmp(hdr, "APEG", 4) != 0) {
+		fclose(fp);
+		return NULL;
+	}
+	uint32_t data_off = hdr[4] | (hdr[5]<<8) | (hdr[6]<<16) | (hdr[7]<<24);
+	if (out_w) *out_w = hdr[12] | (hdr[13]<<8);
+	if (out_h) *out_h = hdr[14] | (hdr[15]<<8);
+
+	// Chunks start 8 bytes after data_off (skip mystery bytes).
+	if (fseek(fp, (long)(data_off + 8), SEEK_SET) != 0) {
+		fclose(fp);
+		return NULL;
+	}
+
+	// Scan chunks: tag(4) + body_size(4) + body[body_size]
+	uint8_t chunk_hdr[8];
+	char *tmp_path = NULL;
+	while (fread(chunk_hdr, 1, 8, fp) == 8) {
+		uint32_t body_size = chunk_hdr[4] | (chunk_hdr[5]<<8) | (chunk_hdr[6]<<16) | (chunk_hdr[7]<<24);
+		if (memcmp(chunk_hdr, "SOND", 4) == 0 && body_size > 0) {
+			// Body is raw Ogg Vorbis data.
+			tmp_path = xmalloc(64);
+			snprintf(tmp_path, 64, "/tmp/xsys4_apeg_audio_%d.ogg", (int)getpid());
+			FILE *out = fopen(tmp_path, "wb");
+			if (!out) {
+				free(tmp_path);
+				tmp_path = NULL;
+				break;
+			}
+			uint8_t buf[65536];
+			uint32_t remaining = body_size;
+			while (remaining > 0) {
+				uint32_t to_read = remaining < sizeof(buf) ? remaining : sizeof(buf);
+				size_t got = fread(buf, 1, to_read, fp);
+				if (got == 0) break;
+				fwrite(buf, 1, got, out);
+				remaining -= (uint32_t)got;
+			}
+			fclose(out);
+			break;
+		}
+		if (fseek(fp, (long)body_size, SEEK_CUR) != 0)
+			break;
+	}
+
+	fclose(fp);
+	return tmp_path;
+}
+
 struct movie_context *movie_load(const char *filename)
 {
 	struct movie_context *mc = xcalloc(1, sizeof(struct movie_context));
@@ -212,13 +276,38 @@ struct movie_context *movie_load(const char *filename)
 		movie_free(mc);
 		return NULL;
 	}
+
+	// Detect APEG format and extract Ogg audio to a temp file.
+	char *apeg_tmp = NULL;
+	{
+		FILE *fp = fopen(path, "rb");
+		if (fp) {
+			uint8_t magic[4];
+			if (fread(magic, 1, 4, fp) == 4 && memcmp(magic, "APEG", 4) == 0) {
+				fclose(fp);
+				apeg_tmp = apeg_extract_ogg(path, &mc->apeg_width, &mc->apeg_height);
+				if (!apeg_tmp) {
+					WARNING("%s: APEG file but failed to extract audio", path);
+					free(path);
+					movie_free(mc);
+					return NULL;
+				}
+			} else {
+				fclose(fp);
+			}
+		}
+	}
+
+	const char *open_path = apeg_tmp ? apeg_tmp : path;
 	int ret;
-	if ((ret = avformat_open_input(&mc->format_ctx, path, NULL, NULL)) != 0) {
+	if ((ret = avformat_open_input(&mc->format_ctx, open_path, NULL, NULL)) != 0) {
 		WARNING("%s: avformat_open_input failed: %d", path, ret);
+		if (apeg_tmp) { remove(apeg_tmp); free(apeg_tmp); }
 		free(path);
 		movie_free(mc);
 		return NULL;
 	}
+	if (apeg_tmp) { remove(apeg_tmp); free(apeg_tmp); }
 	free(path);
 
 	if ((ret = avformat_find_stream_info(mc->format_ctx, NULL)) < 0) {
@@ -243,10 +332,16 @@ struct movie_context *movie_load(const char *filename)
 			break;
 		}
 	}
-	if (!init_decoder(&mc->video, video_stream)) {
-		WARNING("Cannot initialize video decoder");
-		movie_free(mc);
-		return NULL;
+	// For APEG (audio-only), skip video decoder and mark video as finished.
+	if (video_stream) {
+		if (!init_decoder(&mc->video, video_stream)) {
+			WARNING("Cannot initialize video decoder");
+			movie_free(mc);
+			return NULL;
+		}
+		NOTICE("video: %d x %d, %s", mc->video.ctx->width, mc->video.ctx->height, av_get_pix_fmt_name(mc->video.ctx->pix_fmt));
+	} else {
+		mc->video.finished = true;
 	}
 	if (!init_decoder(&mc->audio, audio_stream)) {
 		WARNING("Cannot initialize audio decoder");
@@ -254,7 +349,6 @@ struct movie_context *movie_load(const char *filename)
 		return NULL;
 	}
 
-	NOTICE("video: %d x %d, %s", mc->video.ctx->width, mc->video.ctx->height, av_get_pix_fmt_name(mc->video.ctx->pix_fmt));
 	NOTICE("audio: %d hz, %d channels, %s", mc->audio.ctx->sample_rate, mc->audio.ctx->ch_layout.nb_channels, av_get_sample_fmt_name(mc->audio.ctx->sample_fmt));
 
 	mc->format_mutex = SDL_CreateMutex();
@@ -325,6 +419,23 @@ bool movie_play(struct movie_context *mc)
 
 bool movie_draw(struct movie_context *mc, struct sact_sprite *sprite)
 {
+	// Audio-only mode (e.g. APEG): render one black frame, then just track audio.
+	if (mc->video.finished && !mc->video.ctx) {
+		if (!mc->black_frame_drawn) {
+			mc->black_frame_drawn = true;
+			struct texture *tex = sprite ? sprite_get_texture(sprite) : NULL;
+			if (tex && tex->w > 0 && tex->h > 0) {
+				int npixels = tex->w * tex->h;
+				uint32_t *black = xcalloc(npixels, sizeof(uint32_t));
+				gfx_update_texture_with_pixels(tex, black);
+				free(black);
+				if (sprite)
+					sprite_dirty(sprite);
+			}
+		}
+		return !mc->audio.finished;
+	}
+
 	struct texture *texture;
 	if (sprite) {
 		texture = sprite_get_texture(sprite);
@@ -399,4 +510,15 @@ bool movie_set_volume(struct movie_context *mc, int volume)
 	if (mc->voice >= 0)
 		mixer_stream_set_volume(mc->voice, volume);
 	return true;
+}
+
+void movie_get_video_size(struct movie_context *mc, int *out_w, int *out_h)
+{
+	if (mc->video.ctx) {
+		if (out_w) *out_w = mc->video.ctx->width;
+		if (out_h) *out_h = mc->video.ctx->height;
+	} else {
+		if (out_w) *out_w = mc->apeg_width;
+		if (out_h) *out_h = mc->apeg_height;
+	}
 }

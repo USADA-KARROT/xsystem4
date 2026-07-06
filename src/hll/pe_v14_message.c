@@ -227,6 +227,16 @@ static int PE_v14_GetControllerLength(void)
 	return ctrl_stack.nr_controllers;
 }
 
+static int PE_v14_GetControllerID(int index)
+{
+	// The upstream ctrl_stack allocates controller IDs as stack indices
+	// (PE_AddController returns nr_controllers++), so a valid index IS
+	// the ID. Out of range → -1, matching the fork's semantics.
+	if (index < 0 || index >= ctrl_stack.nr_controllers)
+		return -1;
+	return index;
+}
+
 static int PE_v14_GetSystemOverlayController(void)
 {
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
@@ -348,6 +358,7 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "GetActiveController", PE_v14_GetActiveController);
 	static_library_register(lib, "SetActiveController", PE_v14_SetActiveController);
 	static_library_register(lib, "GetControllerLength", PE_v14_GetControllerLength);
+	static_library_register(lib, "GetControllerID", PE_v14_GetControllerID);
 	static_library_register(lib, "GetSystemOverlayController", PE_v14_GetSystemOverlayController);
 	static_library_register(lib, "SetMessageWindowActive", PE_v14_SetMessageWindowActive);
 	static_library_register(lib, "SetMessageWindowText", PE_v14_SetMessageWindowText);

@@ -27,5 +27,6 @@ bool movie_draw(struct movie_context *mc, struct sact_sprite *sprite);
 bool movie_is_end(struct movie_context *mc);
 int movie_get_position(struct movie_context *mc);
 bool movie_set_volume(struct movie_context *mc, int volume /* 0-100 */);
+void movie_get_video_size(struct movie_context *mc, int *out_w, int *out_h);
 
 #endif /* SYSTEM4_MOVIE_H */

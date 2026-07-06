@@ -132,6 +132,7 @@ static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int
 }
 
 int wav_prepare(int id, int no) { return audio_prepare(&wav, id, ASSET_SOUND, no); }
+int wav_prepare_voice(int id, int no) { return audio_prepare(&wav, id, ASSET_VOICE, no); }
 int bgm_prepare(int id, int no) { return audio_prepare(&bgm, id, ASSET_BGM, no); }
 
 static int audio_unprepare(struct id_pool *pool, int id)

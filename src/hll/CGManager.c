@@ -53,15 +53,87 @@ static bool CGManager_GetInfo(struct string *cg_name, int *width, int *height, i
 	return true;
 }
 
-//static int CGManager_GetCountOfDataFromArchive(void);
-//static void CGManager_GetTitleByIndexFromArchive(int index, struct string **cg_name);
-//static int CGManager_SearchTitleFromArchive(struct string *cg_name);
-//static int CGManager_PrefixSearchTitleFromArchive(struct string *cg_name);
-//static int CGManager_SuffixSearchTitleFromArchive(struct string *cg_name);
-//static int CGManager_GetCountOfSearchDataFromArchive(void);
-//static void CGManager_GetSearchTitleByIndexFromArchive(int index, struct string **cg_name);
+static int CGManager_GetCountOfDataFromArchive(void)
+{
+	return 0;
+}
+
+static void CGManager_GetTitleByIndexFromArchive(int index, struct string **cg_name)
+{
+	if (cg_name) *cg_name = string_ref(&EMPTY_STRING);
+}
+
+static int CGManager_SearchTitleFromArchive(struct string *cg_name)
+{
+	return -1;
+}
+
+static int CGManager_PrefixSearchTitleFromArchive(struct string *cg_name)
+{
+	return -1;
+}
+
+static int CGManager_SuffixSearchTitleFromArchive(struct string *cg_name)
+{
+	return -1;
+}
+
+static int CGManager_GetCountOfSearchDataFromArchive(void)
+{
+	return 0;
+}
+
+static void CGManager_GetSearchTitleByIndexFromArchive(int index, struct string **cg_name)
+{
+	if (cg_name) *cg_name = string_ref(&EMPTY_STRING);
+}
+
+/* v14 (Dohna Dohna) declares these by CG name:
+ *   bool IsExistCG(string CGName);
+ *   void GetSize(string CGName, wrap<int> Width, wrap<int> Height);
+ *   int GetWidth(string CGName); int GetHeight(string CGName);
+ * The FFI resolves wrap<int> to a pointer at the value slot, so the C
+ * out-params are plain int*. Metrics come from the asset index without
+ * decoding pixels. */
+static bool CGManager_IsExistCG(struct string *cg_name)
+{
+	if (!cg_name)
+		return false;
+	return asset_exists_by_name(ASSET_CG, cg_name->text, NULL);
+}
+
+static void CGManager_GetSize(struct string *cg_name, int *width, int *height)
+{
+	struct cg_metrics metrics;
+	if (!cg_name || !asset_cg_get_metrics_by_name(cg_name->text, &metrics))
+		return;
+	if (width)
+		*width = metrics.w;
+	if (height)
+		*height = metrics.h;
+}
+
+static int CGManager_GetWidth(struct string *cg_name)
+{
+	struct cg_metrics metrics;
+	if (!cg_name || !asset_cg_get_metrics_by_name(cg_name->text, &metrics))
+		return 0;
+	return metrics.w;
+}
+
+static int CGManager_GetHeight(struct string *cg_name)
+{
+	struct cg_metrics metrics;
+	if (!cg_name || !asset_cg_get_metrics_by_name(cg_name->text, &metrics))
+		return 0;
+	return metrics.h;
+}
 
 HLL_LIBRARY(CGManager,
+	    HLL_EXPORT(IsExistCG, CGManager_IsExistCG),
+	    HLL_EXPORT(GetSize, CGManager_GetSize),
+	    HLL_EXPORT(GetWidth, CGManager_GetWidth),
+	    HLL_EXPORT(GetHeight, CGManager_GetHeight),
 	    HLL_EXPORT(Init, CGManager_Init),
 	    HLL_EXPORT(LoadArchive, CGManager_LoadArchive),
 	    HLL_EXPORT(IsExist, CGManager_IsExist),

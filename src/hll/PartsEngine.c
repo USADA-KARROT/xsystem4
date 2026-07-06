@@ -15,12 +15,17 @@
  */
 
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "system4/ain.h"
 
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "system4/string.h"
 #include "parts.h"
+#include "../parts/parts_internal.h"
+#include "movie.h"
 #include "hll.h"
 #include "input.h"
 #include <SDL.h>
@@ -962,6 +967,610 @@ static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 	}
 	pe_v14_in_update = false;
 }
+enum v14_cp_type {
+	V14_CP_CREATE = 0,
+	V14_CP_CREATE_PIXEL_ONLY = 1,
+	V14_CP_CREATE_CG = 2,
+	V14_CP_FILL = 3,
+	V14_CP_FILL_ALPHA_COLOR = 4,
+	V14_CP_FILL_AMAP = 5,
+	V14_CP_FILL_WITH_ALPHA = 6,
+	V14_CP_DRAW_TEXT = 7,
+	V14_CP_COPY_TEXT = 8,
+	V14_CP_FILL_GRADATION_HORIZON = 9,
+	V14_CP_DRAW_RECT = 10,
+	V14_CP_CUT_CG_BLEND = 11,
+	V14_CP_CUT_CG_COPY = 12,
+	V14_CP_CUT_CG_SCALE_BLEND = 13,
+	V14_CP_CUT_CG_SCALE_COPY = 14,
+	V14_CP_GRAY_FILTER = 15,
+	V14_CP_ADD_FILTER = 16,
+	V14_CP_MUL_FILTER = 17,
+	V14_CP_DRAW_LINE = 18,
+	V14_CP_CUT_CG_ALPHA_BLEND = 19,
+	V14_CP_CUT_CG_SCALE_ALPHA_BLEND = 20,
+	V14_CP_CUT_CG_ONLY_ALPHA = 21,
+	V14_CP_CUT_CG_SCALE_ONLY_ALPHA = 22,
+	V14_CP_ALPHA_BLEND_TEXT = 23,
+	V14_CP_ONLY_ALPHA_TEXT = 24,
+	V14_CP_MUL_AMAP_GRADATION_HORIZON = 25,
+	V14_CP_MUL_AMAP_GRADATION_VERTICAL = 26,
+	V14_CP_HBLUR_FILTER = 27,
+	V14_CP_VBLUR_FILTER = 28,
+	V14_CP_CG_BLEND = 29,
+	V14_CP_DRAW_LINE_WITH_ALPHA = 30,
+	V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT = 57,
+};
+
+/*
+ * wrap_get_backing_array — extract the backing ARRAY_PAGE from a wrap<array<T>> slot.
+ *
+ * In v14, wrap<array<T>> may be:
+ *   (a) A simple wrap container: member[0] → inner slot → ARRAY_PAGE
+ *   (b) An IArray<T> implementation class (STRUCT_PAGE with ~40 members):
+ *       the backing array is stored in a member of AIN array type.
+ *
+ * This function handles both cases by:
+ *   1. Checking if the slot directly holds an ARRAY_PAGE
+ *   2. Trying the simple wrap path (member[0])
+ *   3. Using the AIN struct definition to find the array-type member
+ *   4. Falling back to scanning for the first ARRAY_PAGE member
+ */
+static struct page *wrap_get_backing_array(int slot)
+{
+	if (slot < 0 || (size_t)slot >= heap_size) return NULL;
+	if (heap[slot].type != VM_PAGE || !heap[slot].page) return NULL;
+	struct page *p = heap[slot].page;
+
+	// Case 1: slot directly holds an ARRAY_PAGE
+	if (p->type == ARRAY_PAGE)
+		return p;
+
+	// Case 2: simple wrap — member[0] is inner slot pointing to ARRAY_PAGE
+	if (p->nr_vars > 0) {
+		int inner = p->values[0].i;
+		if (inner > 0 && (size_t)inner < heap_size
+		    && heap[inner].type == VM_PAGE && heap[inner].page
+		    && heap[inner].page->type == ARRAY_PAGE)
+			return heap[inner].page;
+	}
+
+	// Case 3: IArray class — use AIN struct definition to find array member
+	if (p->type == STRUCT_PAGE && p->index >= 0
+	    && ain && p->index < ain->nr_structures) {
+		struct ain_struct *st = &ain->structures[p->index];
+		for (int k = 0; k < st->nr_members && k < p->nr_vars; k++) {
+			switch (st->members[k].type.data) {
+			case AIN_ARRAY_TYPE:
+			case AIN_ARRAY: {
+				int v = p->values[k].i;
+				if (v > 0 && (size_t)v < heap_size
+				    && heap[v].type == VM_PAGE && heap[v].page
+				    && heap[v].page->type == ARRAY_PAGE)
+					return heap[v].page;
+				break;
+			}
+			default:
+				break;
+			}
+		}
+	}
+
+	// Case 4: fallback — scan all members for first ARRAY_PAGE
+	if (p->type == STRUCT_PAGE) {
+		for (int k = 0; k < p->nr_vars; k++) {
+			int v = p->values[k].i;
+			if (v > 0 && (size_t)v < heap_size
+			    && heap[v].type == VM_PAGE && heap[v].page
+			    && heap[v].page->type == ARRAY_PAGE)
+				return heap[v].page;
+		}
+	}
+
+	return NULL;
+}
+
+static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, int wf_slot, int ws_slot, int wp_slot, int state)
+{
+	struct page *ints = wrap_get_backing_array(wi_slot);
+	if (!ints || ints->nr_vars < 1) {
+		return;
+	}
+	// Sanity check: ints[0] (command) should be 0-200 range
+	if (ints->values[0].i > 200 || ints->values[0].i < 0) {
+		return;
+	}
+
+	int cmd = ints->values[0].i;
+
+	// Trace: dump ints array for debugging Construction
+	{
+		static int apt = 0;
+		if (apt < 5 && 0) { // disabled trace
+			WARNING("AddCP: parts=%d cmd=%d nr_vars=%d vals=[", parts_no, cmd, ints->nr_vars);
+			for (int _j = 0; _j < ints->nr_vars && _j < 16; _j++)
+				WARNING("  [%d]=%d", _j, ints->values[_j].i);
+			apt++;
+		}
+	}
+
+	int dx = ints->nr_vars > 6 ? ints->values[6].i : 0;
+	int dy = ints->nr_vars > 7 ? ints->values[7].i : 0;
+	int dx2 = ints->nr_vars > 8 ? ints->values[8].i : 0;
+	int dy2 = ints->nr_vars > 9 ? ints->values[9].i : 0;
+	int dw = ints->nr_vars > 10 ? ints->values[10].i : 0;
+	int dh = ints->nr_vars > 11 ? ints->values[11].i : 0;
+	int r  = ints->nr_vars > 12 ? ints->values[12].i : 0;
+	int g  = ints->nr_vars > 13 ? ints->values[13].i : 0;
+	int b  = ints->nr_vars > 14 ? ints->values[14].i : 0;
+	int a  = ints->nr_vars > 15 ? ints->values[15].i : 255;
+	int interp = ints->nr_vars > 1 ? ints->values[1].i : 0;
+	int sx = ints->nr_vars > 2 ? ints->values[2].i : 0;
+	int sy = ints->nr_vars > 3 ? ints->values[3].i : 0;
+	int sw = ints->nr_vars > 4 ? ints->values[4].i : 0;
+	int sh = ints->nr_vars > 5 ? ints->values[5].i : 0;
+
+	/* Get CG name from ArrayString if available */
+	struct page *strs = wrap_get_backing_array(ws_slot);
+	struct string *cg_name = NULL;
+	struct string *text = NULL;
+	if (strs) {
+		if (strs->nr_vars > 1) {
+			int s = strs->values[1].i;
+			if (s > 0 && heap_index_valid(s) && heap[s].s)
+				cg_name = heap[s].s;
+		}
+		if (strs->nr_vars > 0) {
+			int s = strs->values[0].i;
+			if (s > 0 && heap_index_valid(s) && heap[s].s)
+				text = heap[s].s;
+		}
+	}
+
+	switch (cmd) {
+	case V14_CP_CREATE:
+		if (dw == 0 && dh == 0) {
+			dw = dx2 > 0 ? dx2 : 0;
+			dh = dy2 > 0 ? dy2 : 0;
+		}
+		PE_AddCreateToPartsConstructionProcess(parts_no, dw, dh, state);
+		break;
+	case V14_CP_CREATE_PIXEL_ONLY:
+		if (dw == 0 && dh == 0) {
+			dw = dx2 > 0 ? dx2 : 0;
+			dh = dy2 > 0 ? dy2 : 0;
+		}
+		PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, dw, dh, state);
+		break;
+	case V14_CP_CREATE_CG:
+		if (cg_name)
+			PE_AddCreateCGToProcess(parts_no, cg_name, state);
+		break;
+	case V14_CP_FILL: {
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
+		break;
+	}
+	case V14_CP_FILL_ALPHA_COLOR: {
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_FILL_AMAP: {
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
+		break;
+	}
+	case V14_CP_FILL_WITH_ALPHA: {
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_DRAW_TEXT:
+		if (text) {
+			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
+			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
+			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
+			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
+			struct page *floats = wrap_get_backing_array(wf_slot);
+			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
+			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
+			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
+			PE_AddDrawTextToPartsConstructionProcess(parts_no, dx, dy, text,
+				font_type, font_size, r, g, b, bold_weight,
+				r2, g2, b2, edge_weight, char_space, line_space, state);
+		}
+		break;
+	case V14_CP_COPY_TEXT:
+		if (text) {
+			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
+			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
+			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
+			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
+			struct page *floats = wrap_get_backing_array(wf_slot);
+			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
+			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
+			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
+			PE_AddCopyTextToPartsConstructionProcess(parts_no, dx, dy, text,
+				font_type, font_size, r, g, b, bold_weight,
+				r2, g2, b2, edge_weight, char_space, line_space, state);
+		}
+		break;
+	case V14_CP_FILL_GRADATION_HORIZON: {
+		/* Gradient fill: use RGBA + RGBA2 for start/end colors, approximate with fill */
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_DRAW_RECT: {
+		int fw = dw > 0 ? dw : dx2;
+		int fh = dh > 0 ? dh : dy2;
+		PE_AddDrawRectToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
+		break;
+	}
+	case V14_CP_CUT_CG_BLEND:
+	case V14_CP_CUT_CG_SCALE_BLEND:
+	case V14_CP_CUT_CG_ALPHA_BLEND:
+	case V14_CP_CUT_CG_SCALE_ALPHA_BLEND:
+	case V14_CP_CG_BLEND:
+		if (cg_name)
+			PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
+		break;
+	case V14_CP_CUT_CG_COPY:
+	case V14_CP_CUT_CG_SCALE_COPY:
+	case V14_CP_CUT_CG_ONLY_ALPHA:
+	case V14_CP_CUT_CG_SCALE_ONLY_ALPHA:
+		if (cg_name)
+			PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
+		break;
+	case V14_CP_GRAY_FILTER:
+	case V14_CP_ADD_FILTER:
+	case V14_CP_MUL_FILTER:
+	case V14_CP_HBLUR_FILTER:
+	case V14_CP_VBLUR_FILTER: {
+		/* Filter stubs — no-op, the parts texture is already rendered */
+		static int filter_warn = 0;
+		if (filter_warn++ < 3)
+			WARNING("AddPartsConstructionProcess: filter type %d (stub) parts=%d", cmd, parts_no);
+		break;
+	}
+	case V14_CP_DRAW_LINE:
+	case V14_CP_DRAW_LINE_WITH_ALPHA: {
+		int x1 = dx, y1 = dy, x2 = dx2, y2 = dy2;
+		int lx = x1 < x2 ? x1 : x2;
+		int ly = y1 < y2 ? y1 : y2;
+		int lw = abs(x2 - x1);
+		int lh = abs(y2 - y1);
+		if (lw == 0) lw = 1;
+		if (lh == 0) lh = 1;
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, lx, ly, lw, lh, r, g, b, a, state);
+		break;
+	}
+	case V14_CP_ALPHA_BLEND_TEXT:
+	case V14_CP_ONLY_ALPHA_TEXT:
+		/* Text with alpha blending — use DrawText as approximation */
+		if (text) {
+			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
+			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
+			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
+			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
+			struct page *floats = wrap_get_backing_array(wf_slot);
+			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
+			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
+			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
+			PE_AddDrawTextToPartsConstructionProcess(parts_no, dx, dy, text,
+				font_type, font_size, r, g, b, bold_weight,
+				r2, g2, b2, edge_weight, char_space, line_space, state);
+		}
+		break;
+	case V14_CP_MUL_AMAP_GRADATION_HORIZON:
+	case V14_CP_MUL_AMAP_GRADATION_VERTICAL: {
+		/* Gradient alpha map — approximate with FillAMap */
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
+		break;
+	}
+	case V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT: {
+		/* Circle draw — approximate with fill alpha color */
+		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
+		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+		break;
+	}
+	default: {
+		static int cp_warn = 0;
+		if (cp_warn++ < 10) {
+			WARNING("AddPartsConstructionProcess: unknown type %d parts=%d "
+				"ints_nr=%d ints[0..3]=%d,%d,%d,%d",
+				cmd, parts_no, ints->nr_vars,
+				ints->nr_vars > 0 ? ints->values[0].i : -1,
+				ints->nr_vars > 1 ? ints->values[1].i : -1,
+				ints->nr_vars > 2 ? ints->values[2].i : -1,
+				ints->nr_vars > 3 ? ints->values[3].i : -1);
+		}
+		break;
+	}
+	}
+}
+// Parts movie implementation (APEG audio playback via movie.h)
+#define PARTS_MOVIE_MAX 16
+static struct { int number; struct movie_context *mc; } parts_movies[PARTS_MOVIE_MAX];
+
+static struct movie_context **parts_movie_get(int number)
+{
+	for (int i = 0; i < PARTS_MOVIE_MAX; i++)
+		if (parts_movies[i].number == number)
+			return &parts_movies[i].mc;
+	return NULL;
+}
+
+static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
+	possibly_unused int soundid, possibly_unused int soundgroup,
+	int red, int green, int blue, int state)
+{
+	// Free any existing context for this number.
+	struct movie_context **slot = parts_movie_get(number);
+	if (slot && *slot) {
+		movie_free(*slot);
+		*slot = NULL;
+	}
+	// Find a free slot.
+	if (!slot) {
+		for (int i = 0; i < PARTS_MOVIE_MAX; i++) {
+			if (!parts_movies[i].mc && parts_movies[i].number == 0) {
+				parts_movies[i].number = number;
+				slot = &parts_movies[i].mc;
+				break;
+			}
+		}
+	}
+	if (!slot)
+		return false;
+	struct movie_context *mc = movie_load(filename->text);
+	if (!mc)
+		return false;
+	*slot = mc;
+
+	// Fill the parts texture with the background color (shows when video not decoded).
+	struct parts *p = parts_try_get(number);
+	if (p && parts_state_valid(state - 1)) {
+		struct parts_common *common = &p->states[state - 1].common;
+		int tw = common->w, th = common->h;
+		// If parts has no size yet, use the movie's native dimensions.
+		if (tw <= 0 || th <= 0)
+			movie_get_video_size(mc, &tw, &th);
+		if (tw > 0 && th > 0) {
+			// Colors are in YCbCr; just use black (0,0,0) for simplicity.
+			SDL_Color bg = { 0, 0, 0, 255 };
+			(void)red; (void)green; (void)blue;
+			gfx_init_texture_rgba(&common->texture, tw, th, bg);
+			if (common->w <= 0) {
+				common->w = tw;
+				common->h = th;
+			}
+			parts_dirty(p);
+		}
+	}
+	return true;
+}
+
+static bool PE_stub_ReleasePartsMovie(int number, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (slot && *slot) {
+		movie_free(*slot);
+		*slot = NULL;
+	}
+	return true;
+}
+
+static bool PE_stub_PlayPartsMovie(int number, int msec, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (!slot || !*slot)
+		return false;
+	(void)msec;
+	return movie_play(*slot);
+}
+
+static void PE_stub_SetMovieTime(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { }
+
+static bool PE_stub_IsEndPartsMovie(int number, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (!slot || !*slot)
+		return true;
+	return movie_is_end(*slot);
+}
+
+static int PE_stub_GetPartsMovieEndTime(possibly_unused int number, possibly_unused int state) { return 0; }
+
+static int PE_stub_GetPartsMovieCurrentTime(int number, possibly_unused int state)
+{
+	struct movie_context **slot = parts_movie_get(number);
+	if (!slot || !*slot)
+		return 0;
+	return movie_get_position(*slot);
+}
+
+/* ======================================================================
+ * v14 batch (fork port): panels, misc component accessors, message
+ * window text stubs, back-scene save, child queries, parts movie.
+ * Registered from PartsEngine_PostLink via pe_v14_register_batch();
+ * static_library_register only fills NULL entries, so none of these
+ * can shadow an upstream implementation.
+ * ====================================================================== */
+
+/* Component color/clip accessors — stubs with fork-verified defaults
+ * (add color reads back 0, mul color reads back 255 = white). */
+static int PE_v14_GetComponentAddColorR(int n) { (void)n; return 0; }
+static int PE_v14_GetComponentAddColorG(int n) { (void)n; return 0; }
+static int PE_v14_GetComponentAddColorB(int n) { (void)n; return 0; }
+static int PE_v14_GetComponentMulColorR(int n) { (void)n; return 255; }
+static int PE_v14_GetComponentMulColorG(int n) { (void)n; return 255; }
+static int PE_v14_GetComponentMulColorB(int n) { (void)n; return 255; }
+static void PE_v14_SetComponentEnableClipArea(int n, bool enable) { (void)n; (void)enable; }
+static void PE_v14_SetComponentClipArea(int n, int x, int y, int w, int h)
+{ (void)n; (void)x; (void)y; (void)w; (void)h; }
+static int PE_v14_GetComponentClipAreaPosX(int n) { (void)n; return 0; }
+static int PE_v14_GetComponentClipAreaPosY(int n) { (void)n; return 0; }
+static int PE_v14_GetComponentClipAreaPosWidth(int n) { (void)n; return 0; }
+static int PE_v14_GetComponentClipAreaPosHeight(int n) { (void)n; return 0; }
+static void PE_v14_SetComponentReverseLR(int n, bool r) { (void)n; (void)r; }
+
+static float PE_v14_GetComponentMagX(int n) { return PE_GetPartsMagX(n); }
+static float PE_v14_GetComponentMagY(int n) { return PE_GetPartsMagY(n); }
+
+/* Metadata label; no visual effect. */
+static void PE_v14_Parts_SetComment(int parts_no, struct string *comment)
+{ (void)parts_no; (void)comment; }
+
+static int PE_v14_NumofChild(int number)
+{
+	struct parts *p = parts_try_get(number);
+	if (!p)
+		return 0;
+	int count = 0;
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, p) {
+		count++;
+	}
+	return count;
+}
+
+/* --- Panel support (fork implementation) --- */
+static void PE_v14_SetPanelSize(int parts_no, int w, int h)
+{
+	PE_ClearPartsConstructionProcess(parts_no, 1);
+	PE_AddCreateToPartsConstructionProcess(parts_no, w, h, 1);
+	PE_BuildPartsConstructionProcess(parts_no, 1);
+}
+
+static void PE_v14_SetPanelColor(int parts_no, int r, int g, int b, int a)
+{
+	struct parts *p = parts_try_get(parts_no);
+	if (!p)
+		return;
+	struct parts_construction_process *cproc =
+		parts_get_construction_process(p, 0); /* state 0 = internal index for state 1 */
+	int w = cproc->common.w;
+	int h = cproc->common.h;
+	if (w <= 0 || h <= 0)
+		return;
+	PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, 0, 0, w, h, r, g, b, a, 1);
+	PE_BuildPartsConstructionProcess(parts_no, 1);
+}
+
+/* --- Message window text queries ---
+ * Text is rendered synchronously by the pe_v14_message adapters, so these
+ * read back empty/default values (fork parity; the script only uses them
+ * for layout bookkeeping). */
+static struct string *PE_v14_GetMessageWindowFlatName(int parts_no)
+{
+	(void)parts_no;
+	return string_ref(&EMPTY_STRING);
+}
+
+static struct string *PE_v14_GetMessageWindowText(int parts_no)
+{
+	(void)parts_no;
+	return string_ref(&EMPTY_STRING);
+}
+
+static void PE_v14_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
+{ (void)parts_no; (void)mode; }
+
+/* v14 declares: bool SaveBackScene(wrap<array<int>> SaveDataBuffer).
+ * The back-scene snapshot is not implemented (backlog display, Wave 6);
+ * report success so the script's 画面保管 step doesn't raise system.Error
+ * and abort the transition bookkeeping. The fork's void stub returned an
+ * undefined (in practice non-zero) value here, so 'true' matches the
+ * behaviour the game was verified against. */
+static bool PE_v14_SaveBackScene(int buf_slot)
+{
+	(void)buf_slot;
+	return true;
+}
+
+/* Read back the message-window CG set by SetMessageWindowCGName. */
+static struct string *PE_GetMessageWindowCGName(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return string_ref(&EMPTY_STRING);
+	struct parts_cg *cg = parts_get_cg(parts, PARTS_STATE_DEFAULT);
+	if (cg && cg->name)
+		return string_ref(cg->name);
+	return string_ref(&EMPTY_STRING);
+}
+
+/* "Async" CG load: no thread loader, so load synchronously and return
+ * true so the ain-side Observer (polling Parts_IsThreadLoading == false)
+ * fires its callback immediately. */
+static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname, int state)
+{
+	PE_SetPartsCG(number, cgname, 0, state);
+	return true;
+}
+#include "pe_v14_stubs.h"
+
+/* Fill the v14-only names into the runtime library table. Called from
+ * PartsEngine_PostLink, gated on the v14 declaration set; register only
+ * fills entries that are still NULL after link_libraries(). */
+static void pe_v14_register_batch(void)
+{
+	struct static_library *lib = &lib_PartsEngine;
+#if 0 // BISECT round 3: group A (constructive) disabled, rest enabled
+	static_library_register(lib, "AddPartsConstructionProcess", PartsEngine_AddPartsConstructionProcess);
+	static_library_register(lib, "SetPanelSize", PE_v14_SetPanelSize);
+	static_library_register(lib, "SetPanelColor", PE_v14_SetPanelColor);
+#endif // BISECT round 3
+	static_library_register(lib, "NumofChild", PE_v14_NumofChild);
+	static_library_register(lib, "Parts_SetComment", PE_v14_Parts_SetComment);
+	static_library_register(lib, "Parts_GetPartsSize", PE_GetPartsSize);
+	static_library_register(lib, "Parts_GetPartsCGDeform", PE_GetPartsCGDeform);
+	static_library_register(lib, "Parts_GetParentPartsNumber", PE_GetParentPartsNumber);
+	static_library_register(lib, "GetComponentAddColorR", PE_v14_GetComponentAddColorR);
+	static_library_register(lib, "GetComponentAddColorG", PE_v14_GetComponentAddColorG);
+	static_library_register(lib, "GetComponentAddColorB", PE_v14_GetComponentAddColorB);
+	static_library_register(lib, "GetComponentMulColorR", PE_v14_GetComponentMulColorR);
+	static_library_register(lib, "GetComponentMulColorG", PE_v14_GetComponentMulColorG);
+	static_library_register(lib, "GetComponentMulColorB", PE_v14_GetComponentMulColorB);
+	static_library_register(lib, "GetComponentMagX", PE_v14_GetComponentMagX);
+	static_library_register(lib, "GetComponentMagY", PE_v14_GetComponentMagY);
+	static_library_register(lib, "SetComponentEnableClipArea", PE_v14_SetComponentEnableClipArea);
+	static_library_register(lib, "SetComponentClipArea", PE_v14_SetComponentClipArea);
+	static_library_register(lib, "GetComponentClipAreaPosX", PE_v14_GetComponentClipAreaPosX);
+	static_library_register(lib, "GetComponentClipAreaPosY", PE_v14_GetComponentClipAreaPosY);
+	static_library_register(lib, "GetComponentClipAreaPosWidth", PE_v14_GetComponentClipAreaPosWidth);
+	static_library_register(lib, "GetComponentClipAreaPosHeight", PE_v14_GetComponentClipAreaPosHeight);
+	static_library_register(lib, "SetComponentReverseLR", PE_v14_SetComponentReverseLR);
+	static_library_register(lib, "GetMessageWindowText", PE_v14_GetMessageWindowText);
+	static_library_register(lib, "GetMessageWindowFlatName", PE_v14_GetMessageWindowFlatName);
+	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_v14_SetMessageWindowTextOriginPosMode);
+#if 0 // BISECT round 3
+	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
+#endif
+#if 1 // BISECT: prelink stubs disabled for fault isolation
+	(void)0;
+#else
+#include "pe_v14_prelink.h"
+#endif
+}
 
 static void PartsEngine_PreLink(void)
 {
@@ -1034,5 +1643,6 @@ static void PartsEngine_PostLink(void)
 	if (get_fun(libno, "GetMessageUniqueID")) {
 		extern void pe_v14_message_register(void);
 		pe_v14_message_register();
+		pe_v14_register_batch();
 	}
 }
