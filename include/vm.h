@@ -110,10 +110,11 @@ union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 
 int vm_execute_ain(struct ain *program);
 void vm_call(int fno, int struct_page);
+void vm_call_nopop(int fno, int nargs);
 int vm_time(void);
 void vm_sleep(int ms);
 
-void hll_call(int libno, int fno);
+void hll_call(int libno, int fno, int hll_arg3);
 bool library_exists(int libno);
 bool library_function_exists(int libno, int fno);
 void init_libraries(void);
@@ -155,6 +156,11 @@ struct function_call {
 	uint32_t return_address;
 	int32_t page_slot;
 	int32_t struct_page;
+	int32_t base_sp;        // stack pointer after args popped (diagnostic)
+	int32_t env_page;       // v14: closure environment (enclosing function's local page)
+	bool is_method;         // v14: struct_page left on stack below base_sp
+	bool is_delegate_call;  // called via delegate: skip return-value stack adjustment
+	int32_t dg_return_slots; // delegate-call: expected return slots (from delegate type)
 };
 
 extern struct function_call call_stack[4096];

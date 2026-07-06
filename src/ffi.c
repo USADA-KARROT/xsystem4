@@ -16,15 +16,23 @@
 
 #define VM_PRIVATE
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <ffi.h>
 #include "system4/ain.h"
+#include "system4/string.h"
 #include "system4/utfsjis.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "xsystem4.h"
+
+// v14: source tracking for null-array FFI write-back.
+// Set by X_REF when it pushes -1 from a struct member.
+int xref_null_src_page = -1;
+int xref_null_src_var = -1;
 
 #define HLL_MAX_ARGS 64
 
@@ -37,6 +45,11 @@ struct hll_function {
 };
 
 static struct hll_function **libraries = NULL;
+
+// Object slot for AIN_HLL_FUNC callbacks (closure env / method receiver).
+// Set by FFI when processing AIN_HLL_FUNC arguments; read by vm_call_nopop
+// to set struct_page on the new call frame for lambda/method callbacks.
+int hll_func_obj = -1;
 
 bool library_exists(int libno)
 {
@@ -292,16 +305,83 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 }
 #endif /* TRACE_HLL */
 
-void hll_call(int libno, int fno)
+void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
 
-	if (!libraries[libno])
-		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
+	if (!libraries[libno] || !libraries[libno][fno].fun) {
+		/* Rate-limited warning: first 3 per (lib,func), then every 1M */
+		{
+			static struct { int libno; int fno; int count; } unimp_log[64];
+			static int unimp_log_cnt = 0;
+			int idx = -1;
+			for (int i = 0; i < unimp_log_cnt; i++) {
+				if (unimp_log[i].libno == libno && unimp_log[i].fno == fno) {
+					idx = i; break;
+				}
+			}
+			if (idx < 0 && unimp_log_cnt < 64) {
+				idx = unimp_log_cnt++;
+				unimp_log[idx].libno = libno;
+				unimp_log[idx].fno = fno;
+				unimp_log[idx].count = 0;
+			}
+			int cnt = idx >= 0 ? ++unimp_log[idx].count : 1;
+			if (cnt <= 5 || cnt % 1000000 == 0) {
+				WARNING("UNIMPL HLL: %s.%s (args=%d, cnt=%d)",
+					ain->libraries[libno].name, f->name, f->nr_arguments, cnt);
+			}
+		}
+		// Pop all arguments from stack
+		for (int i = f->nr_arguments - 1; i >= 0; i--) {
+			switch (f->arguments[i].type.data) {
+			case AIN_REF_INT:
+			case AIN_REF_LONG_INT:
+			case AIN_REF_BOOL:
+			case AIN_REF_FLOAT:
+			case AIN_REF_HLL_PARAM:
+				stack_ptr -= 2; break; // 2-slot reference (pageno, varno)
+			case AIN_HLL_FUNC:
+				stack_ptr -= 2; break; // 2-slot (object, function)
+			case AIN_WRAP: {
+				// v14: slot count depends on inner type
+				enum ain_data_type w_inner = AIN_VOID;
+				if (f->arguments[i].type.array_type)
+					w_inner = f->arguments[i].type.array_type->data;
+				bool w_val = (w_inner == AIN_INT || w_inner == AIN_FLOAT
+					|| w_inner == AIN_BOOL || w_inner == AIN_LONG_INT);
+				stack_ptr -= w_val ? 2 : 1;
+				break;
+			}
+			case AIN_IFACE:
+			case AIN_IFACE_WRAP:
+				stack_ptr -= 2; break; // v14: 2-slot [page, vtable_offset]
+			case AIN_OPTION:
+				stack_ptr -= 2; break; // v14: 2-slot [value, discriminant]
+			case AIN_HLL_PARAM: {
+				// v14: generic element parameter. Slot count depends on
+				// element type encoded in hll_arg3.
+				int etype = hll_arg3 & 0xFFFF;
+				bool is_2slot = (etype == 3 || etype == 5 ||
+					etype == AIN_IFACE || etype == AIN_OPTION ||
+					etype == AIN_IFACE_WRAP);
+				stack_ptr -= is_2slot ? 2 : 1;
+				break;
+			}
+			case AIN_REF_ARRAY:
+				stack_ptr--; break; // v14: 1-slot (resolved heap slot)
+			default:
+				stack_ptr--; break;
+			}
+		}
+		// Push default return value
+		if (f->return_type.data != AIN_VOID) {
+			stack_push(0);
+		}
+		return;
+	}
 
 	struct hll_function *fun = &libraries[libno][fno];
-	if (!fun->fun)
-		VM_ERROR("Unimplemented HLL function: %s.%s", ain->libraries[libno].name, f->name);
 
 	void *args[HLL_MAX_ARGS];
 	void *ptrs[HLL_MAX_ARGS];
@@ -309,45 +389,281 @@ void hll_call(int libno, int fno)
 	// reallocation during HLL calls.
 	void *heap_ptrs[HLL_MAX_ARGS];
 	int heap_slots[HLL_MAX_ARGS];
+	// (wrap_pagenos/wrap_varnos removed — AIN_WRAP is 1-slot)
+	// v14: expose hll_arg3 to HLL functions (Array uses it for element type info)
+	extern int hll_current_arg3;
+	hll_current_arg3 = hll_arg3;
+	// v14: save the first AIN_REF_ARRAY argument's resolved heap slot
+	// so HLL functions can construct 2-slot references for REF_HLL_PARAM return.
+	extern int hll_self_slot;
+	hll_self_slot = -1;
+
+	// Reset null-array source tracker (set by X_REF in vm.c)
+	// before processing arguments — it will be set again if
+	// the relevant X_REF just pushed -1 for this call.
+	// (Don't reset here — the X_REF that set it is the one right
+	// before CALLHLL, so it's still valid.)
 
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
-		case AIN_REF_FLOAT: {
-			// need to create pointer for immediate ref types
+		case AIN_REF_FLOAT:
+		case AIN_REF_HLL_PARAM: {
+			// need to create pointer for immediate ref types (2-slot)
 			stack_ptr -= 2;
 			int pageno = stack[stack_ptr].i;
 			int varno  = stack[stack_ptr+1].i;
-			ptrs[i] = &heap[pageno].page->values[varno];
+			if (pageno >= 0 && (size_t)pageno < heap_size
+			    && heap[pageno].page
+			    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+				ptrs[i] = &heap[pageno].page->values[varno];
+			} else {
+				// Invalid ref — provide a safe scratch location
+				heap_slots[i] = 0;
+				ptrs[i] = (void *)&heap_slots[i];
+			}
 			args[i] = &ptrs[i];
 			break;
 		}
-		case AIN_STRING:
-			stack_ptr--;
-			args[i] = &heap[stack[stack_ptr].i].s;
+		case AIN_WRAP: {
+			// v14: WRAP parameter in HLL calls.
+			enum ain_data_type inner = AIN_VOID;
+			if (f->arguments[i].type.array_type)
+				inner = f->arguments[i].type.array_type->data;
+			bool is_value_wrap = (inner == AIN_INT || inner == AIN_FLOAT
+				|| inner == AIN_BOOL || inner == AIN_LONG_INT);
+			if (is_value_wrap) {
+				stack_ptr -= 2;
+				int pageno = stack[stack_ptr].i;
+				int varno  = stack[stack_ptr+1].i;
+				if (pageno > 0 && heap_index_valid(pageno)
+				    && heap[pageno].type == VM_PAGE && heap[pageno].page
+				    && varno >= 0 && varno < heap[pageno].page->nr_vars) {
+					ptrs[i] = &heap[pageno].page->values[varno];
+				} else {
+					heap_slots[i] = 0;
+					ptrs[i] = (void *)&heap_slots[i];
+				}
+				args[i] = &ptrs[i];
+			} else {
+				// wrap<ref_type> (array/struct/string/iface): 1-slot (heap slot index)
+				stack_ptr--;
+				heap_slots[i] = stack[stack_ptr].i;
+				args[i] = &heap_slots[i];
+			}
 			break;
-		case AIN_REF_STRING:
+		}
+		case AIN_STRING: {
 			stack_ptr--;
-			heap_slots[i] = stack[stack_ptr].i;
-			heap_ptrs[i] = heap[stack[stack_ptr].i].s;
+			int slot = stack[stack_ptr].i;
+			if (slot >= 0 && (size_t)slot < heap_size)
+				args[i] = &heap[slot].s;
+			else {
+				heap_ptrs[i] = NULL;
+				args[i] = &heap_ptrs[i];
+			}
+			break;
+		}
+		case AIN_REF_STRING: {
+			stack_ptr--;
+			int slot = stack[stack_ptr].i;
+			if (slot >= 0 && (size_t)slot < heap_size
+			    && heap[slot].type == VM_STRING) {
+				heap_slots[i] = slot;
+				heap_ptrs[i] = heap[slot].s;
+			} else {
+				heap_slots[i] = -1;
+				heap_ptrs[i] = NULL;
+			}
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
+		}
 		case AIN_STRUCT:
 		case AIN_ARRAY_TYPE:
+		case AIN_ARRAY:
+		case AIN_DELEGATE: {
 			stack_ptr--;
-			args[i] = &heap[stack[stack_ptr].i].page;
+			int slot = stack[stack_ptr].i;
+			if (slot >= 0 && (size_t)slot < heap_size) {
+				args[i] = &heap[slot].page;
+				if (f->arguments[i].type.data == AIN_ARRAY && hll_self_slot < 0)
+					hll_self_slot = slot;
+			} else {
+				heap_ptrs[i] = NULL;
+				args[i] = &heap_ptrs[i];
+			}
 			break;
+		}
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
+		case AIN_REF_DELEGATE: {
 			stack_ptr--;
-			heap_slots[i] = stack[stack_ptr].i;
-			heap_ptrs[i] = heap[stack[stack_ptr].i].page;
+			int slot = stack[stack_ptr].i;
+			if (slot >= 0 && (size_t)slot < heap_size
+			    && heap[slot].type == VM_PAGE) {
+				heap_slots[i] = slot;
+				heap_ptrs[i] = heap[slot].page;
+			} else {
+				heap_slots[i] = -1;
+				heap_ptrs[i] = NULL;
+			}
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
+		}
+		case AIN_REF_ARRAY: {
+			// v14: stack may have 2-slot ref [page, varno] from STRUCTREF,
+			// or 1-slot resolved heap slot from X_REF.
+			// Check: if previous stack entry looks like a valid page containing
+			// the current value as a member, treat as 2-slot ref.
+			stack_ptr--;
+			int slot = stack[stack_ptr].i;
+			int array_slot = -1;
+			// Try to find the inner array by recursive unwrapping
+			int cur = slot;
+			for (int depth = 0; depth < 4; depth++) {
+				if (cur <= 0 || (size_t)cur >= heap_size || heap[cur].type != VM_PAGE)
+					break;
+				if (!heap[cur].page || heap[cur].page->type == ARRAY_PAGE) {
+					array_slot = cur;
+					break;
+				}
+				if (heap[cur].page->type == STRUCT_PAGE) {
+					struct page *sp = heap[cur].page;
+					// Try each member to find an array slot
+					bool found = false;
+					for (int m = 0; m < sp->nr_vars && m < 4; m++) {
+						int ms = sp->values[m].i;
+						if (ms > 0 && (size_t)ms < heap_size
+						    && heap[ms].type == VM_PAGE
+						    && (!heap[ms].page || heap[ms].page->type == ARRAY_PAGE)) {
+							array_slot = ms;
+							found = true;
+							break;
+						}
+						// v14: wrap<array<T>> initialized with inner slot = -1.
+						// Allocate a new array slot and store it in the wrap.
+						if (ms <= 0 && sp->index == -1) {
+							int new_slot = heap_alloc_slot(VM_PAGE);
+							heap[new_slot].page = NULL;
+							sp->values[m].i = new_slot;
+							array_slot = new_slot;
+							found = true;
+							break;
+						}
+					}
+					if (found)
+						break;
+					// Try to recurse into struct members
+					bool recursed = false;
+					for (int m = 0; m < sp->nr_vars && m < 4; m++) {
+						int ms = sp->values[m].i;
+						if (ms > 0 && (size_t)ms < heap_size
+						    && heap[ms].type == VM_PAGE && heap[ms].page
+						    && heap[ms].page->type == STRUCT_PAGE) {
+							cur = ms;
+							recursed = true;
+							break;
+						}
+					}
+					if (!recursed)
+						break;
+				} else {
+					break;
+				}
+			}
+			if (array_slot > 0) {
+				heap_slots[i] = array_slot;
+				heap_ptrs[i] = heap[array_slot].page;
+				if (hll_self_slot < 0) hll_self_slot = array_slot;
+			} else if (slot <= 0) {
+				// v14: null/uninitialized array (value -1 or 0/guard page).
+				// Allocate a new heap slot so the HLL function can
+				// create an array and the write-back will succeed.
+				int new_slot = heap_alloc_slot(VM_PAGE);
+				heap[new_slot].page = NULL;
+				heap_slots[i] = new_slot;
+				heap_ptrs[i] = NULL;
+				// If X_REF tracked the source struct member, update it
+				// to point to the new slot for proper write-back.
+				if (xref_null_src_page >= 0
+				    && (size_t)xref_null_src_page < heap_size
+				    && heap[xref_null_src_page].type == VM_PAGE
+				    && heap[xref_null_src_page].page
+				    && xref_null_src_var >= 0
+				    && xref_null_src_var < heap[xref_null_src_page].page->nr_vars) {
+					heap[xref_null_src_page].page->values[xref_null_src_var].i = new_slot;
+				}
+				xref_null_src_page = -1;
+				xref_null_src_var = -1;
+			} else {
+				// No inner array found — pass NULL safely
+				heap_slots[i] = -1;
+				heap_ptrs[i] = NULL;
+			}
+			ptrs[i] = &heap_ptrs[i];
+			args[i] = &ptrs[i];
+			break;
+		}
+		case AIN_HLL_FUNC: {
+			// v14: 2-slot value — (object_heap_slot, function_number)
+			// object_heap_slot: -1 for static/lambda, or heap slot of closure env
+			// function_number: always the AIN function index directly
+			stack_ptr -= 2;
+			int obj_slot = stack[stack_ptr].i;
+			int func_no  = stack[stack_ptr+1].i;
+			// Store obj_slot so vm_call_nopop can set struct_page for
+			// lambda/method callbacks (e.g. Array.First predicate).
+			hll_func_obj = obj_slot;
+			// NOTE: union vm_value is 8 bytes (contains void* member) but
+			// FFI uses ffi_type_sint32 (4 bytes). Passing &stack[sp] may
+			// cause FFI to read garbage from the upper bytes on 64-bit.
+			// Store the clean int32 value in heap_slots[i] (int array).
+			heap_slots[i] = func_no;
+			args[i] = &heap_slots[i];
+			break;
+		}
+		case AIN_IFACE:
+		case AIN_IFACE_WRAP:
+		case AIN_OPTION: {
+			// v14: 2-slot value types
+			// AIN_IFACE: [page_slot, vtable_offset]
+			// AIN_OPTION: [value, discriminant]
+			// AIN_IFACE_WRAP: [page_slot, vtable_offset] (wrapped)
+			// Pop 2 slots, pass first slot as pointer-sized value.
+			// FFI type is ffi_type_pointer, so use heap_ptrs for storage.
+			stack_ptr -= 2;
+			int slot = stack[stack_ptr].i;
+			if (slot > 0 && (size_t)slot < heap_size && heap[slot].type == VM_PAGE)
+				heap_ptrs[i] = heap[slot].page;
+			else
+				heap_ptrs[i] = (void*)(intptr_t)slot;
+			args[i] = &heap_ptrs[i];
+			break;
+		}
+		case AIN_HLL_PARAM: {
+			// v14: generic element parameter (type 74). The actual element
+			// type is encoded in hll_arg3. For 2-slot types (wrap, interface,
+			// option), bytecode pushes 2 values but AIN declares 1 param.
+			int etype = hll_current_arg3 & 0xFFFF;
+			bool is_2slot = (etype == 3 || etype == 5 ||
+				etype == AIN_IFACE || etype == AIN_OPTION ||
+				etype == AIN_IFACE_WRAP);
+			if (is_2slot) {
+				stack_ptr -= 2;
+				extern int hll_param_slot2;
+				heap_slots[i] = stack[stack_ptr].i;
+				hll_param_slot2 = stack[stack_ptr+1].i;
+				args[i] = &heap_slots[i];
+			} else {
+				stack_ptr--;
+				args[i] = &stack[stack_ptr];
+			}
+			break;
+		}
 		default:
 			stack_ptr--;
 			args[i] = &stack[stack_ptr];
@@ -356,12 +672,12 @@ void hll_call(int libno, int fno)
 	}
 
 	union vm_value r;
+
 #ifdef TRACE_HLL
 	trace_hll_call(&ain->libraries[libno], f, fun, &r, args);
 #else
 	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
 #endif
-
 
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
@@ -371,15 +687,54 @@ void hll_call(int libno, int fno)
 		case AIN_REF_LONG_INT:
 		case AIN_REF_BOOL:
 		case AIN_REF_FLOAT:
+		case AIN_REF_HLL_PARAM:
+		case AIN_HLL_FUNC:
 			j++;
 			break;
+		case AIN_WRAP: {
+			// v14: only skip extra slot for value wraps (2-slot)
+			enum ain_data_type wb_inner = AIN_VOID;
+			if (f->arguments[i].type.array_type)
+				wb_inner = f->arguments[i].type.array_type->data;
+			if (wb_inner == AIN_INT || wb_inner == AIN_FLOAT
+			    || wb_inner == AIN_BOOL || wb_inner == AIN_LONG_INT)
+				j++; // 2-slot value wrap: skip extra slot
+			break;
+		}
+		case AIN_IFACE:
+		case AIN_IFACE_WRAP:
+		case AIN_OPTION: // v14: 2-slot value types, skip extra slot
+			j++;
+			break;
+		case AIN_HLL_PARAM: {
+			// v14: generic element — skip extra slot if 2-slot type
+			int etype = hll_current_arg3 & 0xFFFF;
+			if (etype == 3 || etype == 5 || etype == AIN_IFACE ||
+			    etype == AIN_OPTION || etype == AIN_IFACE_WRAP)
+				j++;
+			break;
+		}
 		case AIN_REF_STRING:
-			heap[heap_slots[i]].s = heap_ptrs[i];
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
+			    && heap[heap_slots[i]].type == VM_STRING) {
+				heap[heap_slots[i]].s = heap_ptrs[i];
+			}
 			break;
 		case AIN_REF_STRUCT:
 		case AIN_REF_ARRAY_TYPE:
-			heap[heap_slots[i]].page = heap_ptrs[i];
+		case AIN_REF_DELEGATE:
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
+			    && heap[heap_slots[i]].type == VM_PAGE) {
+				heap[heap_slots[i]].page = heap_ptrs[i];
+			}
 			break;
+		case AIN_REF_ARRAY: {
+			// v14: 1-slot — write back directly to heap slot
+			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size) {
+				heap[heap_slots[i]].page = heap_ptrs[i];
+			}
+			break;
+		}
 		case AIN_REF_FUNC_TYPE:
 			break;
 		case AIN_ARRAY_TYPE:
@@ -398,6 +753,7 @@ void hll_call(int libno, int fno)
 	case AIN_VOID:
 		break;
 	case AIN_STRING:
+	case AIN_HLL_PARAM:
 		slot = heap_alloc_slot(VM_STRING);
 		heap[slot].s = r.ref;
 		stack_push(slot);
@@ -408,14 +764,22 @@ void hll_call(int libno, int fno)
 		stack_push(*(bool*)&r);
 #pragma GCC diagnostic pop
 		break;
+	case AIN_REF_HLL_PARAM:
+		// v14: The HLL function has already pushed the return value(s) directly
+		// to the stack. Do NOT push the C return value here.
+		break;
 	default:
 		stack_push(r);
 		break;
 	}
+
+	hll_current_arg3 = -1;
+	hll_self_slot = -1;
 }
 
 extern struct static_library lib_ACXLoader;
 extern struct static_library lib_ACXLoaderP2;
+extern struct static_library lib_ADVEngine;
 extern struct static_library lib_ADVSYS;
 extern struct static_library lib_AFAFactory;
 extern struct static_library lib_AliceLogo;
@@ -429,6 +793,7 @@ extern struct static_library lib_BanMisc;
 extern struct static_library lib_Bitarray;
 extern struct static_library lib_CalcTable;
 extern struct static_library lib_CGManager;
+extern struct static_library lib_Clipboard;
 extern struct static_library lib_ChipmunkSpriteEngine;
 extern struct static_library lib_ChrLoader;
 extern struct static_library lib_CommonSystemData;
@@ -457,8 +822,10 @@ extern struct static_library lib_DrawRain;
 extern struct static_library lib_DrawRipple;
 extern struct static_library lib_DrawSimpleText;
 extern struct static_library lib_DrawSnow;
+extern struct static_library lib_EXWriter;
 extern struct static_library lib_File;
 extern struct static_library lib_File2;
+extern struct static_library lib_FileDialog;
 extern struct static_library lib_FileOperation;
 extern struct static_library lib_FillAngle;
 extern struct static_library lib_GoatGUIEngine;
@@ -468,6 +835,7 @@ extern struct static_library lib_HTTPDownloader;
 extern struct static_library lib_IbisInputEngine;
 extern struct static_library lib_InputDevice;
 extern struct static_library lib_InputString;
+extern struct static_library lib_InstallInfo;
 extern struct static_library lib_KiwiSoundEngine;
 extern struct static_library lib_LoadCG;
 extern struct static_library lib_MADLoader;
@@ -495,9 +863,9 @@ extern struct static_library lib_PixelRestore;
 extern struct static_library lib_PlayDemo;
 extern struct static_library lib_PlayMovie;
 extern struct static_library lib_ReignEngine;
+extern struct static_library lib_SealEngine;
 extern struct static_library lib_SACT2;
 extern struct static_library lib_SACTDX;
-extern struct static_library lib_SealEngine;
 extern struct static_library lib_SengokuRanceFont;
 extern struct static_library lib_Sound2ex;
 extern struct static_library lib_SoundFilePlayer;
@@ -506,6 +874,7 @@ extern struct static_library lib_StretchHelper;
 extern struct static_library lib_SystemService;
 extern struct static_library lib_SystemServiceEx;
 extern struct static_library lib_TapirEngine;
+extern struct static_library lib_TextSurfaceManager;
 extern struct static_library lib_Timer;
 extern struct static_library lib_Toushin3Loader;
 extern struct static_library lib_vmAnime;
@@ -532,6 +901,14 @@ extern struct static_library lib_vmSprite;
 extern struct static_library lib_vmString;
 extern struct static_library lib_vmSurface;
 extern struct static_library lib_vmSystem;
+extern struct static_library lib_system;
+extern struct static_library lib_String;
+extern struct static_library lib_Delegate;
+extern struct static_library lib_Float;
+extern struct static_library lib_HashMap;
+extern struct static_library lib_Int;
+extern struct static_library lib_Sys43VM;
+extern struct static_library lib_TextFile;
 extern struct static_library lib_vmTimer;
 extern struct static_library lib_ValueEncryption;
 extern struct static_library lib_VSFile;
@@ -539,6 +916,7 @@ extern struct static_library lib_VSFile;
 static struct static_library *static_libraries[] = {
 	&lib_ACXLoader,
 	&lib_ACXLoaderP2,
+	&lib_ADVEngine,
 	&lib_ADVSYS,
 	&lib_AFAFactory,
 	&lib_AliceLogo,
@@ -552,6 +930,7 @@ static struct static_library *static_libraries[] = {
 	&lib_Bitarray,
 	&lib_CalcTable,
 	&lib_CGManager,
+	&lib_Clipboard,
 	&lib_ChipmunkSpriteEngine,
 	&lib_ChrLoader,
 	&lib_CommonSystemData,
@@ -580,8 +959,10 @@ static struct static_library *static_libraries[] = {
 	&lib_DrawRipple,
 	&lib_DrawSimpleText,
 	&lib_DrawSnow,
+	&lib_EXWriter,
 	&lib_File,
 	&lib_File2,
+	&lib_FileDialog,
 	&lib_FileOperation,
 	&lib_FillAngle,
 	&lib_GoatGUIEngine,
@@ -591,6 +972,7 @@ static struct static_library *static_libraries[] = {
 	&lib_IbisInputEngine,
 	&lib_InputDevice,
 	&lib_InputString,
+	&lib_InstallInfo,
 	&lib_KiwiSoundEngine,
 	&lib_LoadCG,
 	&lib_MADLoader,
@@ -618,6 +1000,7 @@ static struct static_library *static_libraries[] = {
 	&lib_PlayDemo,
 	&lib_PlayMovie,
 	&lib_ReignEngine,
+	&lib_SealEngine,
 	&lib_SACT2,
 	&lib_SACTDX,
 	&lib_SealEngine,
@@ -629,6 +1012,7 @@ static struct static_library *static_libraries[] = {
 	&lib_SystemService,
 	&lib_SystemServiceEx,
 	&lib_TapirEngine,
+	&lib_TextSurfaceManager,
 	&lib_Timer,
 	&lib_Toushin3Loader,
 	&lib_vmAnime,
@@ -658,6 +1042,14 @@ static struct static_library *static_libraries[] = {
 	&lib_vmTimer,
 	&lib_ValueEncryption,
 	&lib_VSFile,
+	&lib_system,
+	&lib_String,
+	&lib_Delegate,
+	&lib_Float,
+	&lib_HashMap,
+	&lib_Int,
+	&lib_Sys43VM,
+	&lib_TextFile,
 	NULL
 };
 
@@ -679,21 +1071,51 @@ static ffi_type *ain_to_ffi_type(enum ain_data_type type)
 	case AIN_DELEGATE:
 	case AIN_ARRAY_TYPE:
 	case AIN_REF_TYPE:
+	case AIN_HLL_PARAM:
+	case AIN_REF_HLL_PARAM:
+	case AIN_ARRAY:
+	case AIN_OPTION:
+	case AIN_UNKNOWN_TYPE_87:
+	case AIN_IFACE:
+	case AIN_IFACE_WRAP:
 	case AIN_IMAIN_SYSTEM: // ???
 		return &ffi_type_pointer;
+	case AIN_WRAP: // v14: 2-slot ref [page, varno] — C receives int* pointer
+		return &ffi_type_pointer;
+	case AIN_ENUM2:
+	case AIN_ENUM:
+	case AIN_REF_ENUM:
+	case AIN_HLL_FUNC:
+	case AIN_HLL_FUNC_71:
+		return &ffi_type_sint32;
 	default:
-		ERROR("Unhandled type in HLL function: %s", ain_strtype(ain, type, -1));
+		WARNING("Unhandled type in HLL function: %d (%s)", type, ain_strtype(ain, type, -1));
+		return &ffi_type_sint32;  // fallback to int
 	}
 }
 
-static void link_static_library_function(struct hll_function *dst, struct ain_hll_function *src, void *funcptr)
+static void link_static_library_function(struct hll_function *dst, struct ain_hll_function *src,
+					  void *funcptr)
 {
 	dst->fun = funcptr;
+
 	dst->nr_args = src->nr_arguments;
 	dst->args = xcalloc(dst->nr_args, sizeof(ffi_type*));
 
 	for (unsigned int i = 0; i < dst->nr_args; i++) {
-		dst->args[i] = ain_to_ffi_type(src->arguments[i].type.data);
+		if (src->arguments[i].type.data == AIN_WRAP
+		    && src->arguments[i].type.array_type) {
+			// wrap<value_type> → pointer (ref semantics)
+			// wrap<ref_type> → sint32 (pass inner heap slot)
+			enum ain_data_type inner = src->arguments[i].type.array_type->data;
+			if (inner == AIN_INT || inner == AIN_FLOAT
+			    || inner == AIN_BOOL || inner == AIN_LONG_INT)
+				dst->args[i] = &ffi_type_pointer;
+			else
+				dst->args[i] = &ffi_type_sint32;
+		} else {
+			dst->args[i] = ain_to_ffi_type(src->arguments[i].type.data);
+		}
 	}
 	dst->return_type = ain_to_ffi_type(src->return_type.data);
 
@@ -709,19 +1131,29 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 	struct hll_function *dst = xcalloc(ainlib->nr_functions, sizeof(struct hll_function));
 
 	for (int i = 0; i < ainlib->nr_functions; i++) {
+		bool found = false;
 		for (int j = 0; lib->functions[j].name; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
-				link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				if (lib->functions[j].fun)
+					link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				found = true;
 				break;
 			}
 		}
-		if (!dst[i].fun)
-			;//WARNING("Unimplemented library function: %s.%s", ainlib->name, ainlib->functions[i].name);
-		else if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
+		// Unlinked functions are handled by _PreLink dynamic registration
+		if (ainlib->functions[i].nr_arguments >= HLL_MAX_ARGS)
 			ERROR("Too many arguments to library function: %s", ainlib->functions[i].name);
 	}
 
 	return dst;
+}
+
+// v14 AIN uses different library names; map them to xsystem4 names
+static const char *resolve_library_name(const char *name)
+{
+	if (!strcmp(name, "AnteaterADVLogList"))
+		return "AnteaterADVEngine";
+	return name;
 }
 
 static void library_run(struct static_library *lib, const char *name)
@@ -737,8 +1169,9 @@ static void library_run(struct static_library *lib, const char *name)
 static void library_run_all(const char *name)
 {
 	for (int i = 0; i < ain->nr_libraries; i++) {
+		const char *resolved = resolve_library_name(ain->libraries[i].name);
 		for (int j = 0; static_libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+			if (!strcmp(resolved, static_libraries[j]->name)) {
 				library_run(static_libraries[j], name);
 				break;
 			}
@@ -754,14 +1187,15 @@ static void link_libraries(void)
 	libraries = xcalloc(ain->nr_libraries, sizeof(struct hll_function*));
 
 	for (int i = 0; i < ain->nr_libraries; i++) {
+		const char *resolved = resolve_library_name(ain->libraries[i].name);
 		for (int j = 0; static_libraries[j]; j++) {
-			if (!strcmp(ain->libraries[i].name, static_libraries[j]->name)) {
+			if (!strcmp(resolved, static_libraries[j]->name)) {
 				libraries[i] = link_static_library(&ain->libraries[i], static_libraries[j]);
 				break;
 			}
 		}
 		if (!libraries[i])
-			WARNING("Unimplemented library: %s", ain->libraries[i].name);
+			WARNING("Unimplemented library: %s (lib[%d], %d funcs)", ain->libraries[i].name, i, ain->libraries[i].nr_functions);
 	}
 }
 
@@ -771,6 +1205,7 @@ void init_libraries(void)
 {
 	library_run_all("_PreLink");
 	link_libraries();
+	library_run_all("_PostLink");
 	library_run_all("_ModuleInit");
 	libraries_initialized = true;
 }
@@ -790,4 +1225,26 @@ void static_library_replace(struct static_library *lib, const char *name, void *
 		}
 	}
 	ERROR("No library function '%s.%s'", lib->name, name);
+}
+
+/* Register a function into the runtime library array directly.
+ * Must be called AFTER link_libraries() has run (i.e., from _ModuleInit). */
+void static_library_register(struct static_library *lib, const char *name, void *fun)
+{
+	if (!libraries)
+		return;  // link_libraries() hasn't run yet
+	for (int i = 0; i < ain->nr_libraries; i++) {
+		if (strcmp(ain->libraries[i].name, lib->name))
+			continue;
+		if (!libraries[i])
+			continue;
+		for (int j = 0; j < ain->libraries[i].nr_functions; j++) {
+			if (!strcmp(ain->libraries[i].functions[j].name, name)) {
+				if (!libraries[i][j].fun)
+					link_static_library_function(&libraries[i][j], &ain->libraries[i].functions[j], fun);
+				return;
+			}
+		}
+	}
+	// Not found in AIN — silently ignore (function not used by this game)
 }

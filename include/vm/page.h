@@ -33,7 +33,7 @@ enum page_type {
 	DELEGATE_PAGE,
 };
 
-#define NR_PAGE_TYPES (ARRAY_PAGE+1)
+#define NR_PAGE_TYPES (DELEGATE_PAGE+1)
 
 /*
  * A page is an ordered collection of variables. Pages are used to implement
@@ -117,6 +117,7 @@ void delete_page(int slot);
 // structs
 int alloc_struct(int no);
 void init_struct(int no, int slot);
+void init_global_struct_v14(int no, int slot);
 void delete_struct(int no, int slot);
 void create_struct(int no, union vm_value *var);
 
@@ -138,6 +139,7 @@ void array_reverse(struct page *page);
 
 // delegates
 struct page *delegate_new_from_method(int obj, int fun);
+struct page *delegate_new_from_method_env(int obj, int fun, int env);
 int delegate_numof(struct page *page);
 bool delegate_contains(struct page *dst, int obj, int fun);
 void delegate_erase(struct page *page, int obj, int fun);
