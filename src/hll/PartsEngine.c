@@ -22,6 +22,11 @@
 #include "vm/page.h"
 #include "parts.h"
 #include "hll.h"
+#include "input.h"
+#include <SDL.h>
+#include "gfx/gfx.h"
+#include "scene.h"
+#include "sprite.h"
 
 static void PartsEngine_ModuleInit(void)
 {
@@ -922,6 +927,42 @@ static bool PE_v14_Load(int buf_slot)
 	return PE_Load(&buf);
 }
 
+// v14 declares: void UpdateComponent(int PassedTime, int ScaledPassedTime,
+// bool MessageWindowShow, float MessageWindowMulColorRate,
+// float MessageWindowAlphaRate). On v14 this call drives the whole frame
+// on scenes that never call SystemService.UpdateView (e.g. the title
+// screen), so pump events and motion here too.
+// Fork-verified semantics: reentrancy guard (PE_Update can trigger VM
+// callbacks that call UpdateComponent again), and present the frame here —
+// on scenes that never call SystemService.UpdateView (e.g. the title
+// screen) this is the only per-frame driver.
+static bool pe_v14_in_update = false;
+static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
+		bool message_window_show, float mul_color_rate, float alpha_rate)
+{
+	(void)scaled_passed_time; (void)mul_color_rate; (void)alpha_rate;
+	if (pe_v14_in_update) {
+		handle_events();
+		PE_UpdateComponent(passed_time);
+		return;
+	}
+	pe_v14_in_update = true;
+	handle_events();
+	sprite_call_plugins();
+	PE_UpdateMotionTime(passed_time, false);
+	PE_Update(passed_time, message_window_show);
+	{
+		static uint32_t last_render_ms = 0;
+		uint32_t now_ms = SDL_GetTicks();
+		if (now_ms - last_render_ms >= 16) {
+			scene_render();
+			gfx_swap();
+			last_render_ms = now_ms;
+		}
+	}
+	pe_v14_in_update = false;
+}
+
 static void PartsEngine_PreLink(void)
 {
 	struct ain_hll_function *fun;
@@ -929,6 +970,17 @@ static void PartsEngine_PreLink(void)
 	assert(libno >= 0);
 
 	// v14 signature variants (declaration-driven, not version-driven)
+	fun = get_fun(libno, "UpdateComponent");
+	if (fun && fun->nr_arguments == 5) {
+		static_library_replace(&lib_PartsEngine, "UpdateComponent",
+				PE_v14_UpdateComponent);
+	}
+
+	if (get_fun(libno, "GetMessageUniqueID")) {
+		extern void pe_v14_message_replace(void);
+		pe_v14_message_replace();
+	}
+
 	fun = get_fun(libno, "Save");
 	if (fun && fun->nr_arguments >= 1
 			&& fun->arguments[0].type.data == AIN_WRAP) {
@@ -976,5 +1028,11 @@ static void PartsEngine_PostLink(void)
 	if (get_fun(libno, "CreateActivity")) {
 		extern void pe_v14_activity_prelink(void);
 		pe_v14_activity_prelink();
+	}
+
+	// v14 new functions (not in the upstream export table)
+	if (get_fun(libno, "GetMessageUniqueID")) {
+		extern void pe_v14_message_register(void);
+		pe_v14_message_register();
 	}
 }

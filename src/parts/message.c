@@ -45,6 +45,10 @@ void parts_msg_push(struct parts* parts, int type, const char *fmt, ...)
 	// Message system is introduced in Rance 9
 	if (!parts_multi_controller)
 		return;
+	// v14 (Dohna Dohna) uses the v14 ring-buffer message system
+	// (hll/pe_v14_message.c); nothing consumes this queue there.
+	if (ain->version >= 14)
+		return;
 
 	struct parts_message *msg = xmalloc(sizeof(*msg));
 	msg->parts_no = parts->no;

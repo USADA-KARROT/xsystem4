@@ -21,6 +21,9 @@
 #include "input.h"
 #include "xsystem4.h"
 #include "parts_internal.h"
+#include "system4/ain.h"
+#include "vm.h"
+#include "xsystem4.h"
 
 // true between calls to BeginClick and EndClick
 bool parts_began_click = false;
@@ -33,6 +36,9 @@ static bool prev_clicking = false;
 static int clicked_parts = 0;
 // the current (partially) clicked parts number
 static int click_down_parts = 0;
+static bool v14_background_click_pending = false;
+void parts_enqueue_message_vars(int type, int parts_no, int delegate_index,
+		int unique_id, int nr_vars, const int *vars);
 
 // drag state
 static struct parts *drag_parts = NULL;
@@ -239,6 +245,50 @@ void PE_UpdateInputState(int passed_time)
 		click_down_parts = 0;
 	}
 
+	// v14 (Dohna Dohna): click detection happens on the mouse DOWN
+	// transition — WaitForClick's bytecode key-check exits on DOWN and
+	// calls PE_EndInput before UP arrives, so release-time detection
+	// never fires. Front-to-back hit test; a miss becomes a whole-screen
+	// click message (parts_no=0) which drives scene navigation
+	// (WholeMouseLClickEvent), plus the g_EndPartsBusyLoop global.
+	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
+		struct parts *click_target = NULL;
+		PARTS_LIST_FOREACH_REVERSE(parts) {
+			if (parts->no >= 1000001000)
+				continue;
+			if (!parts->clickable || !parts->global.show || parts->global.alpha == 0)
+				continue;
+			if (parts->pass_cursor)
+				continue;
+			if (!parts_hittest(parts, parts->state, cur_pos))
+				continue;
+			click_target = parts;
+			break;
+		}
+		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
+		if (click_target) {
+			if (click_target->on_click_sound >= 0)
+				audio_play_sound(click_target->on_click_sound);
+			clicked_parts = click_target->no;
+			// type 4 = MouseClick (CallEvent3: x,y,keyCode) in
+			// CPartsMessageManager's SWITCH (bytecode-verified; type 5
+			// is DoubleClick/CallEvent0 and dispatches an empty slot)
+			parts_enqueue_message_vars(4, click_target->no,
+					click_target->delegate_index,
+					click_target->unique_id, 3, vars);
+		} else {
+			parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
+			global_set(2, (union vm_value){.i = 1}, false);
+			v14_background_click_pending = true;
+		}
+	}
+	// Re-fire a pending background click once a new input frame begins
+	// (the game may re-enter WaitForClick after consuming the first).
+	if (ain->version >= 14 && v14_background_click_pending && parts_began_click
+			&& !cur_clicking && !prev_clicking) {
+		v14_background_click_pending = false;
+	}
+
 	prev_clicking = cur_clicking;
 	parts_prev_pos = cur_pos;
 }
@@ -324,6 +374,7 @@ void PE_BeginInput(void)
 void PE_EndInput(void)
 {
 	parts_began_click = false;
+	v14_background_click_pending = false;
 	clicked_parts = 0;
 	drag_state_reset();
 }

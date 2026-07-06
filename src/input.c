@@ -198,8 +198,15 @@ void key_clear_flag(bool no_ctrl)
 	}
 }
 
+static int override_mouse_x = -1, override_mouse_y = -1;
+
 void mouse_get_pos(int *x, int *y)
 {
+	if (override_mouse_x >= 0) {
+		*x = override_mouse_x;
+		*y = override_mouse_y;
+		return;
+	}
 	int wx, wy;
 	SDL_PumpEvents();
 	SDL_GetMouseState(&wx, &wy);
@@ -209,6 +216,8 @@ void mouse_get_pos(int *x, int *y)
 
 void mouse_set_pos(int x, int y)
 {
+	override_mouse_x = x;
+	override_mouse_y = y;
 	int wx = x * sdl.viewport.w / sdl.w + sdl.viewport.x;
 	int wy = y * sdl.viewport.h / sdl.h + sdl.viewport.y;
 	SDL_WarpMouseInWindow(sdl.window, wx, wy);
@@ -248,11 +257,24 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 	}
 }
 
+// Track mouse button hold: when DOWN arrives, hold for at least one
+// handle_events cycle so AFL_IsKeyDown can see it.  Real SDL events
+// often deliver DOWN+UP in the same event pump, making the click
+// invisible to bytecode that checks key_state between pumps.
+static uint32_t mouse_hold_until[8]; // per-button, SDL_GetTicks deadline
+
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
 	enum sact_keycode code = sdl_to_sact_button(e->button);
-	if (code)
-		key_state[code] = e->state == SDL_PRESSED;
+	if (code) {
+		if (e->state == SDL_PRESSED) {
+			key_state[code] = true;
+			mouse_hold_until[e->button & 7] = SDL_GetTicks() + 50;
+		} else {
+			if (SDL_GetTicks() >= mouse_hold_until[e->button & 7])
+				key_state[code] = false;
+		}
+	}
 #ifdef DEBUGGER_ENABLED
 	if (e->button == SDL_BUTTON_MIDDLE && e->state == SDL_PRESSED
 			&& (dbg_start_in_debugger || dbg_dap))
@@ -572,9 +594,14 @@ static void fire_deferred_events(void)
 
 static void handle_window_event(SDL_Event *e)
 {
+	extern bool scene_is_dirty;
 	switch (e->window.event) {
 	case SDL_WINDOWEVENT_EXPOSED:
-		gfx_swap();
+		// Don't call gfx_swap() directly — it blocks on macOS
+		// Cocoa_GL_SwapWindow (pthread_cond_wait for vsync) if called
+		// during global struct init (before the main event loop starts).
+		// Mark dirty so the next regular render cycle handles it.
+		scene_is_dirty = true;
 		break;
 	case SDL_WINDOWEVENT_ENTER:
 		mouse_focus = true;
@@ -590,29 +617,154 @@ static void handle_window_event(SDL_Event *e)
 		break;
 	case SDL_WINDOWEVENT_SIZE_CHANGED:
 		gfx_update_screen_scale();
-		gfx_swap();
+		scene_is_dirty = true;
 		break;
 	}
 }
 
 void handle_window_events(void)
 {
-	SDL_Event e;
-	while (SDL_PollEvent(&e)) {
-		switch (e.type) {
-		case SDL_QUIT:
-			vm_exit(0);
-			break;
-		case SDL_WINDOWEVENT:
-			handle_window_event(&e);
-			break;
-		}
+	// NOTE: This function only processes QUIT and WINDOWEVENT.
+	// Using SDL_PeepEvents to avoid consuming other event types
+	// (mouse, keyboard, etc.) which need to be processed by handle_events().
+	SDL_PumpEvents();
+	SDL_Event events[32];
+	int n;
+	// Process QUIT events
+	n = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_QUIT, SDL_QUIT);
+	for (int i = 0; i < n; i++) {
+		vm_exit(0);
+	}
+	// Process WINDOWEVENT
+	n = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_WINDOWEVENT, SDL_WINDOWEVENT);
+	for (int i = 0; i < n; i++) {
+		handle_window_event(&events[i]);
 	}
 }
 
 void handle_events(void)
 {
+	// Throttle: SDL_PollEvent involves system calls; avoid pumping more
+	// than once per millisecond when many HLL functions call handle_events.
+	static uint32_t last_pump_ms = 0;
+	uint32_t now_ms = SDL_GetTicks();
+	if (now_ms == last_pump_ms)
+		return;
+	last_pump_ms = now_ms;
+
 	fire_deferred_events();
+
+	/* XSYS4_HOLD_KEYS: comma-separated list of key codes to hold down always.
+	 * E.g. XSYS4_HOLD_KEYS=17 holds Ctrl, triggering full-text skip in ADV scenes. */
+	{
+		static int hold_keys[32];
+		static int hold_keys_len = -1;
+		if (hold_keys_len < 0) {
+			hold_keys_len = 0;
+			const char *env = getenv("XSYS4_HOLD_KEYS");
+			if (env && *env) {
+				char buf[256];
+				strncpy(buf, env, sizeof(buf)-1);
+				buf[sizeof(buf)-1] = 0;
+				char *saveptr, *tok = strtok_r(buf, ",", &saveptr);
+				while (tok && hold_keys_len < 32) {
+					hold_keys[hold_keys_len++] = atoi(tok);
+					tok = strtok_r(NULL, ",", &saveptr);
+				}
+			}
+		}
+		for (int i = 0; i < hold_keys_len; i++)
+			key_state[hold_keys[i]] = true;
+	}
+
+	/* Auto-click mode: two modes supported.
+	 * 1) XSYS4_AUTO_CLICK_SEQ="time,x,y;time,x,y;..." — click sequence at absolute ms times
+	 * 2) XSYS4_AUTO_CLICK=<ms> — periodic clicks (legacy mode)
+	 *    Uses XSYS4_AUTO_CLICK_X/Y for position, XSYS4_AUTO_CLICK_COUNT for max. */
+	{
+		struct auto_click_step { uint32_t time_ms; int gx, gy; };
+		static struct auto_click_step seq[256];
+		static int seq_len = 0;
+		static int seq_idx = 0;
+		static int auto_interval = -1;
+		static uint32_t last_auto_click = 0;
+		static int auto_count = 0;
+		static int auto_max = 0;
+		static bool auto_click_down = false;
+		static int click_gx = 350, click_gy = 180;
+		if (auto_interval < 0) {
+			const char *senv = getenv("XSYS4_AUTO_CLICK_SEQ");
+			if (senv && *senv) {
+				char buf[4096];
+				strncpy(buf, senv, sizeof(buf)-1);
+				buf[sizeof(buf)-1] = 0;
+				char *saveptr;
+				char *tok = strtok_r(buf, ";", &saveptr);
+				while (tok && seq_len < 256) {
+					int t, x, y;
+					if (sscanf(tok, "%d,%d,%d", &t, &x, &y) == 3) {
+						seq[seq_len].time_ms = t;
+						seq[seq_len].gx = x;
+						seq[seq_len].gy = y;
+						WARNING("Auto-click seq[%d]: t=%dms pos=(%d,%d)", seq_len, t, x, y);
+						seq_len++;
+					}
+					tok = strtok_r(NULL, ";", &saveptr);
+				}
+				auto_interval = seq_len > 0 ? 1 : 0;
+			} else {
+				const char *env = getenv("XSYS4_AUTO_CLICK");
+				auto_interval = env ? atoi(env) : 0;
+				const char *cx = getenv("XSYS4_AUTO_CLICK_X");
+				const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
+				const char *cn = getenv("XSYS4_AUTO_CLICK_COUNT");
+				if (cx) click_gx = atoi(cx);
+				if (cy) click_gy = atoi(cy);
+				if (cn) auto_max = atoi(cn);
+				if (auto_interval > 0)
+					WARNING("Auto-click enabled: interval=%dms pos=(%d,%d) max=%d", auto_interval, click_gx, click_gy, auto_max);
+			}
+		}
+		uint32_t now = SDL_GetTicks();
+		if (seq_len > 0) {
+			if (auto_click_down && now - last_auto_click >= 100) {
+				key_state[VK_LBUTTON] = false;
+				auto_click_down = false;
+			} else if (!auto_click_down && seq_idx < seq_len && now >= seq[seq_idx].time_ms) {
+				mouse_set_pos(seq[seq_idx].gx, seq[seq_idx].gy);
+				key_state[VK_LBUTTON] = true;
+				auto_click_down = true;
+				WARNING("Auto-click seq #%d at %ums game=(%d,%d)", seq_idx, now, seq[seq_idx].gx, seq[seq_idx].gy);
+				last_auto_click = now;
+				seq_idx++;
+			}
+		} else if (auto_interval > 0 && (auto_max <= 0 || auto_count < auto_max)) {
+			if (auto_click_down && now - last_auto_click >= 100) {
+				key_state[VK_LBUTTON] = false;
+				auto_click_down = false;
+			} else if (!auto_click_down && now - last_auto_click >= (uint32_t)auto_interval) {
+				auto_count++;
+				mouse_set_pos(click_gx, click_gy);
+				key_state[VK_LBUTTON] = true;
+				auto_click_down = true;
+				if (auto_count <= 10 || auto_count % 100 == 0)
+					WARNING("Auto-click #%d DOWN at %ums game=(%d,%d)", auto_count, now, click_gx, click_gy);
+				last_auto_click = now;
+			}
+		}
+	}
+
+	// Deferred mouse release: clear held buttons whose hold period expired
+	{
+		uint32_t now_tick = SDL_GetTicks();
+		for (int btn = 1; btn <= 3; btn++) {
+			if (mouse_hold_until[btn] && now_tick >= mouse_hold_until[btn]) {
+				enum sact_keycode c = sdl_to_sact_button(btn);
+				if (c) key_state[c] = false;
+				mouse_hold_until[btn] = 0;
+			}
+		}
+	}
 
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
