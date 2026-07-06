@@ -95,14 +95,23 @@ struct text_style text_sprite_ts = {
 
 static int extract_sjis_char(char *src, char *dst)
 {
-	if (SJIS_2BYTE(*src)) {
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = '\0';
+	unsigned char c = (unsigned char)*src;
+	if (ain_is_gb18030 && c >= 0x81 && c <= 0xFE) {
+		unsigned char c2 = (unsigned char)src[1];
+		if (c2 >= 0x30 && c2 <= 0x39) {
+			dst[0] = src[0]; dst[1] = src[1];
+			dst[2] = src[2]; dst[3] = src[3];
+			dst[4] = '\0';
+			return 4;
+		}
+		dst[0] = src[0]; dst[1] = src[1]; dst[2] = '\0';
 		return 2;
 	}
-	dst[0] = src[0];
-	dst[1] = '\0';
+	if (SJIS_2BYTE(*src)) {
+		dst[0] = src[0]; dst[1] = src[1]; dst[2] = '\0';
+		return 2;
+	}
+	dst[0] = src[0]; dst[1] = '\0';
 	return 1;
 }
 
@@ -111,7 +120,7 @@ bool StoatSpriteEngine_SP_SetTextSprite(int sp_no, struct string *text)
 	if (text->size < 1)
 		return false;
 
-	char s[3];
+	char s[5];
 	extract_sjis_char(text->text, s);
 	int w = ceilf(text_style_width(&text_sprite_ts, s));
 	int h = text_sprite_ts.size;
@@ -943,9 +952,9 @@ bool StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip(void)
 	return invalidate_frame_skip_while_message_skip;
 }
 
-//static int StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize(void);
-//static int StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize(void);
-//static int StoatSpriteEngine_Debug_GetFillRate(void);
+static int StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize(void) { return 0; }
+static int StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize(void) { return 0; }
+static int StoatSpriteEngine_Debug_GetFillRate(void) { return 0; }
 //static int StoatSpriteEngine_MUSIC_ReloadParam(struct string **text);
 
 HLL_LIBRARY(StoatSpriteEngine,
@@ -1019,7 +1028,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(FPS_GetShow, StoatSpriteEngine_FPS_GetShow),
 	    HLL_EXPORT(FPS_Get, StoatSpriteEngine_FPS_Get),
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
-	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
+	    HLL_EXPORT(GAME_MSG_Get, sact_GAME_MSG_Get),
 	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku),
 	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku),
 	    HLL_TODO_EXPORT(StringPopFront, SACT2_StringPopFront),
@@ -1197,7 +1206,7 @@ HLL_LIBRARY(StoatSpriteEngine,
 	    HLL_EXPORT(ADVLogList_GetADVLogVoice, ADVLogList_GetADVLogVoiceLast),
 	    HLL_EXPORT(ADVLogList_Save, ADVLogList_Save),
 	    HLL_EXPORT(ADVLogList_Load, ADVLogList_Load),
-	    HLL_TODO_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
+	    HLL_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
+	    HLL_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
+	    HLL_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
 	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam));

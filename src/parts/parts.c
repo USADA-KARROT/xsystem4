@@ -2008,6 +2008,16 @@ int PE_GetInputState(int parts_no)
 
 void PE_SetComponentType(int parts_no, int type, int state)
 {
+	// v14 (Dohna Dohna): component types are a game-level widget taxonomy
+	// (button=19 etc.) used by bytecode vtable dispatch via
+	// GetComponentType, not a 1:1 mapping onto engine parts states. Store
+	// the raw value; the actual parts state is built by the pactex loader
+	// and the Create* calls.
+	if (ain->version >= 14) {
+		struct parts *parts = parts_get(parts_no);
+		parts->component_type = type;
+		return;
+	}
 	if (!parts_state_valid(--state))
 		return;
 	struct parts *parts = parts_get(parts_no);
@@ -2034,6 +2044,20 @@ void PE_SetComponentType(int parts_no, int type, int state)
 
 int PE_GetComponentType(int parts_no, int state)
 {
+	// v14: return the raw component type stored by PE_SetComponentType.
+	// -1 is a valid "no parts" sentinel used by bytecode vtable dispatch.
+	if (ain->version >= 14) {
+		if (parts_no < 0)
+			return -1;
+		struct parts *parts = parts_try_get(parts_no);
+		if (parts)
+			return parts->component_type;
+		// Bytecode may probe numbers allocated by GetFreeNumber before
+		// the parts entry exists; auto-create so Wrap/IsValid work.
+		if (parts_no >= 1000000000)
+			return parts_get(parts_no)->component_type;
+		return -1;
+	}
 	if (!parts_state_valid(--state))
 		return -1;
 	struct parts *parts = parts_try_get(parts_no);
@@ -2138,22 +2162,27 @@ int PE_AddController(int index)
 // degenerates to a simple pop.
 void PE_RemoveController(struct page **erase_number_list, int index)
 {
-	if (index != -1)
-		VM_ERROR("index != -1 not supported (got %d)", index);
-	if (ctrl_stack.nr_controllers == 0 ||
-			ctrl_stack.active != ctrl_stack.nr_controllers - 1)
-		VM_ERROR("active controller is not at the top of the stack");
+	// v14 games (Dohna Dohna's EraseLayer) remove controllers by explicit
+	// stack position, not just the active top. Generalize: remove the
+	// controller at `index` (-1 = active), shift the ones above it down.
+	if (index == -1)
+		index = ctrl_stack.active;
+	if (index < 0 || index >= ctrl_stack.nr_controllers)
+		VM_ERROR("invalid controller index %d (nr_controllers=%d)",
+		         index, ctrl_stack.nr_controllers);
 
-	int ctrl_no = ctrl_stack.active;
-
-	// Collect and release parts belonging to this controller
+	// Collect and release parts belonging to this controller; renumber
+	// parts owned by controllers above it.
 	struct parts *p = TAILQ_FIRST(&parts_list);
 	while (p) {
 		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
-		if (p->controller_no == ctrl_no) {
+		if (p->controller_no == index) {
 			*erase_number_list = array_pushback(*erase_number_list,
 					(union vm_value){.i = p->no}, AIN_ARRAY_INT, -1);
 			parts_release(p->no);
+		} else if (p->controller_no > index
+				&& p->controller_no < PARTS_CONTROLLER_SYSTEM_OVERLAY) {
+			p->controller_no--;
 		}
 		p = next;
 	}
@@ -2161,8 +2190,11 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 	ctrl_stack.nr_controllers--;
 	if (ctrl_stack.nr_controllers == 0) {
 		PE_AddController(-1);
-	} else {
+	} else if (ctrl_stack.active == index) {
 		ctrl_stack.active = ctrl_stack.nr_controllers - 1;
+	} else if (ctrl_stack.active > index
+			&& ctrl_stack.active != PARTS_CONTROLLER_SYSTEM_OVERLAY) {
+		ctrl_stack.active--;
 	}
 }
 

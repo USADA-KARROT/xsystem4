@@ -32,6 +32,7 @@
 #include "plugin.h"
 
 static void ChipmunkSpriteEngine_PreLink(void);
+static int ChipmunkSpriteEngine_Debug_GetFillRate(void) { return 0; }
 
 static void ChipmunkSpriteEngine_ModuleFini(void)
 {
@@ -350,7 +351,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(FPS_GetShow, StoatSpriteEngine_FPS_GetShow),
 	    HLL_EXPORT(FPS_Get, StoatSpriteEngine_FPS_Get),
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf),
-	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get),
+	    HLL_EXPORT(GAME_MSG_Get, sact_GAME_MSG_Get),
 	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku),
 	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku),
 	    HLL_TODO_EXPORT(StringPopFront, SACT2_StringPopFront),
@@ -416,7 +417,7 @@ HLL_LIBRARY(ChipmunkSpriteEngine,
 	    HLL_EXPORT(SYSTEM_GetInvalidateFrameSkipWhileMessageSkip, StoatSpriteEngine_SYSTEM_GetInvalidateFrameSkipWhileMessageSkip),
 	    HLL_TODO_EXPORT(Debug_GetCurrentAllocatedMemorySize, StoatSpriteEngine_Debug_GetCurrentAllocatedMemorySize),
 	    HLL_TODO_EXPORT(Debug_GetMaxAllocatedMemorySize, StoatSpriteEngine_Debug_GetMaxAllocatedMemorySize),
-	    HLL_TODO_EXPORT(Debug_GetFillRate, StoatSpriteEngine_Debug_GetFillRate),
+	    HLL_EXPORT(Debug_GetFillRate, ChipmunkSpriteEngine_Debug_GetFillRate),
 	    HLL_TODO_EXPORT(MUSIC_ReloadParam, StoatSpriteEngine_MUSIC_ReloadParam),
 	    HLL_EXPORT(SP_Suspend, ChipmunkSpriteEngine_SP_Suspend),
 	    HLL_EXPORT(SP_Resume, ChipmunkSpriteEngine_SP_Resume),

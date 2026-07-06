@@ -14,679 +14,720 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+/*
+ * v14 MainEXFile — name-based API (replaces handle-based API for AIN v14+)
+ *
+ * v14 differences from older versions:
+ *  - All functions take (string Name, ..., int ID) instead of (int handle, ...)
+ *  - Data functions (Int/Float/String) return values directly with defaults
+ *  - Handle/AHandle/A2Handle/IA2Handle/SA2Handle/RA2Handle removed
+ *  - New: AddEXReader/EraseEXReader/AddEX/AddEXText/Save/Load
+ *  - New: GetNodeNameList/GetEXNameList/GetFormatNameList
+ */
+
+#define VM_PRIVATE
+
 #include <string.h>
+#include <iconv.h>
 
 #include "system4/ex.h"
+#include "system4/file.h"
 #include "system4/string.h"
+#include "system4/ain.h"
 
+#include "vm.h"
+#include "vm/heap.h"
+#include "vm/page.h"
 #include "xsystem4.h"
 #include "hll.h"
 
-#include "system4/utfsjis.h"
-
-// TODO: Later versions of this library have a different interface, but use the
-//       same function names. Will need to handle this somehow...
-//       Probably best to have separate implementations and choose the correct
-//       one at startup.
-
-static struct ex *ex;
-static struct ex_value **handles = NULL;
-static unsigned nr_handles = 0;
-
-static int set_indices(struct ex_value *val, int id)
+/*
+ * SJIS→GBK string converter for .ex file loading.
+ * The .ex file stores block/field names in SJIS, but the CN version's AIN
+ * bytecode uses GBK-encoded string constants.  Converting at load time makes
+ * name lookups match.
+ */
+struct string *sjis_to_gbk_string(const char *src, size_t len)
 {
-	val->id = id++;
-
-	switch (val->type) {
-	case EX_INT:
-	case EX_FLOAT:
-	case EX_STRING:
-		break;
-	case EX_TABLE:
-		for (unsigned row = 0; row < val->t->nr_rows; row++) {
-			for (unsigned col = 0; col < val->t->nr_columns; col++) {
-				id = set_indices(&val->t->rows[row][col], id);
-			}
-		}
-		break;
-	case EX_LIST:
-		for (unsigned i = 0; i < val->list->nr_items; i++) {
-			id = set_indices(&val->list->items[i].value, id);
-		}
-		break;
-	case EX_TREE:
-		if (val->tree->is_leaf) {
-			id = set_indices(&val->tree->leaf.value, id);
-		} else {
-			for (unsigned i = 0; i < val->tree->nr_children; i++) {
-				id = set_indices(&val->tree->_children[i], id);
-			}
-		}
-		break;
+	static iconv_t cd = (iconv_t)-1;
+	if (cd == (iconv_t)-1) {
+		cd = iconv_open("GBK", "SHIFT_JIS");
+		if (cd == (iconv_t)-1)
+			return make_string(src, len);
 	}
-
-	return id;
+	size_t outlen = len * 2 + 1;
+	char *out = xmalloc(outlen);
+	char *inp = (char *)src;
+	char *outp = out;
+	size_t inleft = len, outleft = outlen - 1;
+	iconv(cd, NULL, NULL, NULL, NULL); /* reset */
+	size_t ret = iconv(cd, &inp, &inleft, &outp, &outleft);
+	if (ret == (size_t)-1 || inleft > 0) {
+		/* Conversion failed — keep original bytes */
+		free(out);
+		return make_string(src, len);
+	}
+	size_t result_len = (outlen - 1) - outleft;
+	struct string *s = make_string(out, result_len);
+	free(out);
+	return s;
 }
 
-static void map_handles(struct ex_value *val)
-{
-	handles[val->id] = val;
+static struct ex *ex;
 
-	switch (val->type) {
-	case EX_INT:
-	case EX_FLOAT:
-	case EX_STRING:
-		break;
-	case EX_TABLE:
-		for (unsigned row = 0; row < val->t->nr_rows; row++) {
-			for (unsigned col = 0; col < val->t->nr_columns; col++) {
-				map_handles(&val->t->rows[row][col]);
-			}
-		}
-		break;
-	case EX_LIST:
-		for (unsigned i = 0; i < val->list->nr_items; i++) {
-			map_handles(&val->list->items[i].value);
-		}
-		break;
-	case EX_TREE:
-		if (val->tree->is_leaf) {
-			map_handles(&val->tree->leaf.value);
-		} else {
-			for (unsigned i = 0; i < val->tree->nr_children; i++) {
-				map_handles(&val->tree->_children[i]);
-			}
-		}
-		break;
+/*
+ * Helpers — cached resolve to avoid O(n) linear scan per EX call
+ */
+#define RESOLVE_CACHE_SIZE 32
+static struct {
+	char name[64];
+	struct ex_value *value;
+} resolve_cache[RESOLVE_CACHE_SIZE];
+
+static uint32_t fnv1a(const char *s)
+{
+	uint32_t h = 2166136261u;
+	for (; *s; s++)
+		h = (h ^ (uint8_t)*s) * 16777619u;
+	return h;
+}
+
+/*
+ * Convert a byte string between encodings using iconv.
+ * Returns a malloc'd buffer (caller frees) or NULL on failure.
+ */
+static char *iconv_convert(const char *from_enc, const char *to_enc,
+                           const char *src, size_t src_len, size_t *out_len)
+{
+	iconv_t cd = iconv_open(to_enc, from_enc);
+	if (cd == (iconv_t)-1) return NULL;
+	size_t buflen = src_len * 2 + 1;
+	char *buf = xmalloc(buflen);
+	char *inp = (char *)src;
+	char *outp = buf;
+	size_t inleft = src_len, outleft = buflen - 1;
+	size_t ret = iconv(cd, &inp, &inleft, &outp, &outleft);
+	iconv_close(cd);
+	if (ret == (size_t)-1 || inleft > 0) {
+		free(buf);
+		return NULL;
 	}
+	*out_len = (buflen - 1) - outleft;
+	buf[*out_len] = '\0';
+	return buf;
+}
+
+static struct ex_value *resolve(struct string *name)
+{
+	if (!name) return NULL;
+	uint32_t h = fnv1a(name->text);
+	unsigned idx = h % RESOLVE_CACHE_SIZE;
+	if (resolve_cache[idx].name[0] && !strcmp(resolve_cache[idx].name, name->text))
+		return resolve_cache[idx].value;
+	struct ex_value *v = ex_get(ex, name->text);
+	/*
+	 * .ex block names are EUC-JP but AIN queries arrive as SJIS.
+	 * If direct lookup fails, try converting SJIS→EUC-JP.
+	 */
+	if (!v && ain_is_gb18030) {
+		size_t conv_len;
+		char *conv = iconv_convert("SHIFT_JIS", "EUC-JP",
+		                           name->text, name->size, &conv_len);
+		if (conv) {
+			v = ex_get(ex, conv);
+			free(conv);
+		}
+	}
+	if (v) {
+		snprintf(resolve_cache[idx].name, sizeof(resolve_cache[idx].name), "%s", name->text);
+		resolve_cache[idx].value = v;
+	}
+	return v;
+}
+
+static struct ex_table *resolve_table(struct string *name)
+{
+	struct ex_value *v = resolve(name);
+	return (v && v->type == EX_TABLE) ? v->t : NULL;
+}
+
+static struct ex_list *resolve_list(struct string *name)
+{
+	struct ex_value *v = resolve(name);
+	if (v && v->type == EX_LIST) return v->list;
+	return NULL;
+}
+
+static struct ex_tree *resolve_tree(struct string *name)
+{
+	struct ex_value *v = resolve(name);
+	if (!v || v->type != EX_TREE) return NULL;
+	return v->tree->is_leaf ? NULL : v->tree;
+}
+
+/*
+ * Helper: get the sub-table from a list item at the given row index.
+ * EX_LIST data in Dohna Dohna stores each "row" as a list item whose
+ * value is a single-row EX_TABLE.
+ */
+static struct ex_table *list_item_table(struct ex_list *list, int row)
+{
+	if (!list || row < 0 || (unsigned)row >= list->nr_items)
+		return NULL;
+	struct ex_value *item = &list->items[row].value;
+	return (item->type == EX_TABLE) ? item->t : NULL;
+}
+
+/*
+ * Module lifecycle
+ */
+static struct ex *load_ex_file(const char *path)
+{
+	// CN .ex files are already GBK-encoded — do NOT apply sjis_to_gbk_string.
+	// The SJIS→GBK conv was only needed when the .ex used SJIS and the
+	// AIN bytecode queried with GBK. CN .ex uses GBK natively.
+	return ex_read_file(path);
 }
 
 static void MainEXFile_ModuleInit(void)
 {
-	// load .ex file
-	if (!config.ex_path || !(ex = ex_read_file(config.ex_path)))
+	if (!config.ex_path || !(ex = load_ex_file(config.ex_path)))
 		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
-
-	// assign IDs to each ex_value
-	int id = 1;
-	for (unsigned i = 0; i <  ex->nr_blocks; i++) {
-		id = set_indices(&ex->blocks[i].val, id);
-	}
-
-	// create index mapping IDs to ex_values
-	nr_handles = id;
-	handles = xcalloc(nr_handles, sizeof(struct ex_value*));
-	for (unsigned i = 0; i < ex->nr_blocks; i++) {
-		map_handles(&ex->blocks[i].val);
-	}
+	NOTICE("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
 }
 
 static void MainEXFile_ModuleFini(void)
 {
-	ex_free(ex);
+	// Skip ex_free at shutdown — ex_free_tree crashes on some .ex structures.
+	// Process exit reclaims memory anyway.
 	ex = NULL;
-	free(handles);
-	handles = NULL;
-	nr_handles = 0;
 }
-
-HLL_WARN_UNIMPLEMENTED(false, bool, MainEXFile, ReloadDebugEXFile, void);
 
 /*
- * Get handle for top-level value.
+ * [ 0] bool ReloadDebugEXFile()
  */
-static int MainEXFile_Handle(struct string *name)
+static bool MainEXFile_ReloadDebugEXFile(void)
 {
-	struct ex_value *v = ex_get(ex, name->text);
-	return v ? v->id : 0;
+	return false;
 }
 
-static struct ex_table *handle_to_table(int handle)
+/*
+ * [ 1] int AddEXReader(string FilePath)
+ */
+static int MainEXFile_AddEXReader(struct string *path)
 {
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return NULL;
-	if (handles[handle]->type != EX_TABLE) {
-		WARNING("Value is not a table");
-		return NULL;
+	WARNING("MainEXFile.AddEXReader('%s') — attempting to load", display_utf0(path->text));
+	struct ex *extra = load_ex_file(path->text);
+	if (!extra) {
+		char *full = path_join(config.game_dir, path->text);
+		extra = load_ex_file(full);
+		free(full);
 	}
-	return handles[handle]->t;
-}
-
-static struct ex_list *handle_to_list(int handle)
-{
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return NULL;
-	if (handles[handle]->type != EX_LIST) {
-		WARNING("Value is not a list");
-		return NULL;
+	if (extra) {
+		ex_append(ex, extra);
+		WARNING("MainEXFile.AddEXReader: loaded %u blocks", extra->nr_blocks);
+		return 1;  // Return non-zero ID
 	}
-	return handles[handle]->list;
+	WARNING("MainEXFile.AddEXReader('%s'): file not found", display_utf0(path->text));
+	return 0;
 }
 
-static int MainEXFile_AHandle(int handle, int index)
+/*
+ * [ 2] void EraseEXReader(int ID)
+ */
+static void MainEXFile_EraseEXReader(int id)
 {
-	struct ex_list *list = handle_to_list(handle);
-	if (!list)
-		return 0;
-	struct ex_value *v = ex_list_get(list, index);
-	return v ? v->id : 0;
 }
 
-static int MainEXFile_A2Handle(int handle, int row, int col)
+/*
+ * [ 3] bool AddEX(string FilePath)
+ */
+static bool MainEXFile_AddEX(struct string *path)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	struct ex_value *v = ex_table_get(t, row, col);
-	return v ? v->id : 0;
+	WARNING("MainEXFile.AddEX('%s') — attempting to load", display_utf0(path->text));
+	struct ex *extra = load_ex_file(path->text);
+	if (extra) {
+		ex_append(ex, extra);
+		WARNING("MainEXFile.AddEX: loaded %u blocks", extra->nr_blocks);
+		return true;
+	}
+	// Try relative to game dir
+	char *full = path_join(config.game_dir, path->text);
+	extra = load_ex_file(full);
+	if (extra) {
+		ex_append(ex, extra);
+		WARNING("MainEXFile.AddEX('%s'): loaded %u blocks", full, extra->nr_blocks);
+		free(full);
+		return true;
+	}
+	WARNING("MainEXFile.AddEX('%s'): file not found", display_utf0(path->text));
+	free(full);
+	return false;
 }
 
-static int MainEXFile_IA2Handle(int handle, int key, struct string *format_name)
+/*
+ * [ 4] bool AddEXText(string FilePath)
+ */
+static bool MainEXFile_AddEXText(struct string *path)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	int row = ex_row_at_int_key(t, key);
-	if (row < 0)
-		return 0;
-	int col = ex_col_from_name(t, format_name->text);
-	if (col < 0)
-		return 0;
-	return t->rows[row][col].id;
+	WARNING("MainEXFile.AddEXText('%s') stub", display_utf0(path->text));
+	return false;
 }
 
-static int MainEXFile_SA2Handle(int handle, struct string *key, struct string *format_name)
+/*
+ * [ 5] bool Save(wrap image) — stub
+ * [ 6] bool Load(wrap image) — stub
+ */
+static bool MainEXFile_Save(int image_slot)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	int row = ex_row_at_string_key(t, key->text);
-	if (row < 0)
-		return 0;
-	int col = ex_col_from_name(t, format_name->text);
-	if (col < 0)
-		return 0;
-	return t->rows[row][col].id;
-}
-
-static int MainEXFile_RA2Handle(int handle, int row, struct string *format_name)
-{
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	if (row < 0 || (unsigned)row >= t->nr_rows)
-		return 0;
-	int col = ex_col_from_name(t, format_name->text);
-	if (col < 0)
-		return 0;
-	return t->rows[row][col].id;
-}
-
-static int MainEXFile_Row(int handle)
-{
-	struct ex_table *t = handle_to_table(handle);
-	return t ? t->nr_rows : 0;
-}
-
-static int MainEXFile_Col(int handle)
-{
-	if (handle > 0 && (unsigned)handle < nr_handles &&
-	    handles[handle]->type == EX_LIST)
-		return handles[handle]->list->nr_items;
-	struct ex_table *t = handle_to_table(handle);
-	return t ? t->nr_columns : 0;
-}
-
-static int MainEXFile_Type(int handle)
-{
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return 0;
-	return handles[handle]->type;
-}
-
-static int MainEXFile_AType(int handle, int index)
-{
-	struct ex_list *list = handle_to_list(handle);
-	if (!list)
-		return 0;
-	struct ex_value *v = ex_list_get(list, index);
-	return v ? v->type : 0;
-}
-
-static int MainEXFile_A2Type(int handle, int row, int col)
-{
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	struct ex_value *v = ex_table_get(t, row, col);
-	return v ? v->type : 0;
-}
-
-static int MainEXFile_IA2Type(int handle, int key, struct string *format_name)
-{
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	int row = ex_row_at_int_key(t, key);
-	if (row < 0)
-		return 0;
-	int col = ex_col_from_name(t, format_name->text);
-	if (col < 0)
-		return 0;
-	return t->rows[row][col].type;
-}
-
-static int MainEXFile_SA2Type(int handle, struct string *key, struct string *format_name)
-{
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	int row = ex_row_at_string_key(t, key->text);
-	if (row < 0)
-		return 0;
-	int col = ex_col_from_name(t, format_name->text);
-	if (col < 0)
-		return 0;
-	return t->rows[row][col].type;
-}
-
-static int MainEXFile_RA2Type(int handle, int row, struct string *format_name)
-{
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	if (row < 0 || (unsigned)row >= t->nr_rows)
-		return 0;
-	int col = ex_col_from_name(t, format_name->text);
-	if (col < 0)
-		return 0;
-	return t->rows[row][col].type;
-}
-
-static bool MainEXFile_Exists(int handle)
-{
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return false;
+	// No-op: ResumeSave is a stub so VM state (including EX data) stays in memory.
 	return true;
 }
 
-static bool MainEXFile_AExists(int handle, int index)
+static bool MainEXFile_Load(int image_slot)
 {
-	struct ex_list *list = handle_to_list(handle);
-	if (!list)
-		return false;
-	return !!ex_list_get(list, index);
+	// No-op: data is still in memory since ResumeSave doesn't actually save/restore.
+	return true;
 }
 
-static bool MainEXFile_A2Exists(int handle, int row, int col)
+/*
+ * [ 7] int Row(string Name, int ID)
+ */
+static int MainEXFile_Row(struct string *name, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return false;
-	return !!ex_table_get(t, row, col);
+	struct ex_table *t = resolve_table(name);
+	if (t) return t->nr_rows;
+	struct ex_list *list = resolve_list(name);
+	if (list) return list->nr_items;
+	return 0;
 }
 
-static bool MainEXFile_IA2Exists(int handle, int key, struct string *format_name)
+/*
+ * [ 8] int Col(string Name, int ID)
+ */
+static int MainEXFile_Col(struct string *name, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	int row = ex_row_at_int_key(t, key);
-	if (row < 0)
-		return 0;
-	return ex_col_from_name(t, format_name->text) >= 0;
+	struct ex_table *t = resolve_table(name);
+	if (t) return t->nr_columns;
+	struct ex_table *lt = list_item_table(resolve_list(name), 0);
+	return lt ? lt->nr_columns : 0;
 }
 
-static bool MainEXFile_SA2Exists(int handle, struct string *key, struct string *format_name)
+/*
+ * [ 9] int Type(string Name, int ID)
+ */
+static int MainEXFile_Type(struct string *name, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	int row = ex_row_at_string_key(t, key->text);
-	if (row < 0)
-		return 0;
-	return ex_col_from_name(t, format_name->text) >= 0;
+	struct ex_value *v = resolve(name);
+	return v ? v->type : 0;
 }
 
-static bool MainEXFile_RA2Exists(int handle, int row, struct string *format_name)
+/*
+ * [10] int AType(string Name, int Index, int ID)
+ */
+static int MainEXFile_AType(struct string *name, int index, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-	if (row < 0 || (unsigned)row >= t->nr_rows)
-		return 0;
-	return ex_col_from_name(t, format_name->text) >= 0;
-}
-
-static bool MainEXFile_Int(int handle, int *data)
-{
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return 0;
-	if (handles[handle]->type != EX_INT) {
-		WARNING("Value is not an integer");
-		return 0;
-	}
-
-	*data = handles[handle]->i;
-	return 1;
-}
-
-static bool MainEXFile_Float(int handle, float *data)
-{
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return 0;
-	if (handles[handle]->type != EX_FLOAT) {
-		WARNING("Value is not a float");
-		return 0;
-	}
-
-	*data = handles[handle]->f;
-	return 1;
-}
-
-static bool MainEXFile_String(int handle, struct string **data)
-{
-	if (handle <= 0 || (unsigned)handle >= nr_handles)
-		return 0;
-	if (handles[handle]->type != EX_STRING) {
-		WARNING("Value is not a string");
-		return 0;
-	}
-
-	*data = string_ref(handles[handle]->s);
-	return 1;
-}
-
-static bool MainEXFile_AInt(int handle, int index, int *data)
-{
-	struct ex_list *list = handle_to_list(handle);
-	if (!list)
-		return 0;
-
+	struct ex_list *list = resolve_list(name);
+	if (!list) return 0;
 	struct ex_value *v = ex_list_get(list, index);
-	if (!v)
-		return 0;
-	if (v->type != EX_INT) {
-		WARNING("Value is not an integer");
-		return 0;
-	}
-
-	*data = v->i;
-	return 1;
+	return v ? v->type : 0;
 }
 
-static bool MainEXFile_AFloat(int handle, int index, float *data)
+/*
+ * [11] int A2Type(string Name, int Row, int Col, int ID)
+ */
+static int MainEXFile_A2Type(struct string *name, int row, int col, int id)
 {
-	struct ex_list *list = handle_to_list(handle);
-	if (!list)
-		return 0;
+	struct ex_table *t = resolve_table(name);
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (!t) return 0;
+		struct ex_value *v = ex_table_get(t, 0, col);
+		return v ? v->type : 0;
+	}
+	struct ex_value *v = ex_table_get(t, row, col);
+	return v ? v->type : 0;
+}
 
+/*
+ * [12] bool Exists(string Name, int ID)
+ */
+static bool MainEXFile_Exists(struct string *name, int id)
+{
+	return !!resolve(name);
+}
+
+/*
+ * [13] bool AExists(string Name, int Index, int ID)
+ */
+static bool MainEXFile_AExists(struct string *name, int index, int id)
+{
+	struct ex_list *list = resolve_list(name);
+	return list ? !!ex_list_get(list, index) : false;
+}
+
+/*
+ * [14] bool A2Exists(string Name, int Row, int Col, int ID)
+ */
+static bool MainEXFile_A2Exists(struct string *name, int row, int col, int id)
+{
+	struct ex_table *t = resolve_table(name);
+	if (t) return !!ex_table_get(t, row, col);
+	t = list_item_table(resolve_list(name), row);
+	return t ? !!ex_table_get(t, 0, col) : false;
+}
+
+/*
+ * [15] int Int(string Name, int Default, int ID)
+ */
+static int MainEXFile_Int(struct string *name, int dflt, int id)
+{
+	struct ex_value *v = resolve(name);
+	return (v && v->type == EX_INT) ? v->i : dflt;
+}
+
+/*
+ * [16] float Float(string Name, float Default, int ID)
+ */
+static float MainEXFile_Float(struct string *name, float dflt, int id)
+{
+	struct ex_value *v = resolve(name);
+	return (v && v->type == EX_FLOAT) ? v->f : dflt;
+}
+
+/*
+ * [17] string String(string Name, string Default, int ID)
+ */
+static struct string *MainEXFile_String(struct string *name, struct string *dflt, int id)
+{
+	struct ex_value *v = resolve(name);
+	if (v && v->type == EX_STRING) {
+		return string_ref(v->s);
+	}
+	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
+}
+
+/*
+ * [18] int AInt(string Name, int Index, int Default, int ID)
+ */
+static int MainEXFile_AInt(struct string *name, int index, int dflt, int id)
+{
+	struct ex_list *list = resolve_list(name);
+	if (!list) return dflt;
 	struct ex_value *v = ex_list_get(list, index);
-	if (!v)
-		return 0;
-	if (v->type != EX_FLOAT) {
-		WARNING("Value is not a float");
-		return 0;
-	}
-
-	*data = v->f;
-	return 1;
+	return (v && v->type == EX_INT) ? v->i : dflt;
 }
 
-static bool MainEXFile_AString(int handle, int index, struct string **data)
+/*
+ * [19] float AFloat(string Name, int Index, float Default, int ID)
+ */
+static float MainEXFile_AFloat(struct string *name, int index, float dflt, int id)
 {
-	struct ex_list *list = handle_to_list(handle);
-	if (!list)
-		return 0;
-
+	struct ex_list *list = resolve_list(name);
+	if (!list) return dflt;
 	struct ex_value *v = ex_list_get(list, index);
-	if (!v)
-		return 0;
-	if (v->type != EX_STRING) {
-		WARNING("Value is not a string");
-		return 0;
-	}
-
-	*data = string_ref(v->s);
-	return 1;
+	return (v && v->type == EX_FLOAT) ? v->f : dflt;
 }
 
-static bool MainEXFile_A2Int(int handle, int row, int col, int *data)
+/*
+ * [20] string AString(string Name, int Index, string Default, int ID)
+ */
+static struct string *MainEXFile_AString(struct string *name, int index, struct string *dflt, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
+	struct ex_list *list = resolve_list(name);
+	if (!list) goto def;
+	struct ex_value *v = ex_list_get(list, index);
+	if (v && v->type == EX_STRING)
+		return string_ref(v->s);
+def:
+	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
+}
 
+/*
+ * [21] int A2Int(string Name, int Row, int Col, int Default, int ID)
+ */
+static int MainEXFile_A2Int(struct string *name, int row, int col, int dflt, int id)
+{
+	struct ex_table *t = resolve_table(name);
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (!t) return dflt;
+		struct ex_value *v = ex_table_get(t, 0, col);
+		return (v && v->type == EX_INT) ? v->i : dflt;
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
-	if (!v)
-		return 0;
-	if (v->type != EX_INT) {
-		WARNING("Value is not an integer");
-		return 0;
-	}
-
-	*data = v->i;
-	return 1;
+	return (v && v->type == EX_INT) ? v->i : dflt;
 }
 
-static bool MainEXFile_A2Float(int handle, int row, int col, float *data)
+/*
+ * [22] float A2Float(string Name, int Row, int Col, float Default, int ID)
+ */
+static float MainEXFile_A2Float(struct string *name, int row, int col, float dflt, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-
+	struct ex_table *t = resolve_table(name);
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (!t) return dflt;
+		struct ex_value *v = ex_table_get(t, 0, col);
+		return (v && v->type == EX_FLOAT) ? v->f : dflt;
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
-	if (!v)
-		return 0;
-	if (v->type != EX_FLOAT) {
-		WARNING("Value is not a float");
-		return 0;
-	}
-
-	*data = v->f;
-	return 1;
+	return (v && v->type == EX_FLOAT) ? v->f : dflt;
 }
 
-static bool MainEXFile_A2String(int handle, int row, int col, struct string **data)
+/*
+ * [23] string A2String(string Name, int Row, int Col, string Default, int ID)
+ */
+static struct string *MainEXFile_A2String(struct string *name, int row, int col, struct string *dflt, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return 0;
-
+	struct ex_table *t = resolve_table(name);
+	if (!t) {
+		t = list_item_table(resolve_list(name), row);
+		if (t) {
+			struct ex_value *v = ex_table_get(t, 0, col);
+			if (v && v->type == EX_STRING)
+				return string_ref(v->s);
+		}
+		return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
+	}
 	struct ex_value *v = ex_table_get(t, row, col);
-	if (!v)
-		return 0;
-	if (v->type != EX_STRING) {
-		WARNING("Value is not a string");
-		return 0;
+	if (v && v->type == EX_STRING) {
+		return string_ref(v->s);
 	}
-
-	*data = string_ref(v->s);
-	return 1;
+	return dflt ? string_ref(dflt) : string_ref(&EMPTY_STRING);
 }
 
-static int MainEXFile_GetRowAtIntKey(int handle, int key)
+/*
+ * [24] int GetRowAtIntKey(string Name, int Key, int ID)
+ */
+static int MainEXFile_GetRowAtIntKey(struct string *name, int key, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
+	struct ex_table *t = resolve_table(name);
+	if (t) return ex_row_at_int_key(t, key);
+	struct ex_list *list = resolve_list(name);
+	if (!list) return -1;
+	for (unsigned i = 0; i < list->nr_items; i++) {
+		struct ex_table *lt = list_item_table(list, i);
+		if (lt && ex_row_at_int_key(lt, key) >= 0)
+			return i;
+	}
+	return -1;
+}
+
+/*
+ * [25] int GetRowAtStringKey(string Name, string Key, int ID)
+ */
+static int MainEXFile_GetRowAtStringKey(struct string *name, struct string *key, int id)
+{
+	if (!key) return -1;
+	struct ex_table *t = resolve_table(name);
+	if (t) {
+		return ex_row_at_string_key(t, key->text);
+	}
+	struct ex_list *list = resolve_list(name);
+	if (!list) return -1;
+	for (unsigned i = 0; i < list->nr_items; i++) {
+		struct ex_table *lt = list_item_table(list, i);
+		if (lt && ex_row_at_string_key(lt, key->text) >= 0)
+			return i;
+	}
+	return -1;
+}
+
+/*
+ * [26] int GetColAtFormatName(string Name, string FormatName, int ID)
+ */
+static int MainEXFile_GetColAtFormatName(struct string *name, struct string *format_name, int id)
+{
+	struct ex_table *t = resolve_table(name);
+	if (!t) t = list_item_table(resolve_list(name), 0);
 	if (!t)
 		return -1;
-	return ex_row_at_int_key(t, key);
+	if (!format_name || format_name->size == 0)
+		return (t->nr_fields > 0) ? 0 : -1;
+	return ex_col_from_name(t, format_name->text);
 }
 
-static int MainEXFile_GetRowAtStringKey(int handle, struct string *key)
+/*
+ * [27] int GetNodeNameCount(string TreePath, int ID)
+ */
+static int MainEXFile_GetNodeNameCount(struct string *tree_path, int id)
 {
-	struct ex_table *t = handle_to_table(handle);
-	if (!t)
-		return -1;
-	return ex_row_at_string_key(t, key->text);
-}
-
-static bool MainEXFile_IA2Int(int handle, int key, struct string *format_name, int *data)
-{
-	int v_handle = MainEXFile_IA2Handle(handle, key, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_Int(v_handle, data);
-}
-
-static bool MainEXFile_IA2Float(int handle, int key, struct string *format_name, float *data)
-{
-	int v_handle = MainEXFile_IA2Handle(handle, key, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_Float(v_handle, data);
-}
-
-static bool MainEXFile_IA2String(int handle, int key, struct string *format_name, struct string **data)
-{
-	int v_handle = MainEXFile_IA2Handle(handle, key, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_String(v_handle, data);
-}
-
-static bool MainEXFile_SA2Int(int handle, struct string *key, struct string *format_name, int *data)
-{
-	int v_handle = MainEXFile_SA2Handle(handle, key, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_Int(v_handle, data);
-}
-
-static bool MainEXFile_SA2Float(int handle, struct string *key, struct string *format_name, float *data)
-{
-	int v_handle = MainEXFile_SA2Handle(handle, key, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_Float(v_handle, data);
-}
-
-static bool MainEXFile_SA2String(int handle, struct string *key, struct string *format_name, struct string **data)
-{
-	int v_handle = MainEXFile_SA2Handle(handle, key, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_String(v_handle, data);
-}
-
-static bool MainEXFile_RA2Int(int handle, int row, struct string *format_name, int *data)
-{
-	int v_handle = MainEXFile_RA2Handle(handle, row, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_Int(v_handle, data);
-}
-
-static bool MainEXFile_RA2Float(int handle, int row, struct string *format_name, float *data)
-{
-	int v_handle = MainEXFile_RA2Handle(handle, row, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_Float(v_handle, data);
-}
-
-static bool MainEXFile_RA2String(int handle, int row, struct string *format_name, struct string **data)
-{
-	int v_handle = MainEXFile_RA2Handle(handle, row, format_name);
-	if (v_handle <= 0)
-		return false;
-	return MainEXFile_String(v_handle, data);
-}
-
-static int MainEXFile_GetNodeNameCount(struct string *tree_path)
-{
-	struct ex_value *v = ex_get(ex, tree_path->text);
-	if (!v || v->type != EX_TREE || v->tree->is_leaf)
-		return 0;
-
+	struct ex_tree *tree = resolve_tree(tree_path);
+	if (!tree) return 0;
 	int count = 0;
-	for (unsigned i = 0; i < v->tree->nr_children; i++) {
-		if (!v->tree->children[i].is_leaf)
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (!tree->children[i].is_leaf)
 			count++;
 	}
 	return count;
 }
 
-static int MainEXFile_GetEXNameCount(struct string *tree_path)
+/*
+ * [28] int GetEXNameCount(string TreePath, int ID)
+ */
+static int MainEXFile_GetEXNameCount(struct string *tree_path, int id)
 {
-	struct ex_value *v = ex_get(ex, tree_path->text);
-	if (!v || v->type != EX_TREE || v->tree->is_leaf)
-		return 0;
-
+	struct ex_tree *tree = resolve_tree(tree_path);
+	if (!tree) return 0;
 	int count = 0;
-	for (unsigned i = 0; i < v->tree->nr_children; i++) {
-		if (v->tree->children[i].is_leaf)
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (tree->children[i].is_leaf)
 			count++;
 	}
 	return count;
 }
 
-static bool MainEXFile_GetNodeName(struct string *tree_path, int index, struct string **node_name)
+/*
+ * [29] bool GetNodeName(string TreePath, int Index, wrap NodeName, int ID)
+ *
+ * wrap<string> — the vm_value pointed to by node_name is a string heap slot
+ */
+static bool MainEXFile_GetNodeName(struct string *tree_path, int index, int *name_out, int id)
 {
-	struct ex_value *v = ex_get(ex, tree_path->text);
-	if (!v || v->type != EX_TREE || v->tree->is_leaf)
-		return false;
-	if (index < 0 || (unsigned)index >= v->tree->nr_children)
-		return false;
+	struct ex_tree *tree = resolve_tree(tree_path);
+	if (!tree) return false;
 
-	for (unsigned i = 0, count = 0; i < v->tree->nr_children; i++) {
-		if (v->tree->children[i].is_leaf)
+	int count = 0;
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (tree->children[i].is_leaf)
 			continue;
-		if (count == (unsigned)index) {
-			*node_name = string_ref(v->tree->children[i].name);
+		if (count == index) {
+			wrap_set_string(name_out, string_ref(tree->children[i].name));
 			return true;
 		}
 		count++;
 	}
-
 	return false;
 }
 
-static bool MainEXFile_GetEXName(struct string *tree_path, int index, struct string **ex_name)
+/*
+ * [30] bool GetEXName(string TreePath, int Index, wrap EXName, int ID)
+ */
+static bool MainEXFile_GetEXName(struct string *tree_path, int index, int *name_out, int id)
 {
-	struct ex_value *v = ex_get(ex, tree_path->text);
-	if (!v || v->type != EX_TREE || v->tree->is_leaf)
-		return false;
-	if (index < 0 || (unsigned)index >= v->tree->nr_children)
-		return false;
+	struct ex_tree *tree = resolve_tree(tree_path);
+	if (!tree) return false;
 
-	for (unsigned i = 0, count = 0; i < v->tree->nr_children; i++) {
-		if (!v->tree->children[i].is_leaf)
+	int count = 0;
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (!tree->children[i].is_leaf)
 			continue;
-		if (count == (unsigned)index) {
-			*ex_name = string_ref(v->tree->children[i].leaf.name);
+		if (count == index) {
+			wrap_set_string(name_out, string_ref(tree->children[i].leaf.name));
 			return true;
 		}
 		count++;
 	}
-
 	return false;
+}
+
+/*
+ * [31] bool GetNodeNameList(string TreePath, wrap NodeNameList, int ID)
+ *
+ * wrap<array<string>> — write an array page of strings to the wrap value
+ */
+static bool MainEXFile_GetNodeNameList(struct string *tree_path, int list_slot, int id)
+{
+	struct ex_tree *tree = resolve_tree(tree_path);
+	if (!tree || tree->nr_children == 0) return false;
+	if (!tree->children) return false;
+
+	int count = 0;
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (!tree->children[i].is_leaf)
+			count++;
+	}
+	if (count == 0) return false;
+
+	union vm_value dim = { .i = count };
+	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
+	if (!array) return false;
+	int idx = 0;
+	for (unsigned i = 0; i < tree->nr_children && idx < count; i++) {
+		struct ex_tree *child = &tree->children[i];
+		if (!child->is_leaf) {
+			struct string *child_name = child->name;
+			if (!child_name) child_name = &EMPTY_STRING;
+			array->values[idx].i = heap_alloc_string(string_ref(child_name));
+			idx++;
+		}
+	}
+
+	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
+	return true;
+}
+
+/*
+ * [32] bool GetEXNameList(string TreePath, wrap EXNameList, int ID)
+ */
+static bool MainEXFile_GetEXNameList(struct string *tree_path, int list_slot, int id)
+{
+	struct ex_tree *tree = resolve_tree(tree_path);
+	if (!tree) return false;
+
+	int count = 0;
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (tree->children[i].is_leaf)
+			count++;
+	}
+
+	union vm_value dim = { .i = count };
+	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
+	int idx = 0;
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		if (tree->children[i].is_leaf) {
+			struct string *leaf_name = tree->children[i].leaf.name;
+			if (!leaf_name) leaf_name = &EMPTY_STRING;
+			array->values[idx].i = heap_alloc_string(string_ref(leaf_name));
+			idx++;
+		}
+	}
+
+	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
+	return true;
+}
+
+/*
+ * [33] bool GetFormatNameList(string Name, wrap FormatNameList, int ID)
+ *
+ * Returns column/field names for a table
+ */
+static bool MainEXFile_GetFormatNameList(struct string *name, int list_slot, int id)
+{
+	struct ex_table *t = resolve_table(name);
+	if (!t) t = list_item_table(resolve_list(name), 0);
+	if (!t)
+		return false;
+
+	union vm_value dim = { .i = t->nr_fields };
+	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
+	for (unsigned i = 0; i < t->nr_fields; i++) {
+		array->values[i].i = heap_alloc_string(string_ref(t->fields[i].name));
+	}
+
+	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
+	return true;
 }
 
 HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(_ModuleInit, MainEXFile_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, MainEXFile_ModuleFini),
 	    HLL_EXPORT(ReloadDebugEXFile, MainEXFile_ReloadDebugEXFile),
-	    HLL_EXPORT(Handle, MainEXFile_Handle),
-	    HLL_EXPORT(AHandle, MainEXFile_AHandle),
-	    HLL_EXPORT(A2Handle, MainEXFile_A2Handle),
-	    HLL_EXPORT(IA2Handle, MainEXFile_IA2Handle),
-	    HLL_EXPORT(SA2Handle, MainEXFile_SA2Handle),
-	    HLL_EXPORT(RA2Handle, MainEXFile_RA2Handle),
+	    HLL_EXPORT(AddEXReader, MainEXFile_AddEXReader),
+	    HLL_EXPORT(EraseEXReader, MainEXFile_EraseEXReader),
+	    HLL_EXPORT(AddEX, MainEXFile_AddEX),
+	    HLL_EXPORT(AddEXText, MainEXFile_AddEXText),
+	    HLL_EXPORT(Save, MainEXFile_Save),
+	    HLL_EXPORT(Load, MainEXFile_Load),
 	    HLL_EXPORT(Row, MainEXFile_Row),
 	    HLL_EXPORT(Col, MainEXFile_Col),
 	    HLL_EXPORT(Type, MainEXFile_Type),
 	    HLL_EXPORT(AType, MainEXFile_AType),
 	    HLL_EXPORT(A2Type, MainEXFile_A2Type),
-	    HLL_EXPORT(IA2Type, MainEXFile_IA2Type),
-	    HLL_EXPORT(SA2Type, MainEXFile_SA2Type),
-	    HLL_EXPORT(RA2Type, MainEXFile_RA2Type),
 	    HLL_EXPORT(Exists, MainEXFile_Exists),
 	    HLL_EXPORT(AExists, MainEXFile_AExists),
 	    HLL_EXPORT(A2Exists, MainEXFile_A2Exists),
-	    HLL_EXPORT(IA2Exists, MainEXFile_IA2Exists),
-	    HLL_EXPORT(SA2Exists, MainEXFile_SA2Exists),
-	    HLL_EXPORT(RA2Exists, MainEXFile_RA2Exists),
 	    HLL_EXPORT(Int, MainEXFile_Int),
 	    HLL_EXPORT(Float, MainEXFile_Float),
 	    HLL_EXPORT(String, MainEXFile_String),
@@ -698,16 +739,11 @@ HLL_LIBRARY(MainEXFile,
 	    HLL_EXPORT(A2String, MainEXFile_A2String),
 	    HLL_EXPORT(GetRowAtIntKey, MainEXFile_GetRowAtIntKey),
 	    HLL_EXPORT(GetRowAtStringKey, MainEXFile_GetRowAtStringKey),
-	    HLL_EXPORT(IA2Int, MainEXFile_IA2Int),
-	    HLL_EXPORT(IA2Float, MainEXFile_IA2Float),
-	    HLL_EXPORT(IA2String, MainEXFile_IA2String),
-	    HLL_EXPORT(SA2Int, MainEXFile_SA2Int),
-	    HLL_EXPORT(SA2Float, MainEXFile_SA2Float),
-	    HLL_EXPORT(SA2String, MainEXFile_SA2String),
-	    HLL_EXPORT(RA2Int, MainEXFile_RA2Int),
-	    HLL_EXPORT(RA2Float, MainEXFile_RA2Float),
-	    HLL_EXPORT(RA2String, MainEXFile_RA2String),
+	    HLL_EXPORT(GetColAtFormatName, MainEXFile_GetColAtFormatName),
 	    HLL_EXPORT(GetNodeNameCount, MainEXFile_GetNodeNameCount),
 	    HLL_EXPORT(GetEXNameCount, MainEXFile_GetEXNameCount),
 	    HLL_EXPORT(GetNodeName, MainEXFile_GetNodeName),
-	    HLL_EXPORT(GetEXName, MainEXFile_GetEXName));
+	    HLL_EXPORT(GetEXName, MainEXFile_GetEXName),
+	    HLL_EXPORT(GetNodeNameList, MainEXFile_GetNodeNameList),
+	    HLL_EXPORT(GetEXNameList, MainEXFile_GetEXNameList),
+	    HLL_EXPORT(GetFormatNameList, MainEXFile_GetFormatNameList));

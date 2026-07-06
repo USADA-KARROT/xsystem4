@@ -343,9 +343,11 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, StopSoundWithoutSystemSound);
 
 static void PartsEngine_PreLink(void);
+static void PartsEngine_PostLink(void);
 
 HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(_PreLink, PartsEngine_PreLink),
+	    HLL_EXPORT(_PostLink, PartsEngine_PostLink),
 	    // for versions without PartsEngine.Init
 	    HLL_EXPORT(_ModuleInit, PartsEngine_ModuleInit),
 	    HLL_EXPORT(_ModuleFini, PartsEngine_ModuleFini),
@@ -872,11 +874,40 @@ static struct ain_hll_function *get_fun(int libno, const char *name)
 	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
 }
 
+// v14 (Dohna Dohna) declares:
+//   void RemoveController(wrap<array<int>> EraseNumberList, int Index);
+// The wrap argument arrives from the FFI as an int heap slot, not the
+// page** the legacy 'ref array<int>' declaration produces. Calling the
+// legacy implementation with that cif dereferences a garbage pointer.
+static void PE_v14_RemoveController(int erase_slot, int index)
+{
+	// The v14 wrap<array<int>> out-list is not populated: the fork this
+	// port derives from never wrote it and Dohna Dohna runs fine without
+	// it (the erased parts numbers are only diagnostics for the game
+	// script). Writing it would require v14 array-page construction;
+	// revisit with the parts message wave if a scene turns out to read it.
+	(void)erase_slot;
+	struct page *scratch = NULL;
+	PE_RemoveController(&scratch, index);
+	if (scratch) {
+		delete_page_vars(scratch);
+		free_page(scratch);
+	}
+}
+
 static void PartsEngine_PreLink(void)
 {
 	struct ain_hll_function *fun;
 	int libno = ain_get_library(ain, "PartsEngine");
 	assert(libno >= 0);
+
+	// v14 signature variants (declaration-driven, not version-driven)
+	fun = get_fun(libno, "RemoveController");
+	if (fun && fun->nr_arguments >= 1
+			&& fun->arguments[0].type.data == AIN_WRAP) {
+		static_library_replace(&lib_PartsEngine, "RemoveController",
+				PE_v14_RemoveController);
+	}
 
 	fun = get_fun(libno, "AddDrawCutCGToPartsConstructionProcess");
 	if (fun && fun->nr_arguments == 12) {
@@ -895,5 +926,19 @@ static void PartsEngine_PreLink(void)
 	}
 	if (get_fun(libno, "AddController")) {
 		PE_enable_multi_controller();
+	}
+}
+
+// Runs after link_libraries(): static_library_register() requires the
+// runtime library table to exist.
+static void PartsEngine_PostLink(void)
+{
+	int libno = ain_get_library(ain, "PartsEngine");
+	if (libno < 0)
+		return;
+	// v14 Activity system + pactex loader (declaration-driven)
+	if (get_fun(libno, "CreateActivity")) {
+		extern void pe_v14_activity_prelink(void);
+		pe_v14_activity_prelink();
 	}
 }

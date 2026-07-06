@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <iconv.h>
+
 #include "system4.h"
 #include "system4/fnl.h"
 #include "system4/hashtable.h"
@@ -112,6 +114,7 @@ static struct font *get_font(unsigned face)
 struct font_size *gfx_font_get_size(unsigned face, float size)
 {
 	struct font *font = get_font(face);
+	if (!font) return NULL;
 	return font->get_size(font, size);
 }
 
@@ -144,17 +147,63 @@ static float font_size_char(struct font_size *size, uint32_t code)
 	return size->font->size_char(size, code);
 }
 
+/* GB18030 support helpers */
+static int gb18030_skip_char_bytes(const char *s)
+{
+	unsigned char c = (unsigned char)*s;
+	if (c < 0x80) return 1;
+	if (c >= 0x81 && c <= 0xFE) {
+		unsigned char c2 = (unsigned char)s[1];
+		if (c2 >= 0x30 && c2 <= 0x39) return 4; /* 4-byte */
+		return 2; /* 2-byte */
+	}
+	return 1;
+}
+
+static void gb18030_char2unicode(const char *s, int *out)
+{
+	unsigned char c = (unsigned char)*s;
+	if (c < 0x80) { *out = c; return; }
+
+	static iconv_t cd = (iconv_t)-1;
+	if (cd == (iconv_t)-1) {
+		cd = iconv_open("UTF-32LE", "GB18030");
+		if (cd == (iconv_t)-1) {
+			*out = '?';
+			return;
+		}
+	}
+
+	int bytes = gb18030_skip_char_bytes(s);
+	char *inp = (char *)s;
+	size_t inleft = bytes;
+	uint32_t unicode = 0;
+	char *outp = (char *)&unicode;
+	size_t outleft = sizeof(unicode);
+
+	iconv(cd, NULL, NULL, NULL, NULL); /* reset */
+	if (iconv(cd, &inp, &inleft, &outp, &outleft) == (size_t)-1 || outleft != 0) {
+		*out = '?';
+		return;
+	}
+	*out = (int)unicode;
+}
+
 static uint32_t char_to_code(const char *ch, enum charmap charmap)
 {
 	if (charmap == CHARMAP_SJIS)
 		return sjis_code(ch);
 	int c;
-	sjis_char2unicode(ch, &c);
-	if (c == '^' && game_rance02_mg)
-		return 0xE9; // é
-	// half-width katakana 'no' (ﾉ)
-	if (c == 0xFF89 && game_rance6_mg)
-		return 0xE9; // é
+	if (ain_is_gb18030) {
+		gb18030_char2unicode(ch, &c);
+	} else {
+		sjis_char2unicode(ch, &c);
+		if (c == '^' && game_rance02_mg)
+			return 0xE9; // é
+		// half-width katakana 'no' (ﾉ)
+		if (c == 0xFF89 && game_rance6_mg)
+			return 0xE9; // é
+	}
 	return c;
 }
 
@@ -172,7 +221,9 @@ float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_
 
 float gfx_size_text(struct text_style *ts, const char *text)
 {
+	if (!text || !*text) return 0.0f;
 	struct font_size *size = text_style_font_size(ts);
+	if (!size || !size->font) return 0.0f;
 	float edge_advance = gfx_text_advance_edges
 		? ts->edge_left + ts->edge_right + ceilf(ts->bold_width)
 		: 0.0f;
@@ -180,7 +231,7 @@ float gfx_size_text(struct text_style *ts, const char *text)
 	while (*text) {
 		x += font_size_char(size, char_to_code(text, size->font->charmap));
 		x += edge_advance;
-		text = sjis_skip_char(text);
+		text += ain_is_gb18030 ? gb18030_skip_char_bytes(text) : (SJIS_2BYTE(*text) ? 2 : 1);
 	}
 	return x;
 }
@@ -207,7 +258,7 @@ float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 		// get glyph for character
 		float scale_x = *msg == ' ' ? tm->space_scale_x : tm->scale_x;
 		uint32_t code = char_to_code(msg, tm->font_size->font->charmap);
-		msg += SJIS_2BYTE(*msg) ? 2 : 1;
+		msg += ain_is_gb18030 ? gb18030_skip_char_bytes(msg) : (SJIS_2BYTE(*msg) ? 2 : 1);
 		struct glyph *glyph = font_get_glyph(tm->font_size, code, tm->weight);
 		if (!glyph)
 			continue;

@@ -110,7 +110,6 @@ int sact_init(possibly_unused int cg_cache_size, enum sprite_engine_type engine)
 	gfx_init();
 	gfx_font_init();
 	audio_init();
-
 	nr_sprites = 256;
 	sprites = xmalloc(sizeof(struct sact_sprite*) * 257);
 	memset(sprites, 0, sizeof(struct sact_sprite*) * 257);
@@ -725,7 +724,14 @@ int sact_GAME_MSG_GetNumOf(void)
 	return ain->nr_messages;
 }
 
-//void SACT2_GAME_MSG_Get(int index, struct string **text);
+void sact_GAME_MSG_Get(int index, struct string **text)
+{
+	if (index >= 0 && index < ain->nr_messages) {
+		if (*text)
+			free_string(*text);
+		*text = string_ref(ain->messages[index]);
+	}
+}
 
 void sact_IntToZenkaku(struct string **s, int value, int figures, int zero_pad)
 {
@@ -928,7 +934,7 @@ HLL_WARN_UNIMPLEMENTED(0, int, SACT2, Music_AnalyzeSampleData, struct page **l, 
 	    HLL_EXPORT(SP_IsPtIn, sact_SP_IsPtIn), \
 	    HLL_EXPORT(SP_IsPtInRect, sact_SP_IsPtInRect), \
 	    HLL_EXPORT(GAME_MSG_GetNumof, sact_GAME_MSG_GetNumOf), \
-	    HLL_TODO_EXPORT(GAME_MSG_Get, SACT2_GAME_MSG_Get), \
+	    HLL_EXPORT(GAME_MSG_Get, sact_GAME_MSG_Get), \
 	    HLL_EXPORT(IntToZenkaku, sact_IntToZenkaku), \
 	    HLL_EXPORT(IntToHankaku, sact_IntToHankaku), \
 	    HLL_TODO_EXPORT(StringPopFront, SACT2_StringPopFront), \

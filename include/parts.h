@@ -35,6 +35,7 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int state);
 bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_no,
 		int sprite_deform, int state);
+int PE_GetPartsCGDeform(int parts_no, int state);
 void PE_GetPartsCGName(int parts_no, struct string **cg_name, int state);
 bool PE_SetPartsCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state);
 void PE_GetPartsCGSurfaceArea(int parts_no, int *x, int *y, int *w, int *h, int state);
@@ -87,6 +88,7 @@ void PE_SetMultiplyColor(int parts_no, int r, int g, int b);
 void PE_GetMultiplyColor(int parts_no, int *r, int *g, int *b);
 int PE_GetPartsWidth(int parts_no, int state);
 int PE_GetPartsHeight(int parts_no, int state);
+void PE_GetPartsSize(int parts_no, int *width, int *height, int state);
 int PE_GetPartsUpperLeftPosX(int parts_no, int state);
 int PE_GetPartsUpperLeftPosY(int parts_no, int state);
 void PE_SetPartsOriginPosMode(int parts_no, int origin_pos_mode);

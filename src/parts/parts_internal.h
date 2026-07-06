@@ -61,9 +61,20 @@ union parts_motion_param {
 	};
 };
 
+enum parts_motion_curve {
+	PARTS_MOTION_CURVE_LINEAR = 0,
+	PARTS_MOTION_CURVE_EASE_IN,
+	PARTS_MOTION_CURVE_EASE_OUT,
+	PARTS_MOTION_CURVE_EASE_IN_OUT,
+	PARTS_MOTION_CURVE_CUBIC_IN,
+	PARTS_MOTION_CURVE_CUBIC_OUT,
+	PARTS_MOTION_CURVE_CUBIC_IN_OUT,
+};
+
 struct parts_motion {
 	TAILQ_ENTRY(parts_motion) entry;
 	enum parts_motion_type type;
+	enum parts_motion_curve curve;
 	union parts_motion_param begin;
 	union parts_motion_param end;
 	int begin_time;
@@ -81,7 +92,7 @@ struct sound_motion {
 
 struct parts_text_char {
 	Texture t;
-	char ch[4];
+	char ch[5];
 	float advance;
 	Point off;
 };
@@ -435,6 +446,9 @@ struct parts {
 	int margin_right;
 	struct parts_motion_list motion;
 	int controller_no;
+	int component_type;   // v14 component widget type
+	int unique_id;        // v14 unique ID for event dispatch
+	char *user_component_name; // v14 user component name from pactex (heap-allocated)
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -483,11 +497,18 @@ void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
 extern bool parts_message_window_show;
 
+// message queue (implemented in PartsEngine.c)
+void parts_enqueue_message(int type, int parts_no, int delegate_index, int unique_id);
+void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
+                                int nr_vars, const int *vars);
+
 extern struct parts_numeral_font *parts_numeral_fonts;
 extern int parts_nr_numeral_fonts;
 
 // for save.c
 void parts_list_resort(struct parts *parts);
+void parts_list_ensure_sorted(void);
+void parts_ensure_scene_registered(struct parts *parts);
 void parts_component_dirty(struct parts *parts);
 void parts_recalculate_hitbox(struct parts *parts);
 void parts_state_reset(struct parts_state *state, enum parts_type type);
