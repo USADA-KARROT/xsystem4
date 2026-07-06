@@ -721,18 +721,26 @@ static int alloc_scenario_page(const char *fname)
 	return slot;
 }
 
+// Keep-alive applies to v6.1..v13 (upstream 9ed1f52, for Rance 9): hold a
+// ref on `this` for the duration of a method call. v14 is excluded — the
+// v14 port's refcount model balances ownership itself (verified in the
+// reference fork, which never had keep-alive), and stacking both caused
+// use-after-free of struct pages under GC in episode 1.
+static inline bool keep_alive_enabled(void)
+{
+	return AIN_VERSION_GTE(ain, 6, 1) && ain->version < 14;
+}
+
 static void set_struct_page(int slot)
 {
 	call_stack[call_stack_ptr-1].struct_page = slot;
-	// Keep `this` alive during the call (from Rance9 onwards).
-	// v14 uses -1/0 as no-object sentinels; only ref real pages.
-	if (slot > 0 && AIN_VERSION_GTE(ain, 6, 1))
+	if (slot > 0 && keep_alive_enabled())
 		heap_ref(slot);
 }
 
 static void unref_call_frame(struct function_call *frame)
 {
-	if (frame->struct_page > 0 && AIN_VERSION_GTE(ain, 6, 1))
+	if (frame->struct_page > 0 && keep_alive_enabled())
 		heap_unref(frame->struct_page);
 	heap_unref(frame->page_slot);
 }
@@ -1546,7 +1554,7 @@ static void function_return(void)
 	// (upstream 9ed1f52), then the local page, after the frame is popped.
 	int struct_page = call_stack[call_stack_ptr-1].struct_page;
 	call_stack_ptr--;
-	if (struct_page > 0 && AIN_VERSION_GTE(ain, 6, 1))
+	if (struct_page > 0 && keep_alive_enabled())
 		heap_unref(struct_page);
 	heap_unref(page_slot);
 	instr_ptr = ret_addr;
@@ -2576,8 +2584,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		int msg_idx = get_argument(0);
 		if (config.echo)
 			echo_message(msg_idx);
-		if (ain->msgf < 0) {
-			// v14: store message for R/A handlers to use
+		if (ain->msgf <= 0) {
+			// v14: store message for R/A handlers to use.
+			// msgf==0 counts as "no handler" too: function 0 is the
+			// reserved NULL function (Dohna Dohna CN declares msgf=0),
+			// and calling it desyncs the stack.
 			vm_msg_idx = msg_idx;
 			vm_msg_text = (msg_idx >= 0 && msg_idx < ain->nr_messages)
 				? ain->messages[msg_idx] : NULL;
@@ -2943,7 +2954,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	// --- Floating Point Arithmetic ---
 	//
 	case FTOI: {
-		stack_set(0, (int32_t)stack_peek(0).f);
+		// NaN/inf to int is UB; the original VM yields 0 for NaN.
+		float _fv = stack_peek(0).f;
+		stack_set(0, isnan(_fv) ? 0 : (int32_t)_fv);
 		break;
 	}
 	case ITOF: {

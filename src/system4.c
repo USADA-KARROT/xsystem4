@@ -655,6 +655,7 @@ int main(int argc, char *argv[])
 		if (gb_score > 5) {
 			ain_is_gb18030 = true;
 			WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", gb_score);
+	WARNING("AINCHECK: msgf=%d nr_messages=%d messages=%p", ain->msgf, ain->nr_messages, (void*)ain->messages);
 		}
 	}
 
