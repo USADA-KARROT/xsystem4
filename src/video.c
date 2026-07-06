@@ -423,6 +423,27 @@ static void gfx_update_frame_rate_counter(void)
 
 void gfx_swap(void)
 {
+	// Test facility: periodically dump the main surface when
+	// XSYS4_SCREENSHOT_DIR is set (framebuffer capture; unaffected by
+	// window occlusion). Used by the port's runtime gates.
+	{
+		static const char *shot_dir = NULL;
+		static bool shot_checked = false;
+		static uint32_t next_shot = 2000;
+		static int shot_count = 0;
+		if (!shot_checked) {
+			shot_dir = getenv("XSYS4_SCREENSHOT_DIR");
+			shot_checked = true;
+		}
+		if (shot_dir && shot_count < 40 && SDL_GetTicks() > next_shot) {
+			char path[PATH_MAX];
+			snprintf(path, sizeof(path), "%s/xsys4_t%02d.png", shot_dir, shot_count);
+			gfx_save_texture(gfx_main_surface(), path, ALCG_PNG);
+			shot_count++;
+			next_shot += 2000;
+		}
+	}
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
 	gfx_clear();
