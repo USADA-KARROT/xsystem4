@@ -232,6 +232,64 @@ static int PE_v14_GetSystemOverlayController(void)
 	return PARTS_CONTROLLER_SYSTEM_OVERLAY;
 }
 
+/* --- Message window (v14 ADV dialogue) --- thin adapters over the
+ * upstream parts text/CG API, from the fork's verified behaviour. */
+
+static void PE_v14_SetMessageWindowActive(int parts_no, bool active)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return;
+	parts->message_window = true;
+	PE_SetShow(parts_no, active);
+}
+
+static void PE_v14_SetMessageWindowText(int parts_no, struct string *text,
+		int msg_num, struct string *func_name, int ver, int step)
+{
+	(void)msg_num; (void)func_name; (void)ver; (void)step;
+	PE_SetText(parts_no, text, 1); // DEFAULT state, 1-based
+}
+
+static void PE_v14_FixMessageWindowText(possibly_unused int parts_no)
+{
+	// Text renders synchronously in SetMessageWindowText.
+}
+
+static bool PE_v14_IsFixedMessageWindowText(possibly_unused int parts_no)
+{
+	return true;
+}
+
+static void PE_v14_SetMessageWindowCGName(int parts_no, struct string *name)
+{
+	PE_SetPartsCG(parts_no, name, 0, 1);
+}
+
+static void PE_v14_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h)
+{
+	PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, 1);
+}
+
+static void PE_v14_SetMessageWindowTextFont(int parts_no, int type, int size,
+		int r, int g, int b, float bold_weight,
+		int edge_r, int edge_g, int edge_b, float edge_weight)
+{
+	PE_SetFont(parts_no, type, size, r, g, b, bold_weight,
+			edge_r, edge_g, edge_b, edge_weight, 1);
+}
+
+static void PE_v14_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space)
+{
+	PE_SetTextCharSpace(parts_no, letter_space, 1);
+	PE_SetTextLineSpace(parts_no, line_space, 1);
+}
+
+static void PE_v14_SetKeyWaitShow(int parts_no, bool show)
+{
+	PE_SetShow(parts_no, show);
+}
+
 /* Replace existing bindings with v14 semantics. Must run at _PreLink:
  * static_library_replace edits the static export table, which
  * link_libraries() copies into the runtime table — replacing after the
@@ -267,4 +325,13 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "SetActiveController", PE_v14_SetActiveController);
 	static_library_register(lib, "GetControllerLength", PE_v14_GetControllerLength);
 	static_library_register(lib, "GetSystemOverlayController", PE_v14_GetSystemOverlayController);
+	static_library_register(lib, "SetMessageWindowActive", PE_v14_SetMessageWindowActive);
+	static_library_register(lib, "SetMessageWindowText", PE_v14_SetMessageWindowText);
+	static_library_register(lib, "FixMessageWindowText", PE_v14_FixMessageWindowText);
+	static_library_register(lib, "IsFixedMessageWindowText", PE_v14_IsFixedMessageWindowText);
+	static_library_register(lib, "SetMessageWindowCGName", PE_v14_SetMessageWindowCGName);
+	static_library_register(lib, "SetMessageWindowTextArea", PE_v14_SetMessageWindowTextArea);
+	static_library_register(lib, "SetMessageWindowTextFont", PE_v14_SetMessageWindowTextFont);
+	static_library_register(lib, "SetMessageWindowTextSpace", PE_v14_SetMessageWindowTextSpace);
+	static_library_register(lib, "SetKeyWaitShow", PE_v14_SetKeyWaitShow);
 }
