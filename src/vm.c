@@ -4306,7 +4306,18 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			struct page *xa_page = NULL;
 			if (heap_index_valid(xa_heap_index) && heap[xa_heap_index].type == VM_PAGE)
 				xa_page = heap[xa_heap_index].page;
-			for (int i = 0; i < n; i++) {
+			// Clamp to the page: v14 bytecode occasionally issues X_ASSIGN
+			// past the end of a small page (heap-buffer-overflow on both the
+			// old-value read and the write). Skip the out-of-bounds tail;
+			// the stack pushes below still restore all n values.
+			int writable = n;
+			if (xa_page && xa_page_index >= 0 && xa_page_index + n > xa_page->nr_vars) {
+				writable = xa_page->nr_vars - xa_page_index;
+				if (writable < 0) writable = 0;
+				WARNING("X_ASSIGN %d past end of page (page_index=%d nr_vars=%d); clamping to %d",
+				        n, xa_page_index, xa_page->nr_vars, writable);
+			}
+			for (int i = 0; i < writable; i++) {
 				if (xa_page) {
 					enum ain_data_type vtype = variable_type(xa_page, xa_page_index + i, NULL, NULL);
 					switch (vtype) {
