@@ -759,10 +759,11 @@ void hll_call(int libno, int fno, int hll_arg3)
 		stack_push(slot);
 		break;
 	case AIN_BOOL:
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-		stack_push(*(bool*)&r);
-#pragma GCC diagnostic pop
+		// The C side returns bool, so only the low byte of the return
+		// register is defined on arm64; reading it through bool* is UB
+		// when the register holds other bits (UBSan: "load of value 32").
+		// Read the low byte and normalize to 0/1.
+		stack_push((int)(*(uint8_t*)&r != 0));
 		break;
 	case AIN_REF_HLL_PARAM:
 		// v14: The HLL function has already pushed the return value(s) directly
