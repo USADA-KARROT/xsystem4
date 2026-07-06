@@ -1160,6 +1160,23 @@ bool parts_message_window_show = true;
 
 void PE_Update(int passed_time, bool message_window_show)
 {
+	// v14 (Dohna Dohna): the game computes passed_time with its own
+	// CASTimerManager, which yields 0 under xsystem4; without a real
+	// delta, motions and loop animations never advance. Fall back to
+	// wall-clock time when the game reports no progress.
+	if (ain->version >= 14 && passed_time == 0) {
+		static struct timespec pe_last_time;
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		if (pe_last_time.tv_sec > 0) {
+			double delta_ms = (now.tv_sec - pe_last_time.tv_sec) * 1000.0
+				+ (now.tv_nsec - pe_last_time.tv_nsec) / 1e6;
+			passed_time = (int)delta_ms;
+			if (passed_time < 0) passed_time = 0;
+			if (passed_time > 100) passed_time = 100;
+		}
+		pe_last_time = now;
+	}
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
 	audio_update();

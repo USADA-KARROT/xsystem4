@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/string.h"
 
 #include "vm.h"
@@ -91,7 +92,13 @@ void PE_PopMessage(void)
 int PE_GetMessageType(void)
 {
 	struct parts_message *msg = STAILQ_FIRST(&msg_queue);
-	return msg ? msg->type : 0;
+	// v14 game code (Dohna Dohna's CPartsMessageManager) polls messages
+	// until it sees -1; returning 0 for an empty queue makes it process a
+	// phantom message forever and the frame never reaches the update
+	// events that drive Motion.
+	if (!msg)
+		return ain->version >= 14 ? -1 : 0;
+	return msg->type;
 }
 
 int PE_GetMessagePartsNumber(void)

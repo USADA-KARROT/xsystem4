@@ -98,12 +98,12 @@ static bool SystemService_InitMainWindowPosAndSize(void)
 	return true;
 }
 
-// From parts — avoid full include of parts_internal.h.
-// Upstream's parts subsystem drives per-frame updates internally; the v14
-// motion/input update hooks (PE_UpdateComponent, PE_UpdateMotionTime,
-// parts_update_animation, PE_UpdateInputState) are rewired in the parts
-// re-port wave. Until then UpdateView only pumps events/audio/render.
-extern void parts_render_update(void);
+// From parts — avoid full include of parts_internal.h. v14 games drive
+// the whole frame through SystemService.UpdateView; route it into the
+// upstream parts update pipeline.
+extern void PE_Update(int passed_time, bool message_window_show);
+extern void PE_UpdateMotionTime(int time, bool skip);
+extern bool parts_message_window_show;
 
 static bool SystemService_UpdateView(void)
 {
@@ -122,10 +122,12 @@ static bool SystemService_UpdateView(void)
 	last_time = now;
 
 	handle_events();
-	audio_update();
 	sprite_call_plugins();
-	(void)passed_time; // consumed by the v14 parts update hooks (parts wave)
-	parts_render_update();
+	// Motion timing first (v14 games do not call UpdateMotionTime
+	// themselves), then the upstream parts pipeline: component updates,
+	// audio, loop animations, input state, render update.
+	PE_UpdateMotionTime(passed_time, false);
+	PE_Update(passed_time, parts_message_window_show);
 
 	// Throttle scene_render + gfx_swap to ~60fps.
 	static uint32_t sv_last_render_ms = 0;

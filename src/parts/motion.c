@@ -534,6 +534,7 @@ void PE_SeekEndMotion(void)
 
 void PE_UpdateMotionTime(int time, possibly_unused bool skip)
 {
+
 	// TODO: use skip
 	if (is_motion_paused)
 		return;

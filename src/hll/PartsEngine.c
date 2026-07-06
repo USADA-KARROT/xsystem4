@@ -895,6 +895,33 @@ static void PE_v14_RemoveController(int erase_slot, int index)
 	}
 }
 
+// v14: Save/SaveWithoutHideParts/Load are declared with a wrap<> first
+// argument, which the FFI passes as an int heap slot — not the page**
+// the legacy declarations produce. Adapt around the legacy savers.
+static bool PE_v14_Save(int buf_slot)
+{
+	struct page *buf = wrap_get_page(buf_slot, 0);
+	bool ok = PE_Save(&buf);
+	if (ok)
+		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
+	return ok;
+}
+
+static bool PE_v14_SaveWithoutHideParts(int buf_slot)
+{
+	struct page *buf = wrap_get_page(buf_slot, 0);
+	bool ok = PE_SaveWithoutHideParts(&buf);
+	if (ok)
+		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
+	return ok;
+}
+
+static bool PE_v14_Load(int buf_slot)
+{
+	struct page *buf = wrap_get_page(buf_slot, 0);
+	return PE_Load(&buf);
+}
+
 static void PartsEngine_PreLink(void)
 {
 	struct ain_hll_function *fun;
@@ -902,6 +929,15 @@ static void PartsEngine_PreLink(void)
 	assert(libno >= 0);
 
 	// v14 signature variants (declaration-driven, not version-driven)
+	fun = get_fun(libno, "Save");
+	if (fun && fun->nr_arguments >= 1
+			&& fun->arguments[0].type.data == AIN_WRAP) {
+		static_library_replace(&lib_PartsEngine, "Save", PE_v14_Save);
+		static_library_replace(&lib_PartsEngine, "SaveWithoutHideParts",
+				PE_v14_SaveWithoutHideParts);
+		static_library_replace(&lib_PartsEngine, "Load", PE_v14_Load);
+	}
+
 	fun = get_fun(libno, "RemoveController");
 	if (fun && fun->nr_arguments >= 1
 			&& fun->arguments[0].type.data == AIN_WRAP) {
