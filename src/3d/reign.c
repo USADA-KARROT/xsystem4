@@ -220,21 +220,9 @@ static void update_bones(struct RE_instance *inst)
 	}
 }
 
-struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
+static struct RE_plugin *RE_plugin_init(enum RE_plugin_version version, struct archive *aar, bool owns_archive)
 {
 	re_plugin_version = version;
-
-	char *aar_path = gamedir_path(version <= RE_TAPIR_PLUGIN ? "Data/ReignData.red" : "Data/3DData.red");
-	int error = ARCHIVE_SUCCESS;
-	struct archive *aar = (struct archive *)aar_open(aar_path, MMAP_IF_64BIT, &error);
-	if (error == ARCHIVE_FILE_ERROR) {
-		WARNING("aar_open(\"%s\"): %s", display_utf0(aar_path), strerror(errno));
-	} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
-		WARNING("aar_open(\"%s\"): invalid AAR archive", display_utf0(aar_path));
-	}
-	free(aar_path);
-	if (!aar)
-		return NULL;
 
 	struct RE_plugin *plugin = xcalloc_aligned(1, struct RE_plugin);
 	plugin->version = version;
@@ -244,6 +232,7 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	plugin->nr_instances = 16;
 	plugin->instances = xcalloc(plugin->nr_instances, sizeof(struct RE_instance *));
 	plugin->aar = aar;
+	plugin->owns_archive = owns_archive;
 	plugin->model_cache = ht_create(32);
 	plugin->effect_cache = ht_create(32);
 	for (int i = 0; i < RE_NR_BACK_CGS; i++)
@@ -260,6 +249,30 @@ struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
 	return plugin;
 }
 
+struct RE_plugin *RE_plugin_new(enum RE_plugin_version version)
+{
+	char *aar_path = gamedir_path(version <= RE_TAPIR_PLUGIN ? "Data/ReignData.red" : "Data/3DData.red");
+	int error = ARCHIVE_SUCCESS;
+	struct archive *aar = (struct archive *)aar_open(aar_path, MMAP_IF_64BIT, &error);
+	if (error == ARCHIVE_FILE_ERROR) {
+		WARNING("aar_open(\"%s\"): %s", display_utf0(aar_path), strerror(errno));
+	} else if (error == ARCHIVE_BAD_ARCHIVE_ERROR) {
+		WARNING("aar_open(\"%s\"): invalid AAR archive", display_utf0(aar_path));
+	}
+	free(aar_path);
+	if (!aar)
+		return NULL;
+
+	return RE_plugin_init(version, aar, true);
+}
+
+struct RE_plugin *RE_plugin_new_with_archive(enum RE_plugin_version version, struct archive *archive)
+{
+	if (!archive)
+		return NULL;
+	return RE_plugin_init(version, archive, false);
+}
+
 void RE_plugin_free(struct RE_plugin *plugin)
 {
 	RE_plugin_unbind(plugin);
@@ -268,7 +281,8 @@ void RE_plugin_free(struct RE_plugin *plugin)
 			free_instance(plugin->instances[i]);
 	}
 	free(plugin->instances);
-	archive_free(plugin->aar);
+	if (plugin->owns_archive)
+		archive_free(plugin->aar);
 	ht_foreach_value(plugin->model_cache, (void(*)(void*))model_free);
 	ht_free(plugin->model_cache);
 	ht_foreach_value(plugin->effect_cache, re_plugin_version < RE_SEAL_PLUGIN ?
