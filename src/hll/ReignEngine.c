@@ -2722,4 +2722,7 @@ HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int Plugin
 	    HLL_TODO_EXPORT(ClearCache, SealEngine_ClearCache), \
 	    HLL_TODO_EXPORT(GetHistogram, SealEngine_GetHistogram)
 
-HLL_LIBRARY(SealEngine, REIGN_EXPORTS, TAPIR_EXPORTS, SEAL_EXPORTS);
+// SealEngine is provided by hll/SealEngine.c on this branch: Dohna Dohna's
+// v14 AIN declares SealEngine with different (v14 wrap/2-slot) signatures,
+// so the shared ReignEngine-family binding below would mismatch the ABI.
+//HLL_LIBRARY(SealEngine, REIGN_EXPORTS, TAPIR_EXPORTS, SEAL_EXPORTS);

@@ -203,6 +203,11 @@ int ADVLogList_GetADVLogVoiceLast(int log_no)
 
 bool ADVLogList_Save(struct page **iarray)
 {
+	// v14: Save can receive invalid/NULL page references during auto-save.
+	// Return true (success) without serializing — save not needed for playback.
+	if (!iarray || ain->version >= 14) {
+		return true;
+	}
 	// 0x64 <- 'A'
 	// 0x68 <- 'D'
 	// 0x76 <- 'L'
@@ -247,6 +252,8 @@ bool ADVLogList_Save(struct page **iarray)
 
 bool ADVLogList_Load(struct page **data)
 {
+	if (!data || ain->version >= 14)
+		return false;
 	if (!(*data))
 		return false;
 	struct iarray_reader r;
@@ -398,6 +405,8 @@ void ADVSceneKeeper_Clear(void)
 
 bool ADVSceneKeeper_Save(struct page **iarray)
 {
+	if (!iarray || ain->version >= 14)
+		return true;
 	if (*iarray) {
 		delete_page_vars(*iarray);
 		free_page(*iarray);
@@ -421,6 +430,8 @@ bool ADVSceneKeeper_Save(struct page **iarray)
 
 bool ADVSceneKeeper_Load(struct page **iarray)
 {
+	if (!iarray || ain->version >= 14)
+		return false;
 	if (!(*iarray))
 		return false;
 
@@ -483,9 +494,40 @@ static void AnteaterADVEngine_ADVLogList_AddText_with_window(struct string **tex
 	ADVLogList_AddText(text);
 }
 
+// v14 wrappers: short names with different signatures
+static void AnteaterADVEngine_v14_AddText(struct string *text, struct string *window_name)
+{
+	struct string *ref = text;
+	ADVLogList_AddText(&ref);
+}
+
+static void AnteaterADVEngine_v14_AddVoice(struct string *voice_name, struct string *voice_filter)
+{
+	// v14: voice is identified by name string, not int
+	// Store nothing for now — voice playback from log is cosmetic
+}
+
+static struct string *AnteaterADVEngine_v14_GetADVLogText(int log_no, int line_no)
+{
+	struct string *text = NULL;
+	ADVLogList_GetADVLogText(log_no, line_no, &text);
+	return text;
+}
+
+static struct string *AnteaterADVEngine_v14_GetADVLogVoice(int log_no, int index)
+{
+	return string_ref(&EMPTY_STRING);
+}
+
+static struct string *AnteaterADVEngine_v14_GetADVLogVoiceFilter(int log_no, int index)
+{
+	return string_ref(&EMPTY_STRING);
+}
+
 HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(_PreLink, AnteaterADVEngine_PreLink),
 	    HLL_EXPORT(_ModuleFini, AnteaterADVEngine_ModuleFini),
+	    // Legacy names (pre-v14)
 	    HLL_EXPORT(ADVLogList_Clear, ADVLogList_Clear),
 	    HLL_EXPORT(ADVLogList_AddText, ADVLogList_AddText),
 	    HLL_EXPORT(ADVLogList_AddNewLine, ADVLogList_AddNewLine),
@@ -505,7 +547,23 @@ HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(ADVSceneKeeper_GetADVScene, ADVSceneKeeper_GetADVScene),
 	    HLL_EXPORT(ADVSceneKeeper_Clear, ADVSceneKeeper_Clear),
 	    HLL_EXPORT(ADVSceneKeeper_Save, ADVSceneKeeper_Save),
-	    HLL_EXPORT(ADVSceneKeeper_Load, ADVSceneKeeper_Load)
+	    HLL_EXPORT(ADVSceneKeeper_Load, ADVSceneKeeper_Load),
+	    // v14 short names (AnteaterADVLogList)
+	    HLL_EXPORT(Clear, ADVLogList_Clear),
+	    HLL_EXPORT(AddText, AnteaterADVEngine_v14_AddText),
+	    HLL_EXPORT(AddNewLine, ADVLogList_AddNewLine),
+	    HLL_EXPORT(AddNewPage, ADVLogList_AddNewPage),
+	    HLL_EXPORT(AddVoice, AnteaterADVEngine_v14_AddVoice),
+	    HLL_EXPORT(SetEnable, ADVLogList_SetEnable),
+	    HLL_EXPORT(IsEnable, ADVLogList_IsEnable),
+	    HLL_EXPORT(GetNumofADVLog, ADVLogList_GetNumofADVLog),
+	    HLL_EXPORT(GetNumofADVLogText, ADVLogList_GetNumofADVLogText),
+	    HLL_EXPORT(GetADVLogText, AnteaterADVEngine_v14_GetADVLogText),
+	    HLL_EXPORT(GetNumofADVLogVoice, ADVLogList_GetNumofADVLogVoice),
+	    HLL_EXPORT(GetADVLogVoice, AnteaterADVEngine_v14_GetADVLogVoice),
+	    HLL_EXPORT(GetADVLogVoiceFilter, AnteaterADVEngine_v14_GetADVLogVoiceFilter),
+	    HLL_EXPORT(Save, ADVLogList_Save),
+	    HLL_EXPORT(Load, ADVLogList_Load)
 	);
 
 static struct ain_hll_function *get_fun(int libno, const char *name)
@@ -518,8 +576,12 @@ static void AnteaterADVEngine_PreLink(void)
 {
 	struct ain_hll_function *fun;
 	int libno = ain_get_library(ain, "AnteaterADVEngine");
-	assert(libno >= 0);
+	if (libno < 0)
+		libno = ain_get_library(ain, "AnteaterADVLogList");
+	if (libno < 0)
+		return;
 
+	// Legacy: ADVLogList_AddText with window_no argument
 	fun = get_fun(libno, "ADVLogList_AddText");
 	if (fun && fun->nr_arguments == 2) {
 		static_library_replace(&lib_AnteaterADVEngine, "ADVLogList_AddText", AnteaterADVEngine_ADVLogList_AddText_with_window);
