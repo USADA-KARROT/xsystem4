@@ -52,6 +52,7 @@ struct config {
 	bool manual_text_x_scale;
 	enum resume_save_format save_format;
 	int msgskip_delay;
+	bool skip_title;
 };
 
 extern struct config config;
@@ -96,5 +97,10 @@ extern bool game_rance7_mg;
 extern bool game_rance8;
 extern bool game_rance8_mg;
 extern bool game_dungeons_and_dolls;
+
+/* CN (GBK/GB18030) text support. Auto-detected in system4.c; consumed by the
+ * text/encoding paths. Originally declared in the fork's libsys4 header, which
+ * is no longer available, so it lives here and is defined in hacks.c. */
+extern bool ain_is_gb18030;
 
 #endif /* XSYSTEM4_H */

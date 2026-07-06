@@ -39,6 +39,7 @@ bool game_rance7_mg = false;
 bool game_rance8 = false;
 bool game_rance8_mg = false;
 bool game_dungeons_and_dolls = false;
+bool ain_is_gb18030 = false;
 
 static void write_instruction0(struct buffer *out, enum opcode op)
 {

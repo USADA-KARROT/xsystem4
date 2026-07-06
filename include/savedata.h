@@ -18,6 +18,8 @@
 #define SYSTEM4_SAVEDATA_H
 
 #include "cJSON.h"
+#include "system4/ain.h"
+#include "system4/savefile.h"
 #include "vm.h"
 
 void json_load_page(struct page *page, cJSON *vars, bool call_dtors);
@@ -27,5 +29,8 @@ cJSON *load_json(const char *filename);
 int save_globals(const char *keyname, const char *filename, const char *group_name, int *n);
 int load_globals(const char *keyname, const char *filename, const char *group_name, int *n);
 int delete_save_file(const char *filename);
+
+int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, struct gsave *save);
+union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type type, int struct_type, int array_rank, int32_t value);
 
 #endif /* SYSTEM4_SAVEDATA_H */

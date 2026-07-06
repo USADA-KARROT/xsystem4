@@ -17,6 +17,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
+#include <execinfo.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -320,9 +323,16 @@ static bool config_init_with_dir(const char *dir)
 
 static void config_init_with_ain(const char *ain_path)
 {
-	config.ain_filename = strdup(path_basename(ain_path));
-	config.game_dir = strdup(path_dirname(ain_path));
-	config_init();
+	// Try to find and read ini file in the same directory as the .ain file
+	char *dir = strdup(path_dirname(ain_path));
+	if (!config_init_with_dir(dir)) {
+		// No ini file found; set up config manually
+		config.ain_filename = strdup(path_basename(ain_path));
+		config.game_dir = dir;
+		config_init();
+	} else {
+		free(dir);
+	}
 }
 
 static void ain_audit(FILE *f, struct ain *ain)
@@ -383,6 +393,7 @@ static void usage(void)
 	puts("        --msgskip-delay  Specify the delay in ms to add when skipping messages with CTRL");
 	puts("        --save-folder    Override save folder location");
 	puts("        --save-format    Specify the resume save file format. json (default) or rsm");
+	puts("        --skip-title     Skip title screen and start new game directly");
 #ifdef DEBUGGER_ENABLED
 	puts("        --nodebug        Disable debugger");
 	puts("        --debug          Start in debugger");
@@ -414,6 +425,7 @@ enum {
 	LOPT_MSGSKIP_DELAY,
 	LOPT_SAVE_FOLDER,
 	LOPT_SAVE_FORMAT,
+	LOPT_SKIP_TITLE,
 #ifdef DEBUGGER_ENABLED
 	LOPT_NODEBUG,
 	LOPT_DEBUG,
@@ -424,11 +436,38 @@ enum {
 
 static void error_handler(const char *msg)
 {
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "xsystem4", msg, NULL);
+	// Never show SDL message box — it blocks in non-interactive environments.
+	// Errors are already logged to stderr by sys_verror.
+	(void)msg;
+}
+
+static void sigsegv_handler(int sig)
+{
+	(void)sig;
+	const char msg[] = "\n*** SIGSEGV caught ***\n";
+	write(2, msg, sizeof(msg) - 1);
+	// Print backtrace
+	void *bt[64];
+	int n = backtrace(bt, 64);
+	backtrace_symbols_fd(bt, n, 2);
+	// Re-raise with default handler
+	signal(sig, SIG_DFL);
+	raise(sig);
+	_exit(139);
+}
+
+static void sigtrap_handler(int sig)
+{
+	(void)sig;
+	signal(SIGTRAP, sigtrap_handler); // re-register for non-persistent signals
 }
 
 int main(int argc, char *argv[])
 {
+	signal(SIGSEGV, sigsegv_handler);
+	signal(SIGBUS, sigsegv_handler);
+	signal(SIGTRAP, sigtrap_handler);
+	setvbuf(stderr, NULL, _IOLBF, 0);  // Force line-buffered stderr even when redirected to file
 	sys_error_handler = error_handler;
 
 	char *ainfile;
@@ -456,6 +495,7 @@ int main(int argc, char *argv[])
 			{ "msgskip-delay", required_argument, 0, LOPT_MSGSKIP_DELAY },
 			{ "save-folder",   required_argument, 0, LOPT_SAVE_FOLDER },
 			{ "save-format",   required_argument, 0, LOPT_SAVE_FORMAT },
+			{ "skip-title",    no_argument,       0, LOPT_SKIP_TITLE },
 #ifdef DEBUGGER_ENABLED
 			{ "nodebug",       no_argument,       0, LOPT_NODEBUG },
 			{ "debug",         no_argument,       0, LOPT_DEBUG },
@@ -527,6 +567,9 @@ int main(int argc, char *argv[])
 				WARNING("Invalid value for --save-format option: \"%s\"", optarg);
 			}
 			break;
+		case LOPT_SKIP_TITLE:
+			config.skip_title = true;
+			break;
 #ifdef DEBUGGER_ENABLED
 		case LOPT_NODEBUG:
 			dbg_enabled = false;
@@ -557,10 +600,10 @@ int main(int argc, char *argv[])
 	} else if (is_directory(argv[0])) {
 		if (!config_init_with_dir(argv[0]))
 			usage_error("Failed to find game in '%s'", argv[0]);
-	} else if (!strcasecmp(file_extension(argv[0]), "ini")) {
+	} else if (file_extension(argv[0]) && !strcasecmp(file_extension(argv[0]), "ini")) {
 		if (!config_init_with_ini(argv[0]))
 			usage_error("Failed to read .ini file '%s'", argv[0]);
-	} else if (!strcasecmp(file_extension(argv[0]), "ain")) {
+	} else if (file_extension(argv[0]) && !strcasecmp(file_extension(argv[0]), "ain")) {
 		config_init_with_ain(argv[0]);
 	} else {
 		usage_error("Can't initialize game with argument '%s'", argv[0]);
@@ -592,6 +635,27 @@ int main(int argc, char *argv[])
 
 	if (!(ain = ain_open(ainfile, &err))) {
 		ERROR("%s", ain_strerror(err));
+	}
+
+	// Auto-detect GB18030 encoding: check if STR0 strings contain
+	// GB18030 byte patterns (lead byte 0xA1-0xDF followed by valid second byte)
+	// that are NOT valid SJIS (SJIS uses 0xA1-0xDF as single-byte half-width katakana)
+	if (ain->nr_strings > 0) {
+		int gb_score = 0;
+		for (int i = 0; i < ain->nr_strings && i < 100; i++) {
+			if (!ain->strings[i]) continue;
+			const uint8_t *s = (const uint8_t *)ain->strings[i]->text;
+			for (; *s; s++) {
+				if (*s >= 0xA1 && *s <= 0xDF && *(s+1) >= 0x40) {
+					gb_score++; // This byte pair is GB18030 2-byte but SJIS 1-byte
+					break;
+				}
+			}
+		}
+		if (gb_score > 5) {
+			ain_is_gb18030 = true;
+			WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", gb_score);
+		}
 	}
 
 	if (audit) {
