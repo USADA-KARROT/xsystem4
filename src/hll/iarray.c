@@ -80,7 +80,10 @@ void iarray_write_float(struct iarray_writer *w, float data)
 void iarray_write_string(struct iarray_writer *w, struct string *s)
 {
 	for (char *p = s->text; *p ;p++) {
-		if (SJIS_2BYTE(*p)) {
+		// Don't read past NUL when the last byte falls in the lead-byte
+		// range (GB18030-named parts hit this; same class as the utfsjis
+		// walkers).
+		if (SJIS_2BYTE(*p) && p[1]) {
 			int c = (uint8_t)p[0] | ((uint8_t)p[1] << 8);
 			iarray_write(w, c);
 			p++;

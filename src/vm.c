@@ -4681,15 +4681,9 @@ static void vm_execute(void)
 		// to prevent OS "not responding" and keep screen alive.
 		if (unlikely((insn_count & 0x3FFFF) == 0)) {
 			handle_events();
-			// Periodic buffer swap to keep OS window alive.
-			{
-				static uint32_t last_vm_swap = 0;
-				uint32_t now_r = SDL_GetTicks();
-				if (now_r - last_vm_swap >= 500) {
-					gfx_swap();
-					last_vm_swap = now_r;
-				}
-			}
+			// NOTE: no gfx_swap here — upstream's gfx_swap submits a
+			// render job and crashes when pumped mid scene-transition;
+			// presentation is driven by UpdateComponent/UpdateView.
 			// Periodic GC every 10 seconds to collect cycle-garbage
 			// (e.g. CParts with delegate reference cycles)
 			{
