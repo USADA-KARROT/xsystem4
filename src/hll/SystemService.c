@@ -322,17 +322,16 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 //bool SystemService_RunProgram(struct string *program_file_name, struct string *parameter);
 //bool SystemService_IsOpenedMutex(struct string *mutex_name);
 
-void SystemService_GetGameFolderPath(struct string **folder_path)
+// v14 declares: string GetGameFolderPath(void) — return the string directly.
+// The legacy out-param shape corrupts the libffi call frame here (0-arg cif,
+// callee writes through a garbage register; crashes with libffi 3.5).
+static struct string *SystemService_GetGameFolderPath(void)
 {
-	if (!folder_path)
-		return;
-	if (!config.game_dir) {
-		*folder_path = cstr_to_string(".");
-		return;
-	}
+	if (!config.game_dir)
+		return cstr_to_string(".");
 	// Return UTF-8 path directly — macOS filesystem uses UTF-8.
 	// Do NOT convert to SJIS: CJK chars in path may not exist in SJIS.
-	*folder_path = cstr_to_string(config.game_dir);
+	return cstr_to_string(config.game_dir);
 }
 
 static void SystemService_GetTime(int *hour_out, int *min_out, int *sec_out)
