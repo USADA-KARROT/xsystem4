@@ -37,17 +37,13 @@ char *resume_load_path_pending = NULL;
 // with return value false (indicating a load, not a save).
 static bool system_ResumeSave(struct string *keyName, struct string *fileName, int *result_out)
 {
-	// Throttle: skip if called within 2 seconds of last save.
-	// The game calls ResumeSave very frequently during init/transitions;
-	// each call serializes the entire heap to disk which is expensive.
-	static uint32_t last_save_ms = 0;
-	uint32_t now_ms = SDL_GetTicks();
-	if (now_ms - last_save_ms < 2000) {
-		if (result_out)
-			*result_out = 1;
-		return true;
-	}
-	last_save_ms = now_ms;
+	// NOTE: the fork carried a 2-second throttle here that reported
+	// success without writing. That fake success broke the memory-mode
+	// (回想) sequence: MemoryModeEvent_Begin believes the -5 slot was
+	// saved, the closing ResumeLoad finds no file, the rollback never
+	// happens, and the opening dialogue fast-forwards with the
+	// wait-key suppressed. Save for real; revisit performance with
+	// measurements if init cost shows up (plan: deb1101 root fix).
 
 	// save_stack_to_rsave assumes 2 extra values on the stack (the SYS_RESUME_SAVE
 	// arguments in the old CALLSYS path). In the HLL path, arguments have already
