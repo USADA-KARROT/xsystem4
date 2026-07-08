@@ -5013,6 +5013,22 @@ int vm_execute_ain(struct ain *program)
 			}
 		}
 		free(ginited);
+		// The v14 alloc pass pre-fills every global with -1 so DELETE on
+		// uninitialized slots is safe, expecting the bytecode alloc
+		// function to initialize the rest. Globals without an explicit
+		// initializer (class statics like AdvModeSetter::m_skipMode) keep
+		// that -1, but the original engine zero-fills the global area and
+		// scripts test such flags by plain truthiness — RestoreState read
+		// m_skipMode==-1 as true and turned on message skip, fast-
+		// forwarding all dialogue. Zero the value-typed leftovers.
+		for (int i = 0; i < ain->nr_globals; i++) {
+			enum ain_data_type t = ain->globals[i].type.data;
+			if ((t == AIN_INT || t == AIN_BOOL || t == AIN_LONG_INT
+			     || t == AIN_FLOAT || t == AIN_ENUM || t == AIN_ENUM2)
+			    && heap[global_page_slot].page->values[i].i == -1) {
+				heap[global_page_slot].page->values[i].i = 0;
+			}
+		}
 	} else {
 		for (int i = 0; i < ain->nr_globals; i++) {
 			if (ain->globals[i].type.data == AIN_STRUCT) {
