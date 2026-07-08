@@ -2585,10 +2585,26 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		if (config.echo)
 			echo_message(msg_idx);
 		if (ain->msgf <= 0) {
-			// v14: store message for R/A handlers to use.
-			// msgf==0 counts as "no handler" too: function 0 is the
-			// reserved NULL function (Dohna Dohna CN declares msgf=0),
-			// and calling it desyncs the stack.
+			// v14 (Dohna Dohna CN): the AIN header declares msgf=0, but
+			// the game ships the standard handler as a plain function
+			// named "message" with the msgf signature
+			// (nMsgNum, nNumofMsg, szText). This is the only path that
+			// carries dialogue text into CMessageTextModel — the inline
+			// scenario code is just "MSG n / CALLFUNC R / CALLFUNC A"
+			// with no text on the stack (the ADV path calls S(text)
+			// by hand, and S() forwards to message()). Dispatch MSG
+			// through it like a regular msgf call.
+			static int v14_msg_fn = -2;
+			if (v14_msg_fn == -2)
+				v14_msg_fn = ain_get_function(ain, "message");
+			if (v14_msg_fn > 0 && msg_idx >= 0 && msg_idx < ain->nr_messages) {
+				stack_push(msg_idx);
+				stack_push(ain->nr_messages);
+				stack_push_string(string_ref(ain->messages[msg_idx]));
+				function_call(v14_msg_fn, instr_ptr + instruction_width(_MSG));
+				break;
+			}
+			// Fallback (no "message" function): keep the overlay path.
 			vm_msg_idx = msg_idx;
 			vm_msg_text = (msg_idx >= 0 && msg_idx < ain->nr_messages)
 				? ain->messages[msg_idx] : NULL;
@@ -4666,6 +4682,27 @@ static void vm_execute(void)
 		}
 		opcode = get_opcode(instr_ptr);
 		insn_count++;
+		// Debug: single-function opcode trace. Set XSYS4_TRACE_FNO=<fno>
+		// to log every instruction executed inside that function (address,
+		// opcode, top two stack values), gated to >42s so startup noise
+		// doesn't exhaust the budget. Used to walk bytecode against the
+		// ain dump when a script-visible value goes wrong.
+		{
+			static int trace_fno = -2;
+			static int trace_left = 6000;
+			if (unlikely(trace_fno == -2)) {
+				const char *tf = getenv("XSYS4_TRACE_FNO");
+				trace_fno = tf ? atoi(tf) : -1;
+			}
+			if (unlikely(trace_fno >= 0) && trace_left > 0 && call_stack_ptr > 0
+			    && call_stack[call_stack_ptr-1].fno == trace_fno
+			    && SDL_GetTicks() > 42000) {
+				WARNING("T %05lX %04x s[%d]=%d,%d", instr_ptr, opcode, stack_ptr,
+					stack_ptr > 0 ? stack[stack_ptr-1].i : 0,
+					stack_ptr > 1 ? stack[stack_ptr-2].i : 0);
+				trace_left--;
+			}
+		}
 		// Heartbeat: log current function every 50M instructions
 		if (unlikely((insn_count & 0x2FFFFFF) == 0)) {
 			int cfno = (call_stack_ptr > 0) ? call_stack[call_stack_ptr-1].fno : -1;
