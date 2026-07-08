@@ -402,9 +402,14 @@ static int Array_Numof(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
 	int n = array ? array->nr_vars : 0;
-	// v14: return logical element count for multi-slot arrays
+	// v14: return logical element count for multi-slot arrays.
+	// struct_type doubles as the AIN struct id for struct-element lists
+	// (EmplaceBack) — only treat it as a stride when the call's element
+	// type is actually a 2-slot value (iface/option), or Numof on a
+	// CMessageText list divides 4/693 to 0 and every reader sees an
+	// empty list (the dialogue-text blackout, gui-run-log fb39-fb47).
 	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
-	    && array->array.struct_type > 1)
+	    && array->array.struct_type > 1 && array_elem_is_2slot())
 		n /= array->array.struct_type;
 	return n;
 }
@@ -423,8 +428,9 @@ static int Array_At(struct page **self, int index)
 {
 	struct page *array = (self && *self) ? *self : NULL;
 	// v14: convert logical index to physical for multi-slot arrays
+	// (2-slot value elements only — see Array_Numof).
 	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
-	    && array->array.struct_type > 1)
+	    && array->array.struct_type > 1 && array_elem_is_2slot())
 		index *= array->array.struct_type;
 	if (!array || index < 0 || index >= array->nr_vars) {
 		(void)0;
@@ -585,8 +591,9 @@ static void Array_Erase(struct page **array, int index, int length)
 		return;
 	struct page *a = *array;
 	// v14: convert logical index/length to physical for multi-slot arrays
+	// (2-slot value elements only — see Array_Numof).
 	if ((a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
-	    && a->array.struct_type > 1) {
+	    && a->array.struct_type > 1 && array_elem_is_2slot()) {
 		index *= a->array.struct_type;
 		length *= a->array.struct_type;
 	}
