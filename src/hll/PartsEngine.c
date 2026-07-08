@@ -1439,6 +1439,25 @@ static float PE_v14_GetComponentMagY(int n) { return PE_GetPartsMagY(n); }
 static void PE_v14_Parts_SetComment(int parts_no, struct string *comment)
 { (void)parts_no; (void)comment; }
 
+/* v14 Parent::get wrapper. Two contract fixes over PE_GetParentPartsNumber:
+ * (a) v14 scripts poll Parent::get right after Parent::set, but the
+ *     upstream setter only records pending_parent until the next dirty
+ *     pass — report the pending value immediately or the script's
+ *     Attach loop spins forever (SceneLogo hang, bisect rounds 1-7).
+ * (b) "no parent" is 0 in the v14 contract (matches UNIMPL and the
+ *     fork), not the upstream -1. */
+static int PE_v14_GetParentPartsNumber(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return 0;
+	if (parts->pending_parent >= 0)
+		return parts->pending_parent;
+	if (parts->parent)
+		return parts->parent->no;
+	return 0;
+}
+
 static int PE_v14_NumofChild(int number)
 {
 	struct parts *p = parts_try_get(number);
@@ -1534,16 +1553,14 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 static void pe_v14_register_batch(void)
 {
 	struct static_library *lib = &lib_PartsEngine;
-#if 0 // BISECT round 3: group A (constructive) disabled, rest enabled
 	static_library_register(lib, "AddPartsConstructionProcess", PartsEngine_AddPartsConstructionProcess);
 	static_library_register(lib, "SetPanelSize", PE_v14_SetPanelSize);
 	static_library_register(lib, "SetPanelColor", PE_v14_SetPanelColor);
-#endif // BISECT round 3
 	static_library_register(lib, "NumofChild", PE_v14_NumofChild);
 	static_library_register(lib, "Parts_SetComment", PE_v14_Parts_SetComment);
 	static_library_register(lib, "Parts_GetPartsSize", PE_GetPartsSize);
 	static_library_register(lib, "Parts_GetPartsCGDeform", PE_GetPartsCGDeform);
-	static_library_register(lib, "Parts_GetParentPartsNumber", PE_GetParentPartsNumber);
+	static_library_register(lib, "Parts_GetParentPartsNumber", PE_v14_GetParentPartsNumber);
 	static_library_register(lib, "GetComponentAddColorR", PE_v14_GetComponentAddColorR);
 	static_library_register(lib, "GetComponentAddColorG", PE_v14_GetComponentAddColorG);
 	static_library_register(lib, "GetComponentAddColorB", PE_v14_GetComponentAddColorB);
@@ -1562,14 +1579,8 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "GetMessageWindowText", PE_v14_GetMessageWindowText);
 	static_library_register(lib, "GetMessageWindowFlatName", PE_v14_GetMessageWindowFlatName);
 	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_v14_SetMessageWindowTextOriginPosMode);
-#if 0 // BISECT round 3
 	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
-#endif
-#if 1 // BISECT: prelink stubs disabled for fault isolation
-	(void)0;
-#else
 #include "pe_v14_prelink.h"
-#endif
 }
 
 static void PartsEngine_PreLink(void)
