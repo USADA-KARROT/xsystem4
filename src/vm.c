@@ -395,7 +395,17 @@ static bool native_cas_timer_intercept(int fno, int struct_page, union vm_value 
 		return true;
 	}
 
-	// Constructor or other CASTimer methods: accept silently
+	// Constructor: reset the slot's epoch. Timer slots are keyed by
+	// abs(struct_page) % CAS_TIMER_MAX, so a freshly constructed timer
+	// that hashes onto a slot used earlier (e.g. by SceneLogo) inherited
+	// the old epoch and reported tens of seconds already elapsed —
+	// TimerCallback fired immediately, called EndWaitForClick, and every
+	// dialogue key-wait self-advanced (heap-layout dependent, which is
+	// why runs alternated between waiting and fast-forwarding).
+	if (strstr(fname, "@0") || strstr(fname, "@1") || strstr(fname, "@2")) {
+		clock_gettime(CLOCK_MONOTONIC, &cas_timers[timer_id].epoch);
+		cas_timers[timer_id].active = true;
+	}
 	ret->i = 0;
 	return true;
 }
