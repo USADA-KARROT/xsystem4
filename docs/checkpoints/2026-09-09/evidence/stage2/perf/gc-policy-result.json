@@ -1,0 +1,9 @@
+{
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "source_sha256": "f80013691446559208b618b42959641cba7ce8d2a41b95b1c1da319506f4d8e0",
+  "fixture_sha256": "9a9efc07f0c52c29c15b76cab2a6d83bc48379f0da872e947646a6ed85e658e6",
+  "test_exit": 0,
+  "stdout": "Production heap_gc snapshot: current source has no free tag, so tag normalization is inactive; live/dead/ref/resource/free-list/scan-limit identical; ref<=0 string orphans reclaimed; existing live cycles kept; mark traversals fall from >=3 to zero: PASS\nProduction allocator at >=4M/low-free, 100 allocations with 6s GC: old calls GC100 times; new calls once and records completion time: PASS\nModerate heap: 6s GC no longer immediately satisfies its own 5s cooldown on next allocation: PASS\nBoth allocation budget and completion cooldown required; collections resume when eligible; SDL uint32 wrap handled: PASS\nHeap9999/10000, free1023/1024, inhibit/release, first eligible collection and exhausted free-list fallback: PASS\nGC production policy fixture: ALL PASS\n",
+  "stderr": "*WARNING*(<WORKSPACE>/work/stage2/perf/gc_policy_fixture.c:heap_gc_before:513): heap_gc: swept 0 cycle-garbage, 2 orphans, free=57 scan=16/64\n*WARNING*(<WORKSPACE>/work/stage2/perf/gc_policy_fixture.c:heap_gc:332): heap_gc: swept 0 cycle-garbage, 2 orphans, free=57 scan=16/64\n"
+}

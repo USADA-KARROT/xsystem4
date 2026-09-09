@@ -1,0 +1,21 @@
+{
+  "actions": [
+    {
+      "type": "sky_click",
+      "target": "new-game",
+      "x": 169,
+      "y": 162,
+      "at": "2026-09-09T08:42:42.868088+08:00",
+      "success": false,
+      "error": "tool rejected: user changed app; no confirmed SDL event"
+    },
+    {
+      "type": "sky_click",
+      "x": 169,
+      "y": 162,
+      "at": "2026-09-09T08:43:18.579065+08:00",
+      "tool_completed": true,
+      "effect": "pending"
+    }
+  ]
+}

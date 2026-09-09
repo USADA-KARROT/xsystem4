@@ -1,0 +1,15 @@
+{
+  "main_thread_samples": 2407,
+  "symbol_inclusive_counts": {
+    "heap_gc": 2407,
+    "heap_alloc_slot": 2407,
+    "gc_scan_page": 2173,
+    "system_ResumeSave": 0,
+    "Cocoa_GL_SwapWindow": 0
+  },
+  "sample_start": "2026-09-09 08:33:33.565 +0800",
+  "sample_elapsed_from_launch_s": 75.727,
+  "caveat": "Inclusive aggregate of distinct main-thread heap_gc nodes; no recursive heap_gc stack found. Not a full-run CPU percentage.",
+  "heap_gc_main_sample_percent": 100,
+  "gc_scan_page_main_sample_percent": 90.27835479850437
+}

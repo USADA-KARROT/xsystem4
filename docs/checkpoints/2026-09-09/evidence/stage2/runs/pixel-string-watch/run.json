@@ -1,0 +1,39 @@
+{
+  "started_at": "2026-09-09T08:17:44.719017+08:00",
+  "command": [
+    "<WORKSPACE>/work/stage2/apps/Xsystem4-stage2-normal.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/stage2/runs/pixel-string-watch/saves",
+    "<WORKSPACE>/work/stage2/game"
+  ],
+  "cwd": "<WORKSPACE>/work/stage2/source",
+  "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+  "source_status": "M include/parts.h\n M src/ffi.c\n M src/heap.c\n M src/hll/Array.c\n M src/hll/PartsEngine.c\n M src/hll/pe_v14_activity.c\n M src/hll/pe_v14_message.c\n M src/input.c\n M src/meson.build\n M src/parts/input.c\n A src/parts/message_window.c\n M src/parts/parts.c\n M src/parts/parts_internal.h\n M src/parts/render.c\n M src/system4.c\n M src/vm.c\n?? subprojects/.wraplock",
+  "source_diff_sha256": "f79d22139eeb2fb0ddc0d089b02f07cd514b95de24a0d039058b05036121b2d3",
+  "source_patch_from_build_snapshot": true,
+  "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+  "binary_sha256": "67b7e65089cec48e4afca88a8a1fd46c7e691f59dfcc31acdaea934b8d922e05",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/stage2/runs/pixel-string-watch/home",
+    "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage2/runs/pixel-string-watch/frames",
+    "XSYS4_STOP_ON_GAME_ERROR": "1",
+    "XSYS4_STAGE2_TRACE": "1",
+    "XSYS4_STAGE2_AFTER_MS": "0",
+    "XSYS4_STAGE2_PER_FNO": "16",
+    "XSYS4_STAGE2_FNOS": "20752,20748,36081,9196,9197,7033,7048,7049,7061,24400,24401,27031",
+    "XSYS4_STAGE2_FROM_MSG": "2",
+    "XSYS4_STAGE2_WATCH_FNO": "20752",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+  },
+  "duration_limit_seconds": 240,
+  "diagnostic_view_size": null,
+  "ini_sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+  "source_manifest_sha256": "dea8d875c14ff93c9c0b92fe31cef259d10ee52e8e82829720905446c0b20c70",
+  "pid": 34703,
+  "stopped_by_runner": true,
+  "exit_code": 0,
+  "elapsed_seconds": 241.244,
+  "finished_at": "2026-09-09T08:21:45.995425+08:00"
+}

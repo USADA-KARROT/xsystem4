@@ -1,0 +1,48 @@
+{
+  "tag": "asan-acceptance",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 231.557,
+  "scripted_clicks": null,
+  "messages": [
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "message_count": 5,
+  "sanitizer_errors": [],
+  "double_free_warnings": [
+    "*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493243 (VM_PAGE)",
+    "*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493243 (VM_PAGE)"
+  ],
+  "click_targets": [
+    900016,
+    0
+  ],
+  "calls": {
+    "7049": {
+      "enters": 1,
+      "returns": 1,
+      "durations_ms": [
+        11
+      ]
+    },
+    "20752": {
+      "enters": 1,
+      "returns": 1,
+      "durations_ms": [
+        0
+      ]
+    },
+    "36081": {
+      "enters": 1,
+      "returns": 1,
+      "durations_ms": [
+        0
+      ]
+    }
+  },
+  "source_patch_matches_record": true
+}

@@ -1,0 +1,8 @@
+{
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "production_function_sha256": "68d3d3925bf4ba3d20b0ec7b68a068cffc6afee47d2902861d6b0646e13419a8",
+  "test_exit": 0,
+  "stdout": "Production IsDebugMode: default/empty/0/other strings=false, explicit 1=true, ASan env does not enable game debug: PASS\nActual AIN4219 gate: default returns before dump work; debug=1 reaches body at 0x178f44: PASS\nActual main: AddUserComponent at 0x49a3e0 precedes debug check 0x49a3e6; conditional adds only debug dump callback4219 before common join0x49a414: PASS\nGame debug production fixture: ALL PASS\n",
+  "stderr": "*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\n"
+}

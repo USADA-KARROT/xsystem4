@@ -1,0 +1,15 @@
+{
+  "observations": [
+    {
+      "at": "2026-09-09T08:58:10.668086+08:00",
+      "messages": [
+        2,
+        3
+      ],
+      "last_perf": "STAGE2_PERF t_ms=90521 window_ms=5000.481 presents=2688 samples=2688 avg_fps=537.548 p95_interval_ms=4.142 max_interval_ms=27.883 avg_swap_ms=0.424 p95_swap_ms=2.247 max_swap_ms=6.736 window_flags=0x626 vsync=0",
+      "screenshot": "normal-acceptance-page1.png",
+      "input_since_scripted_start": "none",
+      "ps": "PID ELAPSED  %CPU    RSS\n39772   01:33  46.3 1155936"
+    }
+  ]
+}

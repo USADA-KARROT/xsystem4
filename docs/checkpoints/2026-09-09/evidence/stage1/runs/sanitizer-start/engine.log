@@ -1,0 +1,103 @@
+*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../wip-source/src/system4.c:main:657): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../wip-source/src/system4.c:main:658): AINCHECK: msgf=0 nr_messages=57532 messages=0x10519c800
+*WARNING*(../wip-source/src/hll/pe_v14_message.c:pe_v14_message_replace:334): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../wip-source/src/hll/pe_v14_message.c:pe_v14_message_register:353): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage1/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+*WARNING*(../wip-source/src/input.c:handle_events:709): Auto-click seq[0]: t=20000ms pos=(85,82)
+*WARNING*(../wip-source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../wip-source/src/vm.c:execute_instruction:4357): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../wip-source/src/vm.c:execute_instruction:4357): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/vm.c:vm_execute:4720): heartbeat: 16M insns fno=27145 depth=13 ip=0x598174 op=0x2F
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[12]: fno=27145 'Motion::ParamAnalyzer@0'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[11]: fno=27152 'Motion::ParamCollection@Parse'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[10]: fno=27167 'Motion::Parser@ParsePartsParam'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[9]: fno=27164 'Motion::Parser@0'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[0]: fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[1]: fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/input.c:handle_events:737): Auto-click seq #0 at 20072ms game=(85,82)
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/hll/FileOperation.c:get_file_list:153): opendir("SaveData/User/"): No such file or directory
+*WARNING*(../wip-source/src/vm.c:execute_instruction:2673): ASSERT FAILED: DJCPP\model\LocalGame\Worker\Personality\Personality.jaf:27: assert( id != "" );
+Assertion failed at DJCPP\model\LocalGame\Worker\Personality\Personality.jaf:27: assert( id != "" );
+*WARNING*(../wip-source/src/vm.c:execute_instruction:4357): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/subprojects/libsys4/src/string.c:free_string:40): Double free of string object (ignored)
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+MSG 2: [game dialogue omitted]
+MSG 3: [game dialogue omitted]
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+MSG 4: [game dialogue omitted]
+MSG 5: [game dialogue omitted]
+MSG 6: [game dialogue omitted]
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+MSG 7: [game dialogue omitted]
+MSG 8: [game dialogue omitted]
+MSG 9: [game dialogue omitted]
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+MSG 10: [game dialogue omitted]
+MSG 11: [game dialogue omitted]
+MSG 12: [game dialogue omitted]
+../wip-source/src/parts/parts.c:1279:7: runtime error: load of misaligned address 0x000000000001 for type 'struct string *', which requires 8 byte alignment
+0x000000000001: note: pointer points here
+<memory cannot be printed>
+    #0 0x0001014c660c in PE_GetPartsCGName parts.c:1279
+    #1 0x00010462404c in ffi_call_SYSV+0x4c (libffi.8.dylib:arm64+0x804c)
+    #2 0x0001046214f8 in ffi_call_int+0x58c (libffi.8.dylib:arm64+0x54f8)
+    #3 0x000100fb665c in hll_call ffi.c:679
+    #4 0x0001010dc0e8 in vm_execute vm.c:4793
+    #5 0x0001010bbf28 in vm_call vm.c:1384
+    #6 0x0001011293b8 in vm_execute_ain vm.c:5161
+    #7 0x000101092eb8 in main system4.c:674
+    #8 0x000186d984e0 in start+0x1b4c (dyld:arm64e+0x204e0)
+
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../wip-source/src/parts/parts.c:1279:7 
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4861): === SIGNAL 6 received ===
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4866): Current function: fno=9648 'parts::detail::CCGParts@CGName::get' ip=0x2FC070 sp=15
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4867): === VM call stack (16 frames) ===
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [15] fno=9648 'parts::detail::CCGParts@CGName::get'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [14] fno=31579 'AdvEventCg@Set'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [13] fno=31519 '���¼�'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [12] fno=31520 '���¼��ГQ'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [11] fno=34484 '�ţ֣���Ҫ����������'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [10] fno=31719 'SceneAdv@Execute'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [9] fno=31711 'SceneAdv@Run'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [8] fno=35992 'Scene::RunAdv<SceneAdv, string>'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [7] fno=26567 '���ƣ��¼��������A�s'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [6] fno=26537 '���ƣ����{���غ�Start��ǰ'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [5] fno=28179 'GameCallback::Run'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [4] fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [3] fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [2] fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [1] fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4871):   [0] fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4877): === C backtrace (18 frames) ===
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [0] 0   xsystem4                            0x000000010112a398 sigabrt_handler + 3952
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [1] 1   libsystem_platform.dylib            0x000000018716d744 _sigtramp + 56
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [2] 2   libsystem_pthread.dylib             0x00000001871638d8 pthread_kill + 296
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [3] 3   libsystem_c.dylib                   0x0000000187069978 abort + 148
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [4] 4   libclang_rt.asan_osx_dynamic.dylib  0x00000001064bc254 _ZN11__sanitizer6AtexitEPFvvE + 0
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [5] 5   libclang_rt.asan_osx_dynamic.dylib  0x00000001064bb84c _ZN11__sanitizer3DieEv + 108
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [6] 6   libclang_rt.asan_osx_dynamic.dylib  0x00000001064d2250 _ZN7__ubsan12ScopedReportD2Ev + 448
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [7] 7   libclang_rt.asan_osx_dynamic.dylib  0x00000001064d2dd0 _ZL22handleTypeMismatchImplPN7__ubsan16TypeMismatchDataEmNS_13ReportOptionsE + 776
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [8] 8   libclang_rt.asan_osx_dynamic.dylib  0x00000001064d2abc __ubsan_handle_type_mismatch_v1 + 48
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [9] 9   xsystem4                            0x00000001014c6610 PE_GetPartsCGName + 388
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [10] 10  libffi.8.dylib                      0x0000000104624050 ffi_call_SYSV + 80
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [11] 11  libffi.8.dylib                      0x00000001046214fc ffi_call_int + 1424
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [12] 12  xsystem4                            0x0000000100fb6660 hll_call + 70396
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [13] 13  xsystem4                            0x00000001010dc0ec vm_execute + 87648
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [14] 14  xsystem4                            0x00000001010bbf2c vm_call + 2004
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [15] 15  xsystem4                            0x00000001011293bc vm_execute_ain + 66592
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [16] 16  xsystem4                            0x0000000101092ebc main + 10016
+*WARNING*(../wip-source/src/vm.c:sigabrt_handler:4881):   [17] 17  dyld                                0x0000000186d984e4 start + 6992

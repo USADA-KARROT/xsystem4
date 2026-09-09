@@ -1,0 +1,23 @@
+{
+  "pid": 35222,
+  "sample_start": "2026-09-09 08:27:48.142 +0800",
+  "requested_duration_seconds": 3,
+  "nominal_interval_ms": 1,
+  "main_thread_samples": 2036,
+  "resume_save_inclusive_samples": 1734,
+  "resume_save_main_sample_percent": 85.16699410609037,
+  "resume_save_phases": {
+    "snapshot_graph": 732,
+    "serialize_encrypt_write": 749,
+    "free_snapshot": 251,
+    "close": 2
+  },
+  "swapwindow_inclusive_samples": 62,
+  "swapwindow_main_sample_percent": 3.045186640471513,
+  "system_update_sleep_samples": 35,
+  "cpu_percent_before_sample": 99.7,
+  "physical_footprint_reported": "2.0G",
+  "source_run": "work/stage2/runs/delegate-layout-check/run.json",
+  "conditions": "debug/O0, ASan+UBSan, STAGE2_TRACE=1; snapshot dumping enabled earlier in run",
+  "caveat": "Inclusive sampled stack counts, not measured frame duration or whole-run percentages. Other threads excluded from denominator."
+}

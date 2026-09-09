@@ -1,0 +1,30 @@
+{
+  "started_at": "2026-09-09T01:27:23.417643+08:00",
+  "command": [
+    "<WORKSPACE>/work/stage1/apps/Xsystem4-wip-asan.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/stage1/runs/sanitizer-start/saves",
+    "<WORKSPACE>/work/stage1/game"
+  ],
+  "cwd": "<WORKSPACE>/work/stage1/wip-source",
+  "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+  "source_status": "?? subprojects/.wraplock",
+  "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+  "binary_sha256": "96f74c47eb6bf0decc005373a29e89f9794ee5e11b2b44dfe1674f41b2d26e2e",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/sanitizer-start/home",
+    "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/sanitizer-start/frames",
+    "XSYS4_STOP_ON_GAME_ERROR": "1",
+    "XSYS4_AUTO_CLICK_SEQ": "20000,85,82",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+  },
+  "duration_limit_seconds": 100,
+  "diagnostic_view_size": null,
+  "ini_sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+  "pid": 23840,
+  "exit_code": 134,
+  "elapsed_seconds": 48.605,
+  "finished_at": "2026-09-09T01:28:12.102673+08:00"
+}

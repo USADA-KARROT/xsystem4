@@ -1,0 +1,82 @@
+[
+  {
+    "case": "before",
+    "implementation": "<WORKSPACE>/work/stage2/input-tests/input-before-callable.c",
+    "compile_command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-D_DEFAULT_SOURCE",
+      "-isysroot",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-I<WORKSPACE>/work/stage2/source/include",
+      "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+      "-I/opt/homebrew/include",
+      "-I/opt/homebrew/include/SDL2",
+      "-DINPUT_SOURCE=\"<WORKSPACE>/work/stage2/input-tests/input-before-callable.c\"",
+      "<WORKSPACE>/work/stage2/input-tests/mouse_deadline.c",
+      "-Wl,-dead_strip",
+      "-o",
+      "<WORKSPACE>/work/stage2/input-tests/before"
+    ],
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "stdout": "56 checks, 21 failures\n",
+    "stderr": "FAIL: real held button survives 50ms\nFAIL: real held button survives 250ms\nFAIL: repeated DOWN remains held until new UP\nFAIL: early UP across ticks wrap remains pending\nFAIL: wrapped deadline has not passed\nFAIL: deadline exactly zero remains a valid future deadline\nFAIL: real held button survives 50ms\nFAIL: real held button survives 250ms\nFAIL: repeated DOWN remains held until new UP\nFAIL: early UP across ticks wrap remains pending\nFAIL: wrapped deadline has not passed\nFAIL: deadline exactly zero remains a valid future deadline\nFAIL: real held button survives 50ms\nFAIL: real held button survives 250ms\nFAIL: repeated DOWN remains held until new UP\nFAIL: early UP across ticks wrap remains pending\nFAIL: wrapped deadline has not passed\nFAIL: deadline exactly zero remains a valid future deadline\nFAIL: trace=0 performs no trace reads or logging\nFAIL: empty trace setting is disabled\nFAIL: trace retains a forty-event cap\n"
+  },
+  {
+    "case": "after",
+    "implementation": "<WORKSPACE>/work/stage2/source/src/input.c",
+    "compile_command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-D_DEFAULT_SOURCE",
+      "-isysroot",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-I<WORKSPACE>/work/stage2/source/include",
+      "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+      "-I/opt/homebrew/include",
+      "-I/opt/homebrew/include/SDL2",
+      "-DINPUT_SOURCE=\"<WORKSPACE>/work/stage2/source/src/input.c\"",
+      "<WORKSPACE>/work/stage2/input-tests/mouse_deadline.c",
+      "-Wl,-dead_strip",
+      "-o",
+      "<WORKSPACE>/work/stage2/input-tests/after"
+    ],
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "stdout": "56 checks, 0 failures\n",
+    "stderr": ""
+  },
+  {
+    "case": "after-sanitizer",
+    "implementation": "<WORKSPACE>/work/stage2/source/src/input.c",
+    "compile_command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-D_DEFAULT_SOURCE",
+      "-isysroot",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-I<WORKSPACE>/work/stage2/source/include",
+      "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+      "-I/opt/homebrew/include",
+      "-I/opt/homebrew/include/SDL2",
+      "-DINPUT_SOURCE=\"<WORKSPACE>/work/stage2/source/src/input.c\"",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "<WORKSPACE>/work/stage2/input-tests/mouse_deadline.c",
+      "-Wl,-dead_strip",
+      "-o",
+      "<WORKSPACE>/work/stage2/input-tests/after-sanitizer"
+    ],
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "stdout": "56 checks, 0 failures\n",
+    "stderr": ""
+  }
+]

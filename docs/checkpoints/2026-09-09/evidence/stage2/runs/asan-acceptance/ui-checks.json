@@ -1,0 +1,48 @@
+{
+  "observations": [
+    {
+      "type": "page1-observed",
+      "at": "2026-09-09T09:04:01.517638+08:00",
+      "messages": [
+        2,
+        3
+      ],
+      "screenshot": "asan-acceptance-page1.png"
+    },
+    {
+      "type": "page1-no-input-wait-end",
+      "at": "2026-09-09T09:05:17.410916+08:00",
+      "elapsed_seconds": 75.893278,
+      "messages": [
+        2,
+        3
+      ]
+    },
+    {
+      "type": "page2-after-one-click",
+      "at": "2026-09-09T09:05:39.311834+08:00",
+      "messages": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "screenshot": "asan-acceptance-page2.png"
+    },
+    {
+      "type": "page2-no-input-wait-end",
+      "at": "2026-09-09T09:06:25.645434+08:00",
+      "elapsed_seconds": 46.3336,
+      "messages": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "screenshot": "asan-acceptance-page2-wait.png"
+    }
+  ],
+  "result": "PASS: real single page advance and subsequent no-input hold"
+}

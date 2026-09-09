@@ -1,0 +1,14 @@
+{
+  "normal": {
+    "binary": "<WORKSPACE>/work/stage2/normal-build/src/xsystem4",
+    "sha256": "840d3510c710ac7980c1d9941a4806318325d0353894933c57927b5cbd568da1"
+  },
+  "asan": {
+    "binary": "<WORKSPACE>/work/stage2/asan-build/src/xsystem4",
+    "sha256": "9579a1d251ee78c2c003e74a263c399382894ba421a2a9d91777b2753eca4c10"
+  },
+  "optimized": {
+    "binary": "<WORKSPACE>/work/stage2/optimized-build/src/xsystem4",
+    "sha256": "50ef51d1cc1b6fde50dde4082128d09db962cd15c9aeaf7767e2323c0ec948b1"
+  }
+}

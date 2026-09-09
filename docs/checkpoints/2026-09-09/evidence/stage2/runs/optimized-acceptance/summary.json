@@ -1,0 +1,23 @@
+{
+  "tag": "optimized-acceptance",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 198.96,
+  "scripted_clicks": null,
+  "messages": [
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "message_count": 5,
+  "sanitizer_errors": [],
+  "double_free_warnings": [
+    "*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493243 (VM_PAGE)",
+    "*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493243 (VM_PAGE)"
+  ],
+  "click_targets": [],
+  "calls": {},
+  "source_patch_matches_record": true
+}

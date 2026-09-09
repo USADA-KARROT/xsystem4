@@ -1,0 +1,34 @@
+*WARNING*(../rufim-source/subprojects/libsys4/src/ain.c:read_functions:971): Junk at start of function name: '����Debug_SetPartsComment'
+размер вида не задан в .ini — беру дефолт поколения 14.x: 1280x720
+*WARNING*(../rufim-source/src/ffi.c:link_libraries:1638): Unimplemented library: ADVEngine
+*WARNING*(../rufim-source/src/ffi.c:link_libraries:1638): Unimplemented library: Clipboard
+*WARNING*(../rufim-source/src/ffi.c:link_libraries:1638): Unimplemented library: EXWriter
+*WARNING*(../rufim-source/src/ffi.c:link_libraries:1638): Unimplemented library: FileDialog
+*WARNING*(../rufim-source/src/ffi.c:link_libraries:1638): Unimplemented library: Float
+*WARNING*(../rufim-source/src/ffi.c:link_libraries:1638): Unimplemented library: InstallInfo
+*WARNING*(../rufim-source/src/hll/Array.c:ix_pred_miss:1114): Array.First(предикат) не нашёл НИ ОДНОГО элемента из 2: сайт получит ссылку −1 и упадёт при разыменовании. сайт Motion::EasingArgumentAnalyzer@AnalyzeEasingType:
+	0x00597d30 in Motion::EasingArgumentAnalyzer@AnalyzeEasingType
+	0x00597580 in Motion::EasingArgumentAnalyzer@AnalyzeEasing
+	0x00597498 in Motion::EasingArgumentAnalyzer@Analyze
+	0x005982bc in Motion::ParamAnalyzer@Parse
+	0x00599156 in Motion::ParamCollection@Parse
+	0x00599c82 in Motion::Parser@ParsePartsParam
+	0x0059998e in Motion::Parser@0
+	0x00590002 in Motion::GetCompiled
+	0x009c89d4 in 0
+CommonSystemDataｴ譎nﾎﾄｼ・ﾎﾕi､ﾟﾞz､ﾟ､ﾋﾊｧ硲､ｷ､ﾞ､ｷ､ｿ
+*WARNING*(../rufim-source/src/hll/KiwiSoundEngine.c:KiwiSoundEngine_SetGlobalFocus:34): Unimplemented HLL function: KiwiSoundEngine.SetGlobalFocus
+*WARNING*(../rufim-source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../rufim-source/src/hll/TextFile.c:TextFile_ReadAll:117): TextFile.ReadAll: нет файла <WORKSPACE>/work/stage1/game/DebugData/02_Last/EX/Chirok/ﾍ貍ﾒ鳩??.txtex: No such file or directory
+*WARNING*(../rufim-source/src/hll/TextFile.c:TextFile_ReadAll:117): TextFile.ReadAll: нет файла <WORKSPACE>/work/stage1/game/DebugData/02_Last/EX/Chirok/筏ｷｽ鳩??.txtex: No such file or directory
+*WARNING*(../rufim-source/src/hll/TextFile.c:TextFile_ReadAll:117): TextFile.ReadAll: нет файла <WORKSPACE>/work/stage1/game/DebugData/02_Last/EX/Chirok/ｼｼﾄﾜ鳩??.txtex: No such file or directory
+Assertion failed at 03_Components\activity\detail\CActivityWrap.jaf:20: (nonnull) m_root
+	0x0001f0b6 in activity::detail::CActivityWrap@Root::get
+	0x0059a9e4 in SceneContext@Create
+	0x0059abc8 in SceneContext@Create
+	0x006807c0 in SceneLogo@0
+	0x009bc480 in Scene::Run<SceneLogo>
+	0x00685474 in TitleSceneSet::Open
+	0x0062c740 in DohnaDohna@Run
+	0x0057b1a6 in game_main
+	0x0049a480 in main

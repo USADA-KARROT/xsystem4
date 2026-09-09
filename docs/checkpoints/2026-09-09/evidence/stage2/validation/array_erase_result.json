@@ -1,0 +1,30 @@
+{
+  "production_source": "<WORKSPACE>/work/stage2/source/src/hll/Array.c",
+  "source_sha256": "c9d55d25fb7ba8cce8232fe5c257cf23621af9fe48e8d3d7f7151d0c75342ebd",
+  "fixture_sha256": "383f1ea303ce58a478240e244d0788b496800bc3c383688170bce0c27d9fb152",
+  "compile_command": [
+    "/Library/Developer/CommandLineTools/usr/bin/clang",
+    "-std=c11",
+    "-O0",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-I<WORKSPACE>/work/stage2/source/include",
+    "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+    "-I/opt/homebrew/opt/libffi/include",
+    "<WORKSPACE>/work/stage2/validation/array_erase_fixture.c",
+    "<WORKSPACE>/work/stage1/wip-asan-build/subprojects/libsys4/libsys4.a",
+    "-L/opt/homebrew/opt/libffi/lib",
+    "-lffi",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "<WORKSPACE>/work/stage2/validation/array_erase_fixture"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "test_exit": 0,
+  "stdout": "AIN Array:15 Erase return=47 argc=3 arg0=80(inner=74) arg1=10(inner=-1) arg2=10(inner=-1) -> distinct ABI selected\nAIN Array:16 Erase return=47 argc=2 arg0=80(inner=74) arg1=95(inner=-1) -> distinct ABI selected\nAIN Array:17 Erase return=47 argc=2 arg0=80(inner=74) arg1=82(inner=79) -> distinct ABI selected\nObserver regression: old binding keeps ended observers; new predicate removes first match, preserves survivors and refcounts: PASS\nIndex/length ABI, bool result, clamping and empty array: PASS\nTwo-slot range/predicate: old erase releases metadata; new erase releases first slot only and passes both callback arguments: PASS\nWrapped-source ABI: integer set subtraction, source unchanged, alias-to-self: PASS\nWrapped-source string values compare contents across distinct heap slots; removed references released once: PASS\nTwo-slot source: metadata compares raw bits despite matching live string contents, only object reference is released: PASS\nLegacy void range preserved; unknown signatures rejected rather than called with wrong ABI: PASS\nArray.Erase production fixture: ALL PASS\n",
+  "stderr": "*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\n"
+}

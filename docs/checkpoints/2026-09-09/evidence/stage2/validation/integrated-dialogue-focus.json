@@ -1,0 +1,63 @@
+{
+  "lines": [
+    "line 64: STAGE2 armed msg=2 ms=56354",
+    "line 174: STAGE2 enter ms=56362 msg=3 f=9196 hit=1 depth=20 this=-1 env=0 ip=2ec074 caller=7878 caller2=7061 sp=13 base=13 locals=101104/f9196[101102,0,-1,-1,0] envlocals=0 busy=1 busy_number=0",
+    "line 178: STAGE2 enter ms=56364 msg=3 f=36081 hit=8 depth=28 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=22 base=22 locals=105269/f36081[105265,0] envlocals=606449/f27031[606447,0,1,-1] busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array",
+    "line 183: STAGE2 enter ms=56364 msg=3 f=9197 hit=8 depth=30 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=22 base=22 locals=105280/f9197[0] envlocals=0 busy=0 busy_number=0",
+    "line 184: STAGE2 return ms=56364 msg=3 f=9197 hit=8 depth=30 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=22 base=22 elapsed=0 raw_sp=22 raw_top=1 ret_slots=0 ret_top=0 locals=105280/f9197[0] envlocals=0 busy=1 busy_number=0",
+    "line 185: STAGE2 return ms=56364 msg=3 f=36081 hit=8 depth=28 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=22 base=22 elapsed=0 raw_sp=22 raw_top=1 ret_slots=0 ret_top=0 locals=105269/f36081[105265,0] envlocals=606449/f27031[606447,0,1,-1] busy=1 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array",
+    "line 186: STAGE2 enter ms=56364 msg=3 f=20748 hit=8 depth=28 this=606458 env=0 ip=4a5852 caller=20752 caller2=20761 sp=20 base=20 locals=105282/f20748[0] envlocals=0 busy=1 busy_number=0",
+    "line 187: STAGE2 return ms=56364 msg=3 f=20748 hit=8 depth=28 this=606458 env=0 ip=4a5870 caller=20752 caller2=20761 sp=19 base=20 elapsed=0 raw_sp=20 raw_top=606458 ret_slots=0 ret_top=0 locals=105282/f20748[0] envlocals=0 busy=1 busy_number=0",
+    "line 261: STAGE2 return ms=56368 msg=3 f=9196 hit=1 depth=20 this=-1 env=0 ip=2ec32e caller=7878 caller2=7061 sp=14 base=13 elapsed=6 raw_sp=14 raw_top=0 ret_slots=1 ret_top=0 locals=101104/f9196[101102,0,101106,101145,0] envlocals=0 busy=0 busy_number=0"
+  ],
+  "message_waits": [
+    {
+      "line": 261,
+      "ms": "56368",
+      "msg": "3",
+      "elapsed": "6"
+    },
+    {
+      "line": 349,
+      "ms": "56391",
+      "msg": "6",
+      "elapsed": "5"
+    },
+    {
+      "line": 399,
+      "ms": "56415",
+      "msg": "9",
+      "elapsed": "5"
+    },
+    {
+      "line": 445,
+      "ms": "56440",
+      "msg": "12",
+      "elapsed": "6"
+    },
+    {
+      "line": 622,
+      "ms": "63385",
+      "msg": "14",
+      "elapsed": "5"
+    },
+    {
+      "line": 649,
+      "ms": "63408",
+      "msg": "16",
+      "elapsed": "6"
+    },
+    {
+      "line": 667,
+      "ms": "63430",
+      "msg": "19",
+      "elapsed": "5"
+    },
+    {
+      "line": 683,
+      "ms": "63453",
+      "msg": "22",
+      "elapsed": "5"
+    }
+  ]
+}

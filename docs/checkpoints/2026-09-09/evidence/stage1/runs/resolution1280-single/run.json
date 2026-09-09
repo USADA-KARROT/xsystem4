@@ -1,0 +1,31 @@
+{
+  "started_at": "2026-09-09T01:29:51.576724+08:00",
+  "command": [
+    "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/stage1/runs/resolution1280-single/saves",
+    "<WORKSPACE>/work/stage1/game/stage1-resolution1280-single.ini"
+  ],
+  "cwd": "<WORKSPACE>/work/stage1/wip-source",
+  "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+  "source_status": "?? subprojects/.wraplock",
+  "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+  "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/resolution1280-single/home",
+    "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/resolution1280-single/frames",
+    "XSYS4_STOP_ON_GAME_ERROR": "1",
+    "XSYS4_AUTO_CLICK_SEQ": "20000,85,82",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+  },
+  "duration_limit_seconds": 120,
+  "diagnostic_view_size": "1280x720",
+  "ini_sha256": "5ad336e69b853d25c185a9d167b95d678f1f41a7321f5f52d49c6035b6ead99b",
+  "pid": 24116,
+  "stopped_by_runner": true,
+  "exit_code": 0,
+  "elapsed_seconds": 120.797,
+  "finished_at": "2026-09-09T01:31:52.433824+08:00"
+}

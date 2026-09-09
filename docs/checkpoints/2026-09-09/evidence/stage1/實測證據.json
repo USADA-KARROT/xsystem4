@@ -1,0 +1,452 @@
+{
+  "verified_at": "2026-09-09T01:35:57.562295+08:00",
+  "baseline": {
+    "started_at": "2026-09-09T01:13:42.251876+08:00",
+    "usage_start_used_percent": 7,
+    "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+    "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+    "game_files": {
+      "AliceStart.ini": {
+        "size": 353,
+        "sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587"
+      },
+      "dohnadohna.ain": {
+        "size": 3256218,
+        "sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947"
+      },
+      "dohnadohna.ain.bak_original": {
+        "size": 3256218,
+        "sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947"
+      },
+      "dohnadohnaEx.ex": {
+        "size": 781951,
+        "sha256": "dc3e256910fc9d6abbc8f2542e07070f347c7d09003a09752a28470c96d11169"
+      },
+      "dohnadohnaPact.afa": {
+        "size": 1600757,
+        "sha256": "ef266ee6e2cfd954407885f78b2d46acb63648931541e8b777c5da045442a666"
+      },
+      "Version.txt": {
+        "size": 4,
+        "sha256": "cb5d2011975d7a70e93f7cf9d2934fc752c4f1c5013a80cd34b8d2deb5ded6b0"
+      }
+    }
+  },
+  "runs": [
+    {
+      "started_at": "2026-09-09T01:25:02.421703+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-rufim.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/baseline-cn/saves",
+        "<WORKSPACE>/work/stage1/game"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/rufim-source",
+      "source_sha": "589cf2c7599761e30fc7b9a48ef6d8e106ef76df",
+      "source_status": "M src/util.c",
+      "libsys4_sha": "703493c702cff32750a5f48f82b6c19e018d43b1",
+      "binary_sha256": "38777ba479515eada360fbae5751591d5794f6a1b3e2c85899c8209de16ff367",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/baseline-cn/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/baseline-cn/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 90,
+      "pid": 23608,
+      "exit_code": 1,
+      "elapsed_seconds": 2.247,
+      "finished_at": "2026-09-09T01:25:04.710351+08:00",
+      "run_id": "baseline-cn",
+      "message_numbers": [],
+      "diagnostic_lines": [
+        "Assertion failed at 03_Components\\activity\\detail\\CActivityWrap.jaf:20: (nonnull) m_root"
+      ]
+    },
+    {
+      "started_at": "2026-09-09T01:15:00.119755+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/wip-build/src/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/baseline-visible/saves",
+        "<WORKSPACE>/work/stage1/game"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/baseline-visible/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/baseline-visible/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 180,
+      "pid": 22043,
+      "exit_code": 0,
+      "elapsed_seconds": 74.455,
+      "finished_at": "2026-09-09T01:16:14.694634+08:00",
+      "run_id": "baseline-visible",
+      "message_numbers": [],
+      "diagnostic_lines": []
+    },
+    {
+      "started_at": "2026-09-09T01:16:14.419325+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/bundled-visible/saves",
+        "<WORKSPACE>/work/stage1/game"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/bundled-visible/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/bundled-visible/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 240,
+      "pid": 22198,
+      "stopped_by_runner": true,
+      "exit_code": 0,
+      "elapsed_seconds": 240.607,
+      "finished_at": "2026-09-09T01:20:15.073292+08:00",
+      "run_id": "bundled-visible",
+      "message_numbers": [],
+      "diagnostic_lines": []
+    },
+    {
+      "started_at": "2026-09-09T01:23:21.154569+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/dialogue-visible/saves",
+        "<WORKSPACE>/work/stage1/game"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/dialogue-visible/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/dialogue-visible/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 420,
+      "pid": 22728,
+      "exit_code": 0,
+      "elapsed_seconds": 101.667,
+      "finished_at": "2026-09-09T01:25:02.877915+08:00",
+      "run_id": "dialogue-visible",
+      "message_numbers": [],
+      "diagnostic_lines": []
+    },
+    {
+      "started_at": "2026-09-09T01:28:43.291663+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/resolution1280/saves",
+        "<WORKSPACE>/work/stage1/game/stage1-resolution1280.ini"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/resolution1280/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/resolution1280/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 180,
+      "diagnostic_view_size": "1280x720",
+      "ini_sha256": "5ad336e69b853d25c185a9d167b95d678f1f41a7321f5f52d49c6035b6ead99b",
+      "pid": 24006,
+      "exit_code": 0,
+      "elapsed_seconds": 68.505,
+      "finished_at": "2026-09-09T01:29:51.842321+08:00",
+      "run_id": "resolution1280",
+      "message_numbers": [],
+      "diagnostic_lines": []
+    },
+    {
+      "started_at": "2026-09-09T01:29:51.576724+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/resolution1280-single/saves",
+        "<WORKSPACE>/work/stage1/game/stage1-resolution1280-single.ini"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/resolution1280-single/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/resolution1280-single/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "XSYS4_AUTO_CLICK_SEQ": "20000,85,82",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 120,
+      "diagnostic_view_size": "1280x720",
+      "ini_sha256": "5ad336e69b853d25c185a9d167b95d678f1f41a7321f5f52d49c6035b6ead99b",
+      "pid": 24116,
+      "stopped_by_runner": true,
+      "exit_code": 0,
+      "elapsed_seconds": 120.797,
+      "finished_at": "2026-09-09T01:31:52.433824+08:00",
+      "run_id": "resolution1280-single",
+      "message_numbers": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42
+      ],
+      "diagnostic_lines": [
+        "*WARNING*(../wip-source/src/vm.c:execute_instruction:2673): ASSERT FAILED: DJCPP\\model\\LocalGame\\Worker\\Personality\\Personality.jaf:27: assert( id != \"\" );",
+        "Assertion failed at DJCPP\\model\\LocalGame\\Worker\\Personality\\Personality.jaf:27: assert( id != \"\" );",
+        "*WARNING*(../wip-source/src/heap.c:heap_double_free:600): double free of slot 498256 (VM_PAGE)",
+        "*WARNING*(../wip-source/src/heap.c:heap_double_free:600): double free of slot 498256 (VM_PAGE)"
+      ]
+    },
+    {
+      "started_at": "2026-09-09T01:27:23.417643+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-wip-asan.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/sanitizer-start/saves",
+        "<WORKSPACE>/work/stage1/game"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "96f74c47eb6bf0decc005373a29e89f9794ee5e11b2b44dfe1674f41b2d26e2e",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/sanitizer-start/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/sanitizer-start/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "XSYS4_AUTO_CLICK_SEQ": "20000,85,82",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 100,
+      "diagnostic_view_size": null,
+      "ini_sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+      "pid": 23840,
+      "exit_code": 134,
+      "elapsed_seconds": 48.605,
+      "finished_at": "2026-09-09T01:28:12.102673+08:00",
+      "run_id": "sanitizer-start",
+      "message_numbers": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "diagnostic_lines": [
+        "*WARNING*(../wip-source/src/vm.c:execute_instruction:2673): ASSERT FAILED: DJCPP\\model\\LocalGame\\Worker\\Personality\\Personality.jaf:27: assert( id != \"\" );",
+        "Assertion failed at DJCPP\\model\\LocalGame\\Worker\\Personality\\Personality.jaf:27: assert( id != \"\" );",
+        "*WARNING*(../wip-source/subprojects/libsys4/src/string.c:free_string:40): Double free of string object (ignored)",
+        "../wip-source/src/parts/parts.c:1279:7: runtime error: load of misaligned address 0x000000000001 for type 'struct string *', which requires 8 byte alignment",
+        "SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../wip-source/src/parts/parts.c:1279:7 "
+      ]
+    },
+    {
+      "started_at": "2026-09-09T01:25:19.295317+08:00",
+      "command": [
+        "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+        "--echo-message",
+        "--save-folder",
+        "<WORKSPACE>/work/stage1/runs/single-start/saves",
+        "<WORKSPACE>/work/stage1/game"
+      ],
+      "cwd": "<WORKSPACE>/work/stage1/wip-source",
+      "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "source_status": "?? subprojects/.wraplock",
+      "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+      "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+      "environment": {
+        "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/single-start/home",
+        "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/single-start/frames",
+        "XSYS4_STOP_ON_GAME_ERROR": "1",
+        "XSYS4_AUTO_CLICK_SEQ": "20000,85,82",
+        "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      },
+      "duration_limit_seconds": 150,
+      "pid": 23663,
+      "exit_code": 0,
+      "elapsed_seconds": 124.415,
+      "finished_at": "2026-09-09T01:27:23.751552+08:00",
+      "run_id": "single-start",
+      "message_numbers": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40
+      ],
+      "diagnostic_lines": [
+        "*WARNING*(../wip-source/src/vm.c:execute_instruction:2673): ASSERT FAILED: DJCPP\\model\\LocalGame\\Worker\\Personality\\Personality.jaf:27: assert( id != \"\" );",
+        "Assertion failed at DJCPP\\model\\LocalGame\\Worker\\Personality\\Personality.jaf:27: assert( id != \"\" );",
+        "*WARNING*(../wip-source/src/heap.c:heap_double_free:600): double free of slot 498256 (VM_PAGE)",
+        "*WARNING*(../wip-source/src/heap.c:heap_double_free:600): double free of slot 498256 (VM_PAGE)"
+      ]
+    }
+  ],
+  "original_and_copy_hash_checks": {
+    "AliceStart.ini": {
+      "original_workcopy": true,
+      "stage1_copy": true
+    },
+    "dohnadohna.ain": {
+      "original_workcopy": true,
+      "stage1_copy": true
+    },
+    "dohnadohna.ain.bak_original": {
+      "original_workcopy": true,
+      "stage1_copy": true
+    },
+    "dohnadohnaEx.ex": {
+      "original_workcopy": true,
+      "stage1_copy": true
+    },
+    "dohnadohnaPact.afa": {
+      "original_workcopy": true,
+      "stage1_copy": true
+    },
+    "Version.txt": {
+      "original_workcopy": true,
+      "stage1_copy": true
+    }
+  },
+  "repositories": {
+    "original_latest": {
+      "head": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "status": "?? subprojects/.wraplock"
+    },
+    "original_main": {
+      "head": "917f1a224915d4caa441f712dd1343f8048472a2",
+      "status": "M .DS_Store"
+    },
+    "isolated_wip": {
+      "head": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+      "status": "?? subprojects/.wraplock"
+    },
+    "isolated_rufim": {
+      "head": "589cf2c7599761e30fc7b9a48ef6d8e106ef76df",
+      "status": "M src/util.c"
+    }
+  },
+  "usage_snapshot": {
+    "start_used_percent": 7,
+    "latest_used_percent": 16,
+    "remaining_percent": 84,
+    "delta_percentage_points": 9,
+    "scope": "account shared weekly quota, not exact tokens",
+    "reset_used": false
+  }
+}

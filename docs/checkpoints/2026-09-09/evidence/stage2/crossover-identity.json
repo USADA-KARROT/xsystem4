@@ -1,0 +1,108 @@
+[
+  {
+    "name": "dohnadohna.ain",
+    "wrapper_target": {
+      "bytes": 3256218,
+      "sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947"
+    },
+    "stage2": {
+      "bytes": 3256218,
+      "sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947"
+    },
+    "same": true
+  },
+  {
+    "name": "dohnadohna.ain.bak_original",
+    "wrapper_target": {
+      "bytes": 3256218,
+      "sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947"
+    },
+    "stage2": {
+      "bytes": 3256218,
+      "sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947"
+    },
+    "same": true
+  },
+  {
+    "name": "AliceStart.ini",
+    "wrapper_target": {
+      "bytes": 353,
+      "sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+      "configuration_lines": [
+        "IniFileVersion\t= 1",
+        "GameName\t= \"多娜多娜繁中版\"",
+        "BootName\t= \"dohnadohna\"",
+        "RegName\t= \"\"",
+        "CodeName\t= \"dohnadohna.ain\"",
+        "SaveFolder\t= \"SaveData\""
+      ],
+      "encoding_note": "GB18030 decodes the configuration values; original comments include legacy/mixed encoding."
+    },
+    "stage2": {
+      "bytes": 353,
+      "sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+      "configuration_lines": [
+        "IniFileVersion\t= 1",
+        "GameName\t= \"多娜多娜繁中版\"",
+        "BootName\t= \"dohnadohna\"",
+        "RegName\t= \"\"",
+        "CodeName\t= \"dohnadohna.ain\"",
+        "SaveFolder\t= \"SaveData\""
+      ],
+      "encoding_note": "GB18030 decodes the configuration values; original comments include legacy/mixed encoding."
+    },
+    "same": true
+  },
+  {
+    "name": "Version.txt",
+    "wrapper_target": {
+      "bytes": 4,
+      "sha256": "cb5d2011975d7a70e93f7cf9d2934fc752c4f1c5013a80cd34b8d2deb5ded6b0",
+      "encoding": "utf-8",
+      "text": "1.01"
+    },
+    "stage2": {
+      "bytes": 4,
+      "sha256": "cb5d2011975d7a70e93f7cf9d2934fc752c4f1c5013a80cd34b8d2deb5ded6b0",
+      "encoding": "utf-8",
+      "text": "1.01"
+    },
+    "same": true
+  },
+  {
+    "name": "dohnadohna.exe",
+    "wrapper_target": {
+      "bytes": 4188176,
+      "sha256": "97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a"
+    },
+    "stage2": {
+      "bytes": 4188176,
+      "sha256": "97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a"
+    },
+    "same": true
+  },
+  {
+    "name": "dohnadohna.exe.bak_original",
+    "wrapper_target": {
+      "bytes": 4188176,
+      "sha256": "97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a"
+    },
+    "stage2": {
+      "bytes": 4188176,
+      "sha256": "97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a"
+    },
+    "same": true
+  },
+  {
+    "name": "run.sh",
+    "wrapper_target": {
+      "bytes": 131,
+      "sha256": "67dfe5dfd50c394b5f35af729a5753c91bbc4a8f1f1de89324aeb0cf4e7cf94d"
+    },
+    "stage2": {
+      "bytes": 131,
+      "sha256": "67dfe5dfd50c394b5f35af729a5753c91bbc4a8f1f1de89324aeb0cf4e7cf94d"
+    },
+    "same": true
+  }
+]

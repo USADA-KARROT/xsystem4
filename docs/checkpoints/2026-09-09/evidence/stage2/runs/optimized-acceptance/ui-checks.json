@@ -1,0 +1,50 @@
+{
+  "wait_start_monotonic": 0.023715208,
+  "observations": [
+    {
+      "type": "first-page-observed",
+      "at": "2026-09-09T09:00:06.015022+08:00",
+      "messages": [
+        2,
+        3
+      ],
+      "screenshot": "optimized-acceptance-page1.png"
+    },
+    {
+      "type": "page1-no-input-wait-end",
+      "at": "2026-09-09T09:00:49.491263+08:00",
+      "elapsed_seconds": 43.476241,
+      "messages": [
+        2,
+        3
+      ],
+      "screenshot": "optimized-acceptance-page1-wait.png"
+    },
+    {
+      "type": "page2-after-one-click",
+      "at": "2026-09-09T09:01:38.230578+08:00",
+      "messages": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "screenshot": "optimized-acceptance-page2.png"
+    },
+    {
+      "type": "page2-no-input-wait-end",
+      "at": "2026-09-09T09:02:22.563620+08:00",
+      "elapsed_seconds": 44.333042,
+      "messages": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "screenshot": "optimized-acceptance-page2-wait.png"
+    }
+  ],
+  "result": "PASS: actual single click advances exactly one visible page; both pages hold without further input"
+}

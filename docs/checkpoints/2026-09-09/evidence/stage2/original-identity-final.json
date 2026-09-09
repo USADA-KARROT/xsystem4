@@ -1,0 +1,24 @@
+{
+  "original": {
+    "path": "<USER_HOME>/xsystem4-dev/xsystem4",
+    "head": "917f1a224915d4caa441f712dd1343f8048472a2",
+    "status": "M .DS_Store"
+  },
+  "wip": {
+    "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/worktrees/xsystem4-cn-on-upstream",
+    "head": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+    "status": "?? subprojects/.wraplock"
+  },
+  "original_game": {
+    "dohnadohna.ain": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "AliceStart.ini": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587"
+  },
+  "stage1_game": {
+    "dohnadohna.ain": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "AliceStart.ini": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587"
+  },
+  "stage2_game": {
+    "dohnadohna.ain": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "AliceStart.ini": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587"
+  }
+}

@@ -1,0 +1,454 @@
+*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../source/src/system4.c:main:672): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../source/src/system4.c:main:673): AINCHECK: msgf=0 nr_messages=57532 messages=0x104d34800
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_replace:360): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_register:379): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage2/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+STAGE2 trace: targets=3 per_fno=1 after_ms=19000 from_msg=2 (raw slots; h64 is a string prefix hash)
+*WARNING*(../source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../source/src/vm.c:execute_instruction:4692): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/vm.c:execute_instruction:4692): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 16M insns fno=9164 depth=26 ip=0x2EB2A4 op=0x2C
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=9178 'parts::detail::Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=21031 'view::detail::View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36762 'Scene::Run<SceneLogo>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31798 'SceneLogo@Run'
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 67M insns fno=21031 depth=11 ip=0x4AEF48 op=0x5
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[10]: fno=21031 'view::detail::View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[9]: fno=20992 'AFL_View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[8]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[7]: fno=8398 '�У��c��g��'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 83M insns fno=9668 depth=20 ip=0x9D6E5C op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9668 'parts::detail::CCheckBoxParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[18]: fno=9667 'parts::detail::CCheckBoxParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[17]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[16]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 134M insns fno=31795 depth=16 ip=0x6802BE op=0x10D
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[15]: fno=31795 'CharacterPositionCalculator@Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[12]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 150M insns fno=31795 depth=16 ip=0x68058E op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[15]: fno=31795 'CharacterPositionCalculator@Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[12]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/input.c:mouse_event:291): S2 mouse t=42561 state=1 event=(169,130) polled=(169,130) override=(-1,-1) window=1280x720 drawable=1280x720 logical=1280x720 viewport=0,0,1280,720
+*WARNING*(../source/src/input.c:mouse_event:291): S2 mouse t=42561 state=0 event=(169,130) polled=(169,130) override=(-1,-1) window=1280x720 drawable=1280x720 logical=1280x720 viewport=0,0,1280,720
+S2 parts press ms=42562 pos=169,130 began=1
+S2 candidate no=1000001016 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001017 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=900023 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=1006,574,274,158 global=1006,574 scale=1.000,1.000 parent=900010
+S2 candidate no=900022 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=1006,518,274,212 global=1006,518 scale=1.000,1.000 parent=900010
+S2 candidate no=900021 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=1006,462,274,236 global=1006,462 scale=1.000,1.000 parent=900010
+S2 candidate no=900020 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=1006,406,274,236 global=1006,406 scale=1.000,1.000 parent=900010
+S2 candidate no=900019 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=0,233,704,236 global=0,233 scale=1.000,1.000 parent=900010
+S2 candidate no=900018 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=0,177,704,236 global=0,177 scale=1.000,1.000 parent=900010
+S2 candidate no=900017 state=0 pass=0 pixel=1 hit=0 default_hit=0 box=0,122,704,236 global=0,122 scale=1.000,1.000 parent=900010
+S2 candidate no=900016 state=0 pass=0 pixel=1 hit=1 default_hit=1 box=0,67,704,236 global=0,67 scale=1.000,1.000 parent=900010
+S2 click target=900016
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/hll/FileOperation.c:get_file_list:153): opendir("SaveData/User/"): No such file or directory
+*WARNING*(../source/src/vm.c:execute_instruction:2988): ASSERT FAILED: DJCPP\model\LocalGame\Worker\Personality\Personality.jaf:27: assert( id != "" );
+Assertion failed at DJCPP\model\LocalGame\Worker\Personality\Personality.jaf:27: assert( id != "" );
+*WARNING*(../source/src/vm.c:execute_instruction:4692): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Active before parts=900068 bytes=-1 active=1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Active after parts=900068 bytes=-1 active=1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 201M insns fno=9264 depth=29 ip=0x9D5FCC op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+STAGE2 armed msg=2 ms=52801
+MSG 2: [game dialogue omitted]
+MSG 3: [game dialogue omitted]
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+STAGE2 enter ms=52803 msg=3 f=7049 hit=1 depth=19 this=103 env=0 ip=25c574 caller=7048 caller2=7055 sp=14 base=14 locals=1677378/f7049[99,0,4,1,0] envlocals=0 busy=0 busy_number=0
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=20 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=20 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=21 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=21 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=59 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=59 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+STAGE2 return ms=52814 msg=3 f=7049 hit=1 depth=19 this=103 env=0 ip=25ca76 caller=7048 caller2=7055 sp=13 base=14 elapsed=11 raw_sp=14 raw_top=103 ret_slots=0 ret_top=0 locals=1677378/f7049[99,0,4,1,4] envlocals=0 busy=0 busy_number=0
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/parts/message_window.c:parts_message_window_render_text:236): S2 message Render parts=900068 raw=59 plain=59 lines=2 chars=29 show=1 window_show=1 alpha=255 z=5001 bg=(38,1280,720) origin=(-640,-720) area=(360,600,940,181) mode=1 pos=(360,600) font=(0,25) color=(255,255,255,255) spacing=(-4,8)
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 218M insns fno=9264 depth=31 ip=0x9D5CDE op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 268M insns fno=6355 depth=26 ip=0x2316FC op=0x6F
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=6355 'AFL_MouseWheel_GetCount'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=6416 'input::detail::�ۥ��`��Хå����_�J'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=6418 'input::detail::�ۥ��`��Хå��_�J'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7024 'message::detail::CMessageKeyControl@CheckKeyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 285M insns fno=9668 depth=30 ip=0x9D6D1E op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9668 'parts::detail::CCheckBoxParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9667 'parts::detail::CCheckBoxParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 335M insns fno=9264 depth=32 ip=0x9D607C op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[31]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 352M insns fno=7028 depth=23 ip=0x25A690 op=0x13
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7028 'message::detail::CMessageKeyControl@CheckJoyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7023 'message::detail::CMessageKeyControl@CheckClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 402M insns fno=14246 depth=34 ip=0x38586A op=0x9
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[33]: fno=14246 'parts::detail::CParts@FuncSet::get'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[32]: fno=14312 'parts::detail::CParts@DeletedEvent::add'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[31]: fno=14001 'parts::detail::CParts@Attach'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=13998 'parts::detail::CParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 419M insns fno=7028 depth=23 ip=0x25A792 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7028 'message::detail::CMessageKeyControl@CheckJoyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7023 'message::detail::CMessageKeyControl@CheckClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 469M insns fno=7063 depth=22 ip=0x25DE5A op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7063 'message::detail::CMessageTextView::IsKeysDown'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[18]: fno=7878 'AFL_Parts_WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 486M insns fno=31727 depth=27 ip=0x6763F2 op=0x5B
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=31727 'AdvSystemButton@UpdateModeMark'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=36712 'AdvSystemButton@<lambda : AdvSystemButton@0()(27, 39)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 536M insns fno=6411 depth=27 ip=0x234368 op=0x10C
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=6411 'input::detail::GetButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=6349 'AFL_Joystick_GetButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=6398 'CASJoyClickAssignedKey@UpdateAssignedKey'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=6402 'CASJoyClickAssignedKey@IsClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 553M insns fno=9264 depth=31 ip=0x9D5EC4 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 603M insns fno=6371 depth=24 ip=0x2323D0 op=0x2E
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=6371 'CASClick@IsClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7024 'message::detail::CMessageKeyControl@CheckKeyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7023 'message::detail::CMessageKeyControl@CheckClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 620M insns fno=9668 depth=30 ip=0x9D6DC0 op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9668 'parts::detail::CCheckBoxParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9667 'parts::detail::CCheckBoxParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 671M insns fno=9264 depth=32 ip=0x9D5900 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[31]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 687M insns fno=7028 depth=23 ip=0x25A6AE op=0x10C
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7028 'message::detail::CMessageKeyControl@CheckJoyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7023 'message::detail::CMessageKeyControl@CheckClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 738M insns fno=13999 depth=32 ip=0x9DF480 op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[31]: fno=13999 'parts::detail::CParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=13998 'parts::detail::CParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 754M insns fno=6398 depth=25 ip=0x233998 op=0x17
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=6398 'CASJoyClickAssignedKey@UpdateAssignedKey'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=6402 'CASJoyClickAssignedKey@IsClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7028 'message::detail::CMessageKeyControl@CheckJoyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7023 'message::detail::CMessageKeyControl@CheckClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/input.c:mouse_event:291): S2 mouse t=165113 state=1 event=(900,368) polled=(900,368) override=(-1,-1) window=1280x720 drawable=1280x720 logical=1280x720 viewport=0,0,1280,720
+*WARNING*(../source/src/input.c:mouse_event:291): S2 mouse t=165113 state=0 event=(900,368) polled=(900,368) override=(-1,-1) window=1280x720 drawable=1280x720 logical=1280x720 viewport=0,0,1280,720
+S2 parts press ms=165116 pos=900,368 began=1
+S2 candidate no=1000001042 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001040 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001038 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001043 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001041 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001039 state=0 pass=0 pixel=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=900059 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=208,0,44,44 global=208,730 scale=1.000,1.000 parent=900054
+S2 candidate no=900060 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=260,0,44,44 global=1523,653 scale=1.000,1.000 parent=900052
+S2 candidate no=900051 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=52,0,44,44 global=52,730 scale=1.000,1.000 parent=900054
+S2 candidate no=900055 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=0,0,44,44 global=0,730 scale=1.000,1.000 parent=900054
+S2 candidate no=900050 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=0,0,44,44 global=0,730 scale=1.000,1.000 parent=900054
+S2 candidate no=900056 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=52,0,44,44 global=1315,653 scale=1.000,1.000 parent=900052
+S2 candidate no=900058 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=156,0,44,44 global=182,653 scale=1.000,1.000 parent=900049
+S2 candidate no=900053 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=1200,558,57,58 global=1200,558 scale=1.000,1.000 parent=900048
+S2 candidate no=900057 state=0 pass=0 pixel=0 hit=0 default_hit=0 box=104,0,44,44 global=130,653 scale=1.000,1.000 parent=900049
+S2 click target=0
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Active before parts=900068 bytes=-1 active=1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Active after parts=900068 bytes=-1 active=1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+STAGE2 enter ms=165130 msg=3 f=20752 hit=1 depth=25 this=9352339 env=0 ip=4a598c caller=20761 caller2=9164 sp=17 base=17 locals=9353237/f20752[0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=165130 msg=3 f=36081 hit=1 depth=26 this=305 env=9352328 ip=59568a caller=20752 caller2=20761 sp=21 base=21 locals=9353240/f36081[9353237,0] envlocals=9352328/f27031[9351348,0,0,9352370] busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/seq3704/slots3/type79[9351347,9352309,9351352]
+STAGE2 return ms=165130 msg=3 f=36081 hit=1 depth=26 this=305 env=9352328 ip=595706 caller=20752 caller2=20761 sp=21 base=21 elapsed=0 raw_sp=21 raw_top=1 ret_slots=0 ret_top=0 locals=9353240/f36081[9353237,0] envlocals=9352328/f27031[9351348,0,1,9352370] busy=1 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array
+STAGE2 return ms=165130 msg=3 f=20752 hit=1 depth=25 this=9352339 env=0 ip=4a5a28 caller=20761 caller2=9164 sp=16 base=17 elapsed=0 raw_sp=17 raw_top=9352339 ret_slots=0 ret_top=0 locals=9353237/f20752[1] envlocals=0 busy=1 busy_number=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+MSG 4: [game dialogue omitted]
+MSG 5: [game dialogue omitted]
+MSG 6: [game dialogue omitted]
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=0 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=26 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=26 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=27 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=27 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=67 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=67 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text before parts=900068 bytes=68 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_trace_window:259): S2 message Text after parts=900068 bytes=68 active=-1 state=0 type=1 default_type=1 show=1 alpha=255 pos=(640,720)
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 805M insns fno=27257 depth=28 ip=0x59DC8E op=0x5
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=27257 'RCASTimer@AddTime'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=27253 'RCASTimerManager@UpdateTime'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=36121 'RCASTimerManager@<lambda : RCASTimerManager@0()(37, 37)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 822M insns fno=7063 depth=22 ip=0x25DE5C op=0x2C
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7063 'message::detail::CMessageTextView::IsKeysDown'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[18]: fno=7878 'AFL_Parts_WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 872M insns fno=13999 depth=32 ip=0x9DF2C6 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[31]: fno=13999 'parts::detail::CParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=13998 'parts::detail::CParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 889M insns fno=20575 depth=28 ip=0x498732 op=0x5B
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=20575 'CASConfigData@GetJoystickButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=6411 'input::detail::GetButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=6349 'AFL_Joystick_GetButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=6398 'CASJoyClickAssignedKey@UpdateAssignedKey'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 939M insns fno=9170 depth=27 ip=0x2EB526 op=0x5
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=9170 'parts::detail::NotifyChangedActiveLayerEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=9189 'parts::detail::SetActiveLayer'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 956M insns fno=6362 depth=26 ip=0x23207C op=0x10C
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=6362 'CASClick@KeyCode::get'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=6370 'CASClick@IsFirstClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=6371 'CASClick@IsClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[22]: fno=7024 'message::detail::CMessageKeyControl@CheckKeyClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 1006M insns fno=7063 depth=22 ip=0x25DCEE op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[21]: fno=7063 'message::detail::CMessageTextView::IsKeysDown'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[20]: fno=24400 'message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[19]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[18]: fno=7878 'AFL_Parts_WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 1023M insns fno=9264 depth=32 ip=0x9D5CBA op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[31]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=30882 'DohnaDohna@RunGame'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=30887 'DohnaDohna@RunTurnStart'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=28179 'GameCallback::Run'
+*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493243 (VM_PAGE)
+*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493243 (VM_PAGE)

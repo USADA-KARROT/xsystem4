@@ -1,0 +1,14 @@
+{
+  "observed": "2026-09-09T01:25:02.385689+08:00",
+  "actions": [
+    {
+      "action": "sky.click",
+      "x": 169,
+      "y": 162,
+      "count": 1,
+      "target": "visible Start Game button",
+      "approx_elapsed_seconds": 30
+    }
+  ],
+  "result": "Actual title visible before click; after click actual window and internal main_surface both gray with right slanted black strip. Heartbeats remain SceneTitle.Run through at least 69 sec. No further clicks were sent."
+}

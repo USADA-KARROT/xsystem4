@@ -1,0 +1,17 @@
+{
+  "tag": "optimized-gc-manual",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 150.835,
+  "scripted_clicks": null,
+  "messages": [],
+  "message_count": 0,
+  "sanitizer_errors": [],
+  "double_free_warnings": [
+    "*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493242 (VM_PAGE)",
+    "*WARNING*(../source/src/heap.c:heap_double_free:603): double free of slot 493242 (VM_PAGE)"
+  ],
+  "click_targets": [],
+  "calls": {},
+  "source_patch_matches_record": true
+}

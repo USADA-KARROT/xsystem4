@@ -1,0 +1,27 @@
+{
+  "started_at": "2026-09-09T01:25:02.421703+08:00",
+  "command": [
+    "<WORKSPACE>/work/stage1/apps/Xsystem4-rufim.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/stage1/runs/baseline-cn/saves",
+    "<WORKSPACE>/work/stage1/game"
+  ],
+  "cwd": "<WORKSPACE>/work/stage1/rufim-source",
+  "source_sha": "589cf2c7599761e30fc7b9a48ef6d8e106ef76df",
+  "source_status": "M src/util.c",
+  "libsys4_sha": "703493c702cff32750a5f48f82b6c19e018d43b1",
+  "binary_sha256": "38777ba479515eada360fbae5751591d5794f6a1b3e2c85899c8209de16ff367",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/baseline-cn/home",
+    "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/baseline-cn/frames",
+    "XSYS4_STOP_ON_GAME_ERROR": "1",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+  },
+  "duration_limit_seconds": 90,
+  "pid": 23608,
+  "exit_code": 1,
+  "elapsed_seconds": 2.247,
+  "finished_at": "2026-09-09T01:25:04.710351+08:00"
+}

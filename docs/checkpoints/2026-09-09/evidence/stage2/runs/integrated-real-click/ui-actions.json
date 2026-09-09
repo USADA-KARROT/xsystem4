@@ -1,0 +1,21 @@
+{
+  "actions": [
+    {
+      "action": "single physical UI click through Sky",
+      "window_position": [
+        169,
+        162
+      ],
+      "sdl_position": [
+        169,
+        130
+      ],
+      "sdl_ticks": 37091,
+      "target_parts": 900017,
+      "expected_visible_button": "New Game",
+      "observed_target": "Load",
+      "evidence": "engine.log S2 click target; screenshot integrated-real-click-title.png"
+    }
+  ],
+  "stop": "Root terminated the exact child PID33838 after wrong-target evidence was captured; runner recorded exit0 and 72.299seconds."
+}

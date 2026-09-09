@@ -1,0 +1,101 @@
+{
+  "tag": "integrated-real-click",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 72.299,
+  "scripted_clicks": null,
+  "messages": [],
+  "message_count": 0,
+  "sanitizer_errors": [],
+  "double_free_warnings": [],
+  "click_targets": [
+    900017
+  ],
+  "calls": {
+    "9196": {
+      "enters": 16,
+      "returns": 16,
+      "durations_ms": [
+        2014,
+        1,
+        2,
+        0,
+        2,
+        1,
+        1,
+        2,
+        1,
+        2,
+        1,
+        2,
+        1,
+        2,
+        1,
+        14065
+      ]
+    },
+    "27031": {
+      "enters": 5,
+      "returns": 5,
+      "durations_ms": [
+        2014,
+        2320,
+        2566,
+        6447,
+        3693
+      ]
+    },
+    "36081": {
+      "enters": 16,
+      "returns": 16,
+      "durations_ms": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "9197": {
+      "enters": 16,
+      "returns": 16,
+      "durations_ms": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "27193": {
+      "enters": 1,
+      "returns": 1,
+      "durations_ms": [
+        0
+      ]
+    }
+  },
+  "source_patch_matches_record": true
+}

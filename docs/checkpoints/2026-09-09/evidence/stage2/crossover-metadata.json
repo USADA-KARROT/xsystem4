@@ -1,0 +1,51 @@
+{
+  "game_wrapper": {
+    "path": "/Applications/多娜多娜.app/Contents/Info.plist",
+    "sha256": "858047ebdbda64126d006bf7ab8a6a839f0fa6a633313c2f6a63d09b2f1dec3f",
+    "metadata": {
+      "CFBundleExecutable": "launch",
+      "CFBundleName": "多娜多娜",
+      "CFBundleDisplayName": "多娜多娜",
+      "CFBundleIdentifier": "com.alicesoft.dohnadohna",
+      "CFBundleVersion": "1.0",
+      "CFBundlePackageType": "APPL",
+      "CFBundleIconFile": "icon"
+    }
+  },
+  "wine_bundle": {
+    "path": "/Applications/Wine Crossover.app/Contents/Info.plist",
+    "sha256": "1de580fe2b0783b400d2c67f26b9fef66bdb01b157355aa6eb00b55a74af2fae",
+    "metadata": {
+      "LSMinimumSystemVersion": "10.15.4",
+      "CFBundleExecutable": "wine",
+      "CFBundleIconFile": "winehq.icns",
+      "CFBundleIdentifier": "org.winehq.wine-crossover.wine",
+      "CFBundleInfoDictionaryVersion": "6.0",
+      "CFBundleName": "Wine Crossover",
+      "CFBundlePackageType": "APPL",
+      "CFBundleShortVersionString": "23.7.1-1",
+      "CFBundleSignature": "WINE",
+      "CFBundleVersion": "23.7.1-1",
+      "CFBundleDocumentTypes": [
+        {
+          "CFBundleTypeExtensions": [
+            "exe"
+          ],
+          "CFBundleTypeIconFile": "winehq.icns",
+          "CFBundleTypeName": "Windows executable",
+          "CFBundleTypeRole": "Viewer",
+          "LSTypeIsPackage": false
+        }
+      ]
+    }
+  },
+  "launcher": {
+    "path": "/Applications/多娜多娜.app/Contents/MacOS/launch",
+    "sha256": "49be58e85c91238a2224bce64c35a97721324371f051a167ec14545cc75d53b6",
+    "text": "#!/bin/bash\ncd \"$HOME/Downloads/多娜多娜 一起幹壞事吧\"\nLANG=zh_CN.UTF-8 WINEDEBUG=-all WINE_D3D_CONFIG=renderer=gl /opt/homebrew/bin/wine dohnadohna.exe &\n"
+  },
+  "wine_path": {
+    "symlink": "/opt/homebrew/bin/wine",
+    "resolved": "/Applications/Wine Crossover.app/Contents/Resources/wine/bin/wine"
+  }
+}

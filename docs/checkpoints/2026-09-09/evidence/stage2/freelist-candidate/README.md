@@ -1,0 +1,1 @@
+此候選版修正free-list membership並通過局部fixture，但normal-final-perf實機停於logo。保留供後續ownership修復；未列為可交付穩定修正。完整source身份見該輪manifest與full-stage2-candidate.patch。

@@ -1,0 +1,13 @@
+{
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "sources_sha256": {
+    "src/heap.c": "b72d72d814de19d9fa3eab559260d251c4470a02566e719f39363e7c052c3d8b",
+    "src/resume.c": "3c8290b57afcc6e098219672e3ffb97cb9e7acbd4c436a5e079830c9cb80ca4d",
+    "include/vm/heap.h": "f9a037f792eff17ab6cc59af477f3f76c3740da77b9aff2c03308189cb4a5fb6"
+  },
+  "fixture_sha256": "01f6f6894edc93e6cdf5f49a3d6402aaf8a05641a4c90325791d86c56f240341",
+  "test_exit": 0,
+  "stdout": "Old production page-free guard loses slot; new production membership returns it exactly once: PASS\n100000 actual heap_unref/delete_page/allocate cycles reuse page slot without GC or heap growth; double-free never forms a list cycle: PASS\nStrings, exit_unref, page/string replacement and duplicate free preserve exact membership: PASS\nProduction GC rebuild tags allocated and unallocated tail slots; live objects kept, repeated free suppressed: PASS\nProduction resume delete/rebuild tags loaded free slots, clears freed payload pointers, keeps loaded live slots, and allows safe reuse: PASS\nProduction deferred destructor path preserves pending child/current slot, balanced outer inhibit and exhaustion growth: PASS\nModerate heap first GC retains original >=5000ms gate: PASS\nFree-list production regression fixture: ALL PASS\n",
+  "stderr": ""
+}

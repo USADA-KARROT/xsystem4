@@ -1,0 +1,79 @@
+*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../source/src/system4.c:main:672): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../source/src/system4.c:main:673): AINCHECK: msgf=0 nr_messages=57532 messages=0x9d0818000
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_replace:360): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_register:379): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage2/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+*WARNING*(../source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../source/src/vm.c:execute_instruction:4692): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/vm.c:execute_instruction:4692): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=5366 window_ms=5001.833 presents=1875 samples=1875 avg_fps=374.863 p95_interval_ms=11.825 max_interval_ms=18.733 avg_swap_ms=0.777 p95_swap_ms=3.531 max_swap_ms=8.268 window_flags=0x26 vsync=0
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 16M insns fno=6411 depth=27 ip=0x2343C2 op=0x2F
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[26]: fno=6411 'input::detail::GetButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[25]: fno=6349 'AFL_Joystick_GetButtonAssignment'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[24]: fno=7171 'message::detail::ȫ�����^�д_�J'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[23]: fno=21036 'view::detail::UpdateAndroidKeepScreen'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36762 'Scene::Run<SceneLogo>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31798 'SceneLogo@Run'
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=10367 window_ms=5000.690 presents=859 samples=859 avg_fps=171.776 p95_interval_ms=15.544 max_interval_ms=44.002 avg_swap_ms=0.896 p95_swap_ms=3.879 max_swap_ms=6.599 window_flags=0x626 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=15378 window_ms=5011.397 presents=2506 samples=2506 avg_fps=500.060 p95_interval_ms=6.075 max_interval_ms=94.977 avg_swap_ms=0.507 p95_swap_ms=2.653 max_swap_ms=28.590 window_flags=0x226 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=20379 window_ms=5001.091 presents=619 samples=619 avg_fps=123.773 p95_interval_ms=13.055 max_interval_ms=15.344 avg_swap_ms=0.559 p95_swap_ms=2.474 max_swap_ms=4.306 window_flags=0x226 vsync=0
+STAGE2_PERF t_ms=29675 window_ms=9296.053 presents=82 samples=82 avg_fps=8.821 p95_interval_ms=12.097 max_interval_ms=8644.006 avg_swap_ms=0.382 p95_swap_ms=1.821 max_swap_ms=5.521 window_flags=0x226 vsync=0
+STAGE2_PERF t_ms=35480 window_ms=5804.841 presents=58 samples=58 avg_fps=9.992 p95_interval_ms=10.426 max_interval_ms=5350.551 avg_swap_ms=0.563 p95_swap_ms=2.688 max_swap_ms=3.467 window_flags=0x626 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 67M insns fno=19193 depth=31 ip=0x41277E op=0x5
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=19193 'sound::detail::CSoundVolumeCapManager@UpdateSoundFade'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=19195 'sound::detail::CSoundVolumeCapManager@UpdateSound'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=21031 'view::detail::View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=20992 'AFL_View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31816 'SceneTitle@Run'
+STAGE2_PERF t_ms=40484 window_ms=5004.397 presents=618 samples=618 avg_fps=123.491 p95_interval_ms=14.893 max_interval_ms=21.371 avg_swap_ms=0.593 p95_swap_ms=2.675 max_swap_ms=5.529 window_flags=0x626 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/vm.c:vm_execute:5057): heartbeat: 83M insns fno=19194 depth=31 ip=0x412928 op=0x10A
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[30]: fno=19194 'sound::detail::CSoundVolumeCapManager@UpdateSoundShuffle'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[29]: fno=19195 'sound::detail::CSoundVolumeCapManager@UpdateSound'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[28]: fno=21031 'view::detail::View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5065):   stack[27]: fno=20992 'AFL_View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5072):   base[5]: fno=31816 'SceneTitle@Run'
+STAGE2_PERF t_ms=45485 window_ms=5000.269 presents=618 samples=618 avg_fps=123.593 p95_interval_ms=14.140 max_interval_ms=16.705 avg_swap_ms=0.654 p95_swap_ms=3.033 max_swap_ms=5.479 window_flags=0x226 vsync=0
+STAGE2_PERF t_ms=50488 window_ms=5003.105 presents=618 samples=618 avg_fps=123.523 p95_interval_ms=15.739 max_interval_ms=16.999 avg_swap_ms=0.682 p95_swap_ms=3.216 max_swap_ms=6.926 window_flags=0x426 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=55493 window_ms=5005.302 presents=614 samples=614 avg_fps=122.670 p95_interval_ms=15.588 max_interval_ms=27.867 avg_swap_ms=0.604 p95_swap_ms=2.830 max_swap_ms=4.844 window_flags=0x626 vsync=0
+2026-09-09 12:01:26.727 xsystem4[43070:11064243] TSM AdjustCapsLockLEDForKeyTransitionHandling - _ISSetPhysicalKeyboardCapsLockLED Inhibit

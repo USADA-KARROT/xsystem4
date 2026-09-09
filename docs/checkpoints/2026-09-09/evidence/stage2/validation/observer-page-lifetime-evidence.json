@@ -1,0 +1,22 @@
+[
+  {
+    "line": 110,
+    "text": "STAGE2 watch event=assign-before ms=67361 msg=3 target_f=20752 slot=1696819 ref=1 page_f=20752 vars=1 index=0 value=0 current=0 width=1 caller=20752 caller2=20761 ip=4a59c6"
+  },
+  {
+    "line": 111,
+    "text": "STAGE2 watch event=assign-after ms=67361 msg=3 target_f=20752 slot=1696819 ref=1 page_f=20752 vars=1 index=0 value=0 current=0 width=1 caller=20752 caller2=20761 ip=4a59c6"
+  },
+  {
+    "line": 115,
+    "text": "STAGE2 watch event=assign-before ms=67361 msg=3 target_f=20752 slot=1696819 ref=1 page_f=20752 vars=1 index=0 value=1 current=0 width=1 caller=36081 caller2=20752 ip=5956fe"
+  },
+  {
+    "line": 116,
+    "text": "STAGE2 watch event=assign-after ms=67361 msg=3 target_f=20752 slot=1696819 ref=1 page_f=20752 vars=1 index=0 value=1 current=1 width=1 caller=36081 caller2=20752 ip=5956fe"
+  },
+  {
+    "line": 118,
+    "text": "STAGE2 watch event=unref-last ms=67361 msg=3 target_f=20752 slot=1696819 ref=1 page_f=20752 vars=1 index=-1 value=0 current=-999 width=0 caller=20752 caller2=20761 ip=595706"
+  }
+]

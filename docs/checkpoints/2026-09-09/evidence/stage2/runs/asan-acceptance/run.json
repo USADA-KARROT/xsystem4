@@ -1,0 +1,36 @@
+{
+  "started_at": "2026-09-09T09:02:34.237245+08:00",
+  "command": [
+    "<WORKSPACE>/work/stage2/apps/Xsystem4-stage2-asan.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/stage2/runs/asan-acceptance/saves",
+    "<WORKSPACE>/work/stage2/game"
+  ],
+  "cwd": "<WORKSPACE>/work/stage2/source",
+  "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+  "source_status": "M include/parts.h\n M src/ffi.c\n M src/heap.c\n M src/hll/Array.c\n M src/hll/PartsEngine.c\n M src/hll/pe_v14_activity.c\n M src/hll/pe_v14_message.c\n M src/hll/system.c\n M src/input.c\n M src/meson.build\n M src/parts/input.c\n A src/parts/message_window.c\n M src/parts/parts.c\n M src/parts/parts_internal.h\n M src/parts/render.c\n M src/system4.c\n M src/video.c\n M src/vm.c\n?? subprojects/.wraplock",
+  "source_diff_sha256": "05476b72d3e37c039e4f86f3683739cd5072db8afdb95fb0d9adee06745acd9d",
+  "source_patch_from_build_snapshot": true,
+  "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+  "binary_sha256": "9579a1d251ee78c2c003e74a263c399382894ba421a2a9d91777b2753eca4c10",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/stage2/runs/asan-acceptance/home",
+    "XSYS4_STOP_ON_GAME_ERROR": "1",
+    "XSYS4_STAGE2_TRACE": "1",
+    "XSYS4_STAGE2_AFTER_MS": "19000",
+    "XSYS4_STAGE2_PER_FNO": "1",
+    "XSYS4_STAGE2_FNOS": "7049,36081,20752",
+    "XSYS4_STAGE2_FROM_MSG": "2",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+  },
+  "duration_limit_seconds": 240,
+  "diagnostic_view_size": null,
+  "ini_sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+  "source_manifest_sha256": "1d10e1db25de14115dcf1fdd594548e8b0cb0b0fbe168b18b70f8707894743ba",
+  "pid": 40057,
+  "exit_code": 0,
+  "elapsed_seconds": 231.557,
+  "finished_at": "2026-09-09T09:06:25.855029+08:00"
+}

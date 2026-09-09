@@ -1,0 +1,20 @@
+{
+  "actions": [
+    {
+      "type": "sky_click",
+      "target": "new-game",
+      "x": 169,
+      "y": 162,
+      "at": "2026-09-09T00:59:38.798Z",
+      "tool_completed": true
+    },
+    {
+      "type": "sky_click",
+      "target": "advance-one-page",
+      "x": 900,
+      "y": 400,
+      "at": "2026-09-09T01:01:09.949Z",
+      "tool_completed": true
+    }
+  ]
+}

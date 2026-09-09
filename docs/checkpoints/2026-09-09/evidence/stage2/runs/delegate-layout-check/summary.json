@@ -1,0 +1,69 @@
+{
+  "tag": "delegate-layout-check",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 302.148,
+  "scripted_clicks": null,
+  "messages": [
+    2,
+    3
+  ],
+  "message_count": 2,
+  "sanitizer_errors": [],
+  "double_free_warnings": [
+    "*WARNING*(../source/src/heap.c:heap_double_free:600): double free of slot 498256 (VM_PAGE)",
+    "*WARNING*(../source/src/heap.c:heap_double_free:600): double free of slot 498256 (VM_PAGE)"
+  ],
+  "click_targets": [
+    900016
+  ],
+  "calls": {
+    "7048": {
+      "enters": 1,
+      "returns": 1,
+      "durations_ms": [
+        74
+      ]
+    },
+    "7049": {
+      "enters": 1,
+      "returns": 1,
+      "durations_ms": [
+        73
+      ]
+    },
+    "7061": {
+      "enters": 1,
+      "returns": 0,
+      "durations_ms": []
+    },
+    "9196": {
+      "enters": 1,
+      "returns": 0,
+      "durations_ms": []
+    },
+    "24400": {
+      "enters": 16,
+      "returns": 16,
+      "durations_ms": [
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        2,
+        2
+      ]
+    }
+  },
+  "source_patch_matches_record": true
+}

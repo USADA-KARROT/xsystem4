@@ -1,0 +1,14 @@
+{
+  "tag": "normal-final-perf",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 130.193,
+  "scripted_clicks": "20000,169,130",
+  "messages": [],
+  "message_count": 0,
+  "sanitizer_errors": [],
+  "double_free_warnings": [],
+  "click_targets": [],
+  "calls": {},
+  "source_patch_matches_record": true
+}

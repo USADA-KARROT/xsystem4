@@ -1,0 +1,30 @@
+{
+  "compile_command": [
+    "clang",
+    "-std=c11",
+    "-O0",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-I<WORKSPACE>/work/stage2/source/include",
+    "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+    "-I/opt/homebrew/opt/libffi/include",
+    "<WORKSPACE>/work/stage2/validation/array_isexist_fixture.c",
+    "<WORKSPACE>/work/stage1/wip-asan-build/subprojects/libsys4/libsys4.a",
+    "-L/opt/homebrew/opt/libffi/lib",
+    "-lffi",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "<WORKSPACE>/work/stage2/validation/array_isexist_fixture"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "array_source_sha256": "9d58815317c646ea06d2aef6415318d72f77dbd979a91af3c9011c217c966d5d",
+  "vm_call_nopop_sha256": "886c10b91a881e3d5a1baf6e82f1ff94e6742938b3e4925c21de1bd31b90feec",
+  "fixture_sha256": "5d1747c22e60c6112102660bbe5c526a5d151473638cc09fe1cd6827b9d1adec",
+  "test_exit": 0,
+  "stdout": "Actual AIN Array:56 IsExist ret=47 argc=2 arg0=80 arg1=74\nActual AIN Array:57 IsExist ret=47 argc=2 arg0=80 arg1=95\nActual SetShortcut f31722 at 0x675556 uses value overload with integer/enum arg3=1\nBefore production Array.IsExist: enum4 invokes unrelated 3-argument f4 for each value: reproduced\nValue overload: all integer/enum searches, absence/empty, no callbacks or array mutation: PASS\nValue overload: distinct string heap slots compare text, search owns no temporary references: PASS\nBefore production vm_call_nopop: actual f36095 IFACE argument loses caller reference on return; metadata untouched: reproduced\nPredicate actual IFACE f36095: logical pairs, correct metadata, early true/false, callback retain/release balances and final owner release once: PASS\nActual one-slot REF_STRUCT predicate f22399: both callbacks preserve references and stack: PASS\nHeap-backed IFACE_WRAP argument: first slot retained symmetrically with variable_fini, metadata untouched: PASS\nOPTION ownership remains unresolved and unchanged; primitive and heap-backed OPTION are outside this fix\nTyped legacy ref-array and HLL_FUNC_71 declarations dispatch correctly; unknown signatures are unlinked: PASS\nArray.IsExist production fixture: ALL PASS\n",
+  "stderr": "*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\n"
+}

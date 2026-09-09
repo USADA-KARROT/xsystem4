@@ -1,6 +1,10 @@
 xsystem4
 ========
 
+> **2026-09-09 macOS / 多娜多娜 CN checkpoint — 仍有卡住問題，尚非穩定可玩版。**
+> 已保存第二階段引擎修補、第一／二階段實測、上游差距報告與最新使用者試玩失敗紀錄。
+> 請先看 [目前進度與交接](docs/checkpoints/2026-09-09/STATUS.md) 及 [重建與重測方式](docs/checkpoints/2026-09-09/REPRODUCE.md)。
+
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
 operating systems.
 

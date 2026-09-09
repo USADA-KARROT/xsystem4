@@ -1,0 +1,28 @@
+{
+  "started_at": "2026-09-09T01:16:14.419325+08:00",
+  "command": [
+    "<WORKSPACE>/work/stage1/apps/Xsystem4-wip.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/stage1/runs/bundled-visible/saves",
+    "<WORKSPACE>/work/stage1/game"
+  ],
+  "cwd": "<WORKSPACE>/work/stage1/wip-source",
+  "source_sha": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+  "source_status": "?? subprojects/.wraplock",
+  "libsys4_sha": "8c939465910499b4802ec6dd619794ca58ba4708",
+  "binary_sha256": "d790b0d4ce53be3719de899ae3c3d99a6bca3e60589d7a6c7fb3cedfb5cd17e4",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/stage1/runs/bundled-visible/home",
+    "XSYS4_SCREENSHOT_DIR": "<WORKSPACE>/work/stage1/runs/bundled-visible/frames",
+    "XSYS4_STOP_ON_GAME_ERROR": "1",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+  },
+  "duration_limit_seconds": 240,
+  "pid": 22198,
+  "stopped_by_runner": true,
+  "exit_code": 0,
+  "elapsed_seconds": 240.607,
+  "finished_at": "2026-09-09T01:20:15.073292+08:00"
+}

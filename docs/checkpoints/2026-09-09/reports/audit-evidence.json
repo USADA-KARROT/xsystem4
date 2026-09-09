@@ -1,0 +1,4229 @@
+{
+  "retrieved_at": "2026-09-09T00:58:17.704563+08:00",
+  "timezone": "Asia/Taipei",
+  "pause": {
+    "commit": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+    "time": "2026-07-09T12:00:31+08:00"
+  },
+  "refs": {
+    "user_master": "917f1a224915d4caa441f712dd1343f8048472a2",
+    "user_wip": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+    "checkpoint": "02f061c9f495a3433e268a3a1009131866c3e816",
+    "upstream": "fa09b0059f3ffcc7b9e853f330e832ea75d74502",
+    "user_libsys4": "8c939465910499b4802ec6dd619794ca58ba4708",
+    "upstream_libsys4": "cbc57ce5642dadbbeda3c4894e1c2da7e15dbbff",
+    "rufim": "589cf2c7599761e30fc7b9a48ef6d8e106ef76df"
+  },
+  "method": "Official after_pause uses first inclusion in master first-parent history; commit counts include merges. Rufim entries are divergent, not mandatory upgrades.",
+  "official_missing": [
+    {
+      "sha": "d8479ad80aa14601bd1ed2c2c0e6ff9436a2dfc3",
+      "committed_at": "2026-07-07T08:52:17+09:00",
+      "authored_at": "2026-07-07T08:51:39+09:00",
+      "author": "kichikuou",
+      "parents": "e8bd5ab0362b0aacc9fb66a9050548f3e7c41b8c",
+      "subject": "parts: Fail construction build without target texture",
+      "merge": false,
+      "master_entered_at": "2026-07-06T18:24:53-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "74461f5b9c6166cc7b9115d9bab536a31c7f21e7",
+      "committed_at": "2026-07-06T18:24:53-07:00",
+      "authored_at": "2026-07-06T18:24:53-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "e8bd5ab0362b0aacc9fb66a9050548f3e7c41b8c d8479ad80aa14601bd1ed2c2c0e6ff9436a2dfc3",
+      "subject": "Merge pull request #357 from kichikuou/issue-356",
+      "merge": true,
+      "master_entered_at": "2026-07-06T18:24:53-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "c0cdf4f0700fb044e32b182b00ad5610b152b40d",
+      "committed_at": "2026-07-12T13:37:44+09:00",
+      "authored_at": "2026-05-17T21:38:02+09:00",
+      "author": "kichikuou",
+      "parents": "74461f5b9c6166cc7b9115d9bab536a31c7f21e7",
+      "subject": "debugger: Add \"3d\" debugger commands",
+      "merge": false,
+      "master_entered_at": "2026-07-13T17:55:14-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "e260b82828e3ed9a0c3b4107f7cea6fe3d33be6b",
+      "committed_at": "2026-07-13T17:55:14-07:00",
+      "authored_at": "2026-07-13T17:55:14-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "74461f5b9c6166cc7b9115d9bab536a31c7f21e7 c0cdf4f0700fb044e32b182b00ad5610b152b40d",
+      "subject": "Merge pull request #358 from kichikuou/3d-debug",
+      "merge": true,
+      "master_entered_at": "2026-07-13T17:55:14-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "6d05546c2c995afaf37e5078f6e065f3c38f9235",
+      "committed_at": "2026-07-15T08:36:08+09:00",
+      "authored_at": "2026-07-15T08:21:27+09:00",
+      "author": "kichikuou",
+      "parents": "e260b82828e3ed9a0c3b4107f7cea6fe3d33be6b",
+      "subject": "input: Handle numpad keys with NumLock disabled",
+      "merge": false,
+      "master_entered_at": "2026-07-16T21:03:56-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d63e71e85d364227b3fe477ce5fca56c53ad85f5",
+      "committed_at": "2026-07-16T21:03:56-07:00",
+      "authored_at": "2026-07-16T21:03:56-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "e260b82828e3ed9a0c3b4107f7cea6fe3d33be6b 6d05546c2c995afaf37e5078f6e065f3c38f9235",
+      "subject": "Merge pull request #360 from kichikuou/numpad",
+      "merge": true,
+      "master_entered_at": "2026-07-16T21:03:56-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "81f9113906cb97b50c86a099c921a51733ffe9ef",
+      "committed_at": "2026-07-20T12:53:19+09:00",
+      "authored_at": "2026-07-18T10:12:11+09:00",
+      "author": "kichikuou",
+      "parents": "d63e71e85d364227b3fe477ce5fca56c53ad85f5",
+      "subject": "Use libsys4 wrappers for zlib operations",
+      "merge": false,
+      "master_entered_at": "2026-07-19T21:21:54-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "ca2254360cd99a21e5a3350ff0ad02ef323484fa",
+      "committed_at": "2026-07-19T21:21:54-07:00",
+      "authored_at": "2026-07-19T21:21:54-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "d63e71e85d364227b3fe477ce5fca56c53ad85f5 81f9113906cb97b50c86a099c921a51733ffe9ef",
+      "subject": "Merge pull request #361 from kichikuou/libdeflate",
+      "merge": true,
+      "master_entered_at": "2026-07-19T21:21:54-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d17fc3073169540ab4d96d2f311f6be94d3fdd55",
+      "committed_at": "2026-07-22T07:31:44+09:00",
+      "authored_at": "2026-07-21T14:27:57+09:00",
+      "author": "kichikuou",
+      "parents": "ca2254360cd99a21e5a3350ff0ad02ef323484fa",
+      "subject": "pl_mpeg: Support MPEG-2 program stream headers",
+      "merge": false,
+      "master_entered_at": "2026-07-25T08:50:00-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "f0c4db718d4b10f04292c5d6d7a3d5844388f894",
+      "committed_at": "2026-07-22T09:07:30+09:00",
+      "authored_at": "2026-07-22T09:07:30+09:00",
+      "author": "kichikuou",
+      "parents": "ca2254360cd99a21e5a3350ff0ad02ef323484fa",
+      "subject": "movie_ffmpeg: Use nb_samples for audio frame length",
+      "merge": false,
+      "master_entered_at": "2026-07-25T08:50:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "b3bcd79baef983642db2ebca2dbc1e5f9719dba6",
+      "committed_at": "2026-07-25T08:50:00-07:00",
+      "authored_at": "2026-07-25T08:50:00-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "ca2254360cd99a21e5a3350ff0ad02ef323484fa d17fc3073169540ab4d96d2f311f6be94d3fdd55",
+      "subject": "Merge pull request #362 from kichikuou/pl_mpeg",
+      "merge": true,
+      "master_entered_at": "2026-07-25T08:50:00-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "a38c55602d3f936fbc65b7142e6a4afa47366520",
+      "committed_at": "2026-07-25T08:50:35-07:00",
+      "authored_at": "2026-07-25T08:50:35-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "b3bcd79baef983642db2ebca2dbc1e5f9719dba6 f0c4db718d4b10f04292c5d6d7a3d5844388f894",
+      "subject": "Merge pull request #363 from kichikuou/ffmpeg",
+      "merge": true,
+      "master_entered_at": "2026-07-25T08:50:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d5b27a0a47d0dea7361ffbf37bb59df8ad9ad730",
+      "committed_at": "2026-07-26T07:53:03+09:00",
+      "authored_at": "2026-07-25T11:04:52+09:00",
+      "author": "kichikuou",
+      "parents": "a38c55602d3f936fbc65b7142e6a4afa47366520",
+      "subject": "KiwiSoundEngine: Fix BGM loop for Rance 9",
+      "merge": false,
+      "master_entered_at": "2026-07-26T09:13:40-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "433e3be3e6c208159d203c97385ba6bf8bf76a5b",
+      "committed_at": "2026-07-26T09:13:40-07:00",
+      "authored_at": "2026-07-26T09:13:40-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "a38c55602d3f936fbc65b7142e6a4afa47366520 d5b27a0a47d0dea7361ffbf37bb59df8ad9ad730",
+      "subject": "Merge pull request #364 from kichikuou/rance9-bgi",
+      "merge": true,
+      "master_entered_at": "2026-07-26T09:13:40-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "b68e1622fd4ef3e70f053945cc82850b19057f76",
+      "committed_at": "2026-07-28T14:29:50+09:00",
+      "authored_at": "2026-07-06T11:27:37+09:00",
+      "author": "kichikuou",
+      "parents": "433e3be3e6c208159d203c97385ba6bf8bf76a5b",
+      "subject": "3d: Implement DrawShadow mesh attribute",
+      "merge": false,
+      "master_entered_at": "2026-08-01T06:25:54-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "09a0e3329aa4b406b743477c6ee18f509ece8489",
+      "committed_at": "2026-07-29T08:50:18+09:00",
+      "authored_at": "2026-07-29T08:50:18+09:00",
+      "author": "kichikuou",
+      "parents": "b68e1622fd4ef3e70f053945cc82850b19057f76",
+      "subject": "3d: Disable specular with zero power",
+      "merge": false,
+      "master_entered_at": "2026-08-01T06:25:54-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "f146320e36078b8226b3cf9c870e1def6d640459",
+      "committed_at": "2026-08-01T06:25:54-07:00",
+      "authored_at": "2026-08-01T06:25:54-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "433e3be3e6c208159d203c97385ba6bf8bf76a5b 09a0e3329aa4b406b743477c6ee18f509ece8489",
+      "subject": "Merge pull request #365 from kichikuou/3d",
+      "merge": true,
+      "master_entered_at": "2026-08-01T06:25:54-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "a2524bafd5861162740cb293cae654fb1eadddd4",
+      "committed_at": "2026-08-02T08:49:06+09:00",
+      "authored_at": "2026-08-02T07:34:39+09:00",
+      "author": "kichikuou",
+      "parents": "f146320e36078b8226b3cf9c870e1def6d640459",
+      "subject": "PartsEngine: Stabilize save format for Rance 9",
+      "merge": false,
+      "master_entered_at": "2026-08-02T11:12:12-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "8e339d153765db66f700207a4ff517b31ad0837b",
+      "committed_at": "2026-08-02T11:12:12-07:00",
+      "authored_at": "2026-08-02T11:12:12-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "f146320e36078b8226b3cf9c870e1def6d640459 a2524bafd5861162740cb293cae654fb1eadddd4",
+      "subject": "Merge pull request #366 from kichikuou/save",
+      "merge": true,
+      "master_entered_at": "2026-08-02T11:12:12-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "68e8257c2759bed5876ae0d2a29d59e0f802daad",
+      "committed_at": "2026-08-04T20:52:41+09:00",
+      "authored_at": "2026-08-04T20:49:48+09:00",
+      "author": "kichikuou",
+      "parents": "8e339d153765db66f700207a4ff517b31ad0837b",
+      "subject": "game_compatibility.md: Add Rance 9 (JA) as supported",
+      "merge": false,
+      "master_entered_at": "2026-08-04T18:50:56-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d65a1e6d9b702e55b792b9fb13cdc42c4141264b",
+      "committed_at": "2026-08-04T18:50:56-07:00",
+      "authored_at": "2026-08-04T18:50:56-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "8e339d153765db66f700207a4ff517b31ad0837b 68e8257c2759bed5876ae0d2a29d59e0f802daad",
+      "subject": "Merge pull request #367 from kichikuou/rance9",
+      "merge": true,
+      "master_entered_at": "2026-08-04T18:50:56-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "77d9e77053876e1de123a3eea2f7d85d17809109",
+      "committed_at": "2026-08-06T09:22:23+09:00",
+      "authored_at": "2026-08-06T09:22:23+09:00",
+      "author": "kichikuou",
+      "parents": "d65a1e6d9b702e55b792b9fb13cdc42c4141264b",
+      "subject": "Update libsys4",
+      "merge": false,
+      "master_entered_at": "2026-08-05T18:42:52-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "4e0dd82776e4297596d3c137d7b2dc75bb4f8261",
+      "committed_at": "2026-08-05T18:42:52-07:00",
+      "authored_at": "2026-08-05T18:42:52-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "d65a1e6d9b702e55b792b9fb13cdc42c4141264b 77d9e77053876e1de123a3eea2f7d85d17809109",
+      "subject": "Merge pull request #368 from kichikuou/libsys4",
+      "merge": true,
+      "master_entered_at": "2026-08-05T18:42:52-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "e699fb0aa2fec16f0e79bdb65d068a73bc2dad60",
+      "committed_at": "2026-08-08T10:10:28-07:00",
+      "authored_at": "2026-08-08T10:10:28-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "4e0dd82776e4297596d3c137d7b2dc75bb4f8261",
+      "subject": "DAP: ensure messages are null-terminated",
+      "merge": false,
+      "master_entered_at": "2026-08-08T10:10:28-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "33f1295237d6fc4b368d166d26ee34596cee2f0c",
+      "committed_at": "2026-08-09T10:36:00+09:00",
+      "authored_at": "2026-08-09T10:36:00+09:00",
+      "author": "kichikuou",
+      "parents": "4e0dd82776e4297596d3c137d7b2dc75bb4f8261",
+      "subject": "Resolve archive paths in asset_manager_load_archive",
+      "merge": false,
+      "master_entered_at": "2026-08-09T08:32:53-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "a7e973c0a9091c4c84cdfccb697406b6a6c19901",
+      "committed_at": "2026-08-08T20:09:26-07:00",
+      "authored_at": "2026-08-08T20:09:26-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "4e0dd82776e4297596d3c137d7b2dc75bb4f8261 33f1295237d6fc4b368d166d26ee34596cee2f0c",
+      "subject": "Merge pull request #369 from kichikuou/rance9-v2",
+      "merge": true,
+      "master_entered_at": "2026-08-09T08:32:53-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "4dc97926320c0f09add7000f672e3b261fa262a9",
+      "committed_at": "2026-08-09T08:32:53-07:00",
+      "authored_at": "2026-08-09T08:32:53-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "e699fb0aa2fec16f0e79bdb65d068a73bc2dad60 a7e973c0a9091c4c84cdfccb697406b6a6c19901",
+      "subject": "Merge branch 'master' of github.com:nunuhara/xsystem4",
+      "merge": true,
+      "master_entered_at": "2026-08-09T08:32:53-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "5bb36c75243f655126f971dbeb99d3ac602612cc",
+      "committed_at": "2026-08-09T19:00:36-07:00",
+      "authored_at": "2026-08-09T19:00:36-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "4dc97926320c0f09add7000f672e3b261fa262a9",
+      "subject": "Update libsys4",
+      "merge": false,
+      "master_entered_at": "2026-08-09T19:00:36-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "62d38aaf590447b151e1c1d8c3a0775f83101b68",
+      "committed_at": "2026-08-11T13:05:32+09:00",
+      "authored_at": "2026-08-11T13:05:32+09:00",
+      "author": "kichikuou",
+      "parents": "5bb36c75243f655126f971dbeb99d3ac602612cc",
+      "subject": "parts: Reference construction process CGs by name",
+      "merge": false,
+      "master_entered_at": "2026-08-11T19:13:18-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "9bb871d9fd53e37f03349ac51d1926c10d0911b4",
+      "committed_at": "2026-08-11T13:46:18+09:00",
+      "authored_at": "2026-08-11T13:46:18+09:00",
+      "author": "kichikuou",
+      "parents": "5bb36c75243f655126f971dbeb99d3ac602612cc",
+      "subject": "parts: Fix loss of line breaks in saved multi-line text",
+      "merge": false,
+      "master_entered_at": "2026-08-11T19:14:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "ebc319994eb48412fe0c5f70b08ba90e1126c638",
+      "committed_at": "2026-08-11T19:13:18-07:00",
+      "authored_at": "2026-08-11T19:13:18-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "5bb36c75243f655126f971dbeb99d3ac602612cc 62d38aaf590447b151e1c1d8c3a0775f83101b68",
+      "subject": "Merge pull request #371 from kichikuou/rance9-v2",
+      "merge": true,
+      "master_entered_at": "2026-08-11T19:13:18-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "b1f8948b743cb34eb3736d4f0552c4d5449e538b",
+      "committed_at": "2026-08-11T19:14:35-07:00",
+      "authored_at": "2026-08-11T19:14:35-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "ebc319994eb48412fe0c5f70b08ba90e1126c638 9bb871d9fd53e37f03349ac51d1926c10d0911b4",
+      "subject": "Merge pull request #372 from kichikuou/parts-load-text",
+      "merge": true,
+      "master_entered_at": "2026-08-11T19:14:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d800e12f597aaf57651fc4a7f5dde2f0399e23cf",
+      "committed_at": "2026-08-14T09:31:32+09:00",
+      "authored_at": "2026-08-14T09:11:12+09:00",
+      "author": "kichikuou",
+      "parents": "b1f8948b743cb34eb3736d4f0552c4d5449e538b",
+      "subject": "Math: Replace rand() with mt19937",
+      "merge": false,
+      "master_entered_at": "2026-08-13T18:28:18-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "0d4eb2a2a7720734599af405cdff60e74e0acb8c",
+      "committed_at": "2026-08-13T18:28:18-07:00",
+      "authored_at": "2026-08-13T18:28:18-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "b1f8948b743cb34eb3736d4f0552c4d5449e538b d800e12f597aaf57651fc4a7f5dde2f0399e23cf",
+      "subject": "Merge pull request #373 from kichikuou/math-rand",
+      "merge": true,
+      "master_entered_at": "2026-08-13T18:28:18-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "4e20a499d4a123a4746801ad1f18b3ae0033dbe9",
+      "committed_at": "2026-08-13T20:14:54-07:00",
+      "authored_at": "2026-08-13T20:14:54-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "0d4eb2a2a7720734599af405cdff60e74e0acb8c",
+      "subject": "parts: use ceilf(ch->advance) for text layout",
+      "merge": false,
+      "master_entered_at": "2026-08-13T20:14:54-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "5cbc697f234011070bcba2b199348686fd21ed16",
+      "committed_at": "2026-08-14T10:48:07-07:00",
+      "authored_at": "2026-08-14T10:48:07-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "4e20a499d4a123a4746801ad1f18b3ae0033dbe9",
+      "subject": "parts: use bold width for text layout",
+      "merge": false,
+      "master_entered_at": "2026-08-14T10:48:07-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "a19c2008705bfda4891d58e95b874e8ec5e1aa3e",
+      "committed_at": "2026-08-14T11:30:52-07:00",
+      "authored_at": "2026-08-14T11:16:35-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "5cbc697f234011070bcba2b199348686fd21ed16",
+      "subject": "parts: clean up text layout logic",
+      "merge": false,
+      "master_entered_at": "2026-08-14T11:30:52-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "e3bf653165432c4476b4954d7098122ddef1dab9",
+      "committed_at": "2026-08-14T12:40:00-07:00",
+      "authored_at": "2026-08-14T12:40:00-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "a19c2008705bfda4891d58e95b874e8ec5e1aa3e",
+      "subject": "Fix crash in Shaman's Sanctuary",
+      "merge": false,
+      "master_entered_at": "2026-08-14T12:40:00-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "5d032d739e3a693ff000741a837d7c4061e02d1f",
+      "committed_at": "2026-08-14T15:17:31-07:00",
+      "authored_at": "2026-08-14T15:17:31-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "e3bf653165432c4476b4954d7098122ddef1dab9",
+      "subject": "Fix various memory leaks",
+      "merge": false,
+      "master_entered_at": "2026-08-14T15:17:31-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "5fb3c49f757ac992fb02316f58e5ce5b39eed5a9",
+      "committed_at": "2026-08-14T17:26:25-07:00",
+      "authored_at": "2026-08-14T17:26:25-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "5d032d739e3a693ff000741a837d7c4061e02d1f",
+      "subject": "parts: clear cached font when rerendering text",
+      "merge": false,
+      "master_entered_at": "2026-08-14T17:26:25-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "e76762d11d153d5d980034f48dcbe3f8b529854f",
+      "committed_at": "2026-08-14T21:51:11-07:00",
+      "authored_at": "2026-08-14T21:51:11-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "5fb3c49f757ac992fb02316f58e5ce5b39eed5a9",
+      "subject": "Implement EFFECT_DOWN_UP_CROSSFADE",
+      "merge": false,
+      "master_entered_at": "2026-08-14T21:51:11-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "05820dc5367794f3b06f5cf71efab0ca31f982ec",
+      "committed_at": "2026-08-16T11:05:43-07:00",
+      "authored_at": "2026-08-16T10:56:34-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "e76762d11d153d5d980034f48dcbe3f8b529854f",
+      "subject": "parts: RemoveController returns delegate indices",
+      "merge": false,
+      "master_entered_at": "2026-08-16T11:05:43-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "135cae216f0cbeb9589c301f3c867809b28cafe1",
+      "committed_at": "2026-08-20T19:23:35-07:00",
+      "authored_at": "2026-08-20T19:11:46-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "05820dc5367794f3b06f5cf71efab0ca31f982ec",
+      "subject": "Mitigate UI performance issue in Rance 9",
+      "merge": false,
+      "master_entered_at": "2026-08-20T19:23:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "bf3430dbad79c8fe84ec10936190559f97f5540c",
+      "committed_at": "2026-08-23T10:11:29-07:00",
+      "authored_at": "2026-08-23T10:11:29-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "135cae216f0cbeb9589c301f3c867809b28cafe1",
+      "subject": "Improve EFFECT_VWAVE_CROSSFADE",
+      "merge": false,
+      "master_entered_at": "2026-08-23T10:11:29-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "b30a107fda352003e7b4ff395015f364b5915d98",
+      "committed_at": "2026-08-23T10:39:03-07:00",
+      "authored_at": "2026-08-23T10:32:52-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "bf3430dbad79c8fe84ec10936190559f97f5540c",
+      "subject": "Implement EFFECT_VWAVE_SCROLL_CROSSFADE",
+      "merge": false,
+      "master_entered_at": "2026-08-23T10:39:03-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "4233c7d294f57a64ab02b7da90923b9499e5b6ac",
+      "committed_at": "2026-08-24T17:44:44-07:00",
+      "authored_at": "2026-08-24T17:44:44-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "b30a107fda352003e7b4ff395015f364b5915d98",
+      "subject": "Fix EFFECT_CROSSFADE_MOSAIC",
+      "merge": false,
+      "master_entered_at": "2026-08-24T17:44:44-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "fa09b0059f3ffcc7b9e853f330e832ea75d74502",
+      "committed_at": "2026-08-25T18:48:58-07:00",
+      "authored_at": "2026-08-25T18:48:58-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "4233c7d294f57a64ab02b7da90923b9499e5b6ac",
+      "subject": "Implement PartsEngine.SetSpeedupRateByMessageSkip",
+      "merge": false,
+      "master_entered_at": "2026-08-25T18:48:58-07:00",
+      "after_pause": true
+    }
+  ],
+  "libsys4_missing": [
+    {
+      "sha": "1ee08454cc728b2df41e06578d21124ba3c3081c",
+      "committed_at": "2026-05-19T10:29:03+09:00",
+      "authored_at": "2026-05-19T10:29:03+09:00",
+      "author": "kichikuou",
+      "parents": "ed74c9e48e39cadab2b5d9c4adf0f0a3f336d1ce",
+      "subject": "flat: rename uk_int to generate_mipmap in CG library struct",
+      "merge": false,
+      "master_entered_at": "2026-05-19T20:41:17-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "649c913c8ba3d59d022454477ee40ad961cdc08d",
+      "committed_at": "2026-05-19T10:33:07+09:00",
+      "authored_at": "2026-05-19T10:05:05+09:00",
+      "author": "kichikuou",
+      "parents": "1ee08454cc728b2df41e06578d21124ba3c3081c",
+      "subject": "flat: fix cg.size and payload_off for version>0 CG entries",
+      "merge": false,
+      "master_entered_at": "2026-05-19T20:41:17-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "df1c2a62b9c0072e5de8967bf08ab08b3e9071b1",
+      "committed_at": "2026-05-19T20:41:17-07:00",
+      "authored_at": "2026-05-19T20:41:17-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "ed74c9e48e39cadab2b5d9c4adf0f0a3f336d1ce 649c913c8ba3d59d022454477ee40ad961cdc08d",
+      "subject": "Merge pull request #62 from kichikuou/flat-cg",
+      "merge": true,
+      "master_entered_at": "2026-05-19T20:41:17-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "22009d4e68e3a057532abd97dc229826bb46aa2a",
+      "committed_at": "2026-07-04T07:30:42+09:00",
+      "authored_at": "2026-07-04T07:30:42+09:00",
+      "author": "kichikuou",
+      "parents": "df1c2a62b9c0072e5de8967bf08ab08b3e9071b1",
+      "subject": "flat: Add binary writers",
+      "merge": false,
+      "master_entered_at": "2026-07-05T11:22:04-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "009c235e158c24ce905f755124b54b0776d27706",
+      "committed_at": "2026-07-05T11:22:04-07:00",
+      "authored_at": "2026-07-05T11:22:04-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "df1c2a62b9c0072e5de8967bf08ab08b3e9071b1 22009d4e68e3a057532abd97dc229826bb46aa2a",
+      "subject": "Merge pull request #63 from kichikuou/flat",
+      "merge": true,
+      "master_entered_at": "2026-07-05T11:22:04-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "76c164312ebf95560e20964cdc7295522c890726",
+      "committed_at": "2026-07-07T12:45:29+09:00",
+      "authored_at": "2026-07-07T12:45:29+09:00",
+      "author": "kichikuou",
+      "parents": "009c235e158c24ce905f755124b54b0776d27706",
+      "subject": "Expose flat_free_library",
+      "merge": false,
+      "master_entered_at": "2026-07-06T20:55:21-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "5964272c8783f151fa0e112e63c07fd867826617",
+      "committed_at": "2026-07-06T20:55:21-07:00",
+      "authored_at": "2026-07-06T20:55:21-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "009c235e158c24ce905f755124b54b0776d27706 76c164312ebf95560e20964cdc7295522c890726",
+      "subject": "Merge pull request #64 from kichikuou/flat",
+      "merge": true,
+      "master_entered_at": "2026-07-06T20:55:21-07:00",
+      "after_pause": false
+    },
+    {
+      "sha": "67b740f0a21a97d2437e1f7b0ad387389ce4a278",
+      "committed_at": "2026-07-13T11:08:41+09:00",
+      "authored_at": "2026-07-13T10:33:57+09:00",
+      "author": "kichikuou",
+      "parents": "5964272c8783f151fa0e112e63c07fd867826617",
+      "subject": "instructions: Update delegate instruction metadata",
+      "merge": false,
+      "master_entered_at": "2026-07-13T17:57:23-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "05a4d58412b1df05c06ba156e7a2290de040a857",
+      "committed_at": "2026-07-13T11:08:46+09:00",
+      "authored_at": "2026-07-13T11:04:47+09:00",
+      "author": "kichikuou",
+      "parents": "67b740f0a21a97d2437e1f7b0ad387389ce4a278",
+      "subject": "ain: Initialize instruction metadata for ain version",
+      "merge": false,
+      "master_entered_at": "2026-07-13T17:57:23-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "fe2052597e6b533bb8668530f8792aa7034f20c8",
+      "committed_at": "2026-07-13T17:57:23-07:00",
+      "authored_at": "2026-07-13T17:57:23-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "5964272c8783f151fa0e112e63c07fd867826617 05a4d58412b1df05c06ba156e7a2290de040a857",
+      "subject": "Merge pull request #65 from kichikuou/instructions",
+      "merge": true,
+      "master_entered_at": "2026-07-13T17:57:23-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "43472ac51ff89c0c1d54ea3f77bac7533d569cc3",
+      "committed_at": "2026-07-16T16:34:01+03:00",
+      "authored_at": "2026-07-16T16:34:01+03:00",
+      "author": "Dmitry Kazantsev",
+      "parents": "fe2052597e6b533bb8668530f8792aa7034f20c8",
+      "subject": "afa: fall back to sequential indices when file IDs are not unique",
+      "merge": false,
+      "master_entered_at": "2026-07-25T08:47:09-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "625b0b84bf5e8c4f11ac754b1d97c53e84a3664f",
+      "committed_at": "2026-07-18T11:02:36+09:00",
+      "authored_at": "2024-03-08T17:02:46+09:00",
+      "author": "kichikuou",
+      "parents": "fe2052597e6b533bb8668530f8792aa7034f20c8",
+      "subject": "Add optional libdeflate backend for zlib streams",
+      "merge": false,
+      "master_entered_at": "2026-07-19T20:14:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "bbabc8b10f4d6950075a7b54e5328f5828a73189",
+      "committed_at": "2026-07-19T20:14:35-07:00",
+      "authored_at": "2026-07-19T20:14:35-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "fe2052597e6b533bb8668530f8792aa7034f20c8 625b0b84bf5e8c4f11ac754b1d97c53e84a3664f",
+      "subject": "Merge pull request #67 from kichikuou/libdeflate",
+      "merge": true,
+      "master_entered_at": "2026-07-19T20:14:35-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "a8df98198e1a16fe2219683cf3ded72afe8338fd",
+      "committed_at": "2026-07-19T20:21:10-07:00",
+      "authored_at": "2026-07-19T20:21:10-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "bbabc8b10f4d6950075a7b54e5328f5828a73189",
+      "subject": "ajp: fix invalid buffer read when mask is absent",
+      "merge": false,
+      "master_entered_at": "2026-07-19T20:21:10-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d3aea059331e33546dceeb57318249a13ba287cb",
+      "committed_at": "2026-07-23T13:50:06+03:00",
+      "authored_at": "2026-07-23T13:50:06+03:00",
+      "author": "Dmitry Kazantsev",
+      "parents": "43472ac51ff89c0c1d54ea3f77bac7533d569cc3",
+      "subject": "afa: only fall back to sequential indices when all IDs are identical",
+      "merge": false,
+      "master_entered_at": "2026-07-25T08:47:09-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "a4867ff410a644af430891fd554cafb94ab0aef1",
+      "committed_at": "2026-07-24T15:12:37+09:00",
+      "authored_at": "2026-07-24T14:47:23+09:00",
+      "author": "kichikuou",
+      "parents": "a8df98198e1a16fe2219683cf3ded72afe8338fd",
+      "subject": "QNT: Accept ALDExplorer-encoded alpha data with odd heights",
+      "merge": false,
+      "master_entered_at": "2026-07-25T08:48:10-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "b853346083e2509eec531adfe957ec600dfd8692",
+      "committed_at": "2026-07-24T16:21:13+09:00",
+      "authored_at": "2026-07-24T16:21:13+09:00",
+      "author": "kichikuou",
+      "parents": "a4867ff410a644af430891fd554cafb94ab0aef1",
+      "subject": "QNT: Remove unnecessary image buffer padding",
+      "merge": false,
+      "master_entered_at": "2026-07-25T08:48:10-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "d0c52d58b488c97bdf47c578088e41653b892f63",
+      "committed_at": "2026-07-25T08:47:09-07:00",
+      "authored_at": "2026-07-25T08:47:09-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "a8df98198e1a16fe2219683cf3ded72afe8338fd d3aea059331e33546dceeb57318249a13ba287cb",
+      "subject": "Merge pull request #66 from Rufim/fix-afa-duplicate-ids",
+      "merge": true,
+      "master_entered_at": "2026-07-25T08:47:09-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "39eec1a8065903cda06ac42b0547cd93daabdaa3",
+      "committed_at": "2026-07-25T08:48:10-07:00",
+      "authored_at": "2026-07-25T08:48:10-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "d0c52d58b488c97bdf47c578088e41653b892f63 b853346083e2509eec531adfe957ec600dfd8692",
+      "subject": "Merge pull request #69 from kichikuou/qnt",
+      "merge": true,
+      "master_entered_at": "2026-07-25T08:48:10-07:00",
+      "after_pause": true
+    },
+    {
+      "sha": "cbc57ce5642dadbbeda3c4894e1c2da7e15dbbff",
+      "committed_at": "2026-08-09T18:54:47-07:00",
+      "authored_at": "2026-08-09T18:54:47-07:00",
+      "author": "Nunuhara Cabbage",
+      "parents": "39eec1a8065903cda06ac42b0547cd93daabdaa3",
+      "subject": "Partially revert #66",
+      "merge": false,
+      "master_entered_at": "2026-08-09T18:54:47-07:00",
+      "after_pause": true
+    }
+  ],
+  "rufim_divergent": [
+    {
+      "sha": "2cec9f95f58ef34992b07b460ee15469630f6b6a",
+      "committed_at": "2026-07-16T15:00:44Z",
+      "authored_at": "2026-07-16T15:00:44Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "android_bridge: forward ADV text lines for TTS",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2cec9f95f58ef34992b07b460ee15469630f6b6a"
+    },
+    {
+      "sha": "8bcf917875282f10b250627d3ce1b35b924898e5",
+      "committed_at": "2026-07-16T15:35:19Z",
+      "authored_at": "2026-07-16T15:35:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "android_bridge: mute voice mixers and duck music while TTS speaks",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8bcf917875282f10b250627d3ce1b35b924898e5"
+    },
+    {
+      "sha": "33ff252ce67ca2e0973ca83f153db5ab0d23a2e9",
+      "committed_at": "2026-07-16T15:36:23Z",
+      "authored_at": "2026-07-16T15:36:23Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "android_bridge: JNI plumbing for TTS",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/33ff252ce67ca2e0973ca83f153db5ab0d23a2e9"
+    },
+    {
+      "sha": "354ed6a291930752461ad7e28bbdcc2b1705a355",
+      "committed_at": "2026-07-16T17:09:43Z",
+      "authored_at": "2026-07-16T17:09:43Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "android_bridge: emit on add_text, page-break flush, voice mute+music duck, advance stub",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/354ed6a291930752461ad7e28bbdcc2b1705a355"
+    },
+    {
+      "sha": "d0ccfdbc8bb7a05206e6e9a4684a77eb66f06581",
+      "committed_at": "2026-07-16T17:17:57Z",
+      "authored_at": "2026-07-16T17:17:57Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "android_bridge: VM globals list/read/write/value-scan + JNI cheat natives",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d0ccfdbc8bb7a05206e6e9a4684a77eb66f06581"
+    },
+    {
+      "sha": "4f2c088e7b21776ae0e3c34c7471ed38d7d83360",
+      "committed_at": "2026-07-16T20:10:05Z",
+      "authored_at": "2026-07-16T20:10:05Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "point libsys4 submodule to Rufim fork (tts-cheats)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/4f2c088e7b21776ae0e3c34c7471ed38d7d83360"
+    },
+    {
+      "sha": "1a6a68266199a74d55b6b8ab98c149174e7d2ffb",
+      "committed_at": "2026-07-18T13:43:54Z",
+      "authored_at": "2026-07-18T13:43:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "jni: переименовать символы NativeBridge в io.github.rufim.alice (единый пакет)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1a6a68266199a74d55b6b8ab98c149174e7d2ffb"
+    },
+    {
+      "sha": "92d7d0a42d1069c432e8b1a85f7f547def6785b0",
+      "committed_at": "2026-07-18T16:19:52Z",
+      "authored_at": "2026-07-18T16:19:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "audio: персистентность громкости микшера (настройки звука сохранялись не всегда)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/92d7d0a42d1069c432e8b1a85f7f547def6785b0"
+    },
+    {
+      "sha": "600e9b2d9d1092f9bbfeed8078c1700bdf340a91",
+      "committed_at": "2026-07-18T16:20:42Z",
+      "authored_at": "2026-07-18T16:20:42Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "tts: хуки MsgSkip (стоп чтения) и NewFont (счётчик отрисовки для модалок)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/600e9b2d9d1092f9bbfeed8078c1700bdf340a91"
+    },
+    {
+      "sha": "058cbd914039df271b4a61ea1710d5f84b30db23",
+      "committed_at": "2026-07-18T21:25:53Z",
+      "authored_at": "2026-07-18T21:25:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "bridge: emit без гейта tts_enabled — текст нужен истории сообщений",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/058cbd914039df271b4a61ea1710d5f84b30db23"
+    },
+    {
+      "sha": "80b247de5bbb3fd8ac17b44d2a2baaf9bd628e3e",
+      "committed_at": "2026-07-23T10:38:25Z",
+      "authored_at": "2026-07-23T10:38:25Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Support for newer System 4 game versions (Ixseal-era): audio, EX, arrays, anti-tamper",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/80b247de5bbb3fd8ac17b44d2a2baaf9bd628e3e"
+    },
+    {
+      "sha": "e1578958da7d448d826dbb0bb100c2fda9a83e6f",
+      "committed_at": "2026-07-23T10:39:29Z",
+      "authored_at": "2026-07-23T10:39:29Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'origin/master' into new_system_versions",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e1578958da7d448d826dbb0bb100c2fda9a83e6f"
+    },
+    {
+      "sha": "ce1dcb14a747d5e16618ed04119010c9a064d258",
+      "committed_at": "2026-07-23T10:40:32Z",
+      "authored_at": "2026-07-23T10:40:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "libsys4: pull post-merge flat writer fixup",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ce1dcb14a747d5e16618ed04119010c9a064d258"
+    },
+    {
+      "sha": "4a9b433baa7efff8b0f971926b045268035c1f85",
+      "committed_at": "2026-07-23T10:54:32Z",
+      "authored_at": "2026-07-23T10:54:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "libsys4: narrow AFA duplicate-ID fallback to all-identical (PR #66 review)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/4a9b433baa7efff8b0f971926b045268035c1f85"
+    },
+    {
+      "sha": "93ba52ab48c20d2b4c9868a5b2947dadc549dea7",
+      "committed_at": "2026-07-23T11:10:48Z",
+      "authored_at": "2026-07-23T11:10:48Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi/Array: two-slot AIN_REF_ARRAY marshalling + generic-container groundwork",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/93ba52ab48c20d2b4c9868a5b2947dadc549dea7"
+    },
+    {
+      "sha": "d1f107beb3b996dbb10e4bc0be30e50d6441e26d",
+      "committed_at": "2026-07-24T17:01:29Z",
+      "authored_at": "2026-07-24T17:01:29Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Ixseal (System4 v14) closures + object model + parts: Dohna/HT progress",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d1f107beb3b996dbb10e4bc0be30e50d6441e26d"
+    },
+    {
+      "sha": "7a75e1d730f63bad6283f1dae99d729be5ffcef5",
+      "committed_at": "2026-07-24T17:59:46Z",
+      "authored_at": "2026-07-24T17:59:46Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: handle 2-slot AIN_OPTION delegate returns (Ixseal v14)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7a75e1d730f63bad6283f1dae99d729be5ffcef5"
+    },
+    {
+      "sha": "3279e14075327f8bbb7d0038923b09653d996933",
+      "committed_at": "2026-07-24T18:36:15Z",
+      "authored_at": "2026-07-24T18:36:15Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: Ixseal SR_ASSIGN struct-member assign (2-slot member-ref lvalue)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3279e14075327f8bbb7d0038923b09653d996933"
+    },
+    {
+      "sha": "66e763fe8a55f21785239c7440aa5f0f1a945e0b",
+      "committed_at": "2026-08-04T17:36:59Z",
+      "authored_at": "2026-08-04T17:36:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4 backlog: visual vertical scrollbar + text rendering polish",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/66e763fe8a55f21785239c7440aa5f0f1a945e0b"
+    },
+    {
+      "sha": "d6ecec1f79ed5011f2ca36e683be8c3e2314d1bc",
+      "committed_at": "2026-08-04T17:37:16Z",
+      "authored_at": "2026-08-04T17:37:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "text: runtime letter-spacing setter (Android) + drop temp HLL trace",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d6ecec1f79ed5011f2ca36e683be8c3e2314d1bc"
+    },
+    {
+      "sha": "09eb3d3801b1c1e5fef9fb49739ebe7414fe43ef",
+      "committed_at": "2026-08-04T18:00:46Z",
+      "authored_at": "2026-08-04T18:00:46Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: translate System 4 v14 component type ids",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/09eb3d3801b1c1e5fef9fb49739ebe7414fe43ef"
+    },
+    {
+      "sha": "9c58c87d118d41c5a9278a99da0786dd088ab902",
+      "committed_at": "2026-08-04T18:16:42Z",
+      "authored_at": "2026-08-04T18:16:42Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: Ixseal batch construction-process interface",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9c58c87d118d41c5a9278a99da0786dd088ab902"
+    },
+    {
+      "sha": "44f231a5c14e12e4e174c300eebff7fbbff319e5",
+      "committed_at": "2026-08-04T18:32:58Z",
+      "authored_at": "2026-08-04T18:32:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi: two-slot generic arguments (Ixseal wrap references)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/44f231a5c14e12e4e174c300eebff7fbbff319e5"
+    },
+    {
+      "sha": "8637e312020ae270fe6debe2ee0e6972c5791ff6",
+      "committed_at": "2026-08-04T19:32:49Z",
+      "authored_at": "2026-08-04T19:32:49Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/page: two-slot wrap<interface> array elements (Ixseal), real X_A_SIZE",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8637e312020ae270fe6debe2ee0e6972c5791ff6"
+    },
+    {
+      "sha": "6cbc80ce60cfae56c18b89ddc39a98be16c3d7a6",
+      "committed_at": "2026-08-04T19:40:53Z",
+      "authored_at": "2026-08-04T19:40:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "hll: PartsEngine.GetTextPartsText, Ixseal String library",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6cbc80ce60cfae56c18b89ddc39a98be16c3d7a6"
+    },
+    {
+      "sha": "878d4b8498022e5c4eec8ad79699b0fc0268e553",
+      "committed_at": "2026-08-04T19:48:03Z",
+      "authored_at": "2026-08-04T19:48:03Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi: wrap<scalar> arguments are two-slot variable references",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/878d4b8498022e5c4eec8ad79699b0fc0268e553"
+    },
+    {
+      "sha": "cc3fd8f3b4b9f8c796c72246e4f7330f2972460f",
+      "committed_at": "2026-08-04T20:17:45Z",
+      "authored_at": "2026-08-04T20:17:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/page: Ixseal option<T> layout — empty init + X_OP_SET",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/cc3fd8f3b4b9f8c796c72246e4f7330f2972460f"
+    },
+    {
+      "sha": "d9069ca350090f28e4bd4d813a41366888bd4538",
+      "committed_at": "2026-08-04T20:21:58Z",
+      "authored_at": "2026-08-04T20:21:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: Ixseal формы S_ASSIGN (2-слотовый lvalue) и X_ASSIGN 0",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d9069ca350090f28e4bd4d813a41366888bd4538"
+    },
+    {
+      "sha": "4eadc99936fc63f7b1093de631e7bf5e698102b4",
+      "committed_at": "2026-08-04T20:36:42Z",
+      "authored_at": "2026-08-04T20:36:42Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4 text metrics: match the original engine's font rendering (Tsumamigui 3)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/4eadc99936fc63f7b1093de631e7bf5e698102b4"
+    },
+    {
+      "sha": "fdf16e61c0086f9e14d6b7c6a657ab48df1db2aa",
+      "committed_at": "2026-08-04T20:39:24Z",
+      "authored_at": "2026-08-04T20:39:24Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/hll: DG_ASSIGN по-Ixseal, Math v14, диагностика баланса стека",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/fdf16e61c0086f9e14d6b7c6a657ab48df1db2aa"
+    },
+    {
+      "sha": "5dd002f32fca38cf2561ad0ba65004b7ca856e1b",
+      "committed_at": "2026-08-04T20:51:16Z",
+      "authored_at": "2026-08-04T20:51:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "hll: регулярные выражения String (std::regex, ECMAScript)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5dd002f32fca38cf2561ad0ba65004b7ca856e1b"
+    },
+    {
+      "sha": "e16d947da08c72dd232aa22f2b6c0f967882f441",
+      "committed_at": "2026-08-04T20:59:54Z",
+      "authored_at": "2026-08-04T20:59:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/hll: предикаты и компараторы Array (обратный вызов VM из HLL)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e16d947da08c72dd232aa22f2b6c0f967882f441"
+    },
+    {
+      "sha": "d6a5f4faed0c2baaf30162a5739e515d4e630ec8",
+      "committed_at": "2026-08-04T21:13:57Z",
+      "authored_at": "2026-08-04T21:13:57Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/hll: X_SET, обратная запись wrap-страниц, копии аргументов лямбд, String.Split",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d6a5f4faed0c2baaf30162a5739e515d4e630ec8"
+    },
+    {
+      "sha": "c4305efd8a345dd34aa9adf870ac78869528b7f8",
+      "committed_at": "2026-08-04T21:20:02Z",
+      "authored_at": "2026-08-04T21:20:02Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi/vm: форма ссылки на элемент не зависит от валидности индекса; AIN_IFACE = 2 слота",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c4305efd8a345dd34aa9adf870ac78869528b7f8"
+    },
+    {
+      "sha": "8e206133eef9dcd712ee17ee27de184cb164b52a",
+      "committed_at": "2026-08-04T21:47:20Z",
+      "authored_at": "2026-08-04T21:47:20Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: слоты возврата делегата считаются type_slots() (AIN_IFACE, wrap<интерфейс>)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8e206133eef9dcd712ee17ee27de184cb164b52a"
+    },
+    {
+      "sha": "388ecddd506b8e0db4b7e5b3018b2a2a219a6fac",
+      "committed_at": "2026-08-04T21:47:34Z",
+      "authored_at": "2026-08-04T21:47:34Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page: null-значение локала типа AIN_IFACE — -1, а не 0",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/388ecddd506b8e0db4b7e5b3018b2a2a219a6fac"
+    },
+    {
+      "sha": "840d598e4351de28312c53daf77aa0b659c1ced6",
+      "committed_at": "2026-08-04T21:53:44Z",
+      "authored_at": "2026-08-04T21:53:44Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4 text metrics: match the original's BACK LOG layout (Tsumamigui 3)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/840d598e4351de28312c53daf77aa0b659c1ced6"
+    },
+    {
+      "sha": "8431a4c1ffc11a9c2274045db0fbffab7c7eb027",
+      "committed_at": "2026-08-04T22:06:32Z",
+      "authored_at": "2026-08-04T22:06:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi: форму ссылки на элемент задаёт elem_class сайта, а не догадка по странице",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8431a4c1ffc11a9c2274045db0fbffab7c7eb027"
+    },
+    {
+      "sha": "e5e3588bfd92b3ff39d03400e46e40cd0a65433b",
+      "committed_at": "2026-08-04T22:14:26Z",
+      "authored_at": "2026-08-04T22:14:26Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: реализован X_ICAST (приведение ссылки к интерфейсу/структуре)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e5e3588bfd92b3ff39d03400e46e40cd0a65433b"
+    },
+    {
+      "sha": "17e873dcce14913810d4edf8f1fb1dad6c9b547d",
+      "committed_at": "2026-08-05T07:36:40Z",
+      "authored_at": "2026-08-05T07:36:40Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/page: массив с элементом `ref <интерфейс>` (тип 89) имеет шаг 2 слота",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/17e873dcce14913810d4edf8f1fb1dad6c9b547d"
+    },
+    {
+      "sha": "2c293c364f8be8cdf8126d200aba10d307019f9f",
+      "committed_at": "2026-08-05T07:49:25Z",
+      "authored_at": "2026-08-05T07:49:25Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: в Ixseal struct-глобалы конструирует сама функция \"0\", а не движок",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2c293c364f8be8cdf8126d200aba10d307019f9f"
+    },
+    {
+      "sha": "5735fe3004f695e29a4f03f232319095d089c351",
+      "committed_at": "2026-08-05T07:54:14Z",
+      "authored_at": "2026-08-05T07:54:14Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page: в Ixseal struct-члены конструирует функция `<Имя>@2`, а не движок",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5735fe3004f695e29a4f03f232319095d089c351"
+    },
+    {
+      "sha": "ec621550337156953501093150e32e699e058707",
+      "committed_at": "2026-08-05T08:00:10Z",
+      "authored_at": "2026-08-05T08:00:10Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: резервные копии сейвов (AddBackupSaveFileName/BackupSaveFile)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ec621550337156953501093150e32e699e058707"
+    },
+    {
+      "sha": "522ec905cca14c413ce8c7d30498188136eb9e97",
+      "committed_at": "2026-08-05T08:05:03Z",
+      "authored_at": "2026-08-05T08:05:03Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Array: SYSTEMONLY_GetStructPageList — страницы объектов из интерфейсных пар",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/522ec905cca14c413ce8c7d30498188136eb9e97"
+    },
+    {
+      "sha": "70826f0b00c9c4b4b517ce139384f08e3fc9b2cf",
+      "committed_at": "2026-08-05T08:20:02Z",
+      "authored_at": "2026-08-05T08:20:02Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Delegate: библиотека Ixseal поверх готового delegate_*-API движка",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/70826f0b00c9c4b4b517ce139384f08e3fc9b2cf"
+    },
+    {
+      "sha": "d55dce17cc62bb92324055baeb416ae8d3dd5d27",
+      "committed_at": "2026-08-05T08:20:02Z",
+      "authored_at": "2026-08-05T08:20:02Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: Ixseal-форма GetGameVersionByText + синтез строки анти-тамппера",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d55dce17cc62bb92324055baeb416ae8d3dd5d27"
+    },
+    {
+      "sha": "121ecaba95561b1919b14ca38688c46e2cf5a34d",
+      "committed_at": "2026-08-05T08:31:16Z",
+      "authored_at": "2026-08-05T08:31:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: ShowWaitMessage — индикатор «подождите» как честный no-op",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/121ecaba95561b1919b14ca38688c46e2cf5a34d"
+    },
+    {
+      "sha": "e22e186f891d894840e63d2ab9c466d82fabd63c",
+      "committed_at": "2026-08-05T08:31:16Z",
+      "authored_at": "2026-08-05T08:31:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Sys43VM: рефлексия рантайма (GetFunctionNameList) и no-op профайлер",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e22e186f891d894840e63d2ab9c466d82fabd63c"
+    },
+    {
+      "sha": "f667a38502d82e41b91db9940b340b41af5ebdc9",
+      "committed_at": "2026-08-05T08:31:16Z",
+      "authored_at": "2026-08-05T08:31:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Array: Unique(self) и Unique(self, равенство)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f667a38502d82e41b91db9940b340b41af5ebdc9"
+    },
+    {
+      "sha": "6f16e79ac73ca09c2b736b3d6c65c610e35da9da",
+      "committed_at": "2026-08-05T09:44:16Z",
+      "authored_at": "2026-08-05T09:44:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page/vm: generic-контейнер Ixseal рождается ТИПИЗИРОВАННЫМ",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6f16e79ac73ca09c2b736b3d6c65c610e35da9da"
+    },
+    {
+      "sha": "39581ae0d37dedae494e5e1c257a247e4545fc87",
+      "committed_at": "2026-08-05T09:58:16Z",
+      "authored_at": "2026-08-05T09:58:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/Array/SystemService: X_TO_STR, BinarySearch+LowerBound, ix-формы строковых геттеров",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/39581ae0d37dedae494e5e1c257a247e4545fc87"
+    },
+    {
+      "sha": "a1116430fce1bf5b5bd8efcda7a5aff3abf04b9d",
+      "committed_at": "2026-08-05T10:06:41Z",
+      "authored_at": "2026-08-05T10:06:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "TextFile: библиотека текстового файлового ввода-вывода (libno 33)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a1116430fce1bf5b5bd8efcda7a5aff3abf04b9d"
+    },
+    {
+      "sha": "71cda0c4c38b99ce61d011551c4cb85e6bc8159c",
+      "committed_at": "2026-08-05T10:15:20Z",
+      "authored_at": "2026-08-05T10:15:20Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/Array: Ixseal-форма DG_MINUSA и Array.ShallowCopy — игра вошла в DohnaDohna@Run",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/71cda0c4c38b99ce61d011551c4cb85e6bc8159c"
+    },
+    {
+      "sha": "0892f4a4838323189d25fa2e00e8f6c0e9e06328",
+      "committed_at": "2026-08-05T10:22:36Z",
+      "authored_at": "2026-08-05T10:22:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: словари SystemVariable_* / GameVariable_* (12 функций)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/0892f4a4838323189d25fa2e00e8f6c0e9e06328"
+    },
+    {
+      "sha": "ecce087e76f5964d9b5c7fbfde43384d2b53c3a7",
+      "committed_at": "2026-08-05T10:35:05Z",
+      "authored_at": "2026-08-05T10:35:05Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: тип «панель» (Ixseal component type 14) — Dohna рисует экран логотипа",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ecce087e76f5964d9b5c7fbfde43384d2b53c3a7"
+    },
+    {
+      "sha": "3992a79d074532106dc006c881d2aeb950c6bd47",
+      "committed_at": "2026-08-05T11:21:35Z",
+      "authored_at": "2026-08-05T11:21:35Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4: BACK LOG stroke weight, save/load fixes, back scene, thumbnails",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3992a79d074532106dc006c881d2aeb950c6bd47"
+    },
+    {
+      "sha": "d6b05362bff226dca8c80225b06ffcb1ef57d1e3",
+      "committed_at": "2026-08-05T12:24:58Z",
+      "authored_at": "2026-08-05T12:24:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: раскладка активности задаёт якорь части (原点座標モード)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d6b05362bff226dca8c80225b06ffcb1ef57d1e3"
+    },
+    {
+      "sha": "dacf8f5df11b1dbe550d5854149134087b0ed853",
+      "committed_at": "2026-08-05T13:03:39Z",
+      "authored_at": "2026-08-05T13:03:39Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: «сообщений больше нет» в новом message-API = -1, а не 0",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/dacf8f5df11b1dbe550d5854149134087b0ed853"
+    },
+    {
+      "sha": "2b8ae73ef94adc12e95c3661ca85f6f08f993ed1",
+      "committed_at": "2026-08-05T13:03:59Z",
+      "authored_at": "2026-08-05T13:03:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi/Array: перегрузка HLL по АРНОСТИ и 5-аргументная Array.Copy",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2b8ae73ef94adc12e95c3661ca85f6f08f993ed1"
+    },
+    {
+      "sha": "d35688554e3bf911697b81e29bed781a47db09a7",
+      "committed_at": "2026-08-05T13:04:32Z",
+      "authored_at": "2026-08-05T13:04:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: ввод части (EnableInputProcess/Wheelable) и クリップ領域",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d35688554e3bf911697b81e29bed781a47db09a7"
+    },
+    {
+      "sha": "350b192e6cd0da2615c727ec0fae9090d806cf2a",
+      "committed_at": "2026-08-05T14:29:17Z",
+      "authored_at": "2026-08-05T14:29:17Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: родитель лямбды — по вложенности имени и адресу, а не первый одноимённый",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/350b192e6cd0da2615c727ec0fae9090d806cf2a"
+    },
+    {
+      "sha": "1f312c5db8603705c18fa9d18aefcb1c7e265c34",
+      "committed_at": "2026-08-05T14:36:58Z",
+      "authored_at": "2026-08-05T14:36:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: имя SE «клик мимо» + форма 13 строковых геттеров",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1f312c5db8603705c18fa9d18aefcb1c7e265c34"
+    },
+    {
+      "sha": "f5a268623a4ce31eb30fb339a6f8e9bb783cbb88",
+      "committed_at": "2026-08-05T14:41:45Z",
+      "authored_at": "2026-08-05T14:41:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: покомпонентные геттеры Add/Mul-цвета части",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f5a268623a4ce31eb30fb339a6f8e9bb783cbb88"
+    },
+    {
+      "sha": "17f1bcbd4919d671aae88ce08578fcce78e81ea6",
+      "committed_at": "2026-08-05T15:09:43Z",
+      "authored_at": "2026-08-05T15:09:43Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: у Ixseal パーツタイプ в раскладке — СТРОКА, плюс кнопка и 矩形パーツ",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/17f1bcbd4919d671aae88ce08578fcce78e81ea6"
+    },
+    {
+      "sha": "6644530b761663f01ef50df8399a49afa5be2aba",
+      "committed_at": "2026-08-05T15:26:38Z",
+      "authored_at": "2026-08-05T15:26:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Array: опустевший generic-контейнер обязан остаться ТИПИЗИРОВАННЫМ",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6644530b761663f01ef50df8399a49afa5be2aba"
+    },
+    {
+      "sha": "13a376dddcce4ca436f269b0b0b3dc66acb0252f",
+      "committed_at": "2026-08-05T15:37:31Z",
+      "authored_at": "2026-08-05T15:37:31Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine/SystemService: геттеры, которые читает motion-движок",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/13a376dddcce4ca436f269b0b0b3dc66acb0252f"
+    },
+    {
+      "sha": "b18faccf62aba5e98045ee9b22e1d86ec4b46500",
+      "committed_at": "2026-08-05T15:45:58Z",
+      "authored_at": "2026-08-05T15:45:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: 構築パーツ — только маска клиппера, рисовать её нельзя",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/b18faccf62aba5e98045ee9b22e1d86ec4b46500"
+    },
+    {
+      "sha": "38523b3fc33143bb009062e07aa1168cbfeffef1",
+      "committed_at": "2026-08-05T17:20:33Z",
+      "authored_at": "2026-08-05T17:20:33Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4: back scene rework, parts layers, KeyPress messages, page counter",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/38523b3fc33143bb009062e07aa1168cbfeffef1"
+    },
+    {
+      "sha": "1cbc8f0c9755a6173c5549d30f78783b1ae21a43",
+      "committed_at": "2026-08-05T18:04:16Z",
+      "authored_at": "2026-08-05T18:04:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge dohna-ht (Ixseal/Dohna, Healing Touch) into new_system_versions",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1cbc8f0c9755a6173c5549d30f78783b1ae21a43"
+    },
+    {
+      "sha": "df53e7412a32f9e7891f85395d05eb07707f53d4",
+      "committed_at": "2026-08-05T19:11:59Z",
+      "authored_at": "2026-08-05T19:11:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: невидимая часть не перехватывает курсор (клик по титулу Dohna)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/df53e7412a32f9e7891f85395d05eb07707f53d4"
+    },
+    {
+      "sha": "9cbdeaf890407e55925a87f80e90bc379ddb23fd",
+      "committed_at": "2026-08-05T19:20:13Z",
+      "authored_at": "2026-08-05T19:20:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: マウスカーソルピクセル判定 — hit-тест по непрозрачным пикселям",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9cbdeaf890407e55925a87f80e90bc379ddb23fd"
+    },
+    {
+      "sha": "9791a78faa670fc8d3955dc67857a7714a302755",
+      "committed_at": "2026-08-05T19:56:13Z",
+      "authored_at": "2026-08-05T19:56:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: SetEventID и номера типов сообщений Ixseal — меню титула Dohna работает",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9791a78faa670fc8d3955dc67857a7714a302755"
+    },
+    {
+      "sha": "1f152f181bc71ddc5af4d48648fb1d15a21a44c8",
+      "committed_at": "2026-08-05T20:12:13Z",
+      "authored_at": "2026-08-05T20:12:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: «нет родителя» = 0, а не -1 (+ Array.Shuffle) — уход с титула Dohna не зависает",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1f152f181bc71ddc5af4d48648fb1d15a21a44c8"
+    },
+    {
+      "sha": "f790190b988feab67e3852801764680dc977d9c4",
+      "committed_at": "2026-08-06T07:05:59Z",
+      "authored_at": "2026-08-06T07:05:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "FNL: чистый box-фильтр без гаммы (fnl_gamma 0.7 -> 1.0)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f790190b988feab67e3852801764680dc977d9c4"
+    },
+    {
+      "sha": "71197f213006d685aee89be273389deabff6aa8f",
+      "committed_at": "2026-08-06T07:06:27Z",
+      "authored_at": "2026-08-06T07:06:27Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: погашенная часть не участвует во вводе (мёртвые экраны SAVE/LOAD)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/71197f213006d685aee89be273389deabff6aa8f"
+    },
+    {
+      "sha": "0e3b0fa5d2d22509231b53e0297cb8d1b79d4592",
+      "committed_at": "2026-08-06T07:06:49Z",
+      "authored_at": "2026-08-06T07:06:49Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "KiwiSoundEngine: звук по имени искать и в архиве ОЗВУЧКИ",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/0e3b0fa5d2d22509231b53e0297cb8d1b79d4592"
+    },
+    {
+      "sha": "158397da5987938aedca420096f4657c1693b2ed",
+      "committed_at": "2026-08-06T07:07:29Z",
+      "authored_at": "2026-08-06T07:07:29Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: 16 недостающих экспортов (карта дыр по графу вызовов)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/158397da5987938aedca420096f4657c1693b2ed"
+    },
+    {
+      "sha": "3514890dbc19872e9401a29a46587fea5069ae7d",
+      "committed_at": "2026-08-06T07:21:51Z",
+      "authored_at": "2026-08-06T07:21:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "FileOperation: ix-форма GetFileList/GetFolderList — блокер 0/227 закрыт",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3514890dbc19872e9401a29a46587fea5069ae7d"
+    },
+    {
+      "sha": "d19b0ad9a6f5829027a0797be72e3b944bdd8849",
+      "committed_at": "2026-08-06T07:38:15Z",
+      "authored_at": "2026-08-06T07:38:15Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: S_PLUSA2 с двуслотовой ссылкой (Ixseal) + библиотека Int",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d19b0ad9a6f5829027a0797be72e3b944bdd8849"
+    },
+    {
+      "sha": "1423d09171c256f04df29c1cfee734f6f6fcbc4f",
+      "committed_at": "2026-08-06T07:45:12Z",
+      "authored_at": "2026-08-06T07:45:12Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: геттер Parts_GetPartsCGDeform — ADV-сцена Dohna проходит дальше",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1423d09171c256f04df29c1cfee734f6f6fcbc4f"
+    },
+    {
+      "sha": "dc5a0e0fbb9139b56115d930ba4288da2dd0935c",
+      "committed_at": "2026-08-06T07:59:36Z",
+      "authored_at": "2026-08-06T07:59:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge branch 'new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/dc5a0e0fbb9139b56115d930ba4288da2dd0935c"
+    },
+    {
+      "sha": "e60a8c64debbbcec0734c4a2b39f2cc55de6d0e5",
+      "committed_at": "2026-08-06T08:29:51Z",
+      "authored_at": "2026-08-06T08:29:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: подсистема メッセージウィンドウ — окно реплик ADV",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e60a8c64debbbcec0734c4a2b39f2cc55de6d0e5"
+    },
+    {
+      "sha": "8df8ca40d5f81d0c547ea05fb42b72042bb43e7b",
+      "committed_at": "2026-08-06T09:02:19Z",
+      "authored_at": "2026-08-06T09:02:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Dohna: ADV-сцена ИДЁТ — реплики, бэклог, msgf по имени, キー待ちマーク",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8df8ca40d5f81d0c547ea05fb42b72042bb43e7b"
+    },
+    {
+      "sha": "c49793f7eabc8da55dd2b59df5fef97b2cdc090d",
+      "committed_at": "2026-08-06T09:14:38Z",
+      "authored_at": "2026-08-06T09:14:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: диагностика XSYS4_MW_TRACE — сырой текст реплики с разметкой",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c49793f7eabc8da55dd2b59df5fef97b2cdc090d"
+    },
+    {
+      "sha": "6448f6a24e79ae58ad1501b19761ea5a20558266",
+      "committed_at": "2026-08-06T11:58:37Z",
+      "authored_at": "2026-08-06T11:58:37Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page: вставка в КОНЕЦ массива дописывает элемент, а не лезет перед последним",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6448f6a24e79ae58ad1501b19761ea5a20558266"
+    },
+    {
+      "sha": "d3f25eacb029c06f67bea79dcc694e701ab35215",
+      "committed_at": "2026-08-06T11:59:02Z",
+      "authored_at": "2026-08-06T11:59:02Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi: формы возврата wrap<...> у Array — контейнер против элемента",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d3f25eacb029c06f67bea79dcc694e701ab35215"
+    },
+    {
+      "sha": "510d30ad0006acf1ffb8036c0203fb8da155148f",
+      "committed_at": "2026-08-06T11:59:30Z",
+      "authored_at": "2026-08-06T11:59:30Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: типы компонентов v14 (ユーザコンポーネント, パネル, ＣＧ判定パーツ), потомки, зеркалирование",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/510d30ad0006acf1ffb8036c0203fb8da155148f"
+    },
+    {
+      "sha": "bf09acfcda8b02b9e98a875a92c2a001730f221f",
+      "committed_at": "2026-08-06T12:28:52Z",
+      "authored_at": "2026-08-06T12:28:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page/parts: элемент option<wrap<интерфейс>> = ТРИ слота; 構築パーツ без процедуры",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/bf09acfcda8b02b9e98a875a92c2a001730f221f"
+    },
+    {
+      "sha": "257a1d1a859efcbc34e7c837156461b5a2c37610",
+      "committed_at": "2026-08-06T12:35:38Z",
+      "authored_at": "2026-08-06T12:35:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4: text input widget, activity end keys, flat loop fix, HLL holes",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/257a1d1a859efcbc34e7c837156461b5a2c37610"
+    },
+    {
+      "sha": "b4996ff1c7f215562ede1351be0031c66a1f72c2",
+      "committed_at": "2026-08-06T12:43:29Z",
+      "authored_at": "2026-08-06T12:43:29Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge branch 'dohna-ht' into new_system_versions",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/b4996ff1c7f215562ede1351be0031c66a1f72c2"
+    },
+    {
+      "sha": "46a680ac99097cdb460d6e92e6d25a4a99dcca2a",
+      "committed_at": "2026-08-06T14:39:25Z",
+      "authored_at": "2026-08-06T14:39:25Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: зонды делегатов, приведений и вставок в generic-массив",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/46a680ac99097cdb460d6e92e6d25a4a99dcca2a"
+    },
+    {
+      "sha": "882b264ca650b9a7f8cb0275cd73215bbce56036",
+      "committed_at": "2026-08-06T14:39:53Z",
+      "authored_at": "2026-08-06T14:39:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page: элемент generic-массива wrap<структура> — ХЭНДЛ, копия его не клонирует",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/882b264ca650b9a7f8cb0275cd73215bbce56036"
+    },
+    {
+      "sha": "27f7108fbc313e036e68b455f9e8a50911b70200",
+      "committed_at": "2026-08-06T14:40:15Z",
+      "authored_at": "2026-08-06T14:40:15Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: чекбокс и полосы прокрутки отвечают своим типом компонента",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/27f7108fbc313e036e68b455f9e8a50911b70200"
+    },
+    {
+      "sha": "3058873ec585836dee5547eb2d4f117bf707574b",
+      "committed_at": "2026-08-06T14:40:30Z",
+      "authored_at": "2026-08-06T14:40:30Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: свойство スワイプ (Parts_Set/GetSwipeType)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3058873ec585836dee5547eb2d4f117bf707574b"
+    },
+    {
+      "sha": "eb82b903da11a5950bb295b87d50994be864a7e8",
+      "committed_at": "2026-08-06T15:26:37Z",
+      "authored_at": "2026-08-06T15:26:37Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "System4 fonts: faces 0/1 are the built-in system font, not the game's .fnl",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/eb82b903da11a5950bb295b87d50994be864a7e8"
+    },
+    {
+      "sha": "d1495361810c41d06e51a6f5a64c55f39e97be5d",
+      "committed_at": "2026-08-06T15:32:32Z",
+      "authored_at": "2026-08-06T15:32:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: набор анти-тамперных ограничений для Haha Ranman (v14.0)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d1495361810c41d06e51a6f5a64c55f39e97be5d"
+    },
+    {
+      "sha": "6eaf53121e99521760b5c7ae5bb0884f0d8ac371",
+      "committed_at": "2026-08-06T15:55:42Z",
+      "authored_at": "2026-08-06T15:55:42Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts/input: рассылать whole-сообщение MOUSE_CLICK (parts_no == 0)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6eaf53121e99521760b5c7ae5bb0884f0d8ac371"
+    },
+    {
+      "sha": "96e321c67b0b9c2131077664c98d1f72c1e60808",
+      "committed_at": "2026-08-06T15:57:09Z",
+      "authored_at": "2026-08-06T15:57:09Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "audio: bound the mixer accessors by the real channel count, not the .ini list",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/96e321c67b0b9c2131077664c98d1f72c1e60808"
+    },
+    {
+      "sha": "5272de8f1f665ab4f21a44830ca9d4e55503d102",
+      "committed_at": "2026-08-06T16:07:11Z",
+      "authored_at": "2026-08-06T16:07:11Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "config: дефолт размера вида 1280x720 для генерации 14.x без ViewWidth в .ini",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5272de8f1f665ab4f21a44830ca9d4e55503d102"
+    },
+    {
+      "sha": "4571eaebb038d228d968521878daffc653d5e4a2",
+      "committed_at": "2026-08-06T16:14:31Z",
+      "authored_at": "2026-08-06T16:14:31Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_BIG_TRACE — назвать крупные рисуемые части",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/4571eaebb038d228d968521878daffc653d5e4a2"
+    },
+    {
+      "sha": "f7d0e7bdef80325d8dc98a8db7dc8e71afe7781d",
+      "committed_at": "2026-08-06T16:28:32Z",
+      "authored_at": "2026-08-06T16:28:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "audio: route each sound to its own mixer channel, from the game's own table",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f7d0e7bdef80325d8dc98a8db7dc8e71afe7781d"
+    },
+    {
+      "sha": "8e4b037287b41554728476729888197cf62a86d9",
+      "committed_at": "2026-08-06T16:31:12Z",
+      "authored_at": "2026-08-06T16:31:12Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_CG_WATCH — кто кладёт эту картинку и что с ней потом",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8e4b037287b41554728476729888197cf62a86d9"
+    },
+    {
+      "sha": "5a57104734fcd24c5d2eb318000d6202effb707a",
+      "committed_at": "2026-08-06T16:36:53Z",
+      "authored_at": "2026-08-06T16:36:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_BIG_TRACE называет и пропущенные непостроенные 構築パーツ",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5a57104734fcd24c5d2eb318000d6202effb707a"
+    },
+    {
+      "sha": "d144138d32a9553a48c4e391aa1edc8e6ff37ee0",
+      "committed_at": "2026-08-06T16:43:20Z",
+      "authored_at": "2026-08-06T16:43:20Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: do not try to play sound number -1 on hover and click",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d144138d32a9553a48c4e391aa1edc8e6ff37ee0"
+    },
+    {
+      "sha": "e30df056b2c8b3c02f718486487de7b459e0cc12",
+      "committed_at": "2026-08-06T16:53:36Z",
+      "authored_at": "2026-08-06T16:53:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts/input: чистая декорация не перехватывает курсор",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e30df056b2c8b3c02f718486487de7b459e0cc12"
+    },
+    {
+      "sha": "51d9c8677b90b6a18afa6cc2490d82008a00548f",
+      "committed_at": "2026-08-06T17:12:33Z",
+      "authored_at": "2026-08-06T17:12:33Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "merge: звук/микшер/шрифты из new_system_versions (чат Tsumamigui)",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/51d9c8677b90b6a18afa6cc2490d82008a00548f"
+    },
+    {
+      "sha": "e2949cee48a4070ee9a5ad846d6e0bdeb89ba5a4",
+      "committed_at": "2026-08-06T17:33:52Z",
+      "authored_at": "2026-08-06T17:33:40Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Калибры активностей, Array.Duplicate/Concat, виджеты без вида отрисовки",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e2949cee48a4070ee9a5ad846d6e0bdeb89ba5a4"
+    },
+    {
+      "sha": "c71329e6e5f7615aefb312aaf9a045e264761277",
+      "committed_at": "2026-08-06T17:40:28Z",
+      "authored_at": "2026-08-06T17:40:28Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: лямбда уносит захваченное окружение в делегат",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c71329e6e5f7615aefb312aaf9a045e264761277"
+    },
+    {
+      "sha": "7da83b3223b6e174c6a7f4a668b06e08557b5041",
+      "committed_at": "2026-08-06T18:11:20Z",
+      "authored_at": "2026-08-06T18:11:20Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Array: AddRange/Concat дописывают в конец, а не переписывают начало",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7da83b3223b6e174c6a7f4a668b06e08557b5041"
+    },
+    {
+      "sha": "b6564f6adb3a42f2e1c56c2cecd97c1c497ec362",
+      "committed_at": "2026-08-06T18:20:48Z",
+      "authored_at": "2026-08-06T18:20:48Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Слои: устойчивые id, GetControllerIndex, диагностика; замер по RemoveController",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/b6564f6adb3a42f2e1c56c2cecd97c1c497ec362"
+    },
+    {
+      "sha": "26d70a0fa9b71db26eebaf82d05f2c98cd32cccd",
+      "committed_at": "2026-08-06T18:34:50Z",
+      "authored_at": "2026-08-06T18:34:50Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: гейдж-состояние из раскладки + числитель/знаменатель по отдельности",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/26d70a0fa9b71db26eebaf82d05f2c98cd32cccd"
+    },
+    {
+      "sha": "a63fd0fd94099a51388f5acf10366025c91376bc",
+      "committed_at": "2026-08-06T18:42:58Z",
+      "authored_at": "2026-08-06T18:42:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Кнопка: CG состояний по суффиксу; диагностика XSYS4_CG_WATCH / XSYS4_PART_WATCH",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a63fd0fd94099a51388f5acf10366025c91376bc"
+    },
+    {
+      "sha": "94140dab3b7a11d751a7fb9297f79bad6a498236",
+      "committed_at": "2026-08-06T18:53:47Z",
+      "authored_at": "2026-08-06T18:53:47Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "merge: rufim/new_system_versions в линию Haha Ranman + развязка дублирования",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/94140dab3b7a11d751a7fb9297f79bad6a498236"
+    },
+    {
+      "sha": "d89e9784d2baed450a0daa6d0841834c34083636",
+      "committed_at": "2026-08-06T18:59:49Z",
+      "authored_at": "2026-08-06T18:59:49Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page: элемент option<wrap<структура>> — ДВА слота, а не один",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d89e9784d2baed450a0daa6d0841834c34083636"
+    },
+    {
+      "sha": "9f1e2aa19921005b20a86a11ed4ae8722b6170bf",
+      "committed_at": "2026-08-06T19:00:04Z",
+      "authored_at": "2026-08-06T19:00:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9f1e2aa19921005b20a86a11ed4ae8722b6170bf"
+    },
+    {
+      "sha": "a3d80dc52cf2403bfecc8f40afb16b28e1201118",
+      "committed_at": "2026-08-06T19:06:20Z",
+      "authored_at": "2026-08-06T19:02:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: implement Parts_SetSoundNumber/Parts_GetSoundNumber (per-state parts sound)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a3d80dc52cf2403bfecc8f40afb16b28e1201118"
+    },
+    {
+      "sha": "18919bd019cee8d1162573b4a6a9ecea090ad28b",
+      "committed_at": "2026-08-06T19:06:56Z",
+      "authored_at": "2026-08-06T19:06:56Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: часть наследует СЛОЙ родителя при переподчинении",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/18919bd019cee8d1162573b4a6a9ecea090ad28b"
+    },
+    {
+      "sha": "62b98247bc6649cafa652f45701c9b29c13cd2c0",
+      "committed_at": "2026-08-06T19:13:52Z",
+      "authored_at": "2026-08-06T19:13:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: двухвыходная форма Parts_GetPartsUpperLeftPos",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/62b98247bc6649cafa652f45701c9b29c13cd2c0"
+    },
+    {
+      "sha": "75eedb6beaeee90e12151d8ac4308f4bb673a1bd",
+      "committed_at": "2026-08-06T19:13:59Z",
+      "authored_at": "2026-08-06T19:13:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "merge: rufim/new_system_versions (звук партов, option<wrap<структура>>) в линию Haha Ranman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/75eedb6beaeee90e12151d8ac4308f4bb673a1bd"
+    },
+    {
+      "sha": "d47f834f6ab82cba21747b210773665b4eb93519",
+      "committed_at": "2026-08-06T19:29:11Z",
+      "authored_at": "2026-08-06T19:29:11Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: числовая часть умеет рисовать цифры ШРИФТОМ (表示タイプ = 2)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d47f834f6ab82cba21747b210773665b4eb93519"
+    },
+    {
+      "sha": "1ec6e71fcca6c2845ef6c47e8696ff7a95f111d2",
+      "committed_at": "2026-08-06T19:29:33Z",
+      "authored_at": "2026-08-06T19:29:33Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1ec6e71fcca6c2845ef6c47e8696ff7a95f111d2"
+    },
+    {
+      "sha": "7dd9534e7f19573aca344cb3fa588ea1b4d1d847",
+      "committed_at": "2026-08-06T19:32:04Z",
+      "authored_at": "2026-08-06T19:32:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: implement the FillGradationHorizon and MulFilter construction ops",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7dd9534e7f19573aca344cb3fa588ea1b4d1d847"
+    },
+    {
+      "sha": "3504cd98f9e0ccb12d079269032980224ba6b35d",
+      "committed_at": "2026-08-06T19:35:35Z",
+      "authored_at": "2026-08-06T19:35:35Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3504cd98f9e0ccb12d079269032980224ba6b35d"
+    },
+    {
+      "sha": "5804f1e22219ff401f2b72b7751f59904c636124",
+      "committed_at": "2026-08-06T19:41:41Z",
+      "authored_at": "2026-08-06T19:41:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: порядок слоёв — по ПОЗИЦИИ в стеке, а не по id слоя",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5804f1e22219ff401f2b72b7751f59904c636124"
+    },
+    {
+      "sha": "ed95e0615d0006e7c0bb55dbc6ac923c2f5aaa8f",
+      "committed_at": "2026-08-06T19:46:00Z",
+      "authored_at": "2026-08-06T19:46:00Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "merge: rufim/new_system_versions (цифры шрифтом, construction-операции) в линию Haha Ranman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ed95e0615d0006e7c0bb55dbc6ac923c2f5aaa8f"
+    },
+    {
+      "sha": "e42e633449302b532b0461ba7a1185d0783aa466",
+      "committed_at": "2026-08-06T19:57:45Z",
+      "authored_at": "2026-08-06T19:57:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: осиротевший парт не должен исчезать с экрана (ключ 0, а не −1)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e42e633449302b532b0461ba7a1185d0783aa466"
+    },
+    {
+      "sha": "7a8036091f4052b85e5ab095dd2256c5ee95f62c",
+      "committed_at": "2026-08-06T20:01:27Z",
+      "authored_at": "2026-08-06T20:01:27Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: процедуры построения ИЗ РАСКЛАДКИ теперь выполняются",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7a8036091f4052b85e5ab095dd2256c5ee95f62c"
+    },
+    {
+      "sha": "80b6fc49278aaef480ff925964787eb7e9b29d9a",
+      "committed_at": "2026-08-06T20:14:04Z",
+      "authored_at": "2026-08-06T20:13:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: the second SaveThumbnail argument is a divisor when the game sets a reduction size",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/80b6fc49278aaef480ff925964787eb7e9b29d9a"
+    },
+    {
+      "sha": "a276cbb0fb84fb0b4411c2223f2c400a993a36c6",
+      "committed_at": "2026-08-06T20:24:50Z",
+      "authored_at": "2026-08-06T20:24:50Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Слои: монотонные id, погашенность по позиции; диагностика XSYS4_SCENE_TRACE",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a276cbb0fb84fb0b4411c2223f2c400a993a36c6"
+    },
+    {
+      "sha": "245843ebc689eca4d413ab96702f771668717393",
+      "committed_at": "2026-08-06T20:27:40Z",
+      "authored_at": "2026-08-06T20:27:40Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "merge: rufim/new_system_versions в линию Haha Ranman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/245843ebc689eca4d413ab96702f771668717393"
+    },
+    {
+      "sha": "d65aba8c0d7a84330fd23e2698c833a39664b771",
+      "committed_at": "2026-08-06T20:30:08Z",
+      "authored_at": "2026-08-06T20:29:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "audio: take the default mixer volumes from the game's own .ex table",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d65aba8c0d7a84330fd23e2698c833a39664b771"
+    },
+    {
+      "sha": "a98e251146c0a751b0f231bd0dc6683e091f9dd2",
+      "committed_at": "2026-08-06T20:53:38Z",
+      "authored_at": "2026-08-06T20:53:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: срез порядка сцены и стек слоёв в дампе; замеры по артефактам ADV",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a98e251146c0a751b0f231bd0dc6683e091f9dd2"
+    },
+    {
+      "sha": "25b0c1b0f6e626d2e782857c3b381ae51b0bb975",
+      "committed_at": "2026-08-06T20:57:19Z",
+      "authored_at": "2026-08-06T20:57:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "merge: rufim/new_system_versions в линию Haha Ranman (конфликтов нет)",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/25b0c1b0f6e626d2e782857c3b381ae51b0bb975"
+    },
+    {
+      "sha": "a511ca3ef212a13ea26fe61da16d849cbb266ae9",
+      "committed_at": "2026-08-06T21:01:40Z",
+      "authored_at": "2026-08-06T21:01:40Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_PARTS_TRACE печатает выдачу GetFreeNumber",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a511ca3ef212a13ea26fe61da16d849cbb266ae9"
+    },
+    {
+      "sha": "1b0d7764c79a548ff27d531a192078df9c95c1e9",
+      "committed_at": "2026-08-06T21:21:18Z",
+      "authored_at": "2026-08-06T21:21:18Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: сектор в альфа-карту (SetFillPieAMap) и «на весь размер»; сборка процедур раскладки — под ручкой",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1b0d7764c79a548ff27d531a192078df9c95c1e9"
+    },
+    {
+      "sha": "1d242006812dc3b56f8bd605a90f4b75497f6efd",
+      "committed_at": "2026-08-06T22:32:44Z",
+      "authored_at": "2026-08-06T22:32:44Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Ixseal: «асинхронная» загрузка ресурсов и доступность чекбоксов",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1d242006812dc3b56f8bd605a90f4b75497f6efd"
+    },
+    {
+      "sha": "82aee479395f145ebf9de8ab4ac33ae560400b73",
+      "committed_at": "2026-08-06T22:49:31Z",
+      "authored_at": "2026-08-06T22:49:31Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page: пустой элемент option<> в массиве — тег «пусто», а не «значение есть»",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/82aee479395f145ebf9de8ab4ac33ae560400b73"
+    },
+    {
+      "sha": "73963cda4662dc10a37c26910e93756e4fcd816a",
+      "committed_at": "2026-08-06T23:00:11Z",
+      "authored_at": "2026-08-06T23:00:11Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: у ain 14 своя нумерация настроек окна",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/73963cda4662dc10a37c26910e93756e4fcd816a"
+    },
+    {
+      "sha": "2763db0ec4e59d908d4be6baf0071d4e804de8a3",
+      "committed_at": "2026-08-07T08:22:30Z",
+      "authored_at": "2026-08-07T08:22:30Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "system: показывать НАСТОЯЩЕЕ окно подтверждения, а не авто-подтверждать",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2763db0ec4e59d908d4be6baf0071d4e804de8a3"
+    },
+    {
+      "sha": "303d77fd2243dc89d43259d3d70211519c80ac85",
+      "committed_at": "2026-08-07T08:45:29Z",
+      "authored_at": "2026-08-07T08:45:29Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "construction: размытие (команды 27/28) и вуаль на весь размер",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/303d77fd2243dc89d43259d3d70211519c80ac85"
+    },
+    {
+      "sha": "d44dc3e296acc0e6d10ccf8a62a33630ac88152c",
+      "committed_at": "2026-08-07T09:25:13Z",
+      "authored_at": "2026-08-07T09:25:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "construction: собирать задники по умолчанию, подложки — по-прежнему по ручке",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d44dc3e296acc0e6d10ccf8a62a33630ac88152c"
+    },
+    {
+      "sha": "bb6f7467c2be753156f7d63f13ad29a2013d0a1f",
+      "committed_at": "2026-08-07T09:27:45Z",
+      "authored_at": "2026-08-07T09:27:28Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "android: add the two sources the CMake list was missing",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/bb6f7467c2be753156f7d63f13ad29a2013d0a1f"
+    },
+    {
+      "sha": "e15c75846202acc11f1ed46d2a6efc8c02676808",
+      "committed_at": "2026-08-07T09:57:33Z",
+      "authored_at": "2026-08-07T09:57:33Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: недоступная кнопка становится серой (`／無効`)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e15c75846202acc11f1ed46d2a6efc8c02676808"
+    },
+    {
+      "sha": "e5241683ddabb3d7581fda56d6de57e7a86afae5",
+      "committed_at": "2026-08-07T10:12:40Z",
+      "authored_at": "2026-08-07T10:12:40Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "render: масштаб части применяется и к ТЕКСТУ",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e5241683ddabb3d7581fda56d6de57e7a86afae5"
+    },
+    {
+      "sha": "9a7fbaec3abefc4a456b8ea5d9e92ee40210fb23",
+      "committed_at": "2026-08-07T10:26:17Z",
+      "authored_at": "2026-08-07T10:26:17Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: позиция ребёнка считается с учётом МАСШТАБА родителя",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9a7fbaec3abefc4a456b8ea5d9e92ee40210fb23"
+    },
+    {
+      "sha": "c987c19113262dfa313291d9d991612f8d1dd21f",
+      "committed_at": "2026-08-07T10:45:49Z",
+      "authored_at": "2026-08-07T10:44:14Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): нумерация партов PartsEngine + delegate-индексы при сносе слоя",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c987c19113262dfa313291d9d991612f8d1dd21f"
+    },
+    {
+      "sha": "ba13b69b56fb538fada0a252fa8d25913f4a7fbd",
+      "committed_at": "2026-08-07T10:49:45Z",
+      "authored_at": "2026-08-07T10:49:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "construction: команды 88/90/102 и допуск расширений v14 в рантайме",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ba13b69b56fb538fada0a252fa8d25913f4a7fbd"
+    },
+    {
+      "sha": "961c441f0bb75c1726bca7c0759c478176a19d51",
+      "committed_at": "2026-08-07T11:08:27Z",
+      "authored_at": "2026-08-07T11:08:27Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: стек вызовов игры при double free + замер владения интерфейсами",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/961c441f0bb75c1726bca7c0759c478176a19d51"
+    },
+    {
+      "sha": "0fc0e3077491eac7decff40a6c21398f1102ded5",
+      "committed_at": "2026-08-07T11:46:08Z",
+      "authored_at": "2026-08-07T11:46:08Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: изоляция правки владения AIN_IFACE + трейс освобождения по функции",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/0fc0e3077491eac7decff40a6c21398f1102ded5"
+    },
+    {
+      "sha": "9be01f67f64e4e81c730ebb190bb99008b0c2168",
+      "committed_at": "2026-08-07T11:51:56Z",
+      "authored_at": "2026-08-07T11:51:56Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: не подставлять из раскладки редакторские заглушки текста",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9be01f67f64e4e81c730ebb190bb99008b0c2168"
+    },
+    {
+      "sha": "a920290a5bdb74ca0f79f9e1a4bf61e796e3687d",
+      "committed_at": "2026-08-07T12:01:49Z",
+      "authored_at": "2026-08-07T12:01:49Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: владение интерфейсами — пути игры проверены, падение недетерминировано",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a920290a5bdb74ca0f79f9e1a4bf61e796e3687d"
+    },
+    {
+      "sha": "c22eee86c4d0d9a16dd1880cf81d440406d3d781",
+      "committed_at": "2026-08-07T12:50:21Z",
+      "authored_at": "2026-08-07T12:50:21Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c22eee86c4d0d9a16dd1880cf81d440406d3d781"
+    },
+    {
+      "sha": "3c66fe51b1a64d5c794687d0726be8251426908c",
+      "committed_at": "2026-08-07T12:56:53Z",
+      "authored_at": "2026-08-07T12:56:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: double free называет тип и место; освобождать интерфейсы в fini ДОЛЖНО",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3c66fe51b1a64d5c794687d0726be8251426908c"
+    },
+    {
+      "sha": "d01014d7bfb222214d270badbda9d3378b2a4253",
+      "committed_at": "2026-08-07T13:32:58Z",
+      "authored_at": "2026-08-07T13:32:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(vm): владеющие хэндлы освобождаются — сцены умирают, пролог чист",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d01014d7bfb222214d270badbda9d3378b2a4253"
+    },
+    {
+      "sha": "bab5891902fda99818eeb14076963e95a4e2abc7",
+      "committed_at": "2026-08-07T13:33:33Z",
+      "authored_at": "2026-08-07T13:33:33Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: подпись НА кнопке — из раскладки и через SetButtonText",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/bab5891902fda99818eeb14076963e95a4e2abc7"
+    },
+    {
+      "sha": "f3a02af5865062590b42942e80334eb6235b62a3",
+      "committed_at": "2026-08-07T13:39:51Z",
+      "authored_at": "2026-08-07T13:39:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into game/haharanman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f3a02af5865062590b42942e80334eb6235b62a3"
+    },
+    {
+      "sha": "3ffb915f0baa3c06fac491629701dab93e825538",
+      "committed_at": "2026-08-07T13:43:49Z",
+      "authored_at": "2026-08-07T13:43:49Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: SetButtonFontProperty задаёт шрифт подписи кнопки",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3ffb915f0baa3c06fac491629701dab93e825538"
+    },
+    {
+      "sha": "e9b9234905b5893fc044e06734b91c1ca9f4dbf9",
+      "committed_at": "2026-08-07T14:23:28Z",
+      "authored_at": "2026-08-07T14:23:28Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "feat(PartsEngine): восемь нереализованных HLL-функций — игра идёт БЕЗ lenient-костыля",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e9b9234905b5893fc044e06734b91c1ca9f4dbf9"
+    },
+    {
+      "sha": "d82016104cbf487ab2b2bb6e00b9ea9f683b4fe7",
+      "committed_at": "2026-08-07T15:19:06Z",
+      "authored_at": "2026-08-07T15:19:06Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "render: часть, служащая альфа-МАСКОЙ, сама не рисуется",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d82016104cbf487ab2b2bb6e00b9ea9f683b4fe7"
+    },
+    {
+      "sha": "90a71a75a587cd84162844a7e1f4267f2a496286",
+      "committed_at": "2026-08-07T17:14:58Z",
+      "authored_at": "2026-08-07T17:14:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: регресс Dohna локализован до AIN_WRAP + обход ручкой; три версии отвергнуты",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/90a71a75a587cd84162844a7e1f4267f2a496286"
+    },
+    {
+      "sha": "dc3efdb8c82d24ac2b785ee18038954849aa56d1",
+      "committed_at": "2026-08-07T17:57:51Z",
+      "authored_at": "2026-08-07T17:57:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: гейт по Motion::ExecuterCollection снят; SP_INC-порядок слотов доказан верным",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/dc3efdb8c82d24ac2b785ee18038954849aa56d1"
+    },
+    {
+      "sha": "6c1d0080f3aafc17a94f8056613edee58136156d",
+      "committed_at": "2026-08-07T19:14:08Z",
+      "authored_at": "2026-08-07T19:14:08Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: ASSERT со стеком и локалами; NSTRACE callee_this/a0/стек; heap-watch на много слотов",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6c1d0080f3aafc17a94f8056613edee58136156d"
+    },
+    {
+      "sha": "6db6596d10234641778c1a74e452ce1b4608a68c",
+      "committed_at": "2026-08-07T19:14:43Z",
+      "authored_at": "2026-08-07T19:14:43Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(vm): владеющие option<>-слоты страниц освобождаются — ассерт Executer.jaf:55 у Dohna закрыт",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6db6596d10234641778c1a74e452ce1b4608a68c"
+    },
+    {
+      "sha": "23b2f615b8221bbe12bdb555512be3c984e8d783",
+      "committed_at": "2026-08-07T20:02:14Z",
+      "authored_at": "2026-08-07T20:02:14Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into game/haharanman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/23b2f615b8221bbe12bdb555512be3c984e8d783"
+    },
+    {
+      "sha": "541e1c609fe394425b266b19e7068a6a0056b045",
+      "committed_at": "2026-08-07T20:59:15Z",
+      "authored_at": "2026-08-07T20:59:15Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "render: альфа-маска НАСЛЕДУЕТСЯ от родителя",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/541e1c609fe394425b266b19e7068a6a0056b045"
+    },
+    {
+      "sha": "d29b418ec80f7ffde9d30b89e2efb7217cfee9d2",
+      "committed_at": "2026-08-08T05:52:32Z",
+      "authored_at": "2026-08-08T05:52:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(vm): vm_copy владеет wrap-хэндлами — «To Title» из конфига больше не роняет игру",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d29b418ec80f7ffde9d30b89e2efb7217cfee9d2"
+    },
+    {
+      "sha": "92b1b0ffcf3ca010d876226ca77cdfdf92c14ccf",
+      "committed_at": "2026-08-08T06:17:34Z",
+      "authored_at": "2026-08-08T06:17:34Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(vm): option<string>-АРГУМЕНТЫ владеющие — копия строки освобождается при выходе",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/92b1b0ffcf3ca010d876226ca77cdfdf92c14ccf"
+    },
+    {
+      "sha": "96ba78a2ed824f6762651c2ca9b68ec4fca3d84b",
+      "committed_at": "2026-08-08T07:17:14Z",
+      "authored_at": "2026-08-08T07:17:14Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(hll/Array): 4-аргументные Find/FindLast — свой экспорт по арности",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/96ba78a2ed824f6762651c2ca9b68ec4fca3d84b"
+    },
+    {
+      "sha": "6b1958b82b2ee0780ac1cc126a3710f170943c06",
+      "committed_at": "2026-08-08T07:17:31Z",
+      "authored_at": "2026-08-08T07:17:31Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "feat(parts): 既読-перекраска прочитанных реплик окна сообщений",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6b1958b82b2ee0780ac1cc126a3710f170943c06"
+    },
+    {
+      "sha": "a4d91335983dae9301c08db89c4edb9f3b6ed95a",
+      "committed_at": "2026-08-08T11:35:54Z",
+      "authored_at": "2026-08-08T11:35:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "String.Split: третий аргумент — БИТОВАЯ МАСКА, а не флаг «убрать пустые»",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a4d91335983dae9301c08db89c4edb9f3b6ed95a"
+    },
+    {
+      "sha": "7a497ba7f55a61d7ce59c57bdd0cf017fade89f8",
+      "committed_at": "2026-08-08T11:37:17Z",
+      "authored_at": "2026-08-08T11:37:17Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(save): сохранение у Ixseal-игр — MainEXFile.Save, HashMap, сайдкар .vsf",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7a497ba7f55a61d7ce59c57bdd0cf017fade89f8"
+    },
+    {
+      "sha": "6b211c5e173578174d0bb596c0b99459dd95252f",
+      "committed_at": "2026-08-08T11:37:41Z",
+      "authored_at": "2026-08-08T11:37:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): numeral 表示タイプ=1 — единая лента глифов с 幅リスト",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6b211c5e173578174d0bb596c0b99459dd95252f"
+    },
+    {
+      "sha": "a1991a064c6b347c181eb9be742cc6475845c292",
+      "committed_at": "2026-08-08T11:37:41Z",
+      "authored_at": "2026-08-08T11:37:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(save): generic-массивы (array<?>) сериализуются в глобальных группах",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a1991a064c6b347c181eb9be742cc6475845c292"
+    },
+    {
+      "sha": "a9f362d9a017541a8991123ead76df08d4b79128",
+      "committed_at": "2026-08-08T11:38:58Z",
+      "authored_at": "2026-08-08T11:38:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a9f362d9a017541a8991123ead76df08d4b79128"
+    },
+    {
+      "sha": "66e90567919a5f27790ce66b10f1d2930d87a9bc",
+      "committed_at": "2026-08-08T11:58:52Z",
+      "authored_at": "2026-08-08T11:58:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): GetFreeNumber — снова монотонный счётчик; «чистый скан» отвергнут замером",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/66e90567919a5f27790ce66b10f1d2930d87a9bc"
+    },
+    {
+      "sha": "3cb9d6b4bce49a3b961ee94b499e6d322e9ed2b1",
+      "committed_at": "2026-08-08T12:18:40Z",
+      "authored_at": "2026-08-08T12:18:40Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge branch 'game/haharanman' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3cb9d6b4bce49a3b961ee94b499e6d322e9ed2b1"
+    },
+    {
+      "sha": "feaaa8d5298ac7170740a1b52fdf23ae0f923d3f",
+      "committed_at": "2026-08-08T13:19:16Z",
+      "authored_at": "2026-08-08T13:19:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_HLL_IN_FUNC — во что игра превращает вызовы через интерфейс; SetZ в PARTS_TRACE",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/feaaa8d5298ac7170740a1b52fdf23ae0f923d3f"
+    },
+    {
+      "sha": "ce70b0f9c3748b98ede9f4f4be2f1d2ee7488135",
+      "committed_at": "2026-08-08T16:01:22Z",
+      "authored_at": "2026-08-08T16:01:22Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "feat(resume): загрузка сейвов v14-игр — шесть слоёв до восстановления мира",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ce70b0f9c3748b98ede9f4f4be2f1d2ee7488135"
+    },
+    {
+      "sha": "92480a9f3825a0967638cc8e458aaa269361d857",
+      "committed_at": "2026-08-08T16:34:21Z",
+      "authored_at": "2026-08-08T16:34:21Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: оформительские заготовки макета (`エディタ上表示 = 0`) компонентом не становятся",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/92480a9f3825a0967638cc8e458aaa269361d857"
+    },
+    {
+      "sha": "687af3a8f1136538d1ddb2b23093c6cf14388a22",
+      "committed_at": "2026-08-08T17:05:16Z",
+      "authored_at": "2026-08-08T17:05:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: части-ОБРАЗЦЫ редактора (`エディタ上表示 = 0`) в игре не рисуются",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/687af3a8f1136538d1ddb2b23093c6cf14388a22"
+    },
+    {
+      "sha": "ff1d9204e6526dbb78857e10c86a96817b0d0c64",
+      "committed_at": "2026-08-08T17:37:07Z",
+      "authored_at": "2026-08-08T17:37:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): construction-часть больше не становится clip viewport — вернулся фон CONFIG",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ff1d9204e6526dbb78857e10c86a96817b0d0c64"
+    },
+    {
+      "sha": "521a60cb527f0ccb2458207f857771efa844bb4b",
+      "committed_at": "2026-08-08T18:33:55Z",
+      "authored_at": "2026-08-08T18:33:55Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: подсказки по наведению (`オンカーソル表示連動`)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/521a60cb527f0ccb2458207f857771efa844bb4b"
+    },
+    {
+      "sha": "5fed813ee884df2503baaf00001c66342e69bf96",
+      "committed_at": "2026-08-08T18:34:21Z",
+      "authored_at": "2026-08-08T18:34:21Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: бегунок полосы прокрутки по `上書きバーＣＧ名`",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5fed813ee884df2503baaf00001c66342e69bf96"
+    },
+    {
+      "sha": "08869bb266dd34e05376dd01823c31c783fa9157",
+      "committed_at": "2026-08-08T19:02:00Z",
+      "authored_at": "2026-08-08T19:02:00Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: смещение ребёнка масштабируется родителем и в UpdateComponent",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/08869bb266dd34e05376dd01823c31c783fa9157"
+    },
+    {
+      "sha": "3b119b38c28b245b487f62fe24964ab16f246f45",
+      "committed_at": "2026-08-08T19:02:19Z",
+      "authored_at": "2026-08-08T19:02:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: превью страницы Text Area UI — картинка сцены и образец реплики",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3b119b38c28b245b487f62fe24964ab16f246f45"
+    },
+    {
+      "sha": "de47a0cc087e4ac7e14d30aa8527afc223f40246",
+      "committed_at": "2026-08-08T20:12:36Z",
+      "authored_at": "2026-08-08T20:12:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "text: `フォント太さ` наконец рисуется — жирность идёт в bold_width и в шаг глифа",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/de47a0cc087e4ac7e14d30aa8527afc223f40246"
+    },
+    {
+      "sha": "9087a24002e2c6c6376a02a5062fe0c63b4783dc",
+      "committed_at": "2026-08-08T20:12:51Z",
+      "authored_at": "2026-08-08T20:12:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: ручка XSYS4_SLOW_MS — искать фризы по времени HLL-вызовов",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9087a24002e2c6c6376a02a5062fe0c63b4783dc"
+    },
+    {
+      "sha": "d901989f34e66e868fe50aa4a00b7e6cc448f1ad",
+      "committed_at": "2026-08-08T20:52:28Z",
+      "authored_at": "2026-08-08T20:52:28Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: layout box и `マージン` из раскладки — вернулись кнопки AUTO/History",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d901989f34e66e868fe50aa4a00b7e6cc448f1ad"
+    },
+    {
+      "sha": "90cb7622964f32cc9b4e1224ec853e748b371b09",
+      "committed_at": "2026-08-08T21:35:36Z",
+      "authored_at": "2026-08-08T21:35:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(resume): загрузка сейва возвращает игру, а не мёртвый экран сохранения",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/90cb7622964f32cc9b4e1224ec853e748b371b09"
+    },
+    {
+      "sha": "7537285ecfdc3f93161c7e23bec3a2503372e6a9",
+      "committed_at": "2026-08-08T21:43:34Z",
+      "authored_at": "2026-08-08T21:43:34Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в game/haharanman перед вливанием загрузки сейва",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7537285ecfdc3f93161c7e23bec3a2503372e6a9"
+    },
+    {
+      "sha": "c7b97c9be0beefdece90d443a70a92e1e57b01d7",
+      "committed_at": "2026-08-08T21:54:23Z",
+      "authored_at": "2026-08-08T21:54:23Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): вложенный layout box измеряется по содержимому",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c7b97c9be0beefdece90d443a70a92e1e57b01d7"
+    },
+    {
+      "sha": "d63b56d5a00e330cef0934118210c95a37f4bab4",
+      "committed_at": "2026-08-09T07:45:37Z",
+      "authored_at": "2026-08-09T07:45:37Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: ручки для «игра решила не то» — возвраты функций, сортировка, приём ввода",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d63b56d5a00e330cef0934118210c95a37f4bab4"
+    },
+    {
+      "sha": "5867a4f5789dc3a3a38ebbd69bb0a6b44b6b2bbf",
+      "committed_at": "2026-08-09T07:45:55Z",
+      "authored_at": "2026-08-09T07:45:55Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): часть без своего вида измеряется по содержимому — сетки MUSIC/RECOLLECTION/CG",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5867a4f5789dc3a3a38ebbd69bb0a6b44b6b2bbf"
+    },
+    {
+      "sha": "eab1e6370181358928a2ea404f283f9a95d16360",
+      "committed_at": "2026-08-09T07:46:23Z",
+      "authored_at": "2026-08-09T07:46:23Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(PartsEngine): служебные части активности освобождаются, подпись чекбокса — его ребёнок",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/eab1e6370181358928a2ea404f283f9a95d16360"
+    },
+    {
+      "sha": "40f410c2e646d44f9a2ae83abb6cc99dbd1cdbc8",
+      "committed_at": "2026-08-09T07:46:50Z",
+      "authored_at": "2026-08-09T07:46:50Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(String): Split — набор разделителей БЕЗ пустых кусков; третий аргумент это containSeparator",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/40f410c2e646d44f9a2ae83abb6cc99dbd1cdbc8"
+    },
+    {
+      "sha": "6f0aa7a62f365d391f5c59043acef3ae0c2cf218",
+      "committed_at": "2026-08-09T07:47:18Z",
+      "authored_at": "2026-08-09T07:47:18Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(resume): негодный сейв — диалог и выход, а не REPL",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6f0aa7a62f365d391f5c59043acef3ae0c2cf218"
+    },
+    {
+      "sha": "571f9605d37094e09f8d10e5651303796b812c02",
+      "committed_at": "2026-08-09T07:57:12Z",
+      "authored_at": "2026-08-09T07:57:12Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: сохранение Dohna — SerializeStruct/DeserializeStruct вместо заглушек",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/571f9605d37094e09f8d10e5651303796b812c02"
+    },
+    {
+      "sha": "d5b8e6ef891dd387a11760391e906086a0fdd9a4",
+      "committed_at": "2026-08-09T07:57:36Z",
+      "authored_at": "2026-08-09T07:57:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: строгий режим XSYS4_STRICT и диагностика порчи объектных слотов",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d5b8e6ef891dd387a11760391e906086a0fdd9a4"
+    },
+    {
+      "sha": "ee3edf0ef8a37696a80a947ea89724827c5ca907",
+      "committed_at": "2026-08-09T07:58:04Z",
+      "authored_at": "2026-08-09T07:58:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ee3edf0ef8a37696a80a947ea89724827c5ca907"
+    },
+    {
+      "sha": "4bf3942c26c77eec050bdefbff23d8f67703db92",
+      "committed_at": "2026-08-09T08:18:39Z",
+      "authored_at": "2026-08-09T08:18:39Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_SPLIT_KEEP_EMPTY — откат Split к прежнему поведению для замеров",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/4bf3942c26c77eec050bdefbff23d8f67703db92"
+    },
+    {
+      "sha": "ce6daa2904cfb704d50427253aa21c946f629939",
+      "committed_at": "2026-08-09T08:19:26Z",
+      "authored_at": "2026-08-09T08:19:26Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions (savedata Dohna, XSYS4_STRICT) в game/haharanman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ce6daa2904cfb704d50427253aa21c946f629939"
+    },
+    {
+      "sha": "5732bb0737ba8a38fd0be48ac8c0e0393450d39d",
+      "committed_at": "2026-08-09T08:44:08Z",
+      "authored_at": "2026-08-09T08:44:08Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag: XSYS4_PAGEWATCH_FN — маяки для аппаратного watchpoint на локальную переменную",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5732bb0737ba8a38fd0be48ac8c0e0393450d39d"
+    },
+    {
+      "sha": "c23b1bf522a35d0ba9ed3fbfba094633afcd9c7f",
+      "committed_at": "2026-08-09T08:44:08Z",
+      "authored_at": "2026-08-09T08:44:08Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(ffi): wrap<array<T>>-возврат на ПУСТОМ массиве ронял глобальную страницу",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c23b1bf522a35d0ba9ed3fbfba094633afcd9c7f"
+    },
+    {
+      "sha": "d96a9bd2086804105a7dbeb3111a49470ebb61e3",
+      "committed_at": "2026-08-09T09:20:02Z",
+      "authored_at": "2026-08-09T09:20:02Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge branch 'dohna-ht' into game/haharanman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d96a9bd2086804105a7dbeb3111a49470ebb61e3"
+    },
+    {
+      "sha": "2095224b760231da4c87f4de2340dfff454ac0b9",
+      "committed_at": "2026-08-09T09:33:52Z",
+      "authored_at": "2026-08-09T09:33:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(savedata): регресс Haha Ranman — реестр тождества на операцию, легаси-делегаты",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2095224b760231da4c87f4de2340dfff454ac0b9"
+    },
+    {
+      "sha": "99116c0ef163653d20767eec99ea8a033e9e28d6",
+      "committed_at": "2026-08-09T09:34:05Z",
+      "authored_at": "2026-08-09T09:34:05Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge branch 'dohna-ht' into game/haharanman",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/99116c0ef163653d20767eec99ea8a033e9e28d6"
+    },
+    {
+      "sha": "2403e460a76cca11bf90a1c7bc47552d75af9cd9",
+      "committed_at": "2026-08-09T11:13:13Z",
+      "authored_at": "2026-08-09T11:13:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(String): Split — containsMode это битовая маска, а не флаг разделителей",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2403e460a76cca11bf90a1c7bc47552d75af9cd9"
+    },
+    {
+      "sha": "663a721314c9a7d2cb8dfeab1bd20770b5d7b91c",
+      "committed_at": "2026-08-09T12:36:35Z",
+      "authored_at": "2026-08-09T12:36:35Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(PartsEngine): подпись кнопки — ребёнок кнопки, а не её сестра",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/663a721314c9a7d2cb8dfeab1bd20770b5d7b91c"
+    },
+    {
+      "sha": "e6f089cbaa33ecad4fd56d64fd8c05fae3b16d17",
+      "committed_at": "2026-08-09T14:56:15Z",
+      "authored_at": "2026-08-09T14:56:15Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(Array): Min/Max без компаратора — порядок по самому значению",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e6f089cbaa33ecad4fd56d64fd8c05fae3b16d17"
+    },
+    {
+      "sha": "797046076bf7901c026340f7d7237407b2352736",
+      "committed_at": "2026-08-09T14:56:32Z",
+      "authored_at": "2026-08-09T14:56:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "feat(PartsEngine): Parts_Set/IsHGaugeReverse и вертикальная пара",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/797046076bf7901c026340f7d7237407b2352736"
+    },
+    {
+      "sha": "b2aa120fc57449454816363d4d805686996514d0",
+      "committed_at": "2026-08-09T14:56:51Z",
+      "authored_at": "2026-08-09T14:56:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): скрытый ребёнок не занимает место в layout box",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/b2aa120fc57449454816363d4d805686996514d0"
+    },
+    {
+      "sha": "f92f565557151f53a944fe0c81f08e5b9e2119cc",
+      "committed_at": "2026-08-09T14:57:11Z",
+      "authored_at": "2026-08-09T14:57:11Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): часть-якорь без своего вида двигает поддерево по 原点座標モード",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f92f565557151f53a944fe0c81f08e5b9e2119cc"
+    },
+    {
+      "sha": "5120a6b78b0f0984a81a92c0dbfc71d7fc14282e",
+      "committed_at": "2026-08-09T15:19:16Z",
+      "authored_at": "2026-08-09T15:19:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(savedata): пустой generic-массив терял тип элемента в групповом сейве",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5120a6b78b0f0984a81a92c0dbfc71d7fc14282e"
+    },
+    {
+      "sha": "31d6cbd9dbca18d2bbe30a487ecd805f8cbeecdf",
+      "committed_at": "2026-08-09T15:19:38Z",
+      "authored_at": "2026-08-09T15:19:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): смена размера части пересчитывает раскладку предков-боксов",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/31d6cbd9dbca18d2bbe30a487ecd805f8cbeecdf"
+    },
+    {
+      "sha": "2f7673db77e74d349a64418c29eda0d4279428e3",
+      "committed_at": "2026-08-09T15:20:00Z",
+      "authored_at": "2026-08-09T15:20:00Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): центрирующее выравнивание layout box кладёт детей по одному",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2f7673db77e74d349a64418c29eda0d4279428e3"
+    },
+    {
+      "sha": "792576861cd81f6e2752733d9021157434305c7d",
+      "committed_at": "2026-08-09T15:20:28Z",
+      "authored_at": "2026-08-09T15:20:28Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(PartsEngine): `座標をレートとして認識する` — координаты частью экрана",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/792576861cd81f6e2752733d9021157434305c7d"
+    },
+    {
+      "sha": "96c14ed289368823f2809fc3663d96cbf478c7f0",
+      "committed_at": "2026-08-09T16:31:13Z",
+      "authored_at": "2026-08-09T16:31:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): межсимвольный интервал не идёт после последнего символа",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/96c14ed289368823f2809fc3663d96cbf478c7f0"
+    },
+    {
+      "sha": "f41767990fd29bbfb03cccac13a07d3cee373311",
+      "committed_at": "2026-08-09T16:31:58Z",
+      "authored_at": "2026-08-09T16:31:58Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): явный запрет клика гасит кнопку",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f41767990fd29bbfb03cccac13a07d3cee373311"
+    },
+    {
+      "sha": "7302b471555f335ddc2902c6b54d53d83e26f6c8",
+      "committed_at": "2026-08-09T17:12:45Z",
+      "authored_at": "2026-08-09T17:12:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): вид компонента не сохранялся в образе — пустой экран SAVE после загрузки (XPE v8)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7302b471555f335ddc2902c6b54d53d83e26f6c8"
+    },
+    {
+      "sha": "a6f7e54b684070ff561fd6bbbd46f233130621bd",
+      "committed_at": "2026-08-09T17:13:35Z",
+      "authored_at": "2026-08-09T17:13:11Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): сдвиг якоря — только `ユーザコンポーネント`; сцена Haha Ranman съезжала с экрана",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a6f7e54b684070ff561fd6bbbd46f233130621bd"
+    },
+    {
+      "sha": "604457d317bf2a13107145afa258a13459cbe64e",
+      "committed_at": "2026-08-09T17:15:41Z",
+      "authored_at": "2026-08-09T17:15:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в game/haharanman — правки соседней ветки перед заливкой",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/604457d317bf2a13107145afa258a13459cbe64e"
+    },
+    {
+      "sha": "46e8e5240b9f7730f9504d847d909e366cf152a4",
+      "committed_at": "2026-08-09T18:11:56Z",
+      "authored_at": "2026-08-09T18:11:56Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): части активности не сносятся вместе со слоем",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/46e8e5240b9f7730f9504d847d909e366cf152a4"
+    },
+    {
+      "sha": "2959351a1e65f18d6dbc34a00d0448b23bdd69e6",
+      "committed_at": "2026-08-09T18:11:59Z",
+      "authored_at": "2026-08-09T18:11:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "perf(delegate): чистка мёртвых подписчиков за ОДИН проход — фриз при загрузке",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2959351a1e65f18d6dbc34a00d0448b23bdd69e6"
+    },
+    {
+      "sha": "7b66dc54687fc2f2728fe5cf916bdf804d69c210",
+      "committed_at": "2026-08-09T18:12:06Z",
+      "authored_at": "2026-08-09T18:12:06Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в dohna-ht перед заливкой",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7b66dc54687fc2f2728fe5cf916bdf804d69c210"
+    },
+    {
+      "sha": "7e585ed64589ec6647a9002491c274cf0a7200d8",
+      "committed_at": "2026-08-09T18:12:39Z",
+      "authored_at": "2026-08-09T18:12:39Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в dohna-ht перед заливкой",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7e585ed64589ec6647a9002491c274cf0a7200d8"
+    },
+    {
+      "sha": "22257242991d7ebbd7198eaa58a1a7a74f53bcb6",
+      "committed_at": "2026-08-09T19:03:21Z",
+      "authored_at": "2026-08-09T19:03:21Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(message_window): флаг 既読-перекраски живёт в конфиге, а не в глобале",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/22257242991d7ebbd7198eaa58a1a7a74f53bcb6"
+    },
+    {
+      "sha": "1445eaafac4d84b9026f258eb12785366fd1c136",
+      "committed_at": "2026-08-09T19:27:06Z",
+      "authored_at": "2026-08-09T19:27:06Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "feat(parts): команда 9 раскладки — градиентная заливка холста",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1445eaafac4d84b9026f258eb12785366fd1c136"
+    },
+    {
+      "sha": "9ead80bc5c3372c7f242f29b3c8e94dadd9e272a",
+      "committed_at": "2026-08-09T23:07:11Z",
+      "authored_at": "2026-08-09T23:07:11Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): окно реплик переезжает на живой слой",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9ead80bc5c3372c7f242f29b3c8e94dadd9e272a"
+    },
+    {
+      "sha": "d83d1e322ef1b2ca8dc123c4fc25f3c366446a08",
+      "committed_at": "2026-08-10T07:12:14Z",
+      "authored_at": "2026-08-10T07:12:14Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(parts): родителем части может быть СЛОЙ — вернулся баннер «данные сохранены»",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d83d1e322ef1b2ca8dc123c4fc25f3c366446a08"
+    },
+    {
+      "sha": "e6724850f98a5ea3c674bff7fd4586abcad47de7",
+      "committed_at": "2026-08-10T07:12:46Z",
+      "authored_at": "2026-08-10T07:12:46Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в game/haharanman — правки соседней ветки",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e6724850f98a5ea3c674bff7fd4586abcad47de7"
+    },
+    {
+      "sha": "e33bc6ddfd7ae3beed947b1cb43c675867ef23a8",
+      "committed_at": "2026-08-10T07:41:01Z",
+      "authored_at": "2026-08-10T07:41:01Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "diag(message_window): трейс построения окна реплик",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e33bc6ddfd7ae3beed947b1cb43c675867ef23a8"
+    },
+    {
+      "sha": "d61a07f0e3e3cf3f290523aa110523e764ef7dc4",
+      "committed_at": "2026-08-10T07:41:02Z",
+      "authored_at": "2026-08-10T07:41:02Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в dohna-ht перед заливкой",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d61a07f0e3e3cf3f290523aa110523e764ef7dc4"
+    },
+    {
+      "sha": "932438774ca6c923081ed05c7dd830650da5490d",
+      "committed_at": "2026-08-10T08:27:44Z",
+      "authored_at": "2026-08-10T08:27:44Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "fix(delegate): список подписчиков больше не растёт без конца",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/932438774ca6c923081ed05c7dd830650da5490d"
+    },
+    {
+      "sha": "e0a2ff5776fa288bab0396144da093809ff4fd3f",
+      "committed_at": "2026-08-10T08:28:04Z",
+      "authored_at": "2026-08-10T08:28:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в game/haharanman перед заливкой фикса делегата",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e0a2ff5776fa288bab0396144da093809ff4fd3f"
+    },
+    {
+      "sha": "44a3cca884d1452f1681754ec5f2f713bfc99e41",
+      "committed_at": "2026-08-10T11:18:36Z",
+      "authored_at": "2026-08-10T11:18:36Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "input: команды `mousedown`/`mouseup` в тестовом вводе",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/44a3cca884d1452f1681754ec5f2f713bfc99e41"
+    },
+    {
+      "sha": "272eb8b9a41bc6fa80290a947bff07cb3ede53f1",
+      "committed_at": "2026-08-10T11:18:54Z",
+      "authored_at": "2026-08-10T11:18:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "render: часть-альфа-МАСКА снова рисуется как обычная",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/272eb8b9a41bc6fa80290a947bff07cb3ede53f1"
+    },
+    {
+      "sha": "803b0b298c774cd1dd0f50e4fdabbad15a841a09",
+      "committed_at": "2026-08-10T11:19:10Z",
+      "authored_at": "2026-08-10T11:19:10Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "message: `Fixed` в нумерации v14 — 26, а не 25",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/803b0b298c774cd1dd0f50e4fdabbad15a841a09"
+    },
+    {
+      "sha": "a493c169e4aca0f806d8cc32dbc5a9b42bb00d38",
+      "committed_at": "2026-08-10T11:19:38Z",
+      "authored_at": "2026-08-10T11:19:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: протяжка горизонтальной полосы, текстовое состояние с пустой строкой, вид поля ввода",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a493c169e4aca0f806d8cc32dbc5a9b42bb00d38"
+    },
+    {
+      "sha": "3aa6ae13f944e461cdf3c04f24bf75825e78ce9e",
+      "committed_at": "2026-08-10T12:13:53Z",
+      "authored_at": "2026-08-10T12:13:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: галочки System Menu в ADV наконец меняют набор ярлыков",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3aa6ae13f944e461cdf3c04f24bf75825e78ce9e"
+    },
+    {
+      "sha": "aab55ec58cc77ff4483249a6560edba500c662ba",
+      "committed_at": "2026-08-10T12:14:18Z",
+      "authored_at": "2026-08-10T12:14:18Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: сейвы Windows-версии читаются и пишутся (формат v9)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/aab55ec58cc77ff4483249a6560edba500c662ba"
+    },
+    {
+      "sha": "04be6e0fdd26f59a84a6137cae393dfad3caefdd",
+      "committed_at": "2026-08-10T12:16:22Z",
+      "authored_at": "2026-08-10T12:16:22Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions в dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/04be6e0fdd26f59a84a6137cae393dfad3caefdd"
+    },
+    {
+      "sha": "ae6b830ce82e7bd90266a1bb98cb4f24802462a2",
+      "committed_at": "2026-08-10T12:53:21Z",
+      "authored_at": "2026-08-10T12:53:21Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: сейв v9 пишется как у оригинала — совместимость в обе стороны",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ae6b830ce82e7bd90266a1bb98cb4f24802462a2"
+    },
+    {
+      "sha": "569f1e84614010bdd9137ce4c5324a8b11ffb1c2",
+      "committed_at": "2026-08-10T13:13:42Z",
+      "authored_at": "2026-08-10T13:13:42Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "CommonSystemData: трасса XSYS4_CSD_TRACE",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/569f1e84614010bdd9137ce4c5324a8b11ffb1c2"
+    },
+    {
+      "sha": "5283c15af4c274fb847d76f44eb2bff2a53a21f0",
+      "committed_at": "2026-08-10T13:14:17Z",
+      "authored_at": "2026-08-10T13:14:17Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: чекбоксы и ГРУППЫ РАДИОКНОПОК доводят выбор до игры",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5283c15af4c274fb847d76f44eb2bff2a53a21f0"
+    },
+    {
+      "sha": "79b327078eaa1f6475388c0470ebd5dd41778e15",
+      "committed_at": "2026-08-10T13:20:08Z",
+      "authored_at": "2026-08-10T13:20:08Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge rufim/new_system_versions перед заливкой групп радиокнопок",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/79b327078eaa1f6475388c0470ebd5dd41778e15"
+    },
+    {
+      "sha": "7c3d2b7d4826d3e034e366031334266f4c5af260",
+      "committed_at": "2026-08-10T14:20:12Z",
+      "authored_at": "2026-08-10T14:20:12Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: диагностика ввода до гейта + не восстанавливать выключенный ввод из сейва",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7c3d2b7d4826d3e034e366031334266f4c5af260"
+    },
+    {
+      "sha": "1159eed7475320100c1898a6ddf09599bda55e27",
+      "committed_at": "2026-08-10T15:53:50Z",
+      "authored_at": "2026-08-10T15:53:50Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "input: живая мышь отменяет синтетическую позицию тестового ввода",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1159eed7475320100c1898a6ddf09599bda55e27"
+    },
+    {
+      "sha": "5d63d717df2c9a6fd850e369732ec4a3733b51ab",
+      "committed_at": "2026-08-10T18:33:17Z",
+      "authored_at": "2026-08-10T18:33:17Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "input: живую мышь отличаем по ИЗМЕНЕНИЮ позиции, а не по расхождению",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5d63d717df2c9a6fd850e369732ec4a3733b51ab"
+    },
+    {
+      "sha": "270789e3621a2a95372e7a1a5e4f1be59660f9f1",
+      "committed_at": "2026-08-10T19:24:52Z",
+      "authored_at": "2026-08-10T19:24:52Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: порядок списка сверяется с z перед вводом — иначе курсор берёт не та часть",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/270789e3621a2a95372e7a1a5e4f1be59660f9f1"
+    },
+    {
+      "sha": "558483cfc7795a742764138bfdc8dd5da2766c78",
+      "committed_at": "2026-08-10T20:25:39Z",
+      "authored_at": "2026-08-10T20:25:30Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Экран MUSIC: длина трека по имени файла и アルファクリッパー из раскладки",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/558483cfc7795a742764138bfdc8dd5da2766c78"
+    },
+    {
+      "sha": "3ac0ecc29b984a3bc4e8a8533cddbd4cd8e1a718",
+      "committed_at": "2026-08-10T21:23:37Z",
+      "authored_at": "2026-08-10T21:23:37Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Слайд-шоу титула: аддитивный фильтр и градиенты в альфа-карту (команды 16, 25, 26)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3ac0ecc29b984a3bc4e8a8533cddbd4cd8e1a718"
+    },
+    {
+      "sha": "6a3f5044350a9384ab7cbcd0a2197ba8aa39fcbd",
+      "committed_at": "2026-08-11T00:33:46Z",
+      "authored_at": "2026-08-11T00:33:46Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: фиксы интерфейса ADV по Dohna + диагностика",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6a3f5044350a9384ab7cbcd0a2197ba8aa39fcbd"
+    },
+    {
+      "sha": "904e012b257f319e661efc8ca8e1ecc4607130af",
+      "committed_at": "2026-08-11T00:33:54Z",
+      "authored_at": "2026-08-11T00:33:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/904e012b257f319e661efc8ca8e1ecc4607130af"
+    },
+    {
+      "sha": "73dfc24172f869774c6ffbcc1562df2ce915dc3c",
+      "committed_at": "2026-08-11T01:20:22Z",
+      "authored_at": "2026-08-11T01:18:39Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: база CG кнопки обновляется рантайм-именем",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/73dfc24172f869774c6ffbcc1562df2ce915dc3c"
+    },
+    {
+      "sha": "85e404c020122ec19ec0283a9ea745e389aec016",
+      "committed_at": "2026-08-11T01:20:22Z",
+      "authored_at": "2026-08-11T01:18:57Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: добавочный цвет СКЛАДЫВАЕТСЯ, а не умножается",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/85e404c020122ec19ec0283a9ea745e389aec016"
+    },
+    {
+      "sha": "9a808bd1516d72208f28cf67c0c4e523d48f9c9e",
+      "committed_at": "2026-08-11T01:20:22Z",
+      "authored_at": "2026-08-11T01:19:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: замощение CG (команда 128) и УМНОЖЕНИЕ альфа-градиентов (25/26)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/9a808bd1516d72208f28cf67c0c4e523d48f9c9e"
+    },
+    {
+      "sha": "c986430e44b4c405e06fde684fa622631a27978c",
+      "committed_at": "2026-08-11T01:20:22Z",
+      "authored_at": "2026-08-11T01:18:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: угол поворота из раскладки (поле 回転)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c986430e44b4c405e06fde684fa622631a27978c"
+    },
+    {
+      "sha": "fd4a80ceb2d607906d332caa927295cdcfd9fd4f",
+      "committed_at": "2026-08-11T01:20:22Z",
+      "authored_at": "2026-08-11T01:19:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: в дамп — сколько частей пришло снимком из сейва",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/fd4a80ceb2d607906d332caa927295cdcfd9fd4f"
+    },
+    {
+      "sha": "774629526d278e405e8e392900f76fef96b945a2",
+      "committed_at": "2026-08-11T02:02:54Z",
+      "authored_at": "2026-08-11T02:02:54Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: v14-опы construction в сейве (команды 16, 25/26, 122)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/774629526d278e405e8e392900f76fef96b945a2"
+    },
+    {
+      "sha": "01250ec053118d8311244d2ae13ef63f2b9b861d",
+      "committed_at": "2026-08-11T06:14:45Z",
+      "authored_at": "2026-08-11T06:14:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: ассерт parts.IsValid (scrollback→Back) — два корня, §5df/§5dg",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/01250ec053118d8311244d2ae13ef63f2b9b861d"
+    },
+    {
+      "sha": "2c3f91ce84010dc208d7911dfe5d169b071575d7",
+      "committed_at": "2026-08-11T06:14:45Z",
+      "authored_at": "2026-08-11T06:14:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "input: живая мышь детектится по SDL_MOUSEMOTION против цели warp",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2c3f91ce84010dc208d7911dfe5d169b071575d7"
+    },
+    {
+      "sha": "8c54bd54bdd731cc2f6962b24c5c49d39ffbbde5",
+      "committed_at": "2026-08-11T06:15:04Z",
+      "authored_at": "2026-08-11T06:15:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8c54bd54bdd731cc2f6962b24c5c49d39ffbbde5"
+    },
+    {
+      "sha": "d71146be24f5a76f2b1d930cc2fa667eb9a43c3f",
+      "committed_at": "2026-08-11T06:45:13Z",
+      "authored_at": "2026-08-11T06:45:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: оп TileCGBlend (команда 128) в сейве",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d71146be24f5a76f2b1d930cc2fa667eb9a43c3f"
+    },
+    {
+      "sha": "a53d2204eb8af8e07db71a02a3aafe93dcaba658",
+      "committed_at": "2026-08-11T06:50:51Z",
+      "authored_at": "2026-08-11T06:50:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "input: приём клика по живым ожиданиям, а не по счётчику вложенности",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a53d2204eb8af8e07db71a02a3aafe93dcaba658"
+    },
+    {
+      "sha": "99e7b722f0078de546df0ac759fb4d877158afec",
+      "committed_at": "2026-08-11T06:52:06Z",
+      "authored_at": "2026-08-11T06:45:13Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: оп TileCGBlend (команда 128) в сейве",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/99e7b722f0078de546df0ac759fb4d877158afec"
+    },
+    {
+      "sha": "95fb144be49d78a02162b15853b84f277e50c974",
+      "committed_at": "2026-08-11T07:01:38Z",
+      "authored_at": "2026-08-11T07:01:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "asset: LRU-кэш декодированных CG — листание scrollback без повторного декода",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/95fb144be49d78a02162b15853b84f277e50c974"
+    },
+    {
+      "sha": "e8038df097a7af9e4a6de06b0c555b3a892bc7f7",
+      "committed_at": "2026-08-11T07:01:38Z",
+      "authored_at": "2026-08-11T07:01:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: привязка к видимости окон сообщений наследуется потомками",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e8038df097a7af9e4a6de06b0c555b3a892bc7f7"
+    },
+    {
+      "sha": "ee3b54a633f320b0e6032ba99d4d70411fd3a31f",
+      "committed_at": "2026-08-11T07:01:53Z",
+      "authored_at": "2026-08-11T07:01:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ee3b54a633f320b0e6032ba99d4d70411fd3a31f"
+    },
+    {
+      "sha": "385153f36d06b07a24b4346c787df91e0fc1d981",
+      "committed_at": "2026-08-11T08:08:04Z",
+      "authored_at": "2026-08-11T08:08:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "AFAFactory: поиск заголовков — GetPrefixSearchTitleList и весь набор",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/385153f36d06b07a24b4346c787df91e0fc1d981"
+    },
+    {
+      "sha": "f45ae3e29378923d02ed97f4b9045684b74b10e9",
+      "committed_at": "2026-08-11T08:08:04Z",
+      "authored_at": "2026-08-11T08:08:04Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "SystemService: Save/Load — resume-сейв в буфер (снимок карты Dohna)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f45ae3e29378923d02ed97f4b9045684b74b10e9"
+    },
+    {
+      "sha": "8dc25b0793608ba69751e0424f6282a4c9ddd4f5",
+      "committed_at": "2026-08-11T12:20:45Z",
+      "authored_at": "2026-08-11T12:20:45Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: XSYS4_GLOBAL_WATCH — стек игры на записи в глобал",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8dc25b0793608ba69751e0424f6282a4c9ddd4f5"
+    },
+    {
+      "sha": "5e02dda76c20716c1c778e48d4c2c4250cffd203",
+      "committed_at": "2026-08-11T12:21:19Z",
+      "authored_at": "2026-08-11T12:21:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: клик по кнопке ADV не листает реплику; Auto включается с первого нажатия",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5e02dda76c20716c1c778e48d4c2c4250cffd203"
+    },
+    {
+      "sha": "183b474ecae14b4ece6cf04988b078f45d58e99c",
+      "committed_at": "2026-08-11T12:44:12Z",
+      "authored_at": "2026-08-11T12:43:26Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: размер содержимого — по НАРИСОВАННОМУ прямоугольнику ребёнка",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/183b474ecae14b4ece6cf04988b078f45d58e99c"
+    },
+    {
+      "sha": "6add973b68b99be9938b0fbe72a3eecf1a8b753d",
+      "committed_at": "2026-08-11T12:44:12Z",
+      "authored_at": "2026-08-11T12:43:03Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "system.GetFuncStackName: HLL-обёртка зовёт тот же хелпер, что и сисколл",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6add973b68b99be9938b0fbe72a3eecf1a8b753d"
+    },
+    {
+      "sha": "e714996c949e92813f50945b4a9d7903f437c08e",
+      "committed_at": "2026-08-11T12:44:12Z",
+      "authored_at": "2026-08-11T12:43:26Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "MainEXFile: число из .ex читается любым числовым геттером",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e714996c949e92813f50945b4a9d7903f437c08e"
+    },
+    {
+      "sha": "ce6ea90ec16562403bb498793181679d6ae19db9",
+      "committed_at": "2026-08-11T15:36:31Z",
+      "authored_at": "2026-08-11T15:36:05Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: игра читает процедуру построения обратно — отдаём ей раскладку, а не нули",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ce6ea90ec16562403bb498793181679d6ae19db9"
+    },
+    {
+      "sha": "a034e0557ba2f65bd3142a72735d165c157ba39d",
+      "committed_at": "2026-08-11T15:36:49Z",
+      "authored_at": "2026-08-11T15:36:49Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "effect: EFFECT_DOWN_UP_CROSSFADE (13) — зеркальная пара к 12",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a034e0557ba2f65bd3142a72735d165c157ba39d"
+    },
+    {
+      "sha": "fc30e1d38d3ee3e1f9fdc9991ba42bce833d02d3",
+      "committed_at": "2026-08-11T17:41:50Z",
+      "authored_at": "2026-08-11T17:41:50Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "message_window: посимвольный набор реплики, руби, текст с разметкой наружу",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/fc30e1d38d3ee3e1f9fdc9991ba42bce833d02d3"
+    },
+    {
+      "sha": "276596a90440f20a0251d1b4e093587c15037d62",
+      "committed_at": "2026-08-11T17:56:59Z",
+      "authored_at": "2026-08-11T17:56:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts/vm: v14-команды построения 29/97/106 и generic-возврат Array-HLL для option<wrap<T>>",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/276596a90440f20a0251d1b4e093587c15037d62"
+    },
+    {
+      "sha": "f967b8c39de30c8834c24d539270f370636b414c",
+      "committed_at": "2026-08-11T17:57:31Z",
+      "authored_at": "2026-08-11T17:57:31Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: цвет = tex*mul + add, и поворот наследуется (в том числе текстом)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f967b8c39de30c8834c24d539270f370636b414c"
+    },
+    {
+      "sha": "0ff3a0026d0bb53d23c6c6be922fc7a9e72e808a",
+      "committed_at": "2026-08-11T18:01:10Z",
+      "authored_at": "2026-08-11T18:01:10Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/0ff3a0026d0bb53d23c6c6be922fc7a9e72e808a"
+    },
+    {
+      "sha": "fbf2644b613fdffaa0529bc44afd78b9f30bacac",
+      "committed_at": "2026-08-11T19:21:19Z",
+      "authored_at": "2026-08-11T19:21:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "page/Array: элементы поверхностной копии массива — ОБЩИЕ (признак elems_shared)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/fbf2644b613fdffaa0529bc44afd78b9f30bacac"
+    },
+    {
+      "sha": "63160c7ccab41bab163c730448554d50c1d7f502",
+      "committed_at": "2026-08-11T19:48:50Z",
+      "authored_at": "2026-08-11T19:48:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: флэты версии 15 не рисовались целиком — ключи кадра лежат по кадрам",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/63160c7ccab41bab163c730448554d50c1d7f502"
+    },
+    {
+      "sha": "7a40c58c8d73114d7013738667179ea5e6a02ba8",
+      "committed_at": "2026-08-11T20:59:43Z",
+      "authored_at": "2026-08-11T20:59:43Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: метка AUTO/SKIP из атласа TALT и бегунок ползунка прозрачности",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7a40c58c8d73114d7013738667179ea5e6a02ba8"
+    },
+    {
+      "sha": "e8bf4f5bf6caff107297770a0d12a38bf6e963f6",
+      "committed_at": "2026-08-11T21:47:50Z",
+      "authored_at": "2026-08-11T21:47:50Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm/heap/page: окружение лямбд у readonly-методов, ref<перечисление> и защита слота 0",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e8bf4f5bf6caff107297770a0d12a38bf6e963f6"
+    },
+    {
+      "sha": "8c998e2160e96fe9597130561f0517063ec70e87",
+      "committed_at": "2026-08-11T21:48:19Z",
+      "authored_at": "2026-08-11T21:48:19Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into dohna-ht",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8c998e2160e96fe9597130561f0517063ec70e87"
+    },
+    {
+      "sha": "1003e0fe472af1ccb0b3191e84a145cdf936d8cd",
+      "committed_at": "2026-08-12T09:40:08Z",
+      "authored_at": "2026-08-12T09:40:08Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: протокол владения Ixseal у A_REF — копия у владеющей переменной, тот же объект у одолженного аргумента",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1003e0fe472af1ccb0b3191e84a145cdf936d8cd"
+    },
+    {
+      "sha": "5dcb246cd4d35cd7a644d3edf2e6b16d50a8dfeb",
+      "committed_at": "2026-08-12T11:09:59Z",
+      "authored_at": "2026-08-12T11:09:59Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: разворот контейнера отражает ПОДДЕРЕВО, а не только свой квад",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/5dcb246cd4d35cd7a644d3edf2e6b16d50a8dfeb"
+    },
+    {
+      "sha": "e5c048b4390ac0bee1e7d4a9b71ca5b0e81298fe",
+      "committed_at": "2026-08-12T12:48:22Z",
+      "authored_at": "2026-08-12T12:48:22Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: команда 129 TileCGCopy и сборка ВСЕХ полных процедур раскладки",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e5c048b4390ac0bee1e7d4a9b71ca5b0e81298fe"
+    },
+    {
+      "sha": "870acba1be6351fae0c901d89f6d6cbc90d1ab1a",
+      "committed_at": "2026-08-12T13:56:27Z",
+      "authored_at": "2026-08-12T13:56:27Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: у корневой части родитель — её слой, а Parent::set(0) — отвязка",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/870acba1be6351fae0c901d89f6d6cbc90d1ab1a"
+    },
+    {
+      "sha": "13b067853b72a40c0eb7df1bdb3eba96143da757",
+      "committed_at": "2026-08-12T16:12:47Z",
+      "authored_at": "2026-08-12T16:12:47Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: образ частей переживает возобновление сессии (версия 11)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/13b067853b72a40c0eb7df1bdb3eba96143da757"
+    },
+    {
+      "sha": "27b2e1d42cefc7c92a9e7c1a26f8f0dce0b71db4",
+      "committed_at": "2026-08-12T16:13:03Z",
+      "authored_at": "2026-08-12T16:13:03Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: поворот смещения потомка и СЛОЖЕНИЕ добавочного цвета во втором пути расчёта",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/27b2e1d42cefc7c92a9e7c1a26f8f0dce0b71db4"
+    },
+    {
+      "sha": "db2750b6bb021c8939b48d50645e57ba3130e2dd",
+      "committed_at": "2026-08-12T16:13:25Z",
+      "authored_at": "2026-08-12T16:13:25Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "system: очередь системных сообщений — «продолжить с того же места» вместо мгновенного выхода",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/db2750b6bb021c8939b48d50645e57ba3130e2dd"
+    },
+    {
+      "sha": "075c7240fff7f23e227fbca75ed9b7e3ddf141c9",
+      "committed_at": "2026-08-12T21:47:14Z",
+      "authored_at": "2026-08-12T21:47:14Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: всё семейство заливок фигур (команды построения 88–127), а не 6 из 40",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/075c7240fff7f23e227fbca75ed9b7e3ddf141c9"
+    },
+    {
+      "sha": "58883a4388767b4a7207a42c2be4262844226c7d",
+      "committed_at": "2026-08-12T21:47:25Z",
+      "authored_at": "2026-08-12T21:47:25Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Math: MTRand/MTRandF/MTRandFInclude1 (Mersenne Twister) и Asin/Acos",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/58883a4388767b4a7207a42c2be4262844226c7d"
+    },
+    {
+      "sha": "6a64064c85ab20018d132574ebd34262c4a91003",
+      "committed_at": "2026-08-12T21:47:46Z",
+      "authored_at": "2026-08-12T21:47:46Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: перезапись option/члена ОТДАЁТ прежнее значение, делегат не держит аргумент-хэндл",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/6a64064c85ab20018d132574ebd34262c4a91003"
+    },
+    {
+      "sha": "7df5ee569da2b64eeb837222e3f6b81a79ac719a",
+      "committed_at": "2026-08-12T21:48:07Z",
+      "authored_at": "2026-08-12T21:48:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: ввод, выключенный у части, выключен и у всего её поддерева",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/7df5ee569da2b64eeb837222e3f6b81a79ac719a"
+    },
+    {
+      "sha": "58ce3919c75bb2fc41e7e0f0e286dbba5332f774",
+      "committed_at": "2026-08-12T21:48:22Z",
+      "authored_at": "2026-08-12T21:48:22Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "диагностика: стек взятия ссылки по адресу, трассы альфы и добавочного цвета",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/58ce3919c75bb2fc41e7e0f0e286dbba5332f774"
+    },
+    {
+      "sha": "fb6975d30594551e7608efbebefe61b20d1a9ceb",
+      "committed_at": "2026-08-14T17:45:23Z",
+      "authored_at": "2026-08-14T17:45:23Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: лямбда, вызванная из HLL, не берёт ссылку на одолженный аргумент-хэндл",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/fb6975d30594551e7608efbebefe61b20d1a9ceb"
+    },
+    {
+      "sha": "23acac09ee8e9346148067eb1605545b46800486",
+      "committed_at": "2026-08-14T17:45:57Z",
+      "authored_at": "2026-08-14T17:45:57Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "диагностика: активности в дампе частей, «кто держит объект» из главного цикла",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/23acac09ee8e9346148067eb1605545b46800486"
+    },
+    {
+      "sha": "52b043ce39110618bd2443b4b504c13760ba61b9",
+      "committed_at": "2026-08-14T18:11:06Z",
+      "authored_at": "2026-08-14T18:11:06Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: слой сносит ВСЕ свои части — часть не может пережить свой слой",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/52b043ce39110618bd2443b4b504c13760ba61b9"
+    },
+    {
+      "sha": "ea35a4f742da9e6dad7fe2d2d9ebc933d2067416",
+      "committed_at": "2026-08-14T23:36:18Z",
+      "authored_at": "2026-08-14T23:36:18Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: пустой option значением НЕ ВЛАДЕЕТ — смотрим тег, а не содержимое слота",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ea35a4f742da9e6dad7fe2d2d9ebc933d2067416"
+    },
+    {
+      "sha": "8f8096415f0140673795ef19bca489988e0d16d3",
+      "committed_at": "2026-08-14T23:36:53Z",
+      "authored_at": "2026-08-14T23:36:53Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: часть живой активности переживает слой, но до усыновления не рисуется",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/8f8096415f0140673795ef19bca489988e0d16d3"
+    },
+    {
+      "sha": "40c344f318cd80cfd4d5b47dbdb78b149e8db868",
+      "committed_at": "2026-08-14T23:37:16Z",
+      "authored_at": "2026-08-14T23:37:16Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "диагностика: карантин слотов кучи, некролог слота, след разыменований",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/40c344f318cd80cfd4d5b47dbdb78b149e8db868"
+    },
+    {
+      "sha": "e223a93a92cfebe8d8cdb5e55a4804d08806f3b5",
+      "committed_at": "2026-08-15T09:34:37Z",
+      "authored_at": "2026-08-15T09:34:37Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: ref<структура> сохраняется как объект — иначе краш на любом начислении денег",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e223a93a92cfebe8d8cdb5e55a4804d08806f3b5"
+    },
+    {
+      "sha": "d3ec2c33cd74b0a9969741d515206c444b78fb21",
+      "committed_at": "2026-08-15T09:35:09Z",
+      "authored_at": "2026-08-15T09:35:09Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: 3D-разворот вместо заглушки и точка привязки у корня активности",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d3ec2c33cd74b0a9969741d515206c444b78fb21"
+    },
+    {
+      "sha": "c1b47707b40edb3af09b94d39e4a8a09915f7cf6",
+      "committed_at": "2026-08-15T11:54:47Z",
+      "authored_at": "2026-08-15T11:54:47Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: значение A_REF несёт свою ссылку — HLL-получатель обязан её снять",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c1b47707b40edb3af09b94d39e4a8a09915f7cf6"
+    },
+    {
+      "sha": "76d8adf576100dbd68829b56a8b1f11d4676070b",
+      "committed_at": "2026-08-15T11:55:05Z",
+      "authored_at": "2026-08-15T11:55:05Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "диагностика: длительность кадра и состав образа возобновления",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/76d8adf576100dbd68829b56a8b1f11d4676070b"
+    },
+    {
+      "sha": "d2f1f4c5c2fb1984d659c29565102aa6b3d2e776",
+      "committed_at": "2026-08-15T12:13:12Z",
+      "authored_at": "2026-08-15T12:12:30Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "apeg: свой декодер роликов AliceSoft и настоящее воспроизведение movie-частей",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d2f1f4c5c2fb1984d659c29565102aa6b3d2e776"
+    },
+    {
+      "sha": "989f3eae74e33e2651cc84cb10484470eba517ff",
+      "committed_at": "2026-08-16T06:53:05Z",
+      "authored_at": "2026-08-16T06:53:05Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: поле сейва ищем по позиции — имена служебных членов не уникальны",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/989f3eae74e33e2651cc84cb10484470eba517ff"
+    },
+    {
+      "sha": "13a2f5fc6de6eb41418797d87e4c94296fda8221",
+      "committed_at": "2026-08-16T06:53:26Z",
+      "authored_at": "2026-08-16T06:53:26Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "resume: образ версии 14 — сигнатуры в стеке, поколения слотов, дыры кучи",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/13a2f5fc6de6eb41418797d87e4c94296fda8221"
+    },
+    {
+      "sha": "f1794dbfa1e6324178e24596f2195f95ccba37ee",
+      "committed_at": "2026-08-16T06:53:41Z",
+      "authored_at": "2026-08-16T06:53:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "system: снимок состояния по F8, приём кликов из восстановленного стека",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f1794dbfa1e6324178e24596f2195f95ccba37ee"
+    },
+    {
+      "sha": "1d4bcec6e12a58c802f173e5377e2d8545762658",
+      "committed_at": "2026-08-16T06:54:00Z",
+      "authored_at": "2026-08-16T06:54:00Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "libsys4: подтянуть формат образа v14 и правило имени поля",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/1d4bcec6e12a58c802f173e5377e2d8545762658"
+    },
+    {
+      "sha": "3f6ebd2d0fe0f189dc914ebcbfeeee5dbcc8d00a",
+      "committed_at": "2026-08-16T07:37:27Z",
+      "authored_at": "2026-08-16T07:37:27Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Merge remote-tracking branch 'rufim/new_system_versions' into resume-image",
+      "merge": true,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3f6ebd2d0fe0f189dc914ebcbfeeee5dbcc8d00a"
+    },
+    {
+      "sha": "d21dc1af9d4bbfcf1687792902d040b332619b42",
+      "committed_at": "2026-08-16T11:05:39Z",
+      "authored_at": "2026-08-16T11:05:39Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "resume: починены три бага возобновления в ADV-сцене",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d21dc1af9d4bbfcf1687792902d040b332619b42"
+    },
+    {
+      "sha": "17baa16dfc0f0f8333fda9f705162b92440bb42c",
+      "committed_at": "2026-08-16T11:27:38Z",
+      "authored_at": "2026-08-16T11:27:38Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: ручка XSYS4_ARRAY_LOAD_TRACE — форма контейнера при загрузке сейва",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/17baa16dfc0f0f8333fda9f705162b92440bb42c"
+    },
+    {
+      "sha": "357af8f3d02f5f74e6eea5c1b028ae3a2d933a3e",
+      "committed_at": "2026-08-16T11:58:39Z",
+      "authored_at": "2026-08-16T11:58:39Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi: ширину ответа Array.First/At задаёт САЙТ, а не форма страницы",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/357af8f3d02f5f74e6eea5c1b028ae3a2d933a3e"
+    },
+    {
+      "sha": "74e5457df12cdc679faa1e9a0e3a70b5d396cee1",
+      "committed_at": "2026-08-16T12:10:32Z",
+      "authored_at": "2026-08-16T12:10:32Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi: база интерфейса у однослотовой страницы — по таблице интерфейсов объекта",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/74e5457df12cdc679faa1e9a0e3a70b5d396cee1"
+    },
+    {
+      "sha": "a1cc302063a246f2ab523b5ff8aab1d1bf8b01b8",
+      "committed_at": "2026-08-16T12:21:42Z",
+      "authored_at": "2026-08-16T12:21:42Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Array: предикат, объявивший интерфейсную пару, получает её целиком",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/a1cc302063a246f2ab523b5ff8aab1d1bf8b01b8"
+    },
+    {
+      "sha": "f4bc90e70545e457173e82508f04d2c05371739e",
+      "committed_at": "2026-08-16T12:47:41Z",
+      "authored_at": "2026-08-16T12:47:41Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: массив интерфейсов поднимается ПАРАМИ — размер в файле дан в слотах",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/f4bc90e70545e457173e82508f04d2c05371739e"
+    },
+    {
+      "sha": "db6f53d5e2f5a85f0d565ab3ebfab61ef74c3ed6",
+      "committed_at": "2026-08-16T13:19:03Z",
+      "authored_at": "2026-08-16T13:19:03Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ffi/Array: счётчик пути 'страница однослотовая, сайт ждёт интерфейсную пару'",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/db6f53d5e2f5a85f0d565ab3ebfab61ef74c3ed6"
+    },
+    {
+      "sha": "696241f2615eae8b481ddebc0e583c15f0c91a62",
+      "committed_at": "2026-08-16T14:28:09Z",
+      "authored_at": "2026-08-16T14:28:09Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "heap: аудит владения — куда на самом деле смотрят объектные поля",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/696241f2615eae8b481ddebc0e583c15f0c91a62"
+    },
+    {
+      "sha": "ed0865520dc943d32a3bf0fd77b5cac8b49d35ab",
+      "committed_at": "2026-08-16T14:57:51Z",
+      "authored_at": "2026-08-16T14:57:51Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata/resume: XSYS4_KEEP_SUSPEND — образ возобновления как повторяемый стенд",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/ed0865520dc943d32a3bf0fd77b5cac8b49d35ab"
+    },
+    {
+      "sha": "da740827bdf33dc4a65ccb529e8849f0116dbb30",
+      "committed_at": "2026-08-16T15:55:43Z",
+      "authored_at": "2026-08-16T15:55:43Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: индексы из файла проверяются, а не разыменовываются как факт",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/da740827bdf33dc4a65ccb529e8849f0116dbb30"
+    },
+    {
+      "sha": "645fec88b3374dcefc9b5af24f3995bd99c96d49",
+      "committed_at": "2026-08-16T16:12:17Z",
+      "authored_at": "2026-08-16T16:12:17Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: границы для индекса записи и размера массива, сторож разбора",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/645fec88b3374dcefc9b5af24f3995bd99c96d49"
+    },
+    {
+      "sha": "49e615744423e542a3c9a0379f00d79c47230007",
+      "committed_at": "2026-08-16T16:44:00Z",
+      "authored_at": "2026-08-16T16:44:00Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "savedata: битый сейв больше не роняет движок — падение найдено по core",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/49e615744423e542a3c9a0379f00d79c47230007"
+    },
+    {
+      "sha": "42dfdbe7ee5030def0ca04381e136ddccb11f91e",
+      "committed_at": "2026-08-16T17:18:03Z",
+      "authored_at": "2026-08-16T17:18:03Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "resume: счётчик поверхностных копий в образе (XSYS4_SHARED_TRACE)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/42dfdbe7ee5030def0ca04381e136ddccb11f91e"
+    },
+    {
+      "sha": "fa22d6a90eb8fb125ad58d5fcda547d72a1d77bc",
+      "committed_at": "2026-08-17T00:03:48Z",
+      "authored_at": "2026-08-17T00:03:48Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: колесо мыши в списках — размер области попадания и адресация нотча",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/fa22d6a90eb8fb125ad58d5fcda547d72a1d77bc"
+    },
+    {
+      "sha": "c842bf6349043965baba2cd1b318dc34540fe5e9",
+      "committed_at": "2026-08-21T15:17:00Z",
+      "authored_at": "2026-08-21T15:17:00Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: нотч колеса — ровно один адресат у игр, заявляющих приём",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c842bf6349043965baba2cd1b318dc34540fe5e9"
+    },
+    {
+      "sha": "0cd3a7c5f5311420caf1a1bd1bd652a92b2cb668",
+      "committed_at": "2026-08-23T08:05:44Z",
+      "authored_at": "2026-08-23T08:05:44Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "heap: сыщик утечек XSYS4_LEAK_SITES — недостижимый мусор по сайтам аллокации",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/0cd3a7c5f5311420caf1a1bd1bd652a92b2cb668"
+    },
+    {
+      "sha": "2685ddade3672c11c330b5467b84d1ac93c8fb7d",
+      "committed_at": "2026-08-23T08:06:06Z",
+      "authored_at": "2026-08-23T08:06:06Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "vm: образ возобновления пух утечками одноразовых значений — 85% мусора, фриз на карте данжа",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/2685ddade3672c11c330b5467b84d1ac93c8fb7d"
+    },
+    {
+      "sha": "c7d60726d8f0e1a46fce9e1691e7464c4579cec5",
+      "committed_at": "2026-08-23T08:06:21Z",
+      "authored_at": "2026-08-23T08:06:21Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "Array: результат Where над объектами — поверхностный контейнер (elems_shared)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/c7d60726d8f0e1a46fce9e1691e7464c4579cec5"
+    },
+    {
+      "sha": "e8d994e4b0b0dbc89e97455aec2b6f484fb21481",
+      "committed_at": "2026-08-23T09:19:22Z",
+      "authored_at": "2026-08-23T09:19:22Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "MsgSkip: kidoku ADV-шагов — Set/GetAdvFlag(имя, версия, шаг)",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/e8d994e4b0b0dbc89e97455aec2b6f484fb21481"
+    },
+    {
+      "sha": "11fbb3fbd9db5eaf3513116b185b50826e5a0a87",
+      "committed_at": "2026-08-26T16:10:43Z",
+      "authored_at": "2026-08-26T16:10:43Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "шрифт: растр глифа по конвейеру оригинала",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/11fbb3fbd9db5eaf3513116b185b50826e5a0a87"
+    },
+    {
+      "sha": "0bb48e5a5b272ec60c3c067d8d6aecf625b19537",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "по мелочи: множитель цвета раскладки, звук частей, разное",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/0bb48e5a5b272ec60c3c067d8d6aecf625b19537"
+    },
+    {
+      "sha": "308527d0dd2db6bc771c560be8068ddd61c7a385",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "heap: висячая локаль идиомы DELETE - вызов - X_ASSIGN",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/308527d0dd2db6bc771c560be8068ddd61c7a385"
+    },
+    {
+      "sha": "3874fd238c0a1bb78bf76d7ced825bd77db3fb94",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "PartsEngine: геттеры флэтов, чекбоксов и скроллбара, MoveController",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/3874fd238c0a1bb78bf76d7ced825bd77db3fb94"
+    },
+    {
+      "sha": "67a2a8a1d8fe650f64d6a979442d726a2bd3e1e7",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "текстовая часть: тушь к низу строки, якорь подписи, автоперенос",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/67a2a8a1d8fe650f64d6a979442d726a2bd3e1e7"
+    },
+    {
+      "sha": "724feba8580e2bf259676df1241f70d06f3a268c",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "слайдер и полоса прокрутки: размеры и доли по коду оригинала",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/724feba8580e2bf259676df1241f70d06f3a268c"
+    },
+    {
+      "sha": "d697c678b65b3e1518bcb568c724b06fb84fdd71",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "parts: クリップ領域 применяется при отрисовке",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/d697c678b65b3e1518bcb568c724b06fb84fdd71"
+    },
+    {
+      "sha": "db384881250ee4d4af0edd735099ad159037e697",
+      "committed_at": "2026-08-26T16:11:07Z",
+      "authored_at": "2026-08-26T16:11:07Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "ввод: номер кликнутой части синхронен MOUSE_CLICK, whole KEY_UP",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/db384881250ee4d4af0edd735099ad159037e697"
+    },
+    {
+      "sha": "02a333c8ecdb262aefd9671431b669fa6de02c50",
+      "committed_at": "2026-08-26T21:33:28Z",
+      "authored_at": "2026-08-26T21:33:28Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "модалки — через одну точку vm_msgbox_ex",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/02a333c8ecdb262aefd9671431b669fa6de02c50"
+    },
+    {
+      "sha": "589cf2c7599761e30fc7b9a48ef6d8e106ef76df",
+      "committed_at": "2026-08-26T21:51:37Z",
+      "authored_at": "2026-08-26T21:51:37Z",
+      "author": "Dmitry Kazantsev",
+      "subject": "libsys4: отказ распаковки альфы QNT даёт непрозрачный CG, а не мусор кучи",
+      "merge": false,
+      "url": "https://github.com/nunuhara/xsystem4/commit/589cf2c7599761e30fc7b9a48ef6d8e106ef76df"
+    }
+  ],
+  "merged_prs_after_pause": [
+    {
+      "number": 358,
+      "title": "debugger: Add \"3d\" debugger commands",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/358",
+      "state": "closed",
+      "merged_at": "2026-07-14T00:55:14Z",
+      "merge_commit_sha": "e260b82828e3ed9a0c3b4107f7cea6fe3d33be6b",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 360,
+      "title": "input: Handle numpad keys with NumLock disabled",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/360",
+      "state": "closed",
+      "merged_at": "2026-07-17T04:03:56Z",
+      "merge_commit_sha": "d63e71e85d364227b3fe477ce5fca56c53ad85f5",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 361,
+      "title": "Use libsys4 zlib wrappers",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/361",
+      "state": "closed",
+      "merged_at": "2026-07-20T04:21:55Z",
+      "merge_commit_sha": "ca2254360cd99a21e5a3350ff0ad02ef323484fa",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 362,
+      "title": "pl_mpeg: Support MPEG-2 program stream headers",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/362",
+      "state": "closed",
+      "merged_at": "2026-07-25T15:50:00Z",
+      "merge_commit_sha": "b3bcd79baef983642db2ebca2dbc1e5f9719dba6",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 363,
+      "title": "movie_ffmpeg: Use nb_samples for audio frame length",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/363",
+      "state": "closed",
+      "merged_at": "2026-07-25T15:50:35Z",
+      "merge_commit_sha": "a38c55602d3f936fbc65b7142e6a4afa47366520",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 364,
+      "title": "KiwiSoundEngine: Fix BGM loop for Rance 9",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/364",
+      "state": "closed",
+      "merged_at": "2026-07-26T16:13:40Z",
+      "merge_commit_sha": "433e3be3e6c208159d203c97385ba6bf8bf76a5b",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 365,
+      "title": "Two 3D fixes for Rance 9",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/365",
+      "state": "closed",
+      "merged_at": "2026-08-01T13:25:55Z",
+      "merge_commit_sha": "f146320e36078b8226b3cf9c870e1def6d640459",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 366,
+      "title": "PartsEngine: Stabilize save format for Rance 9",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/366",
+      "state": "closed",
+      "merged_at": "2026-08-02T18:12:12Z",
+      "merge_commit_sha": "8e339d153765db66f700207a4ff517b31ad0837b",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 367,
+      "title": "game_compatibility.md: Add Rance 9 (JA) as supported",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/367",
+      "state": "closed",
+      "merged_at": "2026-08-05T01:50:56Z",
+      "merge_commit_sha": "d65a1e6d9b702e55b792b9fb13cdc42c4141264b",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 368,
+      "title": "Update libsys4",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/368",
+      "state": "closed",
+      "merged_at": "2026-08-06T01:42:52Z",
+      "merge_commit_sha": "4e0dd82776e4297596d3c137d7b2dc75bb4f8261",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 369,
+      "title": "Resolve archive paths in asset_manager_load_archive",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/369",
+      "state": "closed",
+      "merged_at": "2026-08-09T03:09:26Z",
+      "merge_commit_sha": "a7e973c0a9091c4c84cdfccb697406b6a6c19901",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 371,
+      "title": "parts: Reference construction process CGs by name",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/371",
+      "state": "closed",
+      "merged_at": "2026-08-12T02:13:18Z",
+      "merge_commit_sha": "ebc319994eb48412fe0c5f70b08ba90e1126c638",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 372,
+      "title": "parts: Fix loss of line breaks in saved multi-line text",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/372",
+      "state": "closed",
+      "merged_at": "2026-08-12T02:14:35Z",
+      "merge_commit_sha": "b1f8948b743cb34eb3736d4f0552c4d5449e538b",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    },
+    {
+      "number": 373,
+      "title": "Math: Replace rand() with mt19937",
+      "html_url": "https://github.com/nunuhara/xsystem4/pull/373",
+      "state": "closed",
+      "merged_at": "2026-08-14T01:28:18Z",
+      "merge_commit_sha": "0d4eb2a2a7720734599af405cdff60e74e0acb8c",
+      "author": "kichikuou",
+      "merged_by": "nunuhara"
+    }
+  ],
+  "open_issues": [
+    {
+      "number": 374,
+      "title": "[Integration Request] Using xsystem4 in AetherKiri",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/374",
+      "state": "open",
+      "updated_at": "2026-09-07T02:31:31Z",
+      "closed_at": null
+    },
+    {
+      "number": 308,
+      "title": "soft didnt run on emulators",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/308",
+      "state": "open",
+      "updated_at": "2026-03-07T11:04:44Z",
+      "closed_at": null
+    },
+    {
+      "number": 297,
+      "title": "ain v14.1 support: calling convention discoveries & questions (Dohna Dohna on macOS)",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/297",
+      "state": "open",
+      "updated_at": "2026-02-03T19:19:12Z",
+      "closed_at": null
+    },
+    {
+      "number": 295,
+      "title": "Some basic starting skills in Rance Quest are not available for selection.",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/295",
+      "state": "open",
+      "updated_at": "2026-01-10T04:48:17Z",
+      "closed_at": null
+    },
+    {
+      "number": 286,
+      "title": "Some animations doesn't play",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/286",
+      "state": "open",
+      "updated_at": "2025-10-03T23:28:57Z",
+      "closed_at": null
+    },
+    {
+      "number": 252,
+      "title": "Mangagamer Beat Blades Haruka text rendering issues",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/252",
+      "state": "open",
+      "updated_at": "2025-07-31T00:53:10Z",
+      "closed_at": null
+    },
+    {
+      "number": 178,
+      "title": "Oyako Rankan (母娘乱館)",
+      "html_url": "https://github.com/nunuhara/xsystem4/issues/178",
+      "state": "open",
+      "updated_at": "2024-08-19T08:51:12Z",
+      "closed_at": null
+    }
+  ],
+  "releases": [
+    {
+      "tag_name": "nightly",
+      "html_url": "https://github.com/nunuhara/xsystem4/releases/tag/nightly",
+      "published_at": "2025-11-15T00:36:09Z",
+      "assets": [
+        {
+          "name": "xsystem4-linux-x86_64-nightly.flatpak",
+          "updated_at": "2026-08-26T01:54:24Z"
+        },
+        {
+          "name": "xsystem4-windows-x86_64-nightly.zip",
+          "updated_at": "2026-08-26T01:54:25Z"
+        }
+      ]
+    },
+    {
+      "tag_name": "1.0.0",
+      "html_url": "https://github.com/nunuhara/xsystem4/releases/tag/1.0.0",
+      "published_at": "2025-09-29T03:00:43Z",
+      "assets": [
+        {
+          "name": "xsystem4-1.0.0.zip",
+          "updated_at": "2025-09-29T03:00:31Z"
+        }
+      ]
+    }
+  ],
+  "public_forks": [
+    {
+      "full_name": "Rufim/xsystem4",
+      "html_url": "https://github.com/Rufim/xsystem4",
+      "pushed_at": "2026-08-27T11:26:49Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "kvokkka/xsystem4",
+      "html_url": "https://github.com/kvokkka/xsystem4",
+      "pushed_at": "2026-07-06T21:35:11Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "orbisai0security/xsystem4",
+      "html_url": "https://github.com/orbisai0security/xsystem4",
+      "pushed_at": "2026-05-26T02:35:51Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "liufengpm/xsystem4",
+      "html_url": "https://github.com/liufengpm/xsystem4",
+      "pushed_at": "2026-05-11T14:05:12Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "USADA-KARROT/xsystem4",
+      "html_url": "https://github.com/USADA-KARROT/xsystem4",
+      "pushed_at": "2026-07-09T04:00:33Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "MasayoshiFujiwara/xsystem4",
+      "html_url": "https://github.com/MasayoshiFujiwara/xsystem4",
+      "pushed_at": "2025-10-22T03:52:28Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "brombrom-hani/xsystem4",
+      "html_url": "https://github.com/brombrom-hani/xsystem4",
+      "pushed_at": "2026-06-22T13:05:55Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "southdy/xsystem4",
+      "html_url": "https://github.com/southdy/xsystem4",
+      "pushed_at": "2025-04-09T02:16:01Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "frelixir/xsystem4",
+      "html_url": "https://github.com/frelixir/xsystem4",
+      "pushed_at": "2024-09-19T13:09:20Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "toufuguy/xsystem4",
+      "html_url": "https://github.com/toufuguy/xsystem4",
+      "pushed_at": "2023-01-03T13:52:37Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "nao1215/xsystem4",
+      "html_url": "https://github.com/nao1215/xsystem4",
+      "pushed_at": "2023-02-04T15:08:32Z",
+      "default_branch": "master"
+    },
+    {
+      "full_name": "kichikuou/xsystem4",
+      "html_url": "https://github.com/kichikuou/xsystem4",
+      "pushed_at": "2026-08-14T01:29:30Z",
+      "default_branch": "master"
+    }
+  ],
+  "local_evidence": [
+    {
+      "label": "停工交接",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/worktrees/xsystem4-cn-on-upstream/PORT-STATUS-2026-07-09.md",
+      "evidence": "29–35 灰窗；36–47 等待／文字；48–51 未完項"
+    },
+    {
+      "label": "GUI 調查",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/tests/gui-run-log.md",
+      "evidence": "57–60 Parent 修正；73–89 MSG／Array；90–96 最後 Motion 結論"
+    },
+    {
+      "label": "runtime trace",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/runtime/run-20260709-091121.log",
+      "evidence": "61–67 Join→Observer→EndWaitForClick；236–237 VM_PAGE 重複釋放警告"
+    },
+    {
+      "label": "原版 Wine 行為基準",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/visual-parity/wine-baseline-index.md",
+      "evidence": "24–34：TV 白畫面、NEXT、點擊等待驗收"
+    },
+    {
+      "label": "Wave 0",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/wave-0/wave-0-report.md",
+      "evidence": "16–42：EXTF 假設已更正；44–50：歷史測試結果"
+    },
+    {
+      "label": "libsys4 一般測試",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/tests/wave0-libsys4-testlog.txt",
+      "evidence": "33–34：2 PASS／0 FAIL；未複製原始環境資訊"
+    },
+    {
+      "label": "libsys4 sanitizer 測試",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/tests/wave0-libsys4-asan-testlog.txt",
+      "evidence": "33–34：2 PASS／0 FAIL，適用於當時版本"
+    },
+    {
+      "label": "Wave 1",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/wave-1/wave-1-report.md",
+      "evidence": "38–60：ABI 稽核／gate"
+    },
+    {
+      "label": "Wave 2",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/wave-2/wave-2-report.md",
+      "evidence": "15–31 舊測試迭代；42–45 未覆蓋範圍"
+    },
+    {
+      "label": "Wave 3",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/wave-3/wave-3-report.md",
+      "evidence": "36–49：文字／資源 gate 与視覺限制"
+    },
+    {
+      "label": "原計畫",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/plans/xsystem4-report-plan.json",
+      "evidence": "101、121、146、160：Wave 4–7；部分早期假設已過時"
+    },
+    {
+      "label": "早期 briefing",
+      "path": "<USER_HOME>/Downloads/文件/文件_文字/xsystem4-briefing-v2.md",
+      "evidence": "mtime 2/2；35–63 為舊 VM bottleneck"
+    },
+    {
+      "label": "視窗調查入口",
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/worktrees/xsystem4-cn-on-upstream/src/video.c",
+      "evidence": "424 gfx_swap；466 SDL_GL_SwapWindow"
+    }
+  ],
+  "validation": {
+    "new_builds": false,
+    "new_game_runs": false,
+    "existing_source_modified": false,
+    "official_text_conflicts": 4,
+    "official_gitlink_conflicts": 1,
+    "libsys4_text_conflicts": [
+      "src/instructions.c"
+    ],
+    "rufim_text_conflicts": 36,
+    "rufim_gitlink_conflicts": 1
+  }
+}

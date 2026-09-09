@@ -1,0 +1,21 @@
+{
+  "production_block_sha256": "b2c86f9f87567cffbb9667a1a48399aab57a8e34bb17457c78a0600549eef5a2",
+  "compile_command": [
+    "cc",
+    "-std=gnu11",
+    "-O1",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-isysroot",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "-I/opt/homebrew/include/SDL2",
+    "<WORKSPACE>/work/stage2/perf/stats_fixture.c",
+    "-o",
+    "<WORKSPACE>/work/stage2/perf/stats_fixture"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "test_exit": 0,
+  "stdout": "production PERF helper: disabled=0 I/O/timer, 60fps, p95/outlier, six-second stall, per-window reset and sample-cap accounting PASS\n",
+  "stderr": ""
+}

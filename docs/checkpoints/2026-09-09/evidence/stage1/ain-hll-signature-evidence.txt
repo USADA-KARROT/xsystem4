@@ -1,0 +1,25 @@
+AIN_SHA256_before=beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947
+*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+AIN version=14 functions=37742 libraries=36
+HLL library=27 function=699 name=Parts_GetPartsCGName return_type=12 argc=2
+  arg[0] name=Number type=10 struct=-1 rank=0
+  arg[1] name=State type=10 struct=-1 rank=0
+FUNCTION fno=9648 name=parts::detail::CCGParts@CGName::get address=0x2FC054 return_type=12 args=0 vars=0
+  0x2FC054 PUSHSTRUCTPAGE
+  0x2FC056 PUSH 1
+  0x2FC05C X_REF 1
+  0x2FC062 PUSHSTRUCTPAGE
+  0x2FC064 PUSH 2
+  0x2FC06A X_REF 1
+  0x2FC070 CALLHLL 27 699 0
+  0x2FC07E RETURN
+FUNCTION fno=9649 name=parts::detail::CCGParts@CGName::get address=0x2FC08E return_type=12 args=0 vars=0
+  0x2FC08E PUSHSTRUCTPAGE
+  0x2FC090 PUSH 1
+  0x2FC096 X_REF 1
+  0x2FC09C PUSHSTRUCTPAGE
+  0x2FC09E PUSH 2
+  0x2FC0A4 X_REF 1
+  0x2FC0AA CALLHLL 27 699 0
+  0x2FC0B8 RETURN
+AIN_SHA256_after=beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947

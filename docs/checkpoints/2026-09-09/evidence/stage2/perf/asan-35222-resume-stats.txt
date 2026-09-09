@@ -1,0 +1,65 @@
+file=work/stage2/runs/delegate-layout-check/saves/<memory>･ﾀ･・ﾗﾎﾄｼ・･皈筵?
+CONFIG slot=198 enabled=1 storage_ms=5000 memory_frames=60
+SAVE version=9 heap_slots=2097152 next_seq=10871761 call_frames=28 stack=19 func_names=37742
+TAG 0 count=1 value_slots=263
+TAG 1 count=150345 value_slots=587539
+TAG 2 count=360966 value_slots=0
+TAG 3 count=123401 value_slots=25305548
+TAG 4 count=891462 value_slots=4718018
+TAG 5 count=268675 value_slots=910356
+TAG -1 count=302302 value_slots=0
+STRING_BYTES 7614725 MAX_ARRAY id=6575 slots=37742
+FRAME 1 heap=3713 main
+FRAME 2 heap=498236 game_main
+FRAME 3 heap=602652 DohnaDohna@Run
+FRAME 4 heap=622284 DohnaDohna@RunGame
+FRAME 5 heap=622632 DohnaDohna@RunTurnStart
+FRAME 6 heap=622639 GameCallback::Run
+FRAME 7 heap=622652 ���ƣ����{���غ�Start��ǰ
+FRAME 8 heap=622705 ���ƣ��¼��������A�s
+FRAME 9 heap=622709 Scene::RunAdv<SceneAdv, string>
+FRAME 10 heap=624028 SceneAdv@Run
+FRAME 11 heap=630524 SceneAdv@Execute
+FRAME 12 heap=630530 �ţ֣���Ҫ����������
+FRAME 13 heap=63242 A
+FRAME 14 heap=63353 AFL_Message_A
+FRAME 15 heap=63382 message::detail::A
+FRAME 16 heap=63385 message::detail::��Ϣ��ʾ
+FRAME 17 heap=63853 message::detail::CMessageTextView@Draw
+FRAME 18 heap=68213 message::detail::CMessageTextView@ExecuteKeyWait
+FRAME 19 heap=69098 AFL_Parts_WaitForClick
+FRAME 20 heap=69116 parts::detail::WaitForClick
+FRAME 21 heap=2030591 AFL_View_Update
+FRAME 22 heap=2030722 view::detail::View_Update
+FRAME 23 heap=2031116 parts::detail::Update
+FRAME 24 heap=2031120 parts::detail::CallBeginUpdateEvent
+FRAME 25 heap=2031123 parts::detail::CallPartsUpdateEvent
+FRAME 26 heap=2031291 debug::detail::UpdateDumpData
+FRAME 27 heap=2031300 gamesave::detail::��n�g��
+TOP struct 323538 CASTimer
+TOP struct 323412 CASJoyClick
+TOP struct 71756 CASVertex
+TOP struct 71159 parts::detail::SPartsUpdateData
+TOP struct 35380 parts::detail::CParts
+TOP struct 25069 parts::detail::CButtonParts
+TOP struct 23687 CASPosF
+TOP struct 10220 parts::detail::CCheckBoxParts
+TOP struct 765 ProfileInfo
+TOP struct 699 ExValueOverride
+TOP struct 699 ExTableLine
+TOP struct 487 Motion::ArgumentDigit
+TOP local 35380 parts::detail::CParts@0
+TOP local 35380 parts::detail::CParts@Attach
+TOP local 35380 parts::detail::CParts@DeletedEvent::add
+TOP local 10877 Motion::EasingCalculator::GetEaseFunc
+TOP local 10740 debug::detail::Update
+TOP local 10740 PartsAsyncLoadQueue@Update
+TOP local 3234 message::detail::CMessageTextView@<lambda : message::detail::CMessageTextView@ExecuteKeyWait(bool)(246, 32)>
+TOP local 3234 message::detail::CMessageKeyControl@CheckKeyClick
+TOP local 1968 <lambda : Motion::EasingCalculator::GetEaseFunc(Motion::EasingType)(81, 55)>
+TOP local 1821 TitleCharacterView@UpdateCharacterPos
+TOP local 353 Motion::ParamAnalyzer@0
+TOP local 158 Motion::ParamAnalyzer@Parse
+
+stderr=
+elapsed=1.1324206669999999

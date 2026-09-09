@@ -1,0 +1,13 @@
+{
+  "observed": "2026-09-09T01:29:51.536162+08:00",
+  "actions": [
+    {
+      "action": "sky.click",
+      "x": 169,
+      "y": 162,
+      "count": 1,
+      "approx_elapsed_seconds": 32
+    }
+  ],
+  "result": "1280x720 ini restores full title art and right menu. Actual click on visible Start Game region again leads gray/black content; heartbeat remains SceneTitle."
+}

@@ -1,0 +1,28 @@
+{
+  "source_case_sha256": "9e360c602ffe59cfb1375a063718867c2b9387948209695729e2568844d7b51f",
+  "compile_command": [
+    "/Library/Developer/CommandLineTools/usr/bin/clang",
+    "-std=c11",
+    "-O0",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-isysroot",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "-I<WORKSPACE>/work/stage2/source/include",
+    "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+    "<WORKSPACE>/work/stage2/validation/string_plusa_fixture.c",
+    "<WORKSPACE>/work/stage1/wip-asan-build/subprojects/libsys4/libsys4.a",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "<WORKSPACE>/work/stage2/validation/string_plusa_fixture"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "test_exit": 0,
+  "stdout": "Before: two-slot lvalue leaves extra stack item, mutates heap[index], keeps dialogue empty: reproduced\nAfter: versions 6/11/14, both opcodes, local/struct lvalues, stack balance, GB18030, self-append/COW and return DELETE ownership: PASS\n",
+  "stderr": "",
+  "binary_sha256": "49e424d8e8e95d660fc205fbd0eaa9288954b11c8afd2b27e5470a2134d3f2ea"
+}

@@ -1,0 +1,70 @@
+*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../wip-source/src/system4.c:main:657): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../wip-source/src/system4.c:main:658): AINCHECK: msgf=0 nr_messages=57532 messages=0x7cbc18000
+*WARNING*(../wip-source/src/hll/pe_v14_message.c:pe_v14_message_replace:334): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../wip-source/src/hll/pe_v14_message.c:pe_v14_message_register:353): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage1/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+*WARNING*(../wip-source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../wip-source/src/vm.c:execute_instruction:4357): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../wip-source/src/vm.c:execute_instruction:4357): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/vm.c:vm_execute:4720): heartbeat: 16M insns fno=26654 depth=27 ip=0x57E376 op=0x2C
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[26]: fno=26654 'Observer@Update'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[25]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[24]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[23]: fno=9178 'parts::detail::Update'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[0]: fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[1]: fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[4]: fno=36762 'Scene::Run<SceneLogo>'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[5]: fno=31798 'SceneLogo@Run'
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../wip-source/src/vm.c:vm_execute:4720): heartbeat: 67M insns fno=13999 depth=21 ip=0x9DED20 op=0x0
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[20]: fno=13999 'parts::detail::CParts@2'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[19]: fno=13998 'parts::detail::CParts@0'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[18]: fno=9667 'parts::detail::CCheckBoxParts@0'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[17]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[0]: fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[1]: fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4720): heartbeat: 83M insns fno=31826 depth=15 ip=0x684C1C op=0x79
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[12]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[11]: fno=9178 'parts::detail::Update'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[0]: fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[1]: fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4720): heartbeat: 134M insns fno=31826 depth=15 ip=0x684A38 op=0x31
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[12]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[11]: fno=9178 'parts::detail::Update'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[0]: fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[1]: fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4720): heartbeat: 150M insns fno=31795 depth=16 ip=0x68030E op=0x39
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[15]: fno=31795 'CharacterPositionCalculator@Update'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4728):   stack[12]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[0]: fno=20590 'main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[1]: fno=26601 'game_main'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../wip-source/src/vm.c:vm_execute:4735):   base[5]: fno=31816 'SceneTitle@Run'

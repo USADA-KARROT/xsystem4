@@ -1,0 +1,31 @@
+{
+  "source": "<WORKSPACE>/work/stage2/source/src/hll/PartsEngine.c",
+  "source_sha256": "3c057a8da099fd8c88015e85e1326b8041fcfb65a255d3ba7ef2ef617720ee85",
+  "legacy_source_sha256": "a48f35fc5918029d2c7f6b072227403565197b43a4678d460cdaee0ebf1c2def",
+  "fixture_sha256": "6b7ef0ead974d63fe3de5ccfd18fa371c4dfd98801408a9b0c3fa61487c18dda",
+  "binary_sha256": "b5d344aa96091f3ecd869875e837d883692ffa5902a1062f89673555bbc3875c",
+  "compile_command": [
+    "/Library/Developer/CommandLineTools/usr/bin/clang",
+    "-std=c11",
+    "-O0",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+    "-I/opt/homebrew/opt/libffi/include",
+    "<WORKSPACE>/work/stage2/validation/cg_name_abi_fixture.c",
+    "<WORKSPACE>/work/stage1/wip-asan-build/subprojects/libsys4/libsys4.a",
+    "-L/opt/homebrew/opt/libffi/lib",
+    "-lffi",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "<WORKSPACE>/work/stage2/validation/cg_name_abi_fixture"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "test_exit": 0,
+  "stdout": "GetPartsCGName: legacy ABI, two-int/string ABI, empty ownership, signature gate: PASS\nParts_GetPartsCGName: legacy ABI, two-int/string ABI, empty ownership, signature gate: PASS\nCG name ABI fixture: all checks passed\n",
+  "stderr": ""
+}

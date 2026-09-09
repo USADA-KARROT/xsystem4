@@ -1,0 +1,38 @@
+[
+  {
+    "run": "delegate-layout-check",
+    "name": "･ﾀ･・ﾗﾎﾄｼ・･ｹ･ﾈ･・`･ｸ.asd",
+    "compressed_bytes": 24614517,
+    "uncompressed_bytes": 223675442
+  },
+  {
+    "run": "delegate-layout-check",
+    "name": "<memory>･ﾀ･・ﾗﾎﾄｼ・･皈筵?",
+    "compressed_bytes": 25532022,
+    "uncompressed_bytes": 232402446
+  },
+  {
+    "run": "pixel-string-watch",
+    "name": "･ﾀ･・ﾗﾎﾄｼ・･ｹ･ﾈ･・`･ｸ.asd",
+    "compressed_bytes": 29363779,
+    "uncompressed_bytes": 300463181
+  },
+  {
+    "run": "pixel-string-watch",
+    "name": "<memory>･ﾀ･・ﾗﾎﾄｼ・･皈筵?",
+    "compressed_bytes": 31012767,
+    "uncompressed_bytes": 317337402
+  },
+  {
+    "run": "integrated-dialogue",
+    "name": "･ﾀ･・ﾗﾎﾄｼ・･ｹ･ﾈ･・`･ｸ.asd",
+    "compressed_bytes": 12776920,
+    "uncompressed_bytes": 124723705
+  },
+  {
+    "run": "integrated-dialogue",
+    "name": "<memory>･ﾀ･・ﾗﾎﾄｼ・･皈筵?",
+    "compressed_bytes": 13288850,
+    "uncompressed_bytes": 129886450
+  }
+]

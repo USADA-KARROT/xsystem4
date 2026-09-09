@@ -1,0 +1,194 @@
+*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../source/src/system4.c:main:672): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../source/src/system4.c:main:673): AINCHECK: msgf=0 nr_messages=57532 messages=0xb83818000
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_replace:360): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_register:379): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage2/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+STAGE2 trace: targets=18 per_fno=16 after_ms=0 from_msg=-1 (raw slots; h64 is a string prefix hash)
+*WARNING*(../source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../source/src/vm.c:execute_instruction:4621): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/vm.c:execute_instruction:4621): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+STAGE2 enter ms=481 msg=-1 f=9196 hit=1 depth=9 this=-1 env=0 ip=2ec074 caller=8398 caller2=27192 sp=5 base=5 locals=603431/f9196[603430,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2 enter ms=488 msg=-1 f=27031 hit=1 depth=21 this=305 env=0 ip=595558 caller=27030 caller2=26973 sp=16 base=16 locals=606449/f27031[606447,0,0,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots0/type79[]
+STAGE2 enter ms=488 msg=-1 f=9196 hit=2 depth=23 this=-1 env=0 ip=2ec074 caller=8398 caller2=27031 sp=16 base=16 locals=606904/f9196[606903,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=488 msg=-1 f=36081 hit=1 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=607353/f36081[607350,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=488 msg=-1 f=36081 hit=1 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=607353/f36081[607350,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2 enter ms=491 msg=-1 f=36081 hit=2 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=607885/f36081[607882,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=491 msg=-1 f=36081 hit=2 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=607885/f36081[607882,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=493 msg=-1 f=36081 hit=3 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=608394/f36081[608391,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=493 msg=-1 f=36081 hit=3 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=608394/f36081[608391,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=494 msg=-1 f=36081 hit=4 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=608903/f36081[608900,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=494 msg=-1 f=36081 hit=4 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=608903/f36081[608900,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=496 msg=-1 f=36081 hit=5 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=609412/f36081[609409,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=496 msg=-1 f=36081 hit=5 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=609412/f36081[609409,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=498 msg=-1 f=36081 hit=6 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=609921/f36081[609918,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=498 msg=-1 f=36081 hit=6 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=609921/f36081[609918,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=501 msg=-1 f=36081 hit=7 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=610430/f36081[610427,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=501 msg=-1 f=36081 hit=7 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=610430/f36081[610427,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=502 msg=-1 f=36081 hit=8 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=610939/f36081[610936,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=503 msg=-1 f=36081 hit=8 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=1 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=610939/f36081[610936,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=504 msg=-1 f=36081 hit=9 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=611448/f36081[611445,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=504 msg=-1 f=36081 hit=9 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=611448/f36081[611445,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=506 msg=-1 f=36081 hit=10 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=611957/f36081[611954,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=506 msg=-1 f=36081 hit=10 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=611957/f36081[611954,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=507 msg=-1 f=36081 hit=11 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=612466/f36081[612463,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=507 msg=-1 f=36081 hit=11 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=612466/f36081[612463,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=509 msg=-1 f=36081 hit=12 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=612975/f36081[612972,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=509 msg=-1 f=36081 hit=12 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=612975/f36081[612972,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=511 msg=-1 f=36081 hit=13 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=613484/f36081[613481,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=511 msg=-1 f=36081 hit=13 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=613484/f36081[613481,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=512 msg=-1 f=36081 hit=14 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=613993/f36081[613990,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=512 msg=-1 f=36081 hit=14 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=613993/f36081[613990,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=514 msg=-1 f=36081 hit=15 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=614502/f36081[614499,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=514 msg=-1 f=36081 hit=15 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=614502/f36081[614499,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=516 msg=-1 f=36081 hit=16 depth=31 this=305 env=606449 ip=59568a caller=20752 caller2=20761 sp=25 base=25 locals=615011/f36081[615008,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 return ms=516 msg=-1 f=36081 hit=16 depth=31 this=305 env=606449 ip=595706 caller=20752 caller2=20761 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=615011/f36081[615008,0] envlocals=606449/f27031[606447,0,0,606492] busy=0 busy_number=0 motions=1853/seq3703/slots4/type79[604286,604923,605571,606230] join_names=1854/seq3704/slots1/type79[606448]
+STAGE2 enter ms=2500 msg=-1 f=9197 hit=1 depth=33 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=25 base=25 locals=996565/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2500 msg=-1 f=9197 hit=1 depth=33 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=25 base=25 elapsed=0 raw_sp=25 raw_top=1 ret_slots=0 ret_top=0 locals=996565/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2502 msg=-1 f=9196 hit=2 depth=23 this=-1 env=0 ip=2ec32e caller=8398 caller2=27031 sp=17 base=16 elapsed=2014 raw_sp=17 raw_top=0 ret_slots=1 ret_top=0 locals=606904/f9196[606903,0,606905,606915,0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2502 msg=-1 f=27031 hit=1 depth=21 this=305 env=0 ip=59590e caller=27030 caller2=26973 sp=15 base=16 elapsed=2014 raw_sp=16 raw_top=305 ret_slots=0 ret_top=0 locals=606449/f27031[606447,0,1,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array
+STAGE2 enter ms=2502 msg=-1 f=9196 hit=3 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=996732/f9196[996731,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2502 msg=-1 f=9197 hit=2 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=996976/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2502 msg=-1 f=9197 hit=2 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=996976/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2503 msg=-1 f=9196 hit=3 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=996732/f9196[996731,0,996733,996743,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2503 msg=-1 f=9196 hit=4 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=997053/f9196[997052,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2503 msg=-1 f=9197 hit=3 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=997297/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2503 msg=-1 f=9197 hit=3 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=997297/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2505 msg=-1 f=9196 hit=4 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=2 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=997053/f9196[997052,0,997054,997064,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2505 msg=-1 f=9196 hit=5 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=997374/f9196[997373,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2505 msg=-1 f=9197 hit=4 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=997618/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2505 msg=-1 f=9197 hit=4 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=997618/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2505 msg=-1 f=9196 hit=5 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=0 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=997374/f9196[997373,0,997375,997385,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2505 msg=-1 f=9196 hit=6 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=997695/f9196[997694,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2505 msg=-1 f=9197 hit=5 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=997939/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2505 msg=-1 f=9197 hit=5 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=997939/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2507 msg=-1 f=9196 hit=6 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=2 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=997695/f9196[997694,0,997696,997706,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2507 msg=-1 f=9196 hit=7 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=998016/f9196[998015,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2507 msg=-1 f=9197 hit=6 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=998260/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2507 msg=-1 f=9197 hit=6 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=998260/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2508 msg=-1 f=9196 hit=7 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=998016/f9196[998015,0,998017,998027,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2508 msg=-1 f=9196 hit=8 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=998337/f9196[998336,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2508 msg=-1 f=9197 hit=7 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=998581/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2508 msg=-1 f=9197 hit=7 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=998581/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2509 msg=-1 f=9196 hit=8 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=998337/f9196[998336,0,998338,998348,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2509 msg=-1 f=9196 hit=9 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=998658/f9196[998657,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2510 msg=-1 f=9197 hit=8 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=998902/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2510 msg=-1 f=9197 hit=8 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=998902/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2511 msg=-1 f=9196 hit=9 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=2 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=998658/f9196[998657,0,998659,998669,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2511 msg=-1 f=9196 hit=10 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=998979/f9196[998978,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2511 msg=-1 f=9197 hit=9 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=999223/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2511 msg=-1 f=9197 hit=9 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=999223/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2512 msg=-1 f=9196 hit=10 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=998979/f9196[998978,0,998980,998990,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2512 msg=-1 f=9196 hit=11 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=999300/f9196[999299,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2512 msg=-1 f=9197 hit=10 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=999544/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2512 msg=-1 f=9197 hit=10 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=999544/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2514 msg=-1 f=9196 hit=11 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=2 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=999300/f9196[999299,0,999301,999311,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2514 msg=-1 f=9196 hit=12 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=999621/f9196[999620,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2514 msg=-1 f=9197 hit=11 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=999865/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2514 msg=-1 f=9197 hit=11 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=999865/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2515 msg=-1 f=9196 hit=12 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=999621/f9196[999620,0,999622,999632,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2515 msg=-1 f=9196 hit=13 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=999942/f9196[999941,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2515 msg=-1 f=9197 hit=12 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=1000186/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2515 msg=-1 f=9197 hit=12 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=1000186/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2517 msg=-1 f=9196 hit=13 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=2 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=999942/f9196[999941,0,999943,999953,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2517 msg=-1 f=9196 hit=14 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=1000263/f9196[1000262,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2517 msg=-1 f=9197 hit=13 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=1000507/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2517 msg=-1 f=9197 hit=13 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=1000507/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2518 msg=-1 f=9196 hit=14 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=1000263/f9196[1000262,0,1000264,1000274,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2518 msg=-1 f=9196 hit=15 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=1000584/f9196[1000583,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2518 msg=-1 f=9197 hit=14 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=1000828/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2518 msg=-1 f=9197 hit=14 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=1000828/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2520 msg=-1 f=9196 hit=15 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=2 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=1000584/f9196[1000583,0,1000585,1000595,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2520 msg=-1 f=9196 hit=16 depth=21 this=-1 env=0 ip=2ec074 caller=8398 caller2=31800 sp=15 base=15 locals=1000905/f9196[1000904,0,-1,-1,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2520 msg=-1 f=9197 hit=15 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=1001149/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2520 msg=-1 f=9197 hit=15 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=1001149/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=2521 msg=-1 f=9196 hit=16 depth=21 this=-1 env=0 ip=2ec32e caller=8398 caller2=31800 sp=16 base=15 elapsed=1 raw_sp=16 raw_top=0 ret_slots=1 ret_top=0 locals=1000905/f9196[1000904,0,1000906,1000916,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=2587 msg=-1 f=9197 hit=16 depth=31 this=-1 env=0 ip=2ec344 caller=7879 caller2=36081 sp=24 base=24 locals=1001500/f9197[0] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=2587 msg=-1 f=9197 hit=16 depth=31 this=-1 env=0 ip=2ec378 caller=7879 caller2=36081 sp=24 base=24 elapsed=0 raw_sp=24 raw_top=1 ret_slots=0 ret_top=0 locals=1001500/f9197[0] envlocals=0 busy=1 busy_number=0
+STAGE2 enter ms=4574 msg=-1 f=27031 hit=2 depth=21 this=305 env=0 ip=595558 caller=27030 caller2=26973 sp=16 base=16 locals=1233899/f27031[1233897,0,0,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots1/type79[1233706] join_names=1854/not-array
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2 return ms=6894 msg=-1 f=27031 hit=2 depth=21 this=305 env=0 ip=59590e caller=27030 caller2=26973 sp=15 base=16 elapsed=2320 raw_sp=16 raw_top=305 ret_slots=0 ret_top=0 locals=1233899/f27031[1233897,0,1,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array
+*WARNING*(../source/src/vm.c:vm_execute:4984): heartbeat: 16M insns fno=27253 depth=28 ip=0x59DA4E op=0x5
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[27]: fno=27253 'RCASTimerManager@UpdateTime'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[26]: fno=36121 'RCASTimerManager@<lambda : RCASTimerManager@0()(37, 37)>'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[25]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[24]: fno=9167 'parts::detail::CallEndUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[4]: fno=36762 'Scene::Run<SceneLogo>'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[5]: fno=31798 'SceneLogo@Run'
+STAGE2 enter ms=11978 msg=-1 f=27031 hit=3 depth=21 this=305 env=0 ip=595558 caller=27030 caller2=26973 sp=16 base=16 locals=2028601/f27031[2028599,0,0,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots1/type79[2028348] join_names=1854/not-array
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2 return ms=14544 msg=-1 f=27031 hit=3 depth=21 this=305 env=0 ip=59590e caller=27030 caller2=26973 sp=15 base=16 elapsed=2566 raw_sp=16 raw_top=305 ret_slots=0 ret_top=0 locals=2028601/f27031[2028599,0,1,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array
+STAGE2 enter ms=14544 msg=-1 f=27193 hit=1 depth=19 this=602665 env=0 ip=59b724 caller=31799 caller2=36738 sp=15 base=15 locals=2027772/f27193[] envlocals=0 busy=0 busy_number=0
+STAGE2 return ms=14544 msg=-1 f=27193 hit=1 depth=19 this=602665 env=0 ip=59b756 caller=31799 caller2=36738 sp=14 base=15 elapsed=0 raw_sp=15 raw_top=602665 ret_slots=0 ret_top=0 locals=2027772/f27193[] envlocals=0 busy=1 busy_number=0
+STAGE2 return ms=14546 msg=-1 f=9196 hit=1 depth=9 this=-1 env=0 ip=2ec32e caller=8398 caller2=27192 sp=6 base=5 elapsed=14065 raw_sp=6 raw_top=0 ret_slots=1 ret_top=0 locals=603431/f9196[603430,0,603432,603442,0] envlocals=0 busy=0 busy_number=0
+STAGE2 enter ms=14796 msg=-1 f=27031 hit=4 depth=9 this=305 env=0 ip=595558 caller=27030 caller2=26973 sp=8 base=8 locals=410919/f27031[410916,0,0,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots13/type79[382607,383430,384267,385119] join_names=1854/not-array
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2 return ms=21243 msg=-1 f=27031 hit=4 depth=9 this=305 env=0 ip=59590e caller=27030 caller2=26973 sp=7 base=8 elapsed=6447 raw_sp=8 raw_top=305 ret_slots=0 ret_top=0 locals=410919/f27031[410916,0,1,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array
+*WARNING*(../source/src/vm.c:vm_execute:4984): heartbeat: 67M insns fno=31826 depth=15 ip=0x684CBE op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[12]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[11]: fno=9178 'parts::detail::Update'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4984): heartbeat: 83M insns fno=21031 depth=11 ip=0x4AF098 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[10]: fno=21031 'view::detail::View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[9]: fno=20992 'AFL_View_Update'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[8]: fno=9196 'parts::detail::WaitForClick'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[7]: fno=8398 '�У��c��g��'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/input.c:mouse_event:291): S2 mouse t=37091 state=1 event=(169,130) polled=(169,130) override=(-1,-1) window=1280x720 drawable=1280x720 logical=1280x720 viewport=0,0,1280,720
+*WARNING*(../source/src/input.c:mouse_event:291): S2 mouse t=37091 state=0 event=(169,130) polled=(169,130) override=(-1,-1) window=1280x720 drawable=1280x720 logical=1280x720 viewport=0,0,1280,720
+S2 parts press ms=37091 pos=169,130 began=1
+S2 candidate no=1000001016 state=0 pass=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=1000001017 state=0 pass=0 hit=1 default_hit=1 box=0,0,1280,720 global=0,0 scale=1.000,1.000 parent=0
+S2 candidate no=900023 state=0 pass=0 hit=0 default_hit=0 box=1006,574,274,158 global=1006,574 scale=1.000,1.000 parent=900010
+S2 candidate no=900022 state=0 pass=0 hit=0 default_hit=0 box=1006,518,274,212 global=1006,518 scale=1.000,1.000 parent=900010
+S2 candidate no=900021 state=0 pass=0 hit=0 default_hit=0 box=1006,462,274,236 global=1006,462 scale=1.000,1.000 parent=900010
+S2 candidate no=900020 state=0 pass=0 hit=0 default_hit=0 box=1006,406,274,236 global=1006,406 scale=1.000,1.000 parent=900010
+S2 candidate no=900019 state=0 pass=0 hit=0 default_hit=0 box=0,233,704,236 global=0,233 scale=1.000,1.000 parent=900010
+S2 candidate no=900018 state=0 pass=0 hit=0 default_hit=0 box=0,177,704,236 global=0,177 scale=1.000,1.000 parent=900010
+S2 candidate no=900017 state=0 pass=0 hit=1 default_hit=1 box=0,122,704,236 global=0,122 scale=1.000,1.000 parent=900010
+S2 candidate no=900016 state=0 pass=0 hit=1 default_hit=1 box=0,67,704,236 global=0,67 scale=1.000,1.000 parent=900010
+S2 click target=900017
+STAGE2 enter ms=37118 msg=-1 f=27031 hit=5 depth=25 this=305 env=0 ip=595558 caller=27030 caller2=26973 sp=27 base=27 locals=665442/f27031[665440,0,0,-1] envlocals=0 busy=1 busy_number=0 motions=1853/seq3703/slots4/type79[644270,663308,664230,665047] join_names=1854/not-array
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2 return ms=40811 msg=-1 f=27031 hit=5 depth=25 this=305 env=0 ip=59590e caller=27030 caller2=26973 sp=26 base=27 elapsed=3693 raw_sp=27 raw_top=305 ret_slots=0 ret_top=0 locals=665442/f27031[665440,0,1,-1] envlocals=0 busy=0 busy_number=0 motions=1853/seq3703/slots0/type79[] join_names=1854/not-array
+*WARNING*(../source/src/vm.c:vm_execute:4984): heartbeat: 134M insns fno=9264 depth=36 ip=0x9D5E6A op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[35]: fno=9264 'parts::detail::CButtonParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[34]: fno=9263 'parts::detail::CButtonParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[33]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[32]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4984): heartbeat: 150M insns fno=31826 depth=31 ip=0x6848B0 op=0x10D
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[30]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[29]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[28]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:4992):   stack[27]: fno=9178 'parts::detail::Update'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:4999):   base[5]: fno=31816 'SceneTitle@Run'

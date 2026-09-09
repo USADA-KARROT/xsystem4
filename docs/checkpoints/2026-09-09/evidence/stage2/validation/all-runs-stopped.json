@@ -1,0 +1,80 @@
+[
+  {
+    "tag": "asan-acceptance",
+    "pid": 40057,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "integrated-real-click",
+    "pid": 33838,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "integrated-dialogue",
+    "pid": 34002,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "normal-gc-perf",
+    "pid": 36851,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "pixel-string-watch",
+    "pid": 34703,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "normal-acceptance-perf",
+    "pid": 39772,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "delegate-layout-check",
+    "pid": 35222,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "optimized-acceptance",
+    "pid": 39912,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "normal-perf",
+    "pid": 36476,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "abi-ffi-check",
+    "pid": 32081,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "normal-final-perf",
+    "pid": 38590,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "optimized-gc-manual",
+    "pid": 37055,
+    "finished": true,
+    "exit_code": 0
+  },
+  {
+    "tag": "real-input-baseline",
+    "pid": 32615,
+    "finished": true,
+    "exit_code": 0
+  }
+]

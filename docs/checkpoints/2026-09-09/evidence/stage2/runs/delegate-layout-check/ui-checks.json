@@ -1,0 +1,47 @@
+{
+  "checks": [
+    {
+      "event": "first Chinese page observed; begin no-input observation",
+      "at": "2026-09-09T08:25:55.481583+08:00",
+      "messages": [
+        "2",
+        "3"
+      ],
+      "screenshot": "delegate-layout-pre-message.png"
+    },
+    {
+      "event": "no-input observation ended",
+      "at": "2026-09-09T08:26:35.620563+08:00",
+      "elapsed_seconds": 40.13898,
+      "messages": [
+        "2",
+        "3"
+      ],
+      "screenshot": "delegate-layout-wait-22s.png"
+    },
+    {
+      "event": "attempted click at 900,400 failed: windowNotFoundAtPosition; no SDL button event",
+      "at": "2026-09-09T08:27:03.816264+08:00",
+      "window_position": [
+        900,
+        400
+      ],
+      "messages": [
+        "2",
+        "3"
+      ]
+    },
+    {
+      "event": "attempted click at 300,400 failed: windowNotFoundAtPosition; no SDL button event",
+      "at": "2026-09-09T08:28:02.388715+08:00",
+      "window_position": [
+        300,
+        400
+      ],
+      "messages": [
+        "2",
+        "3"
+      ]
+    }
+  ]
+}

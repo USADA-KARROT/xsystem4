@@ -1,0 +1,14 @@
+{
+  "tag": "user-preview-20260909-120028",
+  "finished": true,
+  "exit_code": 0,
+  "elapsed_seconds": 57.765,
+  "scripted_clicks": null,
+  "messages": [],
+  "message_count": 0,
+  "sanitizer_errors": [],
+  "double_free_warnings": [],
+  "click_targets": [],
+  "calls": {},
+  "source_patch_matches_record": true
+}
