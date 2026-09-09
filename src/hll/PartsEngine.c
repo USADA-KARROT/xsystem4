@@ -884,6 +884,25 @@ static struct ain_hll_function *get_fun(int libno, const char *name)
 	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
 }
 
+// v14 returns the CG name directly; the legacy API writes an out parameter.
+static struct string *PE_v14_GetPartsCGName(int parts_no, int state)
+{
+	struct string *name = NULL;
+	PE_GetPartsCGName(parts_no, &name, state);
+	return name ? name : string_ref(&EMPTY_STRING);
+}
+
+static void parts_link_cg_name_getter(int libno, const char *name)
+{
+	struct ain_hll_function *fun = get_fun(libno, name);
+	if (fun && fun->return_type.data == AIN_STRING
+			&& fun->nr_arguments == 2 && fun->arguments
+			&& fun->arguments[0].type.data == AIN_INT
+			&& fun->arguments[1].type.data == AIN_INT) {
+		static_library_replace(&lib_PartsEngine, name, PE_v14_GetPartsCGName);
+	}
+}
+
 // v14 (Dohna Dohna) declares:
 //   void RemoveController(wrap<array<int>> EraseNumberList, int Index);
 // The wrap argument arrives from the FFI as an int heap slot, not the
@@ -1494,24 +1513,13 @@ static void PE_v14_SetPanelColor(int parts_no, int r, int g, int b, int a)
 	PE_BuildPartsConstructionProcess(parts_no, 1);
 }
 
-/* --- Message window text queries ---
- * Text is rendered synchronously by the pe_v14_message adapters, so these
- * read back empty/default values (fork parity; the script only uses them
- * for layout bookkeeping). */
+/* Flat message-window animations are not implemented. Text and background
+ * names are retained by parts/message_window.c for the AIN composer. */
 static struct string *PE_v14_GetMessageWindowFlatName(int parts_no)
 {
 	(void)parts_no;
 	return string_ref(&EMPTY_STRING);
 }
-
-static struct string *PE_v14_GetMessageWindowText(int parts_no)
-{
-	(void)parts_no;
-	return string_ref(&EMPTY_STRING);
-}
-
-static void PE_v14_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
-{ (void)parts_no; (void)mode; }
 
 /* v14 declares: bool SaveBackScene(wrap<array<int>> SaveDataBuffer).
  * The back-scene snapshot is not implemented (backlog display, Wave 6);
@@ -1523,18 +1531,6 @@ static bool PE_v14_SaveBackScene(int buf_slot)
 {
 	(void)buf_slot;
 	return true;
-}
-
-/* Read back the message-window CG set by SetMessageWindowCGName. */
-static struct string *PE_GetMessageWindowCGName(int parts_no)
-{
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts)
-		return string_ref(&EMPTY_STRING);
-	struct parts_cg *cg = parts_get_cg(parts, PARTS_STATE_DEFAULT);
-	if (cg && cg->name)
-		return string_ref(cg->name);
-	return string_ref(&EMPTY_STRING);
 }
 
 /* "Async" CG load: no thread loader, so load synchronously and return
@@ -1576,9 +1572,9 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "GetComponentClipAreaPosWidth", PE_v14_GetComponentClipAreaPosWidth);
 	static_library_register(lib, "GetComponentClipAreaPosHeight", PE_v14_GetComponentClipAreaPosHeight);
 	static_library_register(lib, "SetComponentReverseLR", PE_v14_SetComponentReverseLR);
-	static_library_register(lib, "GetMessageWindowText", PE_v14_GetMessageWindowText);
+	static_library_register(lib, "GetMessageWindowText", PE_GetMessageWindowText);
 	static_library_register(lib, "GetMessageWindowFlatName", PE_v14_GetMessageWindowFlatName);
-	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_v14_SetMessageWindowTextOriginPosMode);
+	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_SetMessageWindowTextOriginPosMode);
 	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
 #include "pe_v14_prelink.h"
 }
@@ -1590,6 +1586,9 @@ static void PartsEngine_PreLink(void)
 	assert(libno >= 0);
 
 	// v14 signature variants (declaration-driven, not version-driven)
+	parts_link_cg_name_getter(libno, "GetPartsCGName");
+	parts_link_cg_name_getter(libno, "Parts_GetPartsCGName");
+
 	fun = get_fun(libno, "UpdateComponent");
 	if (fun && fun->nr_arguments == 5) {
 		static_library_replace(&lib_PartsEngine, "UpdateComponent",

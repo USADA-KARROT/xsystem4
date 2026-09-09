@@ -111,7 +111,7 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 	gfx_run_job(&job);
 }
 
-static void parts_render_text(struct parts *parts, struct parts_text *t)
+static void parts_render_text(struct parts *parts, struct parts_text *t, Point position)
 {
 	vec3 add_color = {
 		parts->global.add_color.r / 255.0f,
@@ -125,8 +125,8 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 	};
 	float blend_rate = parts->global.alpha / 255.0;
 
-	int x = parts->global.pos.x + t->common.origin_offset.x;
-	int y = parts->global.pos.y + t->common.origin_offset.y;
+	int x = position.x;
+	int y = position.y;
 	for (int i = 0; i < t->nr_lines; i++) {
 		struct parts_text_line *line = &t->lines[i];
 		for (int j = 0; j < line->nr_chars; j++) {
@@ -136,7 +136,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
 			x += ch->advance;
 		}
-		x = parts->global.pos.x + t->common.origin_offset.x;
+		x = position.x;
 		y += line->height + t->line_space;
 	}
 }
@@ -611,7 +611,9 @@ void parts_render(struct parts *parts)
 			parts_render_cg(parts, &state->common);
 		break;
 	case PARTS_TEXT:
-		parts_render_text(parts, &state->text);
+		parts_render_text(parts, &state->text, (Point){
+			parts->global.pos.x + state->text.common.origin_offset.x,
+			parts->global.pos.y + state->text.common.origin_offset.y});
 		break;
 	case PARTS_FLASH:
 		parts_render_flash(parts, &state->flash);
@@ -623,6 +625,12 @@ void parts_render(struct parts *parts)
 		parts_render_3dlayer(parts, &state->layer3d);
 		break;
 	}
+	// Message text shares the owning window's visibility, color, alpha and z.
+	// Render it after the background, including when that background is empty.
+	Point position;
+	struct parts_text *text = parts_message_window_render_text(parts, &position);
+	if (text)
+		parts_render_text(parts, text, position);
 }
 
 void parts_render_family(struct parts *parts)

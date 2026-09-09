@@ -114,12 +114,13 @@ static void system_Reset(void)
 }
 
 // [6] IsDebugMode() -> bool
-// NOTE: v14 games (Dohna Dohna) gate their main UpdateComponent loop behind
-// IsDebugMode(). Returning true enables the per-frame timer/component update
-// that dispatches scene delegates. Without this, scene coroutines never tick.
+// Game development mode is separate from the VM debugger or sanitizers.
+// In Dohna Dohna it enables periodic full-VM debug dumps (5s / 60 frames).
+// Normal component updates are registered outside this game's debug gate.
 static bool system_IsDebugMode(void)
 {
-	return ain->version >= 14;
+	const char *value = getenv("XSYS4_GAME_DEBUG");
+	return value && !strcmp(value, "1");
 }
 
 // [7] ResumeWriteComment(keyName, fileName, wrap<string> commentList) -> bool

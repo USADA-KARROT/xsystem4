@@ -262,17 +262,49 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 // often deliver DOWN+UP in the same event pump, making the click
 // invisible to bytecode that checks key_state between pumps.
 static uint32_t mouse_hold_until[8]; // per-button, SDL_GetTicks deadline
+static bool mouse_release_pending[8]; // an UP received before the deadline
+
+static void release_pending_mouse_buttons(uint32_t now)
+{
+	for (int btn = 1; btn <= 3; btn++) {
+		if (mouse_release_pending[btn] && SDL_TICKS_PASSED(now, mouse_hold_until[btn])) {
+			enum sact_keycode code = sdl_to_sact_button(btn);
+			if (code) key_state[code] = false;
+			mouse_release_pending[btn] = false;
+			mouse_hold_until[btn] = 0;
+		}
+	}
+}
 
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
+	static unsigned trace_count;
+	const char *trace = getenv("XSYS4_STAGE2_TRACE");
+	if (trace && *trace && strcmp(trace, "0") && trace_count++ < 40) {
+		int ww, wh, dw, dh, mx, my;
+		SDL_GetWindowSize(sdl.window, &ww, &wh);
+		SDL_GL_GetDrawableSize(sdl.window, &dw, &dh);
+		SDL_GetMouseState(&mx, &my);
+		WARNING("S2 mouse t=%u state=%d event=(%d,%d) polled=(%d,%d) override=(%d,%d) window=%dx%d drawable=%dx%d logical=%dx%d viewport=%d,%d,%d,%d",
+			SDL_GetTicks(), e->state, e->x, e->y, mx, my,
+			override_mouse_x, override_mouse_y, ww, wh, dw, dh, sdl.w, sdl.h,
+			sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
+	}
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code) {
+		int button = e->button & 7;
 		if (e->state == SDL_PRESSED) {
 			key_state[code] = true;
-			mouse_hold_until[e->button & 7] = SDL_GetTicks() + 50;
+			mouse_hold_until[button] = SDL_GetTicks() + 50;
+			mouse_release_pending[button] = false;
 		} else {
-			if (SDL_GetTicks() >= mouse_hold_until[e->button & 7])
+			if (!key_state[code] || SDL_TICKS_PASSED(SDL_GetTicks(), mouse_hold_until[button])) {
 				key_state[code] = false;
+				mouse_hold_until[button] = 0;
+				mouse_release_pending[button] = false;
+			} else {
+				mouse_release_pending[button] = true;
+			}
 		}
 	}
 #ifdef DEBUGGER_ENABLED
@@ -754,17 +786,9 @@ void handle_events(void)
 		}
 	}
 
-	// Deferred mouse release: clear held buttons whose hold period expired
-	{
-		uint32_t now_tick = SDL_GetTicks();
-		for (int btn = 1; btn <= 3; btn++) {
-			if (mouse_hold_until[btn] && now_tick >= mouse_hold_until[btn]) {
-				enum sact_keycode c = sdl_to_sact_button(btn);
-				if (c) key_state[c] = false;
-				mouse_hold_until[btn] = 0;
-			}
-		}
-	}
+	// Delay an early UP long enough for polling clients to observe the press.
+	// A button still physically held must remain down until its actual UP.
+	release_pending_mouse_buttons(SDL_GetTicks());
 
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
@@ -896,4 +920,3 @@ void handle_events(void)
 	if (dbg_dap)
 		dbg_dap_handle_messages();
 }
-

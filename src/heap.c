@@ -131,7 +131,12 @@ static uint8_t gc_gen = 0;  // generation counter (wraps at 255→1)
 #define GC_IS_MARKED(slot) (gc_mark[slot] == gc_gen)
 #define GC_SET_MARK(slot)  (gc_mark[slot] = gc_gen)
 static unsigned long long gc_alloc_counter = 0;
-static unsigned long long gc_last_alloc __attribute__((unused)) = 0;
+static unsigned long long gc_last_alloc;
+static uint32_t gc_last_completed_ms;
+static bool gc_has_run;
+// The existing collector does not reclaim cycles until v14 mark coverage is
+// complete. Keep its mark traversal under the same gate as cycle sweeping.
+static const bool gc_collect_cycles = false;
 // GC is triggered based on heap occupancy, not allocation count.
 // Only run when free slots drop below 10% of heap size.
 // This avoids expensive GC sweeps during initialization/transition phases
@@ -318,50 +323,52 @@ static void heap_gc(void)
 	extern struct function_call call_stack[];
 	extern int32_t call_stack_ptr;
 	extern int32_t stack_ptr;
-	// Initialize struct ref cache on first GC
-	gc_init_struct_cache();
+	if (gc_collect_cycles) {
+		// Initialize struct ref cache on first GC
+		gc_init_struct_cache();
 
-	// Advance generation counter (avoids memset of multi-GB array)
-	gc_gen++;
-	if (gc_gen == 0) gc_gen = 1;  // skip 0 (initial/cleared value)
+		// Advance generation counter (avoids memset of multi-GB array)
+		gc_gen++;
+		if (gc_gen == 0) gc_gen = 1;  // skip 0 (initial/cleared value)
 
-	// Resize mark array if needed (only on first use or growth)
-	if (gc_mark_size < heap_size) {
-		free(gc_mark);
-		gc_mark = xcalloc(heap_size, sizeof(uint8_t));
-		gc_mark_size = heap_size;
-	}
-
-	// Mark roots: global page
-	GC_SET_MARK(global_page_slot);
-	if (heap[global_page_slot].page) {
-		// Global page: scan all vars (only one page, conservative is fine)
-		gc_ensure_work_stack();
-		int *root_stack = gc_work_stack;
-		int root_count = 0;
-		gc_scan_page(heap[global_page_slot].page, root_stack, &root_count);
-		while (root_count > 0) {
-			int s = root_stack[--root_count];
-			struct page *p = heap[s].page;
-			gc_scan_page(p, root_stack, &root_count);
+		// Resize mark array if needed (only on first use or growth)
+		if (gc_mark_size < heap_size) {
+			free(gc_mark);
+			gc_mark = xcalloc(heap_size, sizeof(uint8_t));
+			gc_mark_size = heap_size;
 		}
-	}
 
-	// Mark roots: call stack pages and their members
-	for (int i = 0; i < call_stack_ptr; i++) {
-		int ps = call_stack[i].page_slot;
-		if (ps > 1 && (size_t)ps < heap_size && heap[ps].ref > 0 && !GC_IS_MARKED(ps))
-			gc_mark_slot(ps);
-		int sp = call_stack[i].struct_page;
-		if (sp > 1 && (size_t)sp < heap_size && heap[sp].ref > 0 && !GC_IS_MARKED(sp))
-			gc_mark_slot(sp);
-	}
+		// Mark roots: global page
+		GC_SET_MARK(global_page_slot);
+		if (heap[global_page_slot].page) {
+			// Global page: scan all vars (only one page, conservative is fine)
+			gc_ensure_work_stack();
+			int *root_stack = gc_work_stack;
+			int root_count = 0;
+			gc_scan_page(heap[global_page_slot].page, root_stack, &root_count);
+			while (root_count > 0) {
+				int s = root_stack[--root_count];
+				struct page *p = heap[s].page;
+				gc_scan_page(p, root_stack, &root_count);
+			}
+		}
 
-	// Mark roots: VM value stack (conservative — stack values lack type info)
-	for (int i = 0; i < stack_ptr && i < 65536; i++) {
-		int v = stack[i].i;
-		if (v > 1 && (size_t)v < heap_size && heap[v].ref > 0 && !GC_IS_MARKED(v))
-			gc_mark_slot(v);
+		// Mark roots: call stack pages and their members
+		for (int i = 0; i < call_stack_ptr; i++) {
+			int ps = call_stack[i].page_slot;
+			if (ps > 1 && (size_t)ps < heap_size && heap[ps].ref > 0 && !GC_IS_MARKED(ps))
+				gc_mark_slot(ps);
+			int sp = call_stack[i].struct_page;
+			if (sp > 1 && (size_t)sp < heap_size && heap[sp].ref > 0 && !GC_IS_MARKED(sp))
+				gc_mark_slot(sp);
+		}
+
+		// Mark roots: VM value stack (conservative — stack values lack type info)
+		for (int i = 0; i < stack_ptr && i < 65536; i++) {
+			int v = stack[i].i;
+			if (v > 1 && (size_t)v < heap_size && heap[v].ref > 0 && !GC_IS_MARKED(v))
+				gc_mark_slot(v);
+		}
 	}
 
 	// Use heap_scan_limit instead of heap_size for sweep — skip unallocated tail.
@@ -378,8 +385,8 @@ static void heap_gc(void)
 	// Scan from high to low so free list ends with lowest slot at head
 	for (size_t i = scan_end; i-- > 2; ) {
 		if (heap[i].ref > 0) {
-			if (!GC_IS_MARKED(i) && 0) {
-				// DISABLED: v14 GC mark incomplete — skip cycle collection for now
+			if (gc_collect_cycles && !GC_IS_MARKED(i)) {
+				// Cycle collection requires complete v14 mark coverage.
 					swept++;
 				switch (heap[i].type) {
 				case VM_PAGE:
@@ -498,24 +505,20 @@ static void heap_gc(void)
 int32_t heap_alloc_slot(enum vm_pointer_type type)
 {
 	gc_alloc_counter++;
-	// Trigger GC when free list is nearly exhausted.
-	// For large heaps (>=4M), trigger immediately.
-	// For moderate heaps (>=10K), trigger at most every 5 seconds to clean
-	// cycle-garbage (e.g. CParts with delegate cycles) without hurting perf.
-	if (gc_inhibit <= 0 && heap_free_count < 1024) {
-		bool do_gc = false;
-		if (heap_size >= 4000000) {
-			do_gc = true;
-		} else if (heap_size >= 10000) {
-			static uint32_t last_moderate_gc = 0;
-			uint32_t now = SDL_GetTicks();
-			if (now - last_moderate_gc >= 5000) {
-				last_moderate_gc = now;
-				do_gc = true;
-			}
-		}
-		if (do_gc) {
+	// Amortize pressure collections across actual allocation progress. A
+	// collection that recovers little space must not run again on every
+	// allocation. Start the cooldown after GC, including when GC is slow.
+	if (gc_inhibit <= 0 && heap_size >= 10000 && heap_free_count < 1024) {
+		size_t allocation_budget = heap_size / 8;
+		if (allocation_budget < 1024)
+			allocation_budget = 1024;
+		uint32_t now = SDL_GetTicks();
+		if (!gc_has_run || ((uint32_t)(now - gc_last_completed_ms) >= 5000
+		    && gc_alloc_counter - gc_last_alloc >= allocation_budget)) {
 			heap_gc();
+			gc_last_completed_ms = SDL_GetTicks();
+			gc_last_alloc = gc_alloc_counter;
+			gc_has_run = true;
 		}
 	}
 
@@ -629,6 +632,8 @@ void heap_unref(int slot)
 		return;
 	}
 	// actual_ref == 1, about to become 0
+	extern void vm_stage2_trace_page_event(const char *event, int slot, int index, int value, int width);
+	vm_stage2_trace_page_event("unref-last", slot, -1, 0, 0);
 	static bool deferred_processing = false;
 	heap[slot].ref = 0;
 

@@ -126,6 +126,9 @@ static void read_mixer_channels(struct ini_entry *entry)
 	}
 }
 
+static bool view_width_from_ini;
+static bool view_height_from_ini;
+
 static bool read_config(const char *path)
 {
 	int ini_size;
@@ -146,8 +149,10 @@ static bool read_config(const char *path)
 			config.save_dir = strdup(ini_string(&ini[i])->text);
 		} else if (!strcmp(ini[i].name->text, "ViewWidth")) {
 			config.view_width = ini_integer(&ini[i]);
+			view_width_from_ini = true;
 		} else if (!strcmp(ini[i].name->text, "ViewHeight")) {
 			config.view_height = ini_integer(&ini[i]);
+			view_height_from_ini = true;
 		} else if (!strcmp(ini[i].name->text, "VolumeValancer")) {
 			read_mixer_channels(&ini[i]);
 		} else if (!strcmp(ini[i].name->text, "DefaultVolumeRate")) {
@@ -635,6 +640,16 @@ int main(int argc, char *argv[])
 
 	if (!(ain = ain_open(ainfile, &err))) {
 		ERROR("%s", ain_strerror(err));
+	}
+	// New PartsEngine games can omit the display dimensions from AliceStart.ini.
+	// Keep explicit dimensions and the legacy 800x600 default for older APIs.
+	int parts_lib = ain_get_library(ain, "PartsEngine");
+	if (ain->version >= 14 && parts_lib >= 0
+			&& ain_get_library_function(ain, parts_lib, "SeekMessage") >= 0) {
+		if (!view_width_from_ini)
+			config.view_width = 1280;
+		if (!view_height_from_ini)
+			config.view_height = 720;
 	}
 
 	// Auto-detect GB18030 encoding: check if STR0 strings contain

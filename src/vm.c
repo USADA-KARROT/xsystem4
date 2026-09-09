@@ -17,6 +17,8 @@
 #define VM_PRIVATE
 
 #include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -437,6 +439,284 @@ size_t instr_ptr = 0;
 
 bool vm_reset_once = false;
 bool vm_in_alloc_phase = false;
+
+/* Optional, bounded call tracing for the stage-2 dialogue investigation. */
+#define STAGE2_TRACE_TARGETS 32
+static bool stage2_trace_initialized;
+static bool stage2_trace_enabled;
+static int stage2_trace_watch_fno = -1;
+static unsigned stage2_trace_watch_hits;
+static unsigned stage2_trace_after_ms;
+static int stage2_trace_from_msg = -1;
+static int stage2_trace_last_msg = -1;
+static bool stage2_trace_msg_ready = true;
+static unsigned stage2_trace_per_fno = 8;
+static int stage2_trace_fnos[STAGE2_TRACE_TARGETS] = {
+	9196, 9197, 27031, 27033, 27034, 36081, 36084, 36085,
+	36086, 27001, 27005, 27038, 27253, 27257, 27258
+};
+static unsigned stage2_trace_nr_fnos = 15;
+static unsigned stage2_trace_hits[STAGE2_TRACE_TARGETS];
+static int stage2_trace_busy_global = -1;
+static int stage2_trace_busy_number_global = -1;
+static struct {
+	bool pending;
+	bool active;
+	unsigned hit;
+	unsigned started_ms;
+} stage2_trace_frames[4096];
+
+static void stage2_trace_init(void)
+{
+	if (stage2_trace_initialized)
+		return;
+	stage2_trace_initialized = true;
+	const char *enabled = getenv("XSYS4_STAGE2_TRACE");
+	stage2_trace_enabled = enabled && *enabled && strcmp(enabled, "0");
+	if (!stage2_trace_enabled)
+		return;
+	const char *from_msg = getenv("XSYS4_STAGE2_FROM_MSG");
+	if (from_msg && *from_msg) {
+		char *end;
+		long n = strtol(from_msg, &end, 10);
+		if (end != from_msg && !*end && n >= 0 && n < ain->nr_messages) {
+			stage2_trace_from_msg = n;
+			stage2_trace_msg_ready = false;
+		}
+	}
+	const char *value = getenv("XSYS4_STAGE2_AFTER_MS");
+	const char *watch = getenv("XSYS4_STAGE2_WATCH_FNO");
+	if (watch) {
+		char *end;
+		long n = strtol(watch, &end, 10);
+		if (end != watch && !*end && n >= 0 && n < ain->nr_functions)
+			stage2_trace_watch_fno = n;
+	}
+	if (value) {
+		long n = strtol(value, NULL, 10);
+		if (n >= 0 && n <= 3600000)
+			stage2_trace_after_ms = n;
+	}
+	value = getenv("XSYS4_STAGE2_PER_FNO");
+	if (value) {
+		long n = strtol(value, NULL, 10);
+		if (n >= 1 && n <= 64)
+			stage2_trace_per_fno = n;
+	}
+	value = getenv("XSYS4_STAGE2_FNOS");
+	if (value && *value) {
+		stage2_trace_nr_fnos = 0;
+		while (*value && stage2_trace_nr_fnos < STAGE2_TRACE_TARGETS) {
+			char *end;
+			long n = strtol(value, &end, 10);
+			if (end == value || n < 0 || n >= ain->nr_functions)
+				break;
+			stage2_trace_fnos[stage2_trace_nr_fnos++] = n;
+			value = end;
+			if (*value != ',')
+				break;
+			value++;
+		}
+	}
+	for (int i = 0; i < ain->nr_globals; i++) {
+		if (!strcmp(ain->globals[i].name, "parts::detail::g_EndPartsBusyLoop"))
+			stage2_trace_busy_global = i;
+		if (!strcmp(ain->globals[i].name, "parts::detail::g_EndPartsBusyLoopNumber"))
+			stage2_trace_busy_number_global = i;
+	}
+	NOTICE("STAGE2 trace: targets=%u per_fno=%u after_ms=%u from_msg=%d (raw slots; h64 is a string prefix hash)",
+		stage2_trace_nr_fnos, stage2_trace_per_fno, stage2_trace_after_ms, stage2_trace_from_msg);
+}
+
+static void stage2_trace_on_message(int msg_idx)
+{
+	stage2_trace_last_msg = msg_idx;
+	if (!stage2_trace_msg_ready && msg_idx >= stage2_trace_from_msg) {
+		stage2_trace_msg_ready = true;
+		memset(stage2_trace_hits, 0, sizeof(stage2_trace_hits));
+		NOTICE("STAGE2 armed msg=%d ms=%u", msg_idx, SDL_GetTicks());
+	}
+}
+
+static const struct page *stage2_trace_page(int slot, enum page_type type)
+{
+	if (!heap || slot <= 0 || (size_t)slot >= heap_size || HEAP_REF(slot) <= 0
+	    || heap[slot].type != VM_PAGE || !heap[slot].page)
+		return NULL;
+	const struct page *p = heap[slot].page;
+	return p->type == type && p->nr_vars >= 0 && p->nr_vars <= 100000 ? p : NULL;
+}
+
+/* A bounded watch of a selected active local page, including premature frees. */
+void vm_stage2_trace_page_event(const char *event, int slot, int index, int value, int width)
+{
+	if (!stage2_trace_enabled || !stage2_trace_msg_ready || stage2_trace_watch_fno < 0
+	    || stage2_trace_watch_hits >= 32)
+		return;
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		if (call_stack[i].fno != stage2_trace_watch_fno || call_stack[i].page_slot != slot)
+			continue;
+		const struct page *p = stage2_trace_page(slot, LOCAL_PAGE);
+		int current = p && index >= 0 && index < p->nr_vars ? p->values[index].i : -999;
+		int ref = slot > 0 && (size_t)slot < heap_size ? HEAP_REF(slot) : -1;
+		NOTICE("STAGE2 watch event=%s ms=%u msg=%d target_f=%d slot=%d ref=%d page_f=%d vars=%d index=%d value=%d current=%d width=%d caller=%d caller2=%d ip=%zx",
+			event, SDL_GetTicks(), stage2_trace_last_msg, call_stack[i].fno, slot, ref,
+			p ? p->index : -1, p ? p->nr_vars : -1, index, value, current, width,
+			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
+			call_stack_ptr > 1 ? call_stack[call_stack_ptr-2].fno : -1, instr_ptr);
+		stage2_trace_watch_hits++;
+		return;
+	}
+}
+
+static void stage2_trace_append(char *line, size_t size, const char *fmt, ...)
+{
+	size_t used = strlen(line);
+	if (used >= size - 1)
+		return;
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(line + used, size - used, fmt, ap);
+	va_end(ap);
+}
+
+static void stage2_trace_string(char *line, size_t size, int slot)
+{
+	if (!heap || slot <= 0 || (size_t)slot >= heap_size || HEAP_REF(slot) <= 0
+	    || heap[slot].type != VM_STRING || !heap[slot].s)
+		return;
+	const struct string *s = heap[slot].s;
+	if (s->size < 0 || s->size > 1048576)
+		return;
+	uint32_t hash = 2166136261u;
+	for (int i = 0; i < s->size && i < 64; i++)
+		hash = (hash ^ (unsigned char)s->text[i]) * 16777619u;
+	stage2_trace_append(line, size, "/len%d/h64=%08x", s->size, hash);
+}
+
+static void stage2_trace_array(char *line, size_t size, const char *label, int slot)
+{
+	const struct page *p = stage2_trace_page(slot, ARRAY_PAGE);
+	stage2_trace_append(line, size, " %s=%d", label, slot);
+	if (!p) {
+		stage2_trace_append(line, size, "/not-array");
+		return;
+	}
+	stage2_trace_append(line, size, "/seq%u/slots%d/type%d[", heap[slot].seq, p->nr_vars, p->a_type);
+	for (int i = 0; i < p->nr_vars && i < 4; i++) {
+		stage2_trace_append(line, size, "%s%d", i ? "," : "", p->values[i].i);
+		if (p->a_type == AIN_STRING)
+			stage2_trace_string(line, size, p->values[i].i);
+	}
+	stage2_trace_append(line, size, "]");
+}
+
+static bool stage2_trace_member(int slot, const char *type, const char *name, int *value)
+{
+	const struct page *p = stage2_trace_page(slot, STRUCT_PAGE);
+	if (!p || p->index < 0 || p->index >= ain->nr_structures)
+		return false;
+	const struct ain_struct *s = &ain->structures[p->index];
+	if (!s->name || strcmp(s->name, type))
+		return false;
+	for (int i = 0; i < s->nr_members && i < p->nr_vars; i++) {
+		if (s->members[i].name && !strcmp(s->members[i].name, name)) {
+			*value = p->values[i].i;
+			return true;
+		}
+	}
+	return false;
+}
+
+static void stage2_trace_locals(char *line, size_t size, const char *label, int slot)
+{
+	const struct page *p = stage2_trace_page(slot, LOCAL_PAGE);
+	stage2_trace_append(line, size, " %s=%d", label, slot);
+	if (!p || p->index < 0 || p->index >= ain->nr_functions)
+		return;
+	const struct ain_function *f = &ain->functions[p->index];
+	stage2_trace_append(line, size, "/f%d[", p->index);
+	for (int i = 0; i < p->nr_vars && i < f->nr_vars && i < 5; i++) {
+		stage2_trace_append(line, size, "%s%d", i ? "," : "", p->values[i].i);
+		if (f->vars[i].type.data == AIN_STRING)
+			stage2_trace_string(line, size, p->values[i].i);
+	}
+	stage2_trace_append(line, size, "]");
+}
+
+static void stage2_trace_emit(bool returning, int raw_sp, int raw_top, int expected_return)
+{
+	int depth = call_stack_ptr - 1;
+	struct function_call *frame = &call_stack[depth];
+	unsigned now = SDL_GetTicks();
+	char line[1536] = "";
+	stage2_trace_append(line, sizeof(line),
+		"STAGE2 %s ms=%u msg=%d f=%d hit=%u depth=%d this=%d env=%d ip=%zx caller=%d caller2=%d sp=%d base=%d",
+		returning ? "return" : "enter", now, stage2_trace_last_msg, frame->fno, stage2_trace_frames[depth].hit,
+		call_stack_ptr, frame->struct_page, frame->env_page, instr_ptr,
+		depth > 0 ? call_stack[depth-1].fno : -1,
+		depth > 1 ? call_stack[depth-2].fno : -1, stack_ptr, frame->base_sp);
+	if (returning) {
+		stage2_trace_append(line, sizeof(line), " elapsed=%u raw_sp=%d raw_top=%d ret_slots=%d ret_top=%d",
+			now - stage2_trace_frames[depth].started_ms, raw_sp, raw_top,
+			expected_return, expected_return > 0 && stack_ptr > 0 ? stack[stack_ptr-1].i : 0);
+		if (expected_return > 0 && stack_ptr > 0
+		    && ain->functions[frame->fno].return_type.data == AIN_STRING)
+			stage2_trace_string(line, sizeof(line), stack[stack_ptr-1].i);
+	}
+	stage2_trace_locals(line, sizeof(line), "locals", frame->page_slot);
+	stage2_trace_locals(line, sizeof(line), "envlocals", frame->env_page);
+	const struct page *g = stage2_trace_page(global_page_slot, GLOBAL_PAGE);
+	if (g && stage2_trace_busy_global >= 0 && stage2_trace_busy_global < g->nr_vars)
+		stage2_trace_append(line, sizeof(line), " busy=%d", g->values[stage2_trace_busy_global].i);
+	if (g && stage2_trace_busy_number_global >= 0 && stage2_trace_busy_number_global < g->nr_vars)
+		stage2_trace_append(line, sizeof(line), " busy_number=%d", g->values[stage2_trace_busy_number_global].i);
+	int value, timer;
+	if (stage2_trace_member(frame->struct_page, "Motion::ExecuterCollection", "m_motions", &value))
+		stage2_trace_array(line, sizeof(line), "motions", value);
+	if (stage2_trace_member(frame->struct_page, "Motion::ExecuterCollection", "m_joinSectionNames", &value))
+		stage2_trace_array(line, sizeof(line), "join_names", value);
+	if (stage2_trace_member(frame->struct_page, "Motion::Executer", "m_isFinish", &value))
+		stage2_trace_append(line, sizeof(line), " motion_finish=%d", value);
+	if (stage2_trace_member(frame->struct_page, "Motion::Executer", "m_motion", &value))
+		stage2_trace_append(line, sizeof(line), " motion_ref=%d", value);
+	if (stage2_trace_member(frame->struct_page, "ExecuterTask", "m_span", &value))
+		stage2_trace_append(line, sizeof(line), " task_span=%d", value);
+	if (stage2_trace_member(frame->struct_page, "ExecuterTask", "m_end", &value))
+		stage2_trace_append(line, sizeof(line), " task_end=%d", value);
+	if (stage2_trace_member(frame->struct_page, "ExecuterTask", "m_timer", &timer)) {
+		stage2_trace_append(line, sizeof(line), " task_timer=%d", timer);
+		if (stage2_trace_member(timer, "RCASTimer", "m_time", &value))
+			stage2_trace_append(line, sizeof(line), " task_timer_time=%d", value);
+	}
+	if (stage2_trace_member(frame->struct_page, "RCASTimer", "m_time", &value))
+		stage2_trace_append(line, sizeof(line), " timer_time=%d", value);
+	NOTICE("%s", line);
+}
+
+static void stage2_trace_prepare(void)
+{
+	stage2_trace_init();
+	if (!stage2_trace_enabled)
+		return;
+	int depth = call_stack_ptr - 1;
+	stage2_trace_frames[depth].pending = false;
+	stage2_trace_frames[depth].active = false;
+	if (!stage2_trace_msg_ready)
+		return;
+	for (unsigned i = 0; i < stage2_trace_nr_fnos; i++) {
+		if (stage2_trace_fnos[i] != call_stack[depth].fno
+		    || stage2_trace_hits[i] >= stage2_trace_per_fno)
+			continue;
+		unsigned now = SDL_GetTicks();
+		if (now < stage2_trace_after_ms)
+			return;
+		stage2_trace_frames[depth].pending = true;
+		stage2_trace_frames[depth].hit = ++stage2_trace_hits[i];
+		stage2_trace_frames[depth].started_ms = now;
+		return;
+	}
+}
 
 // Read the opcode at ADDR.
 static int16_t get_opcode(size_t addr)
@@ -888,6 +1168,7 @@ static int _function_call(int fno, int return_address)
 		.struct_page = -1,
 		.base_sp = stack_ptr,  // default; callers may override after args
 	};
+	stage2_trace_prepare();
 	if (return_address == VM_RETURN && call_stack_ptr > 1)
 		vm_call_depth++;
 	// initialize local variables
@@ -1269,6 +1550,24 @@ static void method_call(int fno, int return_address)
 
 static void vm_execute(void);
 
+static union vm_value delegate_copy_argument(union vm_value value, enum ain_data_type type)
+{
+	// Delegate arguments remain on the caller's stack. A v14 callee local
+	// page owns its reference parameters, which variable_fini releases on
+	// return. Retain the referenced page, preserving the [page, index] alias.
+	if (ain->version >= 14) {
+		switch (type) {
+		case AIN_REF_TYPE:
+			if (value.i > 0 && heap_index_valid(value.i))
+				heap_ref(value.i);
+			break;
+		default:
+			break;
+		}
+	}
+	return value;
+}
+
 static void delegate_call(int dg_no, int return_address)
 {
 	if (dg_no < 0 || dg_no >= ain->nr_delegates)
@@ -1314,7 +1613,7 @@ static void delegate_call(int dg_no, int return_address)
 			int vi = 0; // local page variable index (may advance 2 for 2-slot args)
 			for (int i = 0; i < dg->nr_arguments && vi < heap[slot].page->nr_vars; i++) {
 				bool is2 = delegate_arg_is_2slot(&dg->variables[i].type);
-				heap[slot].page->values[vi] = stack_peek(base - 1);
+				heap[slot].page->values[vi] = delegate_copy_argument(stack_peek(base - 1), dg->variables[i].type.data);
 				if (is2 && vi + 1 < heap[slot].page->nr_vars)
 					heap[slot].page->values[vi + 1] = stack_peek(base - 2);
 				base -= is2 ? 2 : 1;
@@ -1437,6 +1736,8 @@ void vm_call_nopop(int fno, int nargs)
 		case AIN_ARRAY_TYPE:
 		case AIN_ARRAY:
 		case AIN_WRAP:
+		case AIN_IFACE:
+		case AIN_IFACE_WRAP:
 			if (heap[slot].page->values[i].i != -1)
 				heap_ref(heap[slot].page->values[i].i);
 			break;
@@ -1451,6 +1752,8 @@ void vm_call_nopop(int fno, int nargs)
 
 static void function_return(void)
 {
+	int trace_raw_sp = stack_ptr;
+	int trace_raw_top = stack_ptr > 0 ? stack[stack_ptr-1].i : 0;
 	int page_slot = call_stack[call_stack_ptr-1].page_slot;
 	size_t ret_addr = call_stack[call_stack_ptr-1].return_address;
 	int fno = call_stack[call_stack_ptr-1].fno;
@@ -1555,6 +1858,10 @@ static void function_return(void)
 		stack_ptr--;  // always consume struct_page
 	}
 
+	if (unlikely(stage2_trace_enabled) && stage2_trace_frames[call_stack_ptr-1].active) {
+		stage2_trace_emit(true, trace_raw_sp, trace_raw_top, expected_return);
+		stage2_trace_frames[call_stack_ptr-1].active = false;
+	}
 	// Decrement call_stack_ptr BEFORE heap_unref so that LIVE_PAGE_FREE
 	// protection can check all active frames (including what was the top).
 	// The current frame's page_slot is no longer "active" after return.
@@ -1906,6 +2213,12 @@ static void echo_message(int i)
 
 static inline __attribute__((always_inline)) enum opcode execute_instruction(enum opcode opcode)
 {
+	if (unlikely(stage2_trace_enabled) && call_stack_ptr > 0
+	    && stage2_trace_frames[call_stack_ptr-1].pending) {
+		stage2_trace_frames[call_stack_ptr-1].pending = false;
+		stage2_trace_frames[call_stack_ptr-1].active = true;
+		stage2_trace_emit(false, 0, 0, 0);
+	}
 	switch (opcode) {
 	//
 	// --- Stack Management ---
@@ -2592,6 +2905,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	}
 	case _MSG: {
 		int msg_idx = get_argument(0);
+		if (unlikely(stage2_trace_enabled))
+			stage2_trace_on_message(msg_idx);
 		if (config.echo)
 			echo_message(msg_idx);
 		if (ain->msgf <= 0) {
@@ -3115,6 +3430,24 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	}
 	case S_PLUSA:
 	case S_PLUSA2: {
+		// Newer AIN instructions leave an lvalue as [page, variable], as
+		// with S_ASSIGN. The legacy form has only the string heap slot.
+		// Both opcodes return an owned string value for the caller's DELETE.
+		if (instructions[CALLMETHOD].args[0] == T_INT) {
+			int rhs = stack_pop().i;
+			union vm_value *ref = stack_pop_var();
+			int lhs = ref->i;
+			struct string *result = &EMPTY_STRING;
+			if (string_index_valid(lhs) && heap[lhs].s) {
+				string_append(&heap[lhs].s, heap_get_string(rhs));
+				result = heap[lhs].s;
+			}
+			// Retain the result before consuming the RHS, including aliases.
+			result = string_ref(result);
+			heap_unref(rhs);
+			stack_push_string(result);
+			break;
+		}
 		int a = stack_peek(1).i;
 		int b = stack_peek(0).i;
 		struct string *sb = heap_get_string(b);
@@ -4339,6 +4672,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		// Peek at stack to get page info for ref counting before pop_var consumes it
 		int32_t xa_page_index = stack_peek(0).i;
 		int32_t xa_heap_index = stack_peek(1).i;
+		if (unlikely(stage2_trace_enabled) && stage2_trace_watch_fno >= 0)
+			vm_stage2_trace_page_event("assign-before", xa_heap_index, xa_page_index, vals[0].i, n);
 		union vm_value *var = stack_pop_var();
 		if (var && var != dummy_var) {
 			// Get page for type-aware ref counting (v14 fix)
@@ -4387,6 +4722,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				var[i] = vals[i];
 			}
 		}
+		if (unlikely(stage2_trace_enabled) && stage2_trace_watch_fno >= 0)
+			vm_stage2_trace_page_event("assign-after", xa_heap_index, xa_page_index, vals[0].i, n);
 		for (int i = 0; i < n; i++) {
 			stack_push(vals[i]);
 		}

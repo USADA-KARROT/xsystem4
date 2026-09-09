@@ -14,6 +14,8 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <math.h>
+
 #include "system4.h"
 
 #include "asset_manager.h"
@@ -49,14 +51,63 @@ static struct parts *drop_target = NULL;
 
 static bool parts_hittest(struct parts *parts, int state, Point pos)
 {
-	Rectangle hitbox = parts->states[state].common.hitbox;
+	struct parts_common *c = &parts->states[state].common;
+	Rectangle hitbox = c->hitbox;
 	if (parts->parent) {
 		hitbox.x += parts->parent->global.pos.x;
 		hitbox.y += parts->parent->global.pos.y;
 	}
-	return SDL_PointInRect(&pos, &hitbox);
-}
+	if (!parts->pixel_hittest || !c->texture.handle || c->texture.w <= 0
+			|| c->texture.h <= 0 || c->w <= 0 || c->h <= 0)
+		return SDL_PointInRect(&pos, &hitbox);
 
+	// Invert parts_render_cg's translation, rotation, scale and origin. Use
+	// the full image origin: surface_area clips pixels rather than scaling
+	// the complete image into the smaller hit rectangle.
+	float x = (float)pos.x - parts->global.pos.x;
+	float y = (float)pos.y - parts->global.pos.y;
+	if (parts->local.rotation.z != 0.0f) {
+		float angle = parts->local.rotation.z * (3.14159265358979323846f / 180.0f);
+		float cs = cosf(angle), sn = sinf(angle);
+		float rx = cs * x + sn * y;
+		y = -sn * x + cs * y;
+		x = rx;
+	}
+	if (!parts->global.scale.x || !parts->global.scale.y)
+		return false;
+	x = x / parts->global.scale.x - c->origin_offset.x;
+	y = y / parts->global.scale.y - c->origin_offset.y;
+	if (!isfinite(x) || !isfinite(y) || x < 0 || y < 0 || x >= c->w || y >= c->h)
+		return false;
+	int tx = (int)((double)x * c->texture.w / c->w);
+	int ty = (int)((double)y * c->texture.h / c->h);
+	if (parts->sprite_deform == 1)
+		tx = c->texture.w - 1 - tx;
+	else if (parts->sprite_deform == 2)
+		ty = c->texture.h - 1 - ty;
+	if (c->surface_area.w || c->surface_area.h) {
+		Point texel = { tx, ty };
+		if (!SDL_PointInRect(&texel, &c->surface_area))
+			return false;
+	}
+
+	// A CG changes only through its setter, which invalidates this mask.
+	// Other parts (gauges, animation, movies, construction) can mutate their
+	// texture in place, so sample them directly instead of caching stale alpha.
+	if (parts->states[state].type != PARTS_CG)
+		return gfx_get_pixel(&c->texture, tx, ty).a != 0;
+	if (!c->hit_mask) {
+		uint8_t *pixels = gfx_get_pixels(&c->texture);
+		if (!pixels)
+			return true;
+		size_t count = (size_t)c->texture.w * c->texture.h;
+		c->hit_mask = xmalloc(count);
+		for (size_t i = 0; i < count; i++)
+			c->hit_mask[i] = pixels[i * 4 + 3];
+		free(pixels);
+	}
+	return c->hit_mask[(size_t)ty * c->texture.w + tx] != 0;
+}
 static void drag_state_reset(void)
 {
 	drag_parts = NULL;
@@ -257,6 +308,20 @@ void PE_UpdateInputState(int passed_time)
 	// (WholeMouseLClickEvent), plus the g_EndPartsBusyLoop global.
 	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
 		struct parts *click_target = NULL;
+		if (getenv("XSYS4_STAGE2_TRACE")) {
+			unsigned candidates = 0;
+			NOTICE("S2 parts press ms=%u pos=%d,%d began=%d", SDL_GetTicks(), cur_pos.x, cur_pos.y, parts_began_click);
+			PARTS_LIST_FOREACH_REVERSE(parts) {
+				if (!parts->clickable || !parts->global.show || !parts->global.alpha || candidates++ >= 32)
+					continue;
+				Rectangle box = parts->states[PARTS_STATE_DEFAULT].common.hitbox;
+				NOTICE("S2 candidate no=%d state=%d pass=%d pixel=%d hit=%d default_hit=%d box=%d,%d,%d,%d global=%d,%d scale=%.3f,%.3f parent=%d",
+					parts->no, parts->state, parts->pass_cursor, parts->pixel_hittest,
+					parts_hittest(parts, parts->state, cur_pos), parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos),
+					box.x, box.y, box.w, box.h, parts->global.pos.x, parts->global.pos.y,
+					parts->global.scale.x, parts->global.scale.y, parts->parent ? parts->parent->no : 0);
+			}
+		}
 		PARTS_LIST_FOREACH_REVERSE(parts) {
 			if (parts->no >= 1000001000)
 				continue;
@@ -270,6 +335,8 @@ void PE_UpdateInputState(int passed_time)
 			break;
 		}
 		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
+		if (getenv("XSYS4_STAGE2_TRACE"))
+			NOTICE("S2 click target=%d", click_target ? click_target->no : 0);
 		if (click_target) {
 			if (click_target->on_click_sound >= 0)
 				audio_play_sound(click_target->on_click_sound);

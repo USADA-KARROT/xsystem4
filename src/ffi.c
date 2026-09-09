@@ -390,13 +390,20 @@ void hll_call(int libno, int fno, int hll_arg3)
 	void *heap_ptrs[HLL_MAX_ARGS];
 	int heap_slots[HLL_MAX_ARGS];
 	// (wrap_pagenos/wrap_varnos removed — AIN_WRAP is 1-slot)
-	// v14: expose hll_arg3 to HLL functions (Array uses it for element type info)
+	// HLL functions may call the VM, which can enter another HLL function.
+	// Keep this call's metadata active through argument cleanup and return
+	// handling, then restore the enclosing call's context.
 	extern int hll_current_arg3;
-	hll_current_arg3 = hll_arg3;
-	// v14: save the first AIN_REF_ARRAY argument's resolved heap slot
-	// so HLL functions can construct 2-slot references for REF_HLL_PARAM return.
 	extern int hll_self_slot;
+	extern int hll_param_slot2;
+	int saved_arg3 = hll_current_arg3;
+	int saved_self_slot = hll_self_slot;
+	int saved_func_obj = hll_func_obj;
+	int saved_param_slot2 = hll_param_slot2;
+	hll_current_arg3 = hll_arg3;
 	hll_self_slot = -1;
+	hll_func_obj = -1;
+	hll_param_slot2 = 0;
 
 	// Reset null-array source tracker (set by X_REF in vm.c)
 	// before processing arguments — it will be set again if
@@ -654,7 +661,6 @@ void hll_call(int libno, int fno, int hll_arg3)
 				etype == AIN_IFACE_WRAP);
 			if (is_2slot) {
 				stack_ptr -= 2;
-				extern int hll_param_slot2;
 				heap_slots[i] = stack[stack_ptr].i;
 				hll_param_slot2 = stack[stack_ptr+1].i;
 				args[i] = &heap_slots[i];
@@ -774,8 +780,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 		break;
 	}
 
-	hll_current_arg3 = -1;
-	hll_self_slot = -1;
+	hll_current_arg3 = saved_arg3;
+	hll_self_slot = saved_self_slot;
+	hll_func_obj = saved_func_obj;
+	hll_param_slot2 = saved_param_slot2;
 }
 
 extern struct static_library lib_ACXLoader;
@@ -1135,8 +1143,17 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 		bool found = false;
 		for (int j = 0; lib->functions[j].name; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
-				if (lib->functions[j].fun)
-					link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
+				void *funcptr = lib->functions[j].fun;
+				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "Erase")) {
+					extern void *array_erase_function(const struct ain_hll_function *f);
+					funcptr = array_erase_function(&ainlib->functions[i]);
+				}
+				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "IsExist")) {
+					extern void *array_isexist_function(const struct ain_hll_function *f);
+					funcptr = array_isexist_function(&ainlib->functions[i]);
+				}
+				if (funcptr)
+					link_static_library_function(&dst[i], &ainlib->functions[i], funcptr);
 				found = true;
 				break;
 			}

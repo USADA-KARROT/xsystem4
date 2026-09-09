@@ -27,6 +27,7 @@
 typedef struct cJSON cJSON;
 struct string;
 struct hash_table;
+struct parts_message_window;
 
 // NOTE: actual value is +1
 enum parts_state_type {
@@ -124,6 +125,8 @@ enum parts_type {
 
 struct parts_common {
 	Texture texture;
+	// Lazily read alpha for immutable CG textures; reset on replacement.
+	uint8_t *hit_mask;
 	int w, h;
 	Point origin_offset;
 	Rectangle hitbox;
@@ -426,6 +429,7 @@ struct parts {
 	int sprite_deform;
 	bool clickable;
 	bool pass_cursor;
+	bool pixel_hittest;
 	bool lock_input_state;
 	bool want_save;
 	bool draggable;
@@ -439,6 +443,7 @@ struct parts {
 	int hover_time;
 	int draw_filter;
 	bool message_window;
+	struct parts_message_window *message;
 	int alpha_clipper_parts_no;
 	int margin_top;
 	int margin_bottom;
@@ -486,6 +491,7 @@ struct parts_layout_box *parts_get_layout_box(struct parts *parts);
 struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state);
 void parts_set_pos(struct parts *parts, Point pos);
 void parts_set_global_pos(Point pos);
+void parts_clear_hit_mask(struct parts_common *common);
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
 void parts_set_scale_x(struct parts *parts, float mag);
 void parts_set_scale_y(struct parts *parts, float mag);
@@ -496,6 +502,10 @@ void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
 extern bool parts_message_window_show;
+
+// message_window.c: the sidecar owns text/strings; the parts owns the background.
+void parts_message_window_free(struct parts_message_window *message);
+struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position);
 
 // message queue (implemented in PartsEngine.c)
 void parts_enqueue_message(int type, int parts_no, int delegate_index, int unique_id);

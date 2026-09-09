@@ -22,16 +22,14 @@
  *  - GetMessageType returns -1 when the queue is empty; the game polls
  *    until -1.
  *  - GetMessageType/GetMessagePartsNumber/GetMessageDelegateIndex/
- *    GetMessageUniqueID always PEEK the queue head. PopMessage advances
- *    the head and stores the popped message in msg_current, which
- *    GetMessageVariable* then read (CallEventN reads variables after
- *    popping).
- *  - ReleaseMessage discards a single message, not the whole queue.
+ *    GetMessageUniqueID and GetMessageVariable* PEEK the same queue head.
+ *    CallEventN copies variables before PopMessage, then invokes the delegate.
+ *  - SeekMessage leaves the matching message at the head for normal dispatch.
+ *  - PopMessage removes one message; ReleaseMessage clears the pending queue.
  *  - CallDelegate compares the message's uniqueID against the parts'
  *    registered event ID (SetEventID) and silently drops mismatches.
- *  - Message types (bytecode SWITCH): 1=button click (per part),
- *    5=mouse left click (also whole-screen when parts_no=0, which fires
- *    WholeMouseLClickEvent for scene navigation).
+ *  - Message types (bytecode SWITCH): 4=mouse click, 5=double click.
+ *    MouseClick's keyCode distinguishes left (1), right (2), middle (4).
  */
 
 #include "system4/ain.h"
@@ -55,7 +53,6 @@ struct v14_parts_message {
 };
 static struct v14_parts_message msg_queue[V14_MSG_QUEUE_SIZE];
 static int msg_head = 0, msg_tail = 0;
-static struct v14_parts_message msg_current = { .type = -1 };
 
 void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
                                 int nr_vars, const int *vars)
@@ -83,28 +80,16 @@ void parts_enqueue_message(int type, int parts_no, int delegate_index, int uniqu
 
 static void PE_v14_PopMessage(void)
 {
-	if (msg_head != msg_tail) {
-		msg_current = msg_queue[msg_head];
+	if (msg_head != msg_tail)
 		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
-	} else {
-		msg_current.type = -1;
-		msg_current.parts_no = 0;
-	}
 }
 
 static void PE_v14_ReleaseMessage(void)
 {
-	if (msg_head != msg_tail) {
-		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
-	}
-	msg_current.type = -1;
-	msg_current.parts_no = 0;
-	msg_current.nr_vars = 0;
+	msg_head = msg_tail;
 }
 
-// Always peek the queue head (not msg_current): msg_current holds the
-// already-processed message after PopMessage; returning its type would
-// re-fire the same handler in nested UpdateMessage calls.
+// A popped message is no longer visible, including during nested dispatch.
 static int PE_v14_GetMessageType(void)
 {
 	if (msg_head != msg_tail) {
@@ -137,28 +122,19 @@ static int PE_v14_GetMessageUniqueID(void)
 	return 0;
 }
 
-static bool PE_v14_SeekMessage(int target_parts_no)
+static void PE_v14_SeekMessage(int target_parts_no)
 {
 	// Advance through the queue until a message for the target parts is found.
 	while (msg_head != msg_tail) {
-		if (msg_queue[msg_head].parts_no == target_parts_no) {
-			msg_current = msg_queue[msg_head];
-			msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
-			return true;
-		}
+		if (msg_queue[msg_head].parts_no == target_parts_no)
+			return;
 		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
 	}
-	msg_current.type = -1;
-	return false;
 }
 
-// After PopMessage, msg_current holds the popped message; before, peek head.
+// CallEventN reads these values before it pops the message.
 static int PE_v14_GetMessageVariableInt(int idx)
 {
-	if (msg_current.type >= 0) {
-		if (idx < 0 || idx >= msg_current.nr_vars) return 0;
-		return msg_current.vars[idx];
-	}
 	if (msg_head != msg_tail) {
 		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0;
 		return msg_queue[msg_head].vars[idx];
@@ -185,10 +161,33 @@ static void PE_v14_GetMessageVariableString(possibly_unused int idx, struct stri
 	*out = string_ref(&EMPTY_STRING);
 }
 
+static struct string *PE_v14_GetMessageVariableString_ret(possibly_unused int idx)
+{
+	// The v14 declaration returns the string instead of taking an out argument.
+	return string_ref(&EMPTY_STRING);
+}
+
+static void pe_v14_link_message_string_getter(struct static_library *lib)
+{
+	int libno = ain_get_library(ain, "PartsEngine");
+	if (libno < 0)
+		return;
+	int fno = ain_get_library_function(ain, libno, "GetMessageVariableString");
+	if (fno < 0)
+		return;
+	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
+	if (!f->arguments || f->nr_arguments < 1 || f->arguments[0].type.data != AIN_INT)
+		return;
+	if (f->return_type.data == AIN_STRING && f->nr_arguments == 1) {
+		static_library_replace(lib, "GetMessageVariableString", PE_v14_GetMessageVariableString_ret);
+	} else if (f->return_type.data == AIN_VOID && f->nr_arguments == 2
+			&& f->arguments[1].type.data == AIN_REF_STRING) {
+		static_library_replace(lib, "GetMessageVariableString", PE_v14_GetMessageVariableString);
+	}
+}
+
 static int PE_v14_GetMessageVariableCount(void)
 {
-	if (msg_current.type >= 0)
-		return msg_current.nr_vars;
 	if (msg_head != msg_tail)
 		return msg_queue[msg_head].nr_vars;
 	return 0;
@@ -245,20 +244,43 @@ static int PE_v14_GetSystemOverlayController(void)
 /* --- Message window (v14 ADV dialogue) --- thin adapters over the
  * upstream parts text/CG API, from the fork's verified behaviour. */
 
+static void pe_v14_trace_window(const char *operation, const char *phase,
+		int parts_no, int text_size, int active)
+{
+	struct parts *p = parts_try_get(parts_no);
+	if (!p) {
+		WARNING("S2 message %s %s parts=%d bytes=%d active=%d missing", operation,
+			phase, parts_no, text_size, active);
+		return;
+	}
+	WARNING("S2 message %s %s parts=%d bytes=%d active=%d state=%d type=%d default_type=%d show=%d alpha=%d pos=(%d,%d)",
+		operation, phase, parts_no, text_size, active, p->state,
+		p->states[p->state].type, p->states[PARTS_STATE_DEFAULT].type,
+		p->global.show, p->global.alpha, p->global.pos.x, p->global.pos.y);
+}
+
 static void PE_v14_SetMessageWindowActive(int parts_no, bool active)
 {
+	static unsigned trace_count;
+	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
+	if (trace) pe_v14_trace_window("Active", "before", parts_no, -1, active);
 	struct parts *parts = parts_try_get(parts_no);
 	if (!parts)
 		return;
 	parts->message_window = true;
 	PE_SetShow(parts_no, active);
+	if (trace) pe_v14_trace_window("Active", "after", parts_no, -1, active);
 }
 
 static void PE_v14_SetMessageWindowText(int parts_no, struct string *text,
 		int msg_num, struct string *func_name, int ver, int step)
 {
-	(void)msg_num; (void)func_name; (void)ver; (void)step;
-	PE_SetText(parts_no, text, 1); // DEFAULT state, 1-based
+	static unsigned trace_count;
+	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
+	int text_size = text ? text->size : -1;
+	if (trace) pe_v14_trace_window("Text", "before", parts_no, text_size, -1);
+	PE_SetMessageWindowText(parts_no, text, msg_num, func_name, ver, step);
+	if (trace) pe_v14_trace_window("Text", "after", parts_no, text_size, -1);
 }
 
 static void PE_v14_FixMessageWindowText(possibly_unused int parts_no)
@@ -273,31 +295,35 @@ static bool PE_v14_IsFixedMessageWindowText(possibly_unused int parts_no)
 
 static void PE_v14_SetMessageWindowCGName(int parts_no, struct string *name)
 {
-	PE_SetPartsCG(parts_no, name, 0, 1);
+	static unsigned trace_count;
+	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
+	int name_size = name ? name->size : -1;
+	if (trace) pe_v14_trace_window("CGName", "before", parts_no, name_size, -1);
+	PE_SetMessageWindowCGName(parts_no, name);
+	if (trace) pe_v14_trace_window("CGName", "after", parts_no, name_size, -1);
 }
 
 static void PE_v14_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h)
 {
-	PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, 1);
+	PE_SetMessageWindowTextArea(parts_no, x, y, w, h);
 }
 
 static void PE_v14_SetMessageWindowTextFont(int parts_no, int type, int size,
 		int r, int g, int b, float bold_weight,
 		int edge_r, int edge_g, int edge_b, float edge_weight)
 {
-	PE_SetFont(parts_no, type, size, r, g, b, bold_weight,
-			edge_r, edge_g, edge_b, edge_weight, 1);
+	PE_SetMessageWindowTextFont(parts_no, type, size, r, g, b, bold_weight,
+			edge_r, edge_g, edge_b, edge_weight);
 }
 
 static void PE_v14_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space)
 {
-	PE_SetTextCharSpace(parts_no, letter_space, 1);
-	PE_SetTextLineSpace(parts_no, line_space, 1);
+	PE_SetMessageWindowTextSpace(parts_no, letter_space, line_space);
 }
 
 static void PE_v14_SetKeyWaitShow(int parts_no, bool show)
 {
-	PE_SetShow(parts_no, show);
+	PE_SetKeyWaitShow(parts_no, show);
 }
 
 /* --- click/input state queries (v14 WaitForClick contract) ---
@@ -341,7 +367,7 @@ void pe_v14_message_replace(void)
 	static_library_replace(lib, "GetMessageVariableInt", PE_v14_GetMessageVariableInt);
 	static_library_replace(lib, "GetMessageVariableFloat", PE_v14_GetMessageVariableFloat);
 	static_library_replace(lib, "GetMessageVariableBool", PE_v14_GetMessageVariableBool);
-	static_library_replace(lib, "GetMessageVariableString", PE_v14_GetMessageVariableString);
+	pe_v14_link_message_string_getter(lib);
 }
 
 /* Register brand-new v14 functions (not in the upstream export table).
@@ -366,9 +392,11 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "IsFixedMessageWindowText", PE_v14_IsFixedMessageWindowText);
 	static_library_register(lib, "SetMessageWindowCGName", PE_v14_SetMessageWindowCGName);
 	static_library_register(lib, "SetMessageWindowTextArea", PE_v14_SetMessageWindowTextArea);
+	static_library_register(lib, "GetMessageWindowTextArea", PE_GetMessageWindowTextArea);
 	static_library_register(lib, "SetMessageWindowTextFont", PE_v14_SetMessageWindowTextFont);
 	static_library_register(lib, "SetMessageWindowTextSpace", PE_v14_SetMessageWindowTextSpace);
 	static_library_register(lib, "SetKeyWaitShow", PE_v14_SetKeyWaitShow);
+	static_library_register(lib, "IsKeyWaitShow", PE_IsKeyWaitShow);
 	static_library_register(lib, "GetActiveParts", PE_v14_GetActiveParts);
 	static_library_register(lib, "GetClickNumber", PE_v14_GetClickNumber);
 	static_library_register(lib, "SetClickMissSoundName", PE_v14_SetClickMissSoundName);

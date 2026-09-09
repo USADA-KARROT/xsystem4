@@ -22,6 +22,22 @@
 struct page;
 struct string;
 
+// v14 message windows keep their text independently from the background CG.
+void PE_SetMessageWindowText(int parts_no, struct string *text, int msg_num,
+		struct string *func_name, int ver, int step);
+struct string *PE_GetMessageWindowText(int parts_no);
+void PE_SetMessageWindowCGName(int parts_no, struct string *name);
+struct string *PE_GetMessageWindowCGName(int parts_no);
+void PE_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h);
+void PE_GetMessageWindowTextArea(int parts_no, int *x, int *y, int *w, int *h);
+void PE_SetMessageWindowTextOriginPosMode(int parts_no, int mode);
+void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
+		int r, int g, int b, float bold_weight,
+		int edge_r, int edge_g, int edge_b, float edge_weight);
+void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space);
+void PE_SetKeyWaitShow(int parts_no, bool show);
+bool PE_IsKeyWaitShow(int parts_no);
+
 // parts.c
 void PE_enable_multi_controller(void);
 bool PE_Init(void);

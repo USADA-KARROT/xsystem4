@@ -585,26 +585,31 @@ static void Array_Popback(struct page **array)
 
 // Erase: remove 'length' elements starting at 'index'.
 // AIN declares: self (ref_array), index (int), length (int).
-static void Array_Erase(struct page **array, int index, int length)
+static int array_erase_stride(const struct page *a)
+{
+	if ((a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
+	    && a->array.struct_type > 1 && array_elem_is_2slot())
+		return a->array.struct_type;
+	return 1;
+}
+
+static bool Array_Erase(struct page **array, int index, int length)
 {
 	if (!array || !*array)
-		return;
+		return false;
 	struct page *a = *array;
-	// v14: convert logical index/length to physical for multi-slot arrays
-	// (2-slot value elements only — see Array_Numof).
-	if ((a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
-	    && a->array.struct_type > 1 && array_elem_is_2slot()) {
-		index *= a->array.struct_type;
-		length *= a->array.struct_type;
-	}
-	if (length <= 0 || index < 0 || index >= a->nr_vars)
-		return;
-	// Clamp length to available elements
-	if (index + length > a->nr_vars)
-		length = a->nr_vars - index;
-	// v14: unref removed elements if they are heap objects
+	int stride = array_erase_stride(a);
+	int count = a->nr_vars / stride;
+	if (length <= 0 || index < 0 || index >= count)
+		return false;
+	if (length > count - index)
+		length = count - index;
+	index *= stride;
+	length *= stride;
+	// Match PushBack: only the first slot owns a reference. The second slot
+	// of an interface/option element is metadata, even if it looks like a slot.
 	if (array_elem_is_ref()) {
-		for (int i = index; i < index + length; i++) {
+		for (int i = index; i < index + length; i += stride) {
 			int removed = a->values[i].i;
 			if (removed > 0)
 				heap_unref(removed);
@@ -614,7 +619,7 @@ static void Array_Erase(struct page **array, int index, int length)
 	if (new_size == 0) {
 		free_page(a);
 		*array = NULL;
-		return;
+		return true;
 	}
 	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
 	for (int i = 0; i < index; i++)
@@ -624,6 +629,104 @@ static void Array_Erase(struct page **array, int index, int length)
 	new_a->array = a->array;
 	free_page(a);
 	*array = new_a;
+	return true;
+}
+
+/* Erase(predicate) removes the first match; EraseAll is a separate overload. */
+static bool Array_EraseIf(struct page **array, int func)
+{
+	if (!array || !*array || func < 0 || func >= ain->nr_functions)
+		return false;
+	struct ain_function *cb = &ain->functions[func];
+	if (cb->nr_args < 1 || cb->nr_args > 2)
+		return false;
+	int stride = array_erase_stride(*array);
+	for (int i = 0; *array && i < (*array)->nr_vars / stride; i++) {
+		int saved_sp = stack_ptr;
+		stack_push((*array)->values[i * stride]);
+		if (cb->nr_args == 2)
+			stack_push(stride > 1 ? (*array)->values[i * stride + 1] : (union vm_value){.i = 0});
+		vm_call_nopop(func, cb->nr_args);
+		bool match = stack_pop().i != 0;
+		stack_ptr = saved_sp;
+		if (match)
+			return Array_Erase(array, i, 1);
+	}
+	return false;
+}
+
+static bool array_erase_value_equal(union vm_value a, union vm_value b)
+{
+	if (a.i == b.i)
+		return true;
+	if (!array_elem_is_ref() || a.i <= 0 || b.i <= 0
+	    || (size_t)a.i >= heap_size || (size_t)b.i >= heap_size
+	    || HEAP_REF(a.i) <= 0 || HEAP_REF(b.i) <= 0
+	    || heap[a.i].type != VM_STRING || heap[b.i].type != VM_STRING
+	    || !heap[a.i].s || !heap[b.i].s)
+		return false;
+	struct string *sa = heap[a.i].s, *sb = heap[b.i].s;
+	return sa->size == sb->size && !memcmp(sa->text, sb->text, sa->size);
+}
+
+/* Erase(source) is set subtraction, used for selected IDs and skill lists. */
+static bool Array_EraseValues(struct page **array, int source_slot)
+{
+	if (!array || !*array || source_slot <= 0 || (size_t)source_slot >= heap_size
+	    || HEAP_REF(source_slot) <= 0 || heap[source_slot].type != VM_PAGE
+	    || !heap[source_slot].page || heap[source_slot].page->type != ARRAY_PAGE)
+		return false;
+	const struct page *src = heap[source_slot].page;
+	int stride = array_erase_stride(*array);
+	if (array_erase_stride(src) != stride)
+		return false;
+	if (src == *array)
+		return Array_Erase(array, 0, (*array)->nr_vars / stride);
+	bool erased = false;
+	for (int i = (*array)->nr_vars / stride - 1; i >= 0; i--) {
+		bool found = false;
+		for (int j = 0; j < src->nr_vars / stride && !found; j++) {
+			found = true;
+			for (int k = 0; k < stride; k++) {
+				union vm_value a = (*array)->values[i * stride + k];
+				union vm_value b = src->values[j * stride + k];
+				// Extra slots are metadata, never string references.
+				if (!(k == 0 ? array_erase_value_equal(a, b) : a.i == b.i)) {
+					found = false;
+					break;
+				}
+			}
+		}
+		if (found)
+			erased = Array_Erase(array, i, 1) || erased;
+	}
+	return erased;
+}
+
+/* The AIN declarations share a name, but require distinct C prototypes. */
+void *array_erase_function(const struct ain_hll_function *f)
+{
+	if (!f || !f->arguments || (f->return_type.data != AIN_BOOL && f->return_type.data != AIN_VOID)
+	    || f->nr_arguments < 2)
+		return NULL;
+	switch (f->arguments[0].type.data) {
+	case AIN_REF_ARRAY_TYPE:
+	case AIN_REF_ARRAY:
+		break;
+	default:
+		return NULL;
+	}
+	if (f->nr_arguments == 3 && f->arguments[1].type.data == AIN_INT
+	    && f->arguments[2].type.data == AIN_INT)
+		return Array_Erase;
+	if (f->nr_arguments != 2 || f->return_type.data != AIN_BOOL)
+		return NULL;
+	if (f->arguments[1].type.data == AIN_HLL_FUNC || f->arguments[1].type.data == AIN_HLL_FUNC_71)
+		return Array_EraseIf;
+	if (f->arguments[1].type.data == AIN_WRAP && f->arguments[1].type.array_type
+	    && f->arguments[1].type.array_type->data == AIN_ARRAY)
+		return Array_EraseValues;
+	return NULL;
 }
 
 static void Array_Insert(struct page **array, int index, int value)
@@ -1581,25 +1684,43 @@ static int Array_ShallowCopy(struct page **self)
 	return slot;
 }
 
-// IsExist: check if any element satisfies a delegate predicate.
-// Equivalent to Array.Any — calls func(element) for each element,
-// returns true if the predicate returns nonzero for any element.
+// IsExist(value) must not interpret a small enum/integer as a function number.
+static bool Array_IsExistValue(struct page **self, int value)
+{
+	const struct page *array = self ? *self : NULL;
+	if (!array || array->type != ARRAY_PAGE)
+		return false;
+	int stride = array_erase_stride(array);
+	if (stride > 2)
+		return false;
+	for (int i = 0; i < array->nr_vars / stride; i++) {
+		if (array_erase_value_equal(array->values[i * stride], (union vm_value){.i = value})
+		    && (stride == 1 || array->values[i * stride + 1].i == hll_param_slot2))
+			return true;
+	}
+	return false;
+}
+
+// IsExist(predicate): the VM call owns the temporary callback argument refs.
 static bool Array_IsExist(struct page **self, int func)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	if (!array || array->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
+	if (!array || array->type != ARRAY_PAGE || array->nr_vars == 0
+	    || func < 0 || func >= ain->nr_functions)
 		return false;
 
 	struct ain_function *cb = &ain->functions[func];
+	if (cb->nr_args < 1 || cb->nr_args > 2)
+		return false;
+	int stride = array_erase_stride(array);
+	if (stride > 2)
+		return false;
 
-	for (int i = 0; i < array->nr_vars; i++) {
+	for (int i = 0; *self && i < (*self)->nr_vars / stride; i++) {
 		int saved_sp = stack_ptr;
-		if (cb->nr_args >= 2) {
-			stack_push(array->values[i]);
-			stack_push(0);
-		} else {
-			stack_push(array->values[i]);
-		}
+		stack_push((*self)->values[i * stride]);
+		if (cb->nr_args == 2)
+			stack_push(stride > 1 ? (*self)->values[i * stride + 1] : (union vm_value){.i = 0});
 		vm_call_nopop(func, cb->nr_args);
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
@@ -1607,6 +1728,24 @@ static bool Array_IsExist(struct page **self, int func)
 			return true;
 	}
 	return false;
+}
+
+void *array_isexist_function(const struct ain_hll_function *f)
+{
+	if (!f || !f->arguments || f->nr_arguments != 2 || f->return_type.data != AIN_BOOL)
+		return NULL;
+	switch (f->arguments[0].type.data) {
+	case AIN_REF_ARRAY_TYPE:
+	case AIN_REF_ARRAY:
+		break;
+	default:
+		return NULL;
+	}
+	if (f->arguments[1].type.data == AIN_HLL_PARAM)
+		return Array_IsExistValue;
+	if (f->arguments[1].type.data == AIN_HLL_FUNC || f->arguments[1].type.data == AIN_HLL_FUNC_71)
+		return Array_IsExist;
+	return NULL;
 }
 
 // EmplaceBack: push a default value (like PushBack(0) for int arrays)

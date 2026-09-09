@@ -172,6 +172,7 @@ bool parts_exists(int parts_no)
 
 static void parts_state_free(struct parts_state *state)
 {
+	parts_clear_hit_mask(&state->common);
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
 	case PARTS_RECT_DETECTION:
@@ -662,8 +663,15 @@ void parts_set_rotation_z(struct parts *parts, float rot)
 	parts_dirty(parts);
 }
 
+void parts_clear_hit_mask(struct parts_common *common)
+{
+	free(common->hit_mask);
+	common->hit_mask = NULL;
+}
+
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h)
 {
+	parts_clear_hit_mask(common);
 	common->w = w;
 	common->h = h;
 	parts_common_recalculate_hitbox(parts, common);
@@ -991,6 +999,7 @@ void parts_release(int parts_no)
 	struct parts *parts = slot->value;
 	parts_input_reset_drag(parts);
 	parts_clear_motion(parts);
+	parts_message_window_free(parts->message);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
 		parts_state_free(&parts->states[i]);
 	}
@@ -1978,7 +1987,7 @@ void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no
 
 void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
 {
-	//UNIMPLEMENTED("(%d, %s)", parts_no, pixel_decide ? "true" : "false");
+	parts_get(parts_no)->pixel_hittest = pixel_decide;
 }
 
 bool PE_SetThumbnailReductionSize(int reduction_size)
