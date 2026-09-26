@@ -580,12 +580,9 @@ static void heap_free_slot(int32_t slot)
 	if (unlikely((size_t)slot >= heap_size)) {
 		return;
 	}
-	// Guard: if ref is already 0, this is a double-free — skip silently.
-	// This happens regularly after GC sweep adds slots to free list,
-	// then VM code unrefs the same slots.
-	if (unlikely(heap[slot].ref == 0 && heap[slot].type == 0)) {
-		return;
-	}
+	// Callers have already transitioned the last owner to ref=0. VM_PAGE
+	// is also zero, so (ref==0 && type==0) cannot identify a double free.
+	// heap_unref/exit_unref reject an already released slot at entry.
 	heap[slot].ref = 0;
 	heap[slot].type = 0;
 	heap[slot].seq = (uint32_t)heap_free_head;
@@ -672,6 +669,9 @@ void heap_unref(int slot)
 
 		if (!deferred_processing) {
 			deferred_processing = true;
+			// Destructor allocations must not let pressure GC put queued or
+			// in-progress slots on the free list before this drain does so.
+			heap_gc_inhibit();
 			while (deferred_count > 0) {
 				int s = deferred_queue[--deferred_count];
 				// Skip if re-allocated (ref > 0) or already freed (ref < 0)
@@ -698,6 +698,7 @@ void heap_unref(int slot)
 				heap[s].ref = 0;
 				heap_free_slot(s);
 			}
+			heap_gc_allow();
 			deferred_processing = false;
 #ifdef __APPLE__
 			// Periodically tell macOS malloc to return freed memory to the OS.

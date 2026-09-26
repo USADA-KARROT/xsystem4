@@ -1030,9 +1030,16 @@ static void set_struct_page(int slot)
 
 static void unref_call_frame(struct function_call *frame)
 {
-	if (frame->struct_page > 0 && keep_alive_enabled())
-		heap_unref(frame->struct_page);
-	heap_unref(frame->page_slot);
+	// Destructors may reenter the VM and overwrite a call-stack slot.
+	struct function_call owned = *frame;
+	frame->delegate_obj_ref = frame->delegate_env_ref = 0;
+	if (owned.delegate_obj_ref > 0)
+		heap_unref(owned.delegate_obj_ref);
+	if (owned.delegate_env_ref > 0)
+		heap_unref(owned.delegate_env_ref);
+	if (owned.struct_page > 0 && keep_alive_enabled())
+		heap_unref(owned.struct_page);
+	heap_unref(owned.page_slot);
 }
 
 static void scenario_jump(int address)
@@ -1558,6 +1565,10 @@ static union vm_value delegate_copy_argument(union vm_value value, enum ain_data
 	if (ain->version >= 14) {
 		switch (type) {
 		case AIN_REF_TYPE:
+		case AIN_WRAP:
+			// A wrapped delegate is also a borrowed heap value here. The
+			// callback's local page releases it on return, so it needs its
+			// own reference while the caller/optional field still owns it.
 			if (value.i > 0 && heap_index_valid(value.i))
 				heap_ref(value.i);
 			break;
@@ -1642,6 +1653,17 @@ static void delegate_call(int dg_no, int return_address)
 						break;
 					}
 				}
+			}
+		}
+		if (ain->version >= 14) {
+			struct function_call *frame = &call_stack[call_stack_ptr-1];
+			if (heap_index_valid(frame->struct_page)) {
+				frame->delegate_obj_ref = frame->struct_page;
+				heap_ref(frame->delegate_obj_ref);
+			}
+			if (heap_index_valid(frame->env_page)) {
+				frame->delegate_env_ref = frame->env_page;
+				heap_ref(frame->delegate_env_ref);
 			}
 		}
 	} else {
@@ -1869,11 +1891,9 @@ static void function_return(void)
 		vm_call_depth--;
 	// Release the keep-alive ref on `this` taken by set_struct_page
 	// (upstream 9ed1f52), then the local page, after the frame is popped.
-	int struct_page = call_stack[call_stack_ptr-1].struct_page;
+	struct function_call finished_frame = call_stack[call_stack_ptr-1];
 	call_stack_ptr--;
-	if (struct_page > 0 && keep_alive_enabled())
-		heap_unref(struct_page);
-	heap_unref(page_slot);
+	unref_call_frame(&finished_frame);
 	instr_ptr = ret_addr;
 }
 
@@ -4462,13 +4482,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		int env = 0;
 		if (ain->version >= 14) {
 			env = local_page_slot();
-			heap_ref(env);
-			if (obj > 0)
-				heap_ref(obj);
 		}
 		if (obj == -1 && ain->version >= 14) {
 			obj = local_page_slot();
-			heap_ref(obj);
 		}
 		int slot = heap_alloc_page(delegate_new_from_method_env(obj, fun, env));
 		stack_push(slot);
@@ -4691,8 +4707,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				WARNING("X_ASSIGN %d past end of page (page_index=%d nr_vars=%d); clamping to %d",
 				        n, xa_page_index, xa_page->nr_vars, writable);
 			}
+			// In v14 the compiler emits DELETE for the previous owner and
+			// SP_INC/A_REF for shared values. X_ASSIGN transfers that prepared
+			// ownership; adding another ref leaks, and dropping the old value
+			// here repeats the bytecode's DELETE (possibly after slot reuse).
 			for (int i = 0; i < writable; i++) {
-				if (xa_page) {
+				if (ain->version < 14 && xa_page) {
 					enum ain_data_type vtype = variable_type(xa_page, xa_page_index + i, NULL, NULL);
 					switch (vtype) {
 					case AIN_STRING:
@@ -4899,6 +4919,26 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		} else if (heap_index_valid(heap_idx) && heap[heap_idx].page) {
 			data_type = variable_type(heap[heap_idx].page, var_idx, &struct_type, NULL);
 		}
+		// AIN v14 preserves the element declaration in array_type. Keep it
+		// for single-slot arrays; multi-slot interface/wrap arrays stay generic.
+		const struct ain_type *decl = NULL;
+		if (heap_idx == 0 && var_idx >= 0 && var_idx < ain->nr_globals)
+			decl = &ain->globals[var_idx].type;
+		else if (heap_index_valid(heap_idx) && heap[heap_idx].page)
+			decl = variable_decltype(heap[heap_idx].page, var_idx);
+		if (arg == 0 && decl && decl->array_type &&
+		    (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)) {
+			const struct ain_type *elem = decl->array_type;
+			switch (elem->data) {
+			case AIN_INT: case AIN_BOOL: case AIN_ENUM:
+				data_type = AIN_ARRAY_INT; break;
+			case AIN_FLOAT: data_type = AIN_ARRAY_FLOAT; break;
+			case AIN_STRING: data_type = AIN_ARRAY_STRING; break;
+			case AIN_STRUCT:
+				data_type = AIN_ARRAY_STRUCT; struct_type = elem->struc; break;
+			default: break;
+			}
+		}
 		// arg encodes element slot count: 0 = 1-slot, 1 = 2-slot, etc.
 		// For generic arrays (AIN_ARRAY), multiply physical size by (arg+1)
 		// to accommodate multi-slot element types (e.g. wrap, interface).
@@ -4927,7 +4967,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			// size=0: create an empty array page to preserve type metadata
 			// (struct_type, data_type) for later EmplaceBack calls.
 			struct page *page = alloc_page(ARRAY_PAGE,
-				(data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) ? data_type : AIN_ARRAY_INT, 0);
+				data_type, 0);
+			page->array.rank = 1;
 			// For generic arrays, store elem_slots (not the struct index)
 			// so X_A_SIZE can correctly compute logical size.
 			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)
@@ -4936,13 +4977,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				page->array.struct_type = struct_type;
 			heap_set_page(slot, page);
 		}
-		// Assign to variable with proper ref counting
+		// Install the fresh array; v14 bytecode already DELETEd the old owner.
 		if (heap_index_valid(heap_idx) && heap[heap_idx].page &&
 		    var_idx >= 0 && var_idx < heap[heap_idx].page->nr_vars) {
 			int old_slot = heap[heap_idx].page->values[var_idx].i;
 			heap[heap_idx].page->values[var_idx].i = slot;
-			heap_ref(slot);
-			if (old_slot > 0 && heap_index_valid(old_slot))
+			// The fresh slot ownership transfers to the variable.
+			// X_A_INIT leaves a borrowed result consumed by POP.
+			if (ain->version < 14 && old_slot > 0 && heap_index_valid(old_slot))
 				heap_unref(old_slot);
 		}
 		stack_push(slot);
@@ -5114,10 +5156,14 @@ static void vm_execute(void)
 					int target_sp = call_stack[vm_ret_frame].base_sp;
 					while (call_stack_ptr > vm_ret_frame) {
 						int ps = call_stack[call_stack_ptr-1].page_slot;
+						int dg_obj = call_stack[call_stack_ptr-1].delegate_obj_ref;
+						int dg_env = call_stack[call_stack_ptr-1].delegate_env_ref;
 						if (call_stack[call_stack_ptr-1].return_address == VM_RETURN
 								&& call_stack_ptr > 1)
 							vm_call_depth--;
 						call_stack_ptr--;
+						if (dg_obj > 0) exit_unref(dg_obj);
+						if (dg_env > 0) exit_unref(dg_env);
 						exit_unref(ps);
 					}
 					stack_ptr = target_sp;
@@ -5159,7 +5205,11 @@ static void vm_free(void)
 	exit_libraries();
 	// flush call stack
 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
-		if (call_stack[i].struct_page >= 0 && AIN_VERSION_GTE(ain, 6, 1))
+		if (call_stack[i].delegate_obj_ref > 0)
+			exit_unref(call_stack[i].delegate_obj_ref);
+		if (call_stack[i].delegate_env_ref > 0)
+			exit_unref(call_stack[i].delegate_env_ref);
+		if (call_stack[i].struct_page >= 0 && keep_alive_enabled())
 			exit_unref(call_stack[i].struct_page);
 		exit_unref(call_stack[i].page_slot);
 	}

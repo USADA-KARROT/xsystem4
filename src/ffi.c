@@ -771,6 +771,23 @@ void hll_call(int libno, int fno, int hll_arg3)
 		// Read the low byte and normalize to 0/1.
 		stack_push((int)(*(uint8_t*)&r != 0));
 		break;
+	case AIN_WRAP:
+		// EmplaceBack returns a writable element reference. Primitive elements
+		// use (array slot, index), while reference elements use their heap slot.
+		if (ain->version >= 14 && !strcmp(ain->libraries[libno].name, "Array")
+		    && !strcmp(f->name, "EmplaceBack") && hll_self_slot > 0
+		    && heap_index_valid(hll_self_slot) && heap[hll_self_slot].page) {
+			struct page *array = heap[hll_self_slot].page;
+			if (array->a_type == AIN_ARRAY_INT || array->a_type == AIN_ARRAY_FLOAT
+			    || array->a_type == AIN_ARRAY_BOOL) {
+				heap_ref(hll_self_slot); // owning wrap result, released by bytecode DELETE
+				stack_push(hll_self_slot);
+				stack_push(array->nr_vars - 1);
+				break;
+			}
+		}
+		stack_push(r);
+		break;
 	case AIN_REF_HLL_PARAM:
 		// v14: The HLL function has already pushed the return value(s) directly
 		// to the stack. Do NOT push the C return value here.
@@ -1151,6 +1168,11 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "IsExist")) {
 					extern void *array_isexist_function(const struct ain_hll_function *f);
 					funcptr = array_isexist_function(&ainlib->functions[i]);
+				}
+				if (!strcmp(lib->name, "Array") && (!strcmp(ainlib->functions[i].name, "Numof")
+				    || !strcmp(ainlib->functions[i].name, "Count") || !strcmp(ainlib->functions[i].name, "Find"))) {
+					extern void *array_query_function(const struct ain_hll_function *f);
+					funcptr = array_query_function(&ainlib->functions[i]);
 				}
 				if (funcptr)
 					link_static_library_function(&dst[i], &ainlib->functions[i], funcptr);

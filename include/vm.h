@@ -158,6 +158,8 @@ struct function_call {
 	int32_t struct_page;
 	int32_t base_sp;        // stack pointer after args popped (diagnostic)
 	int32_t env_page;       // v14: closure environment (enclosing function's local page)
+	int32_t delegate_obj_ref; // v14 callback owns these pins until frame removal
+	int32_t delegate_env_ref;
 	bool is_method;         // v14: struct_page left on stack below base_sp
 	bool is_delegate_call;  // called via delegate: skip return-value stack adjustment
 	int32_t dg_return_slots; // delegate-call: expected return slots (from delegate type)

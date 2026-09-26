@@ -235,6 +235,25 @@ static struct ain_variable *resolve_struct_member(int struct_no, int varno)
 	return NULL;
 }
 
+// Return the complete declaration, including v14 generic array subtypes.
+const struct ain_type *variable_decltype(struct page *page, int varno)
+{
+	if (varno < 0) return NULL;
+	switch (page->type) {
+	case GLOBAL_PAGE:
+		return varno < ain->nr_globals ? &ain->globals[varno].type : NULL;
+	case LOCAL_PAGE:
+		if (page->index < 0 || page->index >= ain->nr_functions) return NULL;
+		return varno < ain->functions[page->index].nr_vars
+			? &ain->functions[page->index].vars[varno].type : NULL;
+	case STRUCT_PAGE: {
+		struct ain_variable *member = resolve_struct_member(page->index, varno);
+		return member ? &member->type : NULL;
+	}
+	default: return NULL;
+	}
+}
+
 enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank)
 {
 	if (struct_type) *struct_type = -1;
@@ -273,8 +292,9 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 			*array_rank = page->array.rank - 1;
 		return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
 	case DELEGATE_PAGE:
-		// XXX: we return void here because objects in a delegate page aren't
-		//      reference counted
+		if (ain->version >= 14 && varno >= 0 && varno < page->nr_vars)
+			return varno % 3 == 1 ? AIN_VOID : AIN_REF_INT;
+		// Pre-v14 method targets are weak; the third word is a sequence.
 		return AIN_VOID;
 	}
 	return AIN_VOID;
@@ -334,6 +354,8 @@ static int copy_calls = 0;
 static bool type_is_heap_ref(enum ain_data_type type)
 {
 	switch (type) {
+	case AIN_REF_INT:
+		return ain->version >= 14;
 	case AIN_STRUCT:
 	case AIN_REF_STRUCT:
 	case AIN_STRING:
@@ -405,7 +427,10 @@ struct page *copy_page(struct page *src)
 static void init_struct_slot(struct page *page, int idx, struct ain_variable *member)
 {
 	if (member->type.data == AIN_STRUCT) {
-		page->values[idx].i = alloc_struct(member->type.struc);
+		// v14 generated initialization emits DELETE; NEW; X_ASSIGN for
+		// object members. An eager allocation has not run its constructor
+		// and must not be destroyed by that initial DELETE.
+		page->values[idx].i = ain->version >= 14 ? -1 : alloc_struct(member->type.struc);
 	} else if (ain->version >= 14 && is_wrap_struct(member)) {
 		// v14: wrap<struct> — allocate inner struct.
 		// This handles both inheritance (member[0]) and contained structs.
@@ -553,8 +578,7 @@ static void dtor_blacklist_init(void)
 	if (ain->version >= 14) {
 		for (int si = 0; si < ain->nr_structures; si++) {
 			const char *name = ain->structures[si].name;
-			if (name && (strcmp(name, "CASTimer") == 0 ||
-				strcmp(name, "parts::detail::CParts3DLayerManager") == 0)) {
+			if (name && strcmp(name, "parts::detail::CParts3DLayerManager") == 0) {
 				dtor_blacklist[si] = true;
 			}
 		}
@@ -1100,6 +1124,10 @@ struct page *delegate_new_from_method(int obj, int fun)
 struct page *delegate_new_from_method_env(int obj, int fun, int env)
 {
 	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
+	if (ain->version >= 14) {
+		if (heap_index_valid(obj)) heap_ref(obj);
+		if (heap_index_valid(env)) heap_ref(env);
+	}
 	page->values[0].i = obj;
 	page->values[1].i = fun;
 	page->values[2].i = (ain->version >= 14) ? env : heap_get_seq(obj);
@@ -1119,13 +1147,13 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 	return false;
 }
 
-struct page *delegate_append(struct page *dst, int obj, int fun)
+static struct page *delegate_append_env(struct page *dst, int obj, int fun, int env)
 {
 	if (!dst)
-		return delegate_new_from_method(obj, fun);
+		return delegate_new_from_method_env(obj, fun, env);
 	if (dst->type != DELEGATE_PAGE) {
 		WARNING("delegate_append: not a delegate (type=%d), creating new", dst->type);
-		return delegate_new_from_method(obj, fun);
+		return delegate_new_from_method_env(obj, fun, env);
 	}
 	if (delegate_contains(dst, obj, fun))
 		return dst;
@@ -1133,9 +1161,18 @@ struct page *delegate_append(struct page *dst, int obj, int fun)
 	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 3));
 	dst->values[dst->nr_vars+0].i = obj;
 	dst->values[dst->nr_vars+1].i = fun;
-	dst->values[dst->nr_vars+2].i = heap_get_seq(obj);
+	dst->values[dst->nr_vars+2].i = ain->version >= 14 ? env : heap_get_seq(obj);
+	if (ain->version >= 14) {
+		if (heap_index_valid(obj)) heap_ref(obj);
+		if (heap_index_valid(env)) heap_ref(env);
+	}
 	dst->nr_vars += 3;
 	return dst;
+}
+
+struct page *delegate_append(struct page *dst, int obj, int fun)
+{
+	return delegate_append_env(dst, obj, fun, 0);
 }
 
 int delegate_numof(struct page *page)
@@ -1178,12 +1215,17 @@ void delegate_erase(struct page *page, int obj, int fun)
 	}
 	for (int i = 0; i < page->nr_vars; i += 3) {
 		if (page->values[i].i == obj && page->values[i+1].i == fun) {
+			int old_env = page->values[i+2].i;
 			for (int j = i+3; j < page->nr_vars; j += 3) {
 				page->values[j-3].i = page->values[j+0].i;
 				page->values[j-2].i = page->values[j+1].i;
 				page->values[j-1].i = page->values[j+2].i;
 			}
 			page->nr_vars -= 3;
+			if (ain->version >= 14) {
+				heap_unref(obj);
+				heap_unref(old_env);
+			}
 			break;
 		}
 	}
@@ -1200,7 +1242,8 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 
 	for (int i = 0; i < add->nr_vars; i += 3) {
 		if (ain->version >= 14 || heap_get_seq(add->values[i].i) == add->values[i+2].i)
-			dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
+			dst = delegate_append_env(dst, add->values[i].i, add->values[i+1].i,
+					ain->version >= 14 ? add->values[i+2].i : 0);
 	}
 	return dst;
 }
@@ -1232,6 +1275,19 @@ struct page *delegate_clear(struct page *page)
 		WARNING("delegate_clear: not a delegate (type=%d nr_vars=%d), returning NULL",
 			page->type, page->nr_vars);
 		return NULL;
+	}
+	if (ain->version >= 14) {
+		int count = page->nr_vars;
+		union vm_value *old = count ? xmalloc(sizeof(*old) * count) : NULL;
+		if (count) memcpy(old, page->values, sizeof(*old) * count);
+		page->index = 0;
+		page->nr_vars = 0;
+		for (int i = 0; i + 2 < count; i += 3) {
+			heap_unref(old[i].i);
+			heap_unref(old[i+2].i);
+		}
+		free(old);
+		return page;
 	}
 	for (int i = 0; i < page->nr_vars; i += 3) {
 		page->values[i].i = -1;
