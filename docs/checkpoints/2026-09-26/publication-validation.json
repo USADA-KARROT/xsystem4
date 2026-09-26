@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-09-26T10:53:11.330865+08:00",
+  "source_commit": "c3b5ff03024f3d043a33dd05c52656dfde70f996",
+  "previous_public_commit": "7b4637d2ef9f3b3f465c48b791bce1863635bb4b",
+  "source_files_equal_to_tested_worktree": 21,
+  "new_source_files_changed_since_previous_public_commit": 7,
+  "public_evidence_hashes_verified": 691,
+  "private_path_and_credential_pattern_scan": "pass",
+  "entry_page_links": "pass",
+  "game_retested_for_publication": false,
+  "game_status": "new game assertion remains; not playable",
+  "headless_final": "six modes exit0; deleted-event exit87 with 23 live slots"
+}

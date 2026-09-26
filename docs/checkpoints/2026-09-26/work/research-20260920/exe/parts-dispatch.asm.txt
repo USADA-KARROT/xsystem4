@@ -1,0 +1,34 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x57b900', '--stop-address=0x57b972', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  57b900: 55                           	push	ebp
+  57b901: 8d ac 24 cc ea ff ff         	lea	ebp, [esp - 0x1534]
+  57b908: b8 34 15 00 00               	mov	eax, 0x1534
+  57b90d: e8 ce 0c 1d 00               	call	0x74c5e0 <+0x34b5e0>
+  57b912: 6a ff                        	push	-0x1
+  57b914: 68 76 55 7a 00               	push	0x7a5576
+  57b919: 64 a1 00 00 00 00            	mov	eax, dword ptr fs:[0x0]
+  57b91f: 50                           	push	eax
+  57b920: 81 ec 84 00 00 00            	sub	esp, 0x84
+  57b926: a1 70 30 86 00               	mov	eax, dword ptr [0x863070]
+  57b92b: 33 c5                        	xor	eax, ebp
+  57b92d: 89 85 30 15 00 00            	mov	dword ptr [ebp + 0x1530], eax
+  57b933: 53                           	push	ebx
+  57b934: 56                           	push	esi
+  57b935: 57                           	push	edi
+  57b936: 50                           	push	eax
+  57b937: 8d 45 f4                     	lea	eax, [ebp - 0xc]
+  57b93a: 64 a3 00 00 00 00            	mov	dword ptr fs:[0x0], eax
+  57b940: 8b 8d 40 15 00 00            	mov	ecx, dword ptr [ebp + 0x1540]
+  57b946: 8b 85 3c 15 00 00            	mov	eax, dword ptr [ebp + 0x153c]
+  57b94c: 8b bd 44 15 00 00            	mov	edi, dword ptr [ebp + 0x1544]
+  57b952: 89 45 ec                     	mov	dword ptr [ebp - 0x14], eax
+  57b955: 89 7d f0                     	mov	dword ptr [ebp - 0x10], edi
+  57b958: c7 45 d0 00 00 00 00         	mov	dword ptr [ebp - 0x30], 0x0
+  57b95f: 81 f9 63 03 00 00            	cmp	ecx, 0x363
+  57b965: 0f 87 79 dd 00 00            	ja	0x5896e4 <+0x1886e4>
+  57b96b: ff 24 8d 14 97 58 00         	jmp	dword ptr [4*ecx + 0x589714]

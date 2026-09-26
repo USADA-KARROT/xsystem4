@@ -1,0 +1,112 @@
+{
+  "source": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe",
+  "sha256": "211ce63e0e229fa7d77b2af141149681ec37521e7497914473c739569aa101f0",
+  "address_kind": "preferred VA (image base 0x400000)",
+  "registry": [
+    {
+      "name": "Array",
+      "string_va": "0x7cedbc",
+      "branch_va": "0x494747",
+      "dispatcher_va": "0x644300",
+      "table_va": "0x644f18",
+      "entries": 84
+    },
+    {
+      "name": "PartsEngine",
+      "string_va": "0x7cef20",
+      "branch_va": "0x4948f7",
+      "dispatcher_va": "0x57b900",
+      "table_va": "0x589714",
+      "entries": 868
+    }
+  ],
+  "selected_ain_index_labels": {
+    "Array": {
+      "15": "Erase(index,length)",
+      "16": "Erase(predicate)",
+      "17": "Erase(source array)",
+      "56": "IsExist(value)",
+      "57": "IsExist(predicate)"
+    },
+    "PartsEngine": {
+      "22": "GetClickNumber",
+      "179": "Parts_SetClickable",
+      "180": "Parts_GetPartsClickable",
+      "221": "GetButtonCGName(int) -> string",
+      "505": "GetMessageWindowCGName(int) -> string"
+    }
+  },
+  "label_provenance": "AIN HLL0 indices independently provided by main research task; names are not present as standalone strings in this dump.",
+  "array_rtti": [
+    {
+      "type_descriptor_va": "0x87bb34",
+      "rtti_name": ".?AVCArrayPage@sys43vm@@",
+      "complete_object_locator_va": "0x82c544",
+      "object_offset": 32,
+      "vtable_va": "0x811c28",
+      "first_25_words": [
+        "0x67ee20",
+        "0x67ee40",
+        "0x67ee50",
+        "0x67ee60",
+        "0x67ee80",
+        "0x67eed0",
+        "0x67ef20",
+        "0x67ef80",
+        "0x67efe0",
+        "0x67f040",
+        "0x67f090",
+        "0x67f0e0",
+        "0x45fc50",
+        "0x67f130",
+        "0x67f180",
+        "0x67f1e0",
+        "0x67f290",
+        "0x67f330",
+        "0x67f380",
+        "0x67f4a0",
+        "0x67f4d0",
+        "0x67f5a0",
+        "0x67f5c0",
+        "0x67f750",
+        "0x67f8b0"
+      ],
+      "note": "For object_offset=0, words beyond the primary vtable include the next COL and secondary vtable."
+    },
+    {
+      "type_descriptor_va": "0x87bb34",
+      "rtti_name": ".?AVCArrayPage@sys43vm@@",
+      "complete_object_locator_va": "0x82c558",
+      "object_offset": 0,
+      "vtable_va": "0x811c0c",
+      "first_25_words": [
+        "0x67eb60",
+        "0x67ec50",
+        "0x67ec90",
+        "0x67ed50",
+        "0x439500",
+        "0x67ee10",
+        "0x82c544",
+        "0x67ee20",
+        "0x67ee40",
+        "0x67ee50",
+        "0x67ee60",
+        "0x67ee80",
+        "0x67eed0",
+        "0x67ef20",
+        "0x67ef80",
+        "0x67efe0",
+        "0x67f040",
+        "0x67f090",
+        "0x67f0e0",
+        "0x45fc50",
+        "0x67f130",
+        "0x67f180",
+        "0x67f1e0",
+        "0x67f290",
+        "0x67f330"
+      ],
+      "note": "For object_offset=0, words beyond the primary vtable include the next COL and secondary vtable."
+    }
+  ]
+}

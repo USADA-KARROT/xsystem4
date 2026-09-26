@@ -1,0 +1,336 @@
+{
+  "source": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/game-workcopy/多娜多娜 一起幹壞事吧/dohnadohna.exe",
+  "size": 4188176,
+  "sha256": "97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a",
+  "machine": "0x14c",
+  "image_base": 4194304,
+  "entry_rva": 15479516,
+  "link_timestamp_raw": 1599122506,
+  "link_timestamp_utc": "2020-09-03T08:41:46+00:00",
+  "coff_symbol_count": 0,
+  "sections": [
+    {
+      "name": "",
+      "rva": 4096,
+      "virtual_size": 3915776,
+      "raw_size": 1421824,
+      "file_offset": 1024,
+      "characteristics": 3758096448,
+      "entropy": 7.9999
+    },
+    {
+      "name": "",
+      "rva": 3919872,
+      "virtual_size": 679936,
+      "raw_size": 248320,
+      "file_offset": 1422848,
+      "characteristics": 3758096448,
+      "entropy": 7.9991
+    },
+    {
+      "name": "",
+      "rva": 4599808,
+      "virtual_size": 155648,
+      "raw_size": 24576,
+      "file_offset": 1671168,
+      "characteristics": 3758096448,
+      "entropy": 7.9839
+    },
+    {
+      "name": "",
+      "rva": 4755456,
+      "virtual_size": 8192,
+      "raw_size": 2048,
+      "file_offset": 1695744,
+      "characteristics": 3758096448,
+      "entropy": 7.4933
+    },
+    {
+      "name": "",
+      "rva": 4763648,
+      "virtual_size": 4096,
+      "raw_size": 512,
+      "file_offset": 1697792,
+      "characteristics": 3758096448,
+      "entropy": 0.1833
+    },
+    {
+      "name": "",
+      "rva": 4767744,
+      "virtual_size": 4096,
+      "raw_size": 1024,
+      "file_offset": 1698304,
+      "characteristics": 3758096448,
+      "entropy": 5.7063
+    },
+    {
+      "name": "",
+      "rva": 4771840,
+      "virtual_size": 372736,
+      "raw_size": 210944,
+      "file_offset": 1699328,
+      "characteristics": 3758096448,
+      "entropy": 7.9989
+    },
+    {
+      "name": ".rsrc",
+      "rva": 5144576,
+      "virtual_size": 40960,
+      "raw_size": 38400,
+      "file_offset": 1910272,
+      "characteristics": 1073741888,
+      "entropy": 5.161
+    },
+    {
+      "name": "",
+      "rva": 5185536,
+      "virtual_size": 8089600,
+      "raw_size": 1024,
+      "file_offset": 1948672,
+      "characteristics": 3758096448,
+      "entropy": 6.6083
+    },
+    {
+      "name": ".data",
+      "rva": 13275136,
+      "virtual_size": 2228224,
+      "raw_size": 2226688,
+      "file_offset": 1949696,
+      "characteristics": 3758096448,
+      "entropy": 7.9805
+    }
+  ],
+  "directories": [
+    {
+      "index": 0,
+      "rva": 13287472,
+      "size": 3874
+    },
+    {
+      "index": 1,
+      "rva": 13291348,
+      "size": 812
+    },
+    {
+      "index": 2,
+      "rva": 5144576,
+      "size": 37984
+    },
+    {
+      "index": 3,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 4,
+      "rva": 4176384,
+      "size": 11792
+    },
+    {
+      "index": 5,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 6,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 7,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 8,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 9,
+      "rva": 13287424,
+      "size": 24
+    },
+    {
+      "index": 10,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 11,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 12,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 13,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 14,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 15,
+      "rva": 0,
+      "size": 0
+    }
+  ],
+  "imports": [
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetModuleHandleA",
+          "ordinal": null,
+          "iat_va": 17485932
+        },
+        {
+          "name": "GetProcAddress",
+          "ordinal": null,
+          "iat_va": 17485936
+        },
+        {
+          "name": "ExitProcess",
+          "ordinal": null,
+          "iat_va": 17485940
+        },
+        {
+          "name": "LoadLibraryA",
+          "ordinal": null,
+          "iat_va": 17485944
+        }
+      ]
+    },
+    {
+      "dll": "user32.dll",
+      "functions": [
+        {
+          "name": "MessageBoxA",
+          "ordinal": null,
+          "iat_va": 17485952
+        }
+      ]
+    },
+    {
+      "dll": "advapi32.dll",
+      "functions": [
+        {
+          "name": "RegCloseKey",
+          "ordinal": null,
+          "iat_va": 17485960
+        }
+      ]
+    },
+    {
+      "dll": "oleaut32.dll",
+      "functions": [
+        {
+          "name": "SysFreeString",
+          "ordinal": null,
+          "iat_va": 17485968
+        }
+      ]
+    },
+    {
+      "dll": "gdi32.dll",
+      "functions": [
+        {
+          "name": "CreateFontA",
+          "ordinal": null,
+          "iat_va": 17485976
+        }
+      ]
+    },
+    {
+      "dll": "shell32.dll",
+      "functions": [
+        {
+          "name": "ShellExecuteA",
+          "ordinal": null,
+          "iat_va": 17485984
+        }
+      ]
+    },
+    {
+      "dll": "version.dll",
+      "functions": [
+        {
+          "name": "GetFileVersionInfoA",
+          "ordinal": null,
+          "iat_va": 17485992
+        }
+      ]
+    },
+    {
+      "dll": "COMDLG32.dll",
+      "functions": [
+        {
+          "name": "GetOpenFileNameA",
+          "ordinal": null,
+          "iat_va": 17486000
+        }
+      ]
+    },
+    {
+      "dll": "ole32.dll",
+      "functions": [
+        {
+          "name": "CoInitializeEx",
+          "ordinal": null,
+          "iat_va": 17486008
+        }
+      ]
+    },
+    {
+      "dll": "IMM32.dll",
+      "functions": [
+        {
+          "name": "ImmNotifyIME",
+          "ordinal": null,
+          "iat_va": 17486016
+        }
+      ]
+    },
+    {
+      "dll": "WINMM.dll",
+      "functions": [
+        {
+          "name": "timeEndPeriod",
+          "ordinal": null,
+          "iat_va": 17486024
+        }
+      ]
+    },
+    {
+      "dll": "WININET.dll",
+      "functions": [
+        {
+          "name": "InternetReadFile",
+          "ordinal": null,
+          "iat_va": 17486032
+        }
+      ]
+    },
+    {
+      "dll": "d3d11.dll",
+      "functions": [
+        {
+          "name": "D3D11CreateDevice",
+          "ordinal": null,
+          "iat_va": 17486040
+        }
+      ]
+    }
+  ],
+  "debug": [],
+  "target_strings": [],
+  "target_rtti": [],
+  "overlay_bytes": 11792
+}

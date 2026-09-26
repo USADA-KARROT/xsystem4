@@ -1,0 +1,48 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x41bfa0', '--stop-address=0x41bff5', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  41bfa0: 80 3a 00                     	cmp	byte ptr [edx], 0x0
+  41bfa3: 56                           	push	esi
+  41bfa4: 57                           	push	edi
+  41bfa5: 75 04                        	jne	0x41bfab <+0x1afab>
+  41bfa7: 33 f6                        	xor	esi, esi
+  41bfa9: eb 0e                        	jmp	0x41bfb9 <+0x1afb9>
+  41bfab: 8b f2                        	mov	esi, edx
+  41bfad: 8d 7e 01                     	lea	edi, [esi + 0x1]
+  41bfb0: 8a 06                        	mov	al, byte ptr [esi]
+  41bfb2: 46                           	inc	esi
+  41bfb3: 84 c0                        	test	al, al
+  41bfb5: 75 f9                        	jne	0x41bfb0 <+0x1afb0>
+  41bfb7: 2b f7                        	sub	esi, edi
+  41bfb9: 83 79 14 10                  	cmp	dword ptr [ecx + 0x14], 0x10
+  41bfbd: 8d 79 10                     	lea	edi, [ecx + 0x10]
+  41bfc0: 72 02                        	jb	0x41bfc4 <+0x1afc4>
+  41bfc2: 8b 09                        	mov	ecx, dword ptr [ecx]
+  41bfc4: 8b 3f                        	mov	edi, dword ptr [edi]
+  41bfc6: 8b c6                        	mov	eax, esi
+  41bfc8: 3b fe                        	cmp	edi, esi
+  41bfca: 0f 42 c7                     	cmovb	eax, edi
+  41bfcd: 50                           	push	eax
+  41bfce: e8 ad f4 ff ff               	call	0x41b480 <+0x1a480>
+  41bfd3: 83 c4 04                     	add	esp, 0x4
+  41bfd6: 85 c0                        	test	eax, eax
+  41bfd8: 75 15                        	jne	0x41bfef <+0x1afef>
+  41bfda: 3b f7                        	cmp	esi, edi
+  41bfdc: 76 0b                        	jbe	0x41bfe9 <+0x1afe9>
+  41bfde: 83 c8 ff                     	or	eax, -0x1
+  41bfe1: 85 c0                        	test	eax, eax
+  41bfe3: 5f                           	pop	edi
+  41bfe4: 0f 94 c0                     	sete	al
+  41bfe7: 5e                           	pop	esi
+  41bfe8: c3                           	ret
+  41bfe9: 1b c0                        	sbb	eax, eax
+  41bfeb: f7 d8                        	neg	eax
+  41bfed: 85 c0                        	test	eax, eax
+  41bfef: 5f                           	pop	edi
+  41bff0: 0f 94 c0                     	sete	al
+  41bff3: 5e                           	pop	esi
+  41bff4: c3                           	ret

@@ -1,0 +1,9 @@
+ninja: Entering directory `<WORKSPACE>/work/stage2/asan-build'
+ninja: no work to do.
+1/2 libsys4:instructions OK              0.02s
+2/2 libsys4:hashtable    OK              0.02s
+
+Ok:                2   
+Fail:              0   
+
+Full log written to <WORKSPACE>/work/stage2/asan-build/meson-logs/testlog.txt

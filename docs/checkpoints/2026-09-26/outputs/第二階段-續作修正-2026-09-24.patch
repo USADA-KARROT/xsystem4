@@ -1,0 +1,100 @@
+--- a/src/vm.c
++++ b/src/vm.c
+@@ -4703,8 +4703,12 @@
+ 				WARNING("X_ASSIGN %d past end of page (page_index=%d nr_vars=%d); clamping to %d",
+ 				        n, xa_page_index, xa_page->nr_vars, writable);
+ 			}
++			// In v14 the compiler emits DELETE for the previous owner and
++			// SP_INC/A_REF for shared values. X_ASSIGN transfers that prepared
++			// ownership; adding another ref leaks, and dropping the old value
++			// here repeats the bytecode's DELETE (possibly after slot reuse).
+ 			for (int i = 0; i < writable; i++) {
+-				if (xa_page) {
++				if (ain->version < 14 && xa_page) {
+ 					enum ain_data_type vtype = variable_type(xa_page, xa_page_index + i, NULL, NULL);
+ 					switch (vtype) {
+ 					case AIN_STRING:
+@@ -4969,14 +4973,14 @@
+ 				page->array.struct_type = struct_type;
+ 			heap_set_page(slot, page);
+ 		}
+-		// Assign to variable with proper ref counting
++		// Install the fresh array; v14 bytecode already DELETEd the old owner.
+ 		if (heap_index_valid(heap_idx) && heap[heap_idx].page &&
+ 		    var_idx >= 0 && var_idx < heap[heap_idx].page->nr_vars) {
+ 			int old_slot = heap[heap_idx].page->values[var_idx].i;
+ 			heap[heap_idx].page->values[var_idx].i = slot;
+ 			// The fresh slot ownership transfers to the variable.
+ 			// X_A_INIT leaves a borrowed result consumed by POP.
+-			if (old_slot > 0 && heap_index_valid(old_slot))
++			if (ain->version < 14 && old_slot > 0 && heap_index_valid(old_slot))
+ 				heap_unref(old_slot);
+ 		}
+ 		stack_push(slot);
+--- a/src/page.c
++++ b/src/page.c
+@@ -427,7 +427,10 @@
+ static void init_struct_slot(struct page *page, int idx, struct ain_variable *member)
+ {
+ 	if (member->type.data == AIN_STRUCT) {
+-		page->values[idx].i = alloc_struct(member->type.struc);
++		// v14 generated initialization emits DELETE; NEW; X_ASSIGN for
++		// object members. An eager allocation has not run its constructor
++		// and must not be destroyed by that initial DELETE.
++		page->values[idx].i = ain->version >= 14 ? -1 : alloc_struct(member->type.struc);
+ 	} else if (ain->version >= 14 && is_wrap_struct(member)) {
+ 		// v14: wrap<struct> — allocate inner struct.
+ 		// This handles both inheritance (member[0]) and contained structs.
+--- a/src/heap.c
++++ b/src/heap.c
+@@ -580,12 +580,9 @@
+ 	if (unlikely((size_t)slot >= heap_size)) {
+ 		return;
+ 	}
+-	// Guard: if ref is already 0, this is a double-free — skip silently.
+-	// This happens regularly after GC sweep adds slots to free list,
+-	// then VM code unrefs the same slots.
+-	if (unlikely(heap[slot].ref == 0 && heap[slot].type == 0)) {
+-		return;
+-	}
++	// Callers have already transitioned the last owner to ref=0. VM_PAGE
++	// is also zero, so (ref==0 && type==0) cannot identify a double free.
++	// heap_unref/exit_unref reject an already released slot at entry.
+ 	heap[slot].ref = 0;
+ 	heap[slot].type = 0;
+ 	heap[slot].seq = (uint32_t)heap_free_head;
+@@ -672,6 +669,9 @@
+ 
+ 		if (!deferred_processing) {
+ 			deferred_processing = true;
++			// Destructor allocations must not let pressure GC put queued or
++			// in-progress slots on the free list before this drain does so.
++			heap_gc_inhibit();
+ 			while (deferred_count > 0) {
+ 				int s = deferred_queue[--deferred_count];
+ 				// Skip if re-allocated (ref > 0) or already freed (ref < 0)
+@@ -698,6 +698,7 @@
+ 				heap[s].ref = 0;
+ 				heap_free_slot(s);
+ 			}
++			heap_gc_allow();
+ 			deferred_processing = false;
+ #ifdef __APPLE__
+ 			// Periodically tell macOS malloc to return freed memory to the OS.
+--- a/src/hll/Array.c
++++ b/src/hll/Array.c
+@@ -503,11 +503,13 @@
+ 		if (removed > 0)
+ 			heap_unref(removed);
+ 	}
+-	if (new_size == 0) {
++	if (new_size == 0 && ain->version < 14) {
+ 		free_page(a);
+ 		*array = NULL;
+ 		return;
+ 	}
++	// v14 generic HLL calls need the element declaration even when empty.
++	// Keep a typed zero-length page so EmplaceBack can construct it again.
+ 	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
+ 	for (int i = 0; i < new_size; i++)
+ 		new_a->values[i] = a->values[i];

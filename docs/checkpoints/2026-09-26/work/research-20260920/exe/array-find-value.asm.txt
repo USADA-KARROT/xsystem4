@@ -1,0 +1,61 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x648b00', '--stop-address=0x648b94', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  648b00: 55                           	push	ebp
+  648b01: 8b ec                        	mov	ebp, esp
+  648b03: 6a ff                        	push	-0x1
+  648b05: 68 ee aa 78 00               	push	0x78aaee
+  648b0a: 64 a1 00 00 00 00            	mov	eax, dword ptr fs:[0x0]
+  648b10: 50                           	push	eax
+  648b11: 83 ec 30                     	sub	esp, 0x30
+  648b14: a1 70 30 86 00               	mov	eax, dword ptr [0x863070]
+  648b19: 33 c5                        	xor	eax, ebp
+  648b1b: 89 45 f0                     	mov	dword ptr [ebp - 0x10], eax
+  648b1e: 56                           	push	esi
+  648b1f: 57                           	push	edi
+  648b20: 50                           	push	eax
+  648b21: 8d 45 f4                     	lea	eax, [ebp - 0xc]
+  648b24: 64 a3 00 00 00 00            	mov	dword ptr fs:[0x0], eax
+  648b2a: 8b f2                        	mov	esi, edx
+  648b2c: 8b f9                        	mov	edi, ecx
+  648b2e: 8b 45 0c                     	mov	eax, dword ptr [ebp + 0xc]
+  648b31: 8d 4d c8                     	lea	ecx, [ebp - 0x38]
+  648b34: 50                           	push	eax
+  648b35: 8b d7                        	mov	edx, edi
+  648b37: e8 e4 d4 ff ff               	call	0x646020 <+0x245020>
+  648b3c: 83 c4 04                     	add	esp, 0x4
+  648b3f: 50                           	push	eax
+  648b40: ff 75 08                     	push	dword ptr [ebp + 0x8]
+  648b43: 8b d6                        	mov	edx, esi
+  648b45: c7 45 fc 00 00 00 00         	mov	dword ptr [ebp - 0x4], 0x0
+  648b4c: 8b cf                        	mov	ecx, edi
+  648b4e: e8 5d e0 ff ff               	call	0x646bb0 <+0x245bb0>
+  648b53: 83 c4 08                     	add	esp, 0x8
+  648b56: 8b f0                        	mov	esi, eax
+  648b58: c7 45 fc 01 00 00 00         	mov	dword ptr [ebp - 0x4], 0x1
+  648b5f: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  648b62: 85 c9                        	test	ecx, ecx
+  648b64: 74 11                        	je	0x648b77 <+0x247b77>
+  648b66: 8b 11                        	mov	edx, dword ptr [ecx]
+  648b68: 8d 45 c8                     	lea	eax, [ebp - 0x38]
+  648b6b: 3b c8                        	cmp	ecx, eax
+  648b6d: 0f 95 c0                     	setne	al
+  648b70: 0f b6 c0                     	movzx	eax, al
+  648b73: 50                           	push	eax
+  648b74: ff 52 10                     	call	dword ptr [edx + 0x10]
+  648b77: 8b c6                        	mov	eax, esi
+  648b79: 8b 4d f4                     	mov	ecx, dword ptr [ebp - 0xc]
+  648b7c: 64 89 0d 00 00 00 00         	mov	dword ptr fs:[0x0], ecx
+  648b83: 59                           	pop	ecx
+  648b84: 5f                           	pop	edi
+  648b85: 5e                           	pop	esi
+  648b86: 8b 4d f0                     	mov	ecx, dword ptr [ebp - 0x10]
+  648b89: 33 cd                        	xor	ecx, ebp
+  648b8b: e8 ae 26 10 00               	call	0x74b23e <+0x34a23e>
+  648b90: 8b e5                        	mov	esp, ebp
+  648b92: 5d                           	pop	ebp
+  648b93: c3                           	ret

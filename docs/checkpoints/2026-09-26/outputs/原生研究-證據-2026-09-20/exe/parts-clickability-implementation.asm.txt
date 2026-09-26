@@ -1,0 +1,124 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x58f830', '--stop-address=0x58f953', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  58f830: 55                           	push	ebp
+  58f831: 8b ec                        	mov	ebp, esp
+  58f833: 6a ff                        	push	-0x1
+  58f835: 68 a6 cb 78 00               	push	0x78cba6
+  58f83a: 64 a1 00 00 00 00            	mov	eax, dword ptr fs:[0x0]
+  58f840: 50                           	push	eax
+  58f841: 83 ec 08                     	sub	esp, 0x8
+  58f844: 53                           	push	ebx
+  58f845: 56                           	push	esi
+  58f846: 57                           	push	edi
+  58f847: a1 70 30 86 00               	mov	eax, dword ptr [0x863070]
+  58f84c: 33 c5                        	xor	eax, ebp
+  58f84e: 50                           	push	eax
+  58f84f: 8d 45 f4                     	lea	eax, [ebp - 0xc]
+  58f852: 64 a3 00 00 00 00            	mov	dword ptr fs:[0x0], eax
+  58f858: 8a da                        	mov	bl, dl
+  58f85a: 51                           	push	ecx
+  58f85b: 8b 0d bc f8 87 00            	mov	ecx, dword ptr [0x87f8bc]
+  58f861: 8d 45 ec                     	lea	eax, [ebp - 0x14]
+  58f864: 50                           	push	eax
+  58f865: e8 e6 09 fb ff               	call	0x540250 <+0x13f250>
+  58f86a: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  58f86d: 85 c9                        	test	ecx, ecx
+  58f86f: 0f 94 c0                     	sete	al
+  58f872: 84 c0                        	test	al, al
+  58f874: 75 06                        	jne	0x58f87c <+0x18e87c>
+  58f876: 88 99 a4 01 00 00            	mov	byte ptr [ecx + 0x1a4], bl
+  58f87c: c7 45 fc 00 00 00 00         	mov	dword ptr [ebp - 0x4], 0x0
+  58f883: 8b 75 f0                     	mov	esi, dword ptr [ebp - 0x10]
+  58f886: 85 f6                        	test	esi, esi
+  58f888: 74 21                        	je	0x58f8ab <+0x18e8ab>
+  58f88a: 83 cf ff                     	or	edi, -0x1
+  58f88d: 8b c7                        	mov	eax, edi
+  58f88f: f0                           	lock
+  58f890: 0f c1 46 04                  	xadd	dword ptr [esi + 0x4], eax
+  58f894: 75 15                        	jne	0x58f8ab <+0x18e8ab>
+  58f896: 8b 06                        	mov	eax, dword ptr [esi]
+  58f898: 8b ce                        	mov	ecx, esi
+  58f89a: ff 10                        	call	dword ptr [eax]
+  58f89c: f0                           	lock
+  58f89d: 0f c1 7e 08                  	xadd	dword ptr [esi + 0x8], edi
+  58f8a1: 4f                           	dec	edi
+  58f8a2: 75 07                        	jne	0x58f8ab <+0x18e8ab>
+  58f8a4: 8b 06                        	mov	eax, dword ptr [esi]
+  58f8a6: 8b ce                        	mov	ecx, esi
+  58f8a8: ff 50 04                     	call	dword ptr [eax + 0x4]
+  58f8ab: 8b 4d f4                     	mov	ecx, dword ptr [ebp - 0xc]
+  58f8ae: 64 89 0d 00 00 00 00         	mov	dword ptr fs:[0x0], ecx
+  58f8b5: 59                           	pop	ecx
+  58f8b6: 5f                           	pop	edi
+  58f8b7: 5e                           	pop	esi
+  58f8b8: 5b                           	pop	ebx
+  58f8b9: 8b e5                        	mov	esp, ebp
+  58f8bb: 5d                           	pop	ebp
+  58f8bc: c3                           	ret
+  58f8bd: cc                           	int3
+  58f8be: cc                           	int3
+  58f8bf: cc                           	int3
+  58f8c0: 55                           	push	ebp
+  58f8c1: 8b ec                        	mov	ebp, esp
+  58f8c3: 6a ff                        	push	-0x1
+  58f8c5: 68 a6 cb 78 00               	push	0x78cba6
+  58f8ca: 64 a1 00 00 00 00            	mov	eax, dword ptr fs:[0x0]
+  58f8d0: 50                           	push	eax
+  58f8d1: 83 ec 08                     	sub	esp, 0x8
+  58f8d4: 53                           	push	ebx
+  58f8d5: 56                           	push	esi
+  58f8d6: 57                           	push	edi
+  58f8d7: a1 70 30 86 00               	mov	eax, dword ptr [0x863070]
+  58f8dc: 33 c5                        	xor	eax, ebp
+  58f8de: 50                           	push	eax
+  58f8df: 8d 45 f4                     	lea	eax, [ebp - 0xc]
+  58f8e2: 64 a3 00 00 00 00            	mov	dword ptr fs:[0x0], eax
+  58f8e8: 51                           	push	ecx
+  58f8e9: 8b 0d bc f8 87 00            	mov	ecx, dword ptr [0x87f8bc]
+  58f8ef: 8d 45 ec                     	lea	eax, [ebp - 0x14]
+  58f8f2: 50                           	push	eax
+  58f8f3: e8 58 09 fb ff               	call	0x540250 <+0x13f250>
+  58f8f8: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  58f8fb: 85 c9                        	test	ecx, ecx
+  58f8fd: 0f 94 c0                     	sete	al
+  58f900: 84 c0                        	test	al, al
+  58f902: 74 04                        	je	0x58f908 <+0x18e908>
+  58f904: 32 db                        	xor	bl, bl
+  58f906: eb 06                        	jmp	0x58f90e <+0x18e90e>
+  58f908: 8a 99 a4 01 00 00            	mov	bl, byte ptr [ecx + 0x1a4]
+  58f90e: c7 45 fc 00 00 00 00         	mov	dword ptr [ebp - 0x4], 0x0
+  58f915: 8b 75 f0                     	mov	esi, dword ptr [ebp - 0x10]
+  58f918: 85 f6                        	test	esi, esi
+  58f91a: 74 21                        	je	0x58f93d <+0x18e93d>
+  58f91c: 83 cf ff                     	or	edi, -0x1
+  58f91f: 8b c7                        	mov	eax, edi
+  58f921: f0                           	lock
+  58f922: 0f c1 46 04                  	xadd	dword ptr [esi + 0x4], eax
+  58f926: 75 15                        	jne	0x58f93d <+0x18e93d>
+  58f928: 8b 06                        	mov	eax, dword ptr [esi]
+  58f92a: 8b ce                        	mov	ecx, esi
+  58f92c: ff 10                        	call	dword ptr [eax]
+  58f92e: f0                           	lock
+  58f92f: 0f c1 7e 08                  	xadd	dword ptr [esi + 0x8], edi
+  58f933: 4f                           	dec	edi
+  58f934: 75 07                        	jne	0x58f93d <+0x18e93d>
+  58f936: 8b 16                        	mov	edx, dword ptr [esi]
+  58f938: 8b ce                        	mov	ecx, esi
+  58f93a: ff 52 04                     	call	dword ptr [edx + 0x4]
+  58f93d: 8a c3                        	mov	al, bl
+  58f93f: 8b 4d f4                     	mov	ecx, dword ptr [ebp - 0xc]
+  58f942: 64 89 0d 00 00 00 00         	mov	dword ptr fs:[0x0], ecx
+  58f949: 59                           	pop	ecx
+  58f94a: 5f                           	pop	edi
+  58f94b: 5e                           	pop	esi
+  58f94c: 5b                           	pop	ebx
+  58f94d: 8b e5                        	mov	esp, ebp
+  58f94f: 5d                           	pop	ebp
+  58f950: c3                           	ret
+  58f951: cc                           	int3
+  58f952: cc                           	int3

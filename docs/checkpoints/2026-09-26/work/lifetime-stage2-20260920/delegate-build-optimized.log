@@ -1,0 +1,450 @@
+ninja: Entering directory `work/stage2/optimized-build'
+[1/142] Generating src/version.h with a custom command
+[2/141] Compiling C object src/xsystem4.p/hll_ADVSYS.c.o
+[3/141] Compiling C object src/xsystem4.p/hll_ACXLoader.c.o
+[4/141] Compiling C object src/xsystem4.p/hll_AFAFactory.c.o
+[5/141] Compiling C object src/xsystem4.p/hll_ADVEngine.c.o
+[6/141] Compiling C object src/xsystem4.p/hll_AliceLogo.c.o
+[7/141] Compiling C object src/xsystem4.p/hll_AliceLogo2.c.o
+[8/141] Compiling C object src/xsystem4.p/hll_AliceLogo3.c.o
+[9/141] Compiling C object src/xsystem4.p/hll_AliceLogo4.c.o
+[10/141] Compiling C object src/xsystem4.p/hll_AliceLogo5.c.o
+[11/141] Compiling C object src/xsystem4.p/parts_message.c.o
+[12/141] Compiling C object src/xsystem4.p/hll_Bitarray.c.o
+[13/141] Compiling C object src/xsystem4.p/parts_input.c.o
+[14/141] Compiling C object src/xsystem4.p/dungeon_map.c.o
+[15/141] Compiling C object src/xsystem4.p/page.c.o
+../source/src/page.c:497:7: warning: unused variable 'has_inheritance' [-Wunused-variable]
+  497 |         bool has_inheritance = (ain->version >= 14 && s->nr_members > 0 &&
+      |              ^~~~~~~~~~~~~~~
+1 warning generated.
+[16/141] Compiling C object src/xsystem4.p/parts_save.c.o
+[17/141] Compiling C object src/xsystem4.p/hll_CGManager.c.o
+../source/src/hll/CGManager.c:56:12: warning: unused function 'CGManager_GetCountOfDataFromArchive' [-Wunused-function]
+   56 | static int CGManager_GetCountOfDataFromArchive(void)
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/CGManager.c:61:13: warning: unused function 'CGManager_GetTitleByIndexFromArchive' [-Wunused-function]
+   61 | static void CGManager_GetTitleByIndexFromArchive(int index, struct string **cg_name)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/CGManager.c:66:12: warning: unused function 'CGManager_SearchTitleFromArchive' [-Wunused-function]
+   66 | static int CGManager_SearchTitleFromArchive(struct string *cg_name)
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/CGManager.c:71:12: warning: unused function 'CGManager_PrefixSearchTitleFromArchive' [-Wunused-function]
+   71 | static int CGManager_PrefixSearchTitleFromArchive(struct string *cg_name)
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/CGManager.c:76:12: warning: unused function 'CGManager_SuffixSearchTitleFromArchive' [-Wunused-function]
+   76 | static int CGManager_SuffixSearchTitleFromArchive(struct string *cg_name)
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/CGManager.c:81:12: warning: unused function 'CGManager_GetCountOfSearchDataFromArchive' [-Wunused-function]
+   81 | static int CGManager_GetCountOfSearchDataFromArchive(void)
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/CGManager.c:86:13: warning: unused function 'CGManager_GetSearchTitleByIndexFromArchive' [-Wunused-function]
+   86 | static void CGManager_GetSearchTitleByIndexFromArchive(int index, struct string **cg_name)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+7 warnings generated.
+[18/141] Compiling C object src/xsystem4.p/hll_CalcTable.c.o
+[19/141] Compiling C object src/xsystem4.p/dungeon_dgn.c.o
+[20/141] Compiling C object src/xsystem4.p/dungeon_dungeon.c.o
+[21/141] Compiling C object src/xsystem4.p/hll_Confirm.c.o
+[22/141] Compiling C object src/xsystem4.p/hll_BanMisc.c.o
+[23/141] Compiling C object src/xsystem4.p/hll_Confirm2.c.o
+[24/141] Compiling C object src/xsystem4.p/hll_CommonSystemData.c.o
+[25/141] Compiling C object src/xsystem4.p/hll_Clipboard.c.o
+[26/141] Compiling C object src/xsystem4.p/hll_Confirm3.c.o
+[27/141] Compiling C object src/xsystem4.p/hll_CrayfishLogViewer.c.o
+[28/141] Compiling C object src/xsystem4.p/hll_Cursor.c.o
+[29/141] Compiling C object src/xsystem4.p/hll_AnteaterADVEngine.c.o
+[30/141] Compiling C object src/xsystem4.p/hll_DALKEDemo.c.o
+[31/141] Compiling C object src/xsystem4.p/hll_Data.c.o
+[32/141] Compiling C object src/xsystem4.p/hll_Discord.c.o
+[33/141] Compiling C object src/xsystem4.p/hll_ChrLoader.c.o
+[34/141] Compiling C object src/xsystem4.p/hll_ChipmunkSpriteEngine.c.o
+[35/141] Compiling C object src/xsystem4.p/hll_DataFile.c.o
+[36/141] Compiling C object src/xsystem4.p/hll_CharSpriteManager.c.o
+[37/141] Compiling C object src/xsystem4.p/hll_DrawPluginManager.c.o
+[38/141] Compiling C object src/xsystem4.p/hll_DrawEffect.c.o
+[39/141] Compiling C object src/xsystem4.p/hll_DrawMovie.c.o
+[40/141] Compiling C object src/xsystem4.p/hll_DrawRain.c.o
+[41/141] Compiling C object src/xsystem4.p/hll_DrawNumeral.c.o
+[42/141] Compiling C object src/xsystem4.p/hll_DALKDemo.c.o
+[43/141] Compiling C object src/xsystem4.p/hll_DrawSimpleText.c.o
+[44/141] Compiling C object src/xsystem4.p/hll_FileDialog.c.o
+[45/141] Compiling C object src/xsystem4.p/hll_File.c.o
+[46/141] Compiling C object src/xsystem4.p/hll_File2.c.o
+[47/141] Compiling C object src/xsystem4.p/hll_FileOperation.c.o
+[48/141] Compiling C object src/xsystem4.p/hll_DrawRipple.c.o
+[49/141] Compiling C object src/xsystem4.p/parts_parts.c.o
+[50/141] Compiling C object src/xsystem4.p/hll_EXWriter.c.o
+[51/141] Compiling C object src/xsystem4.p/hll_GoatGUIEngine.c.o
+[52/141] Compiling C object src/xsystem4.p/hll_HTTPDownloader.c.o
+[53/141] Compiling C object src/xsystem4.p/hll_InputDevice.c.o
+[54/141] Compiling C object src/xsystem4.p/hll_DrawSnow.c.o
+../source/src/hll/DrawSnow.c:60:26: warning: implicit conversion from 'int' to 'float' changes value from 2147483647 to 2147483648 [-Wimplicit-const-int-float-conversion]
+   60 |         return ((float)rand() / RAND_MAX);
+      |                               ~ ^~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h:124:18: note: expanded from macro 'RAND_MAX'
+  124 | #define RAND_MAX        0x7fffffff
+      |                         ^~~~~~~~~~
+1 warning generated.
+[55/141] Compiling C object src/xsystem4.p/hll_InstallInfo.c.o
+[56/141] Compiling C object src/xsystem4.p/hll_DrawGraph.c.o
+[57/141] Compiling C object src/xsystem4.p/hll_KiwiSoundEngine.c.o
+[58/141] Compiling C object src/xsystem4.p/hll_InputString.c.o
+[59/141] Compiling C object src/xsystem4.p/hll_IbisInputEngine.c.o
+[60/141] Compiling C object src/xsystem4.p/hll_GUIEngine.c.o
+[61/141] Compiling C object src/xsystem4.p/hll_DrawDungeon.c.o
+[62/141] Compiling C object src/xsystem4.p/hll_MamanyoDemo.c.o
+[63/141] Compiling C object src/xsystem4.p/hll_MainSurface.c.o
+[64/141] Compiling C object src/xsystem4.p/hll_MamanyoSDemo.c.o
+[65/141] Compiling C object src/xsystem4.p/hll_LoadCG.c.o
+[66/141] Compiling C object src/xsystem4.p/hll_FillAngle.c.o
+[67/141] Compiling C object src/xsystem4.p/hll_MenuMsg.c.o
+[68/141] Compiling C object src/xsystem4.p/hll_MsgLogManager.c.o
+[69/141] Compiling C object src/xsystem4.p/hll_iarray.c.o
+[70/141] Compiling C object src/xsystem4.p/hll_MsgLogViewer.c.o
+[71/141] Compiling C object src/xsystem4.p/hll_MarmotModelEngine.c.o
+[72/141] Compiling C object src/xsystem4.p/hll_MADLoader.c.o
+[73/141] Compiling C object src/xsystem4.p/hll_MonsterInfo.c.o
+[74/141] Compiling C object src/xsystem4.p/hll_Gpx2Plus.c.o
+[75/141] Compiling C object src/xsystem4.p/hll_MusicSystem.c.o
+[76/141] Compiling C object src/xsystem4.p/hll_MapLoader.c.o
+[77/141] Compiling C object src/xsystem4.p/hll_OutputLog.c.o
+[78/141] Compiling C object src/xsystem4.p/hll_MainEXFile.c.o
+[79/141] Compiling C object src/xsystem4.p/hll_PassRegister.c.o
+[80/141] Compiling C object src/xsystem4.p/hll_Math.c.o
+[81/141] Compiling C object src/xsystem4.p/hll_PixelRestore.c.o
+[82/141] Compiling C object src/xsystem4.p/hll_PlayDemo.c.o
+[83/141] Compiling C object src/xsystem4.p/hll_MsgSkip.c.o
+[84/141] Compiling C object src/xsystem4.p/hll_P3SquareSprite.c.o
+[85/141] Compiling C object src/xsystem4.p/hll_NewFont.c.o
+[86/141] Compiling C object src/xsystem4.p/hll_P3MapSprite.c.o
+[87/141] Compiling C object src/xsystem4.p/hll_pe_v14_message.c.o
+[88/141] Compiling C object src/xsystem4.p/dungeon_generator.c.o
+[89/141] Compiling C object src/xsystem4.p/hll_SoundFilePlayer.c.o
+[90/141] Compiling C object src/xsystem4.p/hll_Sound2ex.c.o
+[91/141] Compiling C object src/xsystem4.p/hll_PlayMovie.c.o
+[92/141] Compiling C object src/xsystem4.p/hll_StretchHelper.c.o
+[93/141] Compiling C object src/xsystem4.p/hll_TextSurfaceManager.c.o
+[94/141] Compiling C object src/xsystem4.p/hll_SengokuRanceFont.c.o
+[95/141] Compiling C object src/xsystem4.p/hll_Timer.c.o
+[96/141] Compiling C object src/xsystem4.p/hll_SystemServiceEx.c.o
+[97/141] Compiling C object src/xsystem4.p/hll_Toushin3Loader.c.o
+[98/141] Compiling C object src/xsystem4.p/hll_SystemService.c.o
+[99/141] Compiling C object src/xsystem4.p/hll_StoatSpriteEngine.c.o
+[100/141] Compiling C object src/xsystem4.p/hll_pe_v14_activity.c.o
+../source/src/hll/pe_v14_activity.c:113:19: warning: unused variable 'SJIS_BUTTON_COLOR' [-Wunused-const-variable]
+  113 | static const char SJIS_BUTTON_COLOR[]= "\x83\x7b\x83\x5e\x83\x93\x82\xcc\x90\x46"; /* ボタンの色 (button color) */
+      |                   ^~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:114:19: warning: unused variable 'SJIS_FONT_TYPE' [-Wunused-const-variable]
+  114 | static const char SJIS_FONT_TYPE[]   = "\x83\x74\x83\x48\x83\x93\x83\x67\x8e\xed\x97\xde"; /* フォント種類 (font type) */
+      |                   ^~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:115:19: warning: unused variable 'SJIS_FONT_SIZE' [-Wunused-const-variable]
+  115 | static const char SJIS_FONT_SIZE[]   = "\x83\x74\x83\x48\x83\x93\x83\x67\x83\x54\x83\x43\x83\x59"; /* フォントサイズ (font size) */
+      |                   ^~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:116:19: warning: unused variable 'SJIS_FONT_COLOR' [-Wunused-const-variable]
+  116 | static const char SJIS_FONT_COLOR[]  = "\x83\x74\x83\x48\x83\x93\x83\x67\x90\x46"; /* フォント色 (font color) */
+      |                   ^~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:117:19: warning: unused variable 'SJIS_FONT_EDGE_COLOR' [-Wunused-const-variable]
+  117 | static const char SJIS_FONT_EDGE_COLOR[] = "\x83\x74\x83\x48\x83\x93\x83\x67\x83\x47\x83\x62\x83\x57\x90\x46"; /* フォントエッジ色 (font edge color) */
+      |                   ^~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:140:19: warning: unused variable 'GBK_SURFACE_AREA' [-Wunused-const-variable]
+  140 | static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
+      |                   ^~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:141:19: warning: unused variable 'GBK_CN_PANEL' [-Wunused-const-variable]
+  141 | static const char GBK_CN_PANEL[]    = "\xb5\xcd\xb5\xc8\xbc\x89"; /* 低等級 (GBK CN panel type) */
+      |                   ^~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:1088:12: warning: unused function 'PartsEngine_GetActivityEXID' [-Wunused-function]
+ 1088 | static int PartsEngine_GetActivityEXID(struct string *name) { return 0; }
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:1089:13: warning: unused function 'PartsEngine_SetActivityEXText' [-Wunused-function]
+ 1089 | static void PartsEngine_SetActivityEXText(struct string *name, struct string *text) {}
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:1090:23: warning: unused function 'PartsEngine_GetActivityEXText' [-Wunused-function]
+ 1090 | static struct string *PartsEngine_GetActivityEXText(struct string *name) { return string_ref(&EMPTY_STRING); }
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:1091:13: warning: unused function 'PartsEngine_SetActivityBG' [-Wunused-function]
+ 1091 | static void PartsEngine_SetActivityBG(struct string *name, struct string *cg) {}
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_activity.c:1092:23: warning: unused function 'PartsEngine_GetActivityBG' [-Wunused-function]
+ 1092 | static struct string *PartsEngine_GetActivityBG(struct string *name) { return string_ref(&EMPTY_STRING); }
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~
+12 warnings generated.
+[101/141] Compiling C object src/xsystem4.p/hll_vmCursor.c.o
+[102/141] Compiling C object src/xsystem4.p/hll_SACT2.c.o
+[103/141] Compiling C object src/xsystem4.p/hll_vmData.c.o
+[104/141] Compiling C object src/xsystem4.p/hll_vmChrLoader.c.o
+[105/141] Compiling C object src/xsystem4.p/hll_vmCG.c.o
+[106/141] Compiling C object src/xsystem4.p/hll_vmAnime.c.o
+[107/141] Compiling C object src/xsystem4.p/hll_vmDalkGaiden.c.o
+[108/141] Compiling C object src/xsystem4.p/hll_vmFile.c.o
+[109/141] Compiling C object src/xsystem4.p/hll_vmDialog.c.o
+[110/141] Compiling C object src/xsystem4.p/hll_vmGraphQuake.c.o
+[111/141] Compiling C object src/xsystem4.p/hll_PartsEngine.c.o
+In file included from ../source/src/hll/PartsEngine.c:1544:
+../source/src/hll/pe_v14_stubs.h:9:13: warning: unused function 'PE_stub_Parts_GetPartsPassCursor' [-Wunused-function]
+    9 | static bool PE_stub_Parts_GetPartsPassCursor(possibly_unused int number) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:10:13: warning: unused function 'PE_stub_Parts_SetDrag' [-Wunused-function]
+   10 | static void PE_stub_Parts_SetDrag(possibly_unused int number, possibly_unused bool drag) { }
+      |             ^~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:300:13: warning: unused function 'PE_stub_SetLayoutBoxLayoutType' [-Wunused-function]
+  300 | static void PE_stub_SetLayoutBoxLayoutType(possibly_unused int number, possibly_unused int type) { }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:301:12: warning: unused function 'PE_stub_GetLayoutBoxLayoutType' [-Wunused-function]
+  301 | static int PE_stub_GetLayoutBoxLayoutType(possibly_unused int number) { return 0; }
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:302:13: warning: unused function 'PE_stub_SetLayoutBoxReturn' [-Wunused-function]
+  302 | static void PE_stub_SetLayoutBoxReturn(possibly_unused int number, possibly_unused bool do_return, possibly_unused float returnsize) { }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:303:13: warning: unused function 'PE_stub_IsLayoutBoxReturn' [-Wunused-function]
+  303 | static bool PE_stub_IsLayoutBoxReturn(possibly_unused int number) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:304:14: warning: unused function 'PE_stub_GetLayoutBoxReturnSize' [-Wunused-function]
+  304 | static float PE_stub_GetLayoutBoxReturnSize(possibly_unused int number) { return 0.0f; }
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:307:13: warning: unused function 'PE_stub_SetLayoutBoxAlign' [-Wunused-function]
+  307 | static void PE_stub_SetLayoutBoxAlign(possibly_unused int number, possibly_unused int align) { }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:308:12: warning: unused function 'PE_stub_GetLayoutBoxAlign' [-Wunused-function]
+  308 | static int PE_stub_GetLayoutBoxAlign(possibly_unused int number) { return 0; }
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:503:13: warning: unused function 'PE_stub_Parts_SetPartsCGThread' [-Wunused-function]
+  503 | static bool PE_stub_Parts_SetPartsCGThread(possibly_unused int number, possibly_unused struct string * cgname, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:557:13: warning: unused function 'PE_stub_Parts_SetPartsFlat' [-Wunused-function]
+  557 | static bool PE_stub_Parts_SetPartsFlat(possibly_unused int number, possibly_unused struct string * filename, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:558:13: warning: unused function 'PE_stub_Parts_SetPartsFlatAndStop' [-Wunused-function]
+  558 | static bool PE_stub_Parts_SetPartsFlatAndStop(possibly_unused int number, possibly_unused struct string * filename, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:561:13: warning: unused function 'PE_stub_Parts_StopPartsFlat' [-Wunused-function]
+  561 | static bool PE_stub_Parts_StopPartsFlat(possibly_unused int number, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:562:13: warning: unused function 'PE_stub_Parts_StartPartsFlat' [-Wunused-function]
+  562 | static bool PE_stub_Parts_StartPartsFlat(possibly_unused int number, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:563:13: warning: unused function 'PE_stub_Parts_IsPartsFlatEnd' [-Wunused-function]
+  563 | static bool PE_stub_Parts_IsPartsFlatEnd(possibly_unused int number, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:565:12: warning: unused function 'PE_stub_Parts_GetPartsFlatCurrentFrameNumber' [-Wunused-function]
+  565 | static int PE_stub_Parts_GetPartsFlatCurrentFrameNumber(possibly_unused int number, possibly_unused int state) { return 0; }
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:566:13: warning: unused function 'PE_stub_Parts_BackPartsFlatBeginFrame' [-Wunused-function]
+  566 | static bool PE_stub_Parts_BackPartsFlatBeginFrame(possibly_unused int number, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:567:13: warning: unused function 'PE_stub_Parts_StepPartsFlatFinalFrame' [-Wunused-function]
+  567 | static bool PE_stub_Parts_StepPartsFlatFinalFrame(possibly_unused int number, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:568:13: warning: unused function 'PE_stub_Parts_GoFramePartsFlat' [-Wunused-function]
+  568 | static bool PE_stub_Parts_GoFramePartsFlat(possibly_unused int number, possibly_unused int currentframe, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:569:12: warning: unused function 'PE_stub_Parts_GetPartsFlatEndFrame' [-Wunused-function]
+  569 | static int PE_stub_Parts_GetPartsFlatEndFrame(possibly_unused int number, possibly_unused int state) { return 0; }
+      |            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:574:13: warning: unused function 'PE_stub_Parts_SetPartsFlatSurfaceArea' [-Wunused-function]
+  574 | static bool PE_stub_Parts_SetPartsFlatSurfaceArea(possibly_unused int number, possibly_unused int x, possibly_unused int y, possibly_unused int width, possibly_unused int height, possibly_unused int state) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/pe_v14_stubs.h:596:13: warning: unused function 'PE_stub_Parts_ExistsFlatFile' [-Wunused-function]
+  596 | static bool PE_stub_Parts_ExistsFlatFile(possibly_unused struct string * filename) { return false; }
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+22 warnings generated.
+[112/141] Compiling C object src/xsystem4.p/hll_vmDrawNumber.c.o
+[113/141] Compiling C object src/xsystem4.p/hll_vmKey.c.o
+[114/141] Compiling C object src/xsystem4.p/hll_vmDrawGauge.c.o
+[115/141] Compiling C object src/xsystem4.p/hll_vmMapLoader.c.o
+[116/141] Compiling C object src/xsystem4.p/hll_vmDrawMsg.c.o
+[117/141] Compiling C object src/xsystem4.p/hll_vmMsgLog.c.o
+[118/141] Compiling C object src/xsystem4.p/hll_vmMusic.c.o
+[119/141] Compiling C object src/xsystem4.p/hll_vmSound.c.o
+[120/141] Compiling C object src/xsystem4.p/hll_vmString.c.o
+[121/141] Compiling C object src/xsystem4.p/hll_ReignEngine.c.o
+../source/src/hll/ReignEngine.c:2366:13: warning: unused function 'SealEngine_SetMagSpeed' [-Wunused-function]
+ 2366 | static void SealEngine_SetMagSpeed(int mag_speed)
+      |             ^~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2375:13: warning: unused function 'SealEngine_IsExistInstanceData' [-Wunused-function]
+ 2375 | static bool SealEngine_IsExistInstanceData(int plugin, int instance, struct string *filename)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2383:13: warning: unused function 'SealEngine_GetInstanceAngle' [-Wunused-function]
+ 2383 | static bool SealEngine_GetInstanceAngle(int plugin, int instance, float *angle)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2392:13: warning: unused function 'SealEngine_GetInstanceAngleP' [-Wunused-function]
+ 2392 | static bool SealEngine_GetInstanceAngleP(int plugin, int instance, float *angle_p)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2401:13: warning: unused function 'SealEngine_GetInstanceAngleB' [-Wunused-function]
+ 2401 | static bool SealEngine_GetInstanceAngleB(int plugin, int instance, float *angle_b)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2414:13: warning: unused function 'SealEngine_GetInstanceAlpha' [-Wunused-function]
+ 2414 | static bool SealEngine_GetInstanceAlpha(int plugin, int instance, float *alpha)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2426:13: warning: unused function 'SealEngine_IsExistInstanceMotion' [-Wunused-function]
+ 2426 | static bool SealEngine_IsExistInstanceMotion(int plugin, int instance, struct string *motion_name)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2471:1: warning: unused function 'SealEngine_SetInstanceCircleShadowRadius' [-Wunused-function]
+ 2471 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetInstanceCircleShadowRadius, int PluginNumber, int InstanceNumber, float CircleShadowRadius);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:19:1: note: expanded from here
+   19 | SealEngine_SetInstanceCircleShadowRadius
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2473:13: warning: unused function 'SealEngine_LoadInstanceLightParam' [-Wunused-function]
+ 2473 | static bool SealEngine_LoadInstanceLightParam(int plugin, int instance)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2483:13: warning: unused function 'SealEngine_StoreInstanceLightParam' [-Wunused-function]
+ 2483 | static bool SealEngine_StoreInstanceLightParam(int plugin, int instance)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2492:13: warning: unused function 'SealEngine_SetInstanceUseMagSpeed' [-Wunused-function]
+ 2492 | static bool SealEngine_SetInstanceUseMagSpeed(int plugin, int instance, bool use_mag_speed)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2501:13: warning: unused function 'SealEngine_IsInstanceUseMagSpeed' [-Wunused-function]
+ 2501 | static bool SealEngine_IsInstanceUseMagSpeed(int plugin, int instance)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2515:13: warning: unused function 'SealEngine_GetCameraZVector' [-Wunused-function]
+ 2515 | static bool SealEngine_GetCameraZVector(int plugin, float *x, float *y, float *z)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2526:1: warning: unused function 'SealEngine_SetDrawDOF' [-Wunused-function]
+ 2526 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetDrawDOF, int PluginNumber, bool DrawDOF);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:25:1: note: expanded from here
+   25 | SealEngine_SetDrawDOF
+      | ^~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2527:1: warning: unused function 'SealEngine_SetDOF_L' [-Wunused-function]
+ 2527 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetDOF_L, int PluginNumber, float DOF_L);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:31:1: note: expanded from here
+   31 | SealEngine_SetDOF_L
+      | ^~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2528:1: warning: unused function 'SealEngine_SetDOF_F' [-Wunused-function]
+ 2528 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetDOF_F, int PluginNumber, float DOF_F);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:37:1: note: expanded from here
+   37 | SealEngine_SetDOF_F
+      | ^~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2529:1: warning: unused function 'SealEngine_SetDOF_f' [-Wunused-function]
+ 2529 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetDOF_f, int PluginNumber, float DOF_f);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:43:1: note: expanded from here
+   43 | SealEngine_SetDOF_f
+      | ^~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2530:1: warning: unused function 'SealEngine_GetDrawDOF' [-Wunused-function]
+ 2530 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, GetDrawDOF, int PluginNumber, bool *DrawDOF);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:49:1: note: expanded from here
+   49 | SealEngine_GetDrawDOF
+      | ^~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2531:1: warning: unused function 'SealEngine_GetDOF_L' [-Wunused-function]
+ 2531 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, GetDOF_L, int PluginNumber, float *DOF_L);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:55:1: note: expanded from here
+   55 | SealEngine_GetDOF_L
+      | ^~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2532:1: warning: unused function 'SealEngine_GetDOF_F' [-Wunused-function]
+ 2532 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, GetDOF_F, int PluginNumber, float *DOF_F);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:61:1: note: expanded from here
+   61 | SealEngine_GetDOF_F
+      | ^~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2533:1: warning: unused function 'SealEngine_GetDOF_f' [-Wunused-function]
+ 2533 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, GetDOF_f, int PluginNumber, float *DOF_f);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:67:1: note: expanded from here
+   67 | SealEngine_GetDOF_f
+      | ^~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2536:1: warning: unused function 'SealEngine_SetShadowRate' [-Wunused-function]
+ 2536 | HLL_WARN_UNIMPLEMENTED(false, bool, SealEngine, SetShadowRate, int PluginNumber, float Rate);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:132:15: note: expanded from macro 'HLL_WARN_UNIMPLEMENTED'
+  132 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:73:1: note: expanded from here
+   73 | SealEngine_SetShadowRate
+      | ^~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2540:13: warning: unused function 'SealEngine_SetEdgeLength' [-Wunused-function]
+ 2540 | static bool SealEngine_SetEdgeLength(int PluginNumber, float EdgeLength)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2549:14: warning: unused function 'SealEngine_GetEdgeLength' [-Wunused-function]
+ 2549 | static float SealEngine_GetEdgeLength(int PluginNumber)
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2558:13: warning: unused function 'SealEngine_SetEdgeColor' [-Wunused-function]
+ 2558 | static bool SealEngine_SetEdgeColor(int PluginNumber, float ColorR, float ColorG, float ColorB)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2569:13: warning: unused function 'SealEngine_GetEdgeColor' [-Wunused-function]
+ 2569 | static bool SealEngine_GetEdgeColor(int PluginNumber, float *ColorR, float *ColorG, float *ColorB)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2586:13: warning: unused function 'SealEngine_TransformPosToViewPos' [-Wunused-function]
+ 2586 | static bool SealEngine_TransformPosToViewPos(int PluginNumber, float x, float y, float z, int *view_x, int *view_y)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2591:13: warning: unused function 'SealEngine_ResetLightParam' [-Wunused-function]
+ 2591 | static bool SealEngine_ResetLightParam(int plugin)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2600:13: warning: unused function 'SealEngine_SetLightParam' [-Wunused-function]
+ 2600 | static bool SealEngine_SetLightParam(int plugin, int type, float value)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2609:14: warning: unused function 'SealEngine_GetLightParam' [-Wunused-function]
+ 2609 | static float SealEngine_GetLightParam(int plugin, int type)
+      |              ^~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/ReignEngine.c:2616:1: warning: unused function 'SealEngine_IsThreadLoadingMode' [-Wunused-function]
+ 2616 | HLL_QUIET_UNIMPLEMENTED(false, bool, SealEngine, IsThreadLoadingMode, int PluginNumber);
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../source/src/hll/hll.h:138:15: note: expanded from macro 'HLL_QUIET_UNIMPLEMENTED'
+  138 |         static rtype libname ## _ ## fname(__VA_ARGS__) {               \
+      |                      ^~~~~~~~~~~~~~~~~~~~~
+<scratch space>:77:1: note: expanded from here
+   77 | SealEngine_IsThreadLoadingMode
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+31 warnings generated.
+[122/141] Compiling C object src/xsystem4.p/hll_vmGraph.c.o
+[123/141] Compiling C object src/xsystem4.p/hll_ValueEncryption.c.o
+[124/141] Compiling C object src/xsystem4.p/hll_VSFile.c.o
+[125/141] Compiling C object src/xsystem4.p/hll_Delegate.c.o
+[126/141] Compiling C object src/xsystem4.p/hll_vmTimer.c.o
+[127/141] Compiling C object src/xsystem4.p/hll_Float.c.o
+[128/141] Compiling C object src/xsystem4.p/hll_vmSystem.c.o
+[129/141] Compiling C object src/xsystem4.p/hll_String.c.o
+../source/src/hll/String.c:317:23: warning: unused function 'String_GetPartChar' [-Wunused-function]
+  317 | static struct string *String_GetPartChar(struct string **self, int index)
+      |                       ^~~~~~~~~~~~~~~~~~
+1 warning generated.
+[130/141] Compiling C object src/xsystem4.p/hll_Int.c.o
+[131/141] Compiling C object src/xsystem4.p/hll_Sys43VM.c.o
+[132/141] Compiling C object src/xsystem4.p/hll_HashMap.c.o
+[133/141] Compiling C object src/xsystem4.p/hll_vmSurface.c.o
+[134/141] Compiling C object src/xsystem4.p/hll_TextFile.c.o
+[135/141] Compiling C object src/xsystem4.p/hll_system.c.o
+[136/141] Compiling C object src/xsystem4.p/hll_vmSprite.c.o
+[137/141] Compiling C object src/xsystem4.p/hll_SealEngine.c.o
+[138/141] Compiling C object src/xsystem4.p/hll_PastelChime2.c.o
+[139/141] Compiling C object src/xsystem4.p/hll_vmArray.c.o
+[140/141] Compiling C object src/xsystem4.p/hll_Array.c.o
+../source/src/hll/Array.c:367:13: warning: unused function 'Array_AnyPredicate' [-Wunused-function]
+  367 | static bool Array_AnyPredicate(struct page **array, int func)
+      |             ^~~~~~~~~~~~~~~~~~
+1 warning generated.
+[141/141] Linking target src/xsystem4
+ld: warning: ignoring duplicate libraries: '-lz'
+ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000 because it exceeds segment maximum alignment

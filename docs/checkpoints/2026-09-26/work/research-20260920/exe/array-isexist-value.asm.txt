@@ -1,0 +1,21 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x644bd5', '--stop-address=0x644c04', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  644bd5: 8b 45 10                     	mov	eax, dword ptr [ebp + 0x10]
+  644bd8: 8b 08                        	mov	ecx, dword ptr [eax]
+  644bda: 8d 71 28                     	lea	esi, [ecx + 0x28]
+  644bdd: e8 3e 5a 01 00               	call	0x65a620 <+0x259620>
+  644be2: 8b d6                        	mov	edx, esi
+  644be4: 8b c8                        	mov	ecx, eax
+  644be6: e8 95 3e 00 00               	call	0x648a80 <+0x247a80>
+  644beb: 85 c0                        	test	eax, eax
+  644bed: 8b 45 08                     	mov	eax, dword ptr [ebp + 0x8]
+  644bf0: 0f 99 c1                     	setns	cl
+  644bf3: 0f b6 c9                     	movzx	ecx, cl
+  644bf6: c7 00 2f 00 00 00            	mov	dword ptr [eax], 0x2f
+  644bfc: 89 48 04                     	mov	dword ptr [eax + 0x4], ecx
+  644bff: e9 66 f7 ff ff               	jmp	0x64436a <+0x24336a>

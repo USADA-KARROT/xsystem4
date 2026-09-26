@@ -1,0 +1,76 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x644519', '--stop-address=0x6445e1', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  644519: 8b 45 10                     	mov	eax, dword ptr [ebp + 0x10]
+  64451c: 8b 38                        	mov	edi, dword ptr [eax]
+  64451e: 8d 4f 50                     	lea	ecx, [edi + 0x50]
+  644521: e8 fa 59 01 00               	call	0x659f20 <+0x258f20>
+  644526: 50                           	push	eax
+  644527: 8d 4f 28                     	lea	ecx, [edi + 0x28]
+  64452a: e8 f1 59 01 00               	call	0x659f20 <+0x258f20>
+  64452f: 8b cf                        	mov	ecx, edi
+  644531: 8b f0                        	mov	esi, eax
+  644533: e8 e8 60 01 00               	call	0x65a620 <+0x259620>
+  644538: 8b d6                        	mov	edx, esi
+  64453a: 8b c8                        	mov	ecx, eax
+  64453c: e8 1f 35 00 00               	call	0x647a60 <+0x246a60>
+  644541: 83 c4 04                     	add	esp, 0x4
+  644544: 8b 55 08                     	mov	edx, dword ptr [ebp + 0x8]
+  644547: 33 c9                        	xor	ecx, ecx
+  644549: 84 c0                        	test	al, al
+  64454b: 8b c2                        	mov	eax, edx
+  64454d: 0f 95 c1                     	setne	cl
+  644550: c7 02 2f 00 00 00            	mov	dword ptr [edx], 0x2f
+  644556: 89 4a 04                     	mov	dword ptr [edx + 0x4], ecx
+  644559: c7 42 14 00 00 00 00         	mov	dword ptr [edx + 0x14], 0x0
+  644560: 8b 4d f4                     	mov	ecx, dword ptr [ebp - 0xc]
+  644563: 64 89 0d 00 00 00 00         	mov	dword ptr fs:[0x0], ecx
+  64456a: 59                           	pop	ecx
+  64456b: 5f                           	pop	edi
+  64456c: 5e                           	pop	esi
+  64456d: 5b                           	pop	ebx
+  64456e: 8b e5                        	mov	esp, ebp
+  644570: 5d                           	pop	ebp
+  644571: c3                           	ret
+  644572: 8b 45 10                     	mov	eax, dword ptr [ebp + 0x10]
+  644575: 8b 08                        	mov	ecx, dword ptr [eax]
+  644577: 8d 59 28                     	lea	ebx, [ecx + 0x28]
+  64457a: e8 a1 60 01 00               	call	0x65a620 <+0x259620>
+  64457f: 8b f8                        	mov	edi, eax
+  644581: 8b cf                        	mov	ecx, edi
+  644583: e8 28 2e 00 00               	call	0x6473b0 <+0x2463b0>
+  644588: 84 c0                        	test	al, al
+  64458a: 75 04                        	jne	0x644590 <+0x243590>
+  64458c: 32 d2                        	xor	dl, dl
+  64458e: eb 15                        	jmp	0x6445a5 <+0x2435a5>
+  644590: 8b 37                        	mov	esi, dword ptr [edi]
+  644592: 8b d3                        	mov	edx, ebx
+  644594: 8b cf                        	mov	ecx, edi
+  644596: e8 a5 46 00 00               	call	0x648c40 <+0x247c40>
+  64459b: 50                           	push	eax
+  64459c: 8b 46 5c                     	mov	eax, dword ptr [esi + 0x5c]
+  64459f: 8b cf                        	mov	ecx, edi
+  6445a1: ff d0                        	call	eax
+  6445a3: 8a d0                        	mov	dl, al
+  6445a5: 8b 45 08                     	mov	eax, dword ptr [ebp + 0x8]
+  6445a8: 33 c9                        	xor	ecx, ecx
+  6445aa: 84 d2                        	test	dl, dl
+  6445ac: 0f 95 c1                     	setne	cl
+  6445af: c7 00 2f 00 00 00            	mov	dword ptr [eax], 0x2f
+  6445b5: 89 48 04                     	mov	dword ptr [eax + 0x4], ecx
+  6445b8: e9 ad fd ff ff               	jmp	0x64436a <+0x24336a>
+  6445bd: 8b 45 10                     	mov	eax, dword ptr [ebp + 0x10]
+  6445c0: 8b 38                        	mov	edi, dword ptr [eax]
+  6445c2: 8d 4f 28                     	lea	ecx, [edi + 0x28]
+  6445c5: e8 56 60 01 00               	call	0x65a620 <+0x259620>
+  6445ca: 8b cf                        	mov	ecx, edi
+  6445cc: 8b f0                        	mov	esi, eax
+  6445ce: e8 4d 60 01 00               	call	0x65a620 <+0x259620>
+  6445d3: 8b d6                        	mov	edx, esi
+  6445d5: 8b c8                        	mov	ecx, eax
+  6445d7: e8 e4 34 00 00               	call	0x647ac0 <+0x246ac0>
+  6445dc: e9 63 ff ff ff               	jmp	0x644544 <+0x243544>

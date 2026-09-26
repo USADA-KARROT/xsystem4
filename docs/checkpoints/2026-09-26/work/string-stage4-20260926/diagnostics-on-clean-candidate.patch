@@ -1,0 +1,78 @@
+--- a/src/vm.c
++++ b/src/vm.c
+@@ -2999,6 +2999,24 @@
+ 		int file = stack_pop().i; // filename
+ 		int expr = stack_pop().i; // expression
+ 		if (!stack_pop().i) {
++			if (getenv("XSYS4_STRING_AUDIT")) {
++				fprintf(stderr, "ASSERT_AUDIT ip=%zx\n", instr_ptr);
++				vm_stack_trace();
++				for (int d = call_stack_ptr - 1; d >= 0 && d >= call_stack_ptr - 4; d--) {
++					struct page *lp = heap[call_stack[d].page_slot].page;
++					for (int j = 0; lp && j < lp->nr_vars && j < 24; j++) {
++						int v = lp->values[j].i;
++						fprintf(stderr, "ASSERT_LOCAL f=%d i=%d val=%d", call_stack[d].fno, j, v);
++						if (heap_index_valid(v)) {
++							fprintf(stderr, " type=%d ref=%d seq=%u", heap[v].type, HEAP_REF(v), heap[v].seq);
++							if (heap[v].type == VM_STRING && heap[v].s) fprintf(stderr, " strlen=%d text=%.80s", heap[v].s->size, heap[v].s->text);
++						}
++						fputc('\n', stderr);
++					}
++				}
++				fflush(stderr);
++				exit(88);
++			}
+ 			static int assert_count = 0;
+ 			struct string *file_s = heap_get_string(file);
+ 			struct string *expr_s = heap_get_string(expr);
+--- a/src/heap.c
++++ b/src/heap.c
+@@ -841,6 +841,15 @@
+ 
+ void heap_set_page(int slot, struct page *page)
+ {
++	if (getenv("XSYS4_STRING_AUDIT") && slot > 1 && (size_t)slot < heap_size
++	    && heap[slot].type != VM_PAGE) {
++		fprintf(stderr, "PAGE_WRITE_AUDIT slot=%d ref=%d seq=%u oldtype=%d newpage=%p ptype=%d idx=%d ip=%zx\n",
++			slot, heap[slot].ref, heap[slot].seq, heap[slot].type,
++			(void *)page, page ? page->type : -1, page ? page->index : -1, instr_ptr);
++		vm_stack_trace();
++		fflush(stderr);
++		exit(87);
++	}
+ #ifdef DEBUG_HEAP
+ 	if (unlikely(!page_index_valid(slot)))
+ 		VM_ERROR("Invalid page index: %d", index);
+--- a/subprojects/libsys4/src/string.c
++++ b/subprojects/libsys4/src/string.c
+@@ -18,6 +18,13 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <execinfo.h>
++#include <unistd.h>
++#if defined(__APPLE__)
++extern void vm_stack_trace(void) __attribute__((weak_import));
++#else
++extern void vm_stack_trace(void) __attribute__((weak));
++#endif
+ #include "system4.h"
+ #include "system4/string.h"
+ #include "system4/utfsjis.h"
+@@ -37,6 +44,16 @@
+ void free_string(struct string *str)
+ {
+ 	if (!str->ref) {
++		if (getenv("XSYS4_STRING_AUDIT")) {
++			fprintf(stderr, "STRING_AUDIT ptr=%p empty=%d size=%d cow=%u ref=%u\n",
++				(void *)str, str == &EMPTY_STRING, str->size, str->cow, str->ref);
++			void *frames[40];
++			int n = backtrace(frames, 40);
++			backtrace_symbols_fd(frames, n, STDERR_FILENO);
++			if (vm_stack_trace) vm_stack_trace();
++			fflush(stderr);
++			exit(86);
++		}
+ 		WARNING("Double free of string object (ignored)");
+ 		return;
+ 	}

@@ -1,0 +1,15 @@
+In file included from <WORKSPACE>/work/gui-stage3-20260924/native-audit/runtime_probe.c:7:
+[1m<WORKSPACE>/work/stage2/source/src/ffi.c:1160:8: [0m[0;1;35mwarning: [0m[1mvariable 'found' set but not used [-Wunused-but-set-variable][0m
+ 1160 |                 bool found = [0;32mfalse[0m;[0m
+      | [0;1;32m                     ^
+[0mIn file included from <WORKSPACE>/work/gui-stage3-20260924/native-audit/runtime_probe.c:6:
+[1m<WORKSPACE>/work/gui-stage3-20260924/native-audit/instrumented-vm.inc:101:13: [0m[0;1;35mwarning: [0m[1munused function 'vm_msg_delegate_empty' [-Wunused-function][0m
+  101 | [0;34mstatic[0m bool vm_msg_delegate_empty([0;34mint[0m slot)[0m
+      | [0;1;32m            ^~~~~~~~~~~~~~~~~~~~~
+[0m[1m<WORKSPACE>/work/gui-stage3-20260924/native-audit/instrumented-vm.inc:197:13: [0m[0;1;35mwarning: [0m[1munused function 'vm_msg_handle_A' [-Wunused-function][0m
+  197 | [0;34mstatic[0m [0;34mvoid[0m vm_msg_handle_A([0;34mvoid[0m)[0m
+      | [0;1;32m            ^~~~~~~~~~~~~~~
+[0m[1m<WORKSPACE>/work/gui-stage3-20260924/native-audit/instrumented-vm.inc:220:13: [0m[0;1;35mwarning: [0m[1munused function 'vm_msg_handle_A_overlay' [-Wunused-function][0m
+  220 | [0;34mstatic[0m [0;34mvoid[0m vm_msg_handle_A_overlay([0;34mvoid[0m)[0m
+      | [0;1;32m            ^~~~~~~~~~~~~~~~~~~~~~~
+[0m4 warnings generated.

@@ -1,0 +1,7 @@
+{
+  "stage": "stage3",
+  "date": "2026-09-24T23:28:02.932505+08:00",
+  "status": "GUI validation blocked: shell AppKit registration abort; desktop tool refused app launch",
+  "production_changes_this_stage": false,
+  "baseline_source_diff_sha256": "b77b872a3860ccd5f9921b412f64b870b1d7b37ea5189193793300b3621190c0"
+}

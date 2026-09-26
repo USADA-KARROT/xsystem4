@@ -1,0 +1,18 @@
+{
+  "src/vm.c": {
+    "before_sha256": "a65e443e37592a4f27e1ec9ac156310007654978767628c75664edbce36d8dfd",
+    "after_sha256": "d96ac12974c52322d8076d299abc8150c00560156f6bbffb35859140e776be2c"
+  },
+  "src/page.c": {
+    "before_sha256": "c8fba799b0a473ec7b04c4941c971b2776f21640b06d1f6a07afdc88b736fa93",
+    "after_sha256": "5b3867a9ada93762055a9e6a675a3775399890d838cd48a47511aa8489a68064"
+  },
+  "src/heap.c": {
+    "before_sha256": "f80013691446559208b618b42959641cba7ce8d2a41b95b1c1da319506f4d8e0",
+    "after_sha256": "cbd00c2cc4454973d3a4573bf51da5e806dbb4b915af01b53c7e09d1eddf528f"
+  },
+  "src/hll/Array.c": {
+    "before_sha256": "a7925f709d80286fb05d30b9329f08c46b84f4b0f11e391b34d63331b5bf78a6",
+    "after_sha256": "dbcef6f62c44bef68e6cd3b0ba4f4624f7c4e200ca8f31602cf90a441f153ce4"
+  }
+}

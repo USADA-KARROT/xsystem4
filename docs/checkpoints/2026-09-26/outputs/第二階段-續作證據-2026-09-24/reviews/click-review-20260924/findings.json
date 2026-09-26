@@ -1,0 +1,105 @@
+{
+  "scope": "Private optimized diagnostic copy; production source and original fixture unchanged. Real AIN bytecode with native timer interception flags disabled.",
+  "exit_code": 134,
+  "before_CASClick_constructor": {
+    "parent_slot": 12,
+    "member7_slot": 13,
+    "timer_ctor_calls": 0,
+    "timer_dtor_calls": 0
+  },
+  "premature_destructor": {
+    "caller_fno": 6366,
+    "ip": "0x9d2212",
+    "opcode": "DELETE",
+    "timer_slot": 13,
+    "seq": 14,
+    "handle": 0,
+    "timer_ctor_calls": 0,
+    "timer_dtor_calls": 1,
+    "system_Error": true
+  },
+  "real_timer_constructor": {
+    "caller_fno": 6366,
+    "ip": "0x9d2214",
+    "opcode": "NEW 7,-1",
+    "fno": 420,
+    "timer_slot": 20,
+    "seq": 22
+  },
+  "final_counts": {
+    "timer_ctor_calls": 1,
+    "timer_dtor_calls": 2
+  },
+  "recommended_change": "For AIN v14 plain AIN_STRUCT member initialization, use null -1 instead of eager alloc_struct; preserve pre-v14 semantics. Keep wrap<struct>/inheritance outside this evidence scope.",
+  "vm_sha256": "d96ac12974c52322d8076d299abc8150c00560156f6bbffb35859140e776be2c",
+  "source_sha256": {
+    "src/vm.c": "d96ac12974c52322d8076d299abc8150c00560156f6bbffb35859140e776be2c",
+    "src/page.c": "c8fba799b0a473ec7b04c4941c971b2776f21640b06d1f6a07afdc88b736fa93",
+    "src/heap.c": "f80013691446559208b618b42959641cba7ce8d2a41b95b1c1da319506f4d8e0",
+    "src/ffi.c": "89b8174ff3dea6afacec8414be648b77bf4d8774e53c1296ad937019dddc8394",
+    "src/hll/Array.c": "dbcef6f62c44bef68e6cd3b0ba4f4624f7c4e200ca8f31602cf90a441f153ce4",
+    "include/vm/page.h": "a4a0f3fed2b0210de1102825bec00c77c3e1c2ef6a315f53e040b43d70d30c6d"
+  },
+  "counterfactual_patch_executed": true,
+  "true_new_baseline": {
+    "original_ain_site": "0x1b8da",
+    "instruction": "NEW 233,-1",
+    "dispatch": "production execute_instruction(NEW), followed by original constructor bytecode",
+    "struct_flags_233": 0,
+    "exit": 134,
+    "counts": {
+      "ctor": 1,
+      "dtor": 2
+    },
+    "premature_child": {
+      "slot": 13,
+      "seq": 14
+    },
+    "real_child": {
+      "slot": 20,
+      "seq": 22
+    },
+    "system_Error": true
+  },
+  "counterfactual": {
+    "change": "Private page.c object only: v14 ordinary AIN_STRUCT member starts -1; pre-v14 eager allocation and wrap<struct> branch unchanged.",
+    "child_identity": {
+      "slot": 15,
+      "seq": 16
+    },
+    "child_ctor_calls": 1,
+    "child_dtor_calls": 1,
+    "dtor_calls_during_parent_constructor": 0,
+    "system_Error": false,
+    "runs": {
+      "optimized": {
+        "click": 0,
+        "observer_20_rounds": 0,
+        "timer_20_rounds": 0
+      },
+      "asan": {
+        "click": 0,
+        "observer_20_rounds": 0,
+        "timer_20_rounds": 0
+      }
+    },
+    "asan_options": "detect_leaks=0",
+    "explicit_heap_teardown": "All tested modes end live=0; timer each round live=5=manager baseline",
+    "observer_explicit_seed": [
+      {
+        "owner_struct": 611,
+        "member": 0,
+        "name": "m_motion",
+        "allocate_struct": 608
+      },
+      {
+        "owner_struct": 608,
+        "member": 1,
+        "name": "m_section",
+        "allocate_struct": 617
+      }
+    ],
+    "epoch_scope": "One click child allocation epoch per build; 60 timer ctor/dtor allocations in timer mode per build."
+  },
+  "instrumentation_note": "The initial private AIN opcode scanner had an unsigned invalid-function-address bounds error; corrected to size_t and subtractive bounds before final runs. obsolete-scanner-bounds-failure-asan.* are excluded diagnostic artifacts, not production evidence."
+}

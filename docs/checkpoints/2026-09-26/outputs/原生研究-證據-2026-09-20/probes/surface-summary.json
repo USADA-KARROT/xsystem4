@@ -1,0 +1,205 @@
+{
+  "ain_version": 14,
+  "code_bytes": 10626832,
+  "decoded_bytes": 10626832,
+  "instruction_sites": 2040196,
+  "functions": 37742,
+  "structures": 1210,
+  "globals": 263,
+  "delegates": 1779,
+  "main": 20590,
+  "alloc": 22322,
+  "msgf": 0,
+  "invalid_hll_sites": 0,
+  "distinct_opcodes": 99,
+  "hll_libraries": 36,
+  "hll_declared": 1701,
+  "hll_directly_referenced": 1562,
+  "hll_library_counts": [
+    {
+      "name": "system",
+      "declared": 33,
+      "referenced": 27
+    },
+    {
+      "name": "ADVEngine",
+      "declared": 23,
+      "referenced": 23
+    },
+    {
+      "name": "AFAFactory",
+      "declared": 12,
+      "referenced": 12
+    },
+    {
+      "name": "AnteaterADVLogList",
+      "declared": 15,
+      "referenced": 15
+    },
+    {
+      "name": "Array",
+      "declared": 84,
+      "referenced": 61
+    },
+    {
+      "name": "CGManager",
+      "declared": 4,
+      "referenced": 4
+    },
+    {
+      "name": "ChipmunkSpriteEngine",
+      "declared": 19,
+      "referenced": 17
+    },
+    {
+      "name": "Clipboard",
+      "declared": 2,
+      "referenced": 1
+    },
+    {
+      "name": "CommonSystemData",
+      "declared": 9,
+      "referenced": 3
+    },
+    {
+      "name": "CrayfishLogViewer",
+      "declared": 7,
+      "referenced": 7
+    },
+    {
+      "name": "Delegate",
+      "declared": 9,
+      "referenced": 5
+    },
+    {
+      "name": "EXWriter",
+      "declared": 21,
+      "referenced": 21
+    },
+    {
+      "name": "FileDialog",
+      "declared": 3,
+      "referenced": 3
+    },
+    {
+      "name": "FileOperation",
+      "declared": 15,
+      "referenced": 11
+    },
+    {
+      "name": "Float",
+      "declared": 2,
+      "referenced": 1
+    },
+    {
+      "name": "HashMap",
+      "declared": 14,
+      "referenced": 14
+    },
+    {
+      "name": "HTTPDownloader",
+      "declared": 14,
+      "referenced": 14
+    },
+    {
+      "name": "IbisInputEngine",
+      "declared": 12,
+      "referenced": 11
+    },
+    {
+      "name": "InputString",
+      "declared": 11,
+      "referenced": 3
+    },
+    {
+      "name": "InstallInfo",
+      "declared": 2,
+      "referenced": 2
+    },
+    {
+      "name": "Int",
+      "declared": 5,
+      "referenced": 1
+    },
+    {
+      "name": "KiwiSoundEngine",
+      "declared": 39,
+      "referenced": 26
+    },
+    {
+      "name": "MainEXFile",
+      "declared": 34,
+      "referenced": 30
+    },
+    {
+      "name": "MarmotModelEngine",
+      "declared": 1,
+      "referenced": 1
+    },
+    {
+      "name": "Math",
+      "declared": 39,
+      "referenced": 36
+    },
+    {
+      "name": "MsgSkip",
+      "declared": 4,
+      "referenced": 4
+    },
+    {
+      "name": "OutputLog",
+      "declared": 8,
+      "referenced": 4
+    },
+    {
+      "name": "PartsEngine",
+      "declared": 868,
+      "referenced": 844
+    },
+    {
+      "name": "PassRegister",
+      "declared": 8,
+      "referenced": 5
+    },
+    {
+      "name": "SealEngine",
+      "declared": 248,
+      "referenced": 244
+    },
+    {
+      "name": "String",
+      "declared": 36,
+      "referenced": 23
+    },
+    {
+      "name": "Sys43VM",
+      "declared": 5,
+      "referenced": 3
+    },
+    {
+      "name": "SystemService",
+      "declared": 73,
+      "referenced": 68
+    },
+    {
+      "name": "TextFile",
+      "declared": 10,
+      "referenced": 10
+    },
+    {
+      "name": "TextSurfaceManager",
+      "declared": 1,
+      "referenced": 1
+    },
+    {
+      "name": "VSFile",
+      "declared": 11,
+      "referenced": 7
+    }
+  ],
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "scope": "Static decoding only: sites are not executed counts, callbacks and external entry points make this insufficient as a reachability proof.",
+  "invalid_function_addresses": 2024,
+  "sentinel_function_addresses": 2024,
+  "unexplained_non_boundary_addresses": 0
+}

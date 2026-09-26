@@ -1,0 +1,29 @@
+{
+  "assign": {
+    "exit": 0,
+    "last_lines": [
+      "CONTRACT owned after_assign=1 after_holder_cleanup=0 expected=1,0",
+      "CONTRACT borrowed after_sp_inc=2 after_holder_cleanup=1 expected=2,1",
+      "CONTRACT shared_old after_delete_assign=1 expected=1",
+      "CONTRACT result=pass live=0 baseline=0"
+    ]
+  },
+  "observer": {
+    "exit": 0,
+    "last_lines": [
+      "OBSERVER seed live=15 collection_ref=2 env_ref=2 motion_ref=2",
+      "OBSERVER false live=15 env_ref=2 motion_ref=2",
+      "OBSERVER true live=15 env_ref=2 motion_ref=1 caller_checks=292 setter_checks=16",
+      "OBSERVER teardown initial_live=0 final_live=0 collection_ref=0 env_ref=0 motion_ref=0 callback_calls=2"
+    ]
+  },
+  "timer": {
+    "exit": 0,
+    "last_lines": [
+      "TIMER round=18 ctor=57 dtor=57 live=5 baseline=5",
+      "TIMER clock round=19 got=7 expected=7",
+      "TIMER round=19 ctor=60 dtor=60 live=5 baseline=5",
+      "TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0"
+    ]
+  }
+}

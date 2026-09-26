@@ -1,0 +1,59 @@
+{
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "probe_sha256": "311c7f11c8bef41a4070f59da5d4fc364af1234d856e0da7243c8a4389d9b6ba",
+  "runs": [
+    {
+      "variant": "normal",
+      "compile_command": [
+        "clang",
+        "-std=c11",
+        "-O2",
+        "-g",
+        "-Iwork/stage2/source/subprojects/libsys4/include",
+        "<WORKSPACE>/work/research-20260920/probes/ain_surface.c",
+        "work/stage2/optimized-build/subprojects/libsys4/libsys4.a",
+        "-lz",
+        "-lm",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "work/research-20260920/probes/verified/ain_surface_normal"
+      ],
+      "compile_exit": 0,
+      "compiler_stderr": "",
+      "run_exit": 0,
+      "stderr": "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\nnon-boundary f0 address=0xffffffff name=NULL\nnon-boundary f385 address=0xffffffff name=ITextReader@Read\nnon-boundary f386 address=0xffffffff name=ITextReader@Read\nnon-boundary f387 address=0xffffffff name=ITextReader@ReadLine\nnon-boundary f388 address=0xffffffff name=ITextReader@ReadLine\nnon-boundary f389 address=0xffffffff name=ITextReader@EOF::get\nnon-boundary f390 address=0xffffffff name=ITextReader@EOF::get\nnon-boundary f391 address=0xffffffff name=ITextReader@Close\nnon-boundary f392 address=0xffffffff name=ITextWriter@Write\nnon-boundary f393 address=0xffffffff name=ITextWriter@WriteLine\nnon-boundary f394 address=0xffffffff name=ITextWriter@Close\nnon-boundary f683 address=0xffffffff name=IActivity@Handle::get\n",
+      "decoded_bytes": 10626832,
+      "matches_code_size": true,
+      "non_sentinel_invalid_addresses": 0
+    },
+    {
+      "variant": "asan",
+      "compile_command": [
+        "clang",
+        "-std=c11",
+        "-O0",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-Iwork/stage2/source/subprojects/libsys4/include",
+        "<WORKSPACE>/work/research-20260920/probes/ain_surface.c",
+        "work/stage1/wip-asan-build/subprojects/libsys4/libsys4.a",
+        "-lz",
+        "-lm",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "work/research-20260920/probes/verified/ain_surface_asan"
+      ],
+      "compile_exit": 0,
+      "compiler_stderr": "",
+      "run_exit": 0,
+      "stderr": "*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\nnon-boundary f0 address=0xffffffff name=NULL\nnon-boundary f385 address=0xffffffff name=ITextReader@Read\nnon-boundary f386 address=0xffffffff name=ITextReader@Read\nnon-boundary f387 address=0xffffffff name=ITextReader@ReadLine\nnon-boundary f388 address=0xffffffff name=ITextReader@ReadLine\nnon-boundary f389 address=0xffffffff name=ITextReader@EOF::get\nnon-boundary f390 address=0xffffffff name=ITextReader@EOF::get\nnon-boundary f391 address=0xffffffff name=ITextReader@Close\nnon-boundary f392 address=0xffffffff name=ITextWriter@Write\nnon-boundary f393 address=0xffffffff name=ITextWriter@WriteLine\nnon-boundary f394 address=0xffffffff name=ITextWriter@Close\nnon-boundary f683 address=0xffffffff name=IActivity@Handle::get\n",
+      "decoded_bytes": 10626832,
+      "matches_code_size": true,
+      "non_sentinel_invalid_addresses": 0
+    }
+  ],
+  "normal_asan_equal": true,
+  "scope": "Static metadata and bytecode decoding only; does not run a game or a new VM. LeakSanitizer disabled."
+}

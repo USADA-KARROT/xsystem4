@@ -1,0 +1,156 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x646020', '--stop-address=0x6461df', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  646020: 55                           	push	ebp
+  646021: 8b ec                        	mov	ebp, esp
+  646023: 6a ff                        	push	-0x1
+  646025: 68 30 91 7a 00               	push	0x7a9130
+  64602a: 64 a1 00 00 00 00            	mov	eax, dword ptr fs:[0x0]
+  646030: 50                           	push	eax
+  646031: 83 ec 44                     	sub	esp, 0x44
+  646034: a1 70 30 86 00               	mov	eax, dword ptr [0x863070]
+  646039: 33 c5                        	xor	eax, ebp
+  64603b: 89 45 ec                     	mov	dword ptr [ebp - 0x14], eax
+  64603e: 56                           	push	esi
+  64603f: 57                           	push	edi
+  646040: 50                           	push	eax
+  646041: 8d 45 f4                     	lea	eax, [ebp - 0xc]
+  646044: 64 a3 00 00 00 00            	mov	dword ptr fs:[0x0], eax
+  64604a: 8b fa                        	mov	edi, edx
+  64604c: 8b f1                        	mov	esi, ecx
+  64604e: 89 75 b8                     	mov	dword ptr [ebp - 0x48], esi
+  646051: 8b 07                        	mov	eax, dword ptr [edi]
+  646053: 8b cf                        	mov	ecx, edi
+  646055: c7 45 b4 00 00 00 00         	mov	dword ptr [ebp - 0x4c], 0x0
+  64605c: ff 10                        	call	dword ptr [eax]
+  64605e: 83 c0 f6                     	add	eax, -0xa
+  646061: 83 f8 52                     	cmp	eax, 0x52
+  646064: 77 5e                        	ja	0x6460c4 <+0x2450c4>
+  646066: 0f b6 80 8c 61 64 00         	movzx	eax, byte ptr [eax + 0x64618c]
+  64606d: ff 24 85 78 61 64 00         	jmp	dword ptr [4*eax + 0x646178]
+  646074: 8b 4d 08                     	mov	ecx, dword ptr [ebp + 0x8]
+  646077: c7 06 b4 0e 81 00            	mov	dword ptr [esi], 0x810eb4
+  64607d: 89 7e 04                     	mov	dword ptr [esi + 0x4], edi
+  646080: 89 4e 08                     	mov	dword ptr [esi + 0x8], ecx
+  646083: e9 d0 00 00 00               	jmp	0x646158 <+0x245158>
+  646088: 8b 45 08                     	mov	eax, dword ptr [ebp + 0x8]
+  64608b: c7 06 98 0e 81 00            	mov	dword ptr [esi], 0x810e98
+  646091: 89 7e 04                     	mov	dword ptr [esi + 0x4], edi
+  646094: 89 46 08                     	mov	dword ptr [esi + 0x8], eax
+  646097: e9 bc 00 00 00               	jmp	0x646158 <+0x245158>
+  64609c: 8b 45 08                     	mov	eax, dword ptr [ebp + 0x8]
+  64609f: c7 06 04 10 81 00            	mov	dword ptr [esi], 0x811004
+  6460a5: 89 7e 04                     	mov	dword ptr [esi + 0x4], edi
+  6460a8: 89 46 08                     	mov	dword ptr [esi + 0x8], eax
+  6460ab: e9 a8 00 00 00               	jmp	0x646158 <+0x245158>
+  6460b0: 8b 45 08                     	mov	eax, dword ptr [ebp + 0x8]
+  6460b3: c7 06 0c 0e 81 00            	mov	dword ptr [esi], 0x810e0c
+  6460b9: 89 7e 04                     	mov	dword ptr [esi + 0x4], edi
+  6460bc: 89 46 08                     	mov	dword ptr [esi + 0x8], eax
+  6460bf: e9 94 00 00 00               	jmp	0x646158 <+0x245158>
+  6460c4: 8b 07                        	mov	eax, dword ptr [edi]
+  6460c6: 8b cf                        	mov	ecx, edi
+  6460c8: ff 10                        	call	dword ptr [eax]
+  6460ca: 6a 1e                        	push	0x1e
+  6460cc: 68 f0 1f 7e 00               	push	0x7e1ff0
+  6460d1: 8d 4d d4                     	lea	ecx, [ebp - 0x2c]
+  6460d4: 89 45 b8                     	mov	dword ptr [ebp - 0x48], eax
+  6460d7: c7 45 e8 0f 00 00 00         	mov	dword ptr [ebp - 0x18], 0xf
+  6460de: c7 45 e4 00 00 00 00         	mov	dword ptr [ebp - 0x1c], 0x0
+  6460e5: c6 45 d4 00                  	mov	byte ptr [ebp - 0x2c], 0x0
+  6460e9: e8 b2 17 dd ff               	call	0x4178a0 <+0x168a0>
+  6460ee: 8d 45 b8                     	lea	eax, [ebp - 0x48]
+  6460f1: c7 45 fc 00 00 00 00         	mov	dword ptr [ebp - 0x4], 0x0
+  6460f8: 50                           	push	eax
+  6460f9: 8d 55 d4                     	lea	edx, [ebp - 0x2c]
+  6460fc: 8d 4d bc                     	lea	ecx, [ebp - 0x44]
+  6460ff: e8 9c 7c dd ff               	call	0x41dda0 <+0x1cda0>
+  646104: 83 c4 04                     	add	esp, 0x4
+  646107: 8b c8                        	mov	ecx, eax
+  646109: c6 45 fc 01                  	mov	byte ptr [ebp - 0x4], 0x1
+  64610d: e8 be 24 0e 00               	call	0x7285d0 <+0x3275d0>
+  646112: 8b 45 d0                     	mov	eax, dword ptr [ebp - 0x30]
+  646115: 83 f8 10                     	cmp	eax, 0x10
+  646118: 72 0f                        	jb	0x646129 <+0x245129>
+  64611a: 6a 01                        	push	0x1
+  64611c: 40                           	inc	eax
+  64611d: 50                           	push	eax
+  64611e: ff 75 bc                     	push	dword ptr [ebp - 0x44]
+  646121: e8 4a 14 dd ff               	call	0x417570 <+0x16570>
+  646126: 83 c4 0c                     	add	esp, 0xc
+  646129: 8b 45 e8                     	mov	eax, dword ptr [ebp - 0x18]
+  64612c: c7 45 d0 0f 00 00 00         	mov	dword ptr [ebp - 0x30], 0xf
+  646133: c7 45 cc 00 00 00 00         	mov	dword ptr [ebp - 0x34], 0x0
+  64613a: c6 45 bc 00                  	mov	byte ptr [ebp - 0x44], 0x0
+  64613e: 83 f8 10                     	cmp	eax, 0x10
+  646141: 72 0f                        	jb	0x646152 <+0x245152>
+  646143: 6a 01                        	push	0x1
+  646145: 40                           	inc	eax
+  646146: 50                           	push	eax
+  646147: ff 75 d4                     	push	dword ptr [ebp - 0x2c]
+  64614a: e8 21 14 dd ff               	call	0x417570 <+0x16570>
+  64614f: 83 c4 0c                     	add	esp, 0xc
+  646152: c7 06 b0 0f 81 00            	mov	dword ptr [esi], 0x810fb0
+  646158: 89 76 24                     	mov	dword ptr [esi + 0x24], esi
+  64615b: 8b c6                        	mov	eax, esi
+  64615d: 8b 4d f4                     	mov	ecx, dword ptr [ebp - 0xc]
+  646160: 64 89 0d 00 00 00 00         	mov	dword ptr fs:[0x0], ecx
+  646167: 59                           	pop	ecx
+  646168: 5f                           	pop	edi
+  646169: 5e                           	pop	esi
+  64616a: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  64616d: 33 cd                        	xor	ecx, ebp
+  64616f: e8 ca 50 10 00               	call	0x74b23e <+0x34a23e>
+  646174: 8b e5                        	mov	esp, ebp
+  646176: 5d                           	pop	ebp
+  646177: c3                           	ret
+  646178: 74 60                        	je	0x6461da <+0x2451da>
+  64617a: 64 00 9c 60 64 00 b0 60      	add	byte ptr fs:[eax + 2*eiz + 0x60b00064], bl
+  646182: 64 00 88 60 64 00 c4         	add	byte ptr fs:[eax - 0x3bff9ba0], cl
+  646189: 60                           	pushal
+  64618a: 64 00 00                     	add	byte ptr fs:[eax], al
+  64618d: 01 02                        	add	dword ptr [edx], eax
+  64618f: 04 04                        	add	al, 0x4
+  646191: 04 04                        	add	al, 0x4
+  646193: 04 04                        	add	al, 0x4
+  646195: 04 04                        	add	al, 0x4
+  646197: 04 04                        	add	al, 0x4
+  646199: 04 04                        	add	al, 0x4
+  64619b: 04 04                        	add	al, 0x4
+  64619d: 04 04                        	add	al, 0x4
+  64619f: 04 04                        	add	al, 0x4
+  6461a1: 04 04                        	add	al, 0x4
+  6461a3: 04 04                        	add	al, 0x4
+  6461a5: 04 04                        	add	al, 0x4
+  6461a7: 04 04                        	add	al, 0x4
+  6461a9: 04 04                        	add	al, 0x4
+  6461ab: 04 04                        	add	al, 0x4
+  6461ad: 04 04                        	add	al, 0x4
+  6461af: 04 04                        	add	al, 0x4
+  6461b1: 03 04 04                     	add	eax, dword ptr [esp + eax]
+  6461b4: 04 04                        	add	al, 0x4
+  6461b6: 04 04                        	add	al, 0x4
+  6461b8: 04 04                        	add	al, 0x4
+  6461ba: 04 04                        	add	al, 0x4
+  6461bc: 04 04                        	add	al, 0x4
+  6461be: 04 04                        	add	al, 0x4
+  6461c0: 04 04                        	add	al, 0x4
+  6461c2: 04 04                        	add	al, 0x4
+  6461c4: 04 04                        	add	al, 0x4
+  6461c6: 04 04                        	add	al, 0x4
+  6461c8: 04 04                        	add	al, 0x4
+  6461ca: 04 04                        	add	al, 0x4
+  6461cc: 04 04                        	add	al, 0x4
+  6461ce: 04 04                        	add	al, 0x4
+  6461d0: 04 04                        	add	al, 0x4
+  6461d2: 04 04                        	add	al, 0x4
+  6461d4: 04 04                        	add	al, 0x4
+  6461d6: 04 04                        	add	al, 0x4
+  6461d8: 04 04                        	add	al, 0x4
+  6461da: 04 04                        	add	al, 0x4
+  6461dc: 04 04                        	add	al, 0x4
+  6461de: 00 cc                        	add	ah, cl

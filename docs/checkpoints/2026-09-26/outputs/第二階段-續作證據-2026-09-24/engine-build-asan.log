@@ -1,0 +1,25 @@
+ninja: Entering directory `<WORKSPACE>/work/stage2/asan-build'
+[1/6] Generating src/version.h with a custom command
+[2/5] Compiling C object src/xsystem4.p/heap.c.o
+[3/5] Compiling C object src/xsystem4.p/page.c.o
+../source/src/page.c:500:7: warning: unused variable 'has_inheritance' [-Wunused-variable]
+  500 |         bool has_inheritance = (ain->version >= 14 && s->nr_members > 0 &&
+      |              ^~~~~~~~~~~~~~~
+1 warning generated.
+[4/5] Compiling C object src/xsystem4.p/vm.c.o
+../source/src/vm.c:1775:6: warning: unused variable 'page_slot' [-Wunused-variable]
+ 1775 |         int page_slot = call_stack[call_stack_ptr-1].page_slot;
+      |             ^~~~~~~~~
+../source/src/vm.c:101:13: warning: unused function 'vm_msg_delegate_empty' [-Wunused-function]
+  101 | static bool vm_msg_delegate_empty(int slot)
+      |             ^~~~~~~~~~~~~~~~~~~~~
+../source/src/vm.c:197:13: warning: unused function 'vm_msg_handle_A' [-Wunused-function]
+  197 | static void vm_msg_handle_A(void)
+      |             ^~~~~~~~~~~~~~~
+../source/src/vm.c:220:13: warning: unused function 'vm_msg_handle_A_overlay' [-Wunused-function]
+  220 | static void vm_msg_handle_A_overlay(void)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+4 warnings generated.
+[5/5] Linking target src/xsystem4
+ld: warning: ignoring duplicate libraries: '-lz'
+ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000 because it exceeds segment maximum alignment

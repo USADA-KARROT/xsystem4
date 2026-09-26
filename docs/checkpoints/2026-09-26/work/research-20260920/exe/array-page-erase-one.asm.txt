@@ -1,0 +1,125 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x67f750', '--stop-address=0x67f8a8', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  67f750: 55                           	push	ebp
+  67f751: 8b ec                        	mov	ebp, esp
+  67f753: 6a ff                        	push	-0x1
+  67f755: 68 c0 b2 78 00               	push	0x78b2c0
+  67f75a: 64 a1 00 00 00 00            	mov	eax, dword ptr fs:[0x0]
+  67f760: 50                           	push	eax
+  67f761: 83 ec 3c                     	sub	esp, 0x3c
+  67f764: a1 70 30 86 00               	mov	eax, dword ptr [0x863070]
+  67f769: 33 c5                        	xor	eax, ebp
+  67f76b: 89 45 f0                     	mov	dword ptr [ebp - 0x10], eax
+  67f76e: 53                           	push	ebx
+  67f76f: 56                           	push	esi
+  67f770: 57                           	push	edi
+  67f771: 50                           	push	eax
+  67f772: 8d 45 f4                     	lea	eax, [ebp - 0xc]
+  67f775: 64 a3 00 00 00 00            	mov	dword ptr fs:[0x0], eax
+  67f77b: 8b f1                        	mov	esi, ecx
+  67f77d: 8b 7d 08                     	mov	edi, dword ptr [ebp + 0x8]
+  67f780: 85 ff                        	test	edi, edi
+  67f782: 0f 88 00 01 00 00            	js	0x67f888 <+0x27e888>
+  67f788: 8b 06                        	mov	eax, dword ptr [esi]
+  67f78a: ff 50 0c                     	call	dword ptr [eax + 0xc]
+  67f78d: 3b f8                        	cmp	edi, eax
+  67f78f: 0f 8d f3 00 00 00            	jge	0x67f888 <+0x27e888>
+  67f795: 8b 06                        	mov	eax, dword ptr [esi]
+  67f797: 8b ce                        	mov	ecx, esi
+  67f799: ff 50 0c                     	call	dword ptr [eax + 0xc]
+  67f79c: 83 f8 01                     	cmp	eax, 0x1
+  67f79f: 75 0e                        	jne	0x67f7af <+0x27e7af>
+  67f7a1: 8b 06                        	mov	eax, dword ptr [esi]
+  67f7a3: 8b ce                        	mov	ecx, esi
+  67f7a5: ff 50 54                     	call	dword ptr [eax + 0x54]
+  67f7a8: b0 01                        	mov	al, 0x1
+  67f7aa: e9 db 00 00 00               	jmp	0x67f88a <+0x27e88a>
+  67f7af: 57                           	push	edi
+  67f7b0: 8d 4e e0                     	lea	ecx, [esi - 0x20]
+  67f7b3: e8 b8 0a 00 00               	call	0x680270 <+0x27f270>
+  67f7b8: 84 c0                        	test	al, al
+  67f7ba: 75 2d                        	jne	0x67f7e9 <+0x27e7e9>
+  67f7bc: 68 48 5c 7e 00               	push	0x7e5c48
+  67f7c1: 8d 4d d8                     	lea	ecx, [ebp - 0x28]
+  67f7c4: e8 a7 7f d9 ff               	call	0x417770 <+0x16770>
+  67f7c9: 8d 4d d8                     	lea	ecx, [ebp - 0x28]
+  67f7cc: c7 45 fc 00 00 00 00         	mov	dword ptr [ebp - 0x4], 0x0
+  67f7d3: e8 f8 8d 0a 00               	call	0x7285d0 <+0x3275d0>
+  67f7d8: 8d 4d d8                     	lea	ecx, [ebp - 0x28]
+  67f7db: 8a d8                        	mov	bl, al
+  67f7dd: e8 4e 7f d9 ff               	call	0x417730 <+0x16730>
+  67f7e2: 8a c3                        	mov	al, bl
+  67f7e4: e9 a1 00 00 00               	jmp	0x67f88a <+0x27e88a>
+  67f7e9: 83 7e f4 00                  	cmp	dword ptr [esi - 0xc], 0x0
+  67f7ed: 8b 5e 28                     	mov	ebx, dword ptr [esi + 0x28]
+  67f7f0: 89 5d b8                     	mov	dword ptr [ebp - 0x48], ebx
+  67f7f3: 75 04                        	jne	0x67f7f9 <+0x27e7f9>
+  67f7f5: 33 c0                        	xor	eax, eax
+  67f7f7: eb 03                        	jmp	0x67f7fc <+0x27e7fc>
+  67f7f9: 8b 46 f0                     	mov	eax, dword ptr [esi - 0x10]
+  67f7fc: 89 45 bc                     	mov	dword ptr [ebp - 0x44], eax
+  67f7ff: 47                           	inc	edi
+  67f800: 8b 06                        	mov	eax, dword ptr [esi]
+  67f802: 8b ce                        	mov	ecx, esi
+  67f804: 0f af fb                     	imul	edi, ebx
+  67f807: ff 50 0c                     	call	dword ptr [eax + 0xc]
+  67f80a: 0f af c3                     	imul	eax, ebx
+  67f80d: 3b f8                        	cmp	edi, eax
+  67f80f: 7d 2e                        	jge	0x67f83f <+0x27e83f>
+  67f811: 8b 4d bc                     	mov	ecx, dword ptr [ebp - 0x44]
+  67f814: 8b c7                        	mov	eax, edi
+  67f816: 2b c3                        	sub	eax, ebx
+  67f818: 8d 1c 81                     	lea	ebx, [ecx + 4*eax]
+  67f81b: 0f 1f 44 00 00               	nop	dword ptr [eax + eax]
+  67f820: 8b 04 b9                     	mov	eax, dword ptr [ecx + 4*edi]
+  67f823: 8d 5b 04                     	lea	ebx, [ebx + 0x4]
+  67f826: 89 43 fc                     	mov	dword ptr [ebx - 0x4], eax
+  67f829: 8b ce                        	mov	ecx, esi
+  67f82b: 8b 06                        	mov	eax, dword ptr [esi]
+  67f82d: 47                           	inc	edi
+  67f82e: ff 50 0c                     	call	dword ptr [eax + 0xc]
+  67f831: 0f af 45 b8                  	imul	eax, dword ptr [ebp - 0x48]
+  67f835: 8b 4d bc                     	mov	ecx, dword ptr [ebp - 0x44]
+  67f838: 3b f8                        	cmp	edi, eax
+  67f83a: 7c e4                        	jl	0x67f820 <+0x27e820>
+  67f83c: 8b 5d b8                     	mov	ebx, dword ptr [ebp - 0x48]
+  67f83f: 8b 06                        	mov	eax, dword ptr [esi]
+  67f841: 8b ce                        	mov	ecx, esi
+  67f843: ff 50 0c                     	call	dword ptr [eax + 0xc]
+  67f846: 48                           	dec	eax
+  67f847: 8d 4e ec                     	lea	ecx, [esi - 0x14]
+  67f84a: 0f af c3                     	imul	eax, ebx
+  67f84d: c1 e0 02                     	shl	eax, 0x2
+  67f850: 50                           	push	eax
+  67f851: e8 da ab d9 ff               	call	0x41a430 <+0x19430>
+  67f856: 84 c0                        	test	al, al
+  67f858: 0f 85 4a ff ff ff            	jne	0x67f7a8 <+0x27e7a8>
+  67f85e: 68 18 5c 7e 00               	push	0x7e5c18
+  67f863: 8d 4d c0                     	lea	ecx, [ebp - 0x40]
+  67f866: e8 05 7f d9 ff               	call	0x417770 <+0x16770>
+  67f86b: 8d 4d c0                     	lea	ecx, [ebp - 0x40]
+  67f86e: c7 45 fc 01 00 00 00         	mov	dword ptr [ebp - 0x4], 0x1
+  67f875: e8 56 8d 0a 00               	call	0x7285d0 <+0x3275d0>
+  67f87a: 8d 4d c0                     	lea	ecx, [ebp - 0x40]
+  67f87d: 8a d8                        	mov	bl, al
+  67f87f: e8 ac 7e d9 ff               	call	0x417730 <+0x16730>
+  67f884: 8a c3                        	mov	al, bl
+  67f886: eb 02                        	jmp	0x67f88a <+0x27e88a>
+  67f888: 32 c0                        	xor	al, al
+  67f88a: 8b 4d f4                     	mov	ecx, dword ptr [ebp - 0xc]
+  67f88d: 64 89 0d 00 00 00 00         	mov	dword ptr fs:[0x0], ecx
+  67f894: 59                           	pop	ecx
+  67f895: 5f                           	pop	edi
+  67f896: 5e                           	pop	esi
+  67f897: 5b                           	pop	ebx
+  67f898: 8b 4d f0                     	mov	ecx, dword ptr [ebp - 0x10]
+  67f89b: 33 cd                        	xor	ecx, ebp
+  67f89d: e8 9c b9 0c 00               	call	0x74b23e <+0x34a23e>
+  67f8a2: 8b e5                        	mov	esp, ebp
+  67f8a4: 5d                           	pop	ebp
+  67f8a5: c2 04 00                     	ret	0x4

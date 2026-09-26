@@ -1,0 +1,4 @@
+[1m<WORKSPACE>/work/click-review-20260924/private-page.c:497:7: [0m[0;1;35mwarning: [0m[1munused variable 'has_inheritance' [-Wunused-variable][0m
+  497 |         bool has_inheritance = (ain->version >= [0;32m14[0m && s->nr_members > [0;32m0[0m &&[0m
+      | [0;1;32m             ^~~~~~~~~~~~~~~
+[0m1 warning generated.

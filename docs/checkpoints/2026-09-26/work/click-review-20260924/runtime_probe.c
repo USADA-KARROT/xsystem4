@@ -1,0 +1,149 @@
+#include <assert.h>
+#include <stdint.h>
+static void probe_entry(int fno);
+static void probe_return(int fno, int page);
+static void probe_step(unsigned op);
+static void observer_probe_step(void);
+static void delegate_reentrancy_probe_step(void);
+static void click_review_step(unsigned op);
+static int probe_key_is_down(int key);
+#include "instrumented-vm.inc"
+#include FFI_SOURCE
+
+static unsigned long calls[40000], returns[40000], steps[40000], total_steps;
+static int captured_slot=-1, observer_slot=-1;
+static int clock_ms;
+static int probe_clock(void) { return clock_ms; }
+static void probe_entry(int fno) { if(fno>=0 && fno<40000)calls[fno]++; if(fno==420||fno==422||fno==6365||fno==6366)fprintf(stderr,"CLICK ENTER f=%d caller=%d ip=0x%zx ctor=%lu dtor=%lu\n",fno,call_stack_ptr?call_stack[call_stack_ptr-1].fno:-1,instr_ptr,calls[420],calls[422]); }
+static void probe_return(int fno, int page) {
+    (void)page;
+    if(fno>=0 && fno<40000)returns[fno]++;
+}
+static void probe_step(unsigned op) {
+    (void)op;
+    if(++total_steps > 1000000) { fprintf(stderr,"PROBE instruction budget exceeded\n");exit(90); }
+    if(call_stack_ptr>0)steps[call_stack[call_stack_ptr-1].fno]++;
+    observer_probe_step();
+    delegate_reentrancy_probe_step();
+    click_review_step(op);
+
+}
+static void click_review_step(unsigned op) {
+    int f=call_stack_ptr?call_stack[call_stack_ptr-1].fno:-1;
+    if(f==6366) {
+        int self=struct_page_slot(),child=heap[self].page->values[7].i;
+        fprintf(stderr,"CLICK STEP f=%d ip=0x%zx op=%s child=%d childref=%d sp=%d top=%d\n",f,instr_ptr,instructions[op].name,child,child>0?HEAP_REF(child):0,stack_ptr,stack_ptr?stack_peek(0).i:0);
+    }
+    if((f==420||f==422) && instr_ptr==ain->functions[f].address) {
+        int self=struct_page_slot();
+        fprintf(stderr,"CLICK LIFE f=%d self=%d seq=%u handle=%d ref=%d\n",f,self,heap[self].seq,heap[self].page->values[0].i,HEAP_REF(self));
+    }
+}
+static size_t live_slots(void) {
+    size_t n=0;for(size_t i=2;i<heap_size;i++)if(HEAP_REF(i)>0)n++;return n;
+}
+static void call_method0(int fno,int object) {
+    int sp=stack_ptr,csp=call_stack_ptr;
+    vm_call(fno,object);
+    assert(call_stack_ptr==csp);
+    assert(stack_ptr==sp+ain_return_slots_type(&ain->functions[fno].return_type));
+}
+static void init_probe(const char *path) {
+    int error=0;ain=ain_open(path,&error);assert(ain && ain->version==14);
+    initialize_instructions(ain->version);
+    stack_size=INITIAL_STACK_SIZE;stack=xcalloc(stack_size,sizeof(*stack));
+    for(int i=0;i<ain->nr_strings;i++)if(ain->strings[i])ain->strings[i]->ref++;
+    for(int i=0;i<ain->nr_messages;i++)if(ain->messages[i])ain->messages[i]->ref++;
+    heap_init();init_func_flags();
+    // Experiment: exercise original timer scripts, not the legacy native timer
+    // substitution. No bytecode/function bodies are replaced.
+    for(int i=0;i<ain->nr_functions;i++)func_flags[i]&=~(FUNC_FLAG_CASTIMER_MGR|FUNC_FLAG_CASTIMER_INST);
+    heap[0].ref=heap[global_page_slot].ref=1;
+    heap[0].type=heap[global_page_slot].type=VM_PAGE;
+    heap[0].seq=heap_next_seq++;heap[global_page_slot].seq=heap_next_seq++;
+    heap[0].page=alloc_page(ARRAY_PAGE,AIN_VOID,64);
+    heap[global_page_slot].page=alloc_page(GLOBAL_PAGE,0,ain->nr_globals);
+    for(int i=0;i<ain->nr_globals;i++)heap[global_page_slot].page->values[i].i=-1;
+    instr_ptr=VM_RETURN;
+    extern struct static_library lib_system;
+    static_library_replace(&lib_system,"GetTime",probe_clock);
+    extern struct static_library lib_IbisInputEngine;
+    static_library_replace(&lib_IbisInputEngine,"Key_IsDown",probe_key_is_down);
+    // Link the production services without unrelated save/UI module startup.
+    link_libraries();
+}
+#include "observer_fixture.inc"
+#include "delegate_reentrancy_fixture.inc"
+#include "click_fixture.inc"
+int main(int argc,char **argv) {
+    assert(argc==3);init_probe(argv[1]);
+    const int metadata_types[]={611,608,617};
+    for(int j=0;j<3;j++) {
+        int no=metadata_types[j];struct ain_struct *s=&ain->structures[no];
+        for(int i=0;i<s->nr_members;i++) fprintf(stderr,"SEED META struct=%d member=%d name=%s type=%d struc=%d\n",no,i,s->members[i].name,s->members[i].type.data,s->members[i].type.struc);
+    }
+    printf("PROBE initialized real VM/AIN, %d functions, live slots %zu\n",ain->nr_functions,live_slots());
+    fflush(stdout);
+    if(!strcmp(argv[2],"observer")) {for(int i=0;i<20;i++)test_observer_chain();return live_slots()==0?0:78;}
+    if(!strcmp(argv[2],"reentrancy")) {for(int i=0;i<20;i++)test_delegate_reentrancy();return 0;}
+    int manager=alloc_struct(9);heap[global_page_slot].page->values[15].i=manager;
+    call_method0(22325,manager);
+    const int expected_types[]={AIN_ARRAY_STRUCT,AIN_ARRAY_INT,AIN_ARRAY_STRUCT,AIN_ARRAY_STRUCT};
+    const int expected_structs[]={8,-1,531,531};
+    for(int i=0;i<4;i++) {
+        int slot=heap[manager].page->values[i].i;
+        assert(slot>0 && heap_index_valid(slot) && heap[slot].page);
+        struct page *array=heap[slot].page;
+        assert(array->type==ARRAY_PAGE && array->a_type==expected_types[i]);
+        assert(array->array.struct_type==expected_structs[i] && array->nr_vars==0 && array->array.rank==1);
+        printf("METADATA member=%d type=%d struct=%d size=%d\n",i,array->a_type,array->array.struct_type,array->nr_vars);
+    }
+    if(!strcmp(argv[2],"array-reinit")) {
+        int held[4];unsigned seq[4];
+        for(int i=0;i<4;i++) {held[i]=heap[manager].page->values[i].i;seq[i]=heap[held[i]].seq;heap_ref(held[i]);}
+        call_method0(22325,manager);
+        for(int i=0;i<4;i++) {
+            printf("REINIT held[%d]=%d ref=%d seq=%u original_seq=%u\n",i,held[i],HEAP_REF(held[i]),heap[held[i]].seq,seq[i]);fflush(stdout);
+            assert(HEAP_REF(held[i])==1 && heap[held[i]].seq==seq[i] && heap[held[i]].page);
+            assert(heap[held[i]].page->a_type==expected_types[i]);
+            assert(heap[manager].page->values[i].i!=held[i]);
+        }
+        heap[global_page_slot].page->values[15].i=-1;heap_unref(manager);
+        for(int i=0;i<4;i++)heap_unref(held[i]);
+        assert(live_slots()==0);puts("REINIT PASS shared old arrays retain their external owner after original constructor reinitialization");return 0;
+    }
+    if(!strcmp(argv[2],"metadata")) {
+        puts("METADATA TYPE PASS four original constructor arrays");
+        for(int i=0;i<4;i++)printf("METADATA array_ref[%d]=%d\n",i,HEAP_REF(heap[manager].page->values[i].i));
+        heap[global_page_slot].page->values[15].i=-1;heap_unref(manager);
+        printf("METADATA teardown live=%zu (expected 0)\n",live_slots());
+        return live_slots()==0?0:79;
+    }
+    if(!strcmp(argv[2],"click")) {test_click_chain(manager);heap[global_page_slot].page->values[15].i=-1;heap_unref(manager);assert(live_slots()==0);return 0;}
+    const size_t manager_baseline=live_slots();
+    for(int round=0;round<20;round++) {
+        int a=alloc_struct(7);clock_ms=1000+round*1000;call_method0(420,a);
+        assert(heap[a].page->values[0].i==0);
+        int flags=heap[manager].page->values[1].i;
+        int imps=heap[manager].page->values[0].i;
+        assert(heap[flags].page && heap[flags].page->values[0].i==1);
+        clock_ms+=7;call_method0(424,a);assert(stack_pop().i==7);
+        clock_ms+=3;call_method0(424,a);assert(stack_pop().i==10);
+        int b=alloc_struct(7);call_method0(420,b);assert(heap[b].page->values[0].i==1);
+        unsigned long destroyed=calls[422];heap_unref(a);assert(calls[422]==destroyed+1);
+        if(!heap[flags].page || HEAP_REF(flags)<=0) {
+            printf("TIMER FAIL after first dtor: flags owner lost; ctor=%lu dtor=%lu flags_ref=%d; clock 7/10 ms previously passed\n",calls[420],calls[422],HEAP_REF(flags));fflush(stdout);return 77;
+        }
+        assert(heap[flags].page->nr_vars==2 && heap[flags].page->values[0].i==0 && heap[flags].page->values[1].i==1);
+        int c=alloc_struct(7);call_method0(420,c);assert(heap[c].page->values[0].i==0);
+        assert(heap[flags].page->nr_vars==2);
+        call_method0(423,c);clock_ms+=5;call_method0(424,c);assert(stack_pop().i==5);
+        heap_unref(c);heap_unref(b);assert(calls[422]==destroyed+3);
+        assert(observer_fixture_array_size(flags)==0 && observer_fixture_array_size(imps)==0);
+        printf("TIMER round=%d ctor=%lu dtor=%lu live=%zu baseline=%zu\n",round,calls[420],calls[422],live_slots(),manager_baseline);fflush(stdout);
+        if(live_slots()!=manager_baseline) {puts("TIMER FAIL lifecycle behavior passed first round; remaining heap slots exceed baseline");return 77;}
+    }
+    heap[global_page_slot].page->values[15].i=-1;heap_unref(manager);
+    assert(live_slots()==0);puts("TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0");
+    return 0;
+}

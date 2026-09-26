@@ -1,0 +1,15 @@
+ninja: Entering directory `<WORKSPACE>/work/stage2/asan-build'
+[1/5] Generating src/version.h with a custom command
+[2/4] Compiling C object src/xsystem4.p/ffi.c.o
+../source/src/ffi.c:1143:8: warning: variable 'found' set but not used [-Wunused-but-set-variable]
+ 1143 |                 bool found = false;
+      |                      ^
+1 warning generated.
+[3/4] Compiling C object src/xsystem4.p/hll_Array.c.o
+../source/src/hll/Array.c:367:13: warning: unused function 'Array_AnyPredicate' [-Wunused-function]
+  367 | static bool Array_AnyPredicate(struct page **array, int func)
+      |             ^~~~~~~~~~~~~~~~~~
+1 warning generated.
+[4/4] Linking target src/xsystem4
+ld: warning: ignoring duplicate libraries: '-lz'
+ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000 because it exceeds segment maximum alignment

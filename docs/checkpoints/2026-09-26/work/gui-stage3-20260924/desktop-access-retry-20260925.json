@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-25T12:23:26.692209+08:00",
+  "user_authorized_direct_computer_testing": true,
+  "attempts": [
+    {
+      "target": "Xsystem4-stage3-test-launcher",
+      "result": "Computer Use was not approved to use Xsystem4-stage3-test-launcher"
+    },
+    {
+      "target": "Finder",
+      "result": "Computer Use was not approved to use Finder"
+    }
+  ],
+  "gui_launched": false,
+  "desktop_observed": false,
+  "fps_measured": false,
+  "production_changed": false,
+  "note": "No further launch workaround attempted. Available plugin permission inspection is for ChatGPT connectors, not this desktop access denial."
+}

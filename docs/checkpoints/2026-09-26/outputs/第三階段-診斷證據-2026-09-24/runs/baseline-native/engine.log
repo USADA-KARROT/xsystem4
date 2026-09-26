@@ -1,0 +1,36 @@
+*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../source/src/system4.c:main:672): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../source/src/system4.c:main:673): AINCHECK: msgf=0 nr_messages=57532 messages=0xb0bc00000
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_replace:360): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_register:379): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage2/game/dohnadohnaEx.ex'
+*WARNING*(../source/src/vm.c:sigabrt_handler:5244): === SIGNAL 6 received ===
+*WARNING*(../source/src/vm.c:sigabrt_handler:5260): === C backtrace (28 frames) ===
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [0] 0   xsystem4                            0x00000001029f3484 sigabrt_handler + 468
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [1] 1   libsystem_platform.dylib            0x0000000181c2d744 _sigtramp + 56
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [2] 2   libsystem_pthread.dylib             0x0000000181c238d8 pthread_kill + 296
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [3] 3   libsystem_c.dylib                   0x0000000181b29978 abort + 148
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [4] 4   HIServices                          0x00000001892f8d34 ___RegisterApplication_block_invoke + 12716
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [5] 5   libdispatch.dylib                   0x0000000181a814b0 _dispatch_client_callout + 16
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [6] 6   libdispatch.dylib                   0x0000000181a6a630 _dispatch_once_callout + 32
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [7] 7   HIServices                          0x00000001892cb8cc _RegisterApplication + 164
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [8] 8   HIServices                          0x00000001892cb6e8 GetCurrentProcess + 36
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [9] 9   AppKit                              0x00000001870c669c -[NSMenuBarPresentationInstance _getAggregateUIMode:withOptions:] + 148
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [10] 10  AppKit                              0x00000001870c733c _NSGetAggregateUIMode + 92
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [11] 11  AppKit                              0x00000001870c63c8 -[NSMenuBarPresentationInstance _isVisible] + 64
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [12] 12  AppKit                              0x00000001870c986c +[NSMenuBarPresentationInstance _isMenuBarVisible] + 40
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [13] 13  AppKit                              0x00000001860e523c _NSInitializeAppContext + 52
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [14] 14  AppKit                              0x00000001860e320c -[NSApplication init] + 832
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [15] 15  AppKit                              0x00000001860e2d00 +[NSApplication sharedApplication] + 128
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [16] 16  libSDL2-2.0.0.dylib                 0x00000001053107ac Cocoa_RegisterApp + 68
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [17] 17  libSDL2-2.0.0.dylib                 0x0000000105316440 Cocoa_CreateDevice + 24
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [18] 18  libSDL2-2.0.0.dylib                 0x00000001052fedcc SDL_VideoInit_REAL + 492
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [19] 19  libSDL2-2.0.0.dylib                 0x0000000105275fb8 SDL_InitSubSystem_REAL + 360
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [20] 20  xsystem4                            0x00000001029e28e4 gfx_init + 100
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [21] 21  xsystem4                            0x0000000102a97618 sact_init + 100
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [22] 22  xsystem4                            0x0000000102a2c39c PE_Init + 36
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [23] 23  xsystem4                            0x00000001029cbf50 library_run_all + 104
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [24] 24  xsystem4                            0x00000001029cbbbc init_libraries + 80
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [25] 25  xsystem4                            0x0000000102ad1f64 vm_execute_ain + 344
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [26] 26  xsystem4                            0x00000001029e0130 main + 2684
+*WARNING*(../source/src/vm.c:sigabrt_handler:5264):   [27] 27  dyld                                0x00000001818584e4 start + 6992

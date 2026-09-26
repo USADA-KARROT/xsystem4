@@ -1,0 +1,4 @@
+{"variant": "normal", "mutation": false, "exit": 0, "passed": true, "stdout": "PASS: 8 actual declarations linked via production selector/CIF; 22 callback+nested HLL calls; closure/generic context and VM stack restored; no value-search callbacks.\n"}
+{"variant": "normal", "mutation": true, "exit": 42, "passed": true, "stdout": ""}
+{"variant": "sanitizer", "mutation": false, "exit": 0, "passed": true, "stdout": "PASS: 8 actual declarations linked via production selector/CIF; 22 callback+nested HLL calls; closure/generic context and VM stack restored; no value-search callbacks.\n"}
+{"variant": "sanitizer", "mutation": true, "exit": 42, "passed": true, "stdout": ""}

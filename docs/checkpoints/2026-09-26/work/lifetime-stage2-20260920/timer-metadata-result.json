@@ -1,0 +1,22 @@
+{
+  "compile": [
+    "/usr/bin/clang",
+    "-std=c11",
+    "-D_DEFAULT_SOURCE",
+    "-isysroot",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "-Iwork/stage2/source/subprojects/libsys4/include",
+    "work/lifetime-stage2-20260920/timer_metadata.c",
+    "work/stage2/normal-build/subprojects/libsys4/libsys4.a",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "work/lifetime-stage2-20260920/timer_metadata"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "probe_exit": 0,
+  "stderr": "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'\n"
+}

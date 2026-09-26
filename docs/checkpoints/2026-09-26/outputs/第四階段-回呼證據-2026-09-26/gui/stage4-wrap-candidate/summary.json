@@ -1,0 +1,160 @@
+{
+  "run": "work/gui-stage3-20260924/runs/stage4-wrap-candidate",
+  "exit_code": 0,
+  "elapsed_seconds": 40.557,
+  "stop_reason": "error_log",
+  "stopped_by_runner": true,
+  "child_exit_peak_rss_bytes": 1926758400,
+  "perf": {
+    "reported_windows": 7,
+    "reported_duration_ms": 35015.931000000004,
+    "reported_presents": 12601,
+    "weighted_present_fps": 359.8647712665415,
+    "max_interval_ms": 1289.369,
+    "max_swap_ms": 125.694,
+    "weighted_mean_swap_ms": 0.3602789461153877,
+    "per_window_p95_interval_ms_range": [
+      3.326,
+      15.329
+    ],
+    "sample_capped_windows": 0,
+    "last_reported_sdl_ticks_ms": 36028,
+    "windows_with_at_least_one_interval_over_ms": {
+      "33.333": 3,
+      "50": 2,
+      "100": 2,
+      "1000": 1
+    },
+    "end_of_window_state_counts": {
+      "shown": 7,
+      "minimized": 0,
+      "input_focus": 3,
+      "vsync_values": [
+        0
+      ]
+    }
+  },
+  "rss": null,
+  "message_count": 0,
+  "messages": [],
+  "trace_calls": {},
+  "traced_entries_without_return_at_log_end": [],
+  "diagnostic_log_line_counts": {},
+  "windows": [
+    {
+      "t_ms": 6021,
+      "window_ms": 5008.265,
+      "presents": 1634,
+      "samples": 1634,
+      "avg_fps": 326.261,
+      "p95_interval_ms": 11.856,
+      "max_interval_ms": 46.016,
+      "avg_swap_ms": 0.324,
+      "p95_swap_ms": 0.774,
+      "max_swap_ms": 45.81,
+      "window_flags": 38,
+      "vsync": 0,
+      "line": 14
+    },
+    {
+      "t_ms": 11021,
+      "window_ms": 5000.958,
+      "presents": 916,
+      "samples": 916,
+      "avg_fps": 183.165,
+      "p95_interval_ms": 15.329,
+      "max_interval_ms": 17.649,
+      "avg_swap_ms": 0.357,
+      "p95_swap_ms": 0.74,
+      "max_swap_ms": 1.421,
+      "window_flags": 38,
+      "vsync": 0,
+      "line": 27
+    },
+    {
+      "t_ms": 16022,
+      "window_ms": 5000.362,
+      "presents": 1980,
+      "samples": 1980,
+      "avg_fps": 395.971,
+      "p95_interval_ms": 3.326,
+      "max_interval_ms": 1289.369,
+      "avg_swap_ms": 0.227,
+      "p95_swap_ms": 0.538,
+      "max_swap_ms": 1.761,
+      "window_flags": 38,
+      "vsync": 0,
+      "line": 29
+    },
+    {
+      "t_ms": 21022,
+      "window_ms": 5000.354,
+      "presents": 2163,
+      "samples": 2163,
+      "avg_fps": 432.569,
+      "p95_interval_ms": 3.482,
+      "max_interval_ms": 10.726,
+      "avg_swap_ms": 0.253,
+      "p95_swap_ms": 0.844,
+      "max_swap_ms": 1.168,
+      "window_flags": 38,
+      "vsync": 0,
+      "line": 30
+    },
+    {
+      "t_ms": 26024,
+      "window_ms": 5001.936,
+      "presents": 1956,
+      "samples": 1956,
+      "avg_fps": 391.049,
+      "p95_interval_ms": 3.602,
+      "max_interval_ms": 128.977,
+      "avg_swap_ms": 0.343,
+      "p95_swap_ms": 0.928,
+      "max_swap_ms": 125.694,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 53
+    },
+    {
+      "t_ms": 31026,
+      "window_ms": 5001.457,
+      "presents": 1920,
+      "samples": 1920,
+      "avg_fps": 383.888,
+      "p95_interval_ms": 5.666,
+      "max_interval_ms": 16.035,
+      "avg_swap_ms": 0.616,
+      "p95_swap_ms": 2.827,
+      "max_swap_ms": 9.717,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 54
+    },
+    {
+      "t_ms": 36028,
+      "window_ms": 5002.599,
+      "presents": 2032,
+      "samples": 2032,
+      "avg_fps": 406.189,
+      "p95_interval_ms": 4.463,
+      "max_interval_ms": 22.984,
+      "avg_swap_ms": 0.41,
+      "p95_swap_ms": 1.875,
+      "max_swap_ms": 19.946,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 67
+    }
+  ],
+  "limits": [
+    "Present rate can include identical visual content; progress is separate.",
+    "No whole-run p95 or exact long-frame count can be reconstructed from window summaries.",
+    "Initial interval and unfinished final window/stall are unreported; a missing log report is not zero FPS.",
+    "Window flags describe report-time state, not every frame in the window.",
+    "Trace elapsed is inclusive wall time with nested work, waits, and logging; bounded first hits are not an unbiased profile.",
+    "An unmatched trace entry may be in flight, terminated, or otherwise unwound; it is not proof of a permanent hang.",
+    "RSS is process resident memory, not live AIN heap or proof of a leak; its sampled peak can miss brief peaks.",
+    "Diagnostic counts are emitted lines, not exact API error counts; source suppresses repeated warnings."
+  ]
+}

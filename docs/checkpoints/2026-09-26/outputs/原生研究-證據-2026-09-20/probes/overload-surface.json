@@ -1,0 +1,2941 @@
+{
+  "overloaded_name_groups": 37,
+  "declarations_in_groups": 97,
+  "different_signature_groups": 35,
+  "groups": [
+    {
+      "library": "Array",
+      "name": "Realloc",
+      "overloads": [
+        {
+          "index": 1,
+          "name": "Realloc",
+          "static_call_sites": 13,
+          "return_type": {
+            "data": 0,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "name": "Realloc",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 0,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "ShallowCopy",
+      "overloads": [
+        {
+          "index": 4,
+          "name": "ShallowCopy",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 79,
+            "struct": -1,
+            "rank": 1,
+            "subtype": {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "name": "ShallowCopy",
+          "static_call_sites": 60,
+          "return_type": {
+            "data": 79,
+            "struct": -1,
+            "rank": 1,
+            "subtype": {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 1
+    },
+    {
+      "library": "Array",
+      "name": "Erase",
+      "overloads": [
+        {
+          "index": 15,
+          "name": "Erase",
+          "static_call_sites": 124,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 16,
+          "name": "Erase",
+          "static_call_sites": 45,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 17,
+          "name": "Erase",
+          "static_call_sites": 3,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 3
+    },
+    {
+      "library": "Array",
+      "name": "Numof",
+      "overloads": [
+        {
+          "index": 20,
+          "name": "Numof",
+          "static_call_sites": 519,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 21,
+          "name": "Numof",
+          "static_call_sites": 7,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Count",
+      "overloads": [
+        {
+          "index": 22,
+          "name": "Count",
+          "static_call_sites": 128,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 23,
+          "name": "Count",
+          "static_call_sites": 12,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Any",
+      "overloads": [
+        {
+          "index": 26,
+          "name": "Any",
+          "static_call_sites": 37,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 27,
+          "name": "Any",
+          "static_call_sites": 46,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Fill",
+      "overloads": [
+        {
+          "index": 28,
+          "name": "Fill",
+          "static_call_sites": 3,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 29,
+          "name": "Fill",
+          "static_call_sites": 2,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Copy",
+      "overloads": [
+        {
+          "index": 30,
+          "name": "Copy",
+          "static_call_sites": 1,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "index": 31,
+          "name": "Copy",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "index": 32,
+          "name": "Copy",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 33,
+          "name": "Copy",
+          "static_call_sites": 3,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 4
+    },
+    {
+      "library": "Array",
+      "name": "Sort",
+      "overloads": [
+        {
+          "index": 34,
+          "name": "Sort",
+          "static_call_sites": 41,
+          "return_type": {
+            "data": 82,
+            "struct": -1,
+            "rank": 1,
+            "subtype": {
+              "data": 79,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 35,
+          "name": "Sort",
+          "static_call_sites": 12,
+          "return_type": {
+            "data": 82,
+            "struct": -1,
+            "rank": 1,
+            "subtype": {
+              "data": 79,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "QuickSort",
+      "overloads": [
+        {
+          "index": 38,
+          "name": "QuickSort",
+          "static_call_sites": 10,
+          "return_type": {
+            "data": 82,
+            "struct": -1,
+            "rank": 1,
+            "subtype": {
+              "data": 79,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 39,
+          "name": "QuickSort",
+          "static_call_sites": 10,
+          "return_type": {
+            "data": 82,
+            "struct": -1,
+            "rank": 1,
+            "subtype": {
+              "data": 79,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Equals",
+      "overloads": [
+        {
+          "index": 40,
+          "name": "Equals",
+          "static_call_sites": 3,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "index": 41,
+          "name": "Equals",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 74,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Find",
+      "overloads": [
+        {
+          "index": 42,
+          "name": "Find",
+          "static_call_sites": 13,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 44,
+          "name": "Find",
+          "static_call_sites": 12,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 46,
+          "name": "Find",
+          "static_call_sites": 72,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 48,
+          "name": "Find",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 4
+    },
+    {
+      "library": "Array",
+      "name": "FindLast",
+      "overloads": [
+        {
+          "index": 43,
+          "name": "FindLast",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 45,
+          "name": "FindLast",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 47,
+          "name": "FindLast",
+          "static_call_sites": 4,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 49,
+          "name": "FindLast",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 4
+    },
+    {
+      "library": "Array",
+      "name": "LowerBound",
+      "overloads": [
+        {
+          "index": 50,
+          "name": "LowerBound",
+          "static_call_sites": 2,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 51,
+          "name": "LowerBound",
+          "static_call_sites": 30,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "UpperBound",
+      "overloads": [
+        {
+          "index": 52,
+          "name": "UpperBound",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 53,
+          "name": "UpperBound",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "BinarySearch",
+      "overloads": [
+        {
+          "index": 54,
+          "name": "BinarySearch",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 55,
+          "name": "BinarySearch",
+          "static_call_sites": 30,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "IsExist",
+      "overloads": [
+        {
+          "index": 56,
+          "name": "IsExist",
+          "static_call_sites": 49,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 74,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 57,
+          "name": "IsExist",
+          "static_call_sites": 59,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Unique",
+      "overloads": [
+        {
+          "index": 61,
+          "name": "Unique",
+          "static_call_sites": 10,
+          "return_type": {
+            "data": 0,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 62,
+          "name": "Unique",
+          "static_call_sites": 2,
+          "return_type": {
+            "data": 0,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "UniqueSorted",
+      "overloads": [
+        {
+          "index": 63,
+          "name": "UniqueSorted",
+          "static_call_sites": 4,
+          "return_type": {
+            "data": 0,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 64,
+          "name": "UniqueSorted",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 0,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "At",
+      "overloads": [
+        {
+          "index": 65,
+          "name": "At",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 66,
+          "name": "At",
+          "static_call_sites": 267,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 1
+    },
+    {
+      "library": "Array",
+      "name": "First",
+      "overloads": [
+        {
+          "index": 67,
+          "name": "First",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 68,
+          "name": "First",
+          "static_call_sites": 45,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 69,
+          "name": "First",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 70,
+          "name": "First",
+          "static_call_sites": 108,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Last",
+      "overloads": [
+        {
+          "index": 71,
+          "name": "Last",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 72,
+          "name": "Last",
+          "static_call_sites": 104,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 73,
+          "name": "Last",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 74,
+          "name": "Last",
+          "static_call_sites": 7,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Min",
+      "overloads": [
+        {
+          "index": 75,
+          "name": "Min",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 76,
+          "name": "Min",
+          "static_call_sites": 1,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 77,
+          "name": "Min",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 78,
+          "name": "Min",
+          "static_call_sites": 12,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Array",
+      "name": "Max",
+      "overloads": [
+        {
+          "index": 79,
+          "name": "Max",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 80,
+          "name": "Max",
+          "static_call_sites": 2,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 81,
+          "name": "Max",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 82,
+          "name": "Max",
+          "static_call_sites": 14,
+          "return_type": {
+            "data": 75,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 80,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 74,
+                "struct": -1,
+                "rank": 0
+              }
+            },
+            {
+              "data": 95,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "HashMap",
+      "name": "Any",
+      "overloads": [
+        {
+          "index": 7,
+          "name": "Any",
+          "static_call_sites": 1,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "name": "Any",
+          "static_call_sites": 1,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Math",
+      "name": "Abs",
+      "overloads": [
+        {
+          "index": 7,
+          "name": "Abs",
+          "static_call_sites": 32,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "name": "Abs",
+          "static_call_sites": 33,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "Math",
+      "name": "Min",
+      "overloads": [
+        {
+          "index": 25,
+          "name": "Min",
+          "static_call_sites": 57,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 26,
+          "name": "Min",
+          "static_call_sites": 13,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 27,
+          "name": "Min",
+          "static_call_sites": 1,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 28,
+          "name": "Min",
+          "static_call_sites": 4,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 29,
+          "name": "Min",
+          "static_call_sites": 1,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 30,
+          "name": "Min",
+          "static_call_sites": 5,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 6
+    },
+    {
+      "library": "Math",
+      "name": "Max",
+      "overloads": [
+        {
+          "index": 31,
+          "name": "Max",
+          "static_call_sites": 90,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 32,
+          "name": "Max",
+          "static_call_sites": 18,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 33,
+          "name": "Max",
+          "static_call_sites": 2,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 34,
+          "name": "Max",
+          "static_call_sites": 5,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 35,
+          "name": "Max",
+          "static_call_sites": 2,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 36,
+          "name": "Max",
+          "static_call_sites": 3,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 6
+    },
+    {
+      "library": "Math",
+      "name": "Clamp",
+      "overloads": [
+        {
+          "index": 37,
+          "name": "Clamp",
+          "static_call_sites": 62,
+          "return_type": {
+            "data": 10,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 38,
+          "name": "Clamp",
+          "static_call_sites": 35,
+          "return_type": {
+            "data": 11,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 11,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "Search",
+      "overloads": [
+        {
+          "index": 14,
+          "name": "Search",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 15,
+          "name": "Search",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 12,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "Match",
+      "overloads": [
+        {
+          "index": 17,
+          "name": "Match",
+          "static_call_sites": 6,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 18,
+          "name": "Match",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 47,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 82,
+              "struct": -1,
+              "rank": 1,
+              "subtype": {
+                "data": 79,
+                "struct": -1,
+                "rank": 1,
+                "subtype": {
+                  "data": 12,
+                  "struct": -1,
+                  "rank": 0
+                }
+              }
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "GetPart",
+      "overloads": [
+        {
+          "index": 21,
+          "name": "GetPart",
+          "static_call_sites": 16,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 22,
+          "name": "GetPart",
+          "static_call_sites": 76,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "PadLeft",
+      "overloads": [
+        {
+          "index": 23,
+          "name": "PadLeft",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 24,
+          "name": "PadLeft",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "PadRight",
+      "overloads": [
+        {
+          "index": 25,
+          "name": "PadRight",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 26,
+          "name": "PadRight",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 10,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "Trim",
+      "overloads": [
+        {
+          "index": 29,
+          "name": "Trim",
+          "static_call_sites": 13,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 30,
+          "name": "Trim",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "TrimStart",
+      "overloads": [
+        {
+          "index": 31,
+          "name": "TrimStart",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 32,
+          "name": "TrimStart",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    },
+    {
+      "library": "String",
+      "name": "TrimEnd",
+      "overloads": [
+        {
+          "index": 33,
+          "name": "TrimEnd",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        },
+        {
+          "index": 34,
+          "name": "TrimEnd",
+          "static_call_sites": 0,
+          "return_type": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          },
+          "arguments": [
+            {
+              "data": 20,
+              "struct": -1,
+              "rank": 0
+            },
+            {
+              "data": 12,
+              "struct": -1,
+              "rank": 0
+            }
+          ]
+        }
+      ],
+      "distinct_signatures": 2
+    }
+  ],
+  "note": "Same-name declarations require declaration-aware binding; this inventory does not prove each current binding is wrong."
+}

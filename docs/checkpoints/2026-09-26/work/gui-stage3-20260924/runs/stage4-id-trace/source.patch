@@ -1,0 +1,2996 @@
+diff --git a/include/parts.h b/include/parts.h
+index e9ce349..d122e83 100644
+--- a/include/parts.h
++++ b/include/parts.h
+@@ -22,6 +22,22 @@
+ struct page;
+ struct string;
+ 
++// v14 message windows keep their text independently from the background CG.
++void PE_SetMessageWindowText(int parts_no, struct string *text, int msg_num,
++		struct string *func_name, int ver, int step);
++struct string *PE_GetMessageWindowText(int parts_no);
++void PE_SetMessageWindowCGName(int parts_no, struct string *name);
++struct string *PE_GetMessageWindowCGName(int parts_no);
++void PE_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h);
++void PE_GetMessageWindowTextArea(int parts_no, int *x, int *y, int *w, int *h);
++void PE_SetMessageWindowTextOriginPosMode(int parts_no, int mode);
++void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
++		int r, int g, int b, float bold_weight,
++		int edge_r, int edge_g, int edge_b, float edge_weight);
++void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space);
++void PE_SetKeyWaitShow(int parts_no, bool show);
++bool PE_IsKeyWaitShow(int parts_no);
++
+ // parts.c
+ void PE_enable_multi_controller(void);
+ bool PE_Init(void);
+diff --git a/include/vm.h b/include/vm.h
+index 8578a30..4a54646 100644
+--- a/include/vm.h
++++ b/include/vm.h
+@@ -158,6 +158,8 @@ struct function_call {
+ 	int32_t struct_page;
+ 	int32_t base_sp;        // stack pointer after args popped (diagnostic)
+ 	int32_t env_page;       // v14: closure environment (enclosing function's local page)
++	int32_t delegate_obj_ref; // v14 callback owns these pins until frame removal
++	int32_t delegate_env_ref;
+ 	bool is_method;         // v14: struct_page left on stack below base_sp
+ 	bool is_delegate_call;  // called via delegate: skip return-value stack adjustment
+ 	int32_t dg_return_slots; // delegate-call: expected return slots (from delegate type)
+diff --git a/include/vm/page.h b/include/vm/page.h
+index 812788f..5ceb2ed 100644
+--- a/include/vm/page.h
++++ b/include/vm/page.h
+@@ -104,6 +104,8 @@ static inline void _page_set_var(struct page *page, int i, union vm_value v)
+ // variables
+ union vm_value variable_initval(enum ain_data_type type);
+ void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor);
++struct ain_type;
++const struct ain_type *variable_decltype(struct page *page, int varno);
+ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank);
+ void variable_set(struct page *page, int varno, enum ain_data_type type, union vm_value val);
+ 
+diff --git a/src/ffi.c b/src/ffi.c
+index eb57f58..a40c92d 100644
+--- a/src/ffi.c
++++ b/src/ffi.c
+@@ -390,13 +390,20 @@ void hll_call(int libno, int fno, int hll_arg3)
+ 	void *heap_ptrs[HLL_MAX_ARGS];
+ 	int heap_slots[HLL_MAX_ARGS];
+ 	// (wrap_pagenos/wrap_varnos removed — AIN_WRAP is 1-slot)
+-	// v14: expose hll_arg3 to HLL functions (Array uses it for element type info)
++	// HLL functions may call the VM, which can enter another HLL function.
++	// Keep this call's metadata active through argument cleanup and return
++	// handling, then restore the enclosing call's context.
+ 	extern int hll_current_arg3;
+-	hll_current_arg3 = hll_arg3;
+-	// v14: save the first AIN_REF_ARRAY argument's resolved heap slot
+-	// so HLL functions can construct 2-slot references for REF_HLL_PARAM return.
+ 	extern int hll_self_slot;
++	extern int hll_param_slot2;
++	int saved_arg3 = hll_current_arg3;
++	int saved_self_slot = hll_self_slot;
++	int saved_func_obj = hll_func_obj;
++	int saved_param_slot2 = hll_param_slot2;
++	hll_current_arg3 = hll_arg3;
+ 	hll_self_slot = -1;
++	hll_func_obj = -1;
++	hll_param_slot2 = 0;
+ 
+ 	// Reset null-array source tracker (set by X_REF in vm.c)
+ 	// before processing arguments — it will be set again if
+@@ -654,7 +661,6 @@ void hll_call(int libno, int fno, int hll_arg3)
+ 				etype == AIN_IFACE_WRAP);
+ 			if (is_2slot) {
+ 				stack_ptr -= 2;
+-				extern int hll_param_slot2;
+ 				heap_slots[i] = stack[stack_ptr].i;
+ 				hll_param_slot2 = stack[stack_ptr+1].i;
+ 				args[i] = &heap_slots[i];
+@@ -765,6 +771,23 @@ void hll_call(int libno, int fno, int hll_arg3)
+ 		// Read the low byte and normalize to 0/1.
+ 		stack_push((int)(*(uint8_t*)&r != 0));
+ 		break;
++	case AIN_WRAP:
++		// EmplaceBack returns a writable element reference. Primitive elements
++		// use (array slot, index), while reference elements use their heap slot.
++		if (ain->version >= 14 && !strcmp(ain->libraries[libno].name, "Array")
++		    && !strcmp(f->name, "EmplaceBack") && hll_self_slot > 0
++		    && heap_index_valid(hll_self_slot) && heap[hll_self_slot].page) {
++			struct page *array = heap[hll_self_slot].page;
++			if (array->a_type == AIN_ARRAY_INT || array->a_type == AIN_ARRAY_FLOAT
++			    || array->a_type == AIN_ARRAY_BOOL) {
++				heap_ref(hll_self_slot); // owning wrap result, released by bytecode DELETE
++				stack_push(hll_self_slot);
++				stack_push(array->nr_vars - 1);
++				break;
++			}
++		}
++		stack_push(r);
++		break;
+ 	case AIN_REF_HLL_PARAM:
+ 		// v14: The HLL function has already pushed the return value(s) directly
+ 		// to the stack. Do NOT push the C return value here.
+@@ -774,8 +797,10 @@ void hll_call(int libno, int fno, int hll_arg3)
+ 		break;
+ 	}
+ 
+-	hll_current_arg3 = -1;
+-	hll_self_slot = -1;
++	hll_current_arg3 = saved_arg3;
++	hll_self_slot = saved_self_slot;
++	hll_func_obj = saved_func_obj;
++	hll_param_slot2 = saved_param_slot2;
+ }
+ 
+ extern struct static_library lib_ACXLoader;
+@@ -1135,8 +1160,22 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
+ 		bool found = false;
+ 		for (int j = 0; lib->functions[j].name; j++) {
+ 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
+-				if (lib->functions[j].fun)
+-					link_static_library_function(&dst[i], &ainlib->functions[i], lib->functions[j].fun);
++				void *funcptr = lib->functions[j].fun;
++				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "Erase")) {
++					extern void *array_erase_function(const struct ain_hll_function *f);
++					funcptr = array_erase_function(&ainlib->functions[i]);
++				}
++				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "IsExist")) {
++					extern void *array_isexist_function(const struct ain_hll_function *f);
++					funcptr = array_isexist_function(&ainlib->functions[i]);
++				}
++				if (!strcmp(lib->name, "Array") && (!strcmp(ainlib->functions[i].name, "Numof")
++				    || !strcmp(ainlib->functions[i].name, "Count") || !strcmp(ainlib->functions[i].name, "Find"))) {
++					extern void *array_query_function(const struct ain_hll_function *f);
++					funcptr = array_query_function(&ainlib->functions[i]);
++				}
++				if (funcptr)
++					link_static_library_function(&dst[i], &ainlib->functions[i], funcptr);
+ 				found = true;
+ 				break;
+ 			}
+diff --git a/src/heap.c b/src/heap.c
+index ddf300a..ebefa40 100644
+--- a/src/heap.c
++++ b/src/heap.c
+@@ -131,7 +131,12 @@ static uint8_t gc_gen = 0;  // generation counter (wraps at 255→1)
+ #define GC_IS_MARKED(slot) (gc_mark[slot] == gc_gen)
+ #define GC_SET_MARK(slot)  (gc_mark[slot] = gc_gen)
+ static unsigned long long gc_alloc_counter = 0;
+-static unsigned long long gc_last_alloc __attribute__((unused)) = 0;
++static unsigned long long gc_last_alloc;
++static uint32_t gc_last_completed_ms;
++static bool gc_has_run;
++// The existing collector does not reclaim cycles until v14 mark coverage is
++// complete. Keep its mark traversal under the same gate as cycle sweeping.
++static const bool gc_collect_cycles = false;
+ // GC is triggered based on heap occupancy, not allocation count.
+ // Only run when free slots drop below 10% of heap size.
+ // This avoids expensive GC sweeps during initialization/transition phases
+@@ -318,50 +323,52 @@ static void heap_gc(void)
+ 	extern struct function_call call_stack[];
+ 	extern int32_t call_stack_ptr;
+ 	extern int32_t stack_ptr;
+-	// Initialize struct ref cache on first GC
+-	gc_init_struct_cache();
+-
+-	// Advance generation counter (avoids memset of multi-GB array)
+-	gc_gen++;
+-	if (gc_gen == 0) gc_gen = 1;  // skip 0 (initial/cleared value)
+-
+-	// Resize mark array if needed (only on first use or growth)
+-	if (gc_mark_size < heap_size) {
+-		free(gc_mark);
+-		gc_mark = xcalloc(heap_size, sizeof(uint8_t));
+-		gc_mark_size = heap_size;
+-	}
+-
+-	// Mark roots: global page
+-	GC_SET_MARK(global_page_slot);
+-	if (heap[global_page_slot].page) {
+-		// Global page: scan all vars (only one page, conservative is fine)
+-		gc_ensure_work_stack();
+-		int *root_stack = gc_work_stack;
+-		int root_count = 0;
+-		gc_scan_page(heap[global_page_slot].page, root_stack, &root_count);
+-		while (root_count > 0) {
+-			int s = root_stack[--root_count];
+-			struct page *p = heap[s].page;
+-			gc_scan_page(p, root_stack, &root_count);
++	if (gc_collect_cycles) {
++		// Initialize struct ref cache on first GC
++		gc_init_struct_cache();
++
++		// Advance generation counter (avoids memset of multi-GB array)
++		gc_gen++;
++		if (gc_gen == 0) gc_gen = 1;  // skip 0 (initial/cleared value)
++
++		// Resize mark array if needed (only on first use or growth)
++		if (gc_mark_size < heap_size) {
++			free(gc_mark);
++			gc_mark = xcalloc(heap_size, sizeof(uint8_t));
++			gc_mark_size = heap_size;
+ 		}
+-	}
+ 
+-	// Mark roots: call stack pages and their members
+-	for (int i = 0; i < call_stack_ptr; i++) {
+-		int ps = call_stack[i].page_slot;
+-		if (ps > 1 && (size_t)ps < heap_size && heap[ps].ref > 0 && !GC_IS_MARKED(ps))
+-			gc_mark_slot(ps);
+-		int sp = call_stack[i].struct_page;
+-		if (sp > 1 && (size_t)sp < heap_size && heap[sp].ref > 0 && !GC_IS_MARKED(sp))
+-			gc_mark_slot(sp);
+-	}
++		// Mark roots: global page
++		GC_SET_MARK(global_page_slot);
++		if (heap[global_page_slot].page) {
++			// Global page: scan all vars (only one page, conservative is fine)
++			gc_ensure_work_stack();
++			int *root_stack = gc_work_stack;
++			int root_count = 0;
++			gc_scan_page(heap[global_page_slot].page, root_stack, &root_count);
++			while (root_count > 0) {
++				int s = root_stack[--root_count];
++				struct page *p = heap[s].page;
++				gc_scan_page(p, root_stack, &root_count);
++			}
++		}
++
++		// Mark roots: call stack pages and their members
++		for (int i = 0; i < call_stack_ptr; i++) {
++			int ps = call_stack[i].page_slot;
++			if (ps > 1 && (size_t)ps < heap_size && heap[ps].ref > 0 && !GC_IS_MARKED(ps))
++				gc_mark_slot(ps);
++			int sp = call_stack[i].struct_page;
++			if (sp > 1 && (size_t)sp < heap_size && heap[sp].ref > 0 && !GC_IS_MARKED(sp))
++				gc_mark_slot(sp);
++		}
+ 
+-	// Mark roots: VM value stack (conservative — stack values lack type info)
+-	for (int i = 0; i < stack_ptr && i < 65536; i++) {
+-		int v = stack[i].i;
+-		if (v > 1 && (size_t)v < heap_size && heap[v].ref > 0 && !GC_IS_MARKED(v))
+-			gc_mark_slot(v);
++		// Mark roots: VM value stack (conservative — stack values lack type info)
++		for (int i = 0; i < stack_ptr && i < 65536; i++) {
++			int v = stack[i].i;
++			if (v > 1 && (size_t)v < heap_size && heap[v].ref > 0 && !GC_IS_MARKED(v))
++				gc_mark_slot(v);
++		}
+ 	}
+ 
+ 	// Use heap_scan_limit instead of heap_size for sweep — skip unallocated tail.
+@@ -378,8 +385,8 @@ static void heap_gc(void)
+ 	// Scan from high to low so free list ends with lowest slot at head
+ 	for (size_t i = scan_end; i-- > 2; ) {
+ 		if (heap[i].ref > 0) {
+-			if (!GC_IS_MARKED(i) && 0) {
+-				// DISABLED: v14 GC mark incomplete — skip cycle collection for now
++			if (gc_collect_cycles && !GC_IS_MARKED(i)) {
++				// Cycle collection requires complete v14 mark coverage.
+ 					swept++;
+ 				switch (heap[i].type) {
+ 				case VM_PAGE:
+@@ -498,24 +505,20 @@ static void heap_gc(void)
+ int32_t heap_alloc_slot(enum vm_pointer_type type)
+ {
+ 	gc_alloc_counter++;
+-	// Trigger GC when free list is nearly exhausted.
+-	// For large heaps (>=4M), trigger immediately.
+-	// For moderate heaps (>=10K), trigger at most every 5 seconds to clean
+-	// cycle-garbage (e.g. CParts with delegate cycles) without hurting perf.
+-	if (gc_inhibit <= 0 && heap_free_count < 1024) {
+-		bool do_gc = false;
+-		if (heap_size >= 4000000) {
+-			do_gc = true;
+-		} else if (heap_size >= 10000) {
+-			static uint32_t last_moderate_gc = 0;
+-			uint32_t now = SDL_GetTicks();
+-			if (now - last_moderate_gc >= 5000) {
+-				last_moderate_gc = now;
+-				do_gc = true;
+-			}
+-		}
+-		if (do_gc) {
++	// Amortize pressure collections across actual allocation progress. A
++	// collection that recovers little space must not run again on every
++	// allocation. Start the cooldown after GC, including when GC is slow.
++	if (gc_inhibit <= 0 && heap_size >= 10000 && heap_free_count < 1024) {
++		size_t allocation_budget = heap_size / 8;
++		if (allocation_budget < 1024)
++			allocation_budget = 1024;
++		uint32_t now = SDL_GetTicks();
++		if (!gc_has_run || ((uint32_t)(now - gc_last_completed_ms) >= 5000
++		    && gc_alloc_counter - gc_last_alloc >= allocation_budget)) {
+ 			heap_gc();
++			gc_last_completed_ms = SDL_GetTicks();
++			gc_last_alloc = gc_alloc_counter;
++			gc_has_run = true;
+ 		}
+ 	}
+ 
+@@ -577,12 +580,9 @@ static void heap_free_slot(int32_t slot)
+ 	if (unlikely((size_t)slot >= heap_size)) {
+ 		return;
+ 	}
+-	// Guard: if ref is already 0, this is a double-free — skip silently.
+-	// This happens regularly after GC sweep adds slots to free list,
+-	// then VM code unrefs the same slots.
+-	if (unlikely(heap[slot].ref == 0 && heap[slot].type == 0)) {
+-		return;
+-	}
++	// Callers have already transitioned the last owner to ref=0. VM_PAGE
++	// is also zero, so (ref==0 && type==0) cannot identify a double free.
++	// heap_unref/exit_unref reject an already released slot at entry.
+ 	heap[slot].ref = 0;
+ 	heap[slot].type = 0;
+ 	heap[slot].seq = (uint32_t)heap_free_head;
+@@ -629,6 +629,8 @@ void heap_unref(int slot)
+ 		return;
+ 	}
+ 	// actual_ref == 1, about to become 0
++	extern void vm_stage2_trace_page_event(const char *event, int slot, int index, int value, int width);
++	vm_stage2_trace_page_event("unref-last", slot, -1, 0, 0);
+ 	static bool deferred_processing = false;
+ 	heap[slot].ref = 0;
+ 
+@@ -667,6 +669,9 @@ void heap_unref(int slot)
+ 
+ 		if (!deferred_processing) {
+ 			deferred_processing = true;
++			// Destructor allocations must not let pressure GC put queued or
++			// in-progress slots on the free list before this drain does so.
++			heap_gc_inhibit();
+ 			while (deferred_count > 0) {
+ 				int s = deferred_queue[--deferred_count];
+ 				// Skip if re-allocated (ref > 0) or already freed (ref < 0)
+@@ -693,6 +698,7 @@ void heap_unref(int slot)
+ 				heap[s].ref = 0;
+ 				heap_free_slot(s);
+ 			}
++			heap_gc_allow();
+ 			deferred_processing = false;
+ #ifdef __APPLE__
+ 			// Periodically tell macOS malloc to return freed memory to the OS.
+@@ -835,6 +841,15 @@ struct page *heap_get_delegate_page(int index)
+ 
+ void heap_set_page(int slot, struct page *page)
+ {
++	if (getenv("XSYS4_STRING_AUDIT") && slot > 1 && (size_t)slot < heap_size
++	    && heap[slot].type != VM_PAGE) {
++		fprintf(stderr, "PAGE_WRITE_AUDIT slot=%d ref=%d seq=%u oldtype=%d newpage=%p ptype=%d idx=%d ip=%zx\n",
++			slot, heap[slot].ref, heap[slot].seq, heap[slot].type,
++			(void *)page, page ? page->type : -1, page ? page->index : -1, instr_ptr);
++		vm_stack_trace();
++		fflush(stderr);
++		exit(87);
++	}
+ #ifdef DEBUG_HEAP
+ 	if (unlikely(!page_index_valid(slot)))
+ 		VM_ERROR("Invalid page index: %d", index);
+diff --git a/src/hll/Array.c b/src/hll/Array.c
+index 390a706..416ba28 100644
+--- a/src/hll/Array.c
++++ b/src/hll/Array.c
+@@ -401,6 +401,8 @@ static void Array_Free(struct page **array)
+ static int Array_Numof(struct page **self)
+ {
+ 	struct page *array = (self && *self) ? *self : NULL;
++	if (!array || array->type != ARRAY_PAGE)
++		return 0;
+ 	int n = array ? array->nr_vars : 0;
+ 	// v14: return logical element count for multi-slot arrays.
+ 	// struct_type doubles as the AIN struct id for struct-element lists
+@@ -444,6 +446,7 @@ static int Array_At(struct page **self, int index)
+ 		return 0;
+ 	}
+ 	if (!array_elem_is_ref()) {
++		if (ain->version >= 14) heap_ref(hll_self_slot);
+ 		stack_push(hll_self_slot);
+ 		stack_push(index);
+ 	} else {
+@@ -473,6 +476,7 @@ static int Array_Last(struct page **self)
+ 	}
+ 	int last_idx = array->nr_vars - 1;
+ 	if (!array_elem_is_ref()) {
++		if (ain->version >= 14) heap_ref(hll_self_slot);
+ 		stack_push(hll_self_slot);
+ 		stack_push(last_idx);
+ 	} else {
+@@ -499,11 +503,13 @@ static void Array_PopBack(struct page **array)
+ 		if (removed > 0)
+ 			heap_unref(removed);
+ 	}
+-	if (new_size == 0) {
++	if (new_size == 0 && ain->version < 14) {
+ 		free_page(a);
+ 		*array = NULL;
+ 		return;
+ 	}
++	// v14 generic HLL calls need the element declaration even when empty.
++	// Keep a typed zero-length page so EmplaceBack can construct it again.
+ 	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
+ 	for (int i = 0; i < new_size; i++)
+ 		new_a->values[i] = a->values[i];
+@@ -585,26 +591,31 @@ static void Array_Popback(struct page **array)
+ 
+ // Erase: remove 'length' elements starting at 'index'.
+ // AIN declares: self (ref_array), index (int), length (int).
+-static void Array_Erase(struct page **array, int index, int length)
++static int array_erase_stride(const struct page *a)
++{
++	if ((a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
++	    && a->array.struct_type > 1 && array_elem_is_2slot())
++		return a->array.struct_type;
++	return 1;
++}
++
++static bool Array_Erase(struct page **array, int index, int length)
+ {
+ 	if (!array || !*array)
+-		return;
++		return false;
+ 	struct page *a = *array;
+-	// v14: convert logical index/length to physical for multi-slot arrays
+-	// (2-slot value elements only — see Array_Numof).
+-	if ((a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
+-	    && a->array.struct_type > 1 && array_elem_is_2slot()) {
+-		index *= a->array.struct_type;
+-		length *= a->array.struct_type;
+-	}
+-	if (length <= 0 || index < 0 || index >= a->nr_vars)
+-		return;
+-	// Clamp length to available elements
+-	if (index + length > a->nr_vars)
+-		length = a->nr_vars - index;
+-	// v14: unref removed elements if they are heap objects
++	int stride = array_erase_stride(a);
++	int count = a->nr_vars / stride;
++	if (length <= 0 || index < 0 || index >= count)
++		return false;
++	if (length > count - index)
++		length = count - index;
++	index *= stride;
++	length *= stride;
++	// Match PushBack: only the first slot owns a reference. The second slot
++	// of an interface/option element is metadata, even if it looks like a slot.
+ 	if (array_elem_is_ref()) {
+-		for (int i = index; i < index + length; i++) {
++		for (int i = index; i < index + length; i += stride) {
+ 			int removed = a->values[i].i;
+ 			if (removed > 0)
+ 				heap_unref(removed);
+@@ -614,7 +625,7 @@ static void Array_Erase(struct page **array, int index, int length)
+ 	if (new_size == 0) {
+ 		free_page(a);
+ 		*array = NULL;
+-		return;
++		return true;
+ 	}
+ 	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, new_size);
+ 	for (int i = 0; i < index; i++)
+@@ -624,6 +635,104 @@ static void Array_Erase(struct page **array, int index, int length)
+ 	new_a->array = a->array;
+ 	free_page(a);
+ 	*array = new_a;
++	return true;
++}
++
++/* Erase(predicate) removes the first match; EraseAll is a separate overload. */
++static bool Array_EraseIf(struct page **array, int func)
++{
++	if (!array || !*array || func < 0 || func >= ain->nr_functions)
++		return false;
++	struct ain_function *cb = &ain->functions[func];
++	if (cb->nr_args < 1 || cb->nr_args > 2)
++		return false;
++	int stride = array_erase_stride(*array);
++	for (int i = 0; *array && i < (*array)->nr_vars / stride; i++) {
++		int saved_sp = stack_ptr;
++		stack_push((*array)->values[i * stride]);
++		if (cb->nr_args == 2)
++			stack_push(stride > 1 ? (*array)->values[i * stride + 1] : (union vm_value){.i = 0});
++		vm_call_nopop(func, cb->nr_args);
++		bool match = stack_pop().i != 0;
++		stack_ptr = saved_sp;
++		if (match)
++			return Array_Erase(array, i, 1);
++	}
++	return false;
++}
++
++static bool array_erase_value_equal(union vm_value a, union vm_value b)
++{
++	if (a.i == b.i)
++		return true;
++	if (!array_elem_is_ref() || a.i <= 0 || b.i <= 0
++	    || (size_t)a.i >= heap_size || (size_t)b.i >= heap_size
++	    || HEAP_REF(a.i) <= 0 || HEAP_REF(b.i) <= 0
++	    || heap[a.i].type != VM_STRING || heap[b.i].type != VM_STRING
++	    || !heap[a.i].s || !heap[b.i].s)
++		return false;
++	struct string *sa = heap[a.i].s, *sb = heap[b.i].s;
++	return sa->size == sb->size && !memcmp(sa->text, sb->text, sa->size);
++}
++
++/* Erase(source) is set subtraction, used for selected IDs and skill lists. */
++static bool Array_EraseValues(struct page **array, int source_slot)
++{
++	if (!array || !*array || source_slot <= 0 || (size_t)source_slot >= heap_size
++	    || HEAP_REF(source_slot) <= 0 || heap[source_slot].type != VM_PAGE
++	    || !heap[source_slot].page || heap[source_slot].page->type != ARRAY_PAGE)
++		return false;
++	const struct page *src = heap[source_slot].page;
++	int stride = array_erase_stride(*array);
++	if (array_erase_stride(src) != stride)
++		return false;
++	if (src == *array)
++		return Array_Erase(array, 0, (*array)->nr_vars / stride);
++	bool erased = false;
++	for (int i = (*array)->nr_vars / stride - 1; i >= 0; i--) {
++		bool found = false;
++		for (int j = 0; j < src->nr_vars / stride && !found; j++) {
++			found = true;
++			for (int k = 0; k < stride; k++) {
++				union vm_value a = (*array)->values[i * stride + k];
++				union vm_value b = src->values[j * stride + k];
++				// Extra slots are metadata, never string references.
++				if (!(k == 0 ? array_erase_value_equal(a, b) : a.i == b.i)) {
++					found = false;
++					break;
++				}
++			}
++		}
++		if (found)
++			erased = Array_Erase(array, i, 1) || erased;
++	}
++	return erased;
++}
++
++/* The AIN declarations share a name, but require distinct C prototypes. */
++void *array_erase_function(const struct ain_hll_function *f)
++{
++	if (!f || !f->arguments || (f->return_type.data != AIN_BOOL && f->return_type.data != AIN_VOID)
++	    || f->nr_arguments < 2)
++		return NULL;
++	switch (f->arguments[0].type.data) {
++	case AIN_REF_ARRAY_TYPE:
++	case AIN_REF_ARRAY:
++		break;
++	default:
++		return NULL;
++	}
++	if (f->nr_arguments == 3 && f->arguments[1].type.data == AIN_INT
++	    && f->arguments[2].type.data == AIN_INT)
++		return Array_Erase;
++	if (f->nr_arguments != 2 || f->return_type.data != AIN_BOOL)
++		return NULL;
++	if (f->arguments[1].type.data == AIN_HLL_FUNC || f->arguments[1].type.data == AIN_HLL_FUNC_71)
++		return Array_EraseIf;
++	if (f->arguments[1].type.data == AIN_WRAP && f->arguments[1].type.array_type
++	    && f->arguments[1].type.array_type->data == AIN_ARRAY)
++		return Array_EraseValues;
++	return NULL;
+ }
+ 
+ static void Array_Insert(struct page **array, int index, int value)
+@@ -1581,25 +1690,43 @@ static int Array_ShallowCopy(struct page **self)
+ 	return slot;
+ }
+ 
+-// IsExist: check if any element satisfies a delegate predicate.
+-// Equivalent to Array.Any — calls func(element) for each element,
+-// returns true if the predicate returns nonzero for any element.
++// IsExist(value) must not interpret a small enum/integer as a function number.
++static bool Array_IsExistValue(struct page **self, int value)
++{
++	const struct page *array = self ? *self : NULL;
++	if (!array || array->type != ARRAY_PAGE)
++		return false;
++	int stride = array_erase_stride(array);
++	if (stride > 2)
++		return false;
++	for (int i = 0; i < array->nr_vars / stride; i++) {
++		if (array_erase_value_equal(array->values[i * stride], (union vm_value){.i = value})
++		    && (stride == 1 || array->values[i * stride + 1].i == hll_param_slot2))
++			return true;
++	}
++	return false;
++}
++
++// IsExist(predicate): the VM call owns the temporary callback argument refs.
+ static bool Array_IsExist(struct page **self, int func)
+ {
+ 	struct page *array = (self && *self) ? *self : NULL;
+-	if (!array || array->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
++	if (!array || array->type != ARRAY_PAGE || array->nr_vars == 0
++	    || func < 0 || func >= ain->nr_functions)
+ 		return false;
+ 
+ 	struct ain_function *cb = &ain->functions[func];
++	if (cb->nr_args < 1 || cb->nr_args > 2)
++		return false;
++	int stride = array_erase_stride(array);
++	if (stride > 2)
++		return false;
+ 
+-	for (int i = 0; i < array->nr_vars; i++) {
++	for (int i = 0; *self && i < (*self)->nr_vars / stride; i++) {
+ 		int saved_sp = stack_ptr;
+-		if (cb->nr_args >= 2) {
+-			stack_push(array->values[i]);
+-			stack_push(0);
+-		} else {
+-			stack_push(array->values[i]);
+-		}
++		stack_push((*self)->values[i * stride]);
++		if (cb->nr_args == 2)
++			stack_push(stride > 1 ? (*self)->values[i * stride + 1] : (union vm_value){.i = 0});
+ 		vm_call_nopop(func, cb->nr_args);
+ 		int result = stack_pop().i;
+ 		stack_ptr = saved_sp;
+@@ -1609,6 +1736,24 @@ static bool Array_IsExist(struct page **self, int func)
+ 	return false;
+ }
+ 
++void *array_isexist_function(const struct ain_hll_function *f)
++{
++	if (!f || !f->arguments || f->nr_arguments != 2 || f->return_type.data != AIN_BOOL)
++		return NULL;
++	switch (f->arguments[0].type.data) {
++	case AIN_REF_ARRAY_TYPE:
++	case AIN_REF_ARRAY:
++		break;
++	default:
++		return NULL;
++	}
++	if (f->arguments[1].type.data == AIN_HLL_PARAM)
++		return Array_IsExistValue;
++	if (f->arguments[1].type.data == AIN_HLL_FUNC || f->arguments[1].type.data == AIN_HLL_FUNC_71)
++		return Array_IsExist;
++	return NULL;
++}
++
+ // EmplaceBack: push a default value (like PushBack(0) for int arrays)
+ // EmplaceBack: append a default-constructed element and return it as wrap<T>.
+ // For struct elements (hll_arg3=2): create a new struct via alloc_struct().
+@@ -1658,11 +1803,10 @@ static void Array_Shuffle(struct page **array, int seed)
+ 	}
+ }
+ 
+-// Count: count elements matching predicate, or all elements if no predicate
++// The original Count() and Numof() entries share the same implementation.
+ static int Array_Count(struct page **self)
+ {
+-	struct page *array = (self && *self) ? *self : NULL;
+-	return array ? array->nr_vars : 0;
++	return Array_Numof(self);
+ }
+ 
+ // AddRange: append all elements from src to dst
+@@ -1719,21 +1863,214 @@ static void Array_Add(struct page **array, int value)
+ 	Array_Pushback(array, value);
+ }
+ 
+-// Find: value-based search in v14 generic array.
+-// Searches for the first element equal to 'value' and returns its index.
+-// Returns -1 if not found. Different from First (which uses a predicate callback).
+-static int Array_Find(struct page **array, int value)
++/* Array query overloads. Ranges are [begin, end), in logical elements.
++ * Numof(predicate) and Count(predicate) count matches, not callback values.
++ * Keep the callback ABI consistent with IsExist/Erase; vm_call_nopop owns
++ * argument retains and hll_call restores the enclosing generic context.
++ */
++static bool array_query_callback_shape(struct page **array, int func, int stride)
+ {
+-	struct page *src = (array && *array) ? *array : NULL;
+-	if (!src || src->nr_vars == 0)
++	if (func < 0 || func >= ain->nr_functions)
++		VM_ERROR("Array query: invalid predicate %d", func);
++	struct ain_function *cb = &ain->functions[func];
++	if (cb->address >= ain->code_size || cb->return_type.data != AIN_BOOL
++	    || !cb->vars || cb->nr_vars < cb->nr_args || cb->nr_args < 1 || cb->nr_args > 2)
++		VM_ERROR("Array query: unsupported predicate signature %d", func);
++	enum ain_data_type type = cb->vars[0].type.data;
++	if (cb->nr_args == 1 && stride == 1) {
++		switch (type) {
++		case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_LONG_INT:
++		case AIN_ENUM: case AIN_ENUM2: case AIN_STRING: case AIN_REF_STRING:
++		case AIN_STRUCT: case AIN_REF_STRUCT: case AIN_WRAP:
++			return false;
++		default:
++			break;
++		}
++	}
++	if (cb->nr_args == 2 && cb->vars[1].type.data == AIN_VOID) {
++		bool wrapped_iface = type == AIN_WRAP && cb->vars[0].type.array_type
++			&& (cb->vars[0].type.array_type->data == AIN_IFACE
++			    || cb->vars[0].type.array_type->data == AIN_IFACE_WRAP);
++		if (stride == 2 && (type == AIN_IFACE || type == AIN_IFACE_WRAP || wrapped_iface))
++			return false;
++		if (stride == 1 && (type == AIN_REF_INT || type == AIN_REF_FLOAT
++		    || type == AIN_REF_BOOL || type == AIN_REF_LONG_INT)) {
++			if (hll_self_slot < 0 || (size_t)hll_self_slot >= heap_size
++			    || HEAP_REF(hll_self_slot) <= 0 || heap[hll_self_slot].type != VM_PAGE
++			    || heap[hll_self_slot].page != *array)
++				VM_ERROR("Array query: predicate reference has no array owner");
++			return true;
++		}
++	}
++	VM_ERROR("Array query: unsupported predicate argument type %d / stride %d", type, stride);
++}
++
++static bool array_query_predicate(struct page **array, int index, int stride, int func)
++{
++	struct ain_function *cb = &ain->functions[func];
++	bool reference = array_query_callback_shape(array, func, stride);
++	struct page *before = *array;
++	int size = before->nr_vars;
++	int owner = hll_self_slot;
++	bool tracked = owner >= 0 && (size_t)owner < heap_size && HEAP_REF(owner) > 0
++		&& heap[owner].type == VM_PAGE && heap[owner].page == before;
++	int saved_sp = stack_ptr;
++	if (reference) {
++		stack_push(owner);
++		stack_push(index * stride);
++	} else {
++		stack_push(before->values[index * stride]);
++		if (cb->nr_args == 2)
++			stack_push(before->values[index * stride + 1]);
++	}
++	vm_call_nopop(func, cb->nr_args);
++	bool match = stack_pop().i != 0;
++	stack_ptr = saved_sp;
++	// FFI passed a local page snapshot. A nested HLL can replace/free the
++	// owner's page; refresh before touching it or outer FFI writes it back.
++	if (tracked) {
++		if ((size_t)owner >= heap_size || HEAP_REF(owner) <= 0 || heap[owner].type != VM_PAGE)
++			VM_ERROR("Array query: predicate released its array owner");
++		*array = heap[owner].page;
++	}
++	if (*array != before || !*array || (*array)->type != ARRAY_PAGE || (*array)->nr_vars != size)
++		VM_ERROR("Array query: predicate changed array storage");
++	return match;
++}
++
++static int Array_CountIf(struct page **array, int func)
++{
++	if (!array || !*array || (*array)->type != ARRAY_PAGE)
++		return 0;
++	int stride = array_erase_stride(*array);
++	array_query_callback_shape(array, func, stride);
++	int end = (*array)->nr_vars / stride;
++	int matches = 0;
++	for (int i = 0; i < end && *array && (*array)->type == ARRAY_PAGE
++	     && i < (*array)->nr_vars / stride; i++) {
++		if (array_query_predicate(array, i, stride, func))
++			matches++;
++	}
++	return matches;
++}
++
++static enum ain_data_type array_query_value_type(const struct page *array)
++{
++	if (array->array.rank > 1 || array_elem_is_2slot())
++		VM_ERROR("Array.Find: unsupported value element shape");
++	switch (array->a_type) {
++	case AIN_INT: case AIN_ARRAY_INT: case AIN_BOOL: case AIN_ARRAY_BOOL:
++	case AIN_ENUM: case AIN_ENUM2:
++		// Generic allocation can default to ARRAY_INT even for heap elements.
++		if (array_elem_is_ref())
++			VM_ERROR("Array.Find: reference element lacks a supported concrete type");
++		return AIN_INT;
++	case AIN_FLOAT: case AIN_ARRAY_FLOAT:
++		return AIN_FLOAT;
++	case AIN_STRING: case AIN_ARRAY_STRING:
++		return AIN_STRING;
++	default:
++		VM_ERROR("Array.Find: unsupported or erased value element type %d", array->a_type);
++	}
++}
++
++static bool array_query_value_equal(union vm_value a, union vm_value b, enum ain_data_type type)
++{
++	if (type == AIN_FLOAT)
++		return a.f == b.f;
++	if (type != AIN_STRING)
++		return a.i == b.i;
++	if (a.i <= 0 || b.i <= 0 || (size_t)a.i >= heap_size || (size_t)b.i >= heap_size
++	    || HEAP_REF(a.i) <= 0 || HEAP_REF(b.i) <= 0
++	    || heap[a.i].type != VM_STRING || heap[b.i].type != VM_STRING
++	    || !heap[a.i].s || !heap[b.i].s)
++		VM_ERROR("Array.Find: invalid string value");
++	struct string *sa = heap[a.i].s, *sb = heap[b.i].s;
++	return sa->size == sb->size && !memcmp(sa->text, sb->text, sa->size);
++}
++
++static int Array_FindValueRange(struct page **array, int begin, int end, int value)
++{
++	const struct page *src = array ? *array : NULL;
++	if (!src || src->type != ARRAY_PAGE)
+ 		return -1;
+-	for (int i = 0; i < src->nr_vars; i++) {
+-		if (src->values[i].i == value)
++	enum ain_data_type type = array_query_value_type(src);
++	int count = src->nr_vars;
++	if (begin < 0) begin = 0;
++	if (end > count) end = count;
++	union vm_value needle = {.i = value};
++	for (int i = begin; i < end; i++) {
++		if (array_query_value_equal(src->values[i], needle, type))
++			return i;
++	}
++	return -1;
++}
++
++static int Array_FindValue(struct page **array, int value)
++{
++	return Array_FindValueRange(array, 0, INT_MAX, value);
++}
++
++static int Array_FindIfRange(struct page **array, int begin, int end, int func)
++{
++	if (!array || !*array || (*array)->type != ARRAY_PAGE)
++		return -1;
++	int stride = array_erase_stride(*array);
++	array_query_callback_shape(array, func, stride);
++	int count = (*array)->nr_vars / stride;
++	if (begin < 0) begin = 0;
++	if (end > count) end = count;
++	for (int i = begin; i < end && *array && (*array)->type == ARRAY_PAGE
++	     && i < (*array)->nr_vars / stride; i++) {
++		if (array_query_predicate(array, i, stride, func))
+ 			return i;
+ 	}
+ 	return -1;
+ }
+ 
++static int Array_FindIf(struct page **array, int func)
++{
++	return Array_FindIfRange(array, 0, INT_MAX, func);
++}
++
++/* Select by declared signature, never by a game's function index. */
++void *array_query_function(const struct ain_hll_function *f)
++{
++	if (!f || !f->name || !f->arguments || f->nr_arguments < 1 || f->return_type.data != AIN_INT)
++		return NULL;
++	switch (f->arguments[0].type.data) {
++	case AIN_REF_ARRAY_TYPE:
++	case AIN_REF_ARRAY:
++		break;
++	default:
++		return NULL;
++	}
++	bool count = !strcmp(f->name, "Numof") || !strcmp(f->name, "Count");
++	if (count) {
++		if (f->nr_arguments == 1)
++			return Array_Numof;
++		if (f->nr_arguments == 2 && (f->arguments[1].type.data == AIN_HLL_FUNC
++		    || f->arguments[1].type.data == AIN_HLL_FUNC_71))
++			return Array_CountIf;
++		return NULL;
++	}
++	if (strcmp(f->name, "Find"))
++		return NULL;
++	bool range = f->nr_arguments == 4;
++	if (range) {
++		if (f->arguments[1].type.data != AIN_INT || f->arguments[2].type.data != AIN_INT)
++			return NULL;
++	} else if (f->nr_arguments != 2) {
++		return NULL;
++	}
++	enum ain_data_type arg = f->arguments[range ? 3 : 1].type.data;
++	if (arg == AIN_HLL_PARAM)
++		return range ? (void *)Array_FindValueRange : (void *)Array_FindValue;
++	if (arg == AIN_HLL_FUNC || arg == AIN_HLL_FUNC_71)
++		return range ? (void *)Array_FindIfRange : (void *)Array_FindIf;
++	return NULL;
++}
++
+ // Copy: copy elements between arrays.
+ // AIN declares: Copy(ref array<?> dst, wrap<?> dst_i, wrap<array<?>> src, int src_i, int count)
+ // arg[1] = AIN_WRAP (dst_i as wrap<int>), arg[2] = AIN_WRAP (src as wrap<array>)
+@@ -2070,7 +2407,7 @@ HLL_LIBRARY(Array,
+ 	    HLL_EXPORT(QuickSort, Array_QuickSort),
+ 	    HLL_EXPORT(Any, Array_Any),
+ 	    HLL_EXPORT(Add, Array_Add),
+-	    HLL_EXPORT(Find, Array_Find),
++	HLL_EXPORT(Find, Array_FindValue),
+ 	    HLL_EXPORT(Realloc, Array_Realloc),
+ 	    HLL_EXPORT(BinarySearch, Array_BinarySearch),
+ 	    HLL_EXPORT(LowerBound, Array_LowerBound),
+diff --git a/src/hll/PartsEngine.c b/src/hll/PartsEngine.c
+index e7a041a..2b6ca66 100644
+--- a/src/hll/PartsEngine.c
++++ b/src/hll/PartsEngine.c
+@@ -884,6 +884,25 @@ static struct ain_hll_function *get_fun(int libno, const char *name)
+ 	return fno >= 0 ? &ain->libraries[libno].functions[fno] : NULL;
+ }
+ 
++// v14 returns the CG name directly; the legacy API writes an out parameter.
++static struct string *PE_v14_GetPartsCGName(int parts_no, int state)
++{
++	struct string *name = NULL;
++	PE_GetPartsCGName(parts_no, &name, state);
++	return name ? name : string_ref(&EMPTY_STRING);
++}
++
++static void parts_link_cg_name_getter(int libno, const char *name)
++{
++	struct ain_hll_function *fun = get_fun(libno, name);
++	if (fun && fun->return_type.data == AIN_STRING
++			&& fun->nr_arguments == 2 && fun->arguments
++			&& fun->arguments[0].type.data == AIN_INT
++			&& fun->arguments[1].type.data == AIN_INT) {
++		static_library_replace(&lib_PartsEngine, name, PE_v14_GetPartsCGName);
++	}
++}
++
+ // v14 (Dohna Dohna) declares:
+ //   void RemoveController(wrap<array<int>> EraseNumberList, int Index);
+ // The wrap argument arrives from the FFI as an int heap slot, not the
+@@ -1494,25 +1513,14 @@ static void PE_v14_SetPanelColor(int parts_no, int r, int g, int b, int a)
+ 	PE_BuildPartsConstructionProcess(parts_no, 1);
+ }
+ 
+-/* --- Message window text queries ---
+- * Text is rendered synchronously by the pe_v14_message adapters, so these
+- * read back empty/default values (fork parity; the script only uses them
+- * for layout bookkeeping). */
++/* Flat message-window animations are not implemented. Text and background
++ * names are retained by parts/message_window.c for the AIN composer. */
+ static struct string *PE_v14_GetMessageWindowFlatName(int parts_no)
+ {
+ 	(void)parts_no;
+ 	return string_ref(&EMPTY_STRING);
+ }
+ 
+-static struct string *PE_v14_GetMessageWindowText(int parts_no)
+-{
+-	(void)parts_no;
+-	return string_ref(&EMPTY_STRING);
+-}
+-
+-static void PE_v14_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
+-{ (void)parts_no; (void)mode; }
+-
+ /* v14 declares: bool SaveBackScene(wrap<array<int>> SaveDataBuffer).
+  * The back-scene snapshot is not implemented (backlog display, Wave 6);
+  * report success so the script's 画面保管 step doesn't raise system.Error
+@@ -1525,18 +1533,6 @@ static bool PE_v14_SaveBackScene(int buf_slot)
+ 	return true;
+ }
+ 
+-/* Read back the message-window CG set by SetMessageWindowCGName. */
+-static struct string *PE_GetMessageWindowCGName(int parts_no)
+-{
+-	struct parts *parts = parts_try_get(parts_no);
+-	if (!parts)
+-		return string_ref(&EMPTY_STRING);
+-	struct parts_cg *cg = parts_get_cg(parts, PARTS_STATE_DEFAULT);
+-	if (cg && cg->name)
+-		return string_ref(cg->name);
+-	return string_ref(&EMPTY_STRING);
+-}
+-
+ /* "Async" CG load: no thread loader, so load synchronously and return
+  * true so the ain-side Observer (polling Parts_IsThreadLoading == false)
+  * fires its callback immediately. */
+@@ -1576,9 +1572,9 @@ static void pe_v14_register_batch(void)
+ 	static_library_register(lib, "GetComponentClipAreaPosWidth", PE_v14_GetComponentClipAreaPosWidth);
+ 	static_library_register(lib, "GetComponentClipAreaPosHeight", PE_v14_GetComponentClipAreaPosHeight);
+ 	static_library_register(lib, "SetComponentReverseLR", PE_v14_SetComponentReverseLR);
+-	static_library_register(lib, "GetMessageWindowText", PE_v14_GetMessageWindowText);
++	static_library_register(lib, "GetMessageWindowText", PE_GetMessageWindowText);
+ 	static_library_register(lib, "GetMessageWindowFlatName", PE_v14_GetMessageWindowFlatName);
+-	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_v14_SetMessageWindowTextOriginPosMode);
++	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_SetMessageWindowTextOriginPosMode);
+ 	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
+ #include "pe_v14_prelink.h"
+ }
+@@ -1590,6 +1586,9 @@ static void PartsEngine_PreLink(void)
+ 	assert(libno >= 0);
+ 
+ 	// v14 signature variants (declaration-driven, not version-driven)
++	parts_link_cg_name_getter(libno, "GetPartsCGName");
++	parts_link_cg_name_getter(libno, "Parts_GetPartsCGName");
++
+ 	fun = get_fun(libno, "UpdateComponent");
+ 	if (fun && fun->nr_arguments == 5) {
+ 		static_library_replace(&lib_PartsEngine, "UpdateComponent",
+diff --git a/src/hll/pe_v14_activity.c b/src/hll/pe_v14_activity.c
+index 2109557..186a9db 100644
+--- a/src/hll/pe_v14_activity.c
++++ b/src/hll/pe_v14_activity.c
+@@ -145,6 +145,12 @@ static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; /* 乗算色 (
+ static const char GBK_CG_DETECT[]   = "\xa3\xc3\xa3\xc7\xc5\xd0\xb6\xa8\xb2\xbf\xbc\xfe"; /* ＣＧ判定部件 (GBK CG detection parts) */
+ static const char SJIS_CG_DETECT[]  = "\x82\x62\x82\x66\x94\xbb\x92\xe8\x83\x70\x81\x5b\x83\x63"; /* ＣＧ判定パーツ (SJIS) */
+ 
++/* Mouse pixel decisions use the source layout's encoding. The Chinese layout
++ * translates "mouse cursor" but retains the Japanese pixel suffix. */
++static const char SJIS_PIXEL_DECIDE[] = "\x83\x7d\x83\x45\x83\x58\x83\x4a\x81\x5b\x83\x5c\x83\x8b\x83\x73\x83\x4e\x83\x5a\x83\x8b\x94\xbb\x92\xe8"; /* マウスカーソルピクセル判定 */
++static const char GBK_PIXEL_DECIDE[] = "\xa5\xde\xa5\xa6\xa5\xb9\xa5\xab\xa9\x60\xa5\xbd\xa5\xeb\xa5\xd4\xa5\xaf\xa5\xbb\xa5\xeb\xc5\xd0\xb6\xa8";
++static const char GBK_CN_PIXEL_DECIDE[] = "\xca\xf3\x98\xcb\xd6\xb8\xe1\x98\xa5\xd4\xa5\xaf\xa5\xbb\xa5\xeb\xc5\xd0\xb6\xa8"; /* 鼠標指針ピクセル判定 */
++
+ /* --- Pactex tree parser --- */
+ 
+ /* Check if tree node name contains a byte substring (raw SJIS/GBK). */
+@@ -217,6 +223,14 @@ static int pactex_get_int(struct ex_tree *node, const char *name, int def)
+ 	return def;
+ }
+ 
++static void pactex_apply_pixel_decide(struct ex_tree *node, int parts_no)
++{
++	int enabled = pactex_get_int(node, SJIS_PIXEL_DECIDE, -1);
++	if (enabled < 0) enabled = pactex_get_int(node, GBK_PIXEL_DECIDE, -1);
++	if (enabled < 0) enabled = pactex_get_int(node, GBK_CN_PIXEL_DECIDE, 0);
++	PE_SetPartsPixelDecide(parts_no, enabled != 0);
++}
++
+ /* Extract a list leaf property by exact name match. Returns NULL if not found. */
+ static struct ex_list *pactex_get_list(struct ex_tree *node, const char *name)
+ {
+@@ -298,12 +312,112 @@ static bool pactex_get_surface_area(struct ex_tree *branch, int *x, int *y, int
+ 	return false;
+ }
+ 
++/* Message-window values are direct leaves of their own type-info branch.
++ * Keep raw SJIS and the actual CN/GB18030 spellings separate; nested ruby and
++ * key-wait settings must not be read as the window's text or CG states. */
++enum pactex_message_key {
++	PACTEX_MW_AREA,
++	PACTEX_MW_ORIGIN,
++	PACTEX_MW_FACE,
++	PACTEX_MW_SIZE,
++	PACTEX_MW_COLOR,
++	PACTEX_MW_WEIGHT,
++	PACTEX_MW_EDGE,
++	PACTEX_MW_EDGE_COLOR,
++	PACTEX_MW_CHAR_SPACE,
++	PACTEX_MW_LINE_SPACE,
++};
++static const struct { const char *sjis, *gbk; } pactex_message_keys[] = {
++	[PACTEX_MW_AREA] = {"\x83\x65\x83\x4c\x83\x58\x83\x67\x83\x47\x83\x8a\x83\x41", "\xce\xc4\xb1\xbe\xa5\xa8\xa5\xea\xa5\xa2"}, /* テキストエリア / 文本エリア */
++	[PACTEX_MW_ORIGIN] = {"\x83\x65\x83\x4c\x83\x58\x83\x67\x88\xca\x92\x75", "\xce\xc4\xb1\xbe\xce\xbb\xd6\xc3"}, /* テキスト位置 / 文本位置 */
++	[PACTEX_MW_FACE] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x83\x5e\x83\x43\x83\x76", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xa5\xbf\xa5\xa4\xa5\xd7"}, /* フォントタイプ / フォントタイプ */
++	[PACTEX_MW_SIZE] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x83\x54\x83\x43\x83\x59", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xa5\xb5\xa5\xa4\xa5\xba"}, /* フォントサイズ / フォントサイズ */
++	[PACTEX_MW_COLOR] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x90\x46", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xc9\xab"}, /* フォント色 / フォント色 */
++	[PACTEX_MW_WEIGHT] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x91\xbe\x82\xb3", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xcc\xab\xa4\xb5"}, /* フォント太さ / フォント太さ */
++	[PACTEX_MW_EDGE] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x89\x8f\x8e\xe6\x82\xe8", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xbf\x46\xc8\xa1\xa4\xea"}, /* フォント縁取り / フォント縁取り */
++	[PACTEX_MW_EDGE_COLOR] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x89\x8f\x8e\xe6\x82\xe8\x90\x46", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xbf\x46\xc8\xa1\xa4\xea\xc9\xab"}, /* フォント縁取り色 / フォント縁取り色 */
++	[PACTEX_MW_CHAR_SPACE] = {"\x95\xb6\x8e\x9a\x8a\xd4\x8a\x75", "\xce\xc4\xd7\xd6\xe9\x67\xb8\xf4"}, /* 文字間隔 / 文字間隔 */
++	[PACTEX_MW_LINE_SPACE] = {"\x8d\x73\x8a\xd4\x8a\x75", "\xd0\xd0\xe9\x67\xb8\xf4"}, /* 行間隔 / 行間隔 */
++};
++
++static struct ex_value *pactex_message_value(struct ex_tree *node, enum pactex_message_key key)
++{
++	if (!node || node->is_leaf) return NULL;
++	for (unsigned i = 0; i < node->nr_children; i++) {
++		struct ex_tree *c = &node->children[i];
++		if (c->is_leaf && c->name &&
++				(!strcmp(c->name->text, pactex_message_keys[key].sjis) ||
++				 !strcmp(c->name->text, pactex_message_keys[key].gbk)))
++			return &c->leaf.value;
++	}
++	return NULL;
++}
++
++static float pactex_message_number(struct ex_tree *node, enum pactex_message_key key, float fallback)
++{
++	struct ex_value *v = pactex_message_value(node, key);
++	if (!v) return fallback;
++	if (v->type == EX_FLOAT) return v->f;
++	if (v->type == EX_INT) return v->i;
++	return fallback;
++}
++
++static int pactex_message_item(struct ex_tree *node, enum pactex_message_key key,
++		unsigned index, int fallback)
++{
++	struct ex_value *v = pactex_message_value(node, key);
++	if (!v || v->type != EX_LIST || !v->list || index >= v->list->nr_items)
++		return fallback;
++	struct ex_value *item = &v->list->items[index].value;
++	if (item->type == EX_FLOAT) return item->f;
++	if (item->type == EX_INT) return item->i;
++	return fallback;
++}
++
++static bool pactex_apply_message_window(struct ex_tree *type_info, const char *ptype, int parts_no)
++{
++	if (!ptype || (strcmp(ptype, "\x83\x81\x83\x62\x83\x5a\x81\x5b\x83\x57\x83\x45\x83\x42\x83\x93\x83\x68\x83\x45") &&
++			strcmp(ptype, "\xd0\xc5\xcf\xa2\xb4\xb0\xbf\xda")))
++		return false;
++	struct parts *parts = parts_get(parts_no);
++	parts->message_window = true;
++	const char *cg = pactex_get_string(type_info, SJIS_CG_MEI);
++	if (!cg) cg = pactex_get_string(type_info, GBK_CG_MEI);
++	if (cg) {
++		struct string *name = cstr_to_string(cg);
++		PE_SetMessageWindowCGName(parts_no, name);
++		free_string(name);
++	}
++	PE_SetMessageWindowTextArea(parts_no,
++		pactex_message_item(type_info, PACTEX_MW_AREA, 0, 0),
++		pactex_message_item(type_info, PACTEX_MW_AREA, 1, 0),
++		pactex_message_item(type_info, PACTEX_MW_AREA, 2, 0),
++		pactex_message_item(type_info, PACTEX_MW_AREA, 3, 0));
++	PE_SetMessageWindowTextOriginPosMode(parts_no,
++		pactex_message_number(type_info, PACTEX_MW_ORIGIN, 1));
++	PE_SetMessageWindowTextFont(parts_no,
++		pactex_message_number(type_info, PACTEX_MW_FACE, 0),
++		pactex_message_number(type_info, PACTEX_MW_SIZE, 16),
++		pactex_message_item(type_info, PACTEX_MW_COLOR, 0, 255),
++		pactex_message_item(type_info, PACTEX_MW_COLOR, 1, 255),
++		pactex_message_item(type_info, PACTEX_MW_COLOR, 2, 255),
++		pactex_message_number(type_info, PACTEX_MW_WEIGHT, 0),
++		pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 0, 0),
++		pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 1, 0),
++		pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 2, 0),
++		pactex_message_number(type_info, PACTEX_MW_EDGE, 0));
++	PE_SetMessageWindowTextSpace(parts_no,
++		pactex_message_number(type_info, PACTEX_MW_CHAR_SPACE, 0),
++		pactex_message_number(type_info, PACTEX_MW_LINE_SPACE, 0));
++	return true;
++}
++
+ /* Apply pactex properties (position, show, alpha, CG) to a parts entry.
+  * Extracts standard properties from leaf children, and CG names from
+  * the type-specific info branch (種類別情報). */
+ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
+ {
+-
++	pactex_apply_pixel_decide(node, parts_no);
+ 
+ 	/* Extract position: 座標 = list[3] = (x, y, z) */
+ 	struct ex_list *pos = pactex_get_list(node, SJIS_POSITION);
+@@ -400,6 +514,9 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
+ 	const char *ptype = pactex_get_string(type_info, SJIS_PARTS_TYPE);
+ 	if (!ptype) ptype = pactex_get_string(type_info, GBK_PARTS_TYPE);
+ 
++	if (pactex_apply_message_window(type_info, ptype, parts_no))
++		return;
++
+ 	/* --- Handle パネル (Panel) type: solid color rectangle --- */
+ 	if (ptype && (strstr(ptype, SJIS_PANEL) || strstr(ptype, GBK_PANEL))) {
+ 		/* サイズ = list[2] = [w, h] */
+@@ -1010,11 +1127,18 @@ static void PartsEngine_SetEnableInputProcess(possibly_unused int parts_no,
+ static void PartsEngine_Parts_SetWheelable(possibly_unused int parts_no,
+ 	possibly_unused bool wheelable) {}
+ 
++static bool PartsEngine_Parts_IsPartsPixelDecide(int parts_no)
++{
++	struct parts *parts = parts_try_get(parts_no);
++	return parts && parts->pixel_hittest;
++}
++
+ /* Register the Activity API into lib_PartsEngine. Called from
+  * PartsEngine's _PreLink when the AIN declares CreateActivity (v14). */
+ void pe_v14_activity_prelink(void)
+ {
+ 	struct static_library *lib = &lib_PartsEngine;
++	static_library_register(lib, "Parts_IsPartsPixelDecide", PartsEngine_Parts_IsPartsPixelDecide);
+ 	static_library_register(lib, "IsExistActivity", PartsEngine_IsExistActivity);
+ 	static_library_register(lib, "CreateActivity", PartsEngine_CreateActivity);
+ 	static_library_register(lib, "ReleaseActivity", PartsEngine_ReleaseActivity);
+diff --git a/src/hll/pe_v14_message.c b/src/hll/pe_v14_message.c
+index df6a31b..334840e 100644
+--- a/src/hll/pe_v14_message.c
++++ b/src/hll/pe_v14_message.c
+@@ -22,16 +22,14 @@
+  *  - GetMessageType returns -1 when the queue is empty; the game polls
+  *    until -1.
+  *  - GetMessageType/GetMessagePartsNumber/GetMessageDelegateIndex/
+- *    GetMessageUniqueID always PEEK the queue head. PopMessage advances
+- *    the head and stores the popped message in msg_current, which
+- *    GetMessageVariable* then read (CallEventN reads variables after
+- *    popping).
+- *  - ReleaseMessage discards a single message, not the whole queue.
++ *    GetMessageUniqueID and GetMessageVariable* PEEK the same queue head.
++ *    CallEventN copies variables before PopMessage, then invokes the delegate.
++ *  - SeekMessage leaves the matching message at the head for normal dispatch.
++ *  - PopMessage removes one message; ReleaseMessage clears the pending queue.
+  *  - CallDelegate compares the message's uniqueID against the parts'
+  *    registered event ID (SetEventID) and silently drops mismatches.
+- *  - Message types (bytecode SWITCH): 1=button click (per part),
+- *    5=mouse left click (also whole-screen when parts_no=0, which fires
+- *    WholeMouseLClickEvent for scene navigation).
++ *  - Message types (bytecode SWITCH): 4=mouse click, 5=double click.
++ *    MouseClick's keyCode distinguishes left (1), right (2), middle (4).
+  */
+ 
+ #include "system4/ain.h"
+@@ -55,7 +53,6 @@ struct v14_parts_message {
+ };
+ static struct v14_parts_message msg_queue[V14_MSG_QUEUE_SIZE];
+ static int msg_head = 0, msg_tail = 0;
+-static struct v14_parts_message msg_current = { .type = -1 };
+ 
+ void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
+                                 int nr_vars, const int *vars)
+@@ -83,28 +80,16 @@ void parts_enqueue_message(int type, int parts_no, int delegate_index, int uniqu
+ 
+ static void PE_v14_PopMessage(void)
+ {
+-	if (msg_head != msg_tail) {
+-		msg_current = msg_queue[msg_head];
++	if (msg_head != msg_tail)
+ 		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
+-	} else {
+-		msg_current.type = -1;
+-		msg_current.parts_no = 0;
+-	}
+ }
+ 
+ static void PE_v14_ReleaseMessage(void)
+ {
+-	if (msg_head != msg_tail) {
+-		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
+-	}
+-	msg_current.type = -1;
+-	msg_current.parts_no = 0;
+-	msg_current.nr_vars = 0;
++	msg_head = msg_tail;
+ }
+ 
+-// Always peek the queue head (not msg_current): msg_current holds the
+-// already-processed message after PopMessage; returning its type would
+-// re-fire the same handler in nested UpdateMessage calls.
++// A popped message is no longer visible, including during nested dispatch.
+ static int PE_v14_GetMessageType(void)
+ {
+ 	if (msg_head != msg_tail) {
+@@ -137,28 +122,19 @@ static int PE_v14_GetMessageUniqueID(void)
+ 	return 0;
+ }
+ 
+-static bool PE_v14_SeekMessage(int target_parts_no)
++static void PE_v14_SeekMessage(int target_parts_no)
+ {
+ 	// Advance through the queue until a message for the target parts is found.
+ 	while (msg_head != msg_tail) {
+-		if (msg_queue[msg_head].parts_no == target_parts_no) {
+-			msg_current = msg_queue[msg_head];
+-			msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
+-			return true;
+-		}
++		if (msg_queue[msg_head].parts_no == target_parts_no)
++			return;
+ 		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
+ 	}
+-	msg_current.type = -1;
+-	return false;
+ }
+ 
+-// After PopMessage, msg_current holds the popped message; before, peek head.
++// CallEventN reads these values before it pops the message.
+ static int PE_v14_GetMessageVariableInt(int idx)
+ {
+-	if (msg_current.type >= 0) {
+-		if (idx < 0 || idx >= msg_current.nr_vars) return 0;
+-		return msg_current.vars[idx];
+-	}
+ 	if (msg_head != msg_tail) {
+ 		if (idx < 0 || idx >= msg_queue[msg_head].nr_vars) return 0;
+ 		return msg_queue[msg_head].vars[idx];
+@@ -185,10 +161,33 @@ static void PE_v14_GetMessageVariableString(possibly_unused int idx, struct stri
+ 	*out = string_ref(&EMPTY_STRING);
+ }
+ 
++static struct string *PE_v14_GetMessageVariableString_ret(possibly_unused int idx)
++{
++	// The v14 declaration returns the string instead of taking an out argument.
++	return string_ref(&EMPTY_STRING);
++}
++
++static void pe_v14_link_message_string_getter(struct static_library *lib)
++{
++	int libno = ain_get_library(ain, "PartsEngine");
++	if (libno < 0)
++		return;
++	int fno = ain_get_library_function(ain, libno, "GetMessageVariableString");
++	if (fno < 0)
++		return;
++	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
++	if (!f->arguments || f->nr_arguments < 1 || f->arguments[0].type.data != AIN_INT)
++		return;
++	if (f->return_type.data == AIN_STRING && f->nr_arguments == 1) {
++		static_library_replace(lib, "GetMessageVariableString", PE_v14_GetMessageVariableString_ret);
++	} else if (f->return_type.data == AIN_VOID && f->nr_arguments == 2
++			&& f->arguments[1].type.data == AIN_REF_STRING) {
++		static_library_replace(lib, "GetMessageVariableString", PE_v14_GetMessageVariableString);
++	}
++}
++
+ static int PE_v14_GetMessageVariableCount(void)
+ {
+-	if (msg_current.type >= 0)
+-		return msg_current.nr_vars;
+ 	if (msg_head != msg_tail)
+ 		return msg_queue[msg_head].nr_vars;
+ 	return 0;
+@@ -245,20 +244,43 @@ static int PE_v14_GetSystemOverlayController(void)
+ /* --- Message window (v14 ADV dialogue) --- thin adapters over the
+  * upstream parts text/CG API, from the fork's verified behaviour. */
+ 
++static void pe_v14_trace_window(const char *operation, const char *phase,
++		int parts_no, int text_size, int active)
++{
++	struct parts *p = parts_try_get(parts_no);
++	if (!p) {
++		WARNING("S2 message %s %s parts=%d bytes=%d active=%d missing", operation,
++			phase, parts_no, text_size, active);
++		return;
++	}
++	WARNING("S2 message %s %s parts=%d bytes=%d active=%d state=%d type=%d default_type=%d show=%d alpha=%d pos=(%d,%d)",
++		operation, phase, parts_no, text_size, active, p->state,
++		p->states[p->state].type, p->states[PARTS_STATE_DEFAULT].type,
++		p->global.show, p->global.alpha, p->global.pos.x, p->global.pos.y);
++}
++
+ static void PE_v14_SetMessageWindowActive(int parts_no, bool active)
+ {
++	static unsigned trace_count;
++	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
++	if (trace) pe_v14_trace_window("Active", "before", parts_no, -1, active);
+ 	struct parts *parts = parts_try_get(parts_no);
+ 	if (!parts)
+ 		return;
+ 	parts->message_window = true;
+ 	PE_SetShow(parts_no, active);
++	if (trace) pe_v14_trace_window("Active", "after", parts_no, -1, active);
+ }
+ 
+ static void PE_v14_SetMessageWindowText(int parts_no, struct string *text,
+ 		int msg_num, struct string *func_name, int ver, int step)
+ {
+-	(void)msg_num; (void)func_name; (void)ver; (void)step;
+-	PE_SetText(parts_no, text, 1); // DEFAULT state, 1-based
++	static unsigned trace_count;
++	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
++	int text_size = text ? text->size : -1;
++	if (trace) pe_v14_trace_window("Text", "before", parts_no, text_size, -1);
++	PE_SetMessageWindowText(parts_no, text, msg_num, func_name, ver, step);
++	if (trace) pe_v14_trace_window("Text", "after", parts_no, text_size, -1);
+ }
+ 
+ static void PE_v14_FixMessageWindowText(possibly_unused int parts_no)
+@@ -273,31 +295,35 @@ static bool PE_v14_IsFixedMessageWindowText(possibly_unused int parts_no)
+ 
+ static void PE_v14_SetMessageWindowCGName(int parts_no, struct string *name)
+ {
+-	PE_SetPartsCG(parts_no, name, 0, 1);
++	static unsigned trace_count;
++	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
++	int name_size = name ? name->size : -1;
++	if (trace) pe_v14_trace_window("CGName", "before", parts_no, name_size, -1);
++	PE_SetMessageWindowCGName(parts_no, name);
++	if (trace) pe_v14_trace_window("CGName", "after", parts_no, name_size, -1);
+ }
+ 
+ static void PE_v14_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h)
+ {
+-	PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, 1);
++	PE_SetMessageWindowTextArea(parts_no, x, y, w, h);
+ }
+ 
+ static void PE_v14_SetMessageWindowTextFont(int parts_no, int type, int size,
+ 		int r, int g, int b, float bold_weight,
+ 		int edge_r, int edge_g, int edge_b, float edge_weight)
+ {
+-	PE_SetFont(parts_no, type, size, r, g, b, bold_weight,
+-			edge_r, edge_g, edge_b, edge_weight, 1);
++	PE_SetMessageWindowTextFont(parts_no, type, size, r, g, b, bold_weight,
++			edge_r, edge_g, edge_b, edge_weight);
+ }
+ 
+ static void PE_v14_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space)
+ {
+-	PE_SetTextCharSpace(parts_no, letter_space, 1);
+-	PE_SetTextLineSpace(parts_no, line_space, 1);
++	PE_SetMessageWindowTextSpace(parts_no, letter_space, line_space);
+ }
+ 
+ static void PE_v14_SetKeyWaitShow(int parts_no, bool show)
+ {
+-	PE_SetShow(parts_no, show);
++	PE_SetKeyWaitShow(parts_no, show);
+ }
+ 
+ /* --- click/input state queries (v14 WaitForClick contract) ---
+@@ -341,7 +367,7 @@ void pe_v14_message_replace(void)
+ 	static_library_replace(lib, "GetMessageVariableInt", PE_v14_GetMessageVariableInt);
+ 	static_library_replace(lib, "GetMessageVariableFloat", PE_v14_GetMessageVariableFloat);
+ 	static_library_replace(lib, "GetMessageVariableBool", PE_v14_GetMessageVariableBool);
+-	static_library_replace(lib, "GetMessageVariableString", PE_v14_GetMessageVariableString);
++	pe_v14_link_message_string_getter(lib);
+ }
+ 
+ /* Register brand-new v14 functions (not in the upstream export table).
+@@ -366,9 +392,11 @@ void pe_v14_message_register(void)
+ 	static_library_register(lib, "IsFixedMessageWindowText", PE_v14_IsFixedMessageWindowText);
+ 	static_library_register(lib, "SetMessageWindowCGName", PE_v14_SetMessageWindowCGName);
+ 	static_library_register(lib, "SetMessageWindowTextArea", PE_v14_SetMessageWindowTextArea);
++	static_library_register(lib, "GetMessageWindowTextArea", PE_GetMessageWindowTextArea);
+ 	static_library_register(lib, "SetMessageWindowTextFont", PE_v14_SetMessageWindowTextFont);
+ 	static_library_register(lib, "SetMessageWindowTextSpace", PE_v14_SetMessageWindowTextSpace);
+ 	static_library_register(lib, "SetKeyWaitShow", PE_v14_SetKeyWaitShow);
++	static_library_register(lib, "IsKeyWaitShow", PE_IsKeyWaitShow);
+ 	static_library_register(lib, "GetActiveParts", PE_v14_GetActiveParts);
+ 	static_library_register(lib, "GetClickNumber", PE_v14_GetClickNumber);
+ 	static_library_register(lib, "SetClickMissSoundName", PE_v14_SetClickMissSoundName);
+diff --git a/src/hll/system.c b/src/hll/system.c
+index 1140a83..bbb5a4c 100644
+--- a/src/hll/system.c
++++ b/src/hll/system.c
+@@ -114,12 +114,13 @@ static void system_Reset(void)
+ }
+ 
+ // [6] IsDebugMode() -> bool
+-// NOTE: v14 games (Dohna Dohna) gate their main UpdateComponent loop behind
+-// IsDebugMode(). Returning true enables the per-frame timer/component update
+-// that dispatches scene delegates. Without this, scene coroutines never tick.
++// Game development mode is separate from the VM debugger or sanitizers.
++// In Dohna Dohna it enables periodic full-VM debug dumps (5s / 60 frames).
++// Normal component updates are registered outside this game's debug gate.
+ static bool system_IsDebugMode(void)
+ {
+-	return ain->version >= 14;
++	const char *value = getenv("XSYS4_GAME_DEBUG");
++	return value && !strcmp(value, "1");
+ }
+ 
+ // [7] ResumeWriteComment(keyName, fileName, wrap<string> commentList) -> bool
+diff --git a/src/input.c b/src/input.c
+index 9dbf14c..fec5a31 100644
+--- a/src/input.c
++++ b/src/input.c
+@@ -262,17 +262,49 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
+ // often deliver DOWN+UP in the same event pump, making the click
+ // invisible to bytecode that checks key_state between pumps.
+ static uint32_t mouse_hold_until[8]; // per-button, SDL_GetTicks deadline
++static bool mouse_release_pending[8]; // an UP received before the deadline
++
++static void release_pending_mouse_buttons(uint32_t now)
++{
++	for (int btn = 1; btn <= 3; btn++) {
++		if (mouse_release_pending[btn] && SDL_TICKS_PASSED(now, mouse_hold_until[btn])) {
++			enum sact_keycode code = sdl_to_sact_button(btn);
++			if (code) key_state[code] = false;
++			mouse_release_pending[btn] = false;
++			mouse_hold_until[btn] = 0;
++		}
++	}
++}
+ 
+ static void mouse_event(SDL_MouseButtonEvent *e)
+ {
++	static unsigned trace_count;
++	const char *trace = getenv("XSYS4_STAGE2_TRACE");
++	if (trace && *trace && strcmp(trace, "0") && trace_count++ < 40) {
++		int ww, wh, dw, dh, mx, my;
++		SDL_GetWindowSize(sdl.window, &ww, &wh);
++		SDL_GL_GetDrawableSize(sdl.window, &dw, &dh);
++		SDL_GetMouseState(&mx, &my);
++		WARNING("S2 mouse t=%u state=%d event=(%d,%d) polled=(%d,%d) override=(%d,%d) window=%dx%d drawable=%dx%d logical=%dx%d viewport=%d,%d,%d,%d",
++			SDL_GetTicks(), e->state, e->x, e->y, mx, my,
++			override_mouse_x, override_mouse_y, ww, wh, dw, dh, sdl.w, sdl.h,
++			sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
++	}
+ 	enum sact_keycode code = sdl_to_sact_button(e->button);
+ 	if (code) {
++		int button = e->button & 7;
+ 		if (e->state == SDL_PRESSED) {
+ 			key_state[code] = true;
+-			mouse_hold_until[e->button & 7] = SDL_GetTicks() + 50;
++			mouse_hold_until[button] = SDL_GetTicks() + 50;
++			mouse_release_pending[button] = false;
+ 		} else {
+-			if (SDL_GetTicks() >= mouse_hold_until[e->button & 7])
++			if (!key_state[code] || SDL_TICKS_PASSED(SDL_GetTicks(), mouse_hold_until[button])) {
+ 				key_state[code] = false;
++				mouse_hold_until[button] = 0;
++				mouse_release_pending[button] = false;
++			} else {
++				mouse_release_pending[button] = true;
++			}
+ 		}
+ 	}
+ #ifdef DEBUGGER_ENABLED
+@@ -754,17 +786,9 @@ void handle_events(void)
+ 		}
+ 	}
+ 
+-	// Deferred mouse release: clear held buttons whose hold period expired
+-	{
+-		uint32_t now_tick = SDL_GetTicks();
+-		for (int btn = 1; btn <= 3; btn++) {
+-			if (mouse_hold_until[btn] && now_tick >= mouse_hold_until[btn]) {
+-				enum sact_keycode c = sdl_to_sact_button(btn);
+-				if (c) key_state[c] = false;
+-				mouse_hold_until[btn] = 0;
+-			}
+-		}
+-	}
++	// Delay an early UP long enough for polling clients to observe the press.
++	// A button still physically held must remain down until its actual UP.
++	release_pending_mouse_buttons(SDL_GetTicks());
+ 
+ 	SDL_Event e;
+ 	while (SDL_PollEvent(&e)) {
+@@ -896,4 +920,3 @@ void handle_events(void)
+ 	if (dbg_dap)
+ 		dbg_dap_handle_messages();
+ }
+-
+diff --git a/src/meson.build b/src/meson.build
+index fb98c9e..68daaf6 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -65,6 +65,7 @@ xsystem4 = [version_h,
+             'parts/input.c',
+             'parts/layoutbox.c',
+             'parts/message.c',
++            'parts/message_window.c',
+             'parts/motion.c',
+             'parts/parts.c',
+             'parts/render.c',
+diff --git a/src/page.c b/src/page.c
+index 09b3617..ea72a48 100644
+--- a/src/page.c
++++ b/src/page.c
+@@ -235,6 +235,25 @@ static struct ain_variable *resolve_struct_member(int struct_no, int varno)
+ 	return NULL;
+ }
+ 
++// Return the complete declaration, including v14 generic array subtypes.
++const struct ain_type *variable_decltype(struct page *page, int varno)
++{
++	if (varno < 0) return NULL;
++	switch (page->type) {
++	case GLOBAL_PAGE:
++		return varno < ain->nr_globals ? &ain->globals[varno].type : NULL;
++	case LOCAL_PAGE:
++		if (page->index < 0 || page->index >= ain->nr_functions) return NULL;
++		return varno < ain->functions[page->index].nr_vars
++			? &ain->functions[page->index].vars[varno].type : NULL;
++	case STRUCT_PAGE: {
++		struct ain_variable *member = resolve_struct_member(page->index, varno);
++		return member ? &member->type : NULL;
++	}
++	default: return NULL;
++	}
++}
++
+ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank)
+ {
+ 	if (struct_type) *struct_type = -1;
+@@ -273,8 +292,9 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
+ 			*array_rank = page->array.rank - 1;
+ 		return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
+ 	case DELEGATE_PAGE:
+-		// XXX: we return void here because objects in a delegate page aren't
+-		//      reference counted
++		if (ain->version >= 14 && varno >= 0 && varno < page->nr_vars)
++			return varno % 3 == 1 ? AIN_VOID : AIN_REF_INT;
++		// Pre-v14 method targets are weak; the third word is a sequence.
+ 		return AIN_VOID;
+ 	}
+ 	return AIN_VOID;
+@@ -334,6 +354,8 @@ static int copy_calls = 0;
+ static bool type_is_heap_ref(enum ain_data_type type)
+ {
+ 	switch (type) {
++	case AIN_REF_INT:
++		return ain->version >= 14;
+ 	case AIN_STRUCT:
+ 	case AIN_REF_STRUCT:
+ 	case AIN_STRING:
+@@ -405,7 +427,10 @@ struct page *copy_page(struct page *src)
+ static void init_struct_slot(struct page *page, int idx, struct ain_variable *member)
+ {
+ 	if (member->type.data == AIN_STRUCT) {
+-		page->values[idx].i = alloc_struct(member->type.struc);
++		// v14 generated initialization emits DELETE; NEW; X_ASSIGN for
++		// object members. An eager allocation has not run its constructor
++		// and must not be destroyed by that initial DELETE.
++		page->values[idx].i = ain->version >= 14 ? -1 : alloc_struct(member->type.struc);
+ 	} else if (ain->version >= 14 && is_wrap_struct(member)) {
+ 		// v14: wrap<struct> — allocate inner struct.
+ 		// This handles both inheritance (member[0]) and contained structs.
+@@ -553,8 +578,7 @@ static void dtor_blacklist_init(void)
+ 	if (ain->version >= 14) {
+ 		for (int si = 0; si < ain->nr_structures; si++) {
+ 			const char *name = ain->structures[si].name;
+-			if (name && (strcmp(name, "CASTimer") == 0 ||
+-				strcmp(name, "parts::detail::CParts3DLayerManager") == 0)) {
++			if (name && strcmp(name, "parts::detail::CParts3DLayerManager") == 0) {
+ 				dtor_blacklist[si] = true;
+ 			}
+ 		}
+@@ -1100,6 +1124,10 @@ struct page *delegate_new_from_method(int obj, int fun)
+ struct page *delegate_new_from_method_env(int obj, int fun, int env)
+ {
+ 	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
++	if (ain->version >= 14) {
++		if (heap_index_valid(obj)) heap_ref(obj);
++		if (heap_index_valid(env)) heap_ref(env);
++	}
+ 	page->values[0].i = obj;
+ 	page->values[1].i = fun;
+ 	page->values[2].i = (ain->version >= 14) ? env : heap_get_seq(obj);
+@@ -1119,13 +1147,13 @@ bool delegate_contains(struct page *dst, int obj, int fun)
+ 	return false;
+ }
+ 
+-struct page *delegate_append(struct page *dst, int obj, int fun)
++static struct page *delegate_append_env(struct page *dst, int obj, int fun, int env)
+ {
+ 	if (!dst)
+-		return delegate_new_from_method(obj, fun);
++		return delegate_new_from_method_env(obj, fun, env);
+ 	if (dst->type != DELEGATE_PAGE) {
+ 		WARNING("delegate_append: not a delegate (type=%d), creating new", dst->type);
+-		return delegate_new_from_method(obj, fun);
++		return delegate_new_from_method_env(obj, fun, env);
+ 	}
+ 	if (delegate_contains(dst, obj, fun))
+ 		return dst;
+@@ -1133,11 +1161,20 @@ struct page *delegate_append(struct page *dst, int obj, int fun)
+ 	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 3));
+ 	dst->values[dst->nr_vars+0].i = obj;
+ 	dst->values[dst->nr_vars+1].i = fun;
+-	dst->values[dst->nr_vars+2].i = heap_get_seq(obj);
++	dst->values[dst->nr_vars+2].i = ain->version >= 14 ? env : heap_get_seq(obj);
++	if (ain->version >= 14) {
++		if (heap_index_valid(obj)) heap_ref(obj);
++		if (heap_index_valid(env)) heap_ref(env);
++	}
+ 	dst->nr_vars += 3;
+ 	return dst;
+ }
+ 
++struct page *delegate_append(struct page *dst, int obj, int fun)
++{
++	return delegate_append_env(dst, obj, fun, 0);
++}
++
+ int delegate_numof(struct page *page)
+ {
+ 	if (!page)
+@@ -1178,12 +1215,17 @@ void delegate_erase(struct page *page, int obj, int fun)
+ 	}
+ 	for (int i = 0; i < page->nr_vars; i += 3) {
+ 		if (page->values[i].i == obj && page->values[i+1].i == fun) {
++			int old_env = page->values[i+2].i;
+ 			for (int j = i+3; j < page->nr_vars; j += 3) {
+ 				page->values[j-3].i = page->values[j+0].i;
+ 				page->values[j-2].i = page->values[j+1].i;
+ 				page->values[j-1].i = page->values[j+2].i;
+ 			}
+ 			page->nr_vars -= 3;
++			if (ain->version >= 14) {
++				heap_unref(obj);
++				heap_unref(old_env);
++			}
+ 			break;
+ 		}
+ 	}
+@@ -1200,7 +1242,8 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
+ 
+ 	for (int i = 0; i < add->nr_vars; i += 3) {
+ 		if (ain->version >= 14 || heap_get_seq(add->values[i].i) == add->values[i+2].i)
+-			dst = delegate_append(dst, add->values[i].i, add->values[i+1].i);
++			dst = delegate_append_env(dst, add->values[i].i, add->values[i+1].i,
++					ain->version >= 14 ? add->values[i+2].i : 0);
+ 	}
+ 	return dst;
+ }
+@@ -1233,6 +1276,19 @@ struct page *delegate_clear(struct page *page)
+ 			page->type, page->nr_vars);
+ 		return NULL;
+ 	}
++	if (ain->version >= 14) {
++		int count = page->nr_vars;
++		union vm_value *old = count ? xmalloc(sizeof(*old) * count) : NULL;
++		if (count) memcpy(old, page->values, sizeof(*old) * count);
++		page->index = 0;
++		page->nr_vars = 0;
++		for (int i = 0; i + 2 < count; i += 3) {
++			heap_unref(old[i].i);
++			heap_unref(old[i+2].i);
++		}
++		free(old);
++		return page;
++	}
+ 	for (int i = 0; i < page->nr_vars; i += 3) {
+ 		page->values[i].i = -1;
+ 		page->values[i+1].i = -1;
+diff --git a/src/parts/input.c b/src/parts/input.c
+index f5cd257..d2bbfe3 100644
+--- a/src/parts/input.c
++++ b/src/parts/input.c
+@@ -14,6 +14,8 @@
+  * along with this program; if not, see <http://gnu.org/licenses/>.
+  */
+ 
++#include <math.h>
++
+ #include "system4.h"
+ 
+ #include "asset_manager.h"
+@@ -49,14 +51,63 @@ static struct parts *drop_target = NULL;
+ 
+ static bool parts_hittest(struct parts *parts, int state, Point pos)
+ {
+-	Rectangle hitbox = parts->states[state].common.hitbox;
++	struct parts_common *c = &parts->states[state].common;
++	Rectangle hitbox = c->hitbox;
+ 	if (parts->parent) {
+ 		hitbox.x += parts->parent->global.pos.x;
+ 		hitbox.y += parts->parent->global.pos.y;
+ 	}
+-	return SDL_PointInRect(&pos, &hitbox);
+-}
++	if (!parts->pixel_hittest || !c->texture.handle || c->texture.w <= 0
++			|| c->texture.h <= 0 || c->w <= 0 || c->h <= 0)
++		return SDL_PointInRect(&pos, &hitbox);
++
++	// Invert parts_render_cg's translation, rotation, scale and origin. Use
++	// the full image origin: surface_area clips pixels rather than scaling
++	// the complete image into the smaller hit rectangle.
++	float x = (float)pos.x - parts->global.pos.x;
++	float y = (float)pos.y - parts->global.pos.y;
++	if (parts->local.rotation.z != 0.0f) {
++		float angle = parts->local.rotation.z * (3.14159265358979323846f / 180.0f);
++		float cs = cosf(angle), sn = sinf(angle);
++		float rx = cs * x + sn * y;
++		y = -sn * x + cs * y;
++		x = rx;
++	}
++	if (!parts->global.scale.x || !parts->global.scale.y)
++		return false;
++	x = x / parts->global.scale.x - c->origin_offset.x;
++	y = y / parts->global.scale.y - c->origin_offset.y;
++	if (!isfinite(x) || !isfinite(y) || x < 0 || y < 0 || x >= c->w || y >= c->h)
++		return false;
++	int tx = (int)((double)x * c->texture.w / c->w);
++	int ty = (int)((double)y * c->texture.h / c->h);
++	if (parts->sprite_deform == 1)
++		tx = c->texture.w - 1 - tx;
++	else if (parts->sprite_deform == 2)
++		ty = c->texture.h - 1 - ty;
++	if (c->surface_area.w || c->surface_area.h) {
++		Point texel = { tx, ty };
++		if (!SDL_PointInRect(&texel, &c->surface_area))
++			return false;
++	}
+ 
++	// A CG changes only through its setter, which invalidates this mask.
++	// Other parts (gauges, animation, movies, construction) can mutate their
++	// texture in place, so sample them directly instead of caching stale alpha.
++	if (parts->states[state].type != PARTS_CG)
++		return gfx_get_pixel(&c->texture, tx, ty).a != 0;
++	if (!c->hit_mask) {
++		uint8_t *pixels = gfx_get_pixels(&c->texture);
++		if (!pixels)
++			return true;
++		size_t count = (size_t)c->texture.w * c->texture.h;
++		c->hit_mask = xmalloc(count);
++		for (size_t i = 0; i < count; i++)
++			c->hit_mask[i] = pixels[i * 4 + 3];
++		free(pixels);
++	}
++	return c->hit_mask[(size_t)ty * c->texture.w + tx] != 0;
++}
+ static void drag_state_reset(void)
+ {
+ 	drag_parts = NULL;
+@@ -257,6 +308,20 @@ void PE_UpdateInputState(int passed_time)
+ 	// (WholeMouseLClickEvent), plus the g_EndPartsBusyLoop global.
+ 	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
+ 		struct parts *click_target = NULL;
++		if (getenv("XSYS4_STAGE2_TRACE")) {
++			unsigned candidates = 0;
++			NOTICE("S2 parts press ms=%u pos=%d,%d began=%d", SDL_GetTicks(), cur_pos.x, cur_pos.y, parts_began_click);
++			PARTS_LIST_FOREACH_REVERSE(parts) {
++				if (!parts->clickable || !parts->global.show || !parts->global.alpha || candidates++ >= 32)
++					continue;
++				Rectangle box = parts->states[PARTS_STATE_DEFAULT].common.hitbox;
++				NOTICE("S2 candidate no=%d state=%d pass=%d pixel=%d hit=%d default_hit=%d box=%d,%d,%d,%d global=%d,%d scale=%.3f,%.3f parent=%d",
++					parts->no, parts->state, parts->pass_cursor, parts->pixel_hittest,
++					parts_hittest(parts, parts->state, cur_pos), parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos),
++					box.x, box.y, box.w, box.h, parts->global.pos.x, parts->global.pos.y,
++					parts->global.scale.x, parts->global.scale.y, parts->parent ? parts->parent->no : 0);
++			}
++		}
+ 		PARTS_LIST_FOREACH_REVERSE(parts) {
+ 			if (parts->no >= 1000001000)
+ 				continue;
+@@ -270,6 +335,8 @@ void PE_UpdateInputState(int passed_time)
+ 			break;
+ 		}
+ 		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
++		if (getenv("XSYS4_STAGE2_TRACE"))
++			NOTICE("S2 click target=%d", click_target ? click_target->no : 0);
+ 		if (click_target) {
+ 			if (click_target->on_click_sound >= 0)
+ 				audio_play_sound(click_target->on_click_sound);
+diff --git a/src/parts/message_window.c b/src/parts/message_window.c
+new file mode 100644
+index 0000000..fd9d648
+--- /dev/null
++++ b/src/parts/message_window.c
+@@ -0,0 +1,242 @@
++/* Copyright (C) 2026 xsystem4 contributors
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include <string.h>
++
++#include "system4.h"
++#include "system4/string.h"
++#include "parts.h"
++#include "parts_internal.h"
++
++/* A message window is a background and independent text, not two mutually
++ * exclusive DEFAULT states. The sidecar dies with its owning parts object. */
++struct parts_message_window {
++	struct string *raw_text;
++	struct string *cg_name;
++	struct parts_text text;
++	int plain_bytes;
++	Rectangle text_area;
++	int text_origin_mode;
++	bool key_wait_show;
++};
++
++static struct parts_message_window *message_window_get(struct parts *parts)
++{
++	if (!parts->message) {
++		struct parts_message_window *mw = xcalloc(1, sizeof(*mw));
++		struct parts_state initial = {0};
++		parts_state_reset(&initial, PARTS_TEXT);
++		mw->text = initial.text;
++		mw->text_origin_mode = 1;
++		parts->message = mw;
++	}
++	return parts->message;
++}
++
++void parts_message_window_free(struct parts_message_window *mw)
++{
++	if (!mw)
++		return;
++	if (mw->raw_text)
++		free_string(mw->raw_text);
++	if (mw->cg_name)
++		free_string(mw->cg_name);
++	parts_text_free(&mw->text);
++	free(mw);
++}
++
++static bool markup_tag_is(const char *tag, size_t size, const char *name)
++{
++	size_t length = strlen(name);
++	return size >= length && !memcmp(tag, name, length)
++		&& (size == length || tag[length] == ' ' || tag[length] == '\t');
++}
++
++/* The AIN composer emits time/font spans. For immediate text rendering these
++ * tags are metadata, never glyphs. Keep the original bytes separately for the
++ * next GetMessageWindowText + append + SetMessageWindowText cycle. Copy runs
++ * rather than using string_push_back, whose input is a packed SJIS character. */
++static struct string *message_window_plain_text(struct string *raw)
++{
++	struct string *plain = string_ref(&EMPTY_STRING);
++	if (!raw)
++		return plain;
++	const char *end = raw->text + raw->size;
++	const char *run = raw->text;
++	for (const char *p = run; p < end; p++) {
++		if (end - p < 3 || p[0] != '$' || p[1] != '{')
++			continue;
++		const char *close = memchr(p + 2, '}', end - (p + 2));
++		if (!close)
++			break;
++		const char *tag = p + 2;
++		size_t size = close - tag;
++		if (!markup_tag_is(tag, size, "time") && !markup_tag_is(tag, size, "/time")
++				&& !markup_tag_is(tag, size, "font") && !markup_tag_is(tag, size, "/font"))
++			continue;
++		string_append_cstr(&plain, run, p - run);
++		p = close;
++		run = close + 1;
++	}
++	string_append_cstr(&plain, run, end - run);
++	return plain;
++}
++
++static void message_window_rebuild(struct parts *parts)
++{
++	struct parts_message_window *mw = parts->message;
++	struct text_style style = mw->text.ts;
++	int line_space = mw->text.line_space;
++	parts_text_free(&mw->text);
++	memset(&mw->text, 0, sizeof(mw->text));
++	mw->text.ts = style;
++	mw->text.line_space = line_space;
++	struct string *plain = message_window_plain_text(mw->raw_text);
++	mw->plain_bytes = plain->size;
++	parts_text_append(parts, &mw->text, plain);
++	free_string(plain);
++	parts_dirty(parts);
++}
++
++void PE_SetMessageWindowText(int parts_no, struct string *text,
++		possibly_unused int msg_num, possibly_unused struct string *func_name,
++		possibly_unused int ver, possibly_unused int step)
++{
++	struct parts *parts = parts_get(parts_no);
++	struct parts_message_window *mw = message_window_get(parts);
++	struct string *copy = text ? string_dup(text) : string_ref(&EMPTY_STRING);
++	if (mw->raw_text)
++		free_string(mw->raw_text);
++	mw->raw_text = copy;
++	message_window_rebuild(parts);
++}
++
++struct string *PE_GetMessageWindowText(int parts_no)
++{
++	struct parts *parts = parts_try_get(parts_no);
++	if (!parts || !parts->message || !parts->message->raw_text)
++		return string_ref(&EMPTY_STRING);
++	return string_ref(parts->message->raw_text);
++}
++
++void PE_SetMessageWindowCGName(int parts_no, struct string *name)
++{
++	struct parts *parts = parts_get(parts_no);
++	struct parts_message_window *mw = message_window_get(parts);
++	struct string *copy = name ? string_dup(name) : string_ref(&EMPTY_STRING);
++	if (mw->cg_name)
++		free_string(mw->cg_name);
++	mw->cg_name = copy;
++	PE_SetPartsCG(parts_no, copy, 0, 1);
++	parts_dirty(parts);
++}
++
++struct string *PE_GetMessageWindowCGName(int parts_no)
++{
++	struct parts *parts = parts_try_get(parts_no);
++	if (!parts)
++		return string_ref(&EMPTY_STRING);
++	if (parts->message && parts->message->cg_name)
++		return string_ref(parts->message->cg_name);
++	// The activity loader can install a background before message APIs run.
++	const struct parts_state *state = &parts->states[PARTS_STATE_DEFAULT];
++	if (state->type == PARTS_CG && state->cg.name)
++		return string_ref(state->cg.name);
++	return string_ref(&EMPTY_STRING);
++}
++
++void PE_SetMessageWindowTextArea(int parts_no, int x, int y, int w, int h)
++{
++	struct parts *parts = parts_get(parts_no);
++	message_window_get(parts)->text_area = (Rectangle){x, y, w, h};
++	parts_dirty(parts);
++}
++
++void PE_GetMessageWindowTextArea(int parts_no, int *x, int *y, int *w, int *h)
++{
++	struct parts *parts = parts_try_get(parts_no);
++	Rectangle area = parts && parts->message ? parts->message->text_area : (Rectangle){0};
++	if (x) *x = area.x;
++	if (y) *y = area.y;
++	if (w) *w = area.w;
++	if (h) *h = area.h;
++}
++
++void PE_SetMessageWindowTextOriginPosMode(int parts_no, int mode)
++{
++	struct parts *parts = parts_get(parts_no);
++	message_window_get(parts)->text_origin_mode = mode;
++	parts_dirty(parts);
++}
++
++void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
++		int r, int g, int b, float bold_weight,
++		int edge_r, int edge_g, int edge_b, float edge_weight)
++{
++	struct parts *parts = parts_get(parts_no);
++	struct text_style *ts = &message_window_get(parts)->text.ts;
++	ts->face = type;
++	ts->size = size;
++	ts->color = (SDL_Color){r, g, b, 255};
++	ts->weight = bold_weight * 1000;
++	ts->edge_color = (SDL_Color){edge_r, edge_g, edge_b, 255};
++	text_style_set_edge_width(ts, edge_weight);
++	message_window_rebuild(parts);
++}
++
++void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space)
++{
++	struct parts *parts = parts_get(parts_no);
++	struct parts_message_window *mw = message_window_get(parts);
++	mw->text.ts.font_spacing = letter_space;
++	mw->text.line_space = line_space;
++	message_window_rebuild(parts);
++}
++
++void PE_SetKeyWaitShow(int parts_no, bool show)
++{
++	// The wait marker is independent of the window background and dialogue.
++	// Its CG/animation is not implemented here; hiding it must not hide text.
++	struct parts *parts = parts_get(parts_no);
++	message_window_get(parts)->key_wait_show = show;
++}
++
++bool PE_IsKeyWaitShow(int parts_no)
++{
++	struct parts *parts = parts_try_get(parts_no);
++	return parts && parts->message && parts->message->key_wait_show;
++}
++
++struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position)
++{
++	struct parts_message_window *mw = parts->message;
++	if (!mw || !mw->text.nr_lines)
++		return NULL;
++	Point background = parts->states[PARTS_STATE_DEFAULT].common.origin_offset;
++	*position = (Point){parts->global.pos.x + background.x + mw->text_area.x,
++		parts->global.pos.y + background.y + mw->text_area.y};
++	static unsigned trace_count;
++	if (getenv("XSYS4_STAGE2_TRACE") && mw->raw_text && mw->raw_text->size
++			&& trace_count < 12) {
++		trace_count++;
++		unsigned chars = 0;
++		for (unsigned i = 0; i < mw->text.nr_lines; i++)
++			chars += mw->text.lines[i].nr_chars;
++		struct parts_common *bg = &parts->states[PARTS_STATE_DEFAULT].common;
++		struct text_style *ts = &mw->text.ts;
++		WARNING("S2 message Render parts=%d raw=%d plain=%d lines=%u chars=%u show=%d window_show=%d alpha=%d z=%d bg=(%u,%d,%d) origin=(%d,%d) area=(%d,%d,%d,%d) mode=%d pos=(%d,%d) font=(%u,%g) color=(%u,%u,%u,%u) spacing=(%g,%d)",
++			parts->no, mw->raw_text->size, mw->plain_bytes, mw->text.nr_lines, chars,
++			parts->global.show, parts_message_window_show, parts->global.alpha,
++			parts->global.z, bg->texture.handle, bg->w, bg->h,
++			background.x, background.y, mw->text_area.x, mw->text_area.y,
++			mw->text_area.w, mw->text_area.h, mw->text_origin_mode,
++			position->x, position->y, ts->face, (double)ts->size,
++			ts->color.r, ts->color.g, ts->color.b, ts->color.a,
++			(double)ts->font_spacing, mw->text.line_space);
++	}
++	// Dohna's observed modes 0/1/7 render at the area's top edge (Rufim's
++	// message-window comparison). Keep the mode for future layout support;
++	// applying generic parts anchoring here would shift mode 7 incorrectly.
++	return &mw->text;
++}
+diff --git a/src/parts/parts.c b/src/parts/parts.c
+index 5acde5b..41dd1fc 100644
+--- a/src/parts/parts.c
++++ b/src/parts/parts.c
+@@ -172,6 +172,7 @@ bool parts_exists(int parts_no)
+ 
+ static void parts_state_free(struct parts_state *state)
+ {
++	parts_clear_hit_mask(&state->common);
+ 	switch (state->type) {
+ 	case PARTS_UNINITIALIZED:
+ 	case PARTS_RECT_DETECTION:
+@@ -662,8 +663,15 @@ void parts_set_rotation_z(struct parts *parts, float rot)
+ 	parts_dirty(parts);
+ }
+ 
++void parts_clear_hit_mask(struct parts_common *common)
++{
++	free(common->hit_mask);
++	common->hit_mask = NULL;
++}
++
+ void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h)
+ {
++	parts_clear_hit_mask(common);
+ 	common->w = w;
+ 	common->h = h;
+ 	parts_common_recalculate_hitbox(parts, common);
+@@ -991,6 +999,7 @@ void parts_release(int parts_no)
+ 	struct parts *parts = slot->value;
+ 	parts_input_reset_drag(parts);
+ 	parts_clear_motion(parts);
++	parts_message_window_free(parts->message);
+ 	for (int i = 0; i < PARTS_NR_STATES; i++) {
+ 		parts_state_free(&parts->states[i]);
+ 	}
+@@ -1978,7 +1987,7 @@ void PE_SetPartsAlphaClipperPartsNumber(int parts_no, int alpha_clipper_parts_no
+ 
+ void PE_SetPartsPixelDecide(int parts_no, bool pixel_decide)
+ {
+-	//UNIMPLEMENTED("(%d, %s)", parts_no, pixel_decide ? "true" : "false");
++	parts_get(parts_no)->pixel_hittest = pixel_decide;
+ }
+ 
+ bool PE_SetThumbnailReductionSize(int reduction_size)
+diff --git a/src/parts/parts_internal.h b/src/parts/parts_internal.h
+index b98875c..0f7921b 100644
+--- a/src/parts/parts_internal.h
++++ b/src/parts/parts_internal.h
+@@ -27,6 +27,7 @@
+ typedef struct cJSON cJSON;
+ struct string;
+ struct hash_table;
++struct parts_message_window;
+ 
+ // NOTE: actual value is +1
+ enum parts_state_type {
+@@ -124,6 +125,8 @@ enum parts_type {
+ 
+ struct parts_common {
+ 	Texture texture;
++	// Lazily read alpha for immutable CG textures; reset on replacement.
++	uint8_t *hit_mask;
+ 	int w, h;
+ 	Point origin_offset;
+ 	Rectangle hitbox;
+@@ -426,6 +429,7 @@ struct parts {
+ 	int sprite_deform;
+ 	bool clickable;
+ 	bool pass_cursor;
++	bool pixel_hittest;
+ 	bool lock_input_state;
+ 	bool want_save;
+ 	bool draggable;
+@@ -439,6 +443,7 @@ struct parts {
+ 	int hover_time;
+ 	int draw_filter;
+ 	bool message_window;
++	struct parts_message_window *message;
+ 	int alpha_clipper_parts_no;
+ 	int margin_top;
+ 	int margin_bottom;
+@@ -486,6 +491,7 @@ struct parts_layout_box *parts_get_layout_box(struct parts *parts);
+ struct parts_3dlayer *parts_get_3dlayer(struct parts *parts, int state);
+ void parts_set_pos(struct parts *parts, Point pos);
+ void parts_set_global_pos(Point pos);
++void parts_clear_hit_mask(struct parts_common *common);
+ void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h);
+ void parts_set_scale_x(struct parts *parts, float mag);
+ void parts_set_scale_y(struct parts *parts, float mag);
+@@ -497,6 +503,10 @@ void parts_release_all(void);
+ void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
+ extern bool parts_message_window_show;
+ 
++// message_window.c: the sidecar owns text/strings; the parts owns the background.
++void parts_message_window_free(struct parts_message_window *message);
++struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position);
++
+ // message queue (implemented in PartsEngine.c)
+ void parts_enqueue_message(int type, int parts_no, int delegate_index, int unique_id);
+ void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
+diff --git a/src/parts/render.c b/src/parts/render.c
+index 82866e7..82869ad 100644
+--- a/src/parts/render.c
++++ b/src/parts/render.c
+@@ -111,7 +111,7 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
+ 	gfx_run_job(&job);
+ }
+ 
+-static void parts_render_text(struct parts *parts, struct parts_text *t)
++static void parts_render_text(struct parts *parts, struct parts_text *t, Point position)
+ {
+ 	vec3 add_color = {
+ 		parts->global.add_color.r / 255.0f,
+@@ -125,8 +125,8 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
+ 	};
+ 	float blend_rate = parts->global.alpha / 255.0;
+ 
+-	int x = parts->global.pos.x + t->common.origin_offset.x;
+-	int y = parts->global.pos.y + t->common.origin_offset.y;
++	int x = position.x;
++	int y = position.y;
+ 	for (int i = 0; i < t->nr_lines; i++) {
+ 		struct parts_text_line *line = &t->lines[i];
+ 		for (int j = 0; j < line->nr_chars; j++) {
+@@ -136,7 +136,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t)
+ 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+ 			x += ch->advance;
+ 		}
+-		x = parts->global.pos.x + t->common.origin_offset.x;
++		x = position.x;
+ 		y += line->height + t->line_space;
+ 	}
+ }
+@@ -611,7 +611,9 @@ void parts_render(struct parts *parts)
+ 			parts_render_cg(parts, &state->common);
+ 		break;
+ 	case PARTS_TEXT:
+-		parts_render_text(parts, &state->text);
++		parts_render_text(parts, &state->text, (Point){
++			parts->global.pos.x + state->text.common.origin_offset.x,
++			parts->global.pos.y + state->text.common.origin_offset.y});
+ 		break;
+ 	case PARTS_FLASH:
+ 		parts_render_flash(parts, &state->flash);
+@@ -623,6 +625,12 @@ void parts_render(struct parts *parts)
+ 		parts_render_3dlayer(parts, &state->layer3d);
+ 		break;
+ 	}
++	// Message text shares the owning window's visibility, color, alpha and z.
++	// Render it after the background, including when that background is empty.
++	Point position;
++	struct parts_text *text = parts_message_window_render_text(parts, &position);
++	if (text)
++		parts_render_text(parts, text, position);
+ }
+ 
+ void parts_render_family(struct parts *parts)
+diff --git a/src/system4.c b/src/system4.c
+index c256e75..bc15707 100644
+--- a/src/system4.c
++++ b/src/system4.c
+@@ -126,6 +126,9 @@ static void read_mixer_channels(struct ini_entry *entry)
+ 	}
+ }
+ 
++static bool view_width_from_ini;
++static bool view_height_from_ini;
++
+ static bool read_config(const char *path)
+ {
+ 	int ini_size;
+@@ -146,8 +149,10 @@ static bool read_config(const char *path)
+ 			config.save_dir = strdup(ini_string(&ini[i])->text);
+ 		} else if (!strcmp(ini[i].name->text, "ViewWidth")) {
+ 			config.view_width = ini_integer(&ini[i]);
++			view_width_from_ini = true;
+ 		} else if (!strcmp(ini[i].name->text, "ViewHeight")) {
+ 			config.view_height = ini_integer(&ini[i]);
++			view_height_from_ini = true;
+ 		} else if (!strcmp(ini[i].name->text, "VolumeValancer")) {
+ 			read_mixer_channels(&ini[i]);
+ 		} else if (!strcmp(ini[i].name->text, "DefaultVolumeRate")) {
+@@ -636,6 +641,16 @@ int main(int argc, char *argv[])
+ 	if (!(ain = ain_open(ainfile, &err))) {
+ 		ERROR("%s", ain_strerror(err));
+ 	}
++	// New PartsEngine games can omit the display dimensions from AliceStart.ini.
++	// Keep explicit dimensions and the legacy 800x600 default for older APIs.
++	int parts_lib = ain_get_library(ain, "PartsEngine");
++	if (ain->version >= 14 && parts_lib >= 0
++			&& ain_get_library_function(ain, parts_lib, "SeekMessage") >= 0) {
++		if (!view_width_from_ini)
++			config.view_width = 1280;
++		if (!view_height_from_ini)
++			config.view_height = 720;
++	}
+ 
+ 	// Auto-detect GB18030 encoding: check if STR0 strings contain
+ 	// GB18030 byte patterns (lead byte 0xA1-0xDF followed by valid second byte)
+diff --git a/src/video.c b/src/video.c
+index 6f7adb0..d9c0b99 100644
+--- a/src/video.c
++++ b/src/video.c
+@@ -421,6 +421,79 @@ static void gfx_update_frame_rate_counter(void)
+ 	}
+ }
+ 
++
++/* Opt-in wall-time telemetry. A sample is recorded only after SwapWindow
++ * returns, never for an update/render call that did not present. */
++#define STAGE2_PERF_SAMPLES 4096
++static struct {
++	bool initialized, enabled;
++	uint64_t frequency, previous_present, window_start;
++	uint64_t frames, total_swap, max_interval, max_swap;
++	unsigned samples;
++	uint64_t intervals[STAGE2_PERF_SAMPLES], swaps[STAGE2_PERF_SAMPLES];
++} stage2_perf;
++
++static uint64_t gfx_stage2_perf_begin_swap(void)
++{
++	if (!stage2_perf.initialized) {
++		stage2_perf.initialized = true;
++		const char *value = getenv("XSYS4_STAGE2_PERF");
++		stage2_perf.enabled = value && *value && strcmp(value, "0");
++		if (stage2_perf.enabled) {
++			stage2_perf.frequency = SDL_GetPerformanceFrequency();
++			if (!stage2_perf.frequency)
++				stage2_perf.enabled = false;
++		}
++	}
++	return stage2_perf.enabled ? SDL_GetPerformanceCounter() : 0;
++}
++
++static int gfx_stage2_perf_compare(const void *a, const void *b)
++{
++	uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
++	return (x > y) - (x < y);
++}
++
++static void gfx_stage2_perf_presented(uint64_t swap_start, uint64_t presented)
++{
++	if (!stage2_perf.previous_present) {
++		stage2_perf.previous_present = stage2_perf.window_start = presented;
++		return;
++	}
++	uint64_t interval = presented - stage2_perf.previous_present;
++	uint64_t swap = presented - swap_start;
++	stage2_perf.previous_present = presented;
++	stage2_perf.frames++;
++	stage2_perf.total_swap += swap;
++	stage2_perf.max_interval = max(stage2_perf.max_interval, interval);
++	stage2_perf.max_swap = max(stage2_perf.max_swap, swap);
++	if (stage2_perf.samples < STAGE2_PERF_SAMPLES) {
++		stage2_perf.intervals[stage2_perf.samples] = interval;
++		stage2_perf.swaps[stage2_perf.samples++] = swap;
++	}
++	uint64_t elapsed = presented - stage2_perf.window_start;
++	if ((double)elapsed / stage2_perf.frequency < 5.0)
++		return;
++
++	qsort(stage2_perf.intervals, stage2_perf.samples, sizeof(uint64_t), gfx_stage2_perf_compare);
++	qsort(stage2_perf.swaps, stage2_perf.samples, sizeof(uint64_t), gfx_stage2_perf_compare);
++	// Nearest-rank p95; expose sample count if an unusually fast caller caps it.
++	unsigned p95 = (stage2_perf.samples * 95 + 99) / 100 - 1;
++	double ms_per_tick = 1000.0 / stage2_perf.frequency;
++	NOTICE("STAGE2_PERF t_ms=%llu window_ms=%.3f presents=%llu samples=%u avg_fps=%.3f p95_interval_ms=%.3f max_interval_ms=%.3f avg_swap_ms=%.3f p95_swap_ms=%.3f max_swap_ms=%.3f window_flags=0x%x vsync=%d",
++		(unsigned long long)SDL_GetTicks64(), elapsed * ms_per_tick,
++		(unsigned long long)stage2_perf.frames, stage2_perf.samples,
++		stage2_perf.frames * (double)stage2_perf.frequency / elapsed,
++		stage2_perf.intervals[p95] * ms_per_tick, stage2_perf.max_interval * ms_per_tick,
++		stage2_perf.total_swap * ms_per_tick / stage2_perf.frames,
++		stage2_perf.swaps[p95] * ms_per_tick, stage2_perf.max_swap * ms_per_tick,
++		SDL_GetWindowFlags(sdl.window), SDL_GL_GetSwapInterval());
++	stage2_perf.window_start = presented;
++	stage2_perf.frames = stage2_perf.total_swap = 0;
++	stage2_perf.max_interval = stage2_perf.max_swap = 0;
++	stage2_perf.samples = 0;
++}
++
+ void gfx_swap(void)
+ {
+ 	// Test facility: periodically dump the main surface when
+@@ -463,7 +536,10 @@ void gfx_swap(void)
+ 	};
+ 	gfx_render(&job);
+ 
++	uint64_t perf_swap_start = gfx_stage2_perf_begin_swap();
+ 	SDL_GL_SwapWindow(sdl.window);
++	if (stage2_perf.enabled)
++		gfx_stage2_perf_presented(perf_swap_start, SDL_GetPerformanceCounter());
+ 	glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);
+ 	glViewport(0, 0, sdl.w, sdl.h);
+ 
+diff --git a/src/vm.c b/src/vm.c
+index 7cf5e1f..b4cdec4 100644
+--- a/src/vm.c
++++ b/src/vm.c
+@@ -17,6 +17,8 @@
+ #define VM_PRIVATE
+ 
+ #include <stdlib.h>
++#include <stdarg.h>
++#include <stdio.h>
+ #include <string.h>
+ #include <time.h>
+ #include <unistd.h>
+@@ -438,6 +440,284 @@ size_t instr_ptr = 0;
+ bool vm_reset_once = false;
+ bool vm_in_alloc_phase = false;
+ 
++/* Optional, bounded call tracing for the stage-2 dialogue investigation. */
++#define STAGE2_TRACE_TARGETS 32
++static bool stage2_trace_initialized;
++static bool stage2_trace_enabled;
++static int stage2_trace_watch_fno = -1;
++static unsigned stage2_trace_watch_hits;
++static unsigned stage2_trace_after_ms;
++static int stage2_trace_from_msg = -1;
++static int stage2_trace_last_msg = -1;
++static bool stage2_trace_msg_ready = true;
++static unsigned stage2_trace_per_fno = 8;
++static int stage2_trace_fnos[STAGE2_TRACE_TARGETS] = {
++	9196, 9197, 27031, 27033, 27034, 36081, 36084, 36085,
++	36086, 27001, 27005, 27038, 27253, 27257, 27258
++};
++static unsigned stage2_trace_nr_fnos = 15;
++static unsigned stage2_trace_hits[STAGE2_TRACE_TARGETS];
++static int stage2_trace_busy_global = -1;
++static int stage2_trace_busy_number_global = -1;
++static struct {
++	bool pending;
++	bool active;
++	unsigned hit;
++	unsigned started_ms;
++} stage2_trace_frames[4096];
++
++static void stage2_trace_init(void)
++{
++	if (stage2_trace_initialized)
++		return;
++	stage2_trace_initialized = true;
++	const char *enabled = getenv("XSYS4_STAGE2_TRACE");
++	stage2_trace_enabled = enabled && *enabled && strcmp(enabled, "0");
++	if (!stage2_trace_enabled)
++		return;
++	const char *from_msg = getenv("XSYS4_STAGE2_FROM_MSG");
++	if (from_msg && *from_msg) {
++		char *end;
++		long n = strtol(from_msg, &end, 10);
++		if (end != from_msg && !*end && n >= 0 && n < ain->nr_messages) {
++			stage2_trace_from_msg = n;
++			stage2_trace_msg_ready = false;
++		}
++	}
++	const char *value = getenv("XSYS4_STAGE2_AFTER_MS");
++	const char *watch = getenv("XSYS4_STAGE2_WATCH_FNO");
++	if (watch) {
++		char *end;
++		long n = strtol(watch, &end, 10);
++		if (end != watch && !*end && n >= 0 && n < ain->nr_functions)
++			stage2_trace_watch_fno = n;
++	}
++	if (value) {
++		long n = strtol(value, NULL, 10);
++		if (n >= 0 && n <= 3600000)
++			stage2_trace_after_ms = n;
++	}
++	value = getenv("XSYS4_STAGE2_PER_FNO");
++	if (value) {
++		long n = strtol(value, NULL, 10);
++		if (n >= 1 && n <= 64)
++			stage2_trace_per_fno = n;
++	}
++	value = getenv("XSYS4_STAGE2_FNOS");
++	if (value && *value) {
++		stage2_trace_nr_fnos = 0;
++		while (*value && stage2_trace_nr_fnos < STAGE2_TRACE_TARGETS) {
++			char *end;
++			long n = strtol(value, &end, 10);
++			if (end == value || n < 0 || n >= ain->nr_functions)
++				break;
++			stage2_trace_fnos[stage2_trace_nr_fnos++] = n;
++			value = end;
++			if (*value != ',')
++				break;
++			value++;
++		}
++	}
++	for (int i = 0; i < ain->nr_globals; i++) {
++		if (!strcmp(ain->globals[i].name, "parts::detail::g_EndPartsBusyLoop"))
++			stage2_trace_busy_global = i;
++		if (!strcmp(ain->globals[i].name, "parts::detail::g_EndPartsBusyLoopNumber"))
++			stage2_trace_busy_number_global = i;
++	}
++	NOTICE("STAGE2 trace: targets=%u per_fno=%u after_ms=%u from_msg=%d (raw slots; h64 is a string prefix hash)",
++		stage2_trace_nr_fnos, stage2_trace_per_fno, stage2_trace_after_ms, stage2_trace_from_msg);
++}
++
++static void stage2_trace_on_message(int msg_idx)
++{
++	stage2_trace_last_msg = msg_idx;
++	if (!stage2_trace_msg_ready && msg_idx >= stage2_trace_from_msg) {
++		stage2_trace_msg_ready = true;
++		memset(stage2_trace_hits, 0, sizeof(stage2_trace_hits));
++		NOTICE("STAGE2 armed msg=%d ms=%u", msg_idx, SDL_GetTicks());
++	}
++}
++
++static const struct page *stage2_trace_page(int slot, enum page_type type)
++{
++	if (!heap || slot <= 0 || (size_t)slot >= heap_size || HEAP_REF(slot) <= 0
++	    || heap[slot].type != VM_PAGE || !heap[slot].page)
++		return NULL;
++	const struct page *p = heap[slot].page;
++	return p->type == type && p->nr_vars >= 0 && p->nr_vars <= 100000 ? p : NULL;
++}
++
++/* A bounded watch of a selected active local page, including premature frees. */
++void vm_stage2_trace_page_event(const char *event, int slot, int index, int value, int width)
++{
++	if (!stage2_trace_enabled || !stage2_trace_msg_ready || stage2_trace_watch_fno < 0
++	    || stage2_trace_watch_hits >= 32)
++		return;
++	for (int i = call_stack_ptr - 1; i >= 0; i--) {
++		if (call_stack[i].fno != stage2_trace_watch_fno || call_stack[i].page_slot != slot)
++			continue;
++		const struct page *p = stage2_trace_page(slot, LOCAL_PAGE);
++		int current = p && index >= 0 && index < p->nr_vars ? p->values[index].i : -999;
++		int ref = slot > 0 && (size_t)slot < heap_size ? HEAP_REF(slot) : -1;
++		NOTICE("STAGE2 watch event=%s ms=%u msg=%d target_f=%d slot=%d ref=%d page_f=%d vars=%d index=%d value=%d current=%d width=%d caller=%d caller2=%d ip=%zx",
++			event, SDL_GetTicks(), stage2_trace_last_msg, call_stack[i].fno, slot, ref,
++			p ? p->index : -1, p ? p->nr_vars : -1, index, value, current, width,
++			call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
++			call_stack_ptr > 1 ? call_stack[call_stack_ptr-2].fno : -1, instr_ptr);
++		stage2_trace_watch_hits++;
++		return;
++	}
++}
++
++static void stage2_trace_append(char *line, size_t size, const char *fmt, ...)
++{
++	size_t used = strlen(line);
++	if (used >= size - 1)
++		return;
++	va_list ap;
++	va_start(ap, fmt);
++	vsnprintf(line + used, size - used, fmt, ap);
++	va_end(ap);
++}
++
++static void stage2_trace_string(char *line, size_t size, int slot)
++{
++	if (!heap || slot <= 0 || (size_t)slot >= heap_size || HEAP_REF(slot) <= 0
++	    || heap[slot].type != VM_STRING || !heap[slot].s)
++		return;
++	const struct string *s = heap[slot].s;
++	if (s->size < 0 || s->size > 1048576)
++		return;
++	uint32_t hash = 2166136261u;
++	for (int i = 0; i < s->size && i < 64; i++)
++		hash = (hash ^ (unsigned char)s->text[i]) * 16777619u;
++	stage2_trace_append(line, size, "/len%d/h64=%08x", s->size, hash);
++}
++
++static void stage2_trace_array(char *line, size_t size, const char *label, int slot)
++{
++	const struct page *p = stage2_trace_page(slot, ARRAY_PAGE);
++	stage2_trace_append(line, size, " %s=%d", label, slot);
++	if (!p) {
++		stage2_trace_append(line, size, "/not-array");
++		return;
++	}
++	stage2_trace_append(line, size, "/seq%u/slots%d/type%d[", heap[slot].seq, p->nr_vars, p->a_type);
++	for (int i = 0; i < p->nr_vars && i < 4; i++) {
++		stage2_trace_append(line, size, "%s%d", i ? "," : "", p->values[i].i);
++		if (p->a_type == AIN_STRING)
++			stage2_trace_string(line, size, p->values[i].i);
++	}
++	stage2_trace_append(line, size, "]");
++}
++
++static bool stage2_trace_member(int slot, const char *type, const char *name, int *value)
++{
++	const struct page *p = stage2_trace_page(slot, STRUCT_PAGE);
++	if (!p || p->index < 0 || p->index >= ain->nr_structures)
++		return false;
++	const struct ain_struct *s = &ain->structures[p->index];
++	if (!s->name || strcmp(s->name, type))
++		return false;
++	for (int i = 0; i < s->nr_members && i < p->nr_vars; i++) {
++		if (s->members[i].name && !strcmp(s->members[i].name, name)) {
++			*value = p->values[i].i;
++			return true;
++		}
++	}
++	return false;
++}
++
++static void stage2_trace_locals(char *line, size_t size, const char *label, int slot)
++{
++	const struct page *p = stage2_trace_page(slot, LOCAL_PAGE);
++	stage2_trace_append(line, size, " %s=%d", label, slot);
++	if (!p || p->index < 0 || p->index >= ain->nr_functions)
++		return;
++	const struct ain_function *f = &ain->functions[p->index];
++	stage2_trace_append(line, size, "/f%d[", p->index);
++	for (int i = 0; i < p->nr_vars && i < f->nr_vars && i < 5; i++) {
++		stage2_trace_append(line, size, "%s%d", i ? "," : "", p->values[i].i);
++		if (f->vars[i].type.data == AIN_STRING)
++			stage2_trace_string(line, size, p->values[i].i);
++	}
++	stage2_trace_append(line, size, "]");
++}
++
++static void stage2_trace_emit(bool returning, int raw_sp, int raw_top, int expected_return)
++{
++	int depth = call_stack_ptr - 1;
++	struct function_call *frame = &call_stack[depth];
++	unsigned now = SDL_GetTicks();
++	char line[1536] = "";
++	stage2_trace_append(line, sizeof(line),
++		"STAGE2 %s ms=%u msg=%d f=%d hit=%u depth=%d this=%d env=%d ip=%zx caller=%d caller2=%d sp=%d base=%d",
++		returning ? "return" : "enter", now, stage2_trace_last_msg, frame->fno, stage2_trace_frames[depth].hit,
++		call_stack_ptr, frame->struct_page, frame->env_page, instr_ptr,
++		depth > 0 ? call_stack[depth-1].fno : -1,
++		depth > 1 ? call_stack[depth-2].fno : -1, stack_ptr, frame->base_sp);
++	if (returning) {
++		stage2_trace_append(line, sizeof(line), " elapsed=%u raw_sp=%d raw_top=%d ret_slots=%d ret_top=%d",
++			now - stage2_trace_frames[depth].started_ms, raw_sp, raw_top,
++			expected_return, expected_return > 0 && stack_ptr > 0 ? stack[stack_ptr-1].i : 0);
++		if (expected_return > 0 && stack_ptr > 0
++		    && ain->functions[frame->fno].return_type.data == AIN_STRING)
++			stage2_trace_string(line, sizeof(line), stack[stack_ptr-1].i);
++	}
++	stage2_trace_locals(line, sizeof(line), "locals", frame->page_slot);
++	stage2_trace_locals(line, sizeof(line), "envlocals", frame->env_page);
++	const struct page *g = stage2_trace_page(global_page_slot, GLOBAL_PAGE);
++	if (g && stage2_trace_busy_global >= 0 && stage2_trace_busy_global < g->nr_vars)
++		stage2_trace_append(line, sizeof(line), " busy=%d", g->values[stage2_trace_busy_global].i);
++	if (g && stage2_trace_busy_number_global >= 0 && stage2_trace_busy_number_global < g->nr_vars)
++		stage2_trace_append(line, sizeof(line), " busy_number=%d", g->values[stage2_trace_busy_number_global].i);
++	int value, timer;
++	if (stage2_trace_member(frame->struct_page, "Motion::ExecuterCollection", "m_motions", &value))
++		stage2_trace_array(line, sizeof(line), "motions", value);
++	if (stage2_trace_member(frame->struct_page, "Motion::ExecuterCollection", "m_joinSectionNames", &value))
++		stage2_trace_array(line, sizeof(line), "join_names", value);
++	if (stage2_trace_member(frame->struct_page, "Motion::Executer", "m_isFinish", &value))
++		stage2_trace_append(line, sizeof(line), " motion_finish=%d", value);
++	if (stage2_trace_member(frame->struct_page, "Motion::Executer", "m_motion", &value))
++		stage2_trace_append(line, sizeof(line), " motion_ref=%d", value);
++	if (stage2_trace_member(frame->struct_page, "ExecuterTask", "m_span", &value))
++		stage2_trace_append(line, sizeof(line), " task_span=%d", value);
++	if (stage2_trace_member(frame->struct_page, "ExecuterTask", "m_end", &value))
++		stage2_trace_append(line, sizeof(line), " task_end=%d", value);
++	if (stage2_trace_member(frame->struct_page, "ExecuterTask", "m_timer", &timer)) {
++		stage2_trace_append(line, sizeof(line), " task_timer=%d", timer);
++		if (stage2_trace_member(timer, "RCASTimer", "m_time", &value))
++			stage2_trace_append(line, sizeof(line), " task_timer_time=%d", value);
++	}
++	if (stage2_trace_member(frame->struct_page, "RCASTimer", "m_time", &value))
++		stage2_trace_append(line, sizeof(line), " timer_time=%d", value);
++	NOTICE("%s", line);
++}
++
++static void stage2_trace_prepare(void)
++{
++	stage2_trace_init();
++	if (!stage2_trace_enabled)
++		return;
++	int depth = call_stack_ptr - 1;
++	stage2_trace_frames[depth].pending = false;
++	stage2_trace_frames[depth].active = false;
++	if (!stage2_trace_msg_ready)
++		return;
++	for (unsigned i = 0; i < stage2_trace_nr_fnos; i++) {
++		if (stage2_trace_fnos[i] != call_stack[depth].fno
++		    || stage2_trace_hits[i] >= stage2_trace_per_fno)
++			continue;
++		unsigned now = SDL_GetTicks();
++		if (now < stage2_trace_after_ms)
++			return;
++		stage2_trace_frames[depth].pending = true;
++		stage2_trace_frames[depth].hit = ++stage2_trace_hits[i];
++		stage2_trace_frames[depth].started_ms = now;
++		return;
++	}
++}
++
+ // Read the opcode at ADDR.
+ static int16_t get_opcode(size_t addr)
+ {
+@@ -750,9 +1030,16 @@ static void set_struct_page(int slot)
+ 
+ static void unref_call_frame(struct function_call *frame)
+ {
+-	if (frame->struct_page > 0 && keep_alive_enabled())
+-		heap_unref(frame->struct_page);
+-	heap_unref(frame->page_slot);
++	// Destructors may reenter the VM and overwrite a call-stack slot.
++	struct function_call owned = *frame;
++	frame->delegate_obj_ref = frame->delegate_env_ref = 0;
++	if (owned.delegate_obj_ref > 0)
++		heap_unref(owned.delegate_obj_ref);
++	if (owned.delegate_env_ref > 0)
++		heap_unref(owned.delegate_env_ref);
++	if (owned.struct_page > 0 && keep_alive_enabled())
++		heap_unref(owned.struct_page);
++	heap_unref(owned.page_slot);
+ }
+ 
+ static void scenario_jump(int address)
+@@ -888,6 +1175,7 @@ static int _function_call(int fno, int return_address)
+ 		.struct_page = -1,
+ 		.base_sp = stack_ptr,  // default; callers may override after args
+ 	};
++	stage2_trace_prepare();
+ 	if (return_address == VM_RETURN && call_stack_ptr > 1)
+ 		vm_call_depth++;
+ 	// initialize local variables
+@@ -1269,6 +1557,28 @@ static void method_call(int fno, int return_address)
+ 
+ static void vm_execute(void);
+ 
++static union vm_value delegate_copy_argument(union vm_value value, enum ain_data_type type)
++{
++	// Delegate arguments remain on the caller's stack. A v14 callee local
++	// page owns its reference parameters, which variable_fini releases on
++	// return. Retain the referenced page, preserving the [page, index] alias.
++	if (ain->version >= 14) {
++		switch (type) {
++		case AIN_REF_TYPE:
++		case AIN_WRAP:
++			// A wrapped delegate is also a borrowed heap value here. The
++			// callback's local page releases it on return, so it needs its
++			// own reference while the caller/optional field still owns it.
++			if (value.i > 0 && heap_index_valid(value.i))
++				heap_ref(value.i);
++			break;
++		default:
++			break;
++		}
++	}
++	return value;
++}
++
+ static void delegate_call(int dg_no, int return_address)
+ {
+ 	if (dg_no < 0 || dg_no >= ain->nr_delegates)
+@@ -1314,7 +1624,7 @@ static void delegate_call(int dg_no, int return_address)
+ 			int vi = 0; // local page variable index (may advance 2 for 2-slot args)
+ 			for (int i = 0; i < dg->nr_arguments && vi < heap[slot].page->nr_vars; i++) {
+ 				bool is2 = delegate_arg_is_2slot(&dg->variables[i].type);
+-				heap[slot].page->values[vi] = stack_peek(base - 1);
++				heap[slot].page->values[vi] = delegate_copy_argument(stack_peek(base - 1), dg->variables[i].type.data);
+ 				if (is2 && vi + 1 < heap[slot].page->nr_vars)
+ 					heap[slot].page->values[vi + 1] = stack_peek(base - 2);
+ 				base -= is2 ? 2 : 1;
+@@ -1345,6 +1655,17 @@ static void delegate_call(int dg_no, int return_address)
+ 				}
+ 			}
+ 		}
++		if (ain->version >= 14) {
++			struct function_call *frame = &call_stack[call_stack_ptr-1];
++			if (heap_index_valid(frame->struct_page)) {
++				frame->delegate_obj_ref = frame->struct_page;
++				heap_ref(frame->delegate_obj_ref);
++			}
++			if (heap_index_valid(frame->env_page)) {
++				frame->delegate_env_ref = frame->env_page;
++				heap_ref(frame->delegate_env_ref);
++			}
++		}
+ 	} else {
+ 		// Save return value(s) — may be 2 slots for v14 2-slot types
+ 		union vm_value r[2] = {{0}, {0}};
+@@ -1437,6 +1758,8 @@ void vm_call_nopop(int fno, int nargs)
+ 		case AIN_ARRAY_TYPE:
+ 		case AIN_ARRAY:
+ 		case AIN_WRAP:
++		case AIN_IFACE:
++		case AIN_IFACE_WRAP:
+ 			if (heap[slot].page->values[i].i != -1)
+ 				heap_ref(heap[slot].page->values[i].i);
+ 			break;
+@@ -1451,6 +1774,8 @@ void vm_call_nopop(int fno, int nargs)
+ 
+ static void function_return(void)
+ {
++	int trace_raw_sp = stack_ptr;
++	int trace_raw_top = stack_ptr > 0 ? stack[stack_ptr-1].i : 0;
+ 	int page_slot = call_stack[call_stack_ptr-1].page_slot;
+ 	size_t ret_addr = call_stack[call_stack_ptr-1].return_address;
+ 	int fno = call_stack[call_stack_ptr-1].fno;
+@@ -1555,6 +1880,10 @@ static void function_return(void)
+ 		stack_ptr--;  // always consume struct_page
+ 	}
+ 
++	if (unlikely(stage2_trace_enabled) && stage2_trace_frames[call_stack_ptr-1].active) {
++		stage2_trace_emit(true, trace_raw_sp, trace_raw_top, expected_return);
++		stage2_trace_frames[call_stack_ptr-1].active = false;
++	}
+ 	// Decrement call_stack_ptr BEFORE heap_unref so that LIVE_PAGE_FREE
+ 	// protection can check all active frames (including what was the top).
+ 	// The current frame's page_slot is no longer "active" after return.
+@@ -1562,11 +1891,9 @@ static void function_return(void)
+ 		vm_call_depth--;
+ 	// Release the keep-alive ref on `this` taken by set_struct_page
+ 	// (upstream 9ed1f52), then the local page, after the frame is popped.
+-	int struct_page = call_stack[call_stack_ptr-1].struct_page;
++	struct function_call finished_frame = call_stack[call_stack_ptr-1];
+ 	call_stack_ptr--;
+-	if (struct_page > 0 && keep_alive_enabled())
+-		heap_unref(struct_page);
+-	heap_unref(page_slot);
++	unref_call_frame(&finished_frame);
+ 	instr_ptr = ret_addr;
+ }
+ 
+@@ -1906,6 +2233,12 @@ static void echo_message(int i)
+ 
+ static inline __attribute__((always_inline)) enum opcode execute_instruction(enum opcode opcode)
+ {
++	if (unlikely(stage2_trace_enabled) && call_stack_ptr > 0
++	    && stage2_trace_frames[call_stack_ptr-1].pending) {
++		stage2_trace_frames[call_stack_ptr-1].pending = false;
++		stage2_trace_frames[call_stack_ptr-1].active = true;
++		stage2_trace_emit(false, 0, 0, 0);
++	}
+ 	switch (opcode) {
+ 	//
+ 	// --- Stack Management ---
+@@ -2592,6 +2925,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 	}
+ 	case _MSG: {
+ 		int msg_idx = get_argument(0);
++		if (unlikely(stage2_trace_enabled))
++			stage2_trace_on_message(msg_idx);
+ 		if (config.echo)
+ 			echo_message(msg_idx);
+ 		if (ain->msgf <= 0) {
+@@ -2664,6 +2999,24 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 		int file = stack_pop().i; // filename
+ 		int expr = stack_pop().i; // expression
+ 		if (!stack_pop().i) {
++			if (getenv("XSYS4_STRING_AUDIT")) {
++				fprintf(stderr, "ASSERT_AUDIT ip=%zx\n", instr_ptr);
++				vm_stack_trace();
++				for (int d = call_stack_ptr - 1; d >= 0 && d >= call_stack_ptr - 4; d--) {
++					struct page *lp = heap[call_stack[d].page_slot].page;
++					for (int j = 0; lp && j < lp->nr_vars && j < 24; j++) {
++						int v = lp->values[j].i;
++						fprintf(stderr, "ASSERT_LOCAL f=%d i=%d val=%d", call_stack[d].fno, j, v);
++						if (heap_index_valid(v)) {
++							fprintf(stderr, " type=%d ref=%d seq=%u", heap[v].type, HEAP_REF(v), heap[v].seq);
++							if (heap[v].type == VM_STRING && heap[v].s) fprintf(stderr, " strlen=%d text=%.80s", heap[v].s->size, heap[v].s->text);
++						}
++						fputc('\n', stderr);
++					}
++				}
++				fflush(stderr);
++				exit(88);
++			}
+ 			static int assert_count = 0;
+ 			struct string *file_s = heap_get_string(file);
+ 			struct string *expr_s = heap_get_string(expr);
+@@ -3115,6 +3468,24 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 	}
+ 	case S_PLUSA:
+ 	case S_PLUSA2: {
++		// Newer AIN instructions leave an lvalue as [page, variable], as
++		// with S_ASSIGN. The legacy form has only the string heap slot.
++		// Both opcodes return an owned string value for the caller's DELETE.
++		if (instructions[CALLMETHOD].args[0] == T_INT) {
++			int rhs = stack_pop().i;
++			union vm_value *ref = stack_pop_var();
++			int lhs = ref->i;
++			struct string *result = &EMPTY_STRING;
++			if (string_index_valid(lhs) && heap[lhs].s) {
++				string_append(&heap[lhs].s, heap_get_string(rhs));
++				result = heap[lhs].s;
++			}
++			// Retain the result before consuming the RHS, including aliases.
++			result = string_ref(result);
++			heap_unref(rhs);
++			stack_push_string(result);
++			break;
++		}
+ 		int a = stack_peek(1).i;
+ 		int b = stack_peek(0).i;
+ 		struct string *sb = heap_get_string(b);
+@@ -4129,13 +4500,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 		int env = 0;
+ 		if (ain->version >= 14) {
+ 			env = local_page_slot();
+-			heap_ref(env);
+-			if (obj > 0)
+-				heap_ref(obj);
+ 		}
+ 		if (obj == -1 && ain->version >= 14) {
+ 			obj = local_page_slot();
+-			heap_ref(obj);
+ 		}
+ 		int slot = heap_alloc_page(delegate_new_from_method_env(obj, fun, env));
+ 		stack_push(slot);
+@@ -4339,6 +4706,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 		// Peek at stack to get page info for ref counting before pop_var consumes it
+ 		int32_t xa_page_index = stack_peek(0).i;
+ 		int32_t xa_heap_index = stack_peek(1).i;
++		if (unlikely(stage2_trace_enabled) && stage2_trace_watch_fno >= 0)
++			vm_stage2_trace_page_event("assign-before", xa_heap_index, xa_page_index, vals[0].i, n);
+ 		union vm_value *var = stack_pop_var();
+ 		if (var && var != dummy_var) {
+ 			// Get page for type-aware ref counting (v14 fix)
+@@ -4356,8 +4725,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 				WARNING("X_ASSIGN %d past end of page (page_index=%d nr_vars=%d); clamping to %d",
+ 				        n, xa_page_index, xa_page->nr_vars, writable);
+ 			}
++			// In v14 the compiler emits DELETE for the previous owner and
++			// SP_INC/A_REF for shared values. X_ASSIGN transfers that prepared
++			// ownership; adding another ref leaks, and dropping the old value
++			// here repeats the bytecode's DELETE (possibly after slot reuse).
+ 			for (int i = 0; i < writable; i++) {
+-				if (xa_page) {
++				if (ain->version < 14 && xa_page) {
+ 					enum ain_data_type vtype = variable_type(xa_page, xa_page_index + i, NULL, NULL);
+ 					switch (vtype) {
+ 					case AIN_STRING:
+@@ -4387,6 +4760,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 				var[i] = vals[i];
+ 			}
+ 		}
++		if (unlikely(stage2_trace_enabled) && stage2_trace_watch_fno >= 0)
++			vm_stage2_trace_page_event("assign-after", xa_heap_index, xa_page_index, vals[0].i, n);
+ 		for (int i = 0; i < n; i++) {
+ 			stack_push(vals[i]);
+ 		}
+@@ -4562,6 +4937,26 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 		} else if (heap_index_valid(heap_idx) && heap[heap_idx].page) {
+ 			data_type = variable_type(heap[heap_idx].page, var_idx, &struct_type, NULL);
+ 		}
++		// AIN v14 preserves the element declaration in array_type. Keep it
++		// for single-slot arrays; multi-slot interface/wrap arrays stay generic.
++		const struct ain_type *decl = NULL;
++		if (heap_idx == 0 && var_idx >= 0 && var_idx < ain->nr_globals)
++			decl = &ain->globals[var_idx].type;
++		else if (heap_index_valid(heap_idx) && heap[heap_idx].page)
++			decl = variable_decltype(heap[heap_idx].page, var_idx);
++		if (arg == 0 && decl && decl->array_type &&
++		    (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)) {
++			const struct ain_type *elem = decl->array_type;
++			switch (elem->data) {
++			case AIN_INT: case AIN_BOOL: case AIN_ENUM:
++				data_type = AIN_ARRAY_INT; break;
++			case AIN_FLOAT: data_type = AIN_ARRAY_FLOAT; break;
++			case AIN_STRING: data_type = AIN_ARRAY_STRING; break;
++			case AIN_STRUCT:
++				data_type = AIN_ARRAY_STRUCT; struct_type = elem->struc; break;
++			default: break;
++			}
++		}
+ 		// arg encodes element slot count: 0 = 1-slot, 1 = 2-slot, etc.
+ 		// For generic arrays (AIN_ARRAY), multiply physical size by (arg+1)
+ 		// to accommodate multi-slot element types (e.g. wrap, interface).
+@@ -4590,7 +4985,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 			// size=0: create an empty array page to preserve type metadata
+ 			// (struct_type, data_type) for later EmplaceBack calls.
+ 			struct page *page = alloc_page(ARRAY_PAGE,
+-				(data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) ? data_type : AIN_ARRAY_INT, 0);
++				data_type, 0);
++			page->array.rank = 1;
+ 			// For generic arrays, store elem_slots (not the struct index)
+ 			// so X_A_SIZE can correctly compute logical size.
+ 			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)
+@@ -4599,13 +4995,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
+ 				page->array.struct_type = struct_type;
+ 			heap_set_page(slot, page);
+ 		}
+-		// Assign to variable with proper ref counting
++		// Install the fresh array; v14 bytecode already DELETEd the old owner.
+ 		if (heap_index_valid(heap_idx) && heap[heap_idx].page &&
+ 		    var_idx >= 0 && var_idx < heap[heap_idx].page->nr_vars) {
+ 			int old_slot = heap[heap_idx].page->values[var_idx].i;
+ 			heap[heap_idx].page->values[var_idx].i = slot;
+-			heap_ref(slot);
+-			if (old_slot > 0 && heap_index_valid(old_slot))
++			// The fresh slot ownership transfers to the variable.
++			// X_A_INIT leaves a borrowed result consumed by POP.
++			if (ain->version < 14 && old_slot > 0 && heap_index_valid(old_slot))
+ 				heap_unref(old_slot);
+ 		}
+ 		stack_push(slot);
+@@ -4777,10 +5174,14 @@ static void vm_execute(void)
+ 					int target_sp = call_stack[vm_ret_frame].base_sp;
+ 					while (call_stack_ptr > vm_ret_frame) {
+ 						int ps = call_stack[call_stack_ptr-1].page_slot;
++						int dg_obj = call_stack[call_stack_ptr-1].delegate_obj_ref;
++						int dg_env = call_stack[call_stack_ptr-1].delegate_env_ref;
+ 						if (call_stack[call_stack_ptr-1].return_address == VM_RETURN
+ 								&& call_stack_ptr > 1)
+ 							vm_call_depth--;
+ 						call_stack_ptr--;
++						if (dg_obj > 0) exit_unref(dg_obj);
++						if (dg_env > 0) exit_unref(dg_env);
+ 						exit_unref(ps);
+ 					}
+ 					stack_ptr = target_sp;
+@@ -4822,7 +5223,11 @@ static void vm_free(void)
+ 	exit_libraries();
+ 	// flush call stack
+ 	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+-		if (call_stack[i].struct_page >= 0 && AIN_VERSION_GTE(ain, 6, 1))
++		if (call_stack[i].delegate_obj_ref > 0)
++			exit_unref(call_stack[i].delegate_obj_ref);
++		if (call_stack[i].delegate_env_ref > 0)
++			exit_unref(call_stack[i].delegate_env_ref);
++		if (call_stack[i].struct_page >= 0 && keep_alive_enabled())
+ 			exit_unref(call_stack[i].struct_page);
+ 		exit_unref(call_stack[i].page_slot);
+ 	}
+diff --git a/subprojects/libsys4 b/subprojects/libsys4
+--- a/subprojects/libsys4
++++ b/subprojects/libsys4
+@@ -1 +1 @@
+-Subproject commit 8c939465910499b4802ec6dd619794ca58ba4708
++Subproject commit 8c939465910499b4802ec6dd619794ca58ba4708-dirty

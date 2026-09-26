@@ -1,0 +1,21 @@
+16: RV SNAPSHOT manager baseline stack=0 calls=0
+31: RV after f=440 ip=0x1c1bc op=90 slot=18 seq=19 ref=0->2 page_type=2 index=8 nvars=4
+33: RV after f=440 ip=0x1c1ec op=269 slot=18 seq=19 ref=2->3 page_type=2 index=8 nvars=4
+36: RV after f=440 ip=0x1c212 op=119 slot=18 seq=19 ref=3->2 page_type=2 index=8 nvars=4
+37: RV after f=440 ip=0x1c21a op=269 slot=18 seq=19 ref=2->1 page_type=2 index=8 nvars=4
+53: RV after f=442 ip=0x1c392 op=124 slot=18 seq=19 ref=1->2 page_type=2 index=8 nvars=4
+55: RV after f=424 ip=0x1b732 op=269 slot=18 seq=19 ref=2->3 page_type=2 index=8 nvars=4
+64: RV after f=424 ip=0x1b764 op=47 slot=18 seq=19 ref=3->2 page_type=2 index=8 nvars=4
+74: RV after f=442 ip=0x1c392 op=124 slot=18 seq=19 ref=2->3 page_type=2 index=8 nvars=4
+76: RV after f=424 ip=0x1b732 op=269 slot=18 seq=19 ref=3->4 page_type=2 index=8 nvars=4
+85: RV after f=424 ip=0x1b764 op=47 slot=18 seq=19 ref=4->3 page_type=2 index=8 nvars=4
+146: RV after f=442 ip=0x1c392 op=124 slot=18 seq=19 ref=3->4 page_type=2 index=8 nvars=4
+148: RV after f=423 ip=0x1b6aa op=269 slot=18 seq=19 ref=4->5 page_type=2 index=8 nvars=4
+151: RV after f=423 ip=0x1b6d0 op=119 slot=18 seq=19 ref=5->4 page_type=2 index=8 nvars=4
+152: RV after f=423 ip=0x1b6d8 op=269 slot=18 seq=19 ref=4->3 page_type=2 index=8 nvars=4
+162: RV after f=442 ip=0x1c392 op=124 slot=18 seq=19 ref=3->4 page_type=2 index=8 nvars=4
+164: RV after f=424 ip=0x1b732 op=269 slot=18 seq=19 ref=4->5 page_type=2 index=8 nvars=4
+173: RV after f=424 ip=0x1b764 op=47 slot=18 seq=19 ref=5->4 page_type=2 index=8 nvars=4
+216: RV after f=439 ip=0x1c104 op=90 slot=18 seq=19 ref=4->3 page_type=2 index=8 nvars=4
+219: RV SNAPSHOT timer residual stack=0 calls=0
+225:   slot=18 seq=19 ref=3 heaptype=0 page_type=2 index=8 nvars=4 struct=0 rank=0 values=1015,0,5,5

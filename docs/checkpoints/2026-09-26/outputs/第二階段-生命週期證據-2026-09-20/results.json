@@ -1,0 +1,97 @@
+{
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "cases": [
+    {
+      "variant": "optimized",
+      "case": "metadata",
+      "command": [
+        "<WORKSPACE>/work/lifetime-stage2-20260920/runtime-probe-optimized",
+        "<WORKSPACE>/work/stage2/game/dohnadohna.ain",
+        "metadata"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "reproduced_expected_result": true,
+      "lifecycle_passed": true,
+      "metadata_type_passed": true,
+      "sanitizer_error": false
+    },
+    {
+      "variant": "optimized",
+      "case": "observer",
+      "command": [
+        "<WORKSPACE>/work/lifetime-stage2-20260920/runtime-probe-optimized",
+        "<WORKSPACE>/work/stage2/game/dohnadohna.ain",
+        "observer"
+      ],
+      "exit": 78,
+      "expected_exit": 78,
+      "reproduced_expected_result": true,
+      "lifecycle_passed": false,
+      "metadata_type_passed": false,
+      "sanitizer_error": false
+    },
+    {
+      "variant": "optimized",
+      "case": "timer",
+      "command": [
+        "<WORKSPACE>/work/lifetime-stage2-20260920/runtime-probe-optimized",
+        "<WORKSPACE>/work/stage2/game/dohnadohna.ain",
+        "timer"
+      ],
+      "exit": 77,
+      "expected_exit": 77,
+      "reproduced_expected_result": true,
+      "lifecycle_passed": false,
+      "metadata_type_passed": false,
+      "sanitizer_error": false
+    },
+    {
+      "variant": "asan",
+      "case": "metadata",
+      "command": [
+        "<WORKSPACE>/work/lifetime-stage2-20260920/runtime-probe-asan",
+        "<WORKSPACE>/work/stage2/game/dohnadohna.ain",
+        "metadata"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "reproduced_expected_result": true,
+      "lifecycle_passed": true,
+      "metadata_type_passed": true,
+      "sanitizer_error": false
+    },
+    {
+      "variant": "asan",
+      "case": "observer",
+      "command": [
+        "<WORKSPACE>/work/lifetime-stage2-20260920/runtime-probe-asan",
+        "<WORKSPACE>/work/stage2/game/dohnadohna.ain",
+        "observer"
+      ],
+      "exit": 78,
+      "expected_exit": 78,
+      "reproduced_expected_result": true,
+      "lifecycle_passed": false,
+      "metadata_type_passed": false,
+      "sanitizer_error": false
+    },
+    {
+      "variant": "asan",
+      "case": "timer",
+      "command": [
+        "<WORKSPACE>/work/lifetime-stage2-20260920/runtime-probe-asan",
+        "<WORKSPACE>/work/stage2/game/dohnadohna.ain",
+        "timer"
+      ],
+      "exit": 77,
+      "expected_exit": 77,
+      "reproduced_expected_result": true,
+      "lifecycle_passed": false,
+      "metadata_type_passed": false,
+      "sanitizer_error": false
+    }
+  ],
+  "stage2_fully_passed": false,
+  "scope": "Original observer Execute and Join callback bytecode; seeded Join capture, not complete Join entry. Production VM/heap/page/FFI. Timer native substitution disabled in harness only. No GUI/game entry, module startup, save/load, or playable/FPS claim. LeakSanitizer disabled; live VM slots measured explicitly."
+}

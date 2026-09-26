@@ -1,0 +1,13 @@
+--- a/src/vm.c
++++ b/src/vm.c
+@@ -1565,6 +1565,10 @@
+ 	if (ain->version >= 14) {
+ 		switch (type) {
+ 		case AIN_REF_TYPE:
++		case AIN_WRAP:
++			// A wrapped delegate is also a borrowed heap value here. The
++			// callback's local page releases it on return, so it needs its
++			// own reference while the caller/optional field still owns it.
+ 			if (value.i > 0 && heap_index_valid(value.i))
+ 				heap_ref(value.i);
+ 			break;

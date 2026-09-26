@@ -1,0 +1,147 @@
+{
+  "run": "work/gui-stage3-20260924/runs/retry-asan-20260926",
+  "exit_code": 0,
+  "elapsed_seconds": 33.587,
+  "stop_reason": "error_log",
+  "stopped_by_runner": true,
+  "child_exit_peak_rss_bytes": 1110196224,
+  "perf": {
+    "reported_windows": 6,
+    "reported_duration_ms": 30006.343999999997,
+    "reported_presents": 11033,
+    "weighted_present_fps": 367.6889127179239,
+    "max_interval_ms": 1296.697,
+    "max_swap_ms": 8.543,
+    "weighted_mean_swap_ms": 0.5404078673071694,
+    "per_window_p95_interval_ms_range": [
+      4.412,
+      15.776
+    ],
+    "sample_capped_windows": 0,
+    "last_reported_sdl_ticks_ms": 31109,
+    "windows_with_at_least_one_interval_over_ms": {
+      "33.333": 1,
+      "50": 1,
+      "100": 1,
+      "1000": 1
+    },
+    "end_of_window_state_counts": {
+      "shown": 6,
+      "minimized": 0,
+      "input_focus": 6,
+      "vsync_values": [
+        0
+      ]
+    }
+  },
+  "rss": null,
+  "message_count": 0,
+  "messages": [],
+  "trace_calls": {},
+  "traced_entries_without_return_at_log_end": [],
+  "diagnostic_log_line_counts": {
+    "double_free_log_lines": 4650
+  },
+  "windows": [
+    {
+      "t_ms": 6106,
+      "window_ms": 5002.908,
+      "presents": 1922,
+      "samples": 1922,
+      "avg_fps": 384.177,
+      "p95_interval_ms": 12.855,
+      "max_interval_ms": 17.745,
+      "avg_swap_ms": 0.526,
+      "p95_swap_ms": 3.399,
+      "max_swap_ms": 5.397,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 14
+    },
+    {
+      "t_ms": 11106,
+      "window_ms": 5000.754,
+      "presents": 659,
+      "samples": 659,
+      "avg_fps": 131.78,
+      "p95_interval_ms": 15.776,
+      "max_interval_ms": 22.348,
+      "avg_swap_ms": 0.885,
+      "p95_swap_ms": 3.648,
+      "max_swap_ms": 8.543,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 27
+    },
+    {
+      "t_ms": 16107,
+      "window_ms": 5000.691,
+      "presents": 1990,
+      "samples": 1990,
+      "avg_fps": 397.945,
+      "p95_interval_ms": 4.412,
+      "max_interval_ms": 1296.697,
+      "avg_swap_ms": 0.463,
+      "p95_swap_ms": 2.462,
+      "max_swap_ms": 5.712,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 50
+    },
+    {
+      "t_ms": 21108,
+      "window_ms": 5001.249,
+      "presents": 2185,
+      "samples": 2185,
+      "avg_fps": 436.891,
+      "p95_interval_ms": 5.366,
+      "max_interval_ms": 13.264,
+      "avg_swap_ms": 0.516,
+      "p95_swap_ms": 2.922,
+      "max_swap_ms": 6.921,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 1536
+    },
+    {
+      "t_ms": 26109,
+      "window_ms": 5000.333,
+      "presents": 2055,
+      "samples": 2055,
+      "avg_fps": 410.973,
+      "p95_interval_ms": 5.815,
+      "max_interval_ms": 9.164,
+      "avg_swap_ms": 0.535,
+      "p95_swap_ms": 3.072,
+      "max_swap_ms": 7.107,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 3027
+    },
+    {
+      "t_ms": 31109,
+      "window_ms": 5000.409,
+      "presents": 2222,
+      "samples": 2222,
+      "avg_fps": 444.364,
+      "p95_interval_ms": 5.492,
+      "max_interval_ms": 8.356,
+      "avg_swap_ms": 0.549,
+      "p95_swap_ms": 3.114,
+      "max_swap_ms": 5.993,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 4660
+    }
+  ],
+  "limits": [
+    "Present rate can include identical visual content; progress is separate.",
+    "No whole-run p95 or exact long-frame count can be reconstructed from window summaries.",
+    "Initial interval and unfinished final window/stall are unreported; a missing log report is not zero FPS.",
+    "Window flags describe report-time state, not every frame in the window.",
+    "Trace elapsed is inclusive wall time with nested work, waits, and logging; bounded first hits are not an unbiased profile.",
+    "An unmatched trace entry may be in flight, terminated, or otherwise unwound; it is not proof of a permanent hang.",
+    "RSS is process resident memory, not live AIN heap or proof of a leak; its sampled peak can miss brief peaks.",
+    "Diagnostic counts are emitted lines, not exact API error counts; source suppresses repeated warnings."
+  ]
+}

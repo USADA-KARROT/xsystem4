@@ -1,0 +1,33 @@
+{
+  "started_at": "2026-09-26T09:20:32.518206+08:00",
+  "command": [
+    "<WORKSPACE>/work/gui-stage3-20260924/apps/Xsystem4-stage3-asan.app/Contents/MacOS/xsystem4",
+    "--echo-message",
+    "--save-folder",
+    "<WORKSPACE>/work/gui-stage3-20260924/runs/stage4-id-trace/saves",
+    "<WORKSPACE>/work/stage2/game"
+  ],
+  "binary_sha256": "5e15c845603843297d237c73953b21babdcd17b7c4380d41aa3e16efee8b7289",
+  "source_diff_sha256": "93fbb56d947ef004a436f99cd2f5dc0c8308b92a50a0d4f632f24d8a7d03e472",
+  "libsys4_diff_sha256": "481e712107e15a7ec4167536aff47dd367ae2bc42444e240d714876bd4f2254a",
+  "source_head": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+  "environment": {
+    "XSYSTEM4_HOME": "<WORKSPACE>/work/gui-stage3-20260924/runs/stage4-id-trace/home",
+    "XSYS4_STAGE2_PERF": "1",
+    "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+    "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1",
+    "XSYS4_STRING_AUDIT": "1"
+  },
+  "duration_limit_seconds": 90,
+  "frame_capture": false,
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "ini_sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+  "libsys4_head": "8c939465910499b4802ec6dd619794ca58ba4708",
+  "pid": 13713,
+  "exit_code": 88,
+  "elapsed_seconds": 27.329,
+  "peak_rss_bytes": 1432387584,
+  "child_user_seconds": 14.836682,
+  "child_system_seconds": 1.70723,
+  "finished_at": "2026-09-26T09:20:59.870586+08:00"
+}

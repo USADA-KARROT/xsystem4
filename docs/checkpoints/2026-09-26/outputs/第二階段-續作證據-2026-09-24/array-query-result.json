@@ -1,0 +1,1774 @@
+{
+  "scope": "Actual AIN declarations + extracted production query code + libffi; controlled callback stub, no game or VM execution",
+  "inputs": {
+    "<WORKSPACE>/work/stage2/source/src/hll/Array.c": "dbcef6f62c44bef68e6cd3b0ba4f4624f7c4e200ca8f31602cf90a441f153ce4",
+    "<WORKSPACE>/work/bridge-regression-20260924/baseline/Array.c": "9d58815317c646ea06d2aef6415318d72f77dbd979a91af3c9011c217c966d5d",
+    "<WORKSPACE>/work/stage2/game/dohnadohna.ain": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "<USER_HOME>/Claude/projects/dohna-cn-dump/ain_code.txt": "3b4d871926dcbe33ba57e22301e81563c42a6eb1a7d6eca763e4d80147c331d9",
+    "<WORKSPACE>/work/bridge-regression-20260924/array_queries_fixture.template.c": "34eaed2e607732273d31fe2e9bc33d1a0efcf8147cc6503ec891df08c1534bbc"
+  },
+  "extracted_code_sha256": "c3bba4250a7078f32522e33c0729cf115eb8d170511e2e7ed0260a6d8bf087cb",
+  "fixture_sha256": "6d7887a7525a24b0799642c720579661507500a3f39975041bd69eccca70c375",
+  "callback_site_unresolved_lines": [],
+  "runs": {
+    "normal": {
+      "compile_command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-O0",
+        "-g",
+        "-isysroot",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-I<WORKSPACE>/work/stage2/source/include",
+        "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+        "-I/opt/homebrew/opt/libffi/include",
+        "<WORKSPACE>/work/bridge-regression-20260924/array_queries_fixture.c",
+        "<WORKSPACE>/work/stage2/normal-build/subprojects/libsys4/libsys4.a",
+        "-L/opt/homebrew/opt/libffi/lib",
+        "-lffi",
+        "-lz",
+        "-lm",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "<WORKSPACE>/work/bridge-regression-20260924/array_queries_normal"
+      ],
+      "compile_returncode": 0,
+      "compile_diagnostics": "",
+      "returncode": 0,
+      "binary_sha256": "d2bf23e8b61ca210f0ddf51b8178538c63afb0157eaa6c5065be6e982f68302b",
+      "stderr": "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'\n",
+      "evidence": {
+        "status": "pass",
+        "checks": 928,
+        "expected_errors_caught": 12,
+        "overload_indices": [
+          20,
+          21,
+          22,
+          23,
+          42,
+          44,
+          46,
+          48
+        ],
+        "baseline": {
+          "false_Numof": 4,
+          "false_Count": 4,
+          "range_Find": -1,
+          "expected": [
+            0,
+            0,
+            2
+          ]
+        },
+        "callback_scope": "controlled stub; real VM retention and nested FFI not executed; ref primitive owner-index shape is synthetic",
+        "callback_sites": [
+          {
+            "dump_line": 25650,
+            "fno": 22332,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 26025,
+            "fno": 22334,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 63764,
+            "fno": 22391,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 64181,
+            "fno": 22395,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 73884,
+            "fno": 22416,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 73920,
+            "fno": 22417,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 75895,
+            "fno": 22420,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 75931,
+            "fno": 22421,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 104017,
+            "fno": 22445,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 112823,
+            "fno": 22456,
+            "metadata": 1,
+            "overload": 46,
+            "argument_types": [
+              10
+            ]
+          },
+          {
+            "dump_line": 125608,
+            "fno": 22468,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 125644,
+            "fno": 22469,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 125751,
+            "fno": 22470,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 131763,
+            "fno": 22473,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 132599,
+            "fno": 22474,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 201625,
+            "fno": 23361,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              82,
+              0
+            ]
+          },
+          {
+            "dump_line": 222566,
+            "fno": 23486,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 222602,
+            "fno": 23487,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 272988,
+            "fno": 23898,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 285039,
+            "fno": 23960,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 286404,
+            "fno": 23963,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 287201,
+            "fno": 23969,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 296559,
+            "fno": 23987,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              89,
+              0
+            ]
+          },
+          {
+            "dump_line": 300613,
+            "fno": 23994,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 336370,
+            "fno": 24191,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              89,
+              0
+            ]
+          },
+          {
+            "dump_line": 350110,
+            "fno": 24279,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 402371,
+            "fno": 24363,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 407104,
+            "fno": 24369,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412604,
+            "fno": 24370,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412640,
+            "fno": 24371,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412676,
+            "fno": 24372,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412705,
+            "fno": 24373,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 416343,
+            "fno": 24376,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 416990,
+            "fno": 24380,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 418835,
+            "fno": 24381,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 437768,
+            "fno": 24530,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 438103,
+            "fno": 24531,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 438509,
+            "fno": 24534,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 448768,
+            "fno": 24575,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 506981,
+            "fno": 24822,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 507033,
+            "fno": 24823,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 515587,
+            "fno": 24836,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 737357,
+            "fno": 25234,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 738623,
+            "fno": 25235,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 738656,
+            "fno": 25236,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 740112,
+            "fno": 25237,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 744247,
+            "fno": 25269,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 752126,
+            "fno": 25304,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 754235,
+            "fno": 25323,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 789026,
+            "fno": 25454,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              82,
+              0
+            ]
+          },
+          {
+            "dump_line": 981607,
+            "fno": 36002,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 983006,
+            "fno": 36011,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 984960,
+            "fno": 36020,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 985586,
+            "fno": 36021,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986320,
+            "fno": 36022,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986351,
+            "fno": 36023,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986382,
+            "fno": 36024,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986413,
+            "fno": 36025,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986444,
+            "fno": 36026,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986475,
+            "fno": 36027,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1019325,
+            "fno": 36161,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 1027341,
+            "fno": 36212,
+            "metadata": 2,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1032066,
+            "fno": 36232,
+            "metadata": 2,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1045559,
+            "fno": 36299,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1045588,
+            "fno": 36300,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1045620,
+            "fno": 36301,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1046441,
+            "fno": 36311,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1046487,
+            "fno": 36312,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1083411,
+            "fno": 36476,
+            "metadata": 2,
+            "overload": 21,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 1088882,
+            "fno": 36493,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1100806,
+            "fno": 36564,
+            "metadata": 2,
+            "overload": 23,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 1154097,
+            "fno": 36702,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1154982,
+            "fno": 36708,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1155012,
+            "fno": 36709,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1178588,
+            "fno": 36812,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1189501,
+            "fno": 36836,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1190002,
+            "fno": 36841,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1198662,
+            "fno": 36874,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1201332,
+            "fno": 36883,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1204202,
+            "fno": 36896,
+            "metadata": 2,
+            "overload": 23,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1204413,
+            "fno": 36898,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1226149,
+            "fno": 36975,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1231497,
+            "fno": 37005,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1234811,
+            "fno": 37017,
+            "metadata": 2,
+            "overload": 23,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1263176,
+            "fno": 37116,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1325853,
+            "fno": 37330,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1346366,
+            "fno": 37434,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1346783,
+            "fno": 37436,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1346813,
+            "fno": 37437,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1701230,
+            "fno": 37517,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1713546,
+            "fno": 37564,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          }
+        ]
+      }
+    },
+    "asan-ubsan": {
+      "compile_command": [
+        "/usr/bin/clang",
+        "-std=c11",
+        "-O0",
+        "-g",
+        "-isysroot",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-I<WORKSPACE>/work/stage2/source/include",
+        "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+        "-I/opt/homebrew/opt/libffi/include",
+        "<WORKSPACE>/work/bridge-regression-20260924/array_queries_fixture.c",
+        "-fsanitize=address,undefined",
+        "<WORKSPACE>/work/stage2/asan-build/subprojects/libsys4/libsys4.a",
+        "-L/opt/homebrew/opt/libffi/lib",
+        "-lffi",
+        "-lz",
+        "-lm",
+        "-framework",
+        "CoreFoundation",
+        "-o",
+        "<WORKSPACE>/work/bridge-regression-20260924/array_queries_asan-ubsan"
+      ],
+      "compile_returncode": 0,
+      "compile_diagnostics": "",
+      "returncode": 0,
+      "binary_sha256": "85f1a44286c8d2161fb8bd2670dc0b271f6ed067cafdb39917032d1fe348574c",
+      "stderr": "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'\n",
+      "evidence": {
+        "status": "pass",
+        "checks": 928,
+        "expected_errors_caught": 12,
+        "overload_indices": [
+          20,
+          21,
+          22,
+          23,
+          42,
+          44,
+          46,
+          48
+        ],
+        "baseline": {
+          "false_Numof": 4,
+          "false_Count": 4,
+          "range_Find": -1,
+          "expected": [
+            0,
+            0,
+            2
+          ]
+        },
+        "callback_scope": "controlled stub; real VM retention and nested FFI not executed; ref primitive owner-index shape is synthetic",
+        "callback_sites": [
+          {
+            "dump_line": 25650,
+            "fno": 22332,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 26025,
+            "fno": 22334,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 63764,
+            "fno": 22391,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 64181,
+            "fno": 22395,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 73884,
+            "fno": 22416,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 73920,
+            "fno": 22417,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 75895,
+            "fno": 22420,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 75931,
+            "fno": 22421,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 104017,
+            "fno": 22445,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 112823,
+            "fno": 22456,
+            "metadata": 1,
+            "overload": 46,
+            "argument_types": [
+              10
+            ]
+          },
+          {
+            "dump_line": 125608,
+            "fno": 22468,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 125644,
+            "fno": 22469,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 125751,
+            "fno": 22470,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 131763,
+            "fno": 22473,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 132599,
+            "fno": 22474,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 201625,
+            "fno": 23361,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              82,
+              0
+            ]
+          },
+          {
+            "dump_line": 222566,
+            "fno": 23486,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 222602,
+            "fno": 23487,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 272988,
+            "fno": 23898,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 285039,
+            "fno": 23960,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 286404,
+            "fno": 23963,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 287201,
+            "fno": 23969,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 296559,
+            "fno": 23987,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              89,
+              0
+            ]
+          },
+          {
+            "dump_line": 300613,
+            "fno": 23994,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 336370,
+            "fno": 24191,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              89,
+              0
+            ]
+          },
+          {
+            "dump_line": 350110,
+            "fno": 24279,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 402371,
+            "fno": 24363,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 407104,
+            "fno": 24369,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412604,
+            "fno": 24370,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412640,
+            "fno": 24371,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412676,
+            "fno": 24372,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 412705,
+            "fno": 24373,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 416343,
+            "fno": 24376,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 416990,
+            "fno": 24380,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 418835,
+            "fno": 24381,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 437768,
+            "fno": 24530,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 438103,
+            "fno": 24531,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 438509,
+            "fno": 24534,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 448768,
+            "fno": 24575,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 506981,
+            "fno": 24822,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 507033,
+            "fno": 24823,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 515587,
+            "fno": 24836,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 737357,
+            "fno": 25234,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 738623,
+            "fno": 25235,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 738656,
+            "fno": 25236,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 740112,
+            "fno": 25237,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 744247,
+            "fno": 25269,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 752126,
+            "fno": 25304,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 754235,
+            "fno": 25323,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 789026,
+            "fno": 25454,
+            "metadata": 65539,
+            "overload": 46,
+            "argument_types": [
+              82,
+              0
+            ]
+          },
+          {
+            "dump_line": 981607,
+            "fno": 36002,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 983006,
+            "fno": 36011,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 984960,
+            "fno": 36020,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 985586,
+            "fno": 36021,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986320,
+            "fno": 36022,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986351,
+            "fno": 36023,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986382,
+            "fno": 36024,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986413,
+            "fno": 36025,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986444,
+            "fno": 36026,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 986475,
+            "fno": 36027,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1019325,
+            "fno": 36161,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 1027341,
+            "fno": 36212,
+            "metadata": 2,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1032066,
+            "fno": 36232,
+            "metadata": 2,
+            "overload": 21,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1045559,
+            "fno": 36299,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1045588,
+            "fno": 36300,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1045620,
+            "fno": 36301,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1046441,
+            "fno": 36311,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1046487,
+            "fno": 36312,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1083411,
+            "fno": 36476,
+            "metadata": 2,
+            "overload": 21,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 1088882,
+            "fno": 36493,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1100806,
+            "fno": 36564,
+            "metadata": 2,
+            "overload": 23,
+            "argument_types": [
+              12
+            ]
+          },
+          {
+            "dump_line": 1154097,
+            "fno": 36702,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1154982,
+            "fno": 36708,
+            "metadata": 65538,
+            "overload": 21,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1155012,
+            "fno": 36709,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1178588,
+            "fno": 36812,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1189501,
+            "fno": 36836,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1190002,
+            "fno": 36841,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1198662,
+            "fno": 36874,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1201332,
+            "fno": 36883,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1204202,
+            "fno": 36896,
+            "metadata": 2,
+            "overload": 23,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1204413,
+            "fno": 36898,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1226149,
+            "fno": 36975,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1231497,
+            "fno": 37005,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1234811,
+            "fno": 37017,
+            "metadata": 2,
+            "overload": 23,
+            "argument_types": [
+              21
+            ]
+          },
+          {
+            "dump_line": 1263176,
+            "fno": 37116,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1325853,
+            "fno": 37330,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1346366,
+            "fno": 37434,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1346783,
+            "fno": 37436,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1346813,
+            "fno": 37437,
+            "metadata": 65538,
+            "overload": 23,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1701230,
+            "fno": 37517,
+            "metadata": 65538,
+            "overload": 46,
+            "argument_types": [
+              82
+            ]
+          },
+          {
+            "dump_line": 1713546,
+            "fno": 37564,
+            "metadata": 2,
+            "overload": 46,
+            "argument_types": [
+              21
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

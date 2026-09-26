@@ -1,0 +1,165 @@
+{
+  "dump": {
+    "source": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe",
+    "sha256": "211ce63e0e229fa7d77b2af141149681ec37521e7497914473c739569aa101f0"
+  },
+  "final6": {
+    "source": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_final6.exe",
+    "sha256": "f0a611c52db10271fa104acb8e8f78dd635c10b8ee1456b488d490aeb3fd0e80"
+  },
+  "protected": {
+    "source": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/game-workcopy/多娜多娜 一起幹壞事吧/dohnadohna.exe",
+    "sha256": "97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a"
+  },
+  "ranges": [
+    {
+      "label": "Array dispatcher",
+      "va": "0x644300",
+      "bytes": 3096,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "39062233743e8984563bb3aad6843d6b2de80aab160beeb6aa3f760e4950d7a8",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "Array jump table",
+      "va": "0x644f18",
+      "bytes": 336,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "e9f2f0ad916e2859f08c47f8abbbde27ac75aa68ed4c909c8b66326244e55bbe",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "PartsEngine dispatcher prologue",
+      "va": "0x57b900",
+      "bytes": 114,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "5dfbbb414fdb2d82ea2e629a633d3aa8a393ac3b4717a0d73dcb20b31e48d50c",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "PartsEngine jump table",
+      "va": "0x589714",
+      "bytes": 3472,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "60242a9f731fc5ce5d1be6d8292b1f761811eca1075f8b1acd6f44fb3d19863d",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "Array search loop",
+      "va": "0x646bb0",
+      "bytes": 84,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "df3e1ce56829da435938555d86e8c2dec4a9f586fa92550e74f3a81e407c517f",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "Array erase one",
+      "va": "0x67f750",
+      "bytes": 344,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "fddaf78b612c235d908e14bedeaa62c464b753a6e2f0a8984bdc8383c84e0dfe",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "PartsEngine clickability implementation",
+      "va": "0x58f830",
+      "bytes": 291,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "0e91a698c0bcd51d0b7a1afebed0f763ae1450778e8059ec9bcb54312de8ea44",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "PartsEngine GetButtonCGName",
+      "va": "0x57eafb",
+      "bytes": 61,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "e684778c0a985046995b6551fe30e50ef6575ded72b2d27508746cab513c9acf",
+      "final6_range_sha256": null
+    },
+    {
+      "label": "PartsEngine GetMessageWindowCGName",
+      "va": "0x582d88",
+      "bytes": 61,
+      "equal": null,
+      "dump_file_backed": true,
+      "final6_file_backed": false,
+      "dump_range_sha256": "eda83a27281283b11f973472e7929300a866c2c3cdfe1e6cc48193bfe9e546ab",
+      "final6_range_sha256": null
+    }
+  ],
+  "final6_vs_protected_first_seven_raw_sections": [
+    {
+      "section_index": 0,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "b99eedd05d5b4173e02c8d91cb0b06b1f4fa557ef3d1fe02a058e4423e0a668c",
+      "protected_sha256": "b99eedd05d5b4173e02c8d91cb0b06b1f4fa557ef3d1fe02a058e4423e0a668c"
+    },
+    {
+      "section_index": 1,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "b8185812fe1e7343b77b3c6f250845b0adb1f6611a3c08e7d8c2ae82bd7db710",
+      "protected_sha256": "b8185812fe1e7343b77b3c6f250845b0adb1f6611a3c08e7d8c2ae82bd7db710"
+    },
+    {
+      "section_index": 2,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "1f0ca9dce3746de8a3f981de6a78a24e3b76d487d225808854f370c0f91899ac",
+      "protected_sha256": "1f0ca9dce3746de8a3f981de6a78a24e3b76d487d225808854f370c0f91899ac"
+    },
+    {
+      "section_index": 3,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "6e2336e80c5cce8a8bbba233a141497a080ea50e1a574bbe6647db01e6c4b97c",
+      "protected_sha256": "6e2336e80c5cce8a8bbba233a141497a080ea50e1a574bbe6647db01e6c4b97c"
+    },
+    {
+      "section_index": 4,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "13f69372b0c2be9eb6a22a9f18bc81c52a39293a54a824f1c70dc7ca8b4cf0ca",
+      "protected_sha256": "13f69372b0c2be9eb6a22a9f18bc81c52a39293a54a824f1c70dc7ca8b4cf0ca"
+    },
+    {
+      "section_index": 5,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "a85919698481db2917840a24024a2a3f1e946d41c3e94265ce5ab6364e0e4430",
+      "protected_sha256": "a85919698481db2917840a24024a2a3f1e946d41c3e94265ce5ab6364e0e4430"
+    },
+    {
+      "section_index": 6,
+      "same_rva": true,
+      "same_raw_size": true,
+      "bytes_equal": true,
+      "final6_sha256": "a1e682bf15bb88acf9d8e9d1b58b07e0a510dfd6465662a02148553cbd986492",
+      "protected_sha256": "a1e682bf15bb88acf9d8e9d1b58b07e0a510dfd6465662a02148553cbd986492"
+    }
+  ],
+  "limitation": "Final6 retains packed sections. Unbacked ranges cannot be compared. Equal protected raw bytes do not prove the SCY plaintext is the output of this exact file."
+}

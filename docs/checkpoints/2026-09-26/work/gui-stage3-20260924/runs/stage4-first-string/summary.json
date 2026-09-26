@@ -1,0 +1,85 @@
+{
+  "run": "work/gui-stage3-20260924/runs/stage4-first-string",
+  "exit_code": 86,
+  "elapsed_seconds": 14.263,
+  "stop_reason": null,
+  "stopped_by_runner": false,
+  "child_exit_peak_rss_bytes": 774766592,
+  "perf": {
+    "reported_windows": 2,
+    "reported_duration_ms": 10002.465,
+    "reported_presents": 2555,
+    "weighted_present_fps": 255.43703477092896,
+    "max_interval_ms": 17.74,
+    "max_swap_ms": 1.231,
+    "weighted_mean_swap_ms": 0.2799009784735812,
+    "per_window_p95_interval_ms_range": [
+      13.764,
+      15.956
+    ],
+    "sample_capped_windows": 0,
+    "last_reported_sdl_ticks_ms": 11081,
+    "windows_with_at_least_one_interval_over_ms": {
+      "33.333": 0,
+      "50": 0,
+      "100": 0,
+      "1000": 0
+    },
+    "end_of_window_state_counts": {
+      "shown": 2,
+      "minimized": 0,
+      "input_focus": 0,
+      "vsync_values": [
+        0
+      ]
+    }
+  },
+  "rss": null,
+  "message_count": 0,
+  "messages": [],
+  "trace_calls": {},
+  "traced_entries_without_return_at_log_end": [],
+  "diagnostic_log_line_counts": {},
+  "windows": [
+    {
+      "t_ms": 6080,
+      "window_ms": 5000.596,
+      "presents": 1737,
+      "samples": 1737,
+      "avg_fps": 347.359,
+      "p95_interval_ms": 13.764,
+      "max_interval_ms": 17.159,
+      "avg_swap_ms": 0.237,
+      "p95_swap_ms": 0.39,
+      "max_swap_ms": 1.231,
+      "window_flags": 38,
+      "vsync": 0,
+      "line": 14
+    },
+    {
+      "t_ms": 11081,
+      "window_ms": 5001.869,
+      "presents": 818,
+      "samples": 818,
+      "avg_fps": 163.539,
+      "p95_interval_ms": 15.956,
+      "max_interval_ms": 17.74,
+      "avg_swap_ms": 0.371,
+      "p95_swap_ms": 0.721,
+      "max_swap_ms": 1.205,
+      "window_flags": 38,
+      "vsync": 0,
+      "line": 27
+    }
+  ],
+  "limits": [
+    "Present rate can include identical visual content; progress is separate.",
+    "No whole-run p95 or exact long-frame count can be reconstructed from window summaries.",
+    "Initial interval and unfinished final window/stall are unreported; a missing log report is not zero FPS.",
+    "Window flags describe report-time state, not every frame in the window.",
+    "Trace elapsed is inclusive wall time with nested work, waits, and logging; bounded first hits are not an unbiased profile.",
+    "An unmatched trace entry may be in flight, terminated, or otherwise unwound; it is not proof of a permanent hang.",
+    "RSS is process resident memory, not live AIN heap or proof of a leak; its sampled peak can miss brief peaks.",
+    "Diagnostic counts are emitted lines, not exact API error counts; source suppresses repeated warnings."
+  ]
+}

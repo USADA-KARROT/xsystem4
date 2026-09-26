@@ -1,0 +1,44 @@
+{
+  "passed": true,
+  "scope": "Offline DOM contract and embedded data validation only. No browser connection was available; visual rendering not checked.",
+  "libraries": 36,
+  "partially_studied": 8,
+  "static_call_sites": 11590,
+  "cases": [
+    {
+      "label": "All declarations",
+      "rows": 1701,
+      "passed": true
+    },
+    {
+      "label": "Array library",
+      "rows": 84,
+      "passed": true
+    },
+    {
+      "label": "Array IsExist overloads",
+      "rows": 2,
+      "passed": true
+    },
+    {
+      "label": "EXE mapped",
+      "rows": 952,
+      "passed": true
+    },
+    {
+      "label": "Same-name overloads",
+      "rows": 97,
+      "passed": true
+    },
+    {
+      "label": "VA lookup",
+      "rows": 1,
+      "passed": true
+    },
+    {
+      "label": "No match",
+      "rows": 0,
+      "passed": true
+    }
+  ]
+}

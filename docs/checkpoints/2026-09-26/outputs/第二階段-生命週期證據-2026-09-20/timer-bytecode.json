@@ -1,0 +1,3012 @@
+{
+  "scope": "Static CFG only; CALL targets not followed; selected functions contain no SWITCH.",
+  "functions": [
+    {
+      "id": 420,
+      "address": 112112,
+      "name": "CASTimer@0",
+      "sites": [
+        {
+          "address": 112112,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 112114,
+          "opcode": "PUSH",
+          "args": [
+            421
+          ]
+        },
+        {
+          "address": 112120,
+          "opcode": "CALLMETHOD",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 112126,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 112128,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 112134,
+          "opcode": "PUSHGLOBALPAGE",
+          "args": []
+        },
+        {
+          "address": 112136,
+          "opcode": "PUSH",
+          "args": [
+            15
+          ]
+        },
+        {
+          "address": 112142,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 112148,
+          "opcode": "PUSH",
+          "args": [
+            440
+          ]
+        },
+        {
+          "address": 112154,
+          "opcode": "CALLMETHOD",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 112160,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 112166,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 112168,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 421,
+      "address": 10259502,
+      "name": "CASTimer@2",
+      "sites": [
+        {
+          "address": 10259502,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 422,
+      "address": 112176,
+      "name": "CASTimer@1",
+      "sites": [
+        {
+          "address": 112176,
+          "opcode": "PUSHGLOBALPAGE",
+          "args": []
+        },
+        {
+          "address": 112178,
+          "opcode": "PUSH",
+          "args": [
+            15
+          ]
+        },
+        {
+          "address": 112184,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 112190,
+          "opcode": "PUSH",
+          "args": [
+            441
+          ]
+        },
+        {
+          "address": 112196,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 112198,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 112204,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 112210,
+          "opcode": "CALLMETHOD",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 112216,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 430,
+      "address": 113618,
+      "name": "CASTimerImp@Reset",
+      "sites": [
+        {
+          "address": 113618,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113620,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113626,
+          "opcode": "CALLHLL",
+          "args": [
+            0,
+            30,
+            0
+          ]
+        },
+        {
+          "address": 113640,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113646,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113648,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113650,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113656,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113662,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113668,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113670,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113672,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 113678,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113684,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113690,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113692,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113694,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 113700,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113706,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113712,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113714,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 431,
+      "address": 113722,
+      "name": "CASTimerImp@UpdatePassedTime",
+      "sites": [
+        {
+          "address": 113722,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113724,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113730,
+          "opcode": "CALLHLL",
+          "args": [
+            0,
+            30,
+            0
+          ]
+        },
+        {
+          "address": 113744,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113750,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113752,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113754,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 113760,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113762,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113768,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113774,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113776,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113782,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113788,
+          "opcode": "SUB",
+          "args": []
+        },
+        {
+          "address": 113790,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113796,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113798,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113800,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113806,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113808,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113814,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113820,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113826,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113828,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113830,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 113836,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113838,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 113844,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113850,
+          "opcode": "PLUSA",
+          "args": []
+        },
+        {
+          "address": 113852,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113854,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113856,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 113862,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113864,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 113870,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113876,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113878,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113884,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113890,
+          "opcode": "X_MOV",
+          "args": [
+            2,
+            1
+          ]
+        },
+        {
+          "address": 113900,
+          "opcode": "ITOF",
+          "args": []
+        },
+        {
+          "address": 113902,
+          "opcode": "X_MOV",
+          "args": [
+            2,
+            1
+          ]
+        },
+        {
+          "address": 113912,
+          "opcode": "F_MUL",
+          "args": []
+        },
+        {
+          "address": 113914,
+          "opcode": "CALLFUNC",
+          "args": [
+            6463
+          ]
+        },
+        {
+          "address": 113920,
+          "opcode": "PLUSA",
+          "args": []
+        },
+        {
+          "address": 113922,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 113924,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 432,
+      "address": 113932,
+      "name": "CASTimerImp@Get",
+      "sites": [
+        {
+          "address": 113932,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113934,
+          "opcode": "PUSH",
+          "args": [
+            431
+          ]
+        },
+        {
+          "address": 113940,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113942,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 113948,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113954,
+          "opcode": "CALLMETHOD",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113960,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 113962,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113968,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 113974,
+          "opcode": "IFZ",
+          "args": [
+            113994
+          ]
+        },
+        {
+          "address": 113980,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113982,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 113988,
+          "opcode": "JUMP",
+          "args": [
+            114002
+          ]
+        },
+        {
+          "address": 113994,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 113996,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 114002,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114008,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 435,
+      "address": 114204,
+      "name": "CASTimerManager@Rate::get",
+      "sites": [
+        {
+          "address": 114204,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114206,
+          "opcode": "PUSH",
+          "args": [
+            4
+          ]
+        },
+        {
+          "address": 114212,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114218,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 438,
+      "address": 114260,
+      "name": "CASTimerManager@CheckHandle",
+      "sites": [
+        {
+          "address": 114260,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114262,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114268,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114274,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114276,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114282,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114288,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            66,
+            1
+          ]
+        },
+        {
+          "address": 114302,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114304,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114310,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114316,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114318,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114320,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114326,
+          "opcode": "X_MOV",
+          "args": [
+            4,
+            2
+          ]
+        },
+        {
+          "address": 114336,
+          "opcode": "X_ASSIGN",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114342,
+          "opcode": "X_MOV",
+          "args": [
+            2,
+            1
+          ]
+        },
+        {
+          "address": 114352,
+          "opcode": "X_DUP",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114358,
+          "opcode": "X_MOV",
+          "args": [
+            3,
+            1
+          ]
+        },
+        {
+          "address": 114368,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 114374,
+          "opcode": "EQUALE",
+          "args": []
+        },
+        {
+          "address": 114376,
+          "opcode": "IFZ",
+          "args": [
+            114416
+          ]
+        },
+        {
+          "address": 114382,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114384,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114386,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114388,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 114394,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114400,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114406,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114408,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114410,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 114416,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114422,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114424,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114430,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114436,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114442,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114444,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 114450,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114456,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114458,
+          "opcode": "IFNZ",
+          "args": [
+            114506
+          ]
+        },
+        {
+          "address": 114464,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114466,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114472,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114478,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114484,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114486,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 114492,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114498,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114500,
+          "opcode": "JUMP",
+          "args": [
+            114550
+          ]
+        },
+        {
+          "address": 114506,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114512,
+          "opcode": "RETURN",
+          "args": []
+        },
+        {
+          "address": 114550,
+          "opcode": "S_PUSH",
+          "args": [
+            163
+          ]
+        },
+        {
+          "address": 114556,
+          "opcode": "CALLHLL",
+          "args": [
+            0,
+            26,
+            0
+          ]
+        },
+        {
+          "address": 114570,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114572,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114578,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 439,
+      "address": 114594,
+      "name": "CASTimerManager@GC",
+      "sites": [
+        {
+          "address": 114594,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114596,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114602,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114608,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            24,
+            1
+          ]
+        },
+        {
+          "address": 114622,
+          "opcode": "IFNZ",
+          "args": [
+            114634
+          ]
+        },
+        {
+          "address": 114628,
+          "opcode": "JUMP",
+          "args": [
+            114636
+          ]
+        },
+        {
+          "address": 114634,
+          "opcode": "RETURN",
+          "args": []
+        },
+        {
+          "address": 114636,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114638,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114644,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114650,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            24,
+            1
+          ]
+        },
+        {
+          "address": 114664,
+          "opcode": "IFNZ",
+          "args": [
+            114968
+          ]
+        },
+        {
+          "address": 114670,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114672,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114678,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114684,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            72,
+            1
+          ]
+        },
+        {
+          "address": 114698,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114700,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114706,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114712,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114714,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114716,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114722,
+          "opcode": "X_MOV",
+          "args": [
+            4,
+            2
+          ]
+        },
+        {
+          "address": 114732,
+          "opcode": "X_ASSIGN",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114738,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114744,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114746,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114752,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114758,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114764,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114766,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 114772,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114778,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114780,
+          "opcode": "IFNZ",
+          "args": [
+            114828
+          ]
+        },
+        {
+          "address": 114786,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114788,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114794,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114800,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114806,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114808,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 114814,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114820,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114822,
+          "opcode": "JUMP",
+          "args": [
+            114906
+          ]
+        },
+        {
+          "address": 114828,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114830,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114836,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 114842,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114848,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 114850,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 114856,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114862,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 114864,
+          "opcode": "JUMP",
+          "args": [
+            114968
+          ]
+        },
+        {
+          "address": 114906,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114908,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114914,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114920,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            10,
+            1
+          ]
+        },
+        {
+          "address": 114934,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114936,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114942,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114948,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            10,
+            2
+          ]
+        },
+        {
+          "address": 114962,
+          "opcode": "JUMP",
+          "args": [
+            114636
+          ]
+        },
+        {
+          "address": 114968,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 440,
+      "address": 114976,
+      "name": "CASTimerManager@CreateHandle",
+      "sites": [
+        {
+          "address": 114976,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 114978,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 114984,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 114986,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114992,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 114998,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115004,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            42,
+            1
+          ]
+        },
+        {
+          "address": 115018,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115024,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 115026,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115028,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115034,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115040,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 115046,
+          "opcode": "NOTE",
+          "args": []
+        },
+        {
+          "address": 115048,
+          "opcode": "IFNZ",
+          "args": [
+            115060
+          ]
+        },
+        {
+          "address": 115054,
+          "opcode": "JUMP",
+          "args": [
+            115118
+          ]
+        },
+        {
+          "address": 115060,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115062,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115068,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115074,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115076,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115082,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115088,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115094,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115100,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 115102,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115104,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115110,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115116,
+          "opcode": "RETURN",
+          "args": []
+        },
+        {
+          "address": 115118,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115120,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115126,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115132,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            11,
+            2
+          ]
+        },
+        {
+          "address": 115146,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115148,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115154,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115160,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 115162,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115164,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115170,
+          "opcode": "X_MOV",
+          "args": [
+            3,
+            2
+          ]
+        },
+        {
+          "address": 115180,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115186,
+          "opcode": "PUSH",
+          "args": [
+            430
+          ]
+        },
+        {
+          "address": 115192,
+          "opcode": "CALLMETHOD",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115198,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115200,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115206,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 115212,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115218,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 115220,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 115226,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115232,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 115234,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115236,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115242,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115248,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            11,
+            1
+          ]
+        },
+        {
+          "address": 115262,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115264,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 115270,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115276,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 115278,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115280,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 115286,
+          "opcode": "X_MOV",
+          "args": [
+            4,
+            2
+          ]
+        },
+        {
+          "address": 115296,
+          "opcode": "X_ASSIGN",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 115302,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115308,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115314,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 115316,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115318,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 115324,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 115330,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115336,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 115338,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 115344,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115350,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 115352,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115354,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115360,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115366,
+          "opcode": "CALLHLL",
+          "args": [
+            4,
+            20,
+            1
+          ]
+        },
+        {
+          "address": 115380,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115386,
+          "opcode": "SUB",
+          "args": []
+        },
+        {
+          "address": 115388,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 441,
+      "address": 115404,
+      "name": "CASTimerManager@ReleaseHandle",
+      "sites": [
+        {
+          "address": 115404,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115406,
+          "opcode": "PUSH",
+          "args": [
+            438
+          ]
+        },
+        {
+          "address": 115412,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115414,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115420,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115426,
+          "opcode": "CALLMETHOD",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115432,
+          "opcode": "NOT",
+          "args": []
+        },
+        {
+          "address": 115434,
+          "opcode": "IFNZ",
+          "args": [
+            115446
+          ]
+        },
+        {
+          "address": 115440,
+          "opcode": "JUMP",
+          "args": [
+            115448
+          ]
+        },
+        {
+          "address": 115446,
+          "opcode": "RETURN",
+          "args": []
+        },
+        {
+          "address": 115448,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115450,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115456,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115462,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115464,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115470,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115476,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115482,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115488,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 115490,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115492,
+          "opcode": "PUSH",
+          "args": [
+            439
+          ]
+        },
+        {
+          "address": 115498,
+          "opcode": "CALLMETHOD",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115504,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 442,
+      "address": 115512,
+      "name": "CASTimerManager@GetObject",
+      "sites": [
+        {
+          "address": 115512,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115514,
+          "opcode": "PUSH",
+          "args": [
+            438
+          ]
+        },
+        {
+          "address": 115520,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115522,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115528,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115534,
+          "opcode": "CALLMETHOD",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115540,
+          "opcode": "NOT",
+          "args": []
+        },
+        {
+          "address": 115542,
+          "opcode": "IFNZ",
+          "args": [
+            115554
+          ]
+        },
+        {
+          "address": 115548,
+          "opcode": "JUMP",
+          "args": [
+            115562
+          ]
+        },
+        {
+          "address": 115554,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 115560,
+          "opcode": "RETURN",
+          "args": []
+        },
+        {
+          "address": 115562,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 115564,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115570,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115576,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 115578,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 115584,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115590,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115596,
+          "opcode": "X_DUP",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 115602,
+          "opcode": "SP_INC",
+          "args": []
+        },
+        {
+          "address": 115604,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 22325,
+      "address": 10259516,
+      "name": "CASTimerManager@0",
+      "sites": [
+        {
+          "address": 10259516,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10259518,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259524,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10259530,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10259536,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 10259538,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259544,
+          "opcode": "X_A_INIT",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259550,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10259552,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10259554,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10259560,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10259566,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10259572,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 10259574,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259580,
+          "opcode": "X_A_INIT",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259586,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10259588,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10259590,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10259596,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10259602,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10259608,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 10259610,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259616,
+          "opcode": "X_A_INIT",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259622,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10259624,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10259626,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 10259632,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10259638,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10259644,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 10259646,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259652,
+          "opcode": "X_A_INIT",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10259658,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10259660,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10259662,
+          "opcode": "PUSH",
+          "args": [
+            4
+          ]
+        },
+        {
+          "address": 10259668,
+          "opcode": "PUSH",
+          "args": [
+            1065353216
+          ]
+        },
+        {
+          "address": 10259674,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10259680,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10259682,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 6346,
+      "address": 2299088,
+      "name": "AFL_IsKeyDown",
+      "sites": [
+        {
+          "address": 2299088,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 2299090,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 2299096,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 2299102,
+          "opcode": "CALLHLL",
+          "args": [
+            17,
+            7,
+            0
+          ]
+        },
+        {
+          "address": 2299116,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 6366,
+      "address": 10297700,
+      "name": "CASClick@2",
+      "sites": [
+        {
+          "address": 10297700,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297702,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10297708,
+          "opcode": "PUSH",
+          "args": [
+            -1
+          ]
+        },
+        {
+          "address": 10297714,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297720,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297722,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297724,
+          "opcode": "PUSH",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297730,
+          "opcode": "PUSH",
+          "args": [
+            -2147483648
+          ]
+        },
+        {
+          "address": 10297736,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297742,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297744,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297746,
+          "opcode": "PUSH",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10297752,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10297758,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297764,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297766,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297768,
+          "opcode": "PUSH",
+          "args": [
+            3
+          ]
+        },
+        {
+          "address": 10297774,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10297780,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297786,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297788,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297790,
+          "opcode": "PUSH",
+          "args": [
+            4
+          ]
+        },
+        {
+          "address": 10297796,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10297802,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297808,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297810,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297812,
+          "opcode": "PUSH",
+          "args": [
+            5
+          ]
+        },
+        {
+          "address": 10297818,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10297824,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297830,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297832,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297834,
+          "opcode": "PUSH",
+          "args": [
+            6
+          ]
+        },
+        {
+          "address": 10297840,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 10297846,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297852,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297854,
+          "opcode": "PUSHSTRUCTPAGE",
+          "args": []
+        },
+        {
+          "address": 10297856,
+          "opcode": "PUSH",
+          "args": [
+            7
+          ]
+        },
+        {
+          "address": 10297862,
+          "opcode": "X_DUP",
+          "args": [
+            2
+          ]
+        },
+        {
+          "address": 10297868,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297874,
+          "opcode": "DELETE",
+          "args": []
+        },
+        {
+          "address": 10297876,
+          "opcode": "NEW",
+          "args": [
+            7,
+            -1
+          ]
+        },
+        {
+          "address": 10297886,
+          "opcode": "X_ASSIGN",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 10297892,
+          "opcode": "POP",
+          "args": []
+        },
+        {
+          "address": 10297894,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    },
+    {
+      "id": 6463,
+      "address": 2316328,
+      "name": "math::detail::Round",
+      "sites": [
+        {
+          "address": 2316328,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 2316330,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 2316336,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 2316342,
+          "opcode": "PUSH",
+          "args": [
+            1056964608
+          ]
+        },
+        {
+          "address": 2316348,
+          "opcode": "F_ADD",
+          "args": []
+        },
+        {
+          "address": 2316350,
+          "opcode": "PUSHLOCALPAGE",
+          "args": []
+        },
+        {
+          "address": 2316352,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 2316358,
+          "opcode": "X_REF",
+          "args": [
+            1
+          ]
+        },
+        {
+          "address": 2316364,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 2316370,
+          "opcode": "F_LT",
+          "args": []
+        },
+        {
+          "address": 2316372,
+          "opcode": "IFZ",
+          "args": [
+            2316390
+          ]
+        },
+        {
+          "address": 2316378,
+          "opcode": "PUSH",
+          "args": [
+            1065353216
+          ]
+        },
+        {
+          "address": 2316384,
+          "opcode": "JUMP",
+          "args": [
+            2316396
+          ]
+        },
+        {
+          "address": 2316390,
+          "opcode": "PUSH",
+          "args": [
+            0
+          ]
+        },
+        {
+          "address": 2316396,
+          "opcode": "F_SUB",
+          "args": []
+        },
+        {
+          "address": 2316398,
+          "opcode": "FTOI",
+          "args": []
+        },
+        {
+          "address": 2316400,
+          "opcode": "RETURN",
+          "args": []
+        }
+      ]
+    }
+  ]
+}

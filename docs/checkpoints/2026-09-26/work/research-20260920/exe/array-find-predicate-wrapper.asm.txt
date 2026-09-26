@@ -1,0 +1,37 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x648c40', '--stop-address=0x648c78', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  648c40: 55                           	push	ebp
+  648c41: 8b ec                        	mov	ebp, esp
+  648c43: 83 e4 f8                     	and	esp, -0x8
+  648c46: 56                           	push	esi
+  648c47: 57                           	push	edi
+  648c48: 8b fa                        	mov	edi, edx
+  648c4a: 8b f1                        	mov	esi, ecx
+  648c4c: e8 5f e7 ff ff               	call	0x6473b0 <+0x2463b0>
+  648c51: 84 c0                        	test	al, al
+  648c53: 75 08                        	jne	0x648c5d <+0x247c5d>
+  648c55: 33 c0                        	xor	eax, eax
+  648c57: 5f                           	pop	edi
+  648c58: 5e                           	pop	esi
+  648c59: 8b e5                        	mov	esp, ebp
+  648c5b: 5d                           	pop	ebp
+  648c5c: c3                           	ret
+  648c5d: 8b 06                        	mov	eax, dword ptr [esi]
+  648c5f: 8b ce                        	mov	ecx, esi
+  648c61: 57                           	push	edi
+  648c62: ff 50 0c                     	call	dword ptr [eax + 0xc]
+  648c65: 50                           	push	eax
+  648c66: 33 d2                        	xor	edx, edx
+  648c68: 8b ce                        	mov	ecx, esi
+  648c6a: e8 51 00 00 00               	call	0x648cc0 <+0x247cc0>
+  648c6f: 83 c4 08                     	add	esp, 0x8
+  648c72: 5f                           	pop	edi
+  648c73: 5e                           	pop	esi
+  648c74: 8b e5                        	mov	esp, ebp
+  648c76: 5d                           	pop	ebp
+  648c77: c3                           	ret

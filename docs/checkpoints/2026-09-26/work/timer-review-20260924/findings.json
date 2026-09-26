@@ -1,0 +1,52 @@
+{
+  "date": "2026-09-24",
+  "scope": "Real AIN VM headless; only private diagnostic copy and private counterfactual; production source/original fixture unchanged; native timer intercept flags disabled in fixture.",
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "baseline": {
+    "exit": 77,
+    "rounds_completed": 1,
+    "constructors": 3,
+    "destructors": 3,
+    "live_slots": 6,
+    "manager_baseline": 5,
+    "residual": {
+      "slot": 18,
+      "seq": 19,
+      "ref": 3,
+      "heap_type": "VM_PAGE",
+      "page_type": "STRUCT_PAGE",
+      "struct_index": 8,
+      "name": "CASTimerImp",
+      "members": [
+        1015,
+        0,
+        5,
+        5
+      ]
+    },
+    "cause": "Each of three f424 Get calls gains one unbalanced ref: f442 SP_INC +1, f424 X_ASSIGN +1, local destruction -1. Array.PopBack removes array owner at end."
+  },
+  "counterfactual": {
+    "change": "Only v14 X_ASSIGN: skip automatic heap_ref(new)/heap_unref(old), raw transfer, original explicit SP_INC/DELETE unchanged. Private instrumented-vm.inc only.",
+    "exit": 134,
+    "completed_first_round": {
+      "constructors": 3,
+      "destructors": 3,
+      "live_slots": 5,
+      "manager_baseline": 5
+    },
+    "next_failure": "Second-round timerImpList append reconstructs NULL page as AIN_ARRAY_INT(14); concrete struct8 metadata lost at previous PopBack to empty. First second-round Get fails expected=7 assertion.",
+    "rounds_requested": 20,
+    "rounds_completed": 1
+  },
+  "recommendations": [
+    "Treat X_ASSIGN v14 as raw transfer and validate retained explicit opcodes against observer/timer fixtures. Do not modify SP_INC, function_return, or suppress leak assertion.",
+    "Retain typed empty page when Array_PopBack reaches size0; reuse existing allocation and metadata-copy path. No need to infer struct8 from hll_arg3=2."
+  ],
+  "limits": [
+    "No GUI/game frame or native timer interceptor validation.",
+    "No claim that all v14 assignment patterns or all array-emptying operations are correct.",
+    "NULL is valid empty-array state; failure is loss of type required for later EmplaceBack.",
+    "Counterfactual was not an ASan run; parent has fresh optimized/ASan builds for subsequent validation."
+  ]
+}

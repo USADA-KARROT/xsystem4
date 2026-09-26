@@ -1,0 +1,26 @@
+{
+  "src/vm.c": {
+    "before": "b2484f765564d2cc412ff26f70071e2643bd7a1cce129f6ad993922e05004041",
+    "after": "a65e443e37592a4f27e1ec9ac156310007654978767628c75664edbce36d8dfd"
+  },
+  "src/page.c": {
+    "before": "07fcea7e45518dff76bde4fe18f1318a4a2f3f237831d4e9614e1f5ea6f13f7f",
+    "after": "c8fba799b0a473ec7b04c4941c971b2776f21640b06d1f6a07afdc88b736fa93"
+  },
+  "include/vm/page.h": {
+    "before": "dadacbcd3d10a60dd85378ec36d11ec560957afb7b3f3aa5a8861925f3b31881",
+    "after": "a4a0f3fed2b0210de1102825bec00c77c3e1c2ef6a315f53e040b43d70d30c6d"
+  },
+  "src/ffi.c": {
+    "before": "313d84c66c01fb0a580d2644a33b28abdf7afbbfc6463fd5beee7fa7f85c1aa9",
+    "after": "89b8174ff3dea6afacec8414be648b77bf4d8774e53c1296ad937019dddc8394"
+  },
+  "src/hll/Array.c": {
+    "before": "eae8874e9180432665c16ceada014e2f41cf623f9ce89354bfff875324b3aaa7",
+    "after": "a7925f709d80286fb05d30b9329f08c46b84f4b0f11e391b34d63331b5bf78a6"
+  },
+  "include/vm.h": {
+    "before": "067d2cf0742c1f686150f54177f00ddca36065306b48ae1e873be1bbb74a3840",
+    "after": "7a79d629f47b257f67ee1a8a878e143d6fc30e4d28645d3494c3124089fd9326"
+  }
+}

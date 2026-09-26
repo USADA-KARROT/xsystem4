@@ -1,0 +1,5 @@
+{
+  "copied_builder": "work/lifetime-stage2-20260924/build_probe.py",
+  "original_sha256": "eae0b20bd08e965842d3cfaaeba84abbd8e44b13a0bc3190f4eb3ca5bd04dbf1",
+  "changes": "root depth adjusted; automatic ninja mutation removed; diagnostic scope updated; new isolated runtime_probe.c only"
+}

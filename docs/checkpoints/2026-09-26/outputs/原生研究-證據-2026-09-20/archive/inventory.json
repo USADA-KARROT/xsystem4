@@ -1,0 +1,412 @@
+{
+  "audit_date": "2026-09-20",
+  "scope": "唯讀盤點，不執行遊戲、不修改原檔",
+  "items": [
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/scripts/parse_afa_pactex_workcopy.py",
+      "kind": "parser",
+      "evidence_level": "source-inspected-and-format-rechecked",
+      "notes": "唯讀AFA v2解析；本輪獨立驗證195/195 pactex有HEAD；不是完整PACT語意驗證",
+      "exists": true,
+      "size_bytes": 8670,
+      "mtime": "2026-07-06T14:38:37.600027+08:00",
+      "sha256": "eb1ee5d132ad4df5d5edbfc32895ef3505162fbf98259ea7cfb1f23a07e00c01"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/scripts/abi-audit.py",
+      "kind": "audit",
+      "evidence_level": "executed-2026-09-20",
+      "notes": "11個string F(void)宣告，10個已實作均通過；只涵蓋此簽名",
+      "exists": true,
+      "size_bytes": 4150,
+      "mtime": "2026-07-06T15:17:48.228292+08:00",
+      "sha256": "b63546fe9ee1b18a04b5990f97e318aab41b1539eb473214dbdd26d679040d2d"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/scripts/run-workcopy.sh",
+      "kind": "launcher",
+      "evidence_level": "exists-only",
+      "notes": "隔離runtime home工具；本輪未執行",
+      "exists": true,
+      "size_bytes": 4774,
+      "mtime": "2026-07-06T14:38:06.247650+08:00",
+      "sha256": "89a13fb96f006034ed632955d9fb676a2f323d2befb2b93913e09d6ce8ca7b1b"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/scripts/verify-run.sh",
+      "kind": "harness",
+      "evidence_level": "source-inspected",
+      "notes": "會清除歷史隔離home與指定截圖，且使用pkill；搬進新研究前需改成每次獨立目錄與PID",
+      "exists": true,
+      "size_bytes": 994,
+      "mtime": "2026-07-08T23:53:30.448493+08:00",
+      "sha256": "687c55464269be1bfecf5005cb5ff07f38efb2a5923249dfda5cf524c1b24262"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/scripts/bisect-probe.sh",
+      "kind": "harness",
+      "evidence_level": "source-inspected",
+      "notes": "SceneLogo建置/截圖探針；零/非零截圖僅粗略gate，不證明畫面與互動正確",
+      "exists": true,
+      "size_bytes": 1154,
+      "mtime": "2026-07-08T23:18:48.134587+08:00",
+      "sha256": "564ec92e8176fbd355e3d1e493e004e57970779db7cbed2b0df829f69723786b"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/tests/wave0-libsys4-testlog.txt",
+      "kind": "test-log",
+      "evidence_level": "primary-log-inspected",
+      "notes": "2/2通過：hashtable與instructions；2026-07-06歷史結果",
+      "exists": true,
+      "size_bytes": 4451,
+      "mtime": "2026-07-06T14:44:40.749920+08:00",
+      "sha256": "3e9792f081cdf8a4e529462df5e5fb45d4644d98cd069d288549019e08f73a5a"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/tests/wave0-libsys4-asan-testlog.txt",
+      "kind": "test-log",
+      "evidence_level": "primary-log-inspected",
+      "notes": "一般與ASan/UBSan兩套；只覆蓋instruction widths與hashtable",
+      "exists": true,
+      "size_bytes": 4450,
+      "mtime": "2026-07-06T14:44:40.751447+08:00",
+      "sha256": "d69b5cd476200747eb6f5a3b99b112a10f85db561617c3e8f04583b49f4d04b0"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/logs/runtime/run-20260709-091121.log",
+      "kind": "runtime-trace",
+      "evidence_level": "primary-log-inspected",
+      "notes": "61–74行：EndWaitForClick由Motion Join completion lambda fno36081與Observer觸發；binary git unknown",
+      "exists": true,
+      "size_bytes": 33292,
+      "mtime": "2026-07-09T09:12:16.536616+08:00",
+      "sha256": "65288139475fcac315c527add5eb2c0d2f1eab57254ab05aade9eb9d542dbc1f"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/visual-parity/wine-baseline-index.md",
+      "kind": "baseline-index",
+      "evidence_level": "secondary-report-partially-corrected",
+      "notes": "wb064–074同一句>20s敘述不精確；064無字，066/070/074有同一句，066至074 mtime差17.20s",
+      "exists": true,
+      "size_bytes": 2726,
+      "mtime": "2026-07-08T23:15:31.212814+08:00",
+      "sha256": "ad9cb681e347adf5f32ee8c32370a4f206ffc6f55093f353d8b3e9c0b0b589b4"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/visual-parity/frame-mapping.tsv",
+      "kind": "legacy-frame-index",
+      "evidence_level": "source-inspected",
+      "notes": "114張來源存疑，不可據此稱fork端到端成功",
+      "exists": true,
+      "size_bytes": 14111,
+      "mtime": "2026-07-06T16:34:51.644650+08:00",
+      "sha256": "870b08e10317a7dd7041860be66888791e1134dda84c7b4eddf4e4b5ede24c18"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/legacy-progress-audit.md",
+      "kind": "historical-audit",
+      "evidence_level": "secondary-report",
+      "notes": "記載legacy screenshot來源爭議；未用其宣稱替代實證",
+      "exists": true,
+      "size_bytes": 18965,
+      "mtime": "2026-07-06T17:13:49.283176+08:00",
+      "sha256": "0f839b6388bb847c1f1da68ea63337cdac289a928d33e7664a8afcb83cd36702"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/worktrees/xsystem4-cn-on-upstream/PORT-STATUS-2026-07-09.md",
+      "kind": "historical-correction",
+      "evidence_level": "secondary-report",
+      "notes": "29–35行：歷史畫面成功僅framebuffer，桌面SDL視窗灰；存檔/後續遊戲loop未驗",
+      "exists": true,
+      "size_bytes": 3564,
+      "mtime": "2026-07-09T12:00:18.576798+08:00",
+      "sha256": "3ae9a7f6cc5a50a1e905515e2c04871691f193d9b892a72671560da925d31b12"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/original-game-manifest.tsv",
+      "kind": "resource-manifest",
+      "evidence_level": "exists-and-header-inspected",
+      "notes": "111檔原母片歷史sha256清單，本輪未重hash所有大型資源",
+      "exists": true,
+      "size_bytes": 10205,
+      "mtime": "2026-07-06T14:30:30.610536+08:00",
+      "sha256": "ac8a8e38c68071866eb1988c1641bc30aeb609bc38927a7dbc0860004a772fa8"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/workcopy-initial-manifest.tsv",
+      "kind": "resource-manifest",
+      "evidence_level": "exists-only",
+      "notes": "可與原始manifest對照混合CN/JAST資源來源",
+      "exists": true,
+      "size_bytes": 10205,
+      "mtime": "2026-07-06T14:30:32.149530+08:00",
+      "sha256": "ac8a8e38c68071866eb1988c1641bc30aeb609bc38927a7dbc0860004a772fa8"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/wine-baseline",
+      "kind": "screenshots",
+      "evidence_level": "sample-visually-inspected",
+      "notes": "141幀；核視064、066、070、074、090；090 TV白屏及對白/NEXT均可見",
+      "exists": true,
+      "size_bytes": 4576,
+      "mtime": "2026-07-08T23:13:28.080584+08:00",
+      "file_count": 141
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/reference-legacy",
+      "kind": "screenshots",
+      "evidence_level": "inventory-only",
+      "notes": "114幀；來源既有稽核存疑，不當原生fork進度證據",
+      "exists": true,
+      "size_bytes": 3712,
+      "mtime": "2026-07-06T16:34:36.371771+08:00",
+      "file_count": 114
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/fixtures",
+      "kind": "fixtures",
+      "evidence_level": "inventory",
+      "notes": "空目錄",
+      "exists": true,
+      "size_bytes": 64,
+      "mtime": "2026-07-06T14:29:08.711857+08:00",
+      "file_count": 0
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/reports/visual-parity/diffs",
+      "kind": "diffs",
+      "evidence_level": "inventory",
+      "notes": "空目錄",
+      "exists": true,
+      "size_bytes": 64,
+      "mtime": "2026-07-06T16:34:51.644498+08:00",
+      "file_count": 0
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/wine-baseline/wb_064.png",
+      "kind": "frame",
+      "evidence_level": "visually-inspected",
+      "notes": "064無字；066/070/074同第一句；090白色TV與對白",
+      "exists": true,
+      "size_bytes": 2156903,
+      "mtime": "2026-07-08T23:10:43.056704+08:00",
+      "sha256": "8b83ed7c205d912338ff1d6ffd8f4e368c9cba35a89679b68912247560071f27"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/wine-baseline/wb_066.png",
+      "kind": "frame",
+      "evidence_level": "visually-inspected",
+      "notes": "064無字；066/070/074同第一句；090白色TV與對白",
+      "exists": true,
+      "size_bytes": 2226423,
+      "mtime": "2026-07-08T23:10:47.357959+08:00",
+      "sha256": "e84c0a7ca30df70a107997415028084d211f06c4fe2c3908daa13539e54aa429"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/wine-baseline/wb_070.png",
+      "kind": "frame",
+      "evidence_level": "visually-inspected",
+      "notes": "064無字；066/070/074同第一句；090白色TV與對白",
+      "exists": true,
+      "size_bytes": 2224836,
+      "mtime": "2026-07-08T23:10:55.957648+08:00",
+      "sha256": "537bb36ff5026089531b5b0396722a989298cd79959bbd40d1c27ea5bcf02e81"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/wine-baseline/wb_074.png",
+      "kind": "frame",
+      "evidence_level": "visually-inspected",
+      "notes": "064無字；066/070/074同第一句；090白色TV與對白",
+      "exists": true,
+      "size_bytes": 2225328,
+      "mtime": "2026-07-08T23:11:04.557812+08:00",
+      "sha256": "2590e6162e4d944c87bade72c5f4a06abbccddc1097e58a94509c018f7dcf7ed"
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/screenshots/wine-baseline/wb_090.png",
+      "kind": "frame",
+      "evidence_level": "visually-inspected",
+      "notes": "064無字；066/070/074同第一句；090白色TV與對白",
+      "exists": true,
+      "size_bytes": 1694913,
+      "mtime": "2026-07-08T23:11:38.851321+08:00",
+      "sha256": "32d89c502eecad651e4899cc0e2a942d68d800d6394c0e503be1d9ca6b88e681"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-jast-dump/README.md",
+      "kind": "JAST-dump",
+      "evidence_level": "header-or-inventory-only",
+      "notes": "README聲稱JAST 1.02 CP932；原始來源~/Downloads/DohnaDohna現已不存在；需綁定原檔hash",
+      "exists": true,
+      "size_bytes": 131,
+      "mtime": "2026-03-29T14:07:45.791297+08:00",
+      "sha256": "053e6b79f49a29f9a40ded1cf2e0a5cba02a15ffdf6cb20f2cf3813b87be2de1"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-jast-dump/libraries.txt",
+      "kind": "JAST-dump",
+      "evidence_level": "header-or-inventory-only",
+      "notes": "README聲稱JAST 1.02 CP932；原始來源~/Downloads/DohnaDohna現已不存在；需綁定原檔hash",
+      "exists": true,
+      "size_bytes": 94340,
+      "mtime": "2026-03-29T13:53:07.433344+08:00",
+      "sha256": "95402d7f3969b812927ed9cdeae12915f512724eec2e882e25ff7b2cd32589d3"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-jast-dump/functions.txt",
+      "kind": "JAST-dump",
+      "evidence_level": "header-or-inventory-only",
+      "notes": "README聲稱JAST 1.02 CP932；原始來源~/Downloads/DohnaDohna現已不存在；需綁定原檔hash",
+      "exists": true,
+      "size_bytes": 5439663,
+      "mtime": "2026-03-29T13:53:06.848871+08:00",
+      "sha256": "826e6c4abe3101ea55b679c4f8c108cd785ea7341bb260b9ac8eb57b3555c733"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-jast-dump/structures.txt",
+      "kind": "JAST-dump",
+      "evidence_level": "header-or-inventory-only",
+      "notes": "README聲稱JAST 1.02 CP932；原始來源~/Downloads/DohnaDohna現已不存在；需綁定原檔hash",
+      "exists": true,
+      "size_bytes": 324116,
+      "mtime": "2026-03-29T13:53:07.302118+08:00",
+      "sha256": "36bc7c0055a49c088c9c7df2ad70f8a2bbac393571043885b2478574c83995be"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-jast-dump/ain_code.txt",
+      "kind": "JAST-dump",
+      "evidence_level": "header-or-inventory-only",
+      "notes": "README聲稱JAST 1.02 CP932；原始來源~/Downloads/DohnaDohna現已不存在；需綁定原檔hash",
+      "exists": true,
+      "size_bytes": 33606118,
+      "mtime": "2026-03-29T13:52:35.203648+08:00",
+      "sha256": "dcad1aa12bca5f54598768fdf1016d9d60e312291c863479e710357bf7da8d1d"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-jast-dump/ex_dump.txt",
+      "kind": "JAST-dump",
+      "evidence_level": "header-or-inventory-only",
+      "notes": "README聲稱JAST 1.02 CP932；原始來源~/Downloads/DohnaDohna現已不存在；需綁定原檔hash",
+      "exists": true,
+      "size_bytes": 16116725,
+      "mtime": "2026-03-29T13:55:33.041845+08:00",
+      "sha256": "5e79c5f0a35b93c52a18b9bd4af83c50e7dedebadb87b3d343f6ed5fdd52b240"
+    },
+    {
+      "path": "<USER_HOME>/Downloads/dohnadohna_工作檔案/disasm_range.py",
+      "kind": "legacy-tool-or-binary",
+      "evidence_level": "source-partially-inspected",
+      "notes": "舊AIN工具/修補版EXE；非原廠C++ source或PDB；AIN disassembler opcode表僅子集且有重複別名，需先以libsys4規格核對",
+      "exists": true,
+      "size_bytes": 5074,
+      "mtime": "2026-03-19T18:47:44.761470+08:00",
+      "sha256": "bfb10b285029377a6c5db98e76a683fc129b0c83b9a9561736f3ae790034933b"
+    },
+    {
+      "path": "<USER_HOME>/Downloads/dohnadohna_工作檔案/parse_hll0.py",
+      "kind": "legacy-tool-or-binary",
+      "evidence_level": "source-partially-inspected",
+      "notes": "舊AIN工具/修補版EXE；非原廠C++ source或PDB；AIN disassembler opcode表僅子集且有重複別名，需先以libsys4規格核對",
+      "exists": true,
+      "size_bytes": 2540,
+      "mtime": "2026-02-21T20:09:22.956195+08:00",
+      "sha256": "14f56cb4362f05c174111b7084e1da4f81e49c7ac6688a07f475bbf29e275c67"
+    },
+    {
+      "path": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe",
+      "kind": "legacy-tool-or-binary",
+      "evidence_level": "inventory-only",
+      "notes": "舊AIN工具/修補版EXE；非原廠C++ source或PDB；AIN disassembler opcode表僅子集且有重複別名，需先以libsys4規格核對",
+      "exists": true,
+      "size_bytes": 15474176,
+      "mtime": "2026-04-07T03:35:58.508827+08:00",
+      "sha256": "211ce63e0e229fa7d77b2af141149681ec37521e7497914473c739569aa101f0"
+    },
+    {
+      "path": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_final6.exe",
+      "kind": "legacy-tool-or-binary",
+      "evidence_level": "inventory-only",
+      "notes": "舊AIN工具/修補版EXE；非原廠C++ source或PDB；AIN disassembler opcode表僅子集且有重複別名，需先以libsys4規格核對",
+      "exists": true,
+      "size_bytes": 12273664,
+      "mtime": "2026-04-07T10:10:10+08:00",
+      "sha256": "f0a611c52db10271fa104acb8e8f78dd635c10b8ee1456b488d490aeb3fd0e80"
+    },
+    {
+      "path": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohna_visual_spec.md",
+      "kind": "legacy-tool-or-binary",
+      "evidence_level": "inventory-only",
+      "notes": "舊AIN工具/修補版EXE；非原廠C++ source或PDB；AIN disassembler opcode表僅子集且有重複別名，需先以libsys4規格核對",
+      "exists": true,
+      "size_bytes": 5581,
+      "mtime": "2026-03-30T22:54:20.826251+08:00",
+      "sha256": "deb3ea94f5a95b50abed747560d081ab14d587d727dc939ae0e1128ad7c349f7"
+    },
+    {
+      "path": "<USER_HOME>/Claude/projects/dohna-cn-dump/ai_analysis/codex_reply_20260409.txt",
+      "kind": "AI-research",
+      "evidence_level": "secondary-generated-text",
+      "notes": "Wine字形atlas問題，非原EXE控制流或完整原生引擎證據",
+      "exists": true,
+      "size_bytes": 15321,
+      "mtime": "2026-04-09T12:50:06.670216+08:00",
+      "sha256": "2b4795850fcb10b73e39f3d01a6ef05e2ab93c55fc3583b38c8a77278703b88d"
+    }
+  ],
+  "repositories": [
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/worktrees/xsystem4-cn-on-upstream",
+      "head_commit_date_subject": [
+        "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+        "2026-07-09T12:00:31+08:00",
+        "docs: port status and hand-off at 2026-07-09 pause"
+      ]
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/dohnadohna-mac-port/worktrees/libsys4-cn-on-upstream",
+      "head_commit_date_subject": [
+        "8c939465910499b4802ec6dd619794ca58ba4708",
+        "2026-07-06T16:13:34+08:00",
+        "utfsjis: don't walk past NUL after a truncated 2-byte character"
+      ]
+    },
+    {
+      "path": "<USER_HOME>/xsystem4-dev/xsystem4",
+      "head_commit_date_subject": [
+        "917f1a224915d4caa441f712dd1343f8048472a2",
+        "2026-07-06T14:04:13+08:00",
+        "Fix #263: GetGameFolderPath must match v14 signature (string return)"
+      ]
+    }
+  ],
+  "rechecks": {
+    "pact_archive_version": 2,
+    "entries": 195,
+    "pactex_HEAD_count": 195,
+    "all_entry_ranges_within_file": true,
+    "ABI_string_void_declared": 11,
+    "ABI_string_void_implemented_checked": 10,
+    "ABI_mismatches": 0,
+    "wine_visual_wait_lower_bound_seconds": 17.199853
+  },
+  "search_limits": {
+    "searched": [
+      "~/xsystem4-dev/dohnadohna-mac-port",
+      "~/Claude/projects/dohna-cn-dump/ai_analysis",
+      "~/Claude/projects/dohna-jast-dump",
+      "~/Downloads",
+      "~/Documents",
+      "~/Developer"
+    ],
+    "not_found_in_scoped_filename_search": [
+      "*.pdb",
+      "*.i64",
+      "*.idb",
+      "*.gpr"
+    ],
+    "caveat": "非全磁碟、非完整隱藏目錄鑑識；未找到不表示不存在。JAST dump來源路徑不存在，不表示所有別處JAST副本皆不存在。",
+    "unavailable_roots": [
+      "<USER_HOME>/Developer (directory does not exist)"
+    ]
+  }
+}

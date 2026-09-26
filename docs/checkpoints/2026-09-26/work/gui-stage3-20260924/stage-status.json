@@ -1,0 +1,13 @@
+{
+  "stage": "stage3",
+  "updated_at": "2026-09-26T01:08:02.801698+08:00",
+  "status": "GUI tests executed; game acceptance failed at New Game",
+  "desktop_access": "available on retry; direct workspace launch used",
+  "production_changes_this_stage": false,
+  "source_diff_sha256": "b77b872a3860ccd5f9921b412f64b870b1d7b37ea5189193793300b3621190c0",
+  "runs": [
+    "retry-20260926",
+    "retry-asan-20260926"
+  ],
+  "next": "Trace first string release warning and empty Personality id; no stage4 changes yet"
+}

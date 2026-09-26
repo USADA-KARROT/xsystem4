@@ -1,0 +1,3027 @@
+{
+  "scope": "Existing decoded dump metadata and bounded technical bytecode only; not original-EXE semantics. Function-local nested lambdas excluded from parent body then parent resumed. Address operands are not relocation-normalized.",
+  "variants": [
+    {
+      "variant": "cn",
+      "dump_dir": "<USER_HOME>/Claude/projects/dohna-cn-dump",
+      "functions": 37742,
+      "structures": 1210,
+      "library_count": 36,
+      "hll_declarations": 1701,
+      "hashes": {
+        "functions.txt": "7dc601e987344da0b580ce666238f85c88bf6671cba03d193b399c1909d750fd",
+        "libraries.txt": "95402d7f3969b812927ed9cdeae12915f512724eec2e882e25ff7b2cd32589d3",
+        "structures.txt": "29661c63b0fc9b7267cfb3addd0f4876452c0af80f90bb7dd54641683c4685e2",
+        "delegates.txt": "3359c2921ddfe2cfe360ac2584c1b8c5f7bbb62dcff753c54952b9f2a28f1c89",
+        "ain_code.txt": "3b4d871926dcbe33ba57e22301e81563c42a6eb1a7d6eca763e4d80147c331d9"
+      },
+      "libraries": [
+        {
+          "name": "system",
+          "count": 33
+        },
+        {
+          "name": "ADVEngine",
+          "count": 23
+        },
+        {
+          "name": "AFAFactory",
+          "count": 12
+        },
+        {
+          "name": "AnteaterADVLogList",
+          "count": 15
+        },
+        {
+          "name": "Array",
+          "count": 84
+        },
+        {
+          "name": "CGManager",
+          "count": 4
+        },
+        {
+          "name": "ChipmunkSpriteEngine",
+          "count": 19
+        },
+        {
+          "name": "Clipboard",
+          "count": 2
+        },
+        {
+          "name": "CommonSystemData",
+          "count": 9
+        },
+        {
+          "name": "CrayfishLogViewer",
+          "count": 7
+        },
+        {
+          "name": "Delegate",
+          "count": 9
+        },
+        {
+          "name": "EXWriter",
+          "count": 21
+        },
+        {
+          "name": "FileDialog",
+          "count": 3
+        },
+        {
+          "name": "FileOperation",
+          "count": 15
+        },
+        {
+          "name": "Float",
+          "count": 2
+        },
+        {
+          "name": "HashMap",
+          "count": 14
+        },
+        {
+          "name": "HTTPDownloader",
+          "count": 14
+        },
+        {
+          "name": "IbisInputEngine",
+          "count": 12
+        },
+        {
+          "name": "InputString",
+          "count": 11
+        },
+        {
+          "name": "InstallInfo",
+          "count": 2
+        },
+        {
+          "name": "Int",
+          "count": 5
+        },
+        {
+          "name": "KiwiSoundEngine",
+          "count": 39
+        },
+        {
+          "name": "MainEXFile",
+          "count": 34
+        },
+        {
+          "name": "MarmotModelEngine",
+          "count": 1
+        },
+        {
+          "name": "Math",
+          "count": 39
+        },
+        {
+          "name": "MsgSkip",
+          "count": 4
+        },
+        {
+          "name": "OutputLog",
+          "count": 8
+        },
+        {
+          "name": "PartsEngine",
+          "count": 868
+        },
+        {
+          "name": "PassRegister",
+          "count": 8
+        },
+        {
+          "name": "SealEngine",
+          "count": 248
+        },
+        {
+          "name": "String",
+          "count": 36
+        },
+        {
+          "name": "Sys43VM",
+          "count": 5
+        },
+        {
+          "name": "SystemService",
+          "count": 73
+        },
+        {
+          "name": "TextFile",
+          "count": 10
+        },
+        {
+          "name": "TextSurfaceManager",
+          "count": 1
+        },
+        {
+          "name": "VSFile",
+          "count": 11
+        }
+      ]
+    },
+    {
+      "variant": "jast",
+      "dump_dir": "<USER_HOME>/Claude/projects/dohna-jast-dump",
+      "functions": 37737,
+      "structures": 1210,
+      "library_count": 36,
+      "hll_declarations": 1701,
+      "hashes": {
+        "functions.txt": "826e6c4abe3101ea55b679c4f8c108cd785ea7341bb260b9ac8eb57b3555c733",
+        "libraries.txt": "95402d7f3969b812927ed9cdeae12915f512724eec2e882e25ff7b2cd32589d3",
+        "structures.txt": "36bc7c0055a49c088c9c7df2ad70f8a2bbac393571043885b2478574c83995be",
+        "delegates.txt": "c602d1bf02aae0cfcbe2f25c6f6a662dafa06345d463ef8f3431f18e8c40d9a5",
+        "ain_code.txt": "dcad1aa12bca5f54598768fdf1016d9d60e312291c863479e710357bf7da8d1d"
+      },
+      "libraries": [
+        {
+          "name": "system",
+          "count": 33
+        },
+        {
+          "name": "ADVEngine",
+          "count": 23
+        },
+        {
+          "name": "AFAFactory",
+          "count": 12
+        },
+        {
+          "name": "AnteaterADVLogList",
+          "count": 15
+        },
+        {
+          "name": "Array",
+          "count": 84
+        },
+        {
+          "name": "CGManager",
+          "count": 4
+        },
+        {
+          "name": "ChipmunkSpriteEngine",
+          "count": 19
+        },
+        {
+          "name": "Clipboard",
+          "count": 2
+        },
+        {
+          "name": "CommonSystemData",
+          "count": 9
+        },
+        {
+          "name": "CrayfishLogViewer",
+          "count": 7
+        },
+        {
+          "name": "Delegate",
+          "count": 9
+        },
+        {
+          "name": "EXWriter",
+          "count": 21
+        },
+        {
+          "name": "FileDialog",
+          "count": 3
+        },
+        {
+          "name": "FileOperation",
+          "count": 15
+        },
+        {
+          "name": "Float",
+          "count": 2
+        },
+        {
+          "name": "HashMap",
+          "count": 14
+        },
+        {
+          "name": "HTTPDownloader",
+          "count": 14
+        },
+        {
+          "name": "IbisInputEngine",
+          "count": 12
+        },
+        {
+          "name": "InputString",
+          "count": 11
+        },
+        {
+          "name": "InstallInfo",
+          "count": 2
+        },
+        {
+          "name": "Int",
+          "count": 5
+        },
+        {
+          "name": "KiwiSoundEngine",
+          "count": 39
+        },
+        {
+          "name": "MainEXFile",
+          "count": 34
+        },
+        {
+          "name": "MarmotModelEngine",
+          "count": 1
+        },
+        {
+          "name": "Math",
+          "count": 39
+        },
+        {
+          "name": "MsgSkip",
+          "count": 4
+        },
+        {
+          "name": "OutputLog",
+          "count": 8
+        },
+        {
+          "name": "PartsEngine",
+          "count": 868
+        },
+        {
+          "name": "PassRegister",
+          "count": 8
+        },
+        {
+          "name": "SealEngine",
+          "count": 248
+        },
+        {
+          "name": "String",
+          "count": 36
+        },
+        {
+          "name": "Sys43VM",
+          "count": 5
+        },
+        {
+          "name": "SystemService",
+          "count": 73
+        },
+        {
+          "name": "TextFile",
+          "count": 10
+        },
+        {
+          "name": "TextSurfaceManager",
+          "count": 1
+        },
+        {
+          "name": "VSFile",
+          "count": 11
+        }
+      ]
+    }
+  ],
+  "libraries_identical": true,
+  "functions": [
+    {
+      "cn_id": 6374,
+      "cn_signature": "bool CASClick@IsKeyPress(int nOnObject = -2147483648);",
+      "deep_read": true,
+      "cn_func_line": 393042,
+      "jast_candidates": [
+        {
+          "id": 6374,
+          "signature": "bool CASClick@IsKeyPress(int nOnObject = -2147483648);",
+          "func_line": 393037,
+          "instruction_count": 103,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 393043,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 393044,
+          "text": "PUSH 6362"
+        },
+        {
+          "line": 393045,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393046,
+          "text": "PUSH -1"
+        },
+        {
+          "line": 393047,
+          "text": "EQUALE"
+        },
+        {
+          "line": 393048,
+          "text": "IFNZ 0x232652"
+        },
+        {
+          "line": 393049,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 393050,
+          "text": "PUSH 6370"
+        },
+        {
+          "line": 393051,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393052,
+          "text": "IFNZ 0x232652"
+        },
+        {
+          "line": 393053,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393054,
+          "text": "JUMP 0x232658"
+        },
+        {
+          "line": 393055,
+          "text": "0x232652:"
+        },
+        {
+          "line": 393056,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 393057,
+          "text": "0x232658:"
+        },
+        {
+          "line": 393058,
+          "text": "IFNZ 0x232664"
+        },
+        {
+          "line": 393059,
+          "text": "JUMP 0x23266c"
+        },
+        {
+          "line": 393060,
+          "text": "0x232664:"
+        },
+        {
+          "line": 393061,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393062,
+          "text": "RETURN"
+        },
+        {
+          "line": 393063,
+          "text": "0x23266c:"
+        },
+        {
+          "line": 393064,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 393065,
+          "text": "PUSH 6362"
+        },
+        {
+          "line": 393066,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393067,
+          "text": "CALLFUNC AFL_IsKeyDown"
+        },
+        {
+          "line": 393068,
+          "text": "IFNZ 0x23268c"
+        },
+        {
+          "line": 393069,
+          "text": "JUMP 0x23280e"
+        },
+        {
+          "line": 393070,
+          "text": "0x23268c:"
+        },
+        {
+          "line": 393071,
+          "text": ".STRUCTREF CASClick keyPress"
+        },
+        {
+          "line": 393072,
+          "text": "IFZ 0x2326a6"
+        },
+        {
+          "line": 393073,
+          "text": "JUMP 0x232712"
+        },
+        {
+          "line": 393074,
+          "text": "0x2326a6:"
+        },
+        {
+          "line": 393075,
+          "text": ".STRUCTASSIGN CASClick keyPress 1"
+        },
+        {
+          "line": 393076,
+          "text": ".STRUCTASSIGN CASClick keyDownLoop 0"
+        },
+        {
+          "line": 393077,
+          "text": ".STRUCTREF CASClick timer"
+        },
+        {
+          "line": 393078,
+          "text": "PUSH 423"
+        },
+        {
+          "line": 393079,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393080,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 393081,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 393082,
+          "text": ".LOCALREF nOnObject"
+        },
+        {
+          "line": 393083,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 393084,
+          "text": "POP"
+        },
+        {
+          "line": 393085,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 393086,
+          "text": "RETURN"
+        },
+        {
+          "line": 393087,
+          "text": "0x232712:"
+        },
+        {
+          "line": 393088,
+          "text": ".LOCALREF nOnObject"
+        },
+        {
+          "line": 393089,
+          "text": ".STRUCTREF CASClick keyDownOnObject"
+        },
+        {
+          "line": 393090,
+          "text": "NOTE"
+        },
+        {
+          "line": 393091,
+          "text": "IFNZ 0x23273c"
+        },
+        {
+          "line": 393092,
+          "text": "JUMP 0x232744"
+        },
+        {
+          "line": 393093,
+          "text": "0x23273c:"
+        },
+        {
+          "line": 393094,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393095,
+          "text": "RETURN"
+        },
+        {
+          "line": 393096,
+          "text": "0x232744:"
+        },
+        {
+          "line": 393097,
+          "text": ".STRUCTREF CASClick keyDownLoop"
+        },
+        {
+          "line": 393098,
+          "text": "IFZ 0x23275e"
+        },
+        {
+          "line": 393099,
+          "text": "JUMP 0x23279a"
+        },
+        {
+          "line": 393100,
+          "text": "0x23275e:"
+        },
+        {
+          "line": 393101,
+          "text": ".STRUCTREF CASClick timer"
+        },
+        {
+          "line": 393102,
+          "text": "PUSH 424"
+        },
+        {
+          "line": 393103,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393104,
+          "text": "PUSH 350"
+        },
+        {
+          "line": 393105,
+          "text": "LT"
+        },
+        {
+          "line": 393106,
+          "text": "IFNZ 0x23278c"
+        },
+        {
+          "line": 393107,
+          "text": "JUMP 0x232794"
+        },
+        {
+          "line": 393108,
+          "text": "0x23278c:"
+        },
+        {
+          "line": 393109,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393110,
+          "text": "RETURN"
+        },
+        {
+          "line": 393111,
+          "text": "0x232794:"
+        },
+        {
+          "line": 393112,
+          "text": "JUMP 0x2327d0"
+        },
+        {
+          "line": 393113,
+          "text": "0x23279a:"
+        },
+        {
+          "line": 393114,
+          "text": ".STRUCTREF CASClick timer"
+        },
+        {
+          "line": 393115,
+          "text": "PUSH 424"
+        },
+        {
+          "line": 393116,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393117,
+          "text": "PUSH 50"
+        },
+        {
+          "line": 393118,
+          "text": "LT"
+        },
+        {
+          "line": 393119,
+          "text": "IFNZ 0x2327c8"
+        },
+        {
+          "line": 393120,
+          "text": "JUMP 0x2327d0"
+        },
+        {
+          "line": 393121,
+          "text": "0x2327c8:"
+        },
+        {
+          "line": 393122,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393123,
+          "text": "RETURN"
+        },
+        {
+          "line": 393124,
+          "text": "0x2327d0:"
+        },
+        {
+          "line": 393125,
+          "text": ".STRUCTASSIGN CASClick keyDownLoop 1"
+        },
+        {
+          "line": 393126,
+          "text": ".STRUCTREF CASClick timer"
+        },
+        {
+          "line": 393127,
+          "text": "PUSH 423"
+        },
+        {
+          "line": 393128,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 393129,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 393130,
+          "text": "RETURN"
+        },
+        {
+          "line": 393131,
+          "text": "JUMP 0x232880"
+        },
+        {
+          "line": 393132,
+          "text": "0x23280e:"
+        },
+        {
+          "line": 393133,
+          "text": ".STRUCTREF CASClick keyPress"
+        },
+        {
+          "line": 393134,
+          "text": "IFNZ 0x232828"
+        },
+        {
+          "line": 393135,
+          "text": "JUMP 0x232880"
+        },
+        {
+          "line": 393136,
+          "text": "0x232828:"
+        },
+        {
+          "line": 393137,
+          "text": ".STRUCTASSIGN CASClick keyPress 0"
+        },
+        {
+          "line": 393138,
+          "text": ".STRUCTASSIGN CASClick keyDownLoop 0"
+        },
+        {
+          "line": 393139,
+          "text": ".STRUCTASSIGN CASClick firstClickOff 0"
+        },
+        {
+          "line": 393140,
+          "text": ".STRUCTASSIGN CASClick keyDownOnObject -2147483648"
+        },
+        {
+          "line": 393141,
+          "text": "0x232880:"
+        },
+        {
+          "line": 393142,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393143,
+          "text": "RETURN"
+        },
+        {
+          "line": 393144,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 393145,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 103
+    },
+    {
+      "cn_id": 20752,
+      "cn_signature": "void task::detail::CObserver@Execute(void) bool endObserver;",
+      "deep_read": true,
+      "cn_func_line": 841156,
+      "jast_candidates": [
+        {
+          "id": 20752,
+          "signature": "void task::detail::CObserver@Execute(void) bool endObserver;",
+          "func_line": 841151,
+          "instruction_count": 29,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 841157,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 841158,
+          "text": "PUSH 20746"
+        },
+        {
+          "line": 841159,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 841160,
+          "text": "IFZ 0x4a59a2"
+        },
+        {
+          "line": 841161,
+          "text": "RETURN"
+        },
+        {
+          "line": 841162,
+          "text": "0x4a59a2:"
+        },
+        {
+          "line": 841163,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 841164,
+          "text": "PUSH 20753"
+        },
+        {
+          "line": 841165,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 841166,
+          "text": "IFNZ 0x4a59b8"
+        },
+        {
+          "line": 841167,
+          "text": "RETURN"
+        },
+        {
+          "line": 841168,
+          "text": "0x4a59b8:"
+        },
+        {
+          "line": 841169,
+          "text": ".LOCALASSIGN endObserver 0"
+        },
+        {
+          "line": 841170,
+          "text": ".STRUCTREF task::detail::CObserver m_notifyHandler"
+        },
+        {
+          "line": 841171,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 841172,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 841173,
+          "text": "DG_CALLBEGIN DG_Observer_NotifyHandler"
+        },
+        {
+          "line": 841174,
+          "text": "0x4a59ea:"
+        },
+        {
+          "line": 841175,
+          "text": "DG_CALL DG_Observer_NotifyHandler 0x4a59fa"
+        },
+        {
+          "line": 841176,
+          "text": "JUMP 0x4a59ea"
+        },
+        {
+          "line": 841177,
+          "text": "0x4a59fa:"
+        },
+        {
+          "line": 841178,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 841179,
+          "text": "PUSH 20748"
+        },
+        {
+          "line": 841180,
+          "text": ".LOCALREF endObserver"
+        },
+        {
+          "line": 841181,
+          "text": "X_DUP 1"
+        },
+        {
+          "line": 841182,
+          "text": "X_MOV 4 1"
+        },
+        {
+          "line": 841183,
+          "text": "CALLMETHOD 1"
+        },
+        {
+          "line": 841184,
+          "text": "POP"
+        },
+        {
+          "line": 841185,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 29
+    },
+    {
+      "cn_id": 20761,
+      "cn_signature": "void task::detail::CObserverManager@UpdateEvent(int passedTime, int scaledPassedTime) int <dummy : foreachﾎﾄ､ﾎ･､･ﾇ･ﾃ･ｯ･ｹ>, wrap<wrap<task::detail::CObserver> > obj, void <void>, ref array<wrap<task::detail::CObserver> > <dummy : foreachﾎﾄ､ﾎ･ｳ･ﾆ･ﾊ>;",
+      "deep_read": true,
+      "cn_func_line": 841334,
+      "jast_candidates": [
+        {
+          "id": 20761,
+          "signature": "void task::detail::CObserverManager@UpdateEvent(int passedTime, int scaledPassedTime) int <dummy : foreach文のインデックス>, wrap<wrap<task::detail::CObserver> > obj, void <void>, ref array<wrap<task::detail::CObserver> > <dummy : foreach文のコンテナ>;",
+          "func_line": 841329,
+          "instruction_count": 58,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 841335,
+          "text": ".STRUCTREF task::detail::CObserverManager m_list"
+        },
+        {
+          "line": 841336,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 841337,
+          "text": "PUSH 5"
+        },
+        {
+          "line": 841338,
+          "text": "X_DUP 2"
+        },
+        {
+          "line": 841339,
+          "text": "X_REF 1"
+        },
+        {
+          "line": 841340,
+          "text": "DELETE"
+        },
+        {
+          "line": 841341,
+          "text": "X_MOV 3 2"
+        },
+        {
+          "line": 841342,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 841343,
+          "text": "SP_INC"
+        },
+        {
+          "line": 841344,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 841345,
+          "text": "PUSH 3"
+        },
+        {
+          "line": 841346,
+          "text": ".LOCALREF \"<dummy : foreachﾎﾄ､ﾎ･ｳ･ﾆ･ﾊ>\""
+        },
+        {
+          "line": 841347,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 841348,
+          "text": "SP_INC"
+        },
+        {
+          "line": 841349,
+          "text": ".LOCALASSIGN \"<dummy : foreachﾎﾄ､ﾎ･､･ﾇ･ﾃ･ｯ･ｹ>\" -1"
+        },
+        {
+          "line": 841350,
+          "text": "0x4a5d7e:"
+        },
+        {
+          "line": 841351,
+          "text": ".LOCALINC \"<dummy : foreachﾎﾄ､ﾎ･､･ﾇ･ﾃ･ｯ･ｹ>\""
+        },
+        {
+          "line": 841352,
+          "text": ".LOCALREF \"<dummy : foreachﾎﾄ､ﾎ･､･ﾇ･ﾃ･ｯ･ｹ>\""
+        },
+        {
+          "line": 841353,
+          "text": ".LOCALREF \"<dummy : foreachﾎﾄ､ﾎ･ｳ･ﾆ･ﾊ>\""
+        },
+        {
+          "line": 841354,
+          "text": "X_A_SIZE"
+        },
+        {
+          "line": 841355,
+          "text": "LT"
+        },
+        {
+          "line": 841356,
+          "text": "IFZ 0x4a5df2"
+        },
+        {
+          "line": 841357,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 841358,
+          "text": "PUSH 4"
+        },
+        {
+          "line": 841359,
+          "text": ".LOCALREF \"<dummy : foreachﾎﾄ､ﾎ･､･ﾇ･ﾃ･ｯ･ｹ>\""
+        },
+        {
+          "line": 841360,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 841361,
+          "text": "POP"
+        },
+        {
+          "line": 841362,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 841363,
+          "text": "PUSH 3"
+        },
+        {
+          "line": 841364,
+          "text": "X_REF 2"
+        },
+        {
+          "line": 841365,
+          "text": "X_REF 1"
+        },
+        {
+          "line": 841366,
+          "text": "PUSH 20752"
+        },
+        {
+          "line": 841367,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 841368,
+          "text": "JUMP 0x4a5d7e"
+        },
+        {
+          "line": 841369,
+          "text": "0x4a5df2:"
+        },
+        {
+          "line": 841370,
+          "text": ".LOCALDELETE \"<dummy : foreachﾎﾄ､ﾎ･ｳ･ﾆ･ﾊ>\""
+        },
+        {
+          "line": 841371,
+          "text": ".LOCALDELETE obj"
+        },
+        {
+          "line": 841372,
+          "text": "JUMP 0x4a5e68"
+        },
+        {
+          "line": 841383,
+          "text": "0x4a5e68:"
+        },
+        {
+          "line": 841384,
+          "text": ".STRUCTREF task::detail::CObserverManager m_list"
+        },
+        {
+          "line": 841385,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 841386,
+          "text": "PUSH 25697"
+        },
+        {
+          "line": 841387,
+          "text": "CALLHLL Array Erase#1 65538"
+        },
+        {
+          "line": 841388,
+          "text": "POP"
+        },
+        {
+          "line": 841389,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 841390,
+          "text": "PUSH 20754"
+        },
+        {
+          "line": 841391,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 841392,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 841393,
+          "text": "EQUALE"
+        },
+        {
+          "line": 841394,
+          "text": "IFNZ 0x4a5eb0"
+        },
+        {
+          "line": 841395,
+          "text": "JUMP 0x4a5ec0"
+        },
+        {
+          "line": 841396,
+          "text": "0x4a5eb0:"
+        },
+        {
+          "line": 841397,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 841398,
+          "text": "PUSH 20761"
+        },
+        {
+          "line": 841399,
+          "text": "DG_NEW_FROM_METHOD"
+        },
+        {
+          "line": 841400,
+          "text": "CALLFUNC AFL_Parts_EraseBeginUpdateEvent"
+        },
+        {
+          "line": 841401,
+          "text": "0x4a5ec0:"
+        },
+        {
+          "line": 841402,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 58
+    },
+    {
+      "cn_id": 27031,
+      "cn_signature": "void Motion::ExecuterCollection@Join(array<string> sections) bool isWaiting, bool isFinish, InputDisabler disabler;",
+      "deep_read": true,
+      "cn_func_line": 998458,
+      "jast_candidates": [
+        {
+          "id": 27030,
+          "signature": "void Motion::ExecuterCollection@Join(string section) array<string> <dummy : new array<string>>;",
+          "func_line": 998430,
+          "instruction_count": 15,
+          "opcode_shape_equal": false
+        },
+        {
+          "id": 27031,
+          "signature": "void Motion::ExecuterCollection@Join(array<string> sections) bool isWaiting, bool isFinish, InputDisabler disabler;",
+          "func_line": 998453,
+          "instruction_count": 57,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 998459,
+          "text": "JUMP 0x595584"
+        },
+        {
+          "line": 998471,
+          "text": "0x595584:"
+        },
+        {
+          "line": 998472,
+          "text": ".LOCALREF sections"
+        },
+        {
+          "line": 998473,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 998474,
+          "text": "PUSH 36080"
+        },
+        {
+          "line": 998475,
+          "text": "CALLHLL Array EraseAll 2"
+        },
+        {
+          "line": 998476,
+          "text": "POP"
+        },
+        {
+          "line": 998477,
+          "text": ".LOCALREF sections"
+        },
+        {
+          "line": 998478,
+          "text": "CALLHLL Array Any 2"
+        },
+        {
+          "line": 998479,
+          "text": "S_PUSH \"assert( sections . Any ( ) );\""
+        },
+        {
+          "line": 998480,
+          "text": "S_PUSH \"DJCPP\\\\lib\\\\Parts\\\\Motion\\\\Executer\\\\ExecuterCollection.jaf\""
+        },
+        {
+          "line": 998481,
+          "text": "PUSH 51"
+        },
+        {
+          "line": 998482,
+          "text": "ASSERT"
+        },
+        {
+          "line": 998483,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 998484,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 998485,
+          "text": ".STRUCTREF Motion::ExecuterCollection m_joinSectionNames"
+        },
+        {
+          "line": 998486,
+          "text": "CALLHLL Array Any 2"
+        },
+        {
+          "line": 998487,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 998488,
+          "text": "POP"
+        },
+        {
+          "line": 998489,
+          "text": ".STRUCTREF Motion::ExecuterCollection m_joinSectionNames"
+        },
+        {
+          "line": 998490,
+          "text": ".LOCALREF sections"
+        },
+        {
+          "line": 998491,
+          "text": "CALLHLL Array Concat 2"
+        },
+        {
+          "line": 998492,
+          "text": ".STRUCTREF Motion::ExecuterCollection m_joinSectionNames"
+        },
+        {
+          "line": 998493,
+          "text": "CALLHLL Array Unique 2"
+        },
+        {
+          "line": 998494,
+          "text": ".LOCALREF isWaiting"
+        },
+        {
+          "line": 998495,
+          "text": "IFNZ 0x595666"
+        },
+        {
+          "line": 998496,
+          "text": "JUMP 0x595668"
+        },
+        {
+          "line": 998497,
+          "text": "0x595666:"
+        },
+        {
+          "line": 998498,
+          "text": "RETURN"
+        },
+        {
+          "line": 998499,
+          "text": "0x595668:"
+        },
+        {
+          "line": 998500,
+          "text": ".LOCALASSIGN isFinish 0"
+        },
+        {
+          "line": 998501,
+          "text": "JUMP 0x59570e"
+        },
+        {
+          "line": 998534,
+          "text": "0x59570e:"
+        },
+        {
+          "line": 998535,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 998536,
+          "text": "PUSH 36081"
+        },
+        {
+          "line": 998537,
+          "text": "DG_NEW_FROM_METHOD"
+        },
+        {
+          "line": 998538,
+          "text": "CALLFUNC AFL_Observer_Set"
+        },
+        {
+          "line": 998539,
+          "text": ".LOCALCREATE disabler InputDisabler"
+        },
+        {
+          "line": 998540,
+          "text": "JUMP 0x5958a0"
+        },
+        {
+          "line": 998598,
+          "text": "0x5958a0:"
+        },
+        {
+          "line": 998599,
+          "text": ".LOCALREF disabler"
+        },
+        {
+          "line": 998600,
+          "text": "PUSH 5"
+        },
+        {
+          "line": 998601,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 998602,
+          "text": "PUSH 36082"
+        },
+        {
+          "line": 998603,
+          "text": "DG_NEW_FROM_METHOD"
+        },
+        {
+          "line": 998604,
+          "text": "DG_PLUSA"
+        },
+        {
+          "line": 998605,
+          "text": "DELETE"
+        },
+        {
+          "line": 998606,
+          "text": "0x5958c2:"
+        },
+        {
+          "line": 998607,
+          "text": ".LOCALREF isFinish"
+        },
+        {
+          "line": 998608,
+          "text": "IFNZ 0x5958ea"
+        },
+        {
+          "line": 998609,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 998610,
+          "text": "CALLFUNC ｣ﾐ｣ﾟc迩携ﾐﾐ"
+        },
+        {
+          "line": 998611,
+          "text": "POP"
+        },
+        {
+          "line": 998612,
+          "text": "JUMP 0x5958c2"
+        },
+        {
+          "line": 998613,
+          "text": "0x5958ea:"
+        },
+        {
+          "line": 998614,
+          "text": ".LOCALDELETE disabler"
+        },
+        {
+          "line": 998615,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 57
+    },
+    {
+      "cn_id": 36081,
+      "cn_signature": "void Motion::ExecuterCollection@<lambda : Motion::ExecuterCollection@Join(array<string>)(61, 26)>(ref bool End);",
+      "deep_read": true,
+      "cn_func_line": 998507,
+      "jast_candidates": [
+        {
+          "id": 36075,
+          "signature": "void Motion::ExecuterCollection@<lambda : Motion::ExecuterCollection@Join(array<string>)(61, 26)>(ref bool End);",
+          "func_line": 998502,
+          "instruction_count": 25,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 998508,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 998509,
+          "text": "PUSH 27034"
+        },
+        {
+          "line": 998510,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 998511,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 998512,
+          "text": "PUSH 27033"
+        },
+        {
+          "line": 998513,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 998514,
+          "text": "IFNZ 0x5956b2"
+        },
+        {
+          "line": 998515,
+          "text": "JUMP 0x595706"
+        },
+        {
+          "line": 998516,
+          "text": "0x5956b2:"
+        },
+        {
+          "line": 998517,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 998518,
+          "text": "CALLFUNC AFL_Parts_EndWaitForClick"
+        },
+        {
+          "line": 998519,
+          "text": ".STRUCTREF Motion::ExecuterCollection m_joinSectionNames"
+        },
+        {
+          "line": 998520,
+          "text": "CALLHLL Array Free 2"
+        },
+        {
+          "line": 998521,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 998522,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 998523,
+          "text": "X_REF 2"
+        },
+        {
+          "line": 998524,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 998525,
+          "text": "X_GETENV"
+        },
+        {
+          "line": 998526,
+          "text": "PUSH 2"
+        },
+        {
+          "line": 998527,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 998528,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 998529,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 998530,
+          "text": "POP"
+        },
+        {
+          "line": 998531,
+          "text": "0x595706:"
+        },
+        {
+          "line": 998532,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 25
+    },
+    {
+      "cn_id": 420,
+      "cn_signature": "void CASTimer@0(void);",
+      "deep_read": false,
+      "cn_func_line": 17674,
+      "jast_candidates": [
+        {
+          "id": 420,
+          "signature": "void CASTimer@0(void);",
+          "func_line": 17674,
+          "instruction_count": 11,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 17675,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 17676,
+          "text": "PUSH 421"
+        },
+        {
+          "line": 17677,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 17678,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 17679,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 17680,
+          "text": ".GLOBALREF time::detail::g_ASTimerManager"
+        },
+        {
+          "line": 17681,
+          "text": "PUSH 440"
+        },
+        {
+          "line": 17682,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 17683,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 17684,
+          "text": "POP"
+        },
+        {
+          "line": 17685,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 11
+    },
+    {
+      "cn_id": 422,
+      "cn_signature": "void CASTimer@1(void);",
+      "deep_read": false,
+      "cn_func_line": 17689,
+      "jast_candidates": [
+        {
+          "id": 422,
+          "signature": "void CASTimer@1(void);",
+          "func_line": 17689,
+          "instruction_count": 5,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 17690,
+          "text": ".GLOBALREF time::detail::g_ASTimerManager"
+        },
+        {
+          "line": 17691,
+          "text": "PUSH 441"
+        },
+        {
+          "line": 17692,
+          "text": ".STRUCTREF CASTimer handle"
+        },
+        {
+          "line": 17693,
+          "text": "CALLMETHOD 1"
+        },
+        {
+          "line": 17694,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 5
+    },
+    {
+      "cn_id": 423,
+      "cn_signature": "void CASTimer@Reset(void) ref CASTimerImp <dummy : CASTimerManager@GetObject､ﾎ諾､?ﾖｵ>;",
+      "deep_read": false,
+      "cn_func_line": 17699,
+      "jast_candidates": [
+        {
+          "id": 423,
+          "signature": "void CASTimer@Reset(void) ref CASTimerImp <dummy : CASTimerManager@GetObjectの戻り値>;",
+          "func_line": 17699,
+          "instruction_count": 14,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 17700,
+          "text": ".GLOBALREF time::detail::g_ASTimerManager"
+        },
+        {
+          "line": 17701,
+          "text": "PUSH 442"
+        },
+        {
+          "line": 17702,
+          "text": ".STRUCTREF CASTimer handle"
+        },
+        {
+          "line": 17703,
+          "text": "CALLMETHOD 1"
+        },
+        {
+          "line": 17704,
+          "text": ".LOCALREF \"<dummy : CASTimerManager@GetObject､ﾎ諾､?ﾖｵ>\""
+        },
+        {
+          "line": 17705,
+          "text": "DELETE"
+        },
+        {
+          "line": 17706,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 17707,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 17708,
+          "text": "X_MOV 3 2"
+        },
+        {
+          "line": 17709,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 17710,
+          "text": "PUSH 430"
+        },
+        {
+          "line": 17711,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 17712,
+          "text": ".LOCALDELETE \"<dummy : CASTimerManager@GetObject､ﾎ諾､?ﾖｵ>\""
+        },
+        {
+          "line": 17713,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 14
+    },
+    {
+      "cn_id": 424,
+      "cn_signature": "int CASTimer@Get(void) ref CASTimerImp <dummy : CASTimerManager@GetObject､ﾎ諾､?ﾖｵ>;",
+      "deep_read": false,
+      "cn_func_line": 17718,
+      "jast_candidates": [
+        {
+          "id": 424,
+          "signature": "int CASTimer@Get(void) ref CASTimerImp <dummy : CASTimerManager@GetObjectの戻り値>;",
+          "func_line": 17718,
+          "instruction_count": 19,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 17719,
+          "text": ".GLOBALREF time::detail::g_ASTimerManager"
+        },
+        {
+          "line": 17720,
+          "text": "PUSH 442"
+        },
+        {
+          "line": 17721,
+          "text": ".STRUCTREF CASTimer handle"
+        },
+        {
+          "line": 17722,
+          "text": "CALLMETHOD 1"
+        },
+        {
+          "line": 17723,
+          "text": ".LOCALREF \"<dummy : CASTimerManager@GetObject､ﾎ諾､?ﾖｵ>\""
+        },
+        {
+          "line": 17724,
+          "text": "DELETE"
+        },
+        {
+          "line": 17725,
+          "text": "PUSHLOCALPAGE"
+        },
+        {
+          "line": 17726,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 17727,
+          "text": "X_MOV 3 2"
+        },
+        {
+          "line": 17728,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 17729,
+          "text": "PUSH 432"
+        },
+        {
+          "line": 17730,
+          "text": ".GLOBALREF time::detail::g_ASTimerManager"
+        },
+        {
+          "line": 17731,
+          "text": "PUSH 435"
+        },
+        {
+          "line": 17732,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 17733,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 17734,
+          "text": "CALLMETHOD 2"
+        },
+        {
+          "line": 17735,
+          "text": "RETURN"
+        },
+        {
+          "line": 17736,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 17737,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 19
+    },
+    {
+      "cn_id": 432,
+      "cn_signature": "int CASTimerImp@Get(float rate, bool disableScale = 0);",
+      "deep_read": false,
+      "cn_func_line": 17982,
+      "jast_candidates": [
+        {
+          "id": 432,
+          "signature": "int CASTimerImp@Get(float rate, bool disableScale = 0);",
+          "func_line": 17982,
+          "instruction_count": 17,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 17983,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 17984,
+          "text": "PUSH 431"
+        },
+        {
+          "line": 17985,
+          "text": ".LOCALREF rate"
+        },
+        {
+          "line": 17986,
+          "text": "CALLMETHOD 1"
+        },
+        {
+          "line": 17987,
+          "text": ".LOCALREF disableScale"
+        },
+        {
+          "line": 17988,
+          "text": "IFZ 0x1bd4a"
+        },
+        {
+          "line": 17989,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 17990,
+          "text": "PUSH 2"
+        },
+        {
+          "line": 17991,
+          "text": "JUMP 0x1bd52"
+        },
+        {
+          "line": 17992,
+          "text": "0x1bd4a:"
+        },
+        {
+          "line": 17993,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 17994,
+          "text": "PUSH 3"
+        },
+        {
+          "line": 17995,
+          "text": "0x1bd52:"
+        },
+        {
+          "line": 17996,
+          "text": "X_REF 1"
+        },
+        {
+          "line": 17997,
+          "text": "RETURN"
+        },
+        {
+          "line": 17998,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 17999,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 17
+    },
+    {
+      "cn_id": 441,
+      "cn_signature": "void CASTimerManager@ReleaseHandle(int nHandle);",
+      "deep_read": false,
+      "cn_func_line": 18203,
+      "jast_candidates": [
+        {
+          "id": 441,
+          "signature": "void CASTimerManager@ReleaseHandle(int nHandle);",
+          "func_line": 18203,
+          "instruction_count": 19,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 18204,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 18205,
+          "text": "PUSH 438"
+        },
+        {
+          "line": 18206,
+          "text": ".LOCALREF nHandle"
+        },
+        {
+          "line": 18207,
+          "text": "CALLMETHOD 1"
+        },
+        {
+          "line": 18208,
+          "text": "NOT"
+        },
+        {
+          "line": 18209,
+          "text": "IFNZ 0x1c2f6"
+        },
+        {
+          "line": 18210,
+          "text": "JUMP 0x1c2f8"
+        },
+        {
+          "line": 18211,
+          "text": "0x1c2f6:"
+        },
+        {
+          "line": 18212,
+          "text": "RETURN"
+        },
+        {
+          "line": 18213,
+          "text": "0x1c2f8:"
+        },
+        {
+          "line": 18214,
+          "text": ".STRUCTREF CASTimerManager createdFlagList"
+        },
+        {
+          "line": 18215,
+          "text": ".LOCALREF nHandle"
+        },
+        {
+          "line": 18216,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 18217,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 18218,
+          "text": "POP"
+        },
+        {
+          "line": 18219,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 18220,
+          "text": "PUSH 439"
+        },
+        {
+          "line": 18221,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 18222,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 19
+    },
+    {
+      "cn_id": 6365,
+      "cn_signature": "void CASClick@0(void);",
+      "deep_read": false,
+      "cn_func_line": 392757,
+      "jast_candidates": [
+        {
+          "id": 6365,
+          "signature": "void CASClick@0(void);",
+          "func_line": 392752,
+          "instruction_count": 4,
+          "opcode_shape_equal": true
+        },
+        {
+          "id": 6367,
+          "signature": "void CASClick@0(int nKey, bool firstKeyDownCancel = 1);",
+          "func_line": 392762,
+          "instruction_count": 9,
+          "opcode_shape_equal": false
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 4
+    },
+    {
+      "cn_id": 6367,
+      "cn_signature": "void CASClick@0(int nKey, bool firstKeyDownCancel = 1);",
+      "deep_read": false,
+      "cn_func_line": 392767,
+      "jast_candidates": [
+        {
+          "id": 6365,
+          "signature": "void CASClick@0(void);",
+          "func_line": 392752,
+          "instruction_count": 4,
+          "opcode_shape_equal": false
+        },
+        {
+          "id": 6367,
+          "signature": "void CASClick@0(int nKey, bool firstKeyDownCancel = 1);",
+          "func_line": 392762,
+          "instruction_count": 9,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 9
+    },
+    {
+      "cn_id": 6371,
+      "cn_signature": "bool CASClick@IsClick(int nOnObject = -2147483648);",
+      "deep_read": false,
+      "cn_func_line": 392873,
+      "jast_candidates": [
+        {
+          "id": 6371,
+          "signature": "bool CASClick@IsClick(int nOnObject = -2147483648);",
+          "func_line": 392868,
+          "instruction_count": 69,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 392874,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 392875,
+          "text": "PUSH 6362"
+        },
+        {
+          "line": 392876,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 392877,
+          "text": "PUSH -1"
+        },
+        {
+          "line": 392878,
+          "text": "EQUALE"
+        },
+        {
+          "line": 392879,
+          "text": "IFNZ 0x232324"
+        },
+        {
+          "line": 392880,
+          "text": "JUMP 0x23232c"
+        },
+        {
+          "line": 392881,
+          "text": "0x232324:"
+        },
+        {
+          "line": 392882,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 392883,
+          "text": "RETURN"
+        },
+        {
+          "line": 392884,
+          "text": "0x23232c:"
+        },
+        {
+          "line": 392885,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 392886,
+          "text": "PUSH 6370"
+        },
+        {
+          "line": 392887,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 392888,
+          "text": "IFNZ 0x232346"
+        },
+        {
+          "line": 392889,
+          "text": "JUMP 0x23234e"
+        },
+        {
+          "line": 392890,
+          "text": "0x232346:"
+        },
+        {
+          "line": 392891,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 392892,
+          "text": "RETURN"
+        },
+        {
+          "line": 392893,
+          "text": "0x23234e:"
+        },
+        {
+          "line": 392894,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 392895,
+          "text": "PUSH 6362"
+        },
+        {
+          "line": 392896,
+          "text": "CALLMETHOD 0"
+        },
+        {
+          "line": 392897,
+          "text": "CALLFUNC AFL_IsKeyDown"
+        },
+        {
+          "line": 392898,
+          "text": "IFNZ 0x23236e"
+        },
+        {
+          "line": 392899,
+          "text": "JUMP 0x2323c2"
+        },
+        {
+          "line": 392900,
+          "text": "0x23236e:"
+        },
+        {
+          "line": 392901,
+          "text": ".STRUCTREF CASClick keyDown"
+        },
+        {
+          "line": 392902,
+          "text": "IFZ 0x232388"
+        },
+        {
+          "line": 392903,
+          "text": "JUMP 0x2323bc"
+        },
+        {
+          "line": 392904,
+          "text": "0x232388:"
+        },
+        {
+          "line": 392905,
+          "text": ".STRUCTASSIGN CASClick keyDown 1"
+        },
+        {
+          "line": 392906,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 392907,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 392908,
+          "text": ".LOCALREF nOnObject"
+        },
+        {
+          "line": 392909,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 392910,
+          "text": "POP"
+        },
+        {
+          "line": 392911,
+          "text": "0x2323bc:"
+        },
+        {
+          "line": 392912,
+          "text": "JUMP 0x232464"
+        },
+        {
+          "line": 392913,
+          "text": "0x2323c2:"
+        },
+        {
+          "line": 392914,
+          "text": ".STRUCTREF CASClick keyDown"
+        },
+        {
+          "line": 392915,
+          "text": "IFNZ 0x2323dc"
+        },
+        {
+          "line": 392916,
+          "text": "JUMP 0x232464"
+        },
+        {
+          "line": 392917,
+          "text": "0x2323dc:"
+        },
+        {
+          "line": 392918,
+          "text": ".STRUCTASSIGN CASClick keyDown 0"
+        },
+        {
+          "line": 392919,
+          "text": ".LOCALREF nOnObject"
+        },
+        {
+          "line": 392920,
+          "text": "PUSH -2147483648"
+        },
+        {
+          "line": 392921,
+          "text": "EQUALE"
+        },
+        {
+          "line": 392922,
+          "text": "IFNZ 0x232414"
+        },
+        {
+          "line": 392923,
+          "text": "JUMP 0x23241c"
+        },
+        {
+          "line": 392924,
+          "text": "0x232414:"
+        },
+        {
+          "line": 392925,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 392926,
+          "text": "RETURN"
+        },
+        {
+          "line": 392927,
+          "text": "0x23241c:"
+        },
+        {
+          "line": 392928,
+          "text": ".LOCALREF nOnObject"
+        },
+        {
+          "line": 392929,
+          "text": ".STRUCTREF CASClick keyDownOnObject"
+        },
+        {
+          "line": 392930,
+          "text": "EQUALE"
+        },
+        {
+          "line": 392931,
+          "text": "IFNZ 0x232446"
+        },
+        {
+          "line": 392932,
+          "text": "JUMP 0x23244e"
+        },
+        {
+          "line": 392933,
+          "text": "0x232446:"
+        },
+        {
+          "line": 392934,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 392935,
+          "text": "RETURN"
+        },
+        {
+          "line": 392936,
+          "text": "0x23244e:"
+        },
+        {
+          "line": 392937,
+          "text": ".STRUCTASSIGN CASClick keyDownOnObject -2147483648"
+        },
+        {
+          "line": 392938,
+          "text": "0x232464:"
+        },
+        {
+          "line": 392939,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 392940,
+          "text": "RETURN"
+        },
+        {
+          "line": 392941,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 392942,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 69
+    },
+    {
+      "cn_id": 6385,
+      "cn_signature": "void CASJoyClick@2(void);",
+      "deep_read": false,
+      "cn_func_line": 1735504,
+      "jast_candidates": [
+        {
+          "id": 6385,
+          "signature": "void CASJoyClick@2(void);",
+          "func_line": 1741273,
+          "instruction_count": 9,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 9
+    },
+    {
+      "cn_id": 6391,
+      "cn_signature": "bool CASJoyClick@IsClick(int nOnObject = -2147483648);",
+      "deep_read": false,
+      "cn_func_line": 393601,
+      "jast_candidates": [
+        {
+          "id": 6391,
+          "signature": "bool CASJoyClick@IsClick(int nOnObject = -2147483648);",
+          "func_line": 393596,
+          "instruction_count": 69,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 69
+    },
+    {
+      "cn_id": 7061,
+      "cn_signature": "void message::detail::CMessageTextView@ExecuteKeyWait(bool enableReadSkipMode);",
+      "deep_read": false,
+      "cn_func_line": 423093,
+      "jast_candidates": [
+        {
+          "id": 7061,
+          "signature": "void message::detail::CMessageTextView@ExecuteKeyWait(bool enableReadSkipMode);",
+          "func_line": 423088,
+          "instruction_count": 19,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 19
+    },
+    {
+      "cn_id": 9196,
+      "cn_signature": "int parts::detail::WaitForClick(FTPARTS_WaitForClickCallback func, bool ･ｭｩ`･ｭ･罕ｻ･?) CASClick rButtonClick, CASClick spaceKeyClick, int clickPartsNumber;",
+      "deep_read": false,
+      "cn_func_line": 525179,
+      "jast_candidates": [
+        {
+          "id": 9196,
+          "signature": "int parts::detail::WaitForClick(FTPARTS_WaitForClickCallback func, bool キーキャンセル) CASClick rButtonClick, CASClick spaceKeyClick, int clickPartsNumber;",
+          "func_line": 525174,
+          "instruction_count": 99,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 99
+    },
+    {
+      "cn_id": 20746,
+      "cn_signature": "bool task::detail::CObserver@IsEnd::get(void);",
+      "deep_read": false,
+      "cn_func_line": 841093,
+      "jast_candidates": [
+        {
+          "id": 20746,
+          "signature": "bool task::detail::CObserver@IsEnd::get(void);",
+          "func_line": 841088,
+          "instruction_count": 2,
+          "opcode_shape_equal": true
+        },
+        {
+          "id": 20747,
+          "signature": "bool task::detail::CObserver@IsEnd::get(void);",
+          "func_line": 841095,
+          "instruction_count": 2,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 2
+    },
+    {
+      "cn_id": 20748,
+      "cn_signature": "void task::detail::CObserver@IsEnd::set(bool value);",
+      "deep_read": false,
+      "cn_func_line": 841082,
+      "jast_candidates": [
+        {
+          "id": 20748,
+          "signature": "void task::detail::CObserver@IsEnd::set(bool value);",
+          "func_line": 841077,
+          "instruction_count": 6,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 6
+    },
+    {
+      "cn_id": 20749,
+      "cn_signature": "void task::detail::CObserver@0(DG_Observer_NotifyHandler notifyHandler);",
+      "deep_read": false,
+      "cn_func_line": 841108,
+      "jast_candidates": [
+        {
+          "id": 20749,
+          "signature": "void task::detail::CObserver@0(DG_Observer_NotifyHandler notifyHandler);",
+          "func_line": 841103,
+          "instruction_count": 7,
+          "opcode_shape_equal": true
+        },
+        {
+          "id": 20751,
+          "signature": "void task::detail::CObserver@0(DG_Observer_IsEnableHandler isEnableHandler, DG_Observer_NotifyHandler notifyHandler);",
+          "func_line": 841116,
+          "instruction_count": 30,
+          "opcode_shape_equal": false
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 7
+    },
+    {
+      "cn_id": 20750,
+      "cn_signature": "void task::detail::CObserver@2(void);",
+      "deep_read": false,
+      "cn_func_line": 1758382,
+      "jast_candidates": [
+        {
+          "id": 20750,
+          "signature": "void task::detail::CObserver@2(void);",
+          "func_line": 1764151,
+          "instruction_count": 17,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 1758383,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 1758384,
+          "text": "PUSH 0"
+        },
+        {
+          "line": 1758385,
+          "text": "X_DUP 2"
+        },
+        {
+          "line": 1758386,
+          "text": "X_REF 1"
+        },
+        {
+          "line": 1758387,
+          "text": "DELETE"
+        },
+        {
+          "line": 1758388,
+          "text": "DG_NEW"
+        },
+        {
+          "line": 1758389,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 1758390,
+          "text": "POP"
+        },
+        {
+          "line": 1758391,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 1758392,
+          "text": "PUSH 1"
+        },
+        {
+          "line": 1758393,
+          "text": "X_DUP 2"
+        },
+        {
+          "line": 1758394,
+          "text": "X_REF 1"
+        },
+        {
+          "line": 1758395,
+          "text": "DELETE"
+        },
+        {
+          "line": 1758396,
+          "text": "DG_NEW"
+        },
+        {
+          "line": 1758397,
+          "text": "X_ASSIGN 1"
+        },
+        {
+          "line": 1758398,
+          "text": "POP"
+        },
+        {
+          "line": 1758399,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 17
+    },
+    {
+      "cn_id": 20753,
+      "cn_signature": "bool task::detail::CObserver@IsEnable(void) bool endObserver, bool enable;",
+      "deep_read": false,
+      "cn_func_line": 841191,
+      "jast_candidates": [
+        {
+          "id": 20753,
+          "signature": "bool task::detail::CObserver@IsEnable(void) bool endObserver, bool enable;",
+          "func_line": 841186,
+          "instruction_count": 36,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 36
+    },
+    {
+      "cn_id": 20758,
+      "cn_signature": "void task::detail::CObserverManager@Add(DG_Observer_NotifyHandler notifyHandler) ref task::detail::CObserver <dummy : ﾓﾒﾞxﾖｵ?｢ﾕﾕｻｯﾓﾃ>;",
+      "deep_read": false,
+      "cn_func_line": 841259,
+      "jast_candidates": [
+        {
+          "id": 20758,
+          "signature": "void task::detail::CObserverManager@Add(DG_Observer_NotifyHandler notifyHandler) ref task::detail::CObserver <dummy : 右辺値参照化用>;",
+          "func_line": 841254,
+          "instruction_count": 14,
+          "opcode_shape_equal": true
+        },
+        {
+          "id": 20759,
+          "signature": "void task::detail::CObserverManager@Add(DG_Observer_IsEnableHandler isEnableHandler, DG_Observer_NotifyHandler notifyHandler) ref task::detail::CObserver <dummy : 右辺値参照化用>;",
+          "func_line": 841275,
+          "instruction_count": 16,
+          "opcode_shape_equal": false
+        },
+        {
+          "id": 20760,
+          "signature": "void task::detail::CObserverManager@Add(wrap<task::detail::CObserver> obj);",
+          "func_line": 841296,
+          "instruction_count": 23,
+          "opcode_shape_equal": false
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 14
+    },
+    {
+      "cn_id": 20760,
+      "cn_signature": "void task::detail::CObserverManager@Add(wrap<task::detail::CObserver> obj);",
+      "deep_read": false,
+      "cn_func_line": 841301,
+      "jast_candidates": [
+        {
+          "id": 20758,
+          "signature": "void task::detail::CObserverManager@Add(DG_Observer_NotifyHandler notifyHandler) ref task::detail::CObserver <dummy : 右辺値参照化用>;",
+          "func_line": 841254,
+          "instruction_count": 14,
+          "opcode_shape_equal": false
+        },
+        {
+          "id": 20759,
+          "signature": "void task::detail::CObserverManager@Add(DG_Observer_IsEnableHandler isEnableHandler, DG_Observer_NotifyHandler notifyHandler) ref task::detail::CObserver <dummy : 右辺値参照化用>;",
+          "func_line": 841275,
+          "instruction_count": 16,
+          "opcode_shape_equal": false
+        },
+        {
+          "id": 20760,
+          "signature": "void task::detail::CObserverManager@Add(wrap<task::detail::CObserver> obj);",
+          "func_line": 841296,
+          "instruction_count": 23,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 23
+    },
+    {
+      "cn_id": 20762,
+      "cn_signature": "wrap<CASTask> task::detail::Create(void) wrap<array<wrap<CASTask> > > list, ref CASTask <dummy : ﾓﾒﾞxﾖｵ?｢ﾕﾕｻｯﾓﾃ>, ref CASTask <dummy : Last､ﾎ諾､?ﾖｵ>, ref CASTask <dummy : Last､ﾎ諾､?ﾖｵ>;",
+      "deep_read": false,
+      "cn_func_line": 841411,
+      "jast_candidates": [
+        {
+          "id": 20762,
+          "signature": "wrap<CASTask> task::detail::Create(void) wrap<array<wrap<CASTask> > > list, ref CASTask <dummy : 右辺値参照化用>, ref CASTask <dummy : Lastの戻り値>, ref CASTask <dummy : Lastの戻り値>;",
+          "func_line": 841406,
+          "instruction_count": 54,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 54
+    },
+    {
+      "cn_id": 25697,
+      "cn_signature": "bool task::detail::CObserverManager@<lambda : task::detail::CObserverManager@UpdateEvent(int, int)(109, 22)>(wrap<task::detail::CObserver> obj);",
+      "deep_read": false,
+      "cn_func_line": 841377,
+      "jast_candidates": [
+        {
+          "id": 23866,
+          "signature": "bool task::detail::CObserverManager@<lambda : task::detail::CObserverManager@UpdateEvent(int, int)(109, 22)>(wrap<task::detail::CObserver> obj);",
+          "func_line": 841372,
+          "instruction_count": 4,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 4
+    },
+    {
+      "cn_id": 27033,
+      "cn_signature": "bool Motion::ExecuterCollection@IsEndWaitSection(void);",
+      "deep_read": false,
+      "cn_func_line": 998681,
+      "jast_candidates": [
+        {
+          "id": 27033,
+          "signature": "bool Motion::ExecuterCollection@IsEndWaitSection(void);",
+          "func_line": 998676,
+          "instruction_count": 14,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 14
+    },
+    {
+      "cn_id": 27034,
+      "cn_signature": "void Motion::ExecuterCollection@EraseEndTask(void);",
+      "deep_read": false,
+      "cn_func_line": 998727,
+      "jast_candidates": [
+        {
+          "id": 27034,
+          "signature": "void Motion::ExecuterCollection@EraseEndTask(void);",
+          "func_line": 998722,
+          "instruction_count": 8,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": [
+        {
+          "line": 998728,
+          "text": "JUMP 0x595b20"
+        },
+        {
+          "line": 998740,
+          "text": "0x595b20:"
+        },
+        {
+          "line": 998741,
+          "text": ".STRUCTREF Motion::ExecuterCollection m_motions"
+        },
+        {
+          "line": 998742,
+          "text": "PUSHSTRUCTPAGE"
+        },
+        {
+          "line": 998743,
+          "text": "PUSH 36086"
+        },
+        {
+          "line": 998744,
+          "text": "CALLHLL Array EraseAll 65538"
+        },
+        {
+          "line": 998745,
+          "text": "POP"
+        },
+        {
+          "line": 998746,
+          "text": "RETURN"
+        }
+      ],
+      "cn_instruction_count": 8
+    },
+    {
+      "cn_id": 36080,
+      "cn_signature": "bool Motion::ExecuterCollection@<lambda : Motion::ExecuterCollection@Join(array<string>)(50, 27)>(string obj);",
+      "deep_read": false,
+      "cn_func_line": 998464,
+      "jast_candidates": [
+        {
+          "id": 36074,
+          "signature": "bool Motion::ExecuterCollection@<lambda : Motion::ExecuterCollection@Join(array<string>)(50, 27)>(string obj);",
+          "func_line": 998459,
+          "instruction_count": 5,
+          "opcode_shape_equal": true
+        }
+      ],
+      "cn_instructions": null,
+      "cn_instruction_count": 5
+    }
+  ],
+  "hll_boundary": {
+    "system": [
+      "bool ResumeSave(string keyName, string fileName, wrap<int> result);",
+      "void ResumeLoad(string keyName, string fileName);",
+      "void Peek(void);",
+      "void PeekAll(void);",
+      "bool ResumeWriteComment(string keyName, string fileName, wrap<array<string> > commentList);",
+      "bool ResumeReadComment(string keyName, string fileName, wrap<array<string> > commentList);",
+      "void Sleep(int milliSecond);",
+      "int GetTime(void);"
+    ],
+    "Array": [
+      "void Free(ref array<hll_param> self);",
+      "void PushBack(ref array<hll_param> self, hll_param value);",
+      "bool Erase(ref array<hll_param> self, int index, int length);",
+      "bool Erase(ref array<hll_param> self, hll_func func);",
+      "bool Erase(ref array<hll_param> self, wrap<array<hll_param> > src);",
+      "bool EraseAll(ref array<hll_param> self, hll_func func);",
+      "int Numof(ref array<hll_param> self);",
+      "int Numof(ref array<hll_param> self, hll_func func);",
+      "bool IsExist(ref array<hll_param> self, hll_param search);",
+      "bool IsExist(ref array<hll_param> self, hll_func func);"
+    ],
+    "Delegate": [
+      "int Numof(ref hll_delegate self);",
+      "bool Empty(ref hll_delegate self);",
+      "void Erase(ref hll_delegate self, hll_func func);"
+    ],
+    "PartsEngine": [
+      "void UpdateComponent(int PassedTime, int ScaledPassedTime, bool MessageWindowShow, float MessageWindowMulColorRate, float MessageWindowAlphaRate);",
+      "int GetActiveParts(void);",
+      "int GetClickNumber(void);",
+      "void ReleaseMessage(void);",
+      "void PopMessage(void);",
+      "int GetMessagePartsNumber(void);",
+      "int GetMessageDelegateIndex(void);",
+      "int GetMessageUniqueID(void);",
+      "int GetMessageType(void);",
+      "int GetMessageVariableInt(int MessageVariableIndex);",
+      "float GetMessageVariableFloat(int MessageVariableIndex);",
+      "bool GetMessageVariableBool(int MessageVariableIndex);",
+      "string GetMessageVariableString(int MessageVariableIndex);",
+      "int GetMessageWindowInactiveMultipleColorR(int Number);",
+      "int GetMessageWindowInactiveMultipleColorG(int Number);",
+      "int GetMessageWindowInactiveMultipleColorB(int Number);",
+      "string GetMessageWindowCGName(int Number);",
+      "string GetMessageWindowFlatName(int Number);",
+      "int GetMessageWindowFlatShowWaitFrameNumber(int Number);",
+      "string GetMessageWindowText(int Number);",
+      "void GetMessageWindowTextArea(int Number, wrap<int> X, wrap<int> Y, wrap<int> Width, wrap<int> Height);",
+      "int GetMessageWindowTextOriginPosMode(int Number);",
+      "void GetMessageWindowTextFont(int Number, wrap<int> Type, wrap<int> Size, wrap<int> R, wrap<int> G, wrap<int> B, wrap<float> BoldWeight, wrap<int> EdgeR, wrap<int> EdgeG, wrap<int> EdgeB, wrap<float> EdgeWeight);",
+      "int GetMessageWindowTextSpeed(int Number);",
+      "void GetMessageWindowTextSpace(int Number, wrap<int> LetterSpace, wrap<int> LineSpace);",
+      "void GetMessageWindowRubyFont(int Number, wrap<int> Type, wrap<int> Size, wrap<int> R, wrap<int> G, wrap<int> B, wrap<float> BoldWeight, wrap<int> EdgeR, wrap<int> EdgeG, wrap<int> EdgeB, wrap<float> EdgeWeight);",
+      "int GetMessageWindowRubyCharSpace(int Number);",
+      "int GetMessageWindowRubyLineSpace(int Number);"
+    ]
+  },
+  "observer_delegates": {
+    "cn": [
+      "/* 0x000000f7 */\tdelegate bool DG_Observer_IsEnableHandler(ref bool 0)",
+      "/* 0x000000f8 */\tdelegate void DG_Observer_NotifyHandler(ref bool 0)"
+    ],
+    "jast": [
+      "/* 0x000000f7 */\tdelegate bool DG_Observer_IsEnableHandler(ref bool End)",
+      "/* 0x000000f8 */\tdelegate void DG_Observer_NotifyHandler(ref bool End)"
+    ]
+  },
+  "selected_types": {
+    "cn": {
+      "CASTimer": {
+        "id": 7,
+        "declaration": "// 7\nstruct CASTimer {\n    int handle;\n};"
+      },
+      "CASTimerImp": {
+        "id": 8,
+        "declaration": "// 8\nstruct CASTimerImp {\n    int preTime;\n    int passedTime;\n    int totalTime;\n    int scaledTotalTime;\n};"
+      },
+      "CASClick": {
+        "id": 233,
+        "declaration": "// 233\nstruct CASClick {\n    int <KeyCode>;\n    int keyDownOnObject = 0;\n    bool keyDown = 0;\n    bool firstClickOff = 0;\n    bool trigger = 0;\n    bool keyPress = 0;\n    bool keyDownLoop = 0;\n    CASTimer timer;\n};"
+      },
+      "CASJoyClick": {
+        "id": 236,
+        "declaration": "// 236\nstruct CASJoyClick {\n    int m_nKey;\n    int m_nKeyDownOnObject;\n    bool m_bKeyDown;\n    bool m_bFirstClickOff;\n    bool m_trigger;\n    int m_deviceNumber;\n    bool m_bKeyPress;\n    bool m_bKeyDownLoop;\n    CASTimer m_timer;\n    int m_nPressFirstTime;\n    int m_nPressTime;\n};"
+      },
+      "task::detail::CObserver": {
+        "id": 508,
+        "declaration": "// 508\nstruct task::detail::CObserver {\n    DG_Observer_IsEnableHandler m_isEnableHandler;\n    DG_Observer_NotifyHandler m_notifyHandler;\n    bool <IsEnd>;\n};"
+      },
+      "Motion::ExecuterCollection": {
+        "id": 612,
+        "declaration": "// 612\nstruct Motion::ExecuterCollection {\n    array<wrap<Motion::Executer> > m_motions;\n    array<string> m_joinSectionNames;\n};"
+      }
+    },
+    "jast": {
+      "CASTimer": {
+        "id": 7,
+        "declaration": "// 7\nstruct CASTimer {\n    int handle;\n};"
+      },
+      "CASTimerImp": {
+        "id": 8,
+        "declaration": "// 8\nstruct CASTimerImp {\n    int preTime;\n    int passedTime;\n    int totalTime;\n    int scaledTotalTime;\n};"
+      },
+      "CASClick": {
+        "id": 233,
+        "declaration": "// 233\nstruct CASClick {\n    int <KeyCode>;\n    int keyDownOnObject = 0;\n    bool keyDown = 0;\n    bool firstClickOff = 0;\n    bool trigger = 0;\n    bool keyPress = 0;\n    bool keyDownLoop = 0;\n    CASTimer timer;\n};"
+      },
+      "CASJoyClick": {
+        "id": 236,
+        "declaration": "// 236\nstruct CASJoyClick {\n    int m_nKey;\n    int m_nKeyDownOnObject;\n    bool m_bKeyDown;\n    bool m_bFirstClickOff;\n    bool m_trigger;\n    int m_deviceNumber;\n    bool m_bKeyPress;\n    bool m_bKeyDownLoop;\n    CASTimer m_timer;\n    int m_nPressFirstTime;\n    int m_nPressTime;\n};"
+      },
+      "task::detail::CObserver": {
+        "id": 508,
+        "declaration": "// 508\nstruct task::detail::CObserver {\n    DG_Observer_IsEnableHandler m_isEnableHandler;\n    DG_Observer_NotifyHandler m_notifyHandler;\n    bool <IsEnd>;\n};"
+      },
+      "Motion::ExecuterCollection": {
+        "id": 612,
+        "declaration": "// 612\nstruct Motion::ExecuterCollection {\n    array<wrap<Motion::Executer> > m_motions;\n    array<string> m_joinSectionNames;\n};"
+      }
+    }
+  },
+  "actual_cn_metadata": {
+    "ain_version": 14,
+    "code_bytes": 10626832,
+    "functions": 37742,
+    "structures": 1210,
+    "globals": 263,
+    "delegates": 1779
+  },
+  "actual_cn_selected_metadata": [
+    {
+      "fno": 6371,
+      "address": 2302722,
+      "name": "CASClick@IsClick",
+      "nr_args_slots": 1,
+      "return_type": {
+        "data": 47,
+        "struct": -1,
+        "rank": 0
+      },
+      "variables": [
+        {
+          "data": 10,
+          "struct": -1,
+          "rank": 0
+        }
+      ]
+    },
+    {
+      "fno": 20752,
+      "address": 4872588,
+      "name": "task::detail::CObserver@Execute",
+      "nr_args_slots": 0,
+      "return_type": {
+        "data": 0,
+        "struct": -1,
+        "rank": 0
+      },
+      "variables": [
+        {
+          "data": 47,
+          "struct": -1,
+          "rank": 0
+        }
+      ]
+    },
+    {
+      "fno": 20761,
+      "address": 4873492,
+      "name": "task::detail::CObserverManager@UpdateEvent",
+      "nr_args_slots": 2,
+      "return_type": {
+        "data": 0,
+        "struct": -1,
+        "rank": 0
+      },
+      "variables": [
+        {
+          "data": 10,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 10,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 10,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 82,
+          "struct": 508,
+          "rank": 1,
+          "subtype": {
+            "data": 82,
+            "struct": 508,
+            "rank": 1,
+            "subtype": {
+              "data": 13,
+              "struct": 508,
+              "rank": 0
+            }
+          }
+        },
+        {
+          "data": 0,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 80,
+          "struct": 508,
+          "rank": 1,
+          "subtype": {
+            "data": 82,
+            "struct": 508,
+            "rank": 1,
+            "subtype": {
+              "data": 13,
+              "struct": 508,
+              "rank": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "fno": 27031,
+      "address": 5854552,
+      "name": "Motion::ExecuterCollection@Join",
+      "nr_args_slots": 1,
+      "return_type": {
+        "data": 0,
+        "struct": -1,
+        "rank": 0
+      },
+      "variables": [
+        {
+          "data": 79,
+          "struct": -1,
+          "rank": 1,
+          "subtype": {
+            "data": 12,
+            "struct": -1,
+            "rank": 0
+          }
+        },
+        {
+          "data": 47,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 47,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 13,
+          "struct": 606,
+          "rank": 0
+        }
+      ]
+    },
+    {
+      "fno": 27034,
+      "address": 5855984,
+      "name": "Motion::ExecuterCollection@EraseEndTask",
+      "nr_args_slots": 0,
+      "return_type": {
+        "data": 0,
+        "struct": -1,
+        "rank": 0
+      },
+      "variables": []
+    },
+    {
+      "fno": 36081,
+      "address": 5854858,
+      "name": "Motion::ExecuterCollection@<lambda : Motion::ExecuterCollection@Join(array<string>)(61, 26)>",
+      "nr_args_slots": 2,
+      "return_type": {
+        "data": 0,
+        "struct": -1,
+        "rank": 0
+      },
+      "variables": [
+        {
+          "data": 51,
+          "struct": -1,
+          "rank": 0
+        },
+        {
+          "data": 0,
+          "struct": -1,
+          "rank": 0
+        }
+      ]
+    }
+  ],
+  "actual_cn_probe": "../probes/cn-surface.json"
+}

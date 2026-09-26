@@ -1,0 +1,42 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x57eafb', '--stop-address=0x57eb80', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  57eafb: 6a 00                        	push	0x0
+  57eafd: 8b cf                        	mov	ecx, edi
+  57eaff: e8 6c 80 eb ff               	call	0x436b70 <+0x35b70>
+  57eb04: 8b c8                        	mov	ecx, eax
+  57eb06: e8 15 b4 0d 00               	call	0x659f20 <+0x258f20>
+  57eb0b: 8b d0                        	mov	edx, eax
+  57eb0d: 8d 8d a8 0c 00 00            	lea	ecx, [ebp + 0xca8]
+  57eb13: e8 08 23 01 00               	call	0x590e20 <+0x18fe20>
+  57eb18: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  57eb1b: 50                           	push	eax
+  57eb1c: c7 45 fc 30 00 00 00         	mov	dword ptr [ebp - 0x4], 0x30
+  57eb23: e8 98 91 0d 00               	call	0x657cc0 <+0x256cc0>
+  57eb28: 8d 8d a8 0c 00 00            	lea	ecx, [ebp + 0xca8]
+  57eb2e: e8 fd 8b e9 ff               	call	0x417730 <+0x16730>
+  57eb33: e9 b3 ab 00 00               	jmp	0x5896eb <+0x1886eb>
+  57eb38: 8d 85 90 0c 00 00            	lea	eax, [ebp + 0xc90]
+  57eb3e: 8b cf                        	mov	ecx, edi
+  57eb40: 50                           	push	eax
+  57eb41: 6a 01                        	push	0x1
+  57eb43: e8 28 80 eb ff               	call	0x436b70 <+0x35b70>
+  57eb48: 8b c8                        	mov	ecx, eax
+  57eb4a: e8 71 b6 0d 00               	call	0x65a1c0 <+0x2591c0>
+  57eb4f: 8b f0                        	mov	esi, eax
+  57eb51: 6a 00                        	push	0x0
+  57eb53: 8b cf                        	mov	ecx, edi
+  57eb55: c7 45 fc 31 00 00 00         	mov	dword ptr [ebp - 0x4], 0x31
+  57eb5c: e8 0f 80 eb ff               	call	0x436b70 <+0x35b70>
+  57eb61: 8b c8                        	mov	ecx, eax
+  57eb63: e8 b8 b3 0d 00               	call	0x659f20 <+0x258f20>
+  57eb68: 8b d6                        	mov	edx, esi
+  57eb6a: 8b c8                        	mov	ecx, eax
+  57eb6c: e8 0f 23 01 00               	call	0x590e80 <+0x18fe80>
+  57eb71: 8d 8d 90 0c 00 00            	lea	ecx, [ebp + 0xc90]
+  57eb77: e8 b4 8b e9 ff               	call	0x417730 <+0x16730>
+  57eb7c: e9 28 ce ff ff               	jmp	0x57b9a9 <+0x17a9a9>

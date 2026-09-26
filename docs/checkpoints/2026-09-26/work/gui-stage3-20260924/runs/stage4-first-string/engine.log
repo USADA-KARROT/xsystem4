@@ -1,0 +1,56 @@
+*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../source/src/system4.c:main:672): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../source/src/system4.c:main:673): AINCHECK: msgf=0 nr_messages=57532 messages=0x10934c800
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_replace:360): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_register:379): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage2/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+*WARNING*(../source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../source/src/vm.c:execute_instruction:4704): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/vm.c:execute_instruction:4704): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=6080 window_ms=5000.596 presents=1737 samples=1737 avg_fps=347.359 p95_interval_ms=13.764 max_interval_ms=17.159 avg_swap_ms=0.237 p95_swap_ms=0.390 max_swap_ms=1.231 window_flags=0x26 vsync=0
+*WARNING*(../source/src/vm.c:vm_execute:5095): heartbeat: 16M insns fno=9189 depth=27 ip=0x2EBF04 op=0x30
+*WARNING*(../source/src/vm.c:vm_execute:5103):   stack[26]: fno=9189 'parts::detail::SetActiveLayer'
+*WARNING*(../source/src/vm.c:vm_execute:5103):   stack[25]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5103):   stack[24]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5103):   stack[23]: fno=9178 'parts::detail::Update'
+*WARNING*(../source/src/vm.c:vm_execute:5110):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5110):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5110):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5110):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5110):   base[4]: fno=36762 'Scene::Run<SceneLogo>'
+*WARNING*(../source/src/vm.c:vm_execute:5110):   base[5]: fno=31798 'SceneLogo@Run'
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=11081 window_ms=5001.869 presents=818 samples=818 avg_fps=163.539 p95_interval_ms=15.956 max_interval_ms=17.740 avg_swap_ms=0.371 p95_swap_ms=0.721 max_swap_ms=1.205 window_flags=0x26 vsync=0
+STRING_AUDIT ptr=0x60400067da50 empty=0 size=4 cow=0 ref=0
+0   xsystem4                            0x00000001058e4fc4 free_string + 1308
+1   xsystem4                            0x0000000104ee4258 heap_unref + 8904
+2   xsystem4                            0x000000010504c9bc unref_call_frame + 1200
+3   xsystem4                            0x0000000105045d60 function_return + 14448
+4   xsystem4                            0x0000000104feaea4 vm_execute + 94052
+5   xsystem4                            0x0000000104fe10c0 vm_execute + 53632
+6   xsystem4                            0x0000000104fe10c0 vm_execute + 53632
+7   xsystem4                            0x0000000104fe10c0 vm_execute + 53632
+8   xsystem4                            0x0000000104fc91b4 vm_call + 2044
+9   xsystem4                            0x000000010503b424 vm_execute_ain + 67756
+10  xsystem4                            0x0000000104f9cc10 main + 10924
+11  dyld                                0x00000001818584e4 start + 6992
+	0x0038b37a in OptionalExtensions::Match<DG_DeletedHandler?, DG_DeletedHandler>
+	0x0038b3f2 in parts::detail::CParts@DeletedEvent::add
+	0x0037cf2e in parts::detail::CParts@Attach
+	0x0037cd5a in parts::detail::CParts@0
+	0x003a3c92 in parts::detail::CSpriteParts@0
+	0x002ed276 in parts::detail::Wrap
+	0x002aeca6 in AFL_Parts_Wrap
+	0x00590d8e in Motion::Executer@0
+	0x0058fe18 in Motion::Create
+	0x00683964 in SceneTitle@FadeInButton
+	0x00682b54 in SceneTitle@Run
+	0x009bf25e in Scene::RunResult<SceneTitle, TitleResult>
+	0x0068548e in TitleSceneSet::Open
+	0x0062c740 in DohnaDohna@Run
+	0x0057b1a6 in game_main
+	0x0049a480 in main

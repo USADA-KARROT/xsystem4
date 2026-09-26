@@ -1,0 +1,190 @@
+{
+  "run": "work/gui-stage3-20260924/runs/retry-20260926",
+  "exit_code": 0,
+  "elapsed_seconds": 35.577,
+  "stop_reason": "error_log",
+  "stopped_by_runner": true,
+  "child_exit_peak_rss_bytes": 655507456,
+  "perf": {
+    "reported_windows": 6,
+    "reported_duration_ms": 30008.049,
+    "reported_presents": 15989,
+    "weighted_present_fps": 532.8237100652561,
+    "max_interval_ms": 82.017,
+    "max_swap_ms": 11.922,
+    "weighted_mean_swap_ms": 0.5311127024829569,
+    "per_window_p95_interval_ms_range": [
+      4.134,
+      15.964
+    ],
+    "sample_capped_windows": 0,
+    "last_reported_sdl_ticks_ms": 30624,
+    "windows_with_at_least_one_interval_over_ms": {
+      "33.333": 2,
+      "50": 1,
+      "100": 0,
+      "1000": 0
+    },
+    "end_of_window_state_counts": {
+      "shown": 6,
+      "minimized": 0,
+      "input_focus": 6,
+      "vsync_values": [
+        0
+      ]
+    }
+  },
+  "rss": null,
+  "message_count": 0,
+  "messages": [],
+  "trace_calls": {},
+  "traced_entries_without_return_at_log_end": [],
+  "diagnostic_log_line_counts": {
+    "double_free_log_lines": 10627
+  },
+  "windows": [
+    {
+      "t_ms": 5620,
+      "window_ms": 5003.986,
+      "presents": 2176,
+      "samples": 2176,
+      "avg_fps": 434.853,
+      "p95_interval_ms": 9.918,
+      "max_interval_ms": 17.861,
+      "avg_swap_ms": 0.539,
+      "p95_swap_ms": 3.16,
+      "max_swap_ms": 7.659,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 25
+    },
+    {
+      "t_ms": 10620,
+      "window_ms": 5000.572,
+      "presents": 808,
+      "samples": 808,
+      "avg_fps": 161.582,
+      "p95_interval_ms": 15.964,
+      "max_interval_ms": 30.987,
+      "avg_swap_ms": 0.995,
+      "p95_swap_ms": 4.421,
+      "max_swap_ms": 11.922,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 27
+    },
+    {
+      "t_ms": 15622,
+      "window_ms": 5001.264,
+      "presents": 3286,
+      "samples": 3286,
+      "avg_fps": 657.034,
+      "p95_interval_ms": 4.134,
+      "max_interval_ms": 82.017,
+      "avg_swap_ms": 0.524,
+      "p95_swap_ms": 2.847,
+      "max_swap_ms": 5.055,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 772
+    },
+    {
+      "t_ms": 20622,
+      "window_ms": 5000.253,
+      "presents": 3254,
+      "samples": 3254,
+      "avg_fps": 650.767,
+      "p95_interval_ms": 4.195,
+      "max_interval_ms": 7.56,
+      "avg_swap_ms": 0.496,
+      "p95_swap_ms": 2.843,
+      "max_swap_ms": 6.113,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 3449
+    },
+    {
+      "t_ms": 25623,
+      "window_ms": 5000.732,
+      "presents": 3197,
+      "samples": 3197,
+      "avg_fps": 639.306,
+      "p95_interval_ms": 4.321,
+      "max_interval_ms": 34.118,
+      "avg_swap_ms": 0.513,
+      "p95_swap_ms": 2.926,
+      "max_swap_ms": 7.077,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 6071
+    },
+    {
+      "t_ms": 30624,
+      "window_ms": 5001.242,
+      "presents": 3268,
+      "samples": 3268,
+      "avg_fps": 653.438,
+      "p95_interval_ms": 4.28,
+      "max_interval_ms": 6.686,
+      "avg_swap_ms": 0.471,
+      "p95_swap_ms": 2.872,
+      "max_swap_ms": 4.571,
+      "window_flags": 1574,
+      "vsync": 0,
+      "line": 8751
+    }
+  ],
+  "limits": [
+    "Present rate can include identical visual content; progress is separate.",
+    "No whole-run p95 or exact long-frame count can be reconstructed from window summaries.",
+    "Initial interval and unfinished final window/stall are unreported; a missing log report is not zero FPS.",
+    "Window flags describe report-time state, not every frame in the window.",
+    "Trace elapsed is inclusive wall time with nested work, waits, and logging; bounded first hits are not an unbiased profile.",
+    "An unmatched trace entry may be in flight, terminated, or otherwise unwound; it is not proof of a permanent hang.",
+    "RSS is process resident memory, not live AIN heap or proof of a leak; its sampled peak can miss brief peaks.",
+    "Diagnostic counts are emitted lines, not exact API error counts; source suppresses repeated warnings."
+  ],
+  "finished": true,
+  "runner_result": {
+    "started_at": "2026-09-26T01:05:15.775288+08:00",
+    "command": [
+      "<WORKSPACE>/work/gui-stage3-20260924/apps/Xsystem4-stage3-optimized.app/Contents/MacOS/xsystem4",
+      "--echo-message",
+      "--save-folder",
+      "<WORKSPACE>/work/gui-stage3-20260924/runs/retry-20260926/saves",
+      "<WORKSPACE>/work/stage2/game"
+    ],
+    "binary_sha256": "13aa27858821a4bfe75004ec2e8572a462898cb508c2b1bac0dd109dd9137986",
+    "source_diff_sha256": "b77b872a3860ccd5f9921b412f64b870b1d7b37ea5189193793300b3621190c0",
+    "source_head": "484f4bc128c6f62fa3cba2bf3d75dddf5d4e465b",
+    "environment": {
+      "XSYSTEM4_HOME": "<WORKSPACE>/work/gui-stage3-20260924/runs/retry-20260926/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "ASAN_OPTIONS": "detect_leaks=0:abort_on_error=1:symbolize=1",
+      "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+    },
+    "duration_limit_seconds": 120,
+    "frame_capture": false,
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "ini_sha256": "c09633228076f51426f23208fab5448d3766e56665ea27f25c5db5f77add1587",
+    "libsys4_head": "8c939465910499b4802ec6dd619794ca58ba4708",
+    "pid": 4775,
+    "stop_reason": "error_log",
+    "exit_code": 0,
+    "elapsed_seconds": 35.577,
+    "peak_rss_bytes": 655507456,
+    "child_user_seconds": 5.705132,
+    "child_system_seconds": 2.782242,
+    "finished_at": "2026-09-26T01:05:51.373308+08:00"
+  },
+  "warning_summary": {
+    "Double free of string object": 10627,
+    "free list exhausted/corrupt": 1,
+    "X_ASSIGN 2 past end of page": 2,
+    "Failed to load WAV -1": 7,
+    "system.Error:": 0,
+    "VM_CALL_TIMEOUT": 0,
+    "Personality.jaf": 2
+  },
+  "engine_log_line_count": 10733
+}

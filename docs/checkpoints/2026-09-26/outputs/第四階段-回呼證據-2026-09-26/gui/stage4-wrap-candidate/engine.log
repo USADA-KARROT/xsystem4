@@ -1,0 +1,74 @@
+*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '����Debug_SetPartsComment'
+*WARNING*(../source/src/system4.c:main:672): Detected GB18030 encoding in AIN (score=92), enabling Chinese text support
+*WARNING*(../source/src/system4.c:main:673): AINCHECK: msgf=0 nr_messages=57532 messages=0x106a8c800
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_replace:360): V14: replacing PartsEngine message bindings (PreLink)
+*WARNING*(../source/src/hll/pe_v14_message.c:pe_v14_message_register:379): V14: registering PartsEngine v14 message functions (PostLink)
+MainEXFile: loaded 126 blocks from '<WORKSPACE>/work/stage2/game/dohnadohnaEx.ex'
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+*WARNING*(../source/src/hll/CrayfishLogViewer.c:CrayfishLogViewer_SetSaveFolderName:54): Unimplemented HLL function: CrayfishLogViewer.SetSaveFolderName
+*WARNING*(../source/src/vm.c:execute_instruction:4708): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/vm.c:execute_instruction:4708): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=6021 window_ms=5008.265 presents=1634 samples=1634 avg_fps=326.261 p95_interval_ms=11.856 max_interval_ms=46.016 avg_swap_ms=0.324 p95_swap_ms=0.774 max_swap_ms=45.810 window_flags=0x26 vsync=0
+*WARNING*(../source/src/vm.c:vm_execute:5099): heartbeat: 16M insns fno=9188 depth=27 ip=0x2EBE52 op=0x1
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[26]: fno=9188 'parts::detail::IsExistLayer'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[25]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[24]: fno=9166 'parts::detail::CallBeginUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[23]: fno=9178 'parts::detail::Update'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[4]: fno=36762 'Scene::Run<SceneLogo>'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[5]: fno=31798 'SceneLogo@Run'
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=11021 window_ms=5000.958 presents=916 samples=916 avg_fps=183.165 p95_interval_ms=15.329 max_interval_ms=17.649 avg_swap_ms=0.357 p95_swap_ms=0.740 max_swap_ms=1.421 window_flags=0x26 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=16022 window_ms=5000.362 presents=1980 samples=1980 avg_fps=395.971 p95_interval_ms=3.326 max_interval_ms=1289.369 avg_swap_ms=0.227 p95_swap_ms=0.538 max_swap_ms=1.761 window_flags=0x26 vsync=0
+STAGE2_PERF t_ms=21022 window_ms=5000.354 presents=2163 samples=2163 avg_fps=432.569 p95_interval_ms=3.482 max_interval_ms=10.726 avg_swap_ms=0.253 p95_swap_ms=0.844 max_swap_ms=1.168 window_flags=0x26 vsync=0
+*WARNING*(../source/src/vm.c:vm_execute:5099): heartbeat: 67M insns fno=27257 depth=17 ip=0x59DC90 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[16]: fno=27257 'RCASTimer@AddTime'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[15]: fno=27253 'RCASTimerManager@UpdateTime'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[14]: fno=36121 'RCASTimerManager@<lambda : RCASTimerManager@0()(37, 37)>'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[13]: fno=9164 'parts::detail::CallPartsUpdateEvent'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5099): heartbeat: 83M insns fno=20861 depth=18 ip=0x9E9374 op=0x2F
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[17]: fno=20861 'CASPosF@2'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[16]: fno=20862 'CASPosF@0'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[15]: fno=20868 'CASPosF@Mul'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[14]: fno=31826 'TitleCharacterView@UpdateCharacterPos'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[5]: fno=31816 'SceneTitle@Run'
+STAGE2_PERF t_ms=26024 window_ms=5001.936 presents=1956 samples=1956 avg_fps=391.049 p95_interval_ms=3.602 max_interval_ms=128.977 avg_swap_ms=0.343 p95_swap_ms=0.928 max_swap_ms=125.694 window_flags=0x626 vsync=0
+STAGE2_PERF t_ms=31026 window_ms=5001.457 presents=1920 samples=1920 avg_fps=383.888 p95_interval_ms=5.666 max_interval_ms=16.035 avg_swap_ms=0.616 p95_swap_ms=2.827 max_swap_ms=9.717 window_flags=0x626 vsync=0
+*WARNING*(../source/src/vm.c:vm_execute:5099): heartbeat: 134M insns fno=9668 depth=20 ip=0x9D6AA8 op=0x0
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[19]: fno=9668 'parts::detail::CCheckBoxParts@2'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[18]: fno=9667 'parts::detail::CCheckBoxParts@0'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[17]: fno=9203 'parts::detail::Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5107):   stack[16]: fno=7899 'AFL_Parts_Wrap'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[0]: fno=20590 'main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[1]: fno=26601 'game_main'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[2]: fno=30881 'DohnaDohna@Run'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[3]: fno=31828 'TitleSceneSet::Open'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[4]: fno=36763 'Scene::RunResult<SceneTitle, TitleResult>'
+*WARNING*(../source/src/vm.c:vm_execute:5114):   base[5]: fno=31816 'SceneTitle@Run'
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+STAGE2_PERF t_ms=36028 window_ms=5002.599 presents=2032 samples=2032 avg_fps=406.189 p95_interval_ms=4.463 max_interval_ms=22.984 avg_swap_ms=0.410 p95_swap_ms=1.875 max_swap_ms=19.946 window_flags=0x626 vsync=0
+*WARNING*(../source/src/audio_mixer.c:channel_open:508): Failed to load WAV -1
+*WARNING*(../source/src/hll/FileOperation.c:get_file_list:153): opendir("SaveData/User/"): No such file or directory
+*WARNING*(../source/src/vm.c:execute_instruction:3008): ASSERT FAILED: DJCPP\model\LocalGame\Worker\Personality\Personality.jaf:27: assert( id != "" );
+Assertion failed at DJCPP\model\LocalGame\Worker\Personality\Personality.jaf:27: assert( id != "" );
+*WARNING*(../source/src/heap.c:heap_alloc_slot:544): heap_alloc_slot: skipped 1 in-use entries (head=162812 found=8198822 ref=-999)
+*WARNING*(../source/src/heap.c:heap_alloc_slot:551): heap_alloc_slot: free list exhausted/corrupt (head=162812 slot=8198822 heap_size=1048576 skip=1) — growing
+*WARNING*(../source/src/vm.c:execute_instruction:4708): X_ASSIGN 2 past end of page (page_index=0 nr_vars=1); clamping to 1

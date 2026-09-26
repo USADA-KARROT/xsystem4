@@ -1,0 +1,14 @@
+{
+  "source": "work/lifetime-stage2-20260924",
+  "copied_sha256": {
+    "build_probe.py": "eae0b20bd08e965842d3cfaaeba84abbd8e44b13a0bc3190f4eb3ca5bd04dbf1",
+    "runtime_probe.c": "3d11b54d325a13b9c5fb4cd74e9dc7d7f37cd93ea317472a6451c2cece7b33db",
+    "delegate_reentrancy_fixture.inc": "0d0a0bc8b0b5161b7ff6dabdeadf1194562ae7732a35687da96650d954096f87",
+    "heap_reuse_fixture.inc": "90b53c14ef2c980be6531fb23fb05321916b2777eb2cdc8a4073761e8236fa6e",
+    "click_fixture.inc": "656baa2b4debe441a1331a6e7c050b2e2b00dbd4b00a3cf711567c86cdf4bb83",
+    "observer_fixture.inc": "9dd92f850169a27eec546b59311197a961f7762610c42ebdb2eeac364cfd881a",
+    "xassign_contract.inc": "2d292f2f0e0d7e2268b041a457aeb214aa63f1d52355bbc9350efd5aedc67612"
+  },
+  "builder_changes": "root parent depth corrected; automatic ninja build removed to avoid concurrent engine mutations",
+  "status": "PREPARED_NOT_COMPILED"
+}

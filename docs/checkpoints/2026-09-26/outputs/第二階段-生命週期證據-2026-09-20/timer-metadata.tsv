@@ -1,0 +1,68 @@
+GLOBAL	15	time::detail::g_ASTimerManager	type=13
+STRUCT	7	CASTimer	ctor=420	dtor=422	members=1
+MEMBER	7	0	handle	type=10
+STRUCT	8	CASTimerImp	ctor=-1	dtor=-1	members=4
+MEMBER	8	0	preTime	type=10
+MEMBER	8	1	passedTime	type=10
+MEMBER	8	2	totalTime	type=10
+MEMBER	8	3	scaledTotalTime	type=10
+STRUCT	9	CASTimerManager	ctor=22325	dtor=-1	members=5
+MEMBER	9	0	timerImpList	type=79
+MEMBER	9	1	createdFlagList	type=79
+MEMBER	9	2	rateTable	type=79
+MEMBER	9	3	systemRateTable	type=79
+MEMBER	9	4	<Rate>	type=11
+STRUCT	233	CASClick	ctor=6365	dtor=-1	members=8
+MEMBER	233	0	<KeyCode>	type=10
+MEMBER	233	1	keyDownOnObject	type=10
+MEMBER	233	2	keyDown	type=47
+MEMBER	233	3	firstClickOff	type=47
+MEMBER	233	4	trigger	type=47
+MEMBER	233	5	keyPress	type=47
+MEMBER	233	6	keyDownLoop	type=47
+MEMBER	233	7	timer	type=13
+FUNCTION	420	CASTimer@0	address=0x1b5f0	args=0	locals=0	return=0
+FUNCTION	421	CASTimer@2	address=0x9c8c2e	args=0	locals=0	return=0
+FUNCTION	422	CASTimer@1	address=0x1b630	args=0	locals=0	return=0
+FUNCTION	423	CASTimer@Reset	address=0x1b660	args=0	locals=1	return=0
+FUNCTION	424	CASTimer@Get	address=0x1b6e8	args=0	locals=1	return=10
+FUNCTION	425	CASTimer@GetScaled	address=0x1b774	args=0	locals=1	return=10
+FUNCTION	430	CASTimerImp@Reset	address=0x1bbd2	args=0	locals=0	return=0
+FUNCTION	431	CASTimerImp@UpdatePassedTime	address=0x1bc3a	args=1	locals=3	return=0
+FUNCTION	432	CASTimerImp@Get	address=0x1bd0c	args=2	locals=2	return=10
+FUNCTION	435	CASTimerManager@Rate::get	address=0x1be1c	args=0	locals=0	return=11
+FUNCTION	438	CASTimerManager@CheckHandle	address=0x1be54	args=1	locals=4	return=47
+FUNCTION	439	CASTimerManager@GC	address=0x1bfa2	args=0	locals=2	return=0
+FUNCTION	440	CASTimerManager@CreateHandle	address=0x1c120	args=0	locals=4	return=10
+FUNCTION	441	CASTimerManager@ReleaseHandle	address=0x1c2cc	args=1	locals=1	return=0
+FUNCTION	442	CASTimerManager@GetObject	address=0x1c338	args=1	locals=1	return=21
+FUNCTION	22325	CASTimerManager@0	address=0x9c8c3c	args=0	locals=0	return=0
+FUNCTION	6346	AFL_IsKeyDown	address=0x2314d0	args=1	locals=1	return=47
+FUNCTION	6362	CASClick@KeyCode::get	address=0x232074	args=0	locals=0	return=10
+FUNCTION	6364	CASClick@KeyCode::set	address=0x232048	args=1	locals=1	return=0
+FUNCTION	6365	CASClick@0	address=0x2320ac	args=0	locals=0	return=0
+FUNCTION	6366	CASClick@2	address=0x9d2164	args=0	locals=0	return=0
+FUNCTION	6367	CASClick@0	address=0x2320c2	args=2	locals=2	return=0
+FUNCTION	6368	CASClick@Init	address=0x232102	args=2	locals=2	return=0
+FUNCTION	6369	CASClick@Reset	address=0x232154	args=1	locals=1	return=0
+FUNCTION	6370	CASClick@IsFirstClick	address=0x232204	args=0	locals=0	return=47
+FUNCTION	6374	CASClick@IsKeyPress	address=0x232616	args=1	locals=1	return=47
+FUNCTION	6463	math::detail::Round	address=0x235828	args=1	locals=1	return=10
+HLL	0	26	system.Error	args=1	return=12
+HLL	0	30	system.GetTime	args=0	return=10
+HLL	4	10	Array.PopBack	args=1	return=0
+HLL	4	11	Array.EmplaceBack	args=1	return=82
+HLL	4	20	Array.Numof	args=1	return=10
+HLL	4	21	Array.Numof	args=2	return=10
+HLL	4	24	Array.Empty	args=1	return=47
+HLL	4	42	Array.Find	args=2	return=10
+HLL	4	44	Array.Find	args=4	return=10
+HLL	4	46	Array.Find	args=2	return=10
+HLL	4	48	Array.Find	args=4	return=10
+HLL	4	65	Array.At	args=2	return=75
+HLL	4	66	Array.At	args=2	return=75
+HLL	4	71	Array.Last	args=1	return=75
+HLL	4	72	Array.Last	args=1	return=75
+HLL	4	73	Array.Last	args=2	return=75
+HLL	4	74	Array.Last	args=2	return=75
+HLL	17	7	IbisInputEngine.Key_IsDown	args=1	return=47

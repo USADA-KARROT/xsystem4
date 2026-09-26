@@ -1,0 +1,20 @@
+{
+  "exit_code": 86,
+  "mode": "deleted-event",
+  "variant": "asan-ubsan",
+  "fixture_sha256": "ad876da4e7a6d199ea0f49c564143431de47107d4ed8f883ad7013c9db7b3e69",
+  "round0": {
+    "event_slot": 20,
+    "seq": 22,
+    "ref": 1,
+    "count": 1,
+    "tag": 0
+  },
+  "round1": {
+    "event_slot": 20,
+    "valid": false,
+    "ref": 0,
+    "seq": 143
+  },
+  "scope": "Seed true f14312 local frame at original 0x38b34c after GUI FuncSet getter. Original AIN Match24980 and lambda25144/25145 execute; no GUI/HLL startup; CParts destructor excluded for fixture roots."
+}

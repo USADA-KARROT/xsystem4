@@ -1,0 +1,22 @@
+FUNCTION 442 CASTimerManager@GetObject 115512
+{'address': 115512, 'opcode': 'PUSHSTRUCTPAGE', 'args': []}
+{'address': 115514, 'opcode': 'PUSH', 'args': [438]}
+{'address': 115520, 'opcode': 'PUSHLOCALPAGE', 'args': []}
+{'address': 115522, 'opcode': 'PUSH', 'args': [0]}
+{'address': 115528, 'opcode': 'X_REF', 'args': [1]}
+{'address': 115534, 'opcode': 'CALLMETHOD', 'args': [1]}
+{'address': 115540, 'opcode': 'NOT', 'args': []}
+{'address': 115542, 'opcode': 'IFNZ', 'args': [115554]}
+{'address': 115548, 'opcode': 'JUMP', 'args': [115562]}
+{'address': 115554, 'opcode': 'PUSH', 'args': [-1]}
+{'address': 115560, 'opcode': 'RETURN', 'args': []}
+{'address': 115562, 'opcode': 'PUSHSTRUCTPAGE', 'args': []}
+{'address': 115564, 'opcode': 'PUSH', 'args': [0]}
+{'address': 115570, 'opcode': 'X_REF', 'args': [1]}
+{'address': 115576, 'opcode': 'PUSHLOCALPAGE', 'args': []}
+{'address': 115578, 'opcode': 'PUSH', 'args': [0]}
+{'address': 115584, 'opcode': 'X_REF', 'args': [1]}
+{'address': 115590, 'opcode': 'X_REF', 'args': [1]}
+{'address': 115596, 'opcode': 'X_DUP', 'args': [1]}
+{'address': 115602, 'opcode': 'SP_INC', 'args': []}
+{'address': 115604, 'opcode': 'RETURN', 'args': []}

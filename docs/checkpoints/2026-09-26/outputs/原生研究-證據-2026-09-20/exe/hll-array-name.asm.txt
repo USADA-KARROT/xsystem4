@@ -1,0 +1,16 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x494747', '--stop-address=0x49475f', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  494747: ba bc ed 7c 00               	mov	edx, 0x7cedbc
+  49474c: 8b ce                        	mov	ecx, esi
+  49474e: e8 4d 78 f8 ff               	call	0x41bfa0 <+0x1afa0>
+  494753: 84 c0                        	test	al, al
+  494755: 74 08                        	je	0x49475f <+0x9375f>
+  494757: 5f                           	pop	edi
+  494758: b8 00 43 64 00               	mov	eax, 0x644300
+  49475d: 5e                           	pop	esi
+  49475e: c3                           	ret

@@ -1,0 +1,296 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>xsystem4-原版逆向與原生路線研究-2026-09-20</title><style>
+:root{color-scheme:light;--ink:#1c3141;--muted:#536977;--line:#dde5ea;--accent:#177b6a}
+*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"PingFang TC",sans-serif}
+.layout{display:grid;grid-template-columns:235px minmax(0,1060px);gap:32px;max-width:1380px;padding:36px 25px;margin:auto}nav{position:sticky;top:28px;align-self:start;font-size:13px}nav b{color:var(--accent)}nav a{display:block;text-decoration:none;color:var(--muted);padding:8px 0;border-bottom:1px solid var(--line)}main{min-width:0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:35px 40px}.kicker{color:var(--accent);font-size:12px;letter-spacing:.12em;font-weight:700}h1{font-size:30px;line-height:1.4}h2{font-size:23px;border-top:2px solid var(--line);padding-top:22px;margin-top:44px;scroll-margin-top:20px}h3{font-size:19px}a{color:#146b98;text-underline-offset:3px}strong{color:#165f49}table{display:block;overflow:auto;border-collapse:collapse;width:100%;margin:24px 0;font-size:13px;line-height:1.7}th,td{border:1px solid var(--line);padding:12px;min-width:110px;vertical-align:top;text-align:left}th{background:#e8f1f1}tr:nth-child(even){background:#f8fafb}code{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere;background:#f0f4f6;border-radius:4px;padding:2px 4px}li{margin:10px 0}.foot{border-top:1px solid var(--line);font-size:12px;color:var(--muted);margin-top:35px;padding-top:15px}
+@media(max-width:1050px){.layout{grid-template-columns:1fr;max-width:940px}nav{position:static}nav a{display:inline-block;margin-right:15px}main{padding:28px}}@media(max-width:600px){.layout{padding:12px}main{padding:20px 16px}h1{font-size:25px}body{font-size:15px}h2{font-size:21px}}@media print{nav{display:none}.layout{display:block;padding:0}main{border:0;padding:0}body{background:white}h2{break-after:avoid}tr{break-inside:avoid}}
+</style><div class="layout"><nav><b>原版研究與原生路線</b><a href="#section-1">研究結論</a><a href="#section-2">實際找到、核對了什麼</a><a href="#section-3">最重要的新材料：可以分析的 EXE 傾印檔</a><a href="#section-4">已從原生機器碼讀出的規則</a><a href="#section-5">大量遊戲策略已在 AIN，不用重新創作</a><a href="#section-6">CN 與 JAST 可以共用什麼</a><a href="#section-7">現有核心的新發現：先把介面契約整理好</a><a href="#section-8">路線比較與建議</a><a href="#section-9">下一階段的最小實驗與決策門檻</a><a href="#section-10">存檔與效能不能提前承諾</a><a href="#section-11">歷史證據的更正</a><a href="#section-12">本輪交付與未執行範圍</a></nav><main><div class="kicker">LOCAL ENGINE RESEARCH · 2026-09-20</div><h1>多娜多娜：原版逆向與 macOS 原生路線研究</h1>
+<p>研究日期：2026-09-20。目標是回答「是否值得跳出持續修補 xsystem4，研究原版後另寫原生核心」。本輪已做本機材料核對、EXE 機器碼分析、真實 AIN 解碼與既有實作審查。<strong>這份是完成的靜態可行性研究；尚未做出可執行的新引擎，也沒有新一輪遊戲端到端測試。</strong></p>
+<h2 id="section-1">研究結論</h2>
+<p><strong>本機材料足以支持有證據的逆向研究。另寫 macOS 原生相容核心有技術依據，但目前最合理的第一個改造邊界是 HLL 介面與型別／引用契約，還沒有證據要求推倒全部引擎。</strong></p>
+<p>這輪找到可讀的歷史 EXE 傾印檔，從機器碼定位原版 Array 與 PartsEngine 的分派入口，並讀出數個實際行為。同時確認：點擊重複、timer、observer 與 Join 等大量策略已存在遊戲腳本，無須把劇情與所有遊戲邏輯重新編寫。</p>
+<p>原生方案仍要正確執行原 AIN、保留 closure／reference 的可觀察行為，並提供圖形、輸入、音訊及保存等服務。現有 xsystem4 已建成 ARM64 原生程式；更換執行核心的價值在於提升相容性和可驗證性，不能僅因「重新寫」就承諾更流暢。xsystem4 本身即是 Unix 類系統的 System 4 引擎實作。<a href="https://github.com/nunuhara/xsystem4">專案說明</a></p>
+<p><strong>建議採「原版規則取證 → 宣告驅動的 HLL bridge → 獨立生命週期核心實驗 → 接回既有資源／呈現」的順序。</strong> 總體架構可重新設計；已可用的檔案解析、中文與工具應優先保留。</p>
+<ul>
+<li><a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-API%E5%9C%B0%E5%9C%96-2026-09-20.html">可搜尋的原生 API 地圖</a></li>
+<li><a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/README.md">完整證據與工具索引</a></li>
+</ul>
+<h2 id="section-2">實際找到、核對了什麼</h2>
+<table>
+<thead>
+<tr>
+<th>材料／檢查</th>
+<th>本輪結果</th>
+<th>可推論的範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>相關本機研究資產</td>
+<td>建立 35 項帶路徑／時間／hash 或 Git 身份的清單</td>
+<td>原廠 C/C++ source、PDB、IDA／Ghidra 專案在限縮搜索中未找到；不宣稱全磁碟不存在</td>
+</tr>
+<tr>
+<td>中文原 AIN</td>
+<td>v14；完整解碼 10,626,832 bytes、2,040,196 個靜態指令位置、99 種 opcode</td>
+<td>是 bytecode 結構掃描，不是執行遊戲或正確實作 99 種指令</td>
+</tr>
+<tr>
+<td>腳本 metadata</td>
+<td>37,742 條函式宣告、1,210 個結構／介面、1,779 個 delegate、263 個全域變數</td>
+<td>包含 2,024 個 address=0xffffffff 的無 body 宣告；其餘地址均落在已解碼指令邊界</td>
+</tr>
+<tr>
+<td>原生服務 HLL</td>
+<td>36 個命名空間、1,701 個宣告；1,562 個有靜態 CALLHLL 引用</td>
+<td>可能含未執行的封裝函式；不代表開場必須實作 1,562 項，也不是 36 個 DLL</td>
+</tr>
+<tr>
+<td>同名重載</td>
+<td>37 組、97 個宣告；35 組簽名不同</td>
+<td>名稱不能單獨決定 C 實作；不等於 35 組全部已證明有錯</td>
+</tr>
+<tr>
+<td>EXE 分派表</td>
+<td>Array 84 格、PartsEngine 868 格，共 952 格</td>
+<td>全部有合法檔案映射且落在 executable 區域；僅部分分支經人工語義判讀</td>
+</tr>
+<tr>
+<td>原 AIN 關鍵鏈</td>
+<td>深讀五個核心函式，另解碼四個支援函式</td>
+<td>包含 timer、click、observer、Join、閉包寫回；不是全遊戲控制流程</td>
+</tr>
+<tr>
+<td>pactex 資源</td>
+<td>現有 Pact AFA 中 195/195 entries 都有 HEAD，區間在檔案內</td>
+<td>可以保留既有資源解析基礎；不代表所有版面語意均驗證</td>
+</tr>
+<tr>
+<td>探針驗證</td>
+<td>O2 與 ASan/UBSan 解碼結果一致，執行均 exit 0</td>
+<td>驗證讀取／解碼工具；LeakSanitizer 關閉，沒有「遊戲無洩漏」結論</td>
+</tr>
+</tbody>
+</table>
+<p>完整數值見 <a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/probes/surface-summary.json">surface-summary.json</a>、<a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/probes/verified/verification.json">雙建置驗證</a>、<a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/archive/inventory.json">本機資產清單</a>。解析器仍印出既有 <code>Debug_SetPartsComment</code> 名稱 junk warning，已保存，不隱藏成全無警告。</p>
+<h2 id="section-3">最重要的新材料：可以分析的 EXE 傾印檔</h2>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th style="text-align:right">bytes</th>
+<th>SHA-256</th>
+<th>目前用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>工作副本 <code>dohnadohna.exe</code></td>
+<td style="text-align:right">4,188,176</td>
+<td><code>97020c28f1e481eed5a8c28986c92fc1cbf092434780a6c6a055aff280c9377a</code></td>
+<td>現用原版身份錨點；核心區域受保護／打包</td>
+</tr>
+<tr>
+<td><code>dohnadohna_dump_SCY.exe</code></td>
+<td style="text-align:right">15,474,176</td>
+<td><code>211ce63e0e229fa7d77b2af141149681ec37521e7497914473c739569aa101f0</code></td>
+<td>本輪原生機器碼分析主體</td>
+</tr>
+<tr>
+<td><code>dohnadohna_final6.exe</code></td>
+<td style="text-align:right">12,273,664</td>
+<td><code>f0a611c52db10271fa104acb8e8f78dd635c10b8ee1456b488d490aeb3fd0e80</code></td>
+<td>歷史衍生檔的版本／檔案映射對照</td>
+</tr>
+</tbody>
+</table>
+<p>後兩者位於本機 <code>Downloads/dohnadohna_工作檔案</code>。現用 EXE 是 PE32 x86，主要 section 高熵、匿名且多為 RWX；目標 HLL 名稱未以明文出現，只有很少的 import，也沒有可用 PDB。這組證據支持保護／打包判斷，不能僅靠 entropy 判定特定產品。</p>
+<p>SCY dump 則有可反組譯的 C++ 程式、HLL 分派及 RTTI，包含 <code>CArrayPage</code>、<code>CDelegatePage</code>、<code>CFuncPage</code>、<code>CJaffaVM</code> 等類別線索。兩份檔案相同的 timestamp／部分 section 佈局支持關聯，<strong>但 dump 的完整生成來源與是否有修改，尚未獨立證明</strong>。後續應以它的固定 hash 作為參考版本，不能默認其所有規則與目前受保護 EXE 完全一致。</p>
+<p><code>final6</code> 的前七個 packed sections 與現用 EXE 逐位元相同；但所查九個原生核心範圍只有 virtual allocation，沒有 file-backed bytes，無法拿同一偏移比較明文核心。研究明確分開 VA、RVA 與檔案 offset，沒有把「位址存在」誤寫成「資料存在」。相關概念依 <a href="https://learn.microsoft.com/en-us/windows/win32/debug/pe-format">Microsoft PE 格式文件</a>。</p>
+<p>詳見 <a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/exe/exe-findings.md">EXE 研究</a>、<a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/exe/validated-jump-tables.json">分派表驗證</a>、<a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/exe/dump-final6-comparison.json">衍生檔比較</a>。本輪沒有執行或改寫這些 EXE。</p>
+<h2 id="section-4">已從原生機器碼讀出的規則</h2>
+<p>以下位址是 SCY dump 的 preferred VA，image base <code>0x400000</code>，不是正在執行程序的 ASLR 位址。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>連續證據</th>
+<th>已支持的行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Array 入口</td>
+<td>名稱字串 <code>0x7cedbc</code> → 比較分支 <code>0x494747</code> → dispatcher <code>0x644300</code> → table <code>0x644f18</code></td>
+<td>依函式索引 0–83 分派，能與 AIN 宣告做對照</td>
+</tr>
+<tr>
+<td>PartsEngine 入口</td>
+<td>名稱字串 <code>0x7cef20</code> → 分支 <code>0x4948f7</code> → dispatcher <code>0x57b900</code> → table <code>0x589714</code></td>
+<td>依索引 0–867 分派；全表定位不代表全表語義已還原</td>
+</tr>
+<tr>
+<td>IsExist(value)／IsExist(predicate)</td>
+<td>Array #56 → <code>0x644bd5</code>；#57 → <code>0x64473a</code>，分別進不同比較器路徑</td>
+<td>值搜尋與 callback 搜尋有區分；搜尋結果非負才回 true</td>
+</tr>
+<tr>
+<td>Erase(predicate)</td>
+<td>Array #16 → first-match helper → CArrayPage RTTI/vtable → <code>0x67f750</code></td>
+<td>刪第一個命中；未命中回 false。成功後儲存長度減一；與 EraseAll 不同</td>
+</tr>
+<tr>
+<td>clickable setter／getter</td>
+<td>PartsEngine #179／180 讀寫同一物件 byte <code>+0x1a4</code></td>
+<td>Getter 查無物件回 false；這仍不足以確定點擊事件的消耗時機</td>
+</tr>
+<tr>
+<td>GetClickNumber</td>
+<td>PartsEngine #22 分支 <code>0x57bd7e</code> 讀取 manager 欄位 <code>+0x2c</code></td>
+<td>已定位取值來源；更新與清除時機尚未還原</td>
+</tr>
+<tr>
+<td>CG 名稱回傳</td>
+<td>#221 GetButtonCGName、#505 GetMessageWindowCGName → return helper <code>0x657cc0</code></td>
+<td>這兩個宣告均為 <code>string(int)</code>，透過 VM return object 回傳字串，沒有 caller 傳入的字串 out-param</td>
+</tr>
+</tbody>
+</table>
+<p>這些原版證據讓後續實作可以先定契約再驗證。仍未完整讀出的部分包括元素析構、delegate capture／retain、VM 指令分派、事件排程和存檔復原；不把以上幾項延伸成完整引擎規格。</p>
+<h2 id="section-5">大量遊戲策略已在 AIN，不用重新創作</h2>
+<p>原 AIN 的精確地址與立即參數保存在 <a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/ain/chain-bytecode.json">chain-bytecode.json</a>，完整分析見 <a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/ain/ain-findings.md">AIN 核心契約</a>。</p>
+<ol>
+<li><strong>按鍵重複是腳本規則。</strong> <code>CASClick@IsKeyPress</code> 先回報首次按下；持續按住後先等 350ms，再每 50ms 重複。<code>IsClick</code> 另有按下→放開及命中物件一致的判斷。新 native 輸入層應提供正確狀態／時間，避免再重複實作一套互相干擾的規則。</li>
+<li><strong>Observer 傳的是可寫回的引用。</strong> <code>CObserver@Execute</code> 建立 local <code>endObserver=false</code>，用兩槽 ref-bool 交給 delegate；callback 返回後寫入自身 <code>IsEnd</code>。callback 清理時，caller frame 必須仍有效。</li>
+<li><strong>Join callback 要改兩個不同位置。</strong> CN f36081 同時透過 <code>X_GETENV</code> 寫回捕捉的 Join frame <code>isFinish</code>，以及參數 <code>ref End</code>。只回傳 true 或強制跳過等待不能等價。</li>
+<li><strong>移除策略不同。</strong> Observer manager 使用 Array #16 的 first-match Erase；Motion 的 EraseEndTask 使用 EraseAll。這與本輪 EXE 的分派／搜尋證據互相支持。</li>
+<li><strong>沒有自訂 destructor 仍需清理成員。</strong> CASTimer 有 ctor420／dtor422；CASClick、CASJoyClick、CObserver 的自訂 destructor 為 -1，仍包含 timer／delegate 等成員。VM 必須按型別清理，不能等候一個不存在的腳本析構函式替它收尾。</li>
+</ol>
+<p>這提供了新核心的具體驗收鏈：建立 timer／observer → 正確輸入與時間 → delegate 雙重寫回 → first-match 移除 → typed cleanup → slot 重用。最難處是閉包、別名和生命週期一致性，不能只靠「99 種指令」估算工作量。</p>
+<h2 id="section-6">CN 與 JAST 可以共用什麼</h2>
+<p>兩份既有 <code>libraries.txt</code> 完全相同，SHA-256 為 <code>95402d7f3969b812927ed9cdeae12915f512724eec2e882e25ff7b2cd32589d3</code>；五個所選核心函式的 opcode 序列形狀也相同。這支持共用宣告驅動的核心，再搭配不同文字編碼與資源。</p>
+<p>但 CN dump 標示 1.01，JAST 為 1.02；函式數分別 37,742／37,737，lambda 編號也不同：Join callback 是 CN36081／JAST36075，另一個 observer predicate 是 CN25697／JAST23866。<strong>不能整表固定加減，也不能把硬編 fno 當通用解法。</strong> JAST README 所列原始目錄目前不存在，本輪未對原始 JAST AIN 或 EXE 重新驗證；兩份 dump 相同的局部內容不證明兩款原引擎完全等價。</p>
+<h2 id="section-7">現有核心的新發現：先把介面契約整理好</h2>
+<p>本輪進一步核對現有 <code>ffi.c</code> 和 <code>Array.c</code>，確認三組可直接由來源碼看出的錯配：</p>
+<table>
+<thead>
+<tr>
+<th>重載</th>
+<th>目前實作</th>
+<th>結果／限制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Numof #21</td>
+<td>predicate 版仍選一參數的 <code>Array_Numof</code></td>
+<td>callback 未執行，回傳依陣列大小／stride 計算</td>
+</tr>
+<tr>
+<td>Count #23</td>
+<td>predicate 版仍選一參數 <code>Array_Count</code></td>
+<td>callback 未使用，直接回 <code>nr_vars</code></td>
+</tr>
+<tr>
+<td>Find #46／#44</td>
+<td>多個宣告選同一個 <code>(array,int value)</code> 實作</td>
+<td>predicate 的函式編號被當值比對；四參數版也有參數意義錯位，真實搜尋值未進入比較邏輯</td>
+</tr>
+</tbody>
+</table>
+<p>細節、靜態呼叫位置數和行號見 <a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/archive/binding-review.md">獨立綁定審查</a>。<strong>這是具體缺口，尚未證明是 9 月 9 日最新卡住的原因；本輪也沒有修改它們。</strong></p>
+<p>現有系統其實仍以 libno/fno 保存 runtime table，並依 AIN 宣告建立各自的 libffi CIF；問題在於選 C function pointer 時，多數只按名稱取第一個實作。Erase／IsExist 已有簽名選擇特例，Numof 也已有元素 stride 分流，所以不能描述成整個系統完全不認型別。</p>
+<p>下一個架構應由「版本 hash + library/index + normalized signature」選擇處理器，明確驗證參數與回傳形狀，再把 generic <code>arg3</code>、closure object 等放進每次呼叫的上下文。未支援的宣告應可辨識地回報，不以固定成功值充數。這可以先在現有引擎旁完成驗證，無須預先承諾重寫全部 VM。</p>
+<h2 id="section-8">路線比較與建議</h2>
+<table>
+<thead>
+<tr>
+<th>路線</th>
+<th>可保留的工作</th>
+<th>新增負擔</th>
+<th>目前建議</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>持續逐點 patch</td>
+<td>現有全部執行環境與工具</td>
+<td>每次再發現一個型別／生命週期特例，較難建立完整契約</td>
+<td>可用於驗證個別假設；不作唯一長期方法</td>
+</tr>
+<tr>
+<td>全新完整引擎</td>
+<td>AIN 與遊戲資源、格式知識</td>
+<td>VM、服務、圖形／文字、音訊、影片、保存、所有流程重新整合</td>
+<td>有技術可行性；目前沒有證據支持它能更快完成</td>
+</tr>
+<tr>
+<td><strong>保留 parser／服務，先做嚴格的 v14 bridge，再驗證新核心</strong></td>
+<td>既有 AFA／AIN／pactex、中文、部分繪圖與診斷</td>
+<td>設計型別、借用／擁有引用、閉包、call frame、服務契約與測試</td>
+<td><strong>推薦；每一階段都有可比較的成功／停止條件</strong></td>
+</tr>
+<tr>
+<td>維持原 EXE + CrossOver</td>
+<td>已存在的原引擎行為</td>
+<td>平台相容層與封裝維護</td>
+<td>適合作為行為基準，也可供日常遊玩；「正常可玩」仍以使用者先前觀察為來源</td>
+</tr>
+</tbody>
+</table>
+<p>新核心可以採不同內部物件表示與回收設計，不必逐欄複製 xsystem4；但必須維持 AIN 的可觀察結果，包括 reference 別名、析構副作用和保存後恢復。換語言或渲染 API 不會自動解決這些規格問題。</p>
+<p>現有工具可讀寫 AIN、資源封包與部分保存格式，是縮小重寫範圍的基礎。<a href="https://github.com/nunuhara/alice-tools">alice-tools 官方說明</a></p>
+<h2 id="section-9">下一階段的最小實驗與決策門檻</h2>
+<p><strong>先驗證一條真實核心鏈，再決定是否擴大為獨立引擎。</strong> 以下尚未實作，不能與本輪已完成的解碼探針混為一談。</p>
+<table>
+<thead>
+<tr>
+<th>驗證</th>
+<th>成功條件</th>
+<th>失敗時應做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>簽名 bridge</td>
+<td>同名的值版／predicate 版／區間版分開綁定；未知宣告明確報錯；nested callback 後上下文還原</td>
+<td>回到原 AIN／EXE 比較，不加入按函式 ID 的特殊成功路徑</td>
+</tr>
+<tr>
+<td>真實腳本片段</td>
+<td>從原 AIN 解碼並執行 observer／Join／timer 鏈，時間與輸入可控；不硬編 End=true</td>
+<td>找出缺失的指令或服務契約，不強行跳過等待</td>
+</tr>
+<tr>
+<td>生命週期</td>
+<td>callback 期間 caller／captured frame 存活；scope 結束 typed cleanup；timer dtor 恰一次；重複循環後活躍物件數回到基準</td>
+<td>在這個小範圍查 ref／alias，不把永久保留 page 當修復</td>
+</tr>
+<tr>
+<td>連接既有呈現</td>
+<td>實際可見標題→New Game→首頁停等→單擊第二頁，可重複；原版與新核心同輸入時間軸</td>
+<td>把繪圖、事件路由與 VM 時序分開追蹤</td>
+</tr>
+<tr>
+<td>保存／復原</td>
+<td>至少三個點，保存→推進→讀回→重啟載入，對話、等待及必要音訊狀態吻合</td>
+<td>明確區分新格式與舊檔相容，不能只保存 globals</td>
+</tr>
+</tbody>
+</table>
+<p>第一個有價值的原型可以沒有完整 CG／音訊，但必須執行真實 AIN 指令與型別資料。這與寫一個模仿遊戲外觀的示範不同。通過後再整合成新的 macOS 執行器；若始終需要猜 slot 或硬編函式編號，便沒有證據顯示全新核心更可靠。</p>
+<h2 id="section-10">存檔與效能不能提前承諾</h2>
+<p>現有 libsys4 <code>rsave</code> 格式與 xsystem4 <code>resume.c</code> 包含 IP／函式 offset、stack、call frame、heap、序號及函式名稱。既有 xsystem4 dump 也確實有這些結構。這不是本輪讀取原 Windows玩家存檔的結果，但足以指出：替換 VM 後若要保存相容，工作遠超人物變數序列化。Native parts／音訊等狀態還需另驗。</p>
+<p>9 月 9 日最新使用者試玩仍有 8.644 秒與 5.351 秒的 present 長間隔、沒有 MSG。當輪沒有停頓中的 CPU sample，本輪也沒有重現，故沒有新根因或 FPS 改善結論。原生效能應在正確行為成立後，以實際輸入延遲、長幀、CPU、RSS 與活躍物件變化衡量；present 次數不等於內容更新率。</p>
+<h2 id="section-11">歷史證據的更正</h2>
+<ul>
+<li>Wine 基準共 141 張圖。舊索引把 <code>wb064–074</code> 寫成同一句等待 &gt;20 秒，但 064 尚無對白；實看 066／070／074 才同一句，其 mtime 跨度 17.20 秒。只能作歷史視覺證據，不當新一輪精確計時或逐點擊對照。</li>
+<li>114 張 legacy 截圖的來源有疑慮，不能用它們證明原生 fork 曾可完整遊玩。</li>
+<li>七月「畫面成功」曾只憑 framebuffer；較晚 handoff 更正真正 SDL 視窗仍灰。以較晚查證為準，避免將歷史成功敘述累加成完成率。</li>
+<li>舊工程的 fixtures 與視覺 diffs 目錄為空；本次九月工作區另有實際 fixture，兩者不可混稱。單純有資料夾或計畫不代表已有回歸測試。</li>
+</ul>
+<p>更正依據及原始路徑見 <a href="%E5%8E%9F%E7%94%9F%E7%A0%94%E7%A9%B6-%E8%AD%89%E6%93%9A-2026-09-20/archive/archive-findings.md">歷史材料審查</a>。</p>
+<h2 id="section-12">本輪交付與未執行範圍</h2>
+<p>交付包含這份報告、可搜尋的 1,701 項 API 地圖、三個子研究、PE／HLL／AIN 探針、952 格入口映射、局部反組譯摘錄、版本 hash 和驗證紀錄。工具使用既有 Python、Apple LLVM／Clang 與 pinned libsys4；沒有為研究安裝新套件。</p>
+<p>原遊戲、玩家存檔、現有 xsystem4 原始碼及 GitHub checkpoint 保持原狀。本輪沒有啟動遊戲、執行舊修補腳本、部署網站或推送新內容。輸出不含整份遊戲 binary、資源封包或完整劇情；參考程式碼摘錄只涵蓋本次技術問題。</p>
+<p>研究開始時帳號週額度剩 57%，分析階段中途查為 42%；兩者皆帳號共用額度，不能精確歸算本任務 token。未使用額度重設；最終餘額於對話交付時另查。這輪已取得足以調整開發路線的具體證據，沒有以新引擎尚未實作為由宣稱遊戲任務完成。</p>
+<div class="foot">靜態可行性研究｜本地 API 地圖與證據可從文中連結開啟。未實作新引擎。</div></main></div></html>

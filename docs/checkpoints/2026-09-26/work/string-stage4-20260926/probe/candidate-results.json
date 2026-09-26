@@ -1,0 +1,90 @@
+[
+  {
+    "mode": "deleted-event",
+    "exit_code": 87,
+    "tail_stdout": [
+      "DELETED_EVENT round=0 event=20 seq=22 ref=1 count=1 tag=0 some=0 none=1",
+      "DELETED_EVENT round=1 event=20 seq=22 ref=1 count=2 tag=0 some=1 none=1",
+      "DELETED_EVENT round=2 event=20 seq=22 ref=1 count=3 tag=0 some=2 none=1",
+      "DELETED_EVENT teardown live=23 baseline=0"
+    ],
+    "tail_stderr": [
+      "DELETED_EVENT live slot=150 ref=2 seq=287 type=0 page_type=1 index=14312 vars=3",
+      "DELETED_EVENT functional checks PASS; production ownership teardown remains incomplete"
+    ],
+    "functional_pass": true,
+    "teardown_live_slots": 23,
+    "teardown_baseline": 0
+  },
+  {
+    "mode": "personality",
+    "exit_code": 0,
+    "tail_stdout": [
+      "PERSONALITY entry input=5 seq=383 heap_ref=2 temp=0 bytes=21",
+      "PERSONALITY entry input=4 seq=393 heap_ref=2 temp=0 bytes=21",
+      "PERSONALITY caller-owned PASS: 20 real constructor calls; caller DELETE leaves Id bytes valid; teardown balanced"
+    ],
+    "tail_stderr": [
+      "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'"
+    ]
+  },
+  {
+    "mode": "observer",
+    "exit_code": 0,
+    "tail_stdout": [
+      "OBSERVER false live=15 env_ref=2 motion_ref=2",
+      "OBSERVER true live=15 env_ref=2 motion_ref=1 caller_checks=292 setter_checks=16",
+      "OBSERVER teardown initial_live=0 final_live=0 collection_ref=0 env_ref=0 motion_ref=0 callback_calls=2"
+    ],
+    "tail_stderr": [
+      "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'"
+    ]
+  },
+  {
+    "mode": "reentrancy",
+    "exit_code": 0,
+    "tail_stdout": [
+      "DELEGATE self-Clear PASS: original 20752->36081; sole frame refs=1/1; callback_steps=64; return releases obj/env; live=0 baseline=0",
+      "DELEGATE self-Clear PASS: original 20752->36081; sole frame refs=1/1; callback_steps=64; return releases obj/env; live=0 baseline=0",
+      "DELEGATE self-Clear PASS: original 20752->36081; sole frame refs=1/1; callback_steps=64; return releases obj/env; live=0 baseline=0"
+    ],
+    "tail_stderr": [
+      "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'"
+    ]
+  },
+  {
+    "mode": "click",
+    "exit_code": 0,
+    "tail_stdout": [
+      "METADATA member=2 type=17 struct=531 size=0",
+      "METADATA member=3 type=17 struct=531 size=0",
+      "CLICK PASS initial keydown, 350/50ms repeat boundaries, release, nested timer ctor/dtor exactly once"
+    ],
+    "tail_stderr": [
+      "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'"
+    ]
+  },
+  {
+    "mode": "timer",
+    "exit_code": 0,
+    "tail_stdout": [
+      "TIMER round=18 ctor=57 dtor=57 live=5 baseline=5",
+      "TIMER round=19 ctor=60 dtor=60 live=5 baseline=5",
+      "TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0"
+    ],
+    "tail_stderr": [
+      "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'"
+    ]
+  },
+  {
+    "mode": "heap-reuse",
+    "exit_code": 0,
+    "tail_stdout": [
+      "PROBE initialized real VM/AIN, 37742 functions, live slots 0",
+      "HEAP PASS 1000 page-slot reuse/generation/duplicate-unref rounds; exit_unref recycling; stable capacity and live=0"
+    ],
+    "tail_stderr": [
+      "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'"
+    ]
+  }
+]

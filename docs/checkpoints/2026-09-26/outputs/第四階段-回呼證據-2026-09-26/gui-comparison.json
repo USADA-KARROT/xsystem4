@@ -1,0 +1,275 @@
+[
+  {
+    "run": "retry-20260926",
+    "elapsed_seconds": 35.577,
+    "stop_reason": "error_log",
+    "child_exit_code": 0,
+    "double_free_lines": 10627,
+    "assertion_lines": 2,
+    "free_list_corrupt_lines": 1,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 6,
+      "reported_duration_ms": 30008.049,
+      "reported_presents": 15989,
+      "weighted_present_fps": 532.8237100652561,
+      "max_interval_ms": 82.017,
+      "max_swap_ms": 11.922,
+      "weighted_mean_swap_ms": 0.5311127024829569,
+      "per_window_p95_interval_ms_range": [
+        4.134,
+        15.964
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 30624,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 2,
+        "50": 1,
+        "100": 0,
+        "1000": 0
+      },
+      "end_of_window_state_counts": {
+        "shown": 6,
+        "minimized": 0,
+        "input_focus": 6,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  },
+  {
+    "run": "retry-asan-20260926",
+    "elapsed_seconds": 33.587,
+    "stop_reason": "error_log",
+    "child_exit_code": 0,
+    "double_free_lines": 4650,
+    "assertion_lines": 2,
+    "free_list_corrupt_lines": 1,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 6,
+      "reported_duration_ms": 30006.343999999997,
+      "reported_presents": 11033,
+      "weighted_present_fps": 367.6889127179239,
+      "max_interval_ms": 1296.697,
+      "max_swap_ms": 8.543,
+      "weighted_mean_swap_ms": 0.5404078673071694,
+      "per_window_p95_interval_ms_range": [
+        4.412,
+        15.776
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 31109,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 1,
+        "50": 1,
+        "100": 1,
+        "1000": 1
+      },
+      "end_of_window_state_counts": {
+        "shown": 6,
+        "minimized": 0,
+        "input_focus": 6,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  },
+  {
+    "run": "stage4-first-string",
+    "elapsed_seconds": 14.263,
+    "stop_reason": null,
+    "child_exit_code": 86,
+    "double_free_lines": 0,
+    "assertion_lines": 0,
+    "free_list_corrupt_lines": 0,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 2,
+      "reported_duration_ms": 10002.465,
+      "reported_presents": 2555,
+      "weighted_present_fps": 255.43703477092896,
+      "max_interval_ms": 17.74,
+      "max_swap_ms": 1.231,
+      "weighted_mean_swap_ms": 0.2799009784735812,
+      "per_window_p95_interval_ms_range": [
+        13.764,
+        15.956
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 11081,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 0,
+        "50": 0,
+        "100": 0,
+        "1000": 0
+      },
+      "end_of_window_state_counts": {
+        "shown": 2,
+        "minimized": 0,
+        "input_focus": 0,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  },
+  {
+    "run": "stage4-page-write",
+    "elapsed_seconds": 13.455,
+    "stop_reason": null,
+    "child_exit_code": 87,
+    "double_free_lines": 0,
+    "assertion_lines": 0,
+    "free_list_corrupt_lines": 0,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 2,
+      "reported_duration_ms": 10011.377,
+      "reported_presents": 2591,
+      "weighted_present_fps": 258.8055569178945,
+      "max_interval_ms": 23.627,
+      "max_swap_ms": 13.381,
+      "weighted_mean_swap_ms": 0.33342802006947125,
+      "per_window_p95_interval_ms_range": [
+        12.462,
+        15.419
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 11031,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 0,
+        "50": 0,
+        "100": 0,
+        "1000": 0
+      },
+      "end_of_window_state_counts": {
+        "shown": 2,
+        "minimized": 0,
+        "input_focus": 2,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  },
+  {
+    "run": "stage4-wrap-candidate",
+    "elapsed_seconds": 40.557,
+    "stop_reason": "error_log",
+    "child_exit_code": 0,
+    "double_free_lines": 0,
+    "assertion_lines": 2,
+    "free_list_corrupt_lines": 1,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 7,
+      "reported_duration_ms": 35015.931000000004,
+      "reported_presents": 12601,
+      "weighted_present_fps": 359.8647712665415,
+      "max_interval_ms": 1289.369,
+      "max_swap_ms": 125.694,
+      "weighted_mean_swap_ms": 0.3602789461153877,
+      "per_window_p95_interval_ms_range": [
+        3.326,
+        15.329
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 36028,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 3,
+        "50": 2,
+        "100": 2,
+        "1000": 1
+      },
+      "end_of_window_state_counts": {
+        "shown": 7,
+        "minimized": 0,
+        "input_focus": 3,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  },
+  {
+    "run": "stage4-id-trace",
+    "elapsed_seconds": 27.329,
+    "stop_reason": null,
+    "child_exit_code": 88,
+    "double_free_lines": 0,
+    "assertion_lines": 0,
+    "free_list_corrupt_lines": 0,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 5,
+      "reported_duration_ms": 25014.059,
+      "reported_presents": 8929,
+      "weighted_present_fps": 356.9592603903269,
+      "max_interval_ms": 1285.013,
+      "max_swap_ms": 8.73,
+      "weighted_mean_swap_ms": 0.3226463209765931,
+      "per_window_p95_interval_ms_range": [
+        3.165,
+        14.299
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 26017,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 1,
+        "50": 1,
+        "100": 1,
+        "1000": 1
+      },
+      "end_of_window_state_counts": {
+        "shown": 5,
+        "minimized": 0,
+        "input_focus": 5,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  },
+  {
+    "run": "stage4-final-optimized",
+    "elapsed_seconds": 72.109,
+    "stop_reason": "error_log",
+    "child_exit_code": 0,
+    "double_free_lines": 0,
+    "assertion_lines": 2,
+    "free_list_corrupt_lines": 1,
+    "messages": 0,
+    "perf": {
+      "reported_windows": 14,
+      "reported_duration_ms": 70014.614,
+      "reported_presents": 42627,
+      "weighted_present_fps": 608.830036540657,
+      "max_interval_ms": 63.447,
+      "max_swap_ms": 11.253,
+      "weighted_mean_swap_ms": 0.39522253501301996,
+      "per_window_p95_interval_ms_range": [
+        2.036,
+        14.289
+      ],
+      "sample_capped_windows": 0,
+      "last_reported_sdl_ticks_ms": 70379,
+      "windows_with_at_least_one_interval_over_ms": {
+        "33.333": 1,
+        "50": 1,
+        "100": 0,
+        "1000": 0
+      },
+      "end_of_window_state_counts": {
+        "shown": 14,
+        "minimized": 0,
+        "input_focus": 14,
+        "vsync_values": [
+          0
+        ]
+      }
+    }
+  }
+]

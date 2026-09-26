@@ -1,0 +1,3944 @@
+{
+  "source": "<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe",
+  "size": 15474176,
+  "sha256": "211ce63e0e229fa7d77b2af141149681ec37521e7497914473c739569aa101f0",
+  "machine": "0x14c",
+  "image_base": 4194304,
+  "entry_rva": 4096,
+  "link_timestamp_raw": 1599122506,
+  "link_timestamp_utc": "2020-09-03T08:41:46+00:00",
+  "coff_symbol_count": 0,
+  "sections": [
+    {
+      "name": "",
+      "rva": 4096,
+      "virtual_size": 3915776,
+      "raw_size": 3913216,
+      "file_offset": 1024,
+      "characteristics": 3758096448,
+      "entropy": 6.5803
+    },
+    {
+      "name": "",
+      "rva": 3919872,
+      "virtual_size": 679936,
+      "raw_size": 670720,
+      "file_offset": 3914240,
+      "characteristics": 3758096448,
+      "entropy": 5.5255
+    },
+    {
+      "name": "",
+      "rva": 4599808,
+      "virtual_size": 155648,
+      "raw_size": 152576,
+      "file_offset": 4584960,
+      "characteristics": 3758096448,
+      "entropy": 5.0367
+    },
+    {
+      "name": "",
+      "rva": 4755456,
+      "virtual_size": 8192,
+      "raw_size": 4608,
+      "file_offset": 4737536,
+      "characteristics": 3758096448,
+      "entropy": 3.9519
+    },
+    {
+      "name": "",
+      "rva": 4763648,
+      "virtual_size": 4096,
+      "raw_size": 512,
+      "file_offset": 4742144,
+      "characteristics": 3758096448,
+      "entropy": 0.0204
+    },
+    {
+      "name": "",
+      "rva": 4767744,
+      "virtual_size": 4096,
+      "raw_size": 1536,
+      "file_offset": 4742656,
+      "characteristics": 3758096448,
+      "entropy": 4.6805
+    },
+    {
+      "name": "",
+      "rva": 4771840,
+      "virtual_size": 372736,
+      "raw_size": 371200,
+      "file_offset": 4744192,
+      "characteristics": 3758096448,
+      "entropy": 7.5117
+    },
+    {
+      "name": ".rsrc",
+      "rva": 5144576,
+      "virtual_size": 40960,
+      "raw_size": 38400,
+      "file_offset": 5115392,
+      "characteristics": 1073741888,
+      "entropy": 5.161
+    },
+    {
+      "name": "",
+      "rva": 5185536,
+      "virtual_size": 8089600,
+      "raw_size": 8086016,
+      "file_offset": 5153792,
+      "characteristics": 3758096448,
+      "entropy": 4.3433
+    },
+    {
+      "name": ".data",
+      "rva": 13275136,
+      "virtual_size": 2228224,
+      "raw_size": 2226688,
+      "file_offset": 13239808,
+      "characteristics": 3758096448,
+      "entropy": 7.932
+    },
+    {
+      "name": ".SCY",
+      "rva": 15503360,
+      "virtual_size": 8192,
+      "raw_size": 7680,
+      "file_offset": 15466496,
+      "characteristics": 3758096480,
+      "entropy": 5.5924
+    }
+  ],
+  "directories": [
+    {
+      "index": 0,
+      "rva": 13287472,
+      "size": 3874
+    },
+    {
+      "index": 1,
+      "rva": 15504752,
+      "size": 820
+    },
+    {
+      "index": 2,
+      "rva": 5144576,
+      "size": 37984
+    },
+    {
+      "index": 3,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 4,
+      "rva": 4176384,
+      "size": 11792
+    },
+    {
+      "index": 5,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 6,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 7,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 8,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 9,
+      "rva": 13287424,
+      "size": 24
+    },
+    {
+      "index": 10,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 11,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 12,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 13,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 14,
+      "rva": 0,
+      "size": 0
+    },
+    {
+      "index": 15,
+      "rva": 0,
+      "size": 0
+    }
+  ],
+  "imports": [
+    {
+      "dll": "advapi32.dll",
+      "functions": [
+        {
+          "name": "RegCloseKey",
+          "ordinal": null,
+          "iat_va": 8114176
+        },
+        {
+          "name": "RegOpenKeyExA",
+          "ordinal": null,
+          "iat_va": 8114180
+        }
+      ]
+    },
+    {
+      "dll": "comdlg32.dll",
+      "functions": [
+        {
+          "name": "GetOpenFileNameA",
+          "ordinal": null,
+          "iat_va": 8114188
+        },
+        {
+          "name": "GetSaveFileNameA",
+          "ordinal": null,
+          "iat_va": 8114192
+        }
+      ]
+    },
+    {
+      "dll": "gdi32.dll",
+      "functions": [
+        {
+          "name": "CreateFontA",
+          "ordinal": null,
+          "iat_va": 8114200
+        },
+        {
+          "name": "SelectObject",
+          "ordinal": null,
+          "iat_va": 8114204
+        },
+        {
+          "name": "DeleteDC",
+          "ordinal": null,
+          "iat_va": 8114208
+        },
+        {
+          "name": "SetTextColor",
+          "ordinal": null,
+          "iat_va": 8114212
+        },
+        {
+          "name": "DeleteObject",
+          "ordinal": null,
+          "iat_va": 8114216
+        },
+        {
+          "name": "CreateSolidBrush",
+          "ordinal": null,
+          "iat_va": 8114220
+        },
+        {
+          "name": "BitBlt",
+          "ordinal": null,
+          "iat_va": 8114224
+        },
+        {
+          "name": "CreateCompatibleBitmap",
+          "ordinal": null,
+          "iat_va": 8114228
+        },
+        {
+          "name": "CreateCompatibleDC",
+          "ordinal": null,
+          "iat_va": 8114232
+        },
+        {
+          "name": "CreateFontIndirectA",
+          "ordinal": null,
+          "iat_va": 8114236
+        },
+        {
+          "name": "GetDeviceCaps",
+          "ordinal": null,
+          "iat_va": 8114240
+        },
+        {
+          "name": "CreateDIBSection",
+          "ordinal": null,
+          "iat_va": 8114244
+        },
+        {
+          "name": "TextOutA",
+          "ordinal": null,
+          "iat_va": 8114248
+        },
+        {
+          "name": "SetBkMode",
+          "ordinal": null,
+          "iat_va": 8114252
+        },
+        {
+          "name": "SetBkColor",
+          "ordinal": null,
+          "iat_va": 8114256
+        },
+        {
+          "name": "GetStockObject",
+          "ordinal": null,
+          "iat_va": 8114260
+        }
+      ]
+    },
+    {
+      "dll": "imm32.dll",
+      "functions": [
+        {
+          "name": "ImmNotifyIME",
+          "ordinal": null,
+          "iat_va": 8114268
+        },
+        {
+          "name": "ImmSetOpenStatus",
+          "ordinal": null,
+          "iat_va": 8114272
+        },
+        {
+          "name": "ImmGetOpenStatus",
+          "ordinal": null,
+          "iat_va": 8114276
+        },
+        {
+          "name": "ImmSetCompositionWindow",
+          "ordinal": null,
+          "iat_va": 8114280
+        },
+        {
+          "name": "ImmGetCandidateListA",
+          "ordinal": null,
+          "iat_va": 8114284
+        },
+        {
+          "name": "ImmReleaseContext",
+          "ordinal": null,
+          "iat_va": 8114288
+        },
+        {
+          "name": "ImmGetContext",
+          "ordinal": null,
+          "iat_va": 8114292
+        },
+        {
+          "name": "ImmSetCompositionFontA",
+          "ordinal": null,
+          "iat_va": 8114296
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "FindClose",
+          "ordinal": null,
+          "iat_va": 8114304
+        },
+        {
+          "name": "GetFileAttributesA",
+          "ordinal": null,
+          "iat_va": 8114308
+        },
+        {
+          "name": "CopyFileA",
+          "ordinal": null,
+          "iat_va": 8114312
+        },
+        {
+          "name": "FileTimeToSystemTime",
+          "ordinal": null,
+          "iat_va": 8114316
+        },
+        {
+          "name": "DeleteFileA",
+          "ordinal": null,
+          "iat_va": 8114320
+        },
+        {
+          "name": "FileTimeToLocalFileTime",
+          "ordinal": null,
+          "iat_va": 8114324
+        },
+        {
+          "name": "RemoveDirectoryA",
+          "ordinal": null,
+          "iat_va": 8114328
+        },
+        {
+          "name": "CreateDirectoryA",
+          "ordinal": null,
+          "iat_va": 8114332
+        },
+        {
+          "name": "GetFileTime",
+          "ordinal": null,
+          "iat_va": 8114336
+        },
+        {
+          "name": "ExitProcess",
+          "ordinal": null,
+          "iat_va": 8114340
+        },
+        {
+          "name": "GlobalAlloc",
+          "ordinal": null,
+          "iat_va": 8114344
+        },
+        {
+          "name": "GlobalFree",
+          "ordinal": null,
+          "iat_va": 8114348
+        },
+        {
+          "name": "GlobalLock",
+          "ordinal": null,
+          "iat_va": 8114352
+        },
+        {
+          "name": "GlobalUnWire",
+          "ordinal": null,
+          "iat_va": 8114356
+        },
+        {
+          "name": "CreateMutexA",
+          "ordinal": null,
+          "iat_va": 8114360
+        },
+        {
+          "name": "GetLastError",
+          "ordinal": null,
+          "iat_va": 8114364
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114368
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114372
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "OpenFileMappingA",
+          "ordinal": null,
+          "iat_va": 8114376
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114380
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "QueryPerformanceFrequency",
+          "ordinal": null,
+          "iat_va": 8114384
+        },
+        {
+          "name": "QueryPerformanceCounter",
+          "ordinal": null,
+          "iat_va": 8114388
+        },
+        {
+          "name": "GetCurrentDirectoryA",
+          "ordinal": null,
+          "iat_va": 8114392
+        },
+        {
+          "name": "SizeofResource",
+          "ordinal": null,
+          "iat_va": 8114396
+        },
+        {
+          "name": "FindResourceA",
+          "ordinal": null,
+          "iat_va": 8114400
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114404
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "LoadResource",
+          "ordinal": null,
+          "iat_va": 8114408
+        },
+        {
+          "name": "VerifyVersionInfoA",
+          "ordinal": null,
+          "iat_va": 8114412
+        },
+        {
+          "name": "GetLocaleInfoA",
+          "ordinal": null,
+          "iat_va": 8114416
+        },
+        {
+          "name": "GetNativeSystemInfo",
+          "ordinal": null,
+          "iat_va": 8114420
+        },
+        {
+          "name": "VerSetConditionMask",
+          "ordinal": null,
+          "iat_va": 8114424
+        },
+        {
+          "name": "GlobalMemoryStatusEx",
+          "ordinal": null,
+          "iat_va": 8114428
+        },
+        {
+          "name": "SetCurrentDirectoryA",
+          "ordinal": null,
+          "iat_va": 8114432
+        },
+        {
+          "name": "WriteConsoleW",
+          "ordinal": null,
+          "iat_va": 8114436
+        },
+        {
+          "name": "SetEnvironmentVariableA",
+          "ordinal": null,
+          "iat_va": 8114440
+        },
+        {
+          "name": "FreeEnvironmentStringsW",
+          "ordinal": null,
+          "iat_va": 8114444
+        },
+        {
+          "name": "GetEnvironmentStringsW",
+          "ordinal": null,
+          "iat_va": 8114448
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114452
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114456
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetOEMCP",
+          "ordinal": null,
+          "iat_va": 8114460
+        },
+        {
+          "name": "IsValidCodePage",
+          "ordinal": null,
+          "iat_va": 8114464
+        },
+        {
+          "name": "FindFirstFileExA",
+          "ordinal": null,
+          "iat_va": 8114468
+        },
+        {
+          "name": "SetStdHandle",
+          "ordinal": null,
+          "iat_va": 8114472
+        },
+        {
+          "name": "FlushFileBuffers",
+          "ordinal": null,
+          "iat_va": 8114476
+        },
+        {
+          "name": "GetTimeZoneInformation",
+          "ordinal": null,
+          "iat_va": 8114480
+        },
+        {
+          "name": "EnumSystemLocalesW",
+          "ordinal": null,
+          "iat_va": 8114484
+        },
+        {
+          "name": "GetUserDefaultLCID",
+          "ordinal": null,
+          "iat_va": 8114488
+        },
+        {
+          "name": "IsValidLocale",
+          "ordinal": null,
+          "iat_va": 8114492
+        },
+        {
+          "name": "GetTimeFormatW",
+          "ordinal": null,
+          "iat_va": 8114496
+        },
+        {
+          "name": "GetDateFormatW",
+          "ordinal": null,
+          "iat_va": 8114500
+        },
+        {
+          "name": "GetConsoleCP",
+          "ordinal": null,
+          "iat_va": 8114504
+        },
+        {
+          "name": "ReadConsoleW",
+          "ordinal": null,
+          "iat_va": 8114508
+        },
+        {
+          "name": "GetConsoleMode",
+          "ordinal": null,
+          "iat_va": 8114512
+        },
+        {
+          "name": "GetACP",
+          "ordinal": null,
+          "iat_va": 8114516
+        },
+        {
+          "name": "GetStdHandle",
+          "ordinal": null,
+          "iat_va": 8114520
+        },
+        {
+          "name": "GetFileType",
+          "ordinal": null,
+          "iat_va": 8114524
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114528
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "SetFilePointerEx",
+          "ordinal": null,
+          "iat_va": 8114532
+        },
+        {
+          "name": "GetModuleHandleExW",
+          "ordinal": null,
+          "iat_va": 8114536
+        },
+        {
+          "name": "ExitThread",
+          "ordinal": null,
+          "iat_va": 8114540
+        },
+        {
+          "name": "RtlUnwind",
+          "ordinal": null,
+          "iat_va": 8114544
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114548
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "FindNextFileA",
+          "ordinal": null,
+          "iat_va": 8114552
+        },
+        {
+          "name": "QueryDepthSList",
+          "ordinal": null,
+          "iat_va": 8114556
+        },
+        {
+          "name": "InterlockedFlushSList",
+          "ordinal": null,
+          "iat_va": 8114560
+        },
+        {
+          "name": "InterlockedPushEntrySList",
+          "ordinal": null,
+          "iat_va": 8114564
+        },
+        {
+          "name": "InterlockedPopEntrySList",
+          "ordinal": null,
+          "iat_va": 8114568
+        },
+        {
+          "name": "ReleaseSemaphore",
+          "ordinal": null,
+          "iat_va": 8114572
+        },
+        {
+          "name": "VirtualProtect",
+          "ordinal": null,
+          "iat_va": 8114576
+        },
+        {
+          "name": "VirtualFree",
+          "ordinal": null,
+          "iat_va": 8114580
+        },
+        {
+          "name": "VirtualAlloc",
+          "ordinal": null,
+          "iat_va": 8114584
+        },
+        {
+          "name": "GetVersionExW",
+          "ordinal": null,
+          "iat_va": 8114588
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114592
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetModuleFileNameW",
+          "ordinal": null,
+          "iat_va": 8114596
+        },
+        {
+          "name": "FreeLibraryAndExitThread",
+          "ordinal": null,
+          "iat_va": 8114600
+        },
+        {
+          "name": "GetThreadTimes",
+          "ordinal": null,
+          "iat_va": 8114604
+        },
+        {
+          "name": "UnregisterWait",
+          "ordinal": null,
+          "iat_va": 8114608
+        },
+        {
+          "name": "RegisterWaitForSingleObject",
+          "ordinal": null,
+          "iat_va": 8114612
+        },
+        {
+          "name": "SetThreadAffinityMask",
+          "ordinal": null,
+          "iat_va": 8114616
+        },
+        {
+          "name": "GetProcessAffinityMask",
+          "ordinal": null,
+          "iat_va": 8114620
+        },
+        {
+          "name": "GetNumaHighestNodeNumber",
+          "ordinal": null,
+          "iat_va": 8114624
+        },
+        {
+          "name": "DeleteTimerQueueTimer",
+          "ordinal": null,
+          "iat_va": 8114628
+        },
+        {
+          "name": "ChangeTimerQueueTimer",
+          "ordinal": null,
+          "iat_va": 8114632
+        },
+        {
+          "name": "CreateTimerQueueTimer",
+          "ordinal": null,
+          "iat_va": 8114636
+        },
+        {
+          "name": "GetLogicalProcessorInformation",
+          "ordinal": null,
+          "iat_va": 8114640
+        },
+        {
+          "name": "GetThreadPriority",
+          "ordinal": null,
+          "iat_va": 8114644
+        },
+        {
+          "name": "SetThreadPriority",
+          "ordinal": null,
+          "iat_va": 8114648
+        },
+        {
+          "name": "CreateThread",
+          "ordinal": null,
+          "iat_va": 8114652
+        },
+        {
+          "name": "SwitchToThread",
+          "ordinal": null,
+          "iat_va": 8114656
+        },
+        {
+          "name": "SignalObjectAndWait",
+          "ordinal": null,
+          "iat_va": 8114660
+        },
+        {
+          "name": "CreateTimerQueue",
+          "ordinal": null,
+          "iat_va": 8114664
+        },
+        {
+          "name": "InitializeSListHead",
+          "ordinal": null,
+          "iat_va": 8114668
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114672
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetStartupInfoW",
+          "ordinal": null,
+          "iat_va": 8114676
+        },
+        {
+          "name": "IsDebuggerPresent",
+          "ordinal": null,
+          "iat_va": 8114680
+        },
+        {
+          "name": "TerminateProcess",
+          "ordinal": null,
+          "iat_va": 8114684
+        },
+        {
+          "name": "SetUnhandledExceptionFilter",
+          "ordinal": null,
+          "iat_va": 8114688
+        },
+        {
+          "name": "UnhandledExceptionFilter",
+          "ordinal": null,
+          "iat_va": 8114692
+        },
+        {
+          "name": "GetLocaleInfoW",
+          "ordinal": null,
+          "iat_va": 8114696
+        },
+        {
+          "name": "LCMapStringW",
+          "ordinal": null,
+          "iat_va": 8114700
+        },
+        {
+          "name": "CompareStringW",
+          "ordinal": null,
+          "iat_va": 8114704
+        },
+        {
+          "name": "GetCurrentThread",
+          "ordinal": null,
+          "iat_va": 8114708
+        },
+        {
+          "name": "WaitForSingleObjectEx",
+          "ordinal": null,
+          "iat_va": 8114712
+        },
+        {
+          "name": "DuplicateHandle",
+          "ordinal": null,
+          "iat_va": 8114716
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114720
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetTickCount",
+          "ordinal": null,
+          "iat_va": 8114724
+        },
+        {
+          "name": "GetSystemTimeAsFileTime",
+          "ordinal": null,
+          "iat_va": 8114728
+        },
+        {
+          "name": "TlsFree",
+          "ordinal": null,
+          "iat_va": 8114732
+        },
+        {
+          "name": "TlsSetValue",
+          "ordinal": null,
+          "iat_va": 8114736
+        },
+        {
+          "name": "TlsGetValue",
+          "ordinal": null,
+          "iat_va": 8114740
+        },
+        {
+          "name": "TlsAlloc",
+          "ordinal": null,
+          "iat_va": 8114744
+        },
+        {
+          "name": "CreateEventW",
+          "ordinal": null,
+          "iat_va": 8114748
+        },
+        {
+          "name": "InitializeCriticalSectionAndSpinCount",
+          "ordinal": null,
+          "iat_va": 8114752
+        },
+        {
+          "name": "SetLastError",
+          "ordinal": null,
+          "iat_va": 8114756
+        },
+        {
+          "name": "GetCPInfo",
+          "ordinal": null,
+          "iat_va": 8114760
+        },
+        {
+          "name": "TryEnterCriticalSection",
+          "ordinal": null,
+          "iat_va": 8114764
+        },
+        {
+          "name": "FindFirstFileA",
+          "ordinal": null,
+          "iat_va": 8114768
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114772
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114776
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114780
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "WriteFile",
+          "ordinal": null,
+          "iat_va": 8114784
+        },
+        {
+          "name": "HeapFree",
+          "ordinal": null,
+          "iat_va": 8114788
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114792
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetModuleFileNameA",
+          "ordinal": null,
+          "iat_va": 8114796
+        },
+        {
+          "name": "GetCurrentThreadId",
+          "ordinal": null,
+          "iat_va": 8114800
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114804
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114808
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114812
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114816
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetProcessId",
+          "ordinal": null,
+          "iat_va": 8114820
+        },
+        {
+          "name": "Sleep",
+          "ordinal": null,
+          "iat_va": 8114824
+        },
+        {
+          "name": "WaitForMultipleObjects",
+          "ordinal": null,
+          "iat_va": 8114828
+        },
+        {
+          "name": "GetExitCodeProcess",
+          "ordinal": null,
+          "iat_va": 8114832
+        },
+        {
+          "name": "OpenProcess",
+          "ordinal": null,
+          "iat_va": 8114836
+        },
+        {
+          "name": "CreateEventA",
+          "ordinal": null,
+          "iat_va": 8114840
+        },
+        {
+          "name": "ResetEvent",
+          "ordinal": null,
+          "iat_va": 8114844
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114848
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "SetEvent",
+          "ordinal": null,
+          "iat_va": 8114852
+        },
+        {
+          "name": "WaitForSingleObject",
+          "ordinal": null,
+          "iat_va": 8114856
+        },
+        {
+          "name": "DeleteCriticalSection",
+          "ordinal": null,
+          "iat_va": 8114860
+        },
+        {
+          "name": "InitializeCriticalSection",
+          "ordinal": null,
+          "iat_va": 8114864
+        },
+        {
+          "name": "QueueUserWorkItem",
+          "ordinal": null,
+          "iat_va": 8114868
+        },
+        {
+          "name": "IsProcessorFeaturePresent",
+          "ordinal": null,
+          "iat_va": 8114872
+        },
+        {
+          "name": "RaiseException",
+          "ordinal": null,
+          "iat_va": 8114876
+        },
+        {
+          "name": "DecodePointer",
+          "ordinal": null,
+          "iat_va": 8114880
+        },
+        {
+          "name": "EncodePointer",
+          "ordinal": null,
+          "iat_va": 8114884
+        },
+        {
+          "name": "WideCharToMultiByte",
+          "ordinal": null,
+          "iat_va": 8114888
+        },
+        {
+          "name": "GetStringTypeW",
+          "ordinal": null,
+          "iat_va": 8114892
+        },
+        {
+          "name": "MultiByteToWideChar",
+          "ordinal": null,
+          "iat_va": 8114896
+        },
+        {
+          "name": "AcquireSRWLockShared",
+          "ordinal": null,
+          "iat_va": 8114900
+        },
+        {
+          "name": "AcquireSRWLockExclusive",
+          "ordinal": null,
+          "iat_va": 8114904
+        },
+        {
+          "name": "ReleaseSRWLockShared",
+          "ordinal": null,
+          "iat_va": 8114908
+        },
+        {
+          "name": "LeaveCriticalSection",
+          "ordinal": null,
+          "iat_va": 8114912
+        },
+        {
+          "name": "EnterCriticalSection",
+          "ordinal": null,
+          "iat_va": 8114916
+        },
+        {
+          "name": "OutputDebugStringA",
+          "ordinal": null,
+          "iat_va": 8114920
+        },
+        {
+          "name": "K32GetProcessMemoryInfo",
+          "ordinal": null,
+          "iat_va": 8114924
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8114928
+        }
+      ]
+    },
+    {
+      "dll": "kernel32.dll",
+      "functions": [
+        {
+          "name": "GetProcessHeap",
+          "ordinal": null,
+          "iat_va": 8114932
+        },
+        {
+          "name": "HeapAlloc",
+          "ordinal": null,
+          "iat_va": 8114936
+        },
+        {
+          "name": "HeapReAlloc",
+          "ordinal": null,
+          "iat_va": 8114940
+        },
+        {
+          "name": "UnregisterWaitEx",
+          "ordinal": null,
+          "iat_va": 8114944
+        },
+        {
+          "name": "ReleaseSRWLockExclusive",
+          "ordinal": null,
+          "iat_va": 8114948
+        },
+        {
+          "name": "HeapSize",
+          "ordinal": null,
+          "iat_va": 8114952
+        }
+      ]
+    },
+    {
+      "dll": "shell32.dll",
+      "functions": [
+        {
+          "name": "DragAcceptFiles",
+          "ordinal": null,
+          "iat_va": 8114960
+        },
+        {
+          "name": "DragFinish",
+          "ordinal": null,
+          "iat_va": 8114964
+        },
+        {
+          "name": "ShellExecuteA",
+          "ordinal": null,
+          "iat_va": 8114968
+        },
+        {
+          "name": "DragQueryFileA",
+          "ordinal": null,
+          "iat_va": 8114972
+        },
+        {
+          "name": "SHGetFolderPathA",
+          "ordinal": null,
+          "iat_va": 8114976
+        },
+        {
+          "name": "SHGetMalloc",
+          "ordinal": null,
+          "iat_va": 8114980
+        },
+        {
+          "name": "SHBrowseForFolderA",
+          "ordinal": null,
+          "iat_va": 8114984
+        },
+        {
+          "name": "SHGetPathFromIDListA",
+          "ordinal": null,
+          "iat_va": 8114988
+        },
+        {
+          "name": "ShellExecuteExA",
+          "ordinal": null,
+          "iat_va": 8114992
+        }
+      ]
+    },
+    {
+      "dll": "user32.dll",
+      "functions": [
+        {
+          "name": "GetCursorPos",
+          "ordinal": null,
+          "iat_va": 8115000
+        },
+        {
+          "name": "ShowCursor",
+          "ordinal": null,
+          "iat_va": 8115004
+        },
+        {
+          "name": "PtInRect",
+          "ordinal": null,
+          "iat_va": 8115008
+        },
+        {
+          "name": "GetKeyState",
+          "ordinal": null,
+          "iat_va": 8115012
+        },
+        {
+          "name": "GetForegroundWindow",
+          "ordinal": null,
+          "iat_va": 8115016
+        },
+        {
+          "name": "ScreenToClient",
+          "ordinal": null,
+          "iat_va": 8115020
+        },
+        {
+          "name": "UpdateWindow",
+          "ordinal": null,
+          "iat_va": 8115024
+        },
+        {
+          "name": "GetParent",
+          "ordinal": null,
+          "iat_va": 8115028
+        },
+        {
+          "name": "GetWindowThreadProcessId",
+          "ordinal": null,
+          "iat_va": 8115032
+        },
+        {
+          "name": "GetWindow",
+          "ordinal": null,
+          "iat_va": 8115036
+        },
+        {
+          "name": "SetActiveWindow",
+          "ordinal": null,
+          "iat_va": 8115040
+        },
+        {
+          "name": "GetTopWindow",
+          "ordinal": null,
+          "iat_va": 8115044
+        },
+        {
+          "name": "SendMessageA",
+          "ordinal": null,
+          "iat_va": 8115048
+        },
+        {
+          "name": "SetForegroundWindow",
+          "ordinal": null,
+          "iat_va": 8115052
+        },
+        {
+          "name": "DispatchMessageA",
+          "ordinal": null,
+          "iat_va": 8115056
+        },
+        {
+          "name": "TranslateMessage",
+          "ordinal": null,
+          "iat_va": 8115060
+        },
+        {
+          "name": "PeekMessageA",
+          "ordinal": null,
+          "iat_va": 8115064
+        },
+        {
+          "name": "GetClientRect",
+          "ordinal": null,
+          "iat_va": 8115068
+        },
+        {
+          "name": "LoadCursorA",
+          "ordinal": null,
+          "iat_va": 8115072
+        },
+        {
+          "name": "RegisterClassA",
+          "ordinal": null,
+          "iat_va": 8115076
+        },
+        {
+          "name": "CreateWindowExA",
+          "ordinal": null,
+          "iat_va": 8115080
+        },
+        {
+          "name": "UnregisterClassA",
+          "ordinal": null,
+          "iat_va": 8115084
+        },
+        {
+          "name": "SetTimer",
+          "ordinal": null,
+          "iat_va": 8115088
+        },
+        {
+          "name": "KillTimer",
+          "ordinal": null,
+          "iat_va": 8115092
+        },
+        {
+          "name": "CreatePopupMenu",
+          "ordinal": null,
+          "iat_va": 8115096
+        },
+        {
+          "name": "SetMenuItemInfoA",
+          "ordinal": null,
+          "iat_va": 8115100
+        },
+        {
+          "name": "GetMenuItemInfoA",
+          "ordinal": null,
+          "iat_va": 8115104
+        },
+        {
+          "name": "InsertMenuItemA",
+          "ordinal": null,
+          "iat_va": 8115108
+        },
+        {
+          "name": "ChangeDisplaySettingsA",
+          "ordinal": null,
+          "iat_va": 8115112
+        },
+        {
+          "name": "EnumDisplaySettingsA",
+          "ordinal": null,
+          "iat_va": 8115116
+        },
+        {
+          "name": "GetDesktopWindow",
+          "ordinal": null,
+          "iat_va": 8115120
+        },
+        {
+          "name": "DialogBoxParamA",
+          "ordinal": null,
+          "iat_va": 8115124
+        },
+        {
+          "name": "OpenClipboard",
+          "ordinal": null,
+          "iat_va": 8115128
+        },
+        {
+          "name": "CloseClipboard",
+          "ordinal": null,
+          "iat_va": 8115132
+        },
+        {
+          "name": "EmptyClipboard",
+          "ordinal": null,
+          "iat_va": 8115136
+        },
+        {
+          "name": "GetClipboardData",
+          "ordinal": null,
+          "iat_va": 8115140
+        },
+        {
+          "name": "SetClipboardData",
+          "ordinal": null,
+          "iat_va": 8115144
+        },
+        {
+          "name": "TranslateAcceleratorA",
+          "ordinal": null,
+          "iat_va": 8115148
+        },
+        {
+          "name": "LoadAcceleratorsA",
+          "ordinal": null,
+          "iat_va": 8115152
+        },
+        {
+          "name": "EndDialog",
+          "ordinal": null,
+          "iat_va": 8115156
+        },
+        {
+          "name": "GetDlgItem",
+          "ordinal": null,
+          "iat_va": 8115160
+        },
+        {
+          "name": "EnableWindow",
+          "ordinal": null,
+          "iat_va": 8115164
+        },
+        {
+          "name": "IsDlgButtonChecked",
+          "ordinal": null,
+          "iat_va": 8115168
+        },
+        {
+          "name": "SetScrollInfo",
+          "ordinal": null,
+          "iat_va": 8115172
+        },
+        {
+          "name": "GetScrollInfo",
+          "ordinal": null,
+          "iat_va": 8115176
+        },
+        {
+          "name": "GetScrollPos",
+          "ordinal": null,
+          "iat_va": 8115180
+        },
+        {
+          "name": "SetScrollPos",
+          "ordinal": null,
+          "iat_va": 8115184
+        },
+        {
+          "name": "GetWindowPlacement",
+          "ordinal": null,
+          "iat_va": 8115188
+        },
+        {
+          "name": "GetDC",
+          "ordinal": null,
+          "iat_va": 8115192
+        },
+        {
+          "name": "DrawTextA",
+          "ordinal": null,
+          "iat_va": 8115196
+        },
+        {
+          "name": "ReleaseDC",
+          "ordinal": null,
+          "iat_va": 8115200
+        },
+        {
+          "name": "CloseWindow",
+          "ordinal": null,
+          "iat_va": 8115204
+        },
+        {
+          "name": "LoadMenuA",
+          "ordinal": null,
+          "iat_va": 8115208
+        },
+        {
+          "name": "OpenIcon",
+          "ordinal": null,
+          "iat_va": 8115212
+        },
+        {
+          "name": "GetMenu",
+          "ordinal": null,
+          "iat_va": 8115216
+        },
+        {
+          "name": "InsertMenuA",
+          "ordinal": null,
+          "iat_va": 8115220
+        },
+        {
+          "name": "FillRect",
+          "ordinal": null,
+          "iat_va": 8115224
+        },
+        {
+          "name": "SetKeyboardState",
+          "ordinal": null,
+          "iat_va": 8115228
+        },
+        {
+          "name": "GetKeyboardState",
+          "ordinal": null,
+          "iat_va": 8115232
+        },
+        {
+          "name": "GetSubMenu",
+          "ordinal": null,
+          "iat_va": 8115236
+        },
+        {
+          "name": "GetActiveWindow",
+          "ordinal": null,
+          "iat_va": 8115240
+        },
+        {
+          "name": "SetWindowLongA",
+          "ordinal": null,
+          "iat_va": 8115244
+        },
+        {
+          "name": "ClientToScreen",
+          "ordinal": null,
+          "iat_va": 8115248
+        },
+        {
+          "name": "GetWindowLongA",
+          "ordinal": null,
+          "iat_va": 8115252
+        },
+        {
+          "name": "ValidateRect",
+          "ordinal": null,
+          "iat_va": 8115256
+        },
+        {
+          "name": "SetWindowTextA",
+          "ordinal": null,
+          "iat_va": 8115260
+        },
+        {
+          "name": "MessageBoxA",
+          "ordinal": null,
+          "iat_va": 8115264
+        },
+        {
+          "name": "DestroyMenu",
+          "ordinal": null,
+          "iat_va": 8115268
+        },
+        {
+          "name": "SetCapture",
+          "ordinal": null,
+          "iat_va": 8115272
+        },
+        {
+          "name": "LoadIconA",
+          "ordinal": null,
+          "iat_va": 8115276
+        },
+        {
+          "name": "PostQuitMessage",
+          "ordinal": null,
+          "iat_va": 8115280
+        },
+        {
+          "name": "ReleaseCapture",
+          "ordinal": null,
+          "iat_va": 8115284
+        },
+        {
+          "name": "InvalidateRect",
+          "ordinal": null,
+          "iat_va": 8115288
+        },
+        {
+          "name": "IsIconic",
+          "ordinal": null,
+          "iat_va": 8115292
+        },
+        {
+          "name": "SetCursorPos",
+          "ordinal": null,
+          "iat_va": 8115296
+        },
+        {
+          "name": "BeginPaint",
+          "ordinal": null,
+          "iat_va": 8115300
+        },
+        {
+          "name": "EndPaint",
+          "ordinal": null,
+          "iat_va": 8115304
+        },
+        {
+          "name": "GetSystemMenu",
+          "ordinal": null,
+          "iat_va": 8115308
+        },
+        {
+          "name": "GetWindowRect",
+          "ordinal": null,
+          "iat_va": 8115312
+        },
+        {
+          "name": "DestroyWindow",
+          "ordinal": null,
+          "iat_va": 8115316
+        },
+        {
+          "name": "SetWindowPos",
+          "ordinal": null,
+          "iat_va": 8115320
+        },
+        {
+          "name": "PostMessageA",
+          "ordinal": null,
+          "iat_va": 8115324
+        },
+        {
+          "name": "GetSystemMetrics",
+          "ordinal": null,
+          "iat_va": 8115328
+        },
+        {
+          "name": "ShowWindow",
+          "ordinal": null,
+          "iat_va": 8115332
+        },
+        {
+          "name": "GetWindowTextA",
+          "ordinal": null,
+          "iat_va": 8115336
+        },
+        {
+          "name": "MoveWindow",
+          "ordinal": null,
+          "iat_va": 8115340
+        },
+        {
+          "name": "SetMenu",
+          "ordinal": null,
+          "iat_va": 8115344
+        },
+        {
+          "name": "DefWindowProcA",
+          "ordinal": null,
+          "iat_va": 8115348
+        },
+        {
+          "name": "SetFocus",
+          "ordinal": null,
+          "iat_va": 8115352
+        },
+        {
+          "name": "DrawMenuBar",
+          "ordinal": null,
+          "iat_va": 8115356
+        },
+        {
+          "name": "EnableMenuItem",
+          "ordinal": null,
+          "iat_va": 8115360
+        }
+      ]
+    },
+    {
+      "dll": "wininet.dll",
+      "functions": [
+        {
+          "name": "InternetReadFile",
+          "ordinal": null,
+          "iat_va": 8115368
+        },
+        {
+          "name": "HttpSendRequestA",
+          "ordinal": null,
+          "iat_va": 8115372
+        },
+        {
+          "name": "InternetConnectA",
+          "ordinal": null,
+          "iat_va": 8115376
+        },
+        {
+          "name": "InternetAttemptConnect",
+          "ordinal": null,
+          "iat_va": 8115380
+        },
+        {
+          "name": "HttpOpenRequestA",
+          "ordinal": null,
+          "iat_va": 8115384
+        },
+        {
+          "name": "InternetOpenA",
+          "ordinal": null,
+          "iat_va": 8115388
+        },
+        {
+          "name": "InternetCloseHandle",
+          "ordinal": null,
+          "iat_va": 8115392
+        }
+      ]
+    },
+    {
+      "dll": "winmm.dll",
+      "functions": [
+        {
+          "name": "timeEndPeriod",
+          "ordinal": null,
+          "iat_va": 8115400
+        },
+        {
+          "name": "timeBeginPeriod",
+          "ordinal": null,
+          "iat_va": 8115404
+        },
+        {
+          "name": "timeGetTime",
+          "ordinal": null,
+          "iat_va": 8115408
+        },
+        {
+          "name": "timeGetDevCaps",
+          "ordinal": null,
+          "iat_va": 8115412
+        }
+      ]
+    },
+    {
+      "dll": "d3d11.dll",
+      "functions": [
+        {
+          "name": "D3D11CreateDevice",
+          "ordinal": null,
+          "iat_va": 8115420
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8115428
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8115432
+        },
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8115436
+        }
+      ]
+    },
+    {
+      "dll": "?",
+      "functions": [
+        {
+          "name": "?",
+          "ordinal": null,
+          "iat_va": 8115444
+        }
+      ]
+    }
+  ],
+  "debug": [],
+  "target_strings": [
+    {
+      "name": "Array",
+      "file_offset": 3987388,
+      "rva": 3993020,
+      "va": 8187324,
+      "section": "",
+      "references": [
+        {
+          "file_offset": 605000,
+          "rva": 608072,
+          "va": 4802376,
+          "section": "",
+          "context_hex": "c074085fb8204168005ec3babced7c008bcee84d78f8ff84c074085fb8004364005ec3ba"
+        }
+      ]
+    },
+    {
+      "name": "PartsEngine",
+      "file_offset": 3987744,
+      "rva": 3993376,
+      "va": 8187680,
+      "section": "",
+      "references": [
+        {
+          "file_offset": 605432,
+          "rva": 608504,
+          "va": 4802808,
+          "section": "",
+          "context_hex": "c074085fb8107b46005ec3ba20ef7c008bcee89d76f8ff84c074085fb800b957005ec3ba"
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "file_offset": 5158228,
+      "rva": 5189972,
+      "va": 9384276,
+      "section": "",
+      "references": []
+    },
+    {
+      "name": "System",
+      "file_offset": 6510875,
+      "rva": 6542619,
+      "va": 10736923,
+      "section": "",
+      "references": []
+    },
+    {
+      "name": "system",
+      "file_offset": 3987408,
+      "rva": 3993040,
+      "va": 8187344,
+      "section": "",
+      "references": [
+        {
+          "file_offset": 604892,
+          "rva": 607964,
+          "va": 4802268,
+          "section": "",
+          "context_hex": "ce8b7e10b8060000003bf8bad0ed7c000f42c750e8976df8ff83c40485c0750f83ff0672"
+        }
+      ]
+    },
+    {
+      "name": "Sys43VM",
+      "file_offset": 3987836,
+      "rva": 3993468,
+      "va": 8187772,
+      "section": "",
+      "references": [
+        {
+          "file_offset": 605624,
+          "rva": 608696,
+          "va": 4803000,
+          "section": "",
+          "context_hex": "c074085fb880c346005ec3ba7cef7c008bcee8dd75f8ff84c074085fb8302869005ec3ba"
+        }
+      ]
+    },
+    {
+      "name": "Delegate",
+      "file_offset": 3987512,
+      "rva": 3993144,
+      "va": 8187448,
+      "section": "",
+      "references": [
+        {
+          "file_offset": 605048,
+          "rva": 608120,
+          "va": 4802424,
+          "section": "",
+          "context_hex": "c074085fb8b04f65005ec3ba38ee7c008bcee81d78f8ff84c074085fb8804a65005ec3ba"
+        }
+      ]
+    },
+    {
+      "name": "PeekMessageA",
+      "file_offset": 6169464,
+      "rva": 6201208,
+      "va": 10395512,
+      "section": "",
+      "references": [
+        {
+          "file_offset": 6352040,
+          "rva": 6383784,
+          "va": 10578088,
+          "section": "",
+          "context_hex": "649f9e00b089c574309f9e00789f9e0050eecc74309f9e00889f9e008034c574989f9e00"
+        }
+      ]
+    },
+    {
+      "name": "PeekMessageA",
+      "file_offset": 13147921,
+      "rva": 13179665,
+      "va": 17373969,
+      "section": "",
+      "references": []
+    },
+    {
+      "name": "PeekMessageA",
+      "file_offset": 15472713,
+      "rva": 15509577,
+      "va": 19703881,
+      "section": ".SCY",
+      "references": []
+    },
+    {
+      "name": "timeGetTime",
+      "file_offset": 15474085,
+      "rva": 15510949,
+      "va": 19705253,
+      "section": ".SCY",
+      "references": []
+    },
+    {
+      "name": "QueryPerformanceCounter",
+      "file_offset": 13143751,
+      "rva": 13175495,
+      "va": 17369799,
+      "section": "",
+      "references": []
+    },
+    {
+      "name": "QueryPerformanceCounter",
+      "file_offset": 15469602,
+      "rva": 15506466,
+      "va": 19700770,
+      "section": ".SCY",
+      "references": []
+    }
+  ],
+  "target_rtti": [
+    {
+      "name": ".?AUmessages_base@std@@",
+      "file_offset": 4611176,
+      "rva": 4626024,
+      "va": 8820328,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$messages@_W@std@@",
+      "file_offset": 4611480,
+      "rva": 4626328,
+      "va": 8820632,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$messages@G@std@@",
+      "file_offset": 4612212,
+      "rva": 4627060,
+      "va": 8821364,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$messages@D@std@@",
+      "file_offset": 4612732,
+      "rva": 4627580,
+      "va": 8821884,
+      "section": ""
+    },
+    {
+      "name": ".?AVbad_array_new_length@std@@",
+      "file_offset": 4613244,
+      "rva": 4628092,
+      "va": 8822396,
+      "section": ""
+    },
+    {
+      "name": ".?AVWaitBlock@details@Concurrency@@",
+      "file_offset": 4613284,
+      "rva": 4628132,
+      "va": 8822436,
+      "section": ""
+    },
+    {
+      "name": ".?AVSingleWaitBlock@details@Concurrency@@",
+      "file_offset": 4613328,
+      "rva": 4628176,
+      "va": 8822480,
+      "section": ""
+    },
+    {
+      "name": ".?AVMultiWaitBlock@details@Concurrency@@",
+      "file_offset": 4613380,
+      "rva": 4628228,
+      "va": 8822532,
+      "section": ""
+    },
+    {
+      "name": ".?AVWaitAllBlock@details@Concurrency@@",
+      "file_offset": 4613432,
+      "rva": 4628280,
+      "va": 8822584,
+      "section": ""
+    },
+    {
+      "name": ".?AVWaitAnyBlock@details@Concurrency@@",
+      "file_offset": 4613480,
+      "rva": 4628328,
+      "va": 8822632,
+      "section": ""
+    },
+    {
+      "name": ".?AVTimedSingleWaitBlock@details@Concurrency@@",
+      "file_offset": 4613528,
+      "rva": 4628376,
+      "va": 8822680,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_MallocaArrayHolder@PAVContext@Concurrency@@@details@Concurrency@@",
+      "file_offset": 4613584,
+      "rva": 4628432,
+      "va": 8822736,
+      "section": ""
+    },
+    {
+      "name": ".?AVmissing_wait@Concurrency@@",
+      "file_offset": 4614972,
+      "rva": 4629820,
+      "va": 8824124,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_MallocaArrayHolder@PAVevent@Concurrency@@@details@Concurrency@@",
+      "file_offset": 4615488,
+      "rva": 4630336,
+      "va": 8824640,
+      "section": ""
+    },
+    {
+      "name": ".?AVCEXArrayReader@common@@",
+      "file_offset": 4616768,
+      "rva": 4631616,
+      "va": 8825920,
+      "section": ""
+    },
+    {
+      "name": ".?AVCArraySubscriptToken@dpanalysis@@",
+      "file_offset": 4620004,
+      "rva": 4634852,
+      "va": 8829156,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMTraceCallback@@",
+      "file_offset": 4622356,
+      "rva": 4637204,
+      "va": 8831508,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$NotifyRefCounter@VIDPParts@@@common@@",
+      "file_offset": 4623028,
+      "rva": 4637876,
+      "va": 8832180,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$SuicideRefCounter@VIDPParts@@@common@@",
+      "file_offset": 4623080,
+      "rva": 4637928,
+      "va": 8832232,
+      "section": ""
+    },
+    {
+      "name": ".?AVCDPParts@dpparts@@",
+      "file_offset": 4623136,
+      "rva": 4637984,
+      "va": 8832288,
+      "section": ""
+    },
+    {
+      "name": ".?AVIDPParts@@",
+      "file_offset": 4623168,
+      "rva": 4638016,
+      "va": 8832320,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMessageSyntax@advengine@@",
+      "file_offset": 4624268,
+      "rva": 4639116,
+      "va": 8833420,
+      "section": ""
+    },
+    {
+      "name": ".?AVCBridgeMessageQueue@bridgemessage@@",
+      "file_offset": 4625128,
+      "rva": 4639976,
+      "va": 8834280,
+      "section": ""
+    },
+    {
+      "name": ".?AVCProperty@commonsystemdata@@",
+      "file_offset": 4626224,
+      "rva": 4641072,
+      "va": 8835376,
+      "section": ""
+    },
+    {
+      "name": ".?AVCDefineDataArray@exfile@@",
+      "file_offset": 4627772,
+      "rva": 4642620,
+      "va": 8836924,
+      "section": ""
+    },
+    {
+      "name": ".?AVIEXArrayReader@@",
+      "file_offset": 4627812,
+      "rva": 4642660,
+      "va": 8836964,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CArray2D@E@graph@@",
+      "file_offset": 4628704,
+      "rva": 4643552,
+      "va": 8837856,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGainProcess@kiwi@@",
+      "file_offset": 4631556,
+      "rva": 4646404,
+      "va": 8840708,
+      "section": ""
+    },
+    {
+      "name": ".?AVCCmdLineCutter@mainsystem@@",
+      "file_offset": 4636092,
+      "rva": 4650940,
+      "va": 8845244,
+      "section": ""
+    },
+    {
+      "name": ".?AVCComponentManager@mainsystem@@",
+      "file_offset": 4636132,
+      "rva": 4650980,
+      "va": 8845284,
+      "section": ""
+    },
+    {
+      "name": ".?AVCEXFile@mainsystem@@",
+      "file_offset": 4636176,
+      "rva": 4651024,
+      "va": 8845328,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGameVersion@mainsystem@@",
+      "file_offset": 4636240,
+      "rva": 4651088,
+      "va": 8845392,
+      "section": ""
+    },
+    {
+      "name": ".?AVCIDEWnd@mainsystem@@",
+      "file_offset": 4636304,
+      "rva": 4651152,
+      "va": 8845456,
+      "section": ""
+    },
+    {
+      "name": ".?AVCLoadDLL@mainsystem@@",
+      "file_offset": 4636340,
+      "rva": 4651188,
+      "va": 8845492,
+      "section": ""
+    },
+    {
+      "name": ".?AVIMainSystem@@",
+      "file_offset": 4636440,
+      "rva": 4651288,
+      "va": 8845592,
+      "section": ""
+    },
+    {
+      "name": ".?AVCComponentSupplier@mainsystem@@",
+      "file_offset": 4636532,
+      "rva": 4651380,
+      "va": 8845684,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMainSystem@mainsystem@@",
+      "file_offset": 4636612,
+      "rva": 4651460,
+      "va": 8845764,
+      "section": ""
+    },
+    {
+      "name": ".?AVIInitMainSystem@@",
+      "file_offset": 4636652,
+      "rva": 4651500,
+      "va": 8845804,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSaveFolderSetting@mainsystem@@",
+      "file_offset": 4636684,
+      "rva": 4651532,
+      "va": 8845836,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSetCallback@mainsystem@@",
+      "file_offset": 4636756,
+      "rva": 4651604,
+      "va": 8845908,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSys4xPath@mainsystem@@",
+      "file_offset": 4636796,
+      "rva": 4651644,
+      "va": 8845948,
+      "section": ""
+    },
+    {
+      "name": ".?AVISystemVariable@@",
+      "file_offset": 4636860,
+      "rva": 4651708,
+      "va": 8846012,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSystemVariable@mainsystem@@",
+      "file_offset": 4636892,
+      "rva": 4651740,
+      "va": 8846044,
+      "section": ""
+    },
+    {
+      "name": ".?AVCTimer@mainsystem@@",
+      "file_offset": 4636960,
+      "rva": 4651808,
+      "va": 8846112,
+      "section": ""
+    },
+    {
+      "name": ".?AVCDisableScreensaver@mainwindow@@",
+      "file_offset": 4637712,
+      "rva": 4652560,
+      "va": 8846864,
+      "section": ""
+    },
+    {
+      "name": ".?AVCDXOption@mainwindow@@",
+      "file_offset": 4637820,
+      "rva": 4652668,
+      "va": 8846972,
+      "section": ""
+    },
+    {
+      "name": ".?AVCFullScreenMenu@mainwindow@@",
+      "file_offset": 4637896,
+      "rva": 4652744,
+      "va": 8847048,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGraphEngineFactory@mainwindow@@",
+      "file_offset": 4637940,
+      "rva": 4652788,
+      "va": 8847092,
+      "section": ""
+    },
+    {
+      "name": ".?AVCHideMouseCursorByGameProxy@mainwindow@@",
+      "file_offset": 4637988,
+      "rva": 4652836,
+      "va": 8847140,
+      "section": ""
+    },
+    {
+      "name": ".?AVCInputString@mainwindow@@",
+      "file_offset": 4638084,
+      "rva": 4652932,
+      "va": 8847236,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$NotifyRefCounter@VIMainWindow@@@common@@",
+      "file_offset": 4638152,
+      "rva": 4653000,
+      "va": 8847304,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$COpenWeb@VCMainWindow@mainwindow@@@mainwindow@@",
+      "file_offset": 4638208,
+      "rva": 4653056,
+      "va": 8847360,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CShutdown@VCMainWindow@mainwindow@@@mainwindow@@",
+      "file_offset": 4638380,
+      "rva": 4653228,
+      "va": 8847532,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CInputDevice@VCMainWindow@mainwindow@@@mainwindow@@",
+      "file_offset": 4638448,
+      "rva": 4653296,
+      "va": 8847600,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CWindowSettingProxy@VCMainWindow@mainwindow@@@mainwindow@@",
+      "file_offset": 4638544,
+      "rva": 4653392,
+      "va": 8847696,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CMouseCursorPos@VCMainWindow@mainwindow@@@mainwindow@@",
+      "file_offset": 4638624,
+      "rva": 4653472,
+      "va": 8847776,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMainWindow@mainwindow@@",
+      "file_offset": 4638696,
+      "rva": 4653544,
+      "va": 8847848,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CWinMsg@VCMainWindow@mainwindow@@@mainwindow@@",
+      "file_offset": 4638736,
+      "rva": 4653584,
+      "va": 8847888,
+      "section": ""
+    },
+    {
+      "name": ".?AVIMainWindow@@",
+      "file_offset": 4638832,
+      "rva": 4653680,
+      "va": 8847984,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$SuicideRefCounter@VIMainWindow@@@common@@",
+      "file_offset": 4638860,
+      "rva": 4653708,
+      "va": 8848012,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMessageTextView@mainwindow@@",
+      "file_offset": 4638916,
+      "rva": 4653764,
+      "va": 8848068,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMouseCursorConfigProxy@mainwindow@@",
+      "file_offset": 4638996,
+      "rva": 4653844,
+      "va": 8848148,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMouseWheel@mainwindow@@",
+      "file_offset": 4639076,
+      "rva": 4653924,
+      "va": 8848228,
+      "section": ""
+    },
+    {
+      "name": ".?AVCScreenshotFolderPath@mainwindow@@",
+      "file_offset": 4639116,
+      "rva": 4653964,
+      "va": 8848268,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMainView@mainwindow@@",
+      "file_offset": 4639164,
+      "rva": 4654012,
+      "va": 8848316,
+      "section": ""
+    },
+    {
+      "name": ".?AVCWindowActiveState@mainwindow@@",
+      "file_offset": 4639200,
+      "rva": 4654048,
+      "va": 8848352,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$SuicideRefCounter@VCSprite@partsengine@@@common@@",
+      "file_offset": 4639384,
+      "rva": 4654232,
+      "va": 8848536,
+      "section": ""
+    },
+    {
+      "name": ".?AVC3DLayerSprite@partsengine@@",
+      "file_offset": 4639448,
+      "rva": 4654296,
+      "va": 8848600,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$NotifyRefCounter@VCSprite@partsengine@@@common@@",
+      "file_offset": 4639492,
+      "rva": 4654340,
+      "va": 8848644,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSprite@partsengine@@",
+      "file_offset": 4639556,
+      "rva": 4654404,
+      "va": 8848708,
+      "section": ""
+    },
+    {
+      "name": ".?AVCAlphaClipperManager@partsengine@@",
+      "file_offset": 4639592,
+      "rva": 4654440,
+      "va": 8848744,
+      "section": ""
+    },
+    {
+      "name": ".?AVCConstructionProcess@partsengine@@",
+      "file_offset": 4639640,
+      "rva": 4654488,
+      "va": 8848792,
+      "section": ""
+    },
+    {
+      "name": ".?AVCConstructionProcessList@partsengine@@",
+      "file_offset": 4639688,
+      "rva": 4654536,
+      "va": 8848840,
+      "section": ""
+    },
+    {
+      "name": ".?AVCConstructionThreadSurface@partsengine@@",
+      "file_offset": 4639740,
+      "rva": 4654588,
+      "va": 8848892,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIFormGroupModel@partsengine@@",
+      "file_offset": 4645476,
+      "rva": 4660324,
+      "va": 8854628,
+      "section": ""
+    },
+    {
+      "name": ".?AUSCreatedEventArgs@partsengine@@",
+      "file_offset": 4645524,
+      "rva": 4660372,
+      "va": 8854676,
+      "section": ""
+    },
+    {
+      "name": ".?AVIEventSender@partsengine@@",
+      "file_offset": 4645624,
+      "rva": 4660472,
+      "va": 8854776,
+      "section": ""
+    },
+    {
+      "name": ".?AVIEventObserver@partsengine@@",
+      "file_offset": 4645664,
+      "rva": 4660512,
+      "va": 8854816,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIView@partsengine@@",
+      "file_offset": 4645708,
+      "rva": 4660556,
+      "va": 8854860,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$NotifyRefCounter@VCGUIView@partsengine@@@common@@",
+      "file_offset": 4645744,
+      "rva": 4660592,
+      "va": 8854896,
+      "section": ""
+    },
+    {
+      "name": ".?AVIEventArgs@partsengine@@",
+      "file_offset": 4645808,
+      "rva": 4660656,
+      "va": 8854960,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$SuicideRefCounter@VCGUIView@partsengine@@@common@@",
+      "file_offset": 4645848,
+      "rva": 4660696,
+      "va": 8855000,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_ed8e9272ecad78c844cb7037924dfa2b>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4645920,
+      "rva": 4660768,
+      "va": 8855072,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_base@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4646048,
+      "rva": 4660896,
+      "va": 8855200,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIFormGroupView@partsengine@@",
+      "file_offset": 4646112,
+      "rva": 4660960,
+      "va": 8855264,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIFormView@partsengine@@",
+      "file_offset": 4646212,
+      "rva": 4661060,
+      "va": 8855364,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_93995fcb8a8c19fe83801440fa2dc3ec>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4646256,
+      "rva": 4661104,
+      "va": 8855408,
+      "section": ""
+    },
+    {
+      "name": ".?AUSClosingEventArgs@partsengine@@",
+      "file_offset": 4646384,
+      "rva": 4661232,
+      "va": 8855536,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIPanelModel@partsengine@@",
+      "file_offset": 4646428,
+      "rva": 4661276,
+      "va": 8855580,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIPanelView@partsengine@@",
+      "file_offset": 4646472,
+      "rva": 4661320,
+      "va": 8855624,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUISliderBarModel@partsengine@@",
+      "file_offset": 4646512,
+      "rva": 4661360,
+      "va": 8855664,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUISliderBarView@partsengine@@",
+      "file_offset": 4646560,
+      "rva": 4661408,
+      "va": 8855712,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMessageVariable@partsengine@@",
+      "file_offset": 4646604,
+      "rva": 4661452,
+      "va": 8855756,
+      "section": ""
+    },
+    {
+      "name": ".?AUSScrollEventArgs@partsengine@@",
+      "file_offset": 4646652,
+      "rva": 4661500,
+      "va": 8855804,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_d23f523e224c24888a828f61a762746c>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4646752,
+      "rva": 4661600,
+      "va": 8855904,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUISpinBoxModel@partsengine@@",
+      "file_offset": 4646880,
+      "rva": 4661728,
+      "va": 8856032,
+      "section": ""
+    },
+    {
+      "name": ".?AUSFixedEventArgs@partsengine@@",
+      "file_offset": 4646924,
+      "rva": 4661772,
+      "va": 8856076,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUISpinBoxView@partsengine@@",
+      "file_offset": 4646968,
+      "rva": 4661816,
+      "va": 8856120,
+      "section": ""
+    },
+    {
+      "name": ".?AUSChangedEventArgs@partsengine@@",
+      "file_offset": 4647012,
+      "rva": 4661860,
+      "va": 8856164,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_fbaaea207b774ea90dae661b3d8261c3>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4647280,
+      "rva": 4662128,
+      "va": 8856432,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIUserComponentView@partsengine@@",
+      "file_offset": 4647464,
+      "rva": 4662312,
+      "va": 8856616,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseDoubleClickEventArgs@partsengine@@",
+      "file_offset": 4647512,
+      "rva": 4662360,
+      "va": 8856664,
+      "section": ""
+    },
+    {
+      "name": ".?AVCPartsDoubleClickWorker@partsengine@@",
+      "file_offset": 4647568,
+      "rva": 4662416,
+      "va": 8856720,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSurfacePackList@partsengine@@",
+      "file_offset": 4647620,
+      "rva": 4662468,
+      "va": 8856772,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMessageWindowModel@partsengine@@",
+      "file_offset": 4647828,
+      "rva": 4662676,
+      "va": 8856980,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMessageWindowView@partsengine@@",
+      "file_offset": 4647936,
+      "rva": 4662784,
+      "va": 8857088,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseEnterEventArgs@partsengine@@",
+      "file_offset": 4647984,
+      "rva": 4662832,
+      "va": 8857136,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseLeaveEventArgs@partsengine@@",
+      "file_offset": 4648032,
+      "rva": 4662880,
+      "va": 8857184,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4648080,
+      "rva": 4662928,
+      "va": 8857232,
+      "section": ""
+    },
+    {
+      "name": ".?AVCComponentSet@partsengine@@",
+      "file_offset": 4648144,
+      "rva": 4662992,
+      "va": 8857296,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseOnCursorEventArgs@partsengine@@",
+      "file_offset": 4648184,
+      "rva": 4663032,
+      "va": 8857336,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CLockedWorkerThread@VCConstructionThreadSurface@partsengine@@_N@thread@@",
+      "file_offset": 4648688,
+      "rva": 4663536,
+      "va": 8857840,
+      "section": ""
+    },
+    {
+      "name": ".?AVCDrawD3DPluginManager@partsengine@@",
+      "file_offset": 4648812,
+      "rva": 4663660,
+      "va": 8857964,
+      "section": ""
+    },
+    {
+      "name": ".?AVCEventSubject@partsengine@@",
+      "file_offset": 4648860,
+      "rva": 4663708,
+      "va": 8858012,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatStopMotionData@partsengine@@@std@@",
+      "file_offset": 4648904,
+      "rva": 4663752,
+      "va": 8858056,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatEmitterData@partsengine@@@std@@",
+      "file_offset": 4648976,
+      "rva": 4663824,
+      "va": 8858128,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatTimeLineData@partsengine@@@std@@",
+      "file_offset": 4649272,
+      "rva": 4664120,
+      "va": 8858424,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatData@partsengine@@@std@@",
+      "file_offset": 4649340,
+      "rva": 4664188,
+      "va": 8858492,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CLockedWorkerThread@VCFlatSprite@partsengine@@_N@thread@@",
+      "file_offset": 4649400,
+      "rva": 4664248,
+      "va": 8858552,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatKeyDataScript@partsengine@@@std@@",
+      "file_offset": 4649472,
+      "rva": 4664320,
+      "va": 8858624,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatKeyDataSound@partsengine@@@std@@",
+      "file_offset": 4649544,
+      "rva": 4664392,
+      "va": 8858696,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCFlatLayerData@partsengine@@@std@@",
+      "file_offset": 4649616,
+      "rva": 4664464,
+      "va": 8858768,
+      "section": ""
+    },
+    {
+      "name": ".?AVCFlatSprite@partsengine@@",
+      "file_offset": 4649684,
+      "rva": 4664532,
+      "va": 8858836,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIButtonModel@partsengine@@",
+      "file_offset": 4649724,
+      "rva": 4664572,
+      "va": 8858876,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIButtonView@partsengine@@",
+      "file_offset": 4649768,
+      "rva": 4664616,
+      "va": 8858920,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUICheckBoxModel@partsengine@@",
+      "file_offset": 4649812,
+      "rva": 4664660,
+      "va": 8858964,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUICheckBoxView@partsengine@@",
+      "file_offset": 4649856,
+      "rva": 4664704,
+      "va": 8859008,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_a2733f3bd781189b24552d69375d7ecc>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4649960,
+      "rva": 4664808,
+      "va": 8859112,
+      "section": ""
+    },
+    {
+      "name": ".?AUSChangedFlgEventArgs@partsengine@@",
+      "file_offset": 4650088,
+      "rva": 4664936,
+      "va": 8859240,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIComboBoxModel@partsengine@@",
+      "file_offset": 4650136,
+      "rva": 4664984,
+      "va": 8859288,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIComboBoxView@partsengine@@",
+      "file_offset": 4650180,
+      "rva": 4665028,
+      "va": 8859332,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_da7dd3d73d1a23a9e3d7e724b6672d33>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4650224,
+      "rva": 4665072,
+      "va": 8859376,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIComponent@partsengine@@",
+      "file_offset": 4650408,
+      "rva": 4665256,
+      "va": 8859560,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$enable_shared_from_this@VCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4650448,
+      "rva": 4665296,
+      "va": 8859600,
+      "section": ""
+    },
+    {
+      "name": ".?AUSLostFocusEventArgs@partsengine@@",
+      "file_offset": 4650524,
+      "rva": 4665372,
+      "va": 8859676,
+      "section": ""
+    },
+    {
+      "name": ".?AUSFocusEventArgs@partsengine@@",
+      "file_offset": 4650600,
+      "rva": 4665448,
+      "va": 8859752,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_3f0a99efcf7d86eabefc42c1d77db429>@@V?$allocator@H@std@@_NABV?$shared_ptr@$$CBVCGUIComponent@partsengine@@@3@@std@@",
+      "file_offset": 4650736,
+      "rva": 4665584,
+      "va": 8859888,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_64c7330edfe3dabddc83bb6c555ed5ab>@@V?$allocator@H@std@@_NABV?$shared_ptr@$$CBVCGUIComponent@partsengine@@@3@@std@@",
+      "file_offset": 4650888,
+      "rva": 4665736,
+      "va": 8860040,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_base@_NABV?$shared_ptr@$$CBVCGUIComponent@partsengine@@@std@@@std@@",
+      "file_offset": 4651096,
+      "rva": 4665944,
+      "va": 8860248,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIController@partsengine@@",
+      "file_offset": 4651184,
+      "rva": 4666032,
+      "va": 8860336,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIControllerStack@partsengine@@",
+      "file_offset": 4651228,
+      "rva": 4666076,
+      "va": 8860380,
+      "section": ""
+    },
+    {
+      "name": ".?AVIMakeGUIComponent@partsengine@@",
+      "file_offset": 4651276,
+      "rva": 4666124,
+      "va": 8860428,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIEngine@partsengine@@",
+      "file_offset": 4651320,
+      "rva": 4666168,
+      "va": 8860472,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_4c935a8a28018533bddea859ba09be62>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4651360,
+      "rva": 4666208,
+      "va": 8860512,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$CFinalizer@VCGUIEngine@partsengine@@@partsengine@@",
+      "file_offset": 4651544,
+      "rva": 4666392,
+      "va": 8860696,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIScrollbarModel@partsengine@@",
+      "file_offset": 4651612,
+      "rva": 4666460,
+      "va": 8860764,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_4070f623bf623f1df9424f7d2f77dd75>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4651664,
+      "rva": 4666512,
+      "va": 8860816,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_3f59945d183fad3f62e1a642b6d9f549>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4651816,
+      "rva": 4666664,
+      "va": 8860968,
+      "section": ""
+    },
+    {
+      "name": ".?AUSKeyUpEventArgs@partsengine@@",
+      "file_offset": 4651964,
+      "rva": 4666812,
+      "va": 8861116,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_ea7aa801ce8010abc592cf5a3a6ac358>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4652120,
+      "rva": 4666968,
+      "va": 8861272,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_ffc1b7af5a4eeea068a2c6547c1ceb79>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4652272,
+      "rva": 4667120,
+      "va": 8861424,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_base@XV?$shared_ptr@VCPartsController@partsengine@@@std@@@std@@",
+      "file_offset": 4652528,
+      "rva": 4667376,
+      "va": 8861680,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_6b82fae4a7e8af1401707647e7ed0b9a>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4652720,
+      "rva": 4667568,
+      "va": 8861872,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_b66c064f18307915fa9bd45a3a67abbe>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4653016,
+      "rva": 4667864,
+      "va": 8862168,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_base@_NV?$shared_ptr@VCPartsController@partsengine@@@std@@@std@@",
+      "file_offset": 4653280,
+      "rva": 4668128,
+      "va": 8862432,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseMoveEventArgs@partsengine@@",
+      "file_offset": 4653424,
+      "rva": 4668272,
+      "va": 8862576,
+      "section": ""
+    },
+    {
+      "name": ".?AUSKeyTriggerEventArgs@partsengine@@",
+      "file_offset": 4653696,
+      "rva": 4668544,
+      "va": 8862848,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_52d997ee8532c0401b0480b3d24895db>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4653960,
+      "rva": 4668808,
+      "va": 8863112,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_34621a238b3ad91d443a114ad85fee8e>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4654112,
+      "rva": 4668960,
+      "va": 8863264,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_328db618e543273876bb2d5c0863ba5b>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4654264,
+      "rva": 4669112,
+      "va": 8863416,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseWheelEventArgs@partsengine@@",
+      "file_offset": 4654412,
+      "rva": 4669260,
+      "va": 8863564,
+      "section": ""
+    },
+    {
+      "name": ".?AUSMouseClickEventArgs@partsengine@@",
+      "file_offset": 4654676,
+      "rva": 4669524,
+      "va": 8863828,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_a681760431f78cfcb633eb0d2a2937e7>@@V?$allocator@H@std@@XV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4654728,
+      "rva": 4669576,
+      "va": 8863880,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_ba4515210e624cb4160567125994effb>@@V?$allocator@H@std@@_NV?$shared_ptr@VCPartsController@partsengine@@@3@@std@@",
+      "file_offset": 4654880,
+      "rva": 4669728,
+      "va": 8864032,
+      "section": ""
+    },
+    {
+      "name": ".?AUSKeyPressEventArgs@partsengine@@",
+      "file_offset": 4655028,
+      "rva": 4669876,
+      "va": 8864180,
+      "section": ""
+    },
+    {
+      "name": ".?AUSKeyDownEventArgs@partsengine@@",
+      "file_offset": 4655180,
+      "rva": 4670028,
+      "va": 8864332,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIInputController@partsengine@@",
+      "file_offset": 4655280,
+      "rva": 4670128,
+      "va": 8864432,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUILayoutBoxModel@partsengine@@",
+      "file_offset": 4655328,
+      "rva": 4670176,
+      "va": 8864480,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUILayoutBoxView@partsengine@@",
+      "file_offset": 4655376,
+      "rva": 4670224,
+      "va": 8864528,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_3a5fabe563df311f944eafeac48fb64e>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4655424,
+      "rva": 4670272,
+      "va": 8864576,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIListBoxView@partsengine@@",
+      "file_offset": 4655608,
+      "rva": 4670456,
+      "va": 8864760,
+      "section": ""
+    },
+    {
+      "name": ".?AUSSelectedEventArgs@partsengine@@",
+      "file_offset": 4655652,
+      "rva": 4670500,
+      "va": 8864804,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMessage@partsengine@@",
+      "file_offset": 4655700,
+      "rva": 4670548,
+      "va": 8864852,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMessageList@partsengine@@",
+      "file_offset": 4655740,
+      "rva": 4670588,
+      "va": 8864892,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIModel@partsengine@@",
+      "file_offset": 4656228,
+      "rva": 4671076,
+      "va": 8865380,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMultiTextBoxModel@partsengine@@",
+      "file_offset": 4656484,
+      "rva": 4671332,
+      "va": 8865636,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIMultiTextBoxView@partsengine@@",
+      "file_offset": 4656532,
+      "rva": 4671380,
+      "va": 8865684,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_01242af4ef008d2fae4ffd96ae683771>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4656640,
+      "rva": 4671488,
+      "va": 8865792,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Binder@U_Unforced@std@@V?$_Mem_fn@P8CActivityData@partsengine@@BE?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@H@Z@2@QAVCActivityData@partsengine@@ABU?$_Ph@$00@2@@std@@",
+      "file_offset": 4657088,
+      "rva": 4671936,
+      "va": 8866240,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Binder@U_Unforced@std@@V?$_Mem_fn@P8CActivityData@partsengine@@BEHABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z@2@QAVCActivityData@partsengine@@ABU?$_Ph@$00@2@@std@@",
+      "file_offset": 4657768,
+      "rva": 4672616,
+      "va": 8866920,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCPartsController@partsengine@@@std@@",
+      "file_offset": 4658528,
+      "rva": 4673376,
+      "va": 8867680,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIPartsView@partsengine@@",
+      "file_offset": 4658596,
+      "rva": 4673444,
+      "va": 8867748,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIPlainCG@partsengine@@",
+      "file_offset": 4658636,
+      "rva": 4673484,
+      "va": 8867788,
+      "section": ""
+    },
+    {
+      "name": ".?AVIAddConstructionPartsProcess@partsengine@@",
+      "file_offset": 4658676,
+      "rva": 4673524,
+      "va": 8867828,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIRadioButtonBoxModel@partsengine@@",
+      "file_offset": 4658732,
+      "rva": 4673580,
+      "va": 8867884,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIRadioButtonBoxView@partsengine@@",
+      "file_offset": 4658784,
+      "rva": 4673632,
+      "va": 8867936,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIScene@partsengine@@",
+      "file_offset": 4658836,
+      "rva": 4673684,
+      "va": 8867988,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUITextBoxModel@partsengine@@",
+      "file_offset": 4658872,
+      "rva": 4673720,
+      "va": 8868024,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_6ece70538efed3c8a8db72b8a0048080>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4658920,
+      "rva": 4673768,
+      "va": 8868072,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUITextBoxView@partsengine@@",
+      "file_offset": 4659104,
+      "rva": 4673952,
+      "va": 8868256,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_d59d0fae746ff902ef53baf1ee873717>@@V?$allocator@H@std@@XPAVCGUIComponent@partsengine@@@std@@",
+      "file_offset": 4659152,
+      "rva": 4674000,
+      "va": 8868304,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGUIScrollbarView@partsengine@@",
+      "file_offset": 4659280,
+      "rva": 4674128,
+      "va": 8868432,
+      "section": ""
+    },
+    {
+      "name": ".?AVCKey@partsengine@@",
+      "file_offset": 4659380,
+      "rva": 4674228,
+      "va": 8868532,
+      "section": ""
+    },
+    {
+      "name": ".?AVCMovieSprite@partsengine@@",
+      "file_offset": 4659412,
+      "rva": 4674260,
+      "va": 8868564,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDropLeaveEventArgs@partsengine@@",
+      "file_offset": 4659452,
+      "rva": 4674300,
+      "va": 8868604,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDropOnEventArgs@partsengine@@",
+      "file_offset": 4659500,
+      "rva": 4674348,
+      "va": 8868652,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDragingEventArgs@partsengine@@",
+      "file_offset": 4659544,
+      "rva": 4674392,
+      "va": 8868696,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDropEnterEventArgs@partsengine@@",
+      "file_offset": 4659588,
+      "rva": 4674436,
+      "va": 8868740,
+      "section": ""
+    },
+    {
+      "name": ".?AUSSwipeBeginEventArgs@partsengine@@",
+      "file_offset": 4659636,
+      "rva": 4674484,
+      "va": 8868788,
+      "section": ""
+    },
+    {
+      "name": ".?AUSSwipingEventArgs@partsengine@@",
+      "file_offset": 4659684,
+      "rva": 4674532,
+      "va": 8868836,
+      "section": ""
+    },
+    {
+      "name": ".?AUSSwipeEndEventArgs@partsengine@@",
+      "file_offset": 4659728,
+      "rva": 4674576,
+      "va": 8868880,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDraggedEventArgs@partsengine@@",
+      "file_offset": 4659776,
+      "rva": 4674624,
+      "va": 8868928,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDragEndEventArgs@partsengine@@",
+      "file_offset": 4659820,
+      "rva": 4674668,
+      "va": 8868972,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDroppedEventArgs@partsengine@@",
+      "file_offset": 4659864,
+      "rva": 4674712,
+      "va": 8869016,
+      "section": ""
+    },
+    {
+      "name": ".?AUSDragBeginEventArgs@partsengine@@",
+      "file_offset": 4659908,
+      "rva": 4674756,
+      "va": 8869060,
+      "section": ""
+    },
+    {
+      "name": ".?AVCPartsList@partsengine@@",
+      "file_offset": 4659956,
+      "rva": 4674804,
+      "va": 8869108,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Ref_count_obj@VCProjection@partsengine@@@std@@",
+      "file_offset": 4659996,
+      "rva": 4674844,
+      "va": 8869148,
+      "section": ""
+    },
+    {
+      "name": ".?AVCRandManager@partsengine@@",
+      "file_offset": 4660060,
+      "rva": 4674908,
+      "va": 8869212,
+      "section": ""
+    },
+    {
+      "name": ".?AVCTextHighlightModel@partsengine@@",
+      "file_offset": 4660100,
+      "rva": 4674948,
+      "va": 8869252,
+      "section": ""
+    },
+    {
+      "name": ".?AVCCGDetectionSprite@partsengine@@",
+      "file_offset": 4660148,
+      "rva": 4674996,
+      "va": 8869300,
+      "section": ""
+    },
+    {
+      "name": ".?AVCCGSprite@partsengine@@",
+      "file_offset": 4660196,
+      "rva": 4675044,
+      "va": 8869348,
+      "section": ""
+    },
+    {
+      "name": ".?AVCConstructionSprite@partsengine@@",
+      "file_offset": 4660452,
+      "rva": 4675300,
+      "va": 8869604,
+      "section": ""
+    },
+    {
+      "name": ".?AVCHGaugeSprite@partsengine@@",
+      "file_offset": 4660500,
+      "rva": 4675348,
+      "va": 8869652,
+      "section": ""
+    },
+    {
+      "name": ".?AVCLoopCGSprite@partsengine@@",
+      "file_offset": 4660540,
+      "rva": 4675388,
+      "va": 8869692,
+      "section": ""
+    },
+    {
+      "name": ".?AVCNumeralSprite@partsengine@@",
+      "file_offset": 4660580,
+      "rva": 4675428,
+      "va": 8869732,
+      "section": ""
+    },
+    {
+      "name": ".?AVCLLParts@partsengine@@",
+      "file_offset": 4660900,
+      "rva": 4675748,
+      "va": 8870052,
+      "section": ""
+    },
+    {
+      "name": ".?AVCProjection@partsengine@@",
+      "file_offset": 4660992,
+      "rva": 4675840,
+      "va": 8870144,
+      "section": ""
+    },
+    {
+      "name": ".?AVCRectangleDetectionSprite@partsengine@@",
+      "file_offset": 4661032,
+      "rva": 4675880,
+      "va": 8870184,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSound@partsengine@@",
+      "file_offset": 4661084,
+      "rva": 4675932,
+      "va": 8870236,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$NotifyRefCounter@VISound@partsengine@@@common@@",
+      "file_offset": 4661120,
+      "rva": 4675968,
+      "va": 8870272,
+      "section": ""
+    },
+    {
+      "name": ".?AVISound@partsengine@@",
+      "file_offset": 4661184,
+      "rva": 4676032,
+      "va": 8870336,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$SuicideRefCounter@VISound@partsengine@@@common@@",
+      "file_offset": 4661220,
+      "rva": 4676068,
+      "va": 8870372,
+      "section": ""
+    },
+    {
+      "name": ".?AVCTextDecoration@partsengine@@",
+      "file_offset": 4661284,
+      "rva": 4676132,
+      "va": 8870436,
+      "section": ""
+    },
+    {
+      "name": ".?AVCTextLineSprite@partsengine@@",
+      "file_offset": 4661328,
+      "rva": 4676176,
+      "va": 8870480,
+      "section": ""
+    },
+    {
+      "name": ".?AVCTextSprite@partsengine@@",
+      "file_offset": 4661372,
+      "rva": 4676220,
+      "va": 8870524,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVGaugeSprite@partsengine@@",
+      "file_offset": 4661412,
+      "rva": 4676260,
+      "va": 8870564,
+      "section": ""
+    },
+    {
+      "name": ".?AVCDelegatePage@sys43vm@@",
+      "file_offset": 4672124,
+      "rva": 4686972,
+      "va": 8881276,
+      "section": ""
+    },
+    {
+      "name": ".?AVCPage@sys43vm@@",
+      "file_offset": 4672160,
+      "rva": 4687008,
+      "va": 8881312,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMDelegate@@",
+      "file_offset": 4672188,
+      "rva": 4687036,
+      "va": 8881340,
+      "section": ""
+    },
+    {
+      "name": ".?AVCErrorMsgBox@sys43vm@@",
+      "file_offset": 4672244,
+      "rva": 4687092,
+      "va": 8881396,
+      "section": ""
+    },
+    {
+      "name": ".?AVCObjType@sys43vm@@",
+      "file_offset": 4672280,
+      "rva": 4687128,
+      "va": 8881432,
+      "section": ""
+    },
+    {
+      "name": ".?AVCSerializer@sys43vm@@",
+      "file_offset": 4672312,
+      "rva": 4687160,
+      "va": 8881464,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVarListPage@sys43vm@@",
+      "file_offset": 4672348,
+      "rva": 4687196,
+      "va": 8881500,
+      "section": ""
+    },
+    {
+      "name": ".?AVCFuncPage@sys43vm@@",
+      "file_offset": 4672384,
+      "rva": 4687232,
+      "va": 8881536,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$NotifyRefCounter@VIVM@@@common@@",
+      "file_offset": 4678956,
+      "rva": 4693804,
+      "va": 8888108,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$SuicideRefCounter@VIVM@@@common@@",
+      "file_offset": 4679492,
+      "rva": 4694340,
+      "va": 8888644,
+      "section": ""
+    },
+    {
+      "name": ".?AVCJaffaVM@sys43vm@@",
+      "file_offset": 4685072,
+      "rva": 4699920,
+      "va": 8894224,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVM@@",
+      "file_offset": 4685724,
+      "rva": 4700572,
+      "va": 8894876,
+      "section": ""
+    },
+    {
+      "name": ".?AVCRecycleMemoryWrapper@sys43vm@@",
+      "file_offset": 4686060,
+      "rva": 4700908,
+      "va": 8895212,
+      "section": ""
+    },
+    {
+      "name": ".?AVCStringPage@sys43vm@@",
+      "file_offset": 4686104,
+      "rva": 4700952,
+      "va": 8895256,
+      "section": ""
+    },
+    {
+      "name": ".?AVCArrayPage@sys43vm@@",
+      "file_offset": 4686140,
+      "rva": 4700988,
+      "va": 8895292,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMArray@@",
+      "file_offset": 4686176,
+      "rva": 4701024,
+      "va": 8895328,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVMDebug@sys43vm@@",
+      "file_offset": 4686200,
+      "rva": 4701048,
+      "va": 8895352,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMDebug@@",
+      "file_offset": 4686232,
+      "rva": 4701080,
+      "va": 8895384,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMDebugAinFile@@",
+      "file_offset": 4686256,
+      "rva": 4701104,
+      "va": 8895408,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVMDebugAinFile@sys43vm@@",
+      "file_offset": 4686288,
+      "rva": 4701136,
+      "va": 8895440,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVMDebugPage@sys43vm@@",
+      "file_offset": 4686328,
+      "rva": 4701176,
+      "va": 8895480,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMDebugPage@@",
+      "file_offset": 4686364,
+      "rva": 4701212,
+      "va": 8895516,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMGameMsg@@",
+      "file_offset": 4686392,
+      "rva": 4701240,
+      "va": 8895544,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVMGameMsg@sys43vm@@",
+      "file_offset": 4686420,
+      "rva": 4701268,
+      "va": 8895572,
+      "section": ""
+    },
+    {
+      "name": ".?AVCGlobalPage@sys43vm@@",
+      "file_offset": 4686456,
+      "rva": 4701304,
+      "va": 8895608,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMGlobal@@",
+      "file_offset": 4686492,
+      "rva": 4701340,
+      "va": 8895644,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMSetTraceCallback@@",
+      "file_offset": 4686516,
+      "rva": 4701364,
+      "va": 8895668,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVMSetTraceCallBack@sys43vm@@",
+      "file_offset": 4686552,
+      "rva": 4701400,
+      "va": 8895704,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_base@_NAAVCDelegatePage@sys43vm@@@std@@",
+      "file_offset": 4686596,
+      "rva": 4701444,
+      "va": 8895748,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_bfa71e3636fa00eef5c8800d304a5543>@@V?$allocator@H@std@@_NAAVCDelegatePage@sys43vm@@@std@@",
+      "file_offset": 4686712,
+      "rva": 4701560,
+      "va": 8895864,
+      "section": ""
+    },
+    {
+      "name": ".?AVCStructPage@sys43vm@@",
+      "file_offset": 4686892,
+      "rva": 4701740,
+      "va": 8896044,
+      "section": ""
+    },
+    {
+      "name": ".?AVIVMStruct@@",
+      "file_offset": 4686928,
+      "rva": 4701776,
+      "va": 8896080,
+      "section": ""
+    },
+    {
+      "name": ".?AV?$_Func_impl@V<lambda_3c1b116413b83dd3101332850ac3eb36>@@V?$allocator@H@std@@_NAAVCDelegatePage@sys43vm@@@std@@",
+      "file_offset": 4686952,
+      "rva": 4701800,
+      "va": 8896104,
+      "section": ""
+    },
+    {
+      "name": ".?AVCApp@systemservice@@",
+      "file_offset": 4687996,
+      "rva": 4702844,
+      "va": 8897148,
+      "section": ""
+    },
+    {
+      "name": ".?AVCFilePath@filesystem@@",
+      "file_offset": 4689776,
+      "rva": 4704624,
+      "va": 8898928,
+      "section": ""
+    },
+    {
+      "name": ".?AVCFile@filesystem@@",
+      "file_offset": 4689812,
+      "rva": 4704660,
+      "va": 8898964,
+      "section": ""
+    },
+    {
+      "name": ".?AVsystem_error@std@@",
+      "file_offset": 4692724,
+      "rva": 4707572,
+      "va": 8901876,
+      "section": ""
+    },
+    {
+      "name": ".?AV_System_error@std@@",
+      "file_offset": 4694756,
+      "rva": 4709604,
+      "va": 8903908,
+      "section": ""
+    },
+    {
+      "name": ".?AVCVMErrorDialog@usernotice@@",
+      "file_offset": 4696104,
+      "rva": 4710952,
+      "va": 8905256,
+      "section": ""
+    }
+  ],
+  "overlay_bytes": 0
+}

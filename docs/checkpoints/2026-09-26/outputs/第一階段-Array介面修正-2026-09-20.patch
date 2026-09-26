@@ -1,0 +1,270 @@
+--- a/src/ffi.c
++++ b/src/ffi.c
+@@ -1152,6 +1152,11 @@
+ 					extern void *array_isexist_function(const struct ain_hll_function *f);
+ 					funcptr = array_isexist_function(&ainlib->functions[i]);
+ 				}
++				if (!strcmp(lib->name, "Array") && (!strcmp(ainlib->functions[i].name, "Numof")
++				    || !strcmp(ainlib->functions[i].name, "Count") || !strcmp(ainlib->functions[i].name, "Find"))) {
++					extern void *array_query_function(const struct ain_hll_function *f);
++					funcptr = array_query_function(&ainlib->functions[i]);
++				}
+ 				if (funcptr)
+ 					link_static_library_function(&dst[i], &ainlib->functions[i], funcptr);
+ 				found = true;
+--- a/src/hll/Array.c
++++ b/src/hll/Array.c
+@@ -401,6 +401,8 @@
+ static int Array_Numof(struct page **self)
+ {
+ 	struct page *array = (self && *self) ? *self : NULL;
++	if (!array || array->type != ARRAY_PAGE)
++		return 0;
+ 	int n = array ? array->nr_vars : 0;
+ 	// v14: return logical element count for multi-slot arrays.
+ 	// struct_type doubles as the AIN struct id for struct-element lists
+@@ -1797,11 +1799,10 @@
+ 	}
+ }
+ 
+-// Count: count elements matching predicate, or all elements if no predicate
++// The original Count() and Numof() entries share the same implementation.
+ static int Array_Count(struct page **self)
+ {
+-	struct page *array = (self && *self) ? *self : NULL;
+-	return array ? array->nr_vars : 0;
++	return Array_Numof(self);
+ }
+ 
+ // AddRange: append all elements from src to dst
+@@ -1858,19 +1859,212 @@
+ 	Array_Pushback(array, value);
+ }
+ 
+-// Find: value-based search in v14 generic array.
+-// Searches for the first element equal to 'value' and returns its index.
+-// Returns -1 if not found. Different from First (which uses a predicate callback).
+-static int Array_Find(struct page **array, int value)
+-{
+-	struct page *src = (array && *array) ? *array : NULL;
+-	if (!src || src->nr_vars == 0)
++/* Array query overloads. Ranges are [begin, end), in logical elements.
++ * Numof(predicate) and Count(predicate) count matches, not callback values.
++ * Keep the callback ABI consistent with IsExist/Erase; vm_call_nopop owns
++ * argument retains and hll_call restores the enclosing generic context.
++ */
++static bool array_query_callback_shape(struct page **array, int func, int stride)
++{
++	if (func < 0 || func >= ain->nr_functions)
++		VM_ERROR("Array query: invalid predicate %d", func);
++	struct ain_function *cb = &ain->functions[func];
++	if (cb->address >= ain->code_size || cb->return_type.data != AIN_BOOL
++	    || !cb->vars || cb->nr_vars < cb->nr_args || cb->nr_args < 1 || cb->nr_args > 2)
++		VM_ERROR("Array query: unsupported predicate signature %d", func);
++	enum ain_data_type type = cb->vars[0].type.data;
++	if (cb->nr_args == 1 && stride == 1) {
++		switch (type) {
++		case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_LONG_INT:
++		case AIN_ENUM: case AIN_ENUM2: case AIN_STRING: case AIN_REF_STRING:
++		case AIN_STRUCT: case AIN_REF_STRUCT: case AIN_WRAP:
++			return false;
++		default:
++			break;
++		}
++	}
++	if (cb->nr_args == 2 && cb->vars[1].type.data == AIN_VOID) {
++		bool wrapped_iface = type == AIN_WRAP && cb->vars[0].type.array_type
++			&& (cb->vars[0].type.array_type->data == AIN_IFACE
++			    || cb->vars[0].type.array_type->data == AIN_IFACE_WRAP);
++		if (stride == 2 && (type == AIN_IFACE || type == AIN_IFACE_WRAP || wrapped_iface))
++			return false;
++		if (stride == 1 && (type == AIN_REF_INT || type == AIN_REF_FLOAT
++		    || type == AIN_REF_BOOL || type == AIN_REF_LONG_INT)) {
++			if (hll_self_slot < 0 || (size_t)hll_self_slot >= heap_size
++			    || HEAP_REF(hll_self_slot) <= 0 || heap[hll_self_slot].type != VM_PAGE
++			    || heap[hll_self_slot].page != *array)
++				VM_ERROR("Array query: predicate reference has no array owner");
++			return true;
++		}
++	}
++	VM_ERROR("Array query: unsupported predicate argument type %d / stride %d", type, stride);
++}
++
++static bool array_query_predicate(struct page **array, int index, int stride, int func)
++{
++	struct ain_function *cb = &ain->functions[func];
++	bool reference = array_query_callback_shape(array, func, stride);
++	struct page *before = *array;
++	int size = before->nr_vars;
++	int owner = hll_self_slot;
++	bool tracked = owner >= 0 && (size_t)owner < heap_size && HEAP_REF(owner) > 0
++		&& heap[owner].type == VM_PAGE && heap[owner].page == before;
++	int saved_sp = stack_ptr;
++	if (reference) {
++		stack_push(owner);
++		stack_push(index * stride);
++	} else {
++		stack_push(before->values[index * stride]);
++		if (cb->nr_args == 2)
++			stack_push(before->values[index * stride + 1]);
++	}
++	vm_call_nopop(func, cb->nr_args);
++	bool match = stack_pop().i != 0;
++	stack_ptr = saved_sp;
++	// FFI passed a local page snapshot. A nested HLL can replace/free the
++	// owner's page; refresh before touching it or outer FFI writes it back.
++	if (tracked) {
++		if ((size_t)owner >= heap_size || HEAP_REF(owner) <= 0 || heap[owner].type != VM_PAGE)
++			VM_ERROR("Array query: predicate released its array owner");
++		*array = heap[owner].page;
++	}
++	if (*array != before || !*array || (*array)->type != ARRAY_PAGE || (*array)->nr_vars != size)
++		VM_ERROR("Array query: predicate changed array storage");
++	return match;
++}
++
++static int Array_CountIf(struct page **array, int func)
++{
++	if (!array || !*array || (*array)->type != ARRAY_PAGE)
++		return 0;
++	int stride = array_erase_stride(*array);
++	array_query_callback_shape(array, func, stride);
++	int end = (*array)->nr_vars / stride;
++	int matches = 0;
++	for (int i = 0; i < end && *array && (*array)->type == ARRAY_PAGE
++	     && i < (*array)->nr_vars / stride; i++) {
++		if (array_query_predicate(array, i, stride, func))
++			matches++;
++	}
++	return matches;
++}
++
++static enum ain_data_type array_query_value_type(const struct page *array)
++{
++	if (array->array.rank > 1 || array_elem_is_2slot())
++		VM_ERROR("Array.Find: unsupported value element shape");
++	switch (array->a_type) {
++	case AIN_INT: case AIN_ARRAY_INT: case AIN_BOOL: case AIN_ARRAY_BOOL:
++	case AIN_ENUM: case AIN_ENUM2:
++		// Generic allocation can default to ARRAY_INT even for heap elements.
++		if (array_elem_is_ref())
++			VM_ERROR("Array.Find: reference element lacks a supported concrete type");
++		return AIN_INT;
++	case AIN_FLOAT: case AIN_ARRAY_FLOAT:
++		return AIN_FLOAT;
++	case AIN_STRING: case AIN_ARRAY_STRING:
++		return AIN_STRING;
++	default:
++		VM_ERROR("Array.Find: unsupported or erased value element type %d", array->a_type);
++	}
++}
++
++static bool array_query_value_equal(union vm_value a, union vm_value b, enum ain_data_type type)
++{
++	if (type == AIN_FLOAT)
++		return a.f == b.f;
++	if (type != AIN_STRING)
++		return a.i == b.i;
++	if (a.i <= 0 || b.i <= 0 || (size_t)a.i >= heap_size || (size_t)b.i >= heap_size
++	    || HEAP_REF(a.i) <= 0 || HEAP_REF(b.i) <= 0
++	    || heap[a.i].type != VM_STRING || heap[b.i].type != VM_STRING
++	    || !heap[a.i].s || !heap[b.i].s)
++		VM_ERROR("Array.Find: invalid string value");
++	struct string *sa = heap[a.i].s, *sb = heap[b.i].s;
++	return sa->size == sb->size && !memcmp(sa->text, sb->text, sa->size);
++}
++
++static int Array_FindValueRange(struct page **array, int begin, int end, int value)
++{
++	const struct page *src = array ? *array : NULL;
++	if (!src || src->type != ARRAY_PAGE)
+ 		return -1;
+-	for (int i = 0; i < src->nr_vars; i++) {
+-		if (src->values[i].i == value)
++	enum ain_data_type type = array_query_value_type(src);
++	int count = src->nr_vars;
++	if (begin < 0) begin = 0;
++	if (end > count) end = count;
++	union vm_value needle = {.i = value};
++	for (int i = begin; i < end; i++) {
++		if (array_query_value_equal(src->values[i], needle, type))
+ 			return i;
+ 	}
+ 	return -1;
++}
++
++static int Array_FindValue(struct page **array, int value)
++{
++	return Array_FindValueRange(array, 0, INT_MAX, value);
++}
++
++static int Array_FindIfRange(struct page **array, int begin, int end, int func)
++{
++	if (!array || !*array || (*array)->type != ARRAY_PAGE)
++		return -1;
++	int stride = array_erase_stride(*array);
++	array_query_callback_shape(array, func, stride);
++	int count = (*array)->nr_vars / stride;
++	if (begin < 0) begin = 0;
++	if (end > count) end = count;
++	for (int i = begin; i < end && *array && (*array)->type == ARRAY_PAGE
++	     && i < (*array)->nr_vars / stride; i++) {
++		if (array_query_predicate(array, i, stride, func))
++			return i;
++	}
++	return -1;
++}
++
++static int Array_FindIf(struct page **array, int func)
++{
++	return Array_FindIfRange(array, 0, INT_MAX, func);
++}
++
++/* Select by declared signature, never by a game's function index. */
++void *array_query_function(const struct ain_hll_function *f)
++{
++	if (!f || !f->name || !f->arguments || f->nr_arguments < 1 || f->return_type.data != AIN_INT)
++		return NULL;
++	switch (f->arguments[0].type.data) {
++	case AIN_REF_ARRAY_TYPE:
++	case AIN_REF_ARRAY:
++		break;
++	default:
++		return NULL;
++	}
++	bool count = !strcmp(f->name, "Numof") || !strcmp(f->name, "Count");
++	if (count) {
++		if (f->nr_arguments == 1)
++			return Array_Numof;
++		if (f->nr_arguments == 2 && (f->arguments[1].type.data == AIN_HLL_FUNC
++		    || f->arguments[1].type.data == AIN_HLL_FUNC_71))
++			return Array_CountIf;
++		return NULL;
++	}
++	if (strcmp(f->name, "Find"))
++		return NULL;
++	bool range = f->nr_arguments == 4;
++	if (range) {
++		if (f->arguments[1].type.data != AIN_INT || f->arguments[2].type.data != AIN_INT)
++			return NULL;
++	} else if (f->nr_arguments != 2) {
++		return NULL;
++	}
++	enum ain_data_type arg = f->arguments[range ? 3 : 1].type.data;
++	if (arg == AIN_HLL_PARAM)
++		return range ? (void *)Array_FindValueRange : (void *)Array_FindValue;
++	if (arg == AIN_HLL_FUNC || arg == AIN_HLL_FUNC_71)
++		return range ? (void *)Array_FindIfRange : (void *)Array_FindIf;
++	return NULL;
+ }
+ 
+ // Copy: copy elements between arrays.
+@@ -2209,7 +2403,7 @@
+ 	    HLL_EXPORT(QuickSort, Array_QuickSort),
+ 	    HLL_EXPORT(Any, Array_Any),
+ 	    HLL_EXPORT(Add, Array_Add),
+-	    HLL_EXPORT(Find, Array_Find),
++	HLL_EXPORT(Find, Array_FindValue),
+ 	    HLL_EXPORT(Realloc, Array_Realloc),
+ 	    HLL_EXPORT(BinarySearch, Array_BinarySearch),
+ 	    HLL_EXPORT(LowerBound, Array_LowerBound),

@@ -1,0 +1,23 @@
+{
+  "compile_command": [
+    "/usr/bin/clang",
+    "-std=c11",
+    "-D_DEFAULT_SOURCE",
+    "-isysroot",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "-I<WORKSPACE>/work/stage2/source/subprojects/libsys4/include",
+    "<WORKSPACE>/work/research-20260920/ain/probe_chain.c",
+    "<WORKSPACE>/work/stage2/normal-build/subprojects/libsys4/libsys4.a",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "<WORKSPACE>/work/research-20260920/ain/probe_chain"
+  ],
+  "compile_exit": 0,
+  "compile_stderr": "",
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "probe_exit": 0,
+  "stderr": "*WARNING*(../source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\n"
+}

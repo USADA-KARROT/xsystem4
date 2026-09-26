@@ -1,0 +1,48 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x582d88', '--stop-address=0x582e20', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  582d88: 6a 00                        	push	0x0
+  582d8a: 8b cf                        	mov	ecx, edi
+  582d8c: e8 df 3d eb ff               	call	0x436b70 <+0x35b70>
+  582d91: 8b c8                        	mov	ecx, eax
+  582d93: e8 88 71 0d 00               	call	0x659f20 <+0x258f20>
+  582d98: 8b d0                        	mov	edx, eax
+  582d9a: 8d 8d e0 04 00 00            	lea	ecx, [ebp + 0x4e0]
+  582da0: e8 4b 24 01 00               	call	0x5951f0 <+0x1941f0>
+  582da5: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  582da8: 50                           	push	eax
+  582da9: c7 45 fc 83 00 00 00         	mov	dword ptr [ebp - 0x4], 0x83
+  582db0: e8 0b 4f 0d 00               	call	0x657cc0 <+0x256cc0>
+  582db5: 8d 8d e0 04 00 00            	lea	ecx, [ebp + 0x4e0]
+  582dbb: e8 70 49 e9 ff               	call	0x417730 <+0x16730>
+  582dc0: e9 26 69 00 00               	jmp	0x5896eb <+0x1886eb>
+  582dc5: 8d 85 c8 04 00 00            	lea	eax, [ebp + 0x4c8]
+  582dcb: 8b cf                        	mov	ecx, edi
+  582dcd: 50                           	push	eax
+  582dce: 6a 01                        	push	0x1
+  582dd0: e8 9b 3d eb ff               	call	0x436b70 <+0x35b70>
+  582dd5: 8b c8                        	mov	ecx, eax
+  582dd7: e8 e4 73 0d 00               	call	0x65a1c0 <+0x2591c0>
+  582ddc: 8b f0                        	mov	esi, eax
+  582dde: 6a 00                        	push	0x0
+  582de0: 8b cf                        	mov	ecx, edi
+  582de2: c7 45 fc 84 00 00 00         	mov	dword ptr [ebp - 0x4], 0x84
+  582de9: e8 82 3d eb ff               	call	0x436b70 <+0x35b70>
+  582dee: 8b c8                        	mov	ecx, eax
+  582df0: e8 2b 71 0d 00               	call	0x659f20 <+0x258f20>
+  582df5: 8b d6                        	mov	edx, esi
+  582df7: 8b c8                        	mov	ecx, eax
+  582df9: e8 52 24 01 00               	call	0x595250 <+0x194250>
+  582dfe: 8d 8d c8 04 00 00            	lea	ecx, [ebp + 0x4c8]
+  582e04: e8 27 49 e9 ff               	call	0x417730 <+0x16730>
+  582e09: e9 9b 8b ff ff               	jmp	0x57b9a9 <+0x17a9a9>
+  582e0e: 6a 00                        	push	0x0
+  582e10: 8b cf                        	mov	ecx, edi
+  582e12: e8 59 3d eb ff               	call	0x436b70 <+0x35b70>
+  582e17: 8b c8                        	mov	ecx, eax
+  582e19: e8 02 71 0d 00               	call	0x659f20 <+0x258f20>
+  582e1e: 8b d0                        	mov	edx, eax

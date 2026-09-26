@@ -1,0 +1,22 @@
+ninja: Entering directory `work/stage2/asan-build'
+[1/7] Compiling C object subprojects/libsys4/libsys4.a.p/src_string.c.o
+[2/7] Generating src/version.h with a custom command
+[3/6] Linking static target subprojects/libsys4/libsys4.a
+[4/6] Compiling C object src/xsystem4.p/heap.c.o
+[5/6] Compiling C object src/xsystem4.p/vm.c.o
+../source/src/vm.c:1779:6: warning: unused variable 'page_slot' [-Wunused-variable]
+ 1779 |         int page_slot = call_stack[call_stack_ptr-1].page_slot;
+      |             ^~~~~~~~~
+../source/src/vm.c:101:13: warning: unused function 'vm_msg_delegate_empty' [-Wunused-function]
+  101 | static bool vm_msg_delegate_empty(int slot)
+      |             ^~~~~~~~~~~~~~~~~~~~~
+../source/src/vm.c:197:13: warning: unused function 'vm_msg_handle_A' [-Wunused-function]
+  197 | static void vm_msg_handle_A(void)
+      |             ^~~~~~~~~~~~~~~
+../source/src/vm.c:220:13: warning: unused function 'vm_msg_handle_A_overlay' [-Wunused-function]
+  220 | static void vm_msg_handle_A_overlay(void)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~
+4 warnings generated.
+[6/6] Linking target src/xsystem4
+ld: warning: ignoring duplicate libraries: '-lz'
+ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000 because it exceeds segment maximum alignment

@@ -1,0 +1,64 @@
+{
+  "scope": "Direct production native_cas_timer_intercept + init_func_flags + real AIN signature lookup; no GUI, method_call or bytecode integration",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit_meaning": "Diagnostic completed; not a correctness PASS",
+  "variant": "optimized",
+  "signatures": {
+    "Rate::get": {
+      "selected_fno": 435,
+      "same_signature_candidates": [
+        435,
+        436
+      ],
+      "return": 11,
+      "args": []
+    },
+    "Rate::set": {
+      "fno": 437,
+      "return": 0,
+      "args": [
+        11
+      ]
+    },
+    "CreateHandle": {
+      "fno": 440,
+      "return": 10,
+      "args": []
+    },
+    "CheckHandle": {
+      "fno": 438,
+      "return": 47,
+      "args": [
+        10
+      ]
+    },
+    "ReleaseHandle": {
+      "fno": 441,
+      "return": 0,
+      "args": [
+        10
+      ]
+    }
+  },
+  "observed": {
+    "initial_rate_bits": "0x00000001",
+    "initial_rate_float": 1.40129846e-45,
+    "expected_default_rate_float": 1.0,
+    "rate_after_set_2_5_bits": "0x40200000",
+    "rate_after_set_2_5_float": 2.5,
+    "created_handle": 1,
+    "active_before_release": true,
+    "check_before_release": false,
+    "active_after_release": true,
+    "check_after_release": false,
+    "next_created_handle": 2
+  },
+  "source_vm_sha256": "d96ac12974c52322d8076d299abc8150c00560156f6bbffb35859140e776be2c",
+  "binary_sha256": "7e6a8f43c36111962b055d4db1ddbbd4c251f596865f3f9d1c6b94994609126f",
+  "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+  "output_sha256": {
+    "optimized.out": "681436cac2bb2ae013976e2d6ccbc65e42c448748fe5fdc35a30397af2ef8d8c",
+    "optimized.err": "c15bf3cd3d4b87cb16d305e4d654fec2bba30fceb9fc92e40407dc0c647d4880"
+  }
+}

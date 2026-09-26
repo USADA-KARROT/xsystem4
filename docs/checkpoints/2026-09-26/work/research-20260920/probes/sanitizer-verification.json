@@ -1,0 +1,24 @@
+{
+  "command": [
+    "clang",
+    "-std=c11",
+    "-O0",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-Iwork/stage2/source/subprojects/libsys4/include",
+    "work/research-20260920/probes/ain_surface.c",
+    "work/stage1/wip-asan-build/subprojects/libsys4/libsys4.a",
+    "-lz",
+    "-lm",
+    "-framework",
+    "CoreFoundation",
+    "-o",
+    "work/research-20260920/probes/ain_surface_asan"
+  ],
+  "compile_exit": 0,
+  "compiler_stderr": "",
+  "scope": "Sanitizes this read-only metadata decoder plus previously instrumented libsys4; no game or new VM execution.",
+  "run_exit": 0,
+  "stderr": "*WARNING*(../wip-source/subprojects/libsys4/src/ain.c:read_functions:886): Junk at start of function name: '\ufffd\ufffd\ufffd\ufffdDebug_SetPartsComment'\n",
+  "output_matches_normal": true
+}

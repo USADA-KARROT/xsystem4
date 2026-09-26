@@ -1,0 +1,35 @@
+Command: ['objdump', '-D', '--x86-asm-syntax=intel', '--start-address=0x57e142', '--stop-address=0x57e19c', '<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe']
+
+<USER_HOME>/Downloads/dohnadohna_工作檔案/dohnadohna_dump_SCY.exe:	file format coff-i386
+
+Disassembly of section :
+
+00401000 <>:
+  57e142: 6a 01                        	push	0x1
+  57e144: 8b cf                        	mov	ecx, edi
+  57e146: e8 25 8a eb ff               	call	0x436b70 <+0x35b70>
+  57e14b: 8b c8                        	mov	ecx, eax
+  57e14d: e8 7e bc 0d 00               	call	0x659dd0 <+0x258dd0>
+  57e152: 6a 00                        	push	0x0
+  57e154: 8b cf                        	mov	ecx, edi
+  57e156: 8a d8                        	mov	bl, al
+  57e158: e8 13 8a eb ff               	call	0x436b70 <+0x35b70>
+  57e15d: 8b c8                        	mov	ecx, eax
+  57e15f: e8 bc bd 0d 00               	call	0x659f20 <+0x258f20>
+  57e164: 8a d3                        	mov	dl, bl
+  57e166: 8b c8                        	mov	ecx, eax
+  57e168: e8 c3 16 01 00               	call	0x58f830 <+0x18e830>
+  57e16d: e9 37 d8 ff ff               	jmp	0x57b9a9 <+0x17a9a9>
+  57e172: 6a 00                        	push	0x0
+  57e174: 8b cf                        	mov	ecx, edi
+  57e176: e8 f5 89 eb ff               	call	0x436b70 <+0x35b70>
+  57e17b: 8b c8                        	mov	ecx, eax
+  57e17d: e8 9e bd 0d 00               	call	0x659f20 <+0x258f20>
+  57e182: 8b c8                        	mov	ecx, eax
+  57e184: e8 37 17 01 00               	call	0x58f8c0 <+0x18e8c0>
+  57e189: 8b 4d ec                     	mov	ecx, dword ptr [ebp - 0x14]
+  57e18c: 0f b6 c0                     	movzx	eax, al
+  57e18f: 50                           	push	eax
+  57e190: e8 eb 99 0d 00               	call	0x657b80 <+0x256b80>
+  57e195: 8b c1                        	mov	eax, ecx
+  57e197: e9 52 b5 00 00               	jmp	0x5896ee <+0x1886ee>

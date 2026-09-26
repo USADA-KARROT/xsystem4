@@ -1,0 +1,42 @@
+{
+  "cases": [
+    {
+      "case": "deleted-event",
+      "exit_code": 87,
+      "sanitizer_error": false
+    },
+    {
+      "case": "personality",
+      "exit_code": 0,
+      "sanitizer_error": false
+    },
+    {
+      "case": "observer",
+      "exit_code": 0,
+      "sanitizer_error": false
+    },
+    {
+      "case": "reentrancy",
+      "exit_code": 0,
+      "sanitizer_error": false
+    },
+    {
+      "case": "click",
+      "exit_code": 0,
+      "sanitizer_error": false
+    },
+    {
+      "case": "timer",
+      "exit_code": 0,
+      "sanitizer_error": false
+    },
+    {
+      "case": "heap-reuse",
+      "exit_code": 0,
+      "sanitizer_error": false
+    }
+  ],
+  "all_lifecycle_checks_passed": false,
+  "known_remaining_issue": "deleted-event completes all 3 adds and string reuse checks but retains 23 VM slots at teardown; exit87 is failure, not waived",
+  "vm_sha256": "ce20126978fb4a804e3f0586cbc69b424503a993c85a753c78d281a6d7a8fa77"
+}
