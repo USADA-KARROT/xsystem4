@@ -614,6 +614,592 @@ static int String_Split(struct string **self, struct string *separators, int con
 }
 
 /*
+ * ---- Minimal ECMAScript regex subset, boolean results only ----
+ *
+ * The EXE converts self and the pattern to wstring with the "CHS" locale
+ * (0x685e20, locale name at 0x811eac), builds std::wregex with flags
+ * ECMAScript (_Parser ctor 0x68d120 stores 1 at +0x40), then:
+ *   Match(self, regex)  [17] -> 0x6878f0 -> _Regex_match1 0x68bda0, _Match(nullptr, full=1)
+ *   Search(self, regex) [14] -> 0x686ff0 -> _Regex_search2 0x68bc20 (retries each start)
+ * A malformed pattern is caught (message at 0x7e5e44) and treated as no match here.
+ *
+ * Supported: literals, '.', [...] (ranges, negation, \d\w\s inside), \d \D \w \W
+ * \s \S \b \B, \t \n \v \f \r \0 \xHH \cX, identity escapes, ^ $, ( ), (?: ),
+ * |, * + ? {n} {n,} {n,m} (lazy '?' accepted; irrelevant for a yes/no answer).
+ * Not supported (pattern rejected -> false): backreferences, lookahead, \u.
+ * Characters are compared as code units: ASCII byte, or (lead << 8 | trail)
+ * for a double-byte char, so ranges over non-ASCII chars follow GBK/SJIS
+ * order rather than Unicode order. None of the CN call sites use non-ASCII
+ * patterns (they are "Button\d", "RivalShop\d", "Skill\d", "Bonus\d",
+ * "Player\d", "Button.*").
+ *
+ * Matching is an NFA simulation (Thompson/Pike without captures), so it runs
+ * in O(len * prog); compilation is bounded by RX_MAX_INST and a node-visit
+ * budget. Known difference: \d \w \s only classify ASCII (plus the
+ * ideographic space), while the native wregex also classifies non-ASCII
+ * characters through ctype<wchar_t>.
+ */
+
+#define RX_MAX_INST   8192
+#define RX_MAX_REPEAT 1000
+#define RX_MAX_DEPTH  64
+#define RX_MAX_PATTERN 4096
+
+enum rx_op { RX_CHAR, RX_ANY, RX_CLASS, RX_BOL, RX_EOL, RX_WORDB, RX_NWORDB, RX_SPLIT, RX_JMP, RX_MATCH };
+struct rx_inst { enum rx_op op; int x, y; };
+struct rx_class { bool negate; int nr; int cap; uint32_t (*r)[2]; };
+
+enum rx_ntype { RXN_EMPTY, RXN_CHAR, RXN_ANY, RXN_CLASS, RXN_BOL, RXN_EOL, RXN_WORDB, RXN_NWORDB,
+		RXN_CAT, RXN_ALT, RXN_REPEAT };
+struct rx_node { enum rx_ntype type; int val, min, max, a, b; };
+
+struct rx {
+	const uint32_t *p; int n, pos, depth;
+	bool error;
+	struct rx_node *nodes; int nr_nodes, cap_nodes;
+	struct rx_class *cls; int nr_cls, cap_cls;
+	struct rx_inst *prog; int nr_prog, cap_prog;
+	int visits; // rx_compile calls; bounds repeats of empty subtrees
+};
+
+static uint32_t *rx_decode(const struct string *s, int *out_n)
+{
+	int size = s ? s->size : 0;
+	uint32_t *u = xcalloc(size + 1, sizeof(uint32_t));
+	int n = 0;
+	for (int i = 0; i < size; ) {
+		int b;
+		u[n++] = string_lib_char_code((const uint8_t *)s->text + i, size - i, &b);
+		i += b;
+	}
+	*out_n = n;
+	return u;
+}
+
+static int rx_node(struct rx *rx, enum rx_ntype t, int val, int a, int b)
+{
+	if (rx->nr_nodes == rx->cap_nodes) {
+		rx->cap_nodes = rx->cap_nodes ? rx->cap_nodes * 2 : 32;
+		rx->nodes = xrealloc(rx->nodes, rx->cap_nodes * sizeof(struct rx_node));
+	}
+	rx->nodes[rx->nr_nodes] = (struct rx_node){ .type = t, .val = val, .a = a, .b = b };
+	return rx->nr_nodes++;
+}
+
+static int rx_new_class(struct rx *rx, bool negate)
+{
+	if (rx->nr_cls == rx->cap_cls) {
+		rx->cap_cls = rx->cap_cls ? rx->cap_cls * 2 : 8;
+		rx->cls = xrealloc(rx->cls, rx->cap_cls * sizeof(struct rx_class));
+	}
+	rx->cls[rx->nr_cls] = (struct rx_class){ .negate = negate };
+	return rx->nr_cls++;
+}
+
+static void rx_class_add(struct rx *rx, int ci, uint32_t lo, uint32_t hi)
+{
+	struct rx_class *c = &rx->cls[ci];
+	if (c->nr == c->cap) {
+		c->cap = c->cap ? c->cap * 2 : 8;
+		c->r = xrealloc(c->r, c->cap * sizeof(*c->r));
+	}
+	c->r[c->nr][0] = lo;
+	c->r[c->nr][1] = hi;
+	c->nr++;
+}
+
+static bool rx_is_word(uint32_t c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
+}
+
+// Add \d \w \s (or their complements) to class ci. kind is the escape letter.
+static void rx_class_add_escape(struct rx *rx, int ci, uint32_t kind)
+{
+	static const uint32_t d[][2] = { { '0', '9' } };
+	static const uint32_t w[][2] = { { '0', '9' }, { 'A', 'Z' }, { '_', '_' }, { 'a', 'z' } };
+	// ASCII whitespace plus the ideographic space of the active encoding
+	uint32_t s[][2] = { { 0x09, 0x0d }, { 0x20, 0x20 }, { 0, 0 } };
+	s[2][0] = s[2][1] = ain_is_gb18030 ? 0xa1a1 : 0x8140;
+	const uint32_t (*set)[2];
+	int n;
+	switch (kind | 0x20) {
+	case 'd': set = d; n = 1; break;
+	case 'w': set = w; n = 4; break;
+	default:  set = (const uint32_t (*)[2])s; n = 3; break;
+	}
+	if (kind >= 'a') {
+		for (int i = 0; i < n; i++)
+			rx_class_add(rx, ci, set[i][0], set[i][1]);
+		return;
+	}
+	// complement of a sorted, non-overlapping range list
+	uint32_t next = 0;
+	for (int i = 0; i < n; i++) {
+		if (set[i][0] > next)
+			rx_class_add(rx, ci, next, set[i][0] - 1);
+		next = set[i][1] + 1;
+	}
+	rx_class_add(rx, ci, next, UINT32_MAX);
+}
+
+static bool rx_class_match(const struct rx_class *c, uint32_t ch)
+{
+	bool in = false;
+	for (int i = 0; i < c->nr && !in; i++)
+		in = ch >= c->r[i][0] && ch <= c->r[i][1];
+	return in != c->negate;
+}
+
+static int rx_hex(uint32_t c)
+{
+	if (c >= '0' && c <= '9') return c - '0';
+	if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+	if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+	return -1;
+}
+
+static bool rx_peek(struct rx *rx, uint32_t c)
+{
+	return rx->pos < rx->n && rx->p[rx->pos] == c;
+}
+
+// Parse the char after '\'. Returns the literal code, or sets *cls_kind for
+// \d\D\w\W\s\S. in_class selects \b = backspace.
+static uint32_t rx_parse_escape(struct rx *rx, bool in_class, uint32_t *cls_kind, int *assert_node)
+{
+	*cls_kind = 0;
+	if (rx->pos >= rx->n) { rx->error = true; return 0; }
+	uint32_t c = rx->p[rx->pos++];
+	switch (c) {
+	case 'd': case 'D': case 'w': case 'W': case 's': case 'S':
+		*cls_kind = c;
+		return 0;
+	case 'b':
+		if (in_class) return 0x08;
+		*assert_node = RXN_WORDB;
+		return 0;
+	case 'B':
+		if (in_class) { rx->error = true; return 0; }
+		*assert_node = RXN_NWORDB;
+		return 0;
+	case 't': return '\t';
+	case 'n': return '\n';
+	case 'v': return '\v';
+	case 'f': return '\f';
+	case 'r': return '\r';
+	case '0':
+		if (rx->pos < rx->n && rx->p[rx->pos] >= '0' && rx->p[rx->pos] <= '9') { rx->error = true; return 0; }
+		return 0;
+	case 'c':
+		if (rx->pos < rx->n && ((rx->p[rx->pos] | 0x20) >= 'a' && (rx->p[rx->pos] | 0x20) <= 'z'))
+			return rx->p[rx->pos++] % 32;
+		rx->error = true;
+		return 0;
+	case 'x': {
+		int h1 = rx->pos < rx->n ? rx_hex(rx->p[rx->pos]) : -1;
+		int h2 = rx->pos + 1 < rx->n ? rx_hex(rx->p[rx->pos + 1]) : -1;
+		if (h1 < 0 || h2 < 0) { rx->error = true; return 0; }
+		rx->pos += 2;
+		return h1 * 16 + h2;
+	}
+	default:
+		// backreferences and \u are not supported; other letters/digits are
+		// not identity escapes in ECMAScript
+		if (c < 0x80 && ((c >= '0' && c <= '9') || ((c | 0x20) >= 'a' && (c | 0x20) <= 'z'))) {
+			rx->error = true;
+			return 0;
+		}
+		return c;
+	}
+}
+
+static int rx_parse_class(struct rx *rx)
+{
+	bool negate = rx_peek(rx, '^');
+	if (negate) rx->pos++;
+	int ci = rx_new_class(rx, negate);
+	while (rx->pos < rx->n && rx->p[rx->pos] != ']') {
+		uint32_t lo, kind = 0;
+		int dummy = 0;
+		if (rx->p[rx->pos] == '\\') {
+			rx->pos++;
+			lo = rx_parse_escape(rx, true, &kind, &dummy);
+			if (rx->error) return -1;
+			if (kind) {
+				rx_class_add_escape(rx, ci, kind);
+				continue;
+			}
+		} else {
+			lo = rx->p[rx->pos++];
+		}
+		uint32_t hi = lo;
+		if (rx_peek(rx, '-') && rx->pos + 1 < rx->n && rx->p[rx->pos + 1] != ']') {
+			rx->pos++;
+			if (rx->p[rx->pos] == '\\') {
+				rx->pos++;
+				hi = rx_parse_escape(rx, true, &kind, &dummy);
+				if (rx->error || kind) { rx->error = true; return -1; }
+			} else {
+				hi = rx->p[rx->pos++];
+			}
+			if (hi < lo) { rx->error = true; return -1; }
+		}
+		rx_class_add(rx, ci, lo, hi);
+	}
+	if (!rx_peek(rx, ']')) { rx->error = true; return -1; }
+	rx->pos++;
+	return ci;
+}
+
+static int rx_parse_alt(struct rx *rx);
+
+static int rx_parse_atom(struct rx *rx)
+{
+	uint32_t c = rx->p[rx->pos++];
+	switch (c) {
+	case '.': return rx_node(rx, RXN_ANY, 0, -1, -1);
+	case '^': return rx_node(rx, RXN_BOL, 0, -1, -1);
+	case '$': return rx_node(rx, RXN_EOL, 0, -1, -1);
+	case '[': {
+		int ci = rx_parse_class(rx);
+		return rx->error ? -1 : rx_node(rx, RXN_CLASS, ci, -1, -1);
+	}
+	case '(': {
+		if (rx_peek(rx, '?')) {
+			if (rx->pos + 1 < rx->n && rx->p[rx->pos + 1] == ':') {
+				rx->pos += 2;
+			} else {
+				rx->error = true; // lookahead etc.
+				return -1;
+			}
+		}
+		if (++rx->depth > RX_MAX_DEPTH) { rx->error = true; return -1; }
+		int inner = rx_parse_alt(rx);
+		rx->depth--;
+		if (rx->error || !rx_peek(rx, ')')) { rx->error = true; return -1; }
+		rx->pos++;
+		return inner;
+	}
+	case ')': case '*': case '+': case '?':
+		rx->error = true;
+		return -1;
+	case '\\': {
+		uint32_t kind;
+		int assert_node = 0;
+		uint32_t lit = rx_parse_escape(rx, false, &kind, &assert_node);
+		if (rx->error) return -1;
+		if (assert_node) return rx_node(rx, assert_node, 0, -1, -1);
+		if (kind) {
+			int ci = rx_new_class(rx, false);
+			rx_class_add_escape(rx, ci, kind);
+			return rx_node(rx, RXN_CLASS, ci, -1, -1);
+		}
+		return rx_node(rx, RXN_CHAR, lit, -1, -1);
+	}
+	default:
+		return rx_node(rx, RXN_CHAR, c, -1, -1);
+	}
+}
+
+// Parses "{n}", "{n,}", "{n,m}" at rx->pos (pointing at '{'). Returns false
+// and leaves pos unchanged if it is not a quantifier ('{' is then a literal).
+static bool rx_parse_braces(struct rx *rx, int *min, int *max)
+{
+	int pos = rx->pos + 1;
+	long lo = -1, hi;
+	for (; pos < rx->n && rx->p[pos] >= '0' && rx->p[pos] <= '9'; pos++)
+		lo = (lo < 0 ? 0 : lo) * 10 + (rx->p[pos] - '0'), lo = lo > 100000 ? 100000 : lo;
+	if (lo < 0)
+		return false;
+	hi = lo;
+	if (pos < rx->n && rx->p[pos] == ',') {
+		pos++;
+		hi = -1;
+		for (; pos < rx->n && rx->p[pos] >= '0' && rx->p[pos] <= '9'; pos++)
+			hi = (hi < 0 ? 0 : hi) * 10 + (rx->p[pos] - '0'), hi = hi > 100000 ? 100000 : hi;
+	}
+	if (pos >= rx->n || rx->p[pos] != '}')
+		return false;
+	rx->pos = pos + 1;
+	*min = (int)lo;
+	*max = (int)hi;
+	return true;
+}
+
+static int rx_parse_repeat(struct rx *rx)
+{
+	int atom = rx_parse_atom(rx);
+	while (!rx->error && rx->pos < rx->n) {
+		int min, max;
+		uint32_t c = rx->p[rx->pos];
+		if (c == '*') { min = 0; max = -1; rx->pos++; }
+		else if (c == '+') { min = 1; max = -1; rx->pos++; }
+		else if (c == '?') { min = 0; max = 1; rx->pos++; }
+		else if (c == '{' && rx_parse_braces(rx, &min, &max)) { }
+		else break;
+		if ((max >= 0 && max < min) || min > RX_MAX_REPEAT || max > RX_MAX_REPEAT) {
+			rx->error = true;
+			return -1;
+		}
+		enum rx_ntype t = rx->nodes[atom].type;
+		if (t == RXN_BOL || t == RXN_EOL || t == RXN_WORDB || t == RXN_NWORDB) {
+			rx->error = true; // quantified assertion
+			return -1;
+		}
+		if (rx_peek(rx, '?'))
+			rx->pos++; // lazy: same yes/no answer
+		int r = rx_node(rx, RXN_REPEAT, 0, atom, -1);
+		rx->nodes[r].min = min;
+		rx->nodes[r].max = max;
+		atom = r;
+	}
+	return atom;
+}
+
+static int rx_parse_cat(struct rx *rx)
+{
+	int left = rx_node(rx, RXN_EMPTY, 0, -1, -1);
+	while (!rx->error && rx->pos < rx->n && rx->p[rx->pos] != '|' && rx->p[rx->pos] != ')') {
+		int right = rx_parse_repeat(rx);
+		if (rx->error) return -1;
+		left = rx_node(rx, RXN_CAT, 0, left, right);
+	}
+	return left;
+}
+
+static int rx_parse_alt(struct rx *rx)
+{
+	int left = rx_parse_cat(rx);
+	while (!rx->error && rx_peek(rx, '|')) {
+		rx->pos++;
+		int right = rx_parse_cat(rx);
+		left = rx_node(rx, RXN_ALT, 0, left, right);
+	}
+	return left;
+}
+
+static int rx_emit(struct rx *rx, enum rx_op op, int x, int y)
+{
+	if (rx->nr_prog >= RX_MAX_INST) {
+		rx->error = true;
+		return 0;
+	}
+	if (rx->nr_prog == rx->cap_prog) {
+		rx->cap_prog = rx->cap_prog ? rx->cap_prog * 2 : 64;
+		rx->prog = xrealloc(rx->prog, rx->cap_prog * sizeof(struct rx_inst));
+	}
+	rx->prog[rx->nr_prog] = (struct rx_inst){ op, x, y };
+	return rx->nr_prog++;
+}
+
+static void rx_compile(struct rx *rx, int ni)
+{
+	if (rx->error || ni < 0)
+		return;
+	if (++rx->visits > RX_MAX_INST * 4) {
+		rx->error = true;
+		return;
+	}
+	struct rx_node n = rx->nodes[ni];
+	switch (n.type) {
+	case RXN_EMPTY: break;
+	case RXN_CHAR:   rx_emit(rx, RX_CHAR, n.val, 0); break;
+	case RXN_ANY:    rx_emit(rx, RX_ANY, 0, 0); break;
+	case RXN_CLASS:  rx_emit(rx, RX_CLASS, n.val, 0); break;
+	case RXN_BOL:    rx_emit(rx, RX_BOL, 0, 0); break;
+	case RXN_EOL:    rx_emit(rx, RX_EOL, 0, 0); break;
+	case RXN_WORDB:  rx_emit(rx, RX_WORDB, 0, 0); break;
+	case RXN_NWORDB: rx_emit(rx, RX_NWORDB, 0, 0); break;
+	case RXN_CAT:
+		rx_compile(rx, n.a);
+		rx_compile(rx, n.b);
+		break;
+	case RXN_ALT: {
+		int split = rx_emit(rx, RX_SPLIT, 0, 0);
+		rx->prog[split].x = rx->nr_prog;
+		rx_compile(rx, n.a);
+		int jmp = rx_emit(rx, RX_JMP, 0, 0);
+		rx->prog[split].y = rx->nr_prog;
+		rx_compile(rx, n.b);
+		rx->prog[jmp].x = rx->nr_prog;
+		break;
+	}
+	case RXN_REPEAT: {
+		for (int i = 0; i < n.min && !rx->error; i++)
+			rx_compile(rx, n.a);
+		if (n.max < 0) {
+			int split = rx_emit(rx, RX_SPLIT, 0, 0);
+			rx->prog[split].x = rx->nr_prog;
+			rx_compile(rx, n.a);
+			rx_emit(rx, RX_JMP, split, 0);
+			rx->prog[split].y = rx->nr_prog;
+		} else {
+			int opt = n.max - n.min;
+			int *splits = opt > 0 ? xcalloc(opt, sizeof(int)) : NULL;
+			for (int i = 0; i < opt && !rx->error; i++) {
+				splits[i] = rx_emit(rx, RX_SPLIT, 0, 0);
+				rx->prog[splits[i]].x = rx->nr_prog;
+				rx_compile(rx, n.a);
+			}
+			for (int i = 0; i < opt && !rx->error; i++)
+				rx->prog[splits[i]].y = rx->nr_prog;
+			free(splits);
+		}
+		break;
+	}
+	}
+}
+
+// Adds pc and everything reachable through non-consuming instructions.
+static void rx_add(const struct rx *rx, int *list, int *nlist, int *mark, int gen, int *stack,
+		   int pc, const uint32_t *s, int n, int pos)
+{
+	int sp = 0;
+	stack[sp++] = pc;
+	while (sp > 0) {
+		pc = stack[--sp];
+		if (mark[pc] == gen)
+			continue;
+		mark[pc] = gen;
+		const struct rx_inst *in = &rx->prog[pc];
+		switch (in->op) {
+		case RX_JMP:
+			stack[sp++] = in->x;
+			break;
+		case RX_SPLIT:
+			stack[sp++] = in->y;
+			stack[sp++] = in->x;
+			break;
+		case RX_BOL:
+			// The native wregex treats ^ and $ as multiline: they also
+			// hold after and before a '\n' (0x68e866 / 0x68e89a).
+			if (pos == 0 || s[pos - 1] == '\n') stack[sp++] = pc + 1;
+			break;
+		case RX_EOL:
+			if (pos == n || s[pos] == '\n') stack[sp++] = pc + 1;
+			break;
+		case RX_WORDB:
+		case RX_NWORDB: {
+			bool a = pos > 0 && rx_is_word(s[pos - 1]);
+			bool b = pos < n && rx_is_word(s[pos]);
+			if ((a != b) == (in->op == RX_WORDB))
+				stack[sp++] = pc + 1;
+			break;
+		}
+		default:
+			list[(*nlist)++] = pc;
+			break;
+		}
+	}
+}
+
+static bool rx_run(const struct rx *rx, const uint32_t *s, int n, bool full)
+{
+	int np = rx->nr_prog;
+	int *clist = xcalloc(np, sizeof(int)), *nlist = xcalloc(np, sizeof(int));
+	int *mark = xcalloc(np, sizeof(int));
+	// every pc is pushed at most twice before it is marked (SPLIT pushes 2)
+	int *stack = xcalloc(np * 2 + 2, sizeof(int));
+	int nc = 0, nn = 0;
+	bool matched = false;
+	for (int pos = 0; pos <= n && !matched; pos++) {
+		// full match (regex_match) starts only at 0; search restarts everywhere
+		if (pos == 0 || !full)
+			rx_add(rx, clist, &nc, mark, pos + 1, stack, 0, s, n, pos);
+		if (nc == 0 && full)
+			break;
+		nn = 0;
+		for (int i = 0; i < nc && !matched; i++) {
+			const struct rx_inst *in = &rx->prog[clist[i]];
+			bool step = false;
+			switch (in->op) {
+			case RX_MATCH:
+				if (!full || pos == n)
+					matched = true;
+				break;
+			case RX_CHAR:
+				step = pos < n && s[pos] == (uint32_t)in->x;
+				break;
+			case RX_ANY:
+				step = pos < n && s[pos] != '\n' && s[pos] != '\r';
+				break;
+			case RX_CLASS:
+				step = pos < n && rx_class_match(&rx->cls[in->x], s[pos]);
+				break;
+			default:
+				break;
+			}
+			if (step)
+				rx_add(rx, nlist, &nn, mark, pos + 2, stack, clist[i] + 1, s, n, pos + 1);
+		}
+		int *t = clist; clist = nlist; nlist = t;
+		nc = nn;
+	}
+	free(clist);
+	free(nlist);
+	free(mark);
+	free(stack);
+	return matched;
+}
+
+// Returns 1 = match, 0 = no match, -1 = pattern rejected.
+static int string_regex(const struct string *subject, const struct string *pattern, bool full)
+{
+	struct rx rx = { 0 };
+	int pn, sn;
+	uint32_t *p = rx_decode(pattern, &pn);
+	rx.p = p;
+	rx.n = pn;
+	if (pn > RX_MAX_PATTERN)
+		rx.error = true;
+	int root = rx.error ? -1 : rx_parse_alt(&rx);
+	if (!rx.error && rx.pos != rx.n)
+		rx.error = true; // unbalanced ')'
+	rx_compile(&rx, root);
+	rx_emit(&rx, RX_MATCH, 0, 0);
+	int result = -1;
+	if (!rx.error) {
+		uint32_t *s = rx_decode(subject, &sn);
+		result = rx_run(&rx, s, sn, full) ? 1 : 0;
+		free(s);
+	}
+	for (int i = 0; i < rx.nr_cls; i++)
+		free(rx.cls[i].r);
+	free(rx.cls);
+	free(rx.nodes);
+	free(rx.prog);
+	free(p);
+	return result;
+}
+
+static bool string_regex_bool(struct string **self, struct string *regex, bool full)
+{
+	struct string *s = SELF_STR(self);
+	if (!s)
+		return false; // EXE: invalid self -> false (0x68793a)
+	int r = string_regex(s, regex, full);
+	if (r < 0) {
+		WARNING("String.%s: unsupported or invalid regex \"%s\"",
+			full ? "Match" : "Search", regex ? regex->text : "");
+		return false;
+	}
+	return r;
+}
+
+// [17] bool Match(ref string self, string regex) -- std::regex_match, whole string
+static bool String_MatchRegex(struct string **self, struct string *regex)
+{
+	return string_regex_bool(self, regex, true);
+}
+
+// [14] bool Search(ref string self, string regex) -- std::regex_search
+static bool String_SearchRegex(struct string **self, struct string *regex)
+{
+	return string_regex_bool(self, regex, false);
+}
+
+/*
  * Pick the implementation for one String declaration. Overloads share a
  * name, so the static table only supplies a default; shapes not handled
  * here keep it.
@@ -630,6 +1216,12 @@ void *string_select_function(const struct ain_hll_function *f, void *dflt)
 			return (void *)String_GetPartToEnd;
 		if (n == 3 && a1 == AIN_INT && a2 == AIN_INT)
 			return (void *)String_GetPart;
+	} else if (!strcmp(f->name, "Match")) {
+		if (n == 2 && a1 == AIN_STRING)
+			return (void *)String_MatchRegex;
+	} else if (!strcmp(f->name, "Search")) {
+		if (n == 2 && a1 == AIN_STRING)
+			return (void *)String_SearchRegex;
 	} else if (!strcmp(f->name, "PadLeft")) {
 		if (n == 2 && a1 == AIN_INT)
 			return (void *)String_PadLeft;
