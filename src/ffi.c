@@ -1160,10 +1160,13 @@ static void *hll_select_overload(const char *lib, const struct ain_hll_function 
 {
 	extern void *array_select_function(const struct ain_hll_function *f, void *fallback);
 	extern void *math_select_function(const struct ain_hll_function *f, void *fallback);
+	extern void *string_select_function(const struct ain_hll_function *f, void *fallback);
 	if (!strcmp(lib, "Array"))
 		return array_select_function(f, fallback);
 	if (!strcmp(lib, "Math"))
 		return math_select_function(f, fallback);
+	if (!strcmp(lib, "String"))
+		return string_select_function(f, fallback);
 	return fallback;
 }
 

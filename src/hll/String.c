@@ -1,6 +1,8 @@
 /* v14 "String" HLL library — string container operations */
 
 #include <ctype.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,6 +13,7 @@
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "hll.h"
+#include "xsystem4.h"
 
 // AIN v14 String library — all functions take "ref string self" (struct string **).
 // Functions that don't modify self still receive a double pointer via ffi.
@@ -313,56 +316,219 @@ static struct string *String_ReplaceRegex(struct string **self, struct string *r
 	return s ? string_ref(s) : string_ref(&EMPTY_STRING);
 }
 
-// [21] string GetPart(ref string self, int index) — single char
-static struct string *String_GetPartChar(struct string **self, int index)
+/*
+ * ---- Overload-aware String implementations (selected by string_select_function) ----
+ *
+ * Reference: CN dump dohnadohna_dump_SCY.exe, String dispatcher 0x684120,
+ * jump table 0x684984 (index = AIN String function index).
+ */
+
+// Lead-byte rule for code that does not hand character indices back to the
+// game (Trim/Pad/regex). The CN EXE tests 0x81..0xFE (GBK lead) in every
+// String helper, e.g. 0x68832f (GetPart), 0x686914 (Length), 0x686352 (Trim
+// charset). Non-GB games keep the SJIS rule.
+static int string_lib_char_bytes(const uint8_t *p, int remain)
 {
-	struct string *s = SELF_STR(self);
-	if (!s || index < 0) return string_ref(&EMPTY_STRING);
-	int byte_idx = sjis_index(s->text, index);
-	if (byte_idx < 0 || byte_idx >= s->size) return string_ref(&EMPTY_STRING);
-	int bytes = SJIS_2BYTE(s->text[byte_idx]) ? 2 : 1;
-	return make_string(s->text + byte_idx, bytes);
+	if (remain <= 0)
+		return 0;
+	bool lead = ain_is_gb18030 ? (p[0] >= 0x81 && p[0] <= 0xFE) : SJIS_2BYTE(p[0]);
+	return (lead && remain >= 2) ? 2 : 1;
+}
+
+static uint32_t string_lib_char_code(const uint8_t *p, int remain, int *bytes)
+{
+	int n = string_lib_char_bytes(p, remain);
+	*bytes = n;
+	return n == 2 ? ((uint32_t)p[0] << 8) | p[1] : p[0];
+}
+
+/*
+ * GetPart(begin, length), EXE 0x6882c0:
+ *   begin < 0 -> 0 (cmovs at 0x6882fe); length <= 0 -> empty (cmovg at 0x688309);
+ *   begin past the last char -> empty; end past the last char -> to the end.
+ * GetPart(index) is 0x688290 = GetPart(index, 0x7fffffff), i.e. to the end.
+ * Character stepping deliberately uses SJIS_2BYTE, the same rule as
+ * sjis_index/sjis_count_char/String_FindLast/string_find, so indices produced
+ * by Length/Find/FindLast stay valid here. Switching to the GBK rule has to
+ * happen for all of them at once (see open questions).
+ */
+static struct string *string_get_part(const struct string *s, int begin, int length)
+{
+	if (!s || s->size <= 0)
+		return string_ref(&EMPTY_STRING);
+	if (begin < 0)
+		begin = 0;
+	long long end = (long long)begin + (length > 0 ? length : 0);
+	int b = -1, e = -1;
+	long long c = 0;
+	for (int i = 0; i < s->size; c++) {
+		if (c == begin)
+			b = i;
+		if (c == end) {
+			e = i;
+			break;
+		}
+		i += (SJIS_2BYTE((uint8_t)s->text[i]) && i + 1 < s->size) ? 2 : 1;
+	}
+	if (b < 0)
+		return string_ref(&EMPTY_STRING);
+	if (e < 0)
+		e = s->size;
+	if (e <= b)
+		return string_ref(&EMPTY_STRING);
+	return make_string(s->text + b, e - b);
 }
 
 // [22] string GetPart(ref string self, int index, int length)
 static struct string *String_GetPart(struct string **self, int begin, int length)
 {
-	struct string *s = SELF_STR(self);
-	if (!s || begin < 0 || length <= 0) return string_ref(&EMPTY_STRING);
-	int byte_begin = sjis_index(s->text, begin);
-	if (byte_begin < 0 || byte_begin >= s->size) return string_ref(&EMPTY_STRING);
-	int byte_len = sjis_index(s->text + byte_begin, length);
-	if (byte_len < 0) byte_len = s->size - byte_begin;
-	return make_string(s->text + byte_begin, byte_len);
+	return string_get_part(SELF_STR(self), begin, length);
 }
 
-// [23] string PadLeft(ref string self, int byteLength)
-static struct string *String_PadLeft(struct string **self, int byteLength)
+// [21] string GetPart(ref string self, int index) -- index to end of string
+static struct string *String_GetPartToEnd(struct string **self, int begin)
 {
-	struct string *s = SELF_STR(self);
-	if (!s) return string_ref(&EMPTY_STRING);
-	if (s->size >= byteLength) return string_ref(s);
-	int pad = byteLength - s->size;
-	struct string *result = string_alloc(byteLength);
-	memset(result->text, ' ', pad);
-	memcpy(result->text + pad, s->text, s->size);
-	result->text[byteLength] = '\0';
-	return result;
+	return string_get_part(SELF_STR(self), begin, INT_MAX);
 }
 
-// [25] string PadRight(ref string self, int byteLength)
-static struct string *String_PadRight(struct string **self, int byteLength)
+/*
+ * PadLeft/PadRight(byteLength, paddingChar), EXE 0x6883d0 / 0x688640.
+ * The one-argument forms are the same call with paddingChar = 0x20.
+ * pad = byteLength - byte size of self; pad <= 0 returns self unchanged.
+ * If (paddingChar >> 8) & 0xff is zero the low byte is repeated pad times;
+ * otherwise the 2-byte char (high byte first, then low byte) is repeated
+ * pad / 2 times, so an odd pad leaves the result one byte short.
+ * self itself is never modified.
+ */
+static struct string *string_pad(struct string **self, int byte_length, int pad_char, bool left)
 {
 	struct string *s = SELF_STR(self);
-	if (!s) return string_ref(&EMPTY_STRING);
-	if (s->size >= byteLength) return string_ref(s);
-	int pad = byteLength - s->size;
-	struct string *result = string_alloc(byteLength);
-	memcpy(result->text, s->text, s->size);
-	memset(result->text + s->size, ' ', pad);
-	result->text[byteLength] = '\0';
-	return result;
+	if (!s)
+		return string_ref(&EMPTY_STRING);
+	int pad = byte_length - s->size;
+	if (pad <= 0)
+		return string_ref(s);
+	uint8_t hi = (pad_char >> 8) & 0xff;
+	uint8_t lo = pad_char & 0xff;
+	int fill = hi ? (pad / 2) * 2 : pad;
+	struct string *r = string_alloc(s->size + fill);
+	char *dst = r->text + (left ? 0 : s->size);
+	for (int i = 0; i < fill; i++)
+		dst[i] = hi ? ((i & 1) ? lo : hi) : lo;
+	memcpy(r->text + (left ? fill : 0), s->text, s->size);
+	r->text[s->size + fill] = '\0';
+	return r;
 }
+
+static struct string *String_PadLeft(struct string **self, int byte_length)
+{
+	return string_pad(self, byte_length, ' ', true);
+}
+
+static struct string *String_PadLeftChar(struct string **self, int byte_length, int pad_char)
+{
+	return string_pad(self, byte_length, pad_char, true);
+}
+
+static struct string *String_PadRight(struct string **self, int byte_length)
+{
+	return string_pad(self, byte_length, ' ', false);
+}
+
+static struct string *String_PadRightChar(struct string **self, int byte_length, int pad_char)
+{
+	return string_pad(self, byte_length, pad_char, false);
+}
+
+/*
+ * Trim family, EXE 0x688f10 / 0x6890c0 / 0x689230 (charList forms); the
+ * no-argument forms pass the 8-byte default list at 0x7e5f5c/0x7e5f30/0x7e5f24:
+ * 20 0c 0a 0d 09 0b 81 40. charList is a set of characters (1 or 2 bytes,
+ * built by 0x6862a0). An empty charList trims nothing. The result is a new
+ * string; self is NOT modified (the old do_trim wrote the result back).
+ */
+static const uint8_t string_trim_default[] = { 0x20, 0x0c, 0x0a, 0x0d, 0x09, 0x0b, 0x81, 0x40 };
+
+static bool string_trim_set_has(const uint8_t *set, int set_len, uint32_t code)
+{
+	for (int i = 0; i < set_len; ) {
+		int n;
+		if (string_lib_char_code(set + i, set_len - i, &n) == code)
+			return true;
+		i += n;
+	}
+	return false;
+}
+
+static struct string *string_trim(struct string **self, const uint8_t *set, int set_len,
+				  bool trim_start, bool trim_end)
+{
+	struct string *s = SELF_STR(self);
+	if (!s)
+		return string_ref(&EMPTY_STRING);
+	const uint8_t *t = (const uint8_t *)s->text;
+	int b = 0, e = s->size;
+	if (set && set_len > 0) {
+		if (trim_start) {
+			while (b < s->size) {
+				int n;
+				uint32_t c = string_lib_char_code(t + b, s->size - b, &n);
+				if (!string_trim_set_has(set, set_len, c))
+					break;
+				b += n;
+			}
+		}
+		if (trim_end) {
+			// 0x6865b0: walk forward, remember the end of the last char not in the set
+			int last = b;
+			for (int i = b; i < s->size; ) {
+				int n;
+				uint32_t c = string_lib_char_code(t + i, s->size - i, &n);
+				if (!string_trim_set_has(set, set_len, c))
+					last = i + n;
+				i += n;
+			}
+			e = last;
+		}
+	}
+	if (b == 0 && e == s->size)
+		return string_ref(s);
+	if (e <= b)
+		return string_ref(&EMPTY_STRING);
+	return make_string(s->text + b, e - b);
+}
+
+#define TRIM_ARGS(chars) \
+	(chars) ? (const uint8_t *)(chars)->text : NULL, (chars) ? (chars)->size : 0
+
+// [29]/[30] Trim
+static struct string *String_Trim(struct string **self)
+{
+	return string_trim(self, string_trim_default, sizeof(string_trim_default), true, true);
+}
+static struct string *String_TrimChars(struct string **self, struct string *chars)
+{
+	return string_trim(self, TRIM_ARGS(chars), true, true);
+}
+// [31]/[32] TrimStart
+static struct string *String_TrimStart(struct string **self)
+{
+	return string_trim(self, string_trim_default, sizeof(string_trim_default), true, false);
+}
+static struct string *String_TrimStartChars(struct string **self, struct string *chars)
+{
+	return string_trim(self, TRIM_ARGS(chars), true, false);
+}
+// [33]/[34] TrimEnd
+static struct string *String_TrimEnd(struct string **self)
+{
+	return string_trim(self, string_trim_default, sizeof(string_trim_default), false, true);
+}
+static struct string *String_TrimEndChars(struct string **self, struct string *chars)
+{
+	return string_trim(self, TRIM_ARGS(chars), false, true);
+}
+#undef TRIM_ARGS
 
 // [27] string ToLower(ref string self)
 static struct string *String_ToLower(struct string **self)
@@ -388,56 +554,6 @@ static struct string *String_ToUpper(struct string **self)
 		result->text[i] = toupper((unsigned char)result->text[i]);
 	}
 	return result;
-}
-
-// Generic trim helper
-static struct string *do_trim(struct string **self, bool trim_start, bool trim_end)
-{
-	if (!self || !*self || (*self)->size == 0)
-		return string_ref(&EMPTY_STRING);
-
-	const char *text = (*self)->text;
-	int len = (*self)->size;
-
-	int start = 0;
-	if (trim_start) {
-		while (start < len && ((unsigned char)text[start] <= ' '))
-			start++;
-	}
-	int end = len;
-	if (trim_end) {
-		while (end > start && ((unsigned char)text[end-1] <= ' '))
-			end--;
-	}
-
-	if (start == 0 && end == len)
-		return string_ref(*self);
-
-	struct string *result = make_string(text + start, end - start);
-	free_string(*self);
-	*self = string_ref(result);
-	return result;
-}
-
-// [29] string Trim(ref string self)
-// [30] string Trim(ref string self, string charList)
-static struct string *String_Trim(struct string **self)
-{
-	return do_trim(self, true, true);
-}
-
-// [31] string TrimStart(ref string self)
-// [32] string TrimStart(ref string self, string charList)
-static struct string *String_TrimStart(struct string **self)
-{
-	return do_trim(self, true, false);
-}
-
-// [33] string TrimEnd(ref string self)
-// [34] string TrimEnd(ref string self, string charList)
-static struct string *String_TrimEnd(struct string **self)
-{
-	return do_trim(self, false, true);
 }
 
 // [35] array<string> Split(ref string self, string separators, int containsMode)
@@ -495,6 +611,52 @@ static int String_Split(struct string **self, struct string *separators, int con
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, result);
 	return slot;
+}
+
+/*
+ * Pick the implementation for one String declaration. Overloads share a
+ * name, so the static table only supplies a default; shapes not handled
+ * here keep it.
+ */
+void *string_select_function(const struct ain_hll_function *f, void *dflt)
+{
+	if (!f || !f->name || (f->nr_arguments > 0 && !f->arguments))
+		return dflt;
+	int n = f->nr_arguments;
+	enum ain_data_type a1 = n > 1 ? f->arguments[1].type.data : AIN_VOID;
+	enum ain_data_type a2 = n > 2 ? f->arguments[2].type.data : AIN_VOID;
+	if (!strcmp(f->name, "GetPart")) {
+		if (n == 2 && a1 == AIN_INT)
+			return (void *)String_GetPartToEnd;
+		if (n == 3 && a1 == AIN_INT && a2 == AIN_INT)
+			return (void *)String_GetPart;
+	} else if (!strcmp(f->name, "PadLeft")) {
+		if (n == 2 && a1 == AIN_INT)
+			return (void *)String_PadLeft;
+		if (n == 3 && a1 == AIN_INT && a2 == AIN_INT)
+			return (void *)String_PadLeftChar;
+	} else if (!strcmp(f->name, "PadRight")) {
+		if (n == 2 && a1 == AIN_INT)
+			return (void *)String_PadRight;
+		if (n == 3 && a1 == AIN_INT && a2 == AIN_INT)
+			return (void *)String_PadRightChar;
+	} else if (!strcmp(f->name, "Trim")) {
+		if (n == 1)
+			return (void *)String_Trim;
+		if (n == 2 && a1 == AIN_STRING)
+			return (void *)String_TrimChars;
+	} else if (!strcmp(f->name, "TrimStart")) {
+		if (n == 1)
+			return (void *)String_TrimStart;
+		if (n == 2 && a1 == AIN_STRING)
+			return (void *)String_TrimStartChars;
+	} else if (!strcmp(f->name, "TrimEnd")) {
+		if (n == 1)
+			return (void *)String_TrimEnd;
+		if (n == 2 && a1 == AIN_STRING)
+			return (void *)String_TrimEndChars;
+	}
+	return dflt;
 }
 
 HLL_LIBRARY(String,
