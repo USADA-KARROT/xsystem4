@@ -1169,6 +1169,10 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 					extern void *array_isexist_function(const struct ain_hll_function *f);
 					funcptr = array_isexist_function(&ainlib->functions[i]);
 				}
+				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "First")) {
+					extern void *array_select_function(const struct ain_hll_function *f);
+					funcptr = array_select_function(&ainlib->functions[i]);
+				}
 				if (!strcmp(lib->name, "Array") && (!strcmp(ainlib->functions[i].name, "Numof")
 				    || !strcmp(ainlib->functions[i].name, "Count") || !strcmp(ainlib->functions[i].name, "Find"))) {
 					extern void *array_query_function(const struct ain_hll_function *f);

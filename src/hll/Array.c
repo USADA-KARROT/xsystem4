@@ -490,6 +490,14 @@ static int Array_Last(struct page **self)
 	return 0;
 }
 
+// First without a predicate: same contract as At(0). The AIN declares
+// First(ref array self) and First(ref array self, hll_func func) under one
+// name; the single-argument form must not reach Array_First's func parameter.
+static int Array_First_NoPred(struct page **array)
+{
+	return Array_At(array, 0);
+}
+
 // PopBack (capital B) — v14 name
 static void Array_PopBack(struct page **array)
 {
@@ -2034,6 +2042,20 @@ static int Array_FindIf(struct page **array, int func)
 }
 
 /* Select by declared signature, never by a game's function index. */
+// Select the Array.First implementation from the declared argument list.
+void *array_select_function(const struct ain_hll_function *f)
+{
+	bool has_func = false;
+	for (int i = 0; i < f->nr_arguments; i++) {
+		enum ain_data_type t = f->arguments[i].type.data;
+		if (t == AIN_HLL_FUNC || t == AIN_HLL_FUNC_71)
+			has_func = true;
+	}
+	if (!strcmp(f->name, "First"))
+		return has_func ? (void*)Array_First : (void*)Array_First_NoPred;
+	return NULL;
+}
+
 void *array_query_function(const struct ain_hll_function *f)
 {
 	if (!f || !f->name || !f->arguments || f->nr_arguments < 1 || f->return_type.data != AIN_INT)
