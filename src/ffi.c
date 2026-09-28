@@ -1161,22 +1161,9 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 		for (int j = 0; lib->functions[j].name; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
 				void *funcptr = lib->functions[j].fun;
-				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "Erase")) {
-					extern void *array_erase_function(const struct ain_hll_function *f);
-					funcptr = array_erase_function(&ainlib->functions[i]);
-				}
-				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "IsExist")) {
-					extern void *array_isexist_function(const struct ain_hll_function *f);
-					funcptr = array_isexist_function(&ainlib->functions[i]);
-				}
-				if (!strcmp(lib->name, "Array") && !strcmp(ainlib->functions[i].name, "First")) {
-					extern void *array_select_function(const struct ain_hll_function *f);
-					funcptr = array_select_function(&ainlib->functions[i]);
-				}
-				if (!strcmp(lib->name, "Array") && (!strcmp(ainlib->functions[i].name, "Numof")
-				    || !strcmp(ainlib->functions[i].name, "Count") || !strcmp(ainlib->functions[i].name, "Find"))) {
-					extern void *array_query_function(const struct ain_hll_function *f);
-					funcptr = array_query_function(&ainlib->functions[i]);
+				if (!strcmp(lib->name, "Array")) {
+					extern void *array_select_function(const struct ain_hll_function *f, void *fallback);
+					funcptr = array_select_function(&ainlib->functions[i], funcptr);
 				}
 				if (funcptr)
 					link_static_library_function(&dst[i], &ainlib->functions[i], funcptr);

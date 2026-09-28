@@ -2042,20 +2042,6 @@ static int Array_FindIf(struct page **array, int func)
 }
 
 /* Select by declared signature, never by a game's function index. */
-// Select the Array.First implementation from the declared argument list.
-void *array_select_function(const struct ain_hll_function *f)
-{
-	bool has_func = false;
-	for (int i = 0; i < f->nr_arguments; i++) {
-		enum ain_data_type t = f->arguments[i].type.data;
-		if (t == AIN_HLL_FUNC || t == AIN_HLL_FUNC_71)
-			has_func = true;
-	}
-	if (!strcmp(f->name, "First"))
-		return has_func ? (void*)Array_First : (void*)Array_First_NoPred;
-	return NULL;
-}
-
 void *array_query_function(const struct ain_hll_function *f)
 {
 	if (!f || !f->name || !f->arguments || f->nr_arguments < 1 || f->return_type.data != AIN_INT)
@@ -2091,6 +2077,39 @@ void *array_query_function(const struct ain_hll_function *f)
 	if (arg == AIN_HLL_FUNC || arg == AIN_HLL_FUNC_71)
 		return range ? (void *)Array_FindIfRange : (void *)Array_FindIf;
 	return NULL;
+}
+
+static bool array_decl_has_func(const struct ain_hll_function *f)
+{
+	for (int i = 0; i < f->nr_arguments; i++) {
+		enum ain_data_type t = f->arguments[i].type.data;
+		if (t == AIN_HLL_FUNC || t == AIN_HLL_FUNC_71)
+			return true;
+	}
+	return false;
+}
+
+/*
+ * Single entry point for Array overloads. The v14 Array library declares
+ * several functions under one name (First(self) and First(self, func), ...)
+ * and libffi builds each call from the declaration, so every shape needs a C
+ * implementation with a matching prototype. Returns the implementation for f.
+ * Shapes not handled here keep the name-matched default, so games that do not
+ * use these overloads link exactly as before.
+ */
+void *array_select_function(const struct ain_hll_function *f, void *fallback)
+{
+	if (!f || !f->name)
+		return fallback;
+	if (!strcmp(f->name, "Erase"))
+		return array_erase_function(f);
+	if (!strcmp(f->name, "IsExist"))
+		return array_isexist_function(f);
+	if (!strcmp(f->name, "Numof") || !strcmp(f->name, "Count") || !strcmp(f->name, "Find"))
+		return array_query_function(f);
+	if (!strcmp(f->name, "First"))
+		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
+	return fallback;
 }
 
 // Copy: copy elements between arrays.
