@@ -5,7 +5,7 @@
 - 上游：nunuhara/xsystem4 `upstream/master` = `04333ad`；libsys4 上游 master = `20560d4`，submodule pin = `8c93946`，共同祖先 `ed74c9e`
 - 範圍：`git diff e8bd5ab..22e9496 --stat -- src include meson.build` = 73 檔，+19,786 / −1,588（docs/ 排除）
 - 方法：唯讀。所有 grep 對 HEAD worktree 與儲存於 scratchpad 的完整 diff（`scratchpad/distill/full.diff`，24,768 行）執行；`git merge-tree --write-tree` 只寫 object，未動 index/worktree。未建置、未執行遊戲。
-- 審查標準：未來以「小而專、可獨立審」的 PR 送上游，且維護者反感 AI 樣板 PR。
+- 審查標準：未來以「小而專、可獨立審」的 PR 送上游，每個變更都要能讓人逐一審閱。
 
 ---
 
