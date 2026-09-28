@@ -14,9 +14,13 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <limits.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "system4/ain.h"
 #include "system4/flat.h"
 
 #include "parts.h"
@@ -92,6 +96,58 @@ int PE_GetLayoutBoxReturnSize(int parts_no)
 	if (!parts || parts->states[0].type != PARTS_LAYOUT_BOX)
 		return 0;
 	return parts->states[0].layout_box.wrap_size;
+}
+
+/*
+ * v14 shape: void SetLayoutBoxReturn(int Number, bool Return, float ReturnSize)
+ *            float GetLayoutBoxReturnSize(int Number)
+ * Native (PartsEngine case 481 @0x5828db -> 0x594d80, case 483 @0x58294f ->
+ * 0x594df0) keeps ReturnSize as a float (+0x48), marks the box dirty only when
+ * a value changes, is a no-op on an unknown parts and returns 0.0f for it.
+ * The int prototypes above read the float from an integer register (arm64:
+ * s2 vs w2) and return an int in w0 where the caller reads s0.
+ *
+ * The layout code only tests "extent > wrap_size" with integer extents, and
+ * for integer x, x > f  <=>  x > floor(f), so floorf() keeps the native
+ * comparison. The getter loses the fraction; CN only feeds ITOF'd ints
+ * (parts::detail::CLayoutBoxParts@SetReturn, fno 12029), and
+ * SetLayoutBoxReturnSizeForRate is still a stub.
+ */
+void PE_SetLayoutBoxReturnF(int parts_no, bool return_flag, float return_size)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return;
+	struct parts_layout_box *lb = parts_get_layout_box(parts);
+	int size;
+	if (isnan(return_size))
+		size = 0;
+	else if (return_size >= 2147483647.0f)
+		size = INT_MAX;
+	else if (return_size <= -2147483648.0f)
+		size = INT_MIN;
+	else
+		size = (int)floorf(return_size);
+	if (lb->wrap != return_flag || lb->wrap_size != size) {
+		lb->wrap = return_flag;
+		lb->wrap_size = size;
+		parts_component_dirty(parts);
+	}
+}
+
+float PE_GetLayoutBoxReturnSizeF(int parts_no)
+{
+	return (float)PE_GetLayoutBoxReturnSize(parts_no);
+}
+
+void *pe_layoutbox_select_function(const struct ain_hll_function *f, void *dflt)
+{
+	if (!strcmp(f->name, "SetLayoutBoxReturn") && f->nr_arguments == 3
+	    && f->arguments[2].type.data == AIN_FLOAT)
+		return PE_SetLayoutBoxReturnF;
+	if (!strcmp(f->name, "GetLayoutBoxReturnSize") && f->return_type.data == AIN_FLOAT)
+		return PE_GetLayoutBoxReturnSizeF;
+	return dflt;
 }
 
 void PE_SetLayoutBoxAlign(int parts_no, int align)

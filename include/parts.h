@@ -315,6 +315,8 @@ int PE_GetLayoutBoxLayoutType(int parts_no);
 void PE_SetLayoutBoxReturn(int parts_no, bool return_flag, int return_size);
 bool PE_IsLayoutBoxReturn(int parts_no);
 int PE_GetLayoutBoxReturnSize(int parts_no);
+void PE_SetLayoutBoxReturnF(int parts_no, bool return_flag, float return_size);
+float PE_GetLayoutBoxReturnSizeF(int parts_no);
 void PE_SetLayoutBoxAlign(int parts_no, int align);
 int PE_GetLayoutBoxAlign(int parts_no);
 void PE_SetComponentMargin(int parts_no, int top, int bottom, int left, int right);

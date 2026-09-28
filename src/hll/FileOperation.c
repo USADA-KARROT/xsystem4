@@ -26,6 +26,7 @@
 #include "system4/utfsjis.h"
 
 #include "xsystem4.h"
+#include "system4/ain.h"
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "hll.h"
@@ -213,6 +214,53 @@ static bool FileOperation_GetFileList(struct string *folder_name, struct page **
 static bool FileOperation_GetFolderList(struct string *folder_name, struct page **out)
 {
 	return get_file_list(folder_name, out, true);
+}
+
+/*
+ * v14 shape: array<?> GetFileList(string) / GetFolderList(string), return type
+ * AIN_ARRAY (79), one argument. The legacy shape is
+ * bool GetFileList(string, ref array<string>). ffi builds the CIF from the AIN
+ * declaration, so the legacy C function would read a second argument that was
+ * never passed and its bool would be pushed as an array heap slot.
+ *
+ * Returns a fresh heap slot (ref 1) owning an array<string> page, same
+ * convention as Array.Where. The caller moves it into a local with X_ASSIGN
+ * and later DELETEs it (UserCreatedFiles@Search, ain_code.txt:1105275).
+ * A missing folder yields an empty array, never -1/0/1: slot 0 is the guard
+ * page and slot 1 the global page.
+ */
+static int file_list_slot(struct string *folder_name, bool folders)
+{
+	heap_gc_inhibit();
+	struct page *page = NULL;
+	if (!folder_name || !get_file_list(folder_name, &page, folders) || !page) {
+		union vm_value dim = { .i = 0 };
+		page = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
+	}
+	int slot = heap_alloc_page(page);
+	heap_gc_allow();
+	return slot;
+}
+
+static int FileOperation_GetFileList_Array(struct string *folder_name)
+{
+	return file_list_slot(folder_name, false);
+}
+
+static int FileOperation_GetFolderList_Array(struct string *folder_name)
+{
+	return file_list_slot(folder_name, true);
+}
+
+void *fileoperation_select_function(const struct ain_hll_function *f, void *dflt)
+{
+	if (f->return_type.data != AIN_ARRAY || f->nr_arguments != 1)
+		return dflt;
+	if (!strcmp(f->name, "GetFileList"))
+		return FileOperation_GetFileList_Array;
+	if (!strcmp(f->name, "GetFolderList"))
+		return FileOperation_GetFolderList_Array;
+	return dflt;
 }
 
 HLL_LIBRARY(FileOperation,

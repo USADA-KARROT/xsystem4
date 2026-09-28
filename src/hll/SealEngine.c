@@ -1030,8 +1030,11 @@ static int SealEngine_GetInstanceTextureMemorySize(int p, int i) {
 	if (!ri || !ri->model) return 0;
 	return ri->model->nr_materials * 256 * 256 * 4; /* rough estimate */
 }
-/* [119] GetInstanceInfoText — return debug info string as heap slot */
-static int SealEngine_GetInstanceInfoText(int p, int i)
+/* [118] string GetInstanceInfoText(int nPlugin, int nInstance)
+ * AIN return type is string: ffi (AIN_STRING return) allocates the VM_STRING
+ * slot itself and stores r.ref as struct string *, so return the string, not a
+ * slot number. */
+static struct string *SealEngine_GetInstanceInfoText(int p, int i)
 {
 	struct RE_instance *ri = se_get_instance(p, i);
 	char buf[512];
@@ -1048,13 +1051,10 @@ static int SealEngine_GetInstanceInfoText(int p, int i)
 			ri->alpha, ri->draw,
 			(ri->model && ri->model->path) ? ri->model->path : "(none)");
 	}
-	struct string *s = make_string(buf, strlen(buf));
-	int slot = heap_alloc_slot(VM_STRING);
-	heap[slot].s = s;
-	return slot;
+	return make_string(buf, strlen(buf));
 }
-/* [120] GetInstanceMaterialInfoText — return material debug info as heap slot */
-static int SealEngine_GetInstanceMaterialInfoText(int p, int i)
+/* [119] string GetInstanceMaterialInfoText(int nPlugin, int nInstance) */
+static struct string *SealEngine_GetInstanceMaterialInfoText(int p, int i)
 {
 	struct RE_instance *ri = se_get_instance(p, i);
 	char buf[512];
@@ -1065,10 +1065,7 @@ static int SealEngine_GetInstanceMaterialInfoText(int p, int i)
 			"Instance %d/%d: %d materials, %d meshes",
 			p, i, ri->model->nr_materials, ri->model->nr_meshes);
 	}
-	struct string *s = make_string(buf, strlen(buf));
-	int slot = heap_alloc_slot(VM_STRING);
-	heap[slot].s = s;
-	return slot;
+	return make_string(buf, strlen(buf));
 }
 static bool SealEngine_GetInstanceAABB(int p, int i,
 	float *minx, float *miny, float *minz,
@@ -1833,15 +1830,13 @@ static bool SealEngine_Tool_ReloadMotionDataEXFile(struct string *obj, struct st
 
 	return true;
 }
-/* [248] Tool_CreateFBXAscii — create FBX ASCII export (editor-only, returns string slot) */
-static int SealEngine_Tool_CreateFBXAscii(int p, int i)
+/* [247] string Tool_CreateFBXAscii(int PluginNumber, int InstanceNumber)
+ * Editor-only (stageeditor::detail::CSealInstance@CreateFBX). Not implemented:
+ * return an empty string; ffi allocates the slot. */
+static struct string *SealEngine_Tool_CreateFBXAscii(int p, int i)
 {
 	NOTICE("SealEngine.Tool_CreateFBXAscii: plugin=%d inst=%d (no-op)", p, i);
-	/* Return an empty string heap slot */
-	struct string *s = make_string("", 0);
-	int slot = heap_alloc_slot(VM_STRING);
-	heap[slot].s = s;
-	return slot;
+	return make_string("", 0);
 }
 
 /* ============================================================

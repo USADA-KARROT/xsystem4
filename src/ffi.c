@@ -1167,7 +1167,9 @@ static void *hll_select_overload(const char *lib, const struct ain_hll_function 
 		return math_select_function(f, fallback);
 	if (!strcmp(lib, "String"))
 		return string_select_function(f, fallback);
-	return fallback;
+	extern void *hll_shape_select_function(const char *lib, const struct ain_hll_function *f,
+					       void *dflt);
+	return fallback ? hll_shape_select_function(lib, f, fallback) : fallback;
 }
 
 /*

@@ -24,6 +24,7 @@
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
+#include "system4/ain.h"
 #include "hll.h"
 #include "xsystem4.h"
 
@@ -212,7 +213,7 @@ static bool VSFile_ReadFloat(float *data)
 	return true;
 }
 
-static bool VSFile_ReadString(struct string **str)
+static struct string *vsf_read_cstring(void)
 {
 	vsf_read_type(VSF_STRING);
 
@@ -221,17 +222,49 @@ static bool VSFile_ReadString(struct string **str)
 	while (true) {
 		if (!vsf_read((uint8_t*)&b, 1)) {
 			free_string(s);
-			return false;
+			return NULL;
 		}
 		if (!b)
 			break;
 		string_append_cstr(&s, &b, 1);
 	}
+	return s;
+}
 
+// Legacy shape: bool ReadString(ref string pIString) -> struct string **.
+static bool VSFile_ReadString(struct string **str)
+{
+	struct string *s = vsf_read_cstring();
+	if (!s)
+		return false;
 	if (*str)
 		free_string(*str);
 	*str = s;
 	return true;
+}
+
+// v14 shape: bool ReadString(wrap<string> pIString). ffi passes the target
+// string's heap slot as sint32 (gamesave::detail::<additional read> fno 6195
+// pushes ".LOCALREF data; PUSH 7; X_REF 1", i.e. the member's VM_STRING slot).
+// The file position has already advanced, so a slot we cannot write to only
+// loses the value; keep returning true so the caller's read sequence stays in
+// sync with the file.
+static bool VSFile_ReadString_Wrap(int str_slot)
+{
+	struct string *s = vsf_read_cstring();
+	if (!s)
+		return false;
+	if (!wrap_slot_set_string(str_slot, s))
+		WARNING("VSFile.ReadString: cannot write to wrap<string> slot %d", str_slot);
+	return true;
+}
+
+void *vsfile_select_function(const struct ain_hll_function *f, void *dflt)
+{
+	if (!strcmp(f->name, "ReadString") && f->nr_arguments == 1
+	    && f->arguments[0].type.data == AIN_WRAP)
+		return VSFile_ReadString_Wrap;
+	return dflt;
 }
 
 HLL_LIBRARY(VSFile,

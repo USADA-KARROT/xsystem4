@@ -80,7 +80,9 @@ static bool TextFile_WriteLine(int handle, struct string *text)
 }
 
 // [5] bool ReadAll(string fileName, wrap<string> text)
-static bool TextFile_ReadAll(struct string *fileName, int *text_out)
+// wrap<string> arrives as the heap slot of the target string (CIF sint32),
+// not as a pointer. See wrap_slot_set_string() in hll.h.
+static bool TextFile_ReadAll(struct string *fileName, int text_slot)
 {
 	if (!fileName) return false;
 
@@ -91,14 +93,18 @@ static bool TextFile_ReadAll(struct string *fileName, int *text_out)
 	fseek(fp, 0, SEEK_END);
 	long size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
+	if (size < 0) {
+		fclose(fp);
+		return false;
+	}
 
 	struct string *content = string_alloc(size);
-	fread(content->text, 1, size, fp);
-	content->text[size] = '\0';
+	size_t got = fread(content->text, 1, size, fp);
+	content->text[got] = '\0';
+	content->size = got;
 	fclose(fp);
 
-	wrap_set_string(text_out, content);
-	return true;
+	return wrap_slot_set_string(text_slot, content);
 }
 
 // [6] int OpenReader(string fileName)
@@ -117,8 +123,8 @@ static int TextFile_OpenReader(struct string *fileName)
 	return h;
 }
 
-// [7] bool Read(int handle, wrap<string> text) — read all remaining
-static bool TextFile_Read(int handle, int *text_out)
+// [7] bool Read(int handle, wrap<string> text) - read all remaining
+static bool TextFile_Read(int handle, int text_slot)
 {
 	if (handle < 0 || handle >= MAX_TEXT_FILES || !text_files[handle].active)
 		return false;
@@ -130,34 +136,49 @@ static bool TextFile_Read(int handle, int *text_out)
 	long end = ftell(fp);
 	fseek(fp, pos, SEEK_SET);
 	long size = end - pos;
+	if (pos < 0 || size < 0)
+		return false;
 
 	struct string *content = string_alloc(size);
-	fread(content->text, 1, size, fp);
-	content->text[size] = '\0';
+	size_t got = fread(content->text, 1, size, fp);
+	content->text[got] = '\0';
+	content->size = got;
 
-	wrap_set_string(text_out, content);
-	return true;
+	return wrap_slot_set_string(text_slot, content);
 }
 
 // [8] bool ReadLine(int handle, wrap<string> text)
-static bool TextFile_ReadLine(int handle, int *text_out)
+// Reads one line of any length; strips the trailing LF / CRLF. Returns false
+// only when nothing could be read (EOF or error), leaving text untouched.
+static bool TextFile_ReadLine(int handle, int text_slot)
 {
 	if (handle < 0 || handle >= MAX_TEXT_FILES || !text_files[handle].active)
 		return false;
 	FILE *fp = text_files[handle].fp;
 	if (!fp || feof(fp)) return false;
 
-	char buf[4096];
-	if (!fgets(buf, sizeof(buf), fp))
+	size_t cap = 256, len = 0;
+	char *buf = xmalloc(cap);
+	int c = EOF;
+	while ((c = fgetc(fp)) != EOF) {
+		if (c == '\n')
+			break;
+		if (len + 1 >= cap) {
+			cap *= 2;
+			buf = xrealloc(buf, cap);
+		}
+		buf[len++] = (char)c;
+	}
+	if (c == EOF && len == 0) {
+		free(buf);
 		return false;
-
-	int len = strlen(buf);
-	while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r'))
+	}
+	if (len > 0 && buf[len-1] == '\r')
 		len--;
-	buf[len] = '\0';
 
-	wrap_set_string(text_out, make_string(buf, len));
-	return true;
+	struct string *line = make_string(buf, len);
+	free(buf);
+	return wrap_slot_set_string(text_slot, line);
 }
 
 // [9] bool IsEOF(int handle)

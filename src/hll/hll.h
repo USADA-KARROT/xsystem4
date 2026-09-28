@@ -75,6 +75,49 @@ static inline void wrap_set_string(int *ptr, struct string *s)
 	if (old > 0) heap_unref(old);
 }
 
+/*
+ * Write a string to a 1-slot wrap<string> argument.
+ *
+ * ffi passes wrap<string> as ffi_type_sint32 (link_static_library_function):
+ * the C side gets the heap slot, never a pointer. In CN v14 bytecode the slot
+ * is the VM_STRING slot of the target variable itself (".LOCALREF text", or
+ * "X_REF 1" on a string member, see AFL_TextFile_ReadAll / gamesave read),
+ * so the string object is replaced in place and every holder of that slot
+ * sees the new text. A v14 wrap box (STRUCT_PAGE, index == -1, values[0] =
+ * inner string slot) is also accepted.
+ *
+ * Takes ownership of s. Returns false (and frees s) when the slot is not a
+ * live string or wrap box.
+ */
+static inline bool wrap_slot_set_string(int slot, struct string *s)
+{
+	if (slot > 0 && (size_t)slot < heap_size && HEAP_REF(slot) > 0) {
+		if (heap[slot].type == VM_STRING) {
+			if (heap[slot].s)
+				free_string(heap[slot].s);
+			heap[slot].s = s;
+			return true;
+		}
+		struct page *box = heap[slot].type == VM_PAGE ? heap[slot].page : NULL;
+		if (box && box->type == STRUCT_PAGE && box->index == -1 && box->nr_vars >= 1) {
+			int inner = box->values[0].i;
+			if (inner > 0 && (size_t)inner < heap_size && HEAP_REF(inner) > 0
+			    && heap[inner].type == VM_STRING) {
+				if (heap[inner].s)
+					free_string(heap[inner].s);
+				heap[inner].s = s;
+			} else {
+				box->values[0].i = heap_alloc_string(s);
+				if (inner > 0)
+					heap_unref(inner);
+			}
+			return true;
+		}
+	}
+	free_string(s);
+	return false;
+}
+
 /* Write a float to a wrap<float> reference (pageno, varno) */
 static inline void wrap_set_float(int pageno, int varno, float value)
 {
