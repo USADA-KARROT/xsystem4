@@ -106,7 +106,7 @@ static const char SJIS_CG_MEI[]      = "\x82\x62\x82\x66\x96\xbc";             /
 static const char SJIS_SIZE[]        = "\x83\x54\x83\x43\x83\x59";             /* サイズ (size) */
 static const char SJIS_COLOR[]       = "\x90\x46";                             /* 色 (color) */
 static const char SJIS_PANEL[]       = "\x83\x70\x83\x6c\x83\x8b";             /* パネル (panel) */
-/* static const char SJIS_MULTI_LEVEL[] = "\x83\x7d\x83\x8b\x83\x60\x83\x8c\x83\x78\x83\x8b\x83\x70\x81\x5b\x83\x63"; */ /* マルチレベルパーツ — unused */
+static const char SJIS_MULTI_LEVEL[] = "\x83\x7d\x83\x8b\x83\x60\x83\x8c\x83\x78\x83\x8b\x83\x70\x81\x5b\x83\x63"; /* マルチレベルパーツ */
 static const char SJIS_SCALE[]       = "\x8a\x67\x91\xe5\x8f\x6b\x8f\xac"; /* 拡大縮小 (scale) */
 static const char SJIS_ROTATION[]    = "\x89\xf1\x93\x5d";                 /* 回転 (rotation) */
 static const char SJIS_BUTTON[]      = "\x83\x7b\x83\x5e\x83\x93";         /* ボタン (button) */
@@ -412,6 +412,109 @@ static bool pactex_apply_message_window(struct ex_tree *type_info, const char *p
 	return true;
 }
 
+/* Native low-level parts (outer type 18) select their three states by name,
+ * then construct a CG (19) or text (21) even if its content is empty.
+ * See native 0x5b8bc0, 0x533d80 and 0x4df5b0. Unknown types keep the legacy
+ * loader/getter behavior; an arbitrary PARTS_TEXT state is not a text widget. */
+static bool pactex_name_is(struct ex_tree *node, const char *sjis, const char *gbk)
+{
+	return node->name && (!strcmp(node->name->text, sjis) || !strcmp(node->name->text, gbk));
+}
+
+static int pactex_named_state(struct ex_tree *node)
+{
+	static const struct { const char *sjis, *gbk; } names[] = {
+		{"\x92\xca\x8f\xed\x8f\xf3\x91\xd4", "\xc6\xd5\xcd\xa8\xa0\xee\x91\x42"}, /* 通常状態 / 普通狀態 */
+		{"\x83\x49\x83\x93\x83\x4a\x81\x5b\x83\x5c\x83\x8b\x8f\xf3\x91\xd4", "\xa5\xaa\xa5\xf3\xd6\xb8\xe1\x98\xa0\xee\x91\x42"}, /* オンカーソル状態 / オン指針狀態 */
+		{"\x83\x4c\x81\x5b\x83\x5f\x83\x45\x83\x93\x8f\xf3\x91\xd4", "\xa5\xad\xa9\x60\xa5\xc0\xa5\xa6\xa5\xf3\xa0\xee\x91\x42"}, /* キーダウン状態 / キーダウン狀態 */
+	};
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		if (pactex_name_is(node, names[i].sjis, names[i].gbk))
+			return i + 1;
+	}
+	return 0;
+}
+
+static void pactex_apply_text_style(struct ex_tree *state, int parts_no, int pe_state)
+{
+	for (unsigned i = 0; i < state->nr_children; i++) {
+		struct ex_tree *style = &state->children[i];
+		// Main text only: ruby has a separate decoration branch (0x5c34a8).
+		if (style->is_leaf || !pactex_name_is(style,
+				"\x83\x65\x83\x4c\x83\x58\x83\x67\x91\x95\x8f\xfc", "\xce\xc4\xb1\xbe\xd1\x62\xef\x97"))
+			continue;
+		PE_SetFont(parts_no,
+			pactex_message_number(style, PACTEX_MW_FACE, 0),
+			pactex_message_number(style, PACTEX_MW_SIZE, 16),
+			pactex_message_item(style, PACTEX_MW_COLOR, 0, 255),
+			pactex_message_item(style, PACTEX_MW_COLOR, 1, 255),
+			pactex_message_item(style, PACTEX_MW_COLOR, 2, 255),
+			pactex_message_number(style, PACTEX_MW_WEIGHT, 0),
+			pactex_message_item(style, PACTEX_MW_EDGE_COLOR, 0, 0),
+			pactex_message_item(style, PACTEX_MW_EDGE_COLOR, 1, 0),
+			pactex_message_item(style, PACTEX_MW_EDGE_COLOR, 2, 0),
+			pactex_message_number(style, PACTEX_MW_EDGE, 0), pe_state);
+		// Text decoration uses 字間隔; message windows use 文字間隔.
+		int spacing = pactex_get_int(style, "\x8e\x9a\x8a\xd4\x8a\x75",
+			pactex_get_int(style, "\xd7\xd6\xe9\x67\xb8\xf4",
+				pactex_message_number(style, PACTEX_MW_CHAR_SPACE, 0)));
+		PE_SetTextCharSpace(parts_no, spacing, pe_state);
+		PE_SetTextLineSpace(parts_no, pactex_message_number(style, PACTEX_MW_LINE_SPACE, 0), pe_state);
+		return;
+	}
+}
+
+static enum parts_type pactex_low_level_type(struct ex_tree *state)
+{
+	const char *type = pactex_get_string(state, SJIS_PARTS_TYPE);
+	if (!type) type = pactex_get_string(state, GBK_PARTS_TYPE);
+	if (!type) return PARTS_UNINITIALIZED;
+	if (!strcmp(type, "\x83\x65\x83\x4c\x83\x58\x83\x67\x83\x70\x81\x5b\x83\x63") ||
+			!strcmp(type, "\xce\xc4\xb1\xbe\xb2\xbf\xbc\xfe")) /* テキストパーツ / 文本部件 */
+		return PARTS_TEXT;
+	if (!strcmp(type, "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63") ||
+			!strcmp(type, "\xa3\xc3\xa3\xc7\xb2\xbf\xbc\xfe")) /* ＣＧパーツ / ＣＧ部件 */
+		return PARTS_CG;
+	return PARTS_UNINITIALIZED;
+}
+
+static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, int pe_state)
+{
+	if (!pe_state) return false;
+	enum parts_type type = pactex_low_level_type(state);
+	if (type == PARTS_UNINITIALIZED) return false;
+	bool text = type == PARTS_TEXT;
+	struct parts *parts = parts_get(parts_no);
+	if (text) {
+		parts_get_text(parts, pe_state - 1);
+		pactex_apply_text_style(state, parts_no, pe_state);
+	} else {
+		parts_get_cg(parts, pe_state - 1);
+		const char *cg_name = pactex_find_cg_name(state, 0);
+		if (cg_name) {
+			struct string *s = cstr_to_string(cg_name);
+			PE_SetPartsCG(parts_no, s, 0, pe_state);
+			free_string(s);
+		}
+	}
+	parts->component_type_from_state[pe_state - 1] = true;
+	// Use the matching setter: the CG setter would destroy a text state.
+	struct ex_list *area = pactex_get_list(state, SJIS_SURFACE_AREA);
+	if (!area) area = pactex_get_list(state, "\xa5\xb5\xa9\x60\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2");
+	int x, y, w, h;
+	if (area && area->nr_items >= 4 &&
+			area->items[0].value.type == EX_INT && area->items[1].value.type == EX_INT &&
+			area->items[2].value.type == EX_INT && area->items[3].value.type == EX_INT) {
+		x = area->items[0].value.i; y = area->items[1].value.i;
+		w = area->items[2].value.i; h = area->items[3].value.i;
+	} else if (text || !pactex_get_surface_area(state, &x, &y, &w, &h, 0)) {
+		return true;
+	}
+	if (text) PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, pe_state);
+	else PE_SetPartsCGSurfaceArea(parts_no, x, y, w, h, pe_state);
+	return true;
+}
+
 /* Apply pactex properties (position, show, alpha, CG) to a parts entry.
  * Extracts standard properties from leaf children, and CG names from
  * the type-specific info branch (種類別情報). */
@@ -604,11 +707,15 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	 *     キーダウン状態/    ← key-down (state 3)
 	 */
 	int state_idx = 0;
+	bool low_level = ptype && (!strcmp(ptype, SJIS_MULTI_LEVEL) ||
+		!strcmp(ptype, "\xb5\xcd\xb5\xc8\xbc\x89\xb2\xbf\xbc\xfe")); /* 低等級部件 */
 	for (unsigned i = 0; i < type_info->nr_children; i++) {
 		struct ex_tree *state = &type_info->children[i];
 		if (state->is_leaf) continue;
 
-		int pe_state = state_idx + 1; /* PE_SetPartsCG uses 1-based state */
+		int pe_state = ++state_idx; /* Preserve legacy order for unknown types. */
+		if (low_level && pactex_named_state(state) && pactex_low_level_type(state) != PARTS_UNINITIALIZED)
+			continue;
 
 		/* Search for ＣＧ名 (CG name) leaf — may be nested in 素材リスト/素材N/ */
 		const char *cg_name = pactex_find_cg_name(state, 0);
@@ -631,8 +738,15 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 				PE_SetClickable(parts_no, true);
 			}
 		}
-
-		state_idx++;
+	}
+	// Apply recognized states last so legacy ordinal fallback cannot overwrite
+	// a named state when an unrelated/unknown branch occupies the same index.
+	if (low_level) {
+		for (unsigned i = 0; i < type_info->nr_children; i++) {
+			struct ex_tree *state = &type_info->children[i];
+			if (!state->is_leaf)
+				pactex_apply_low_level_state(state, parts_no, pactex_named_state(state));
+		}
 	}
 }
 

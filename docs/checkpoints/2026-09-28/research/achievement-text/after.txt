@@ -1,0 +1,17 @@
+ACTIVITY-TEXT lookup exists=1 number=900001 expected=present
+ACTIVITY-TEXT state=1 type=21 want=21 ok
+ACTIVITY-TEXT state=2 type=19 want=19 ok
+ACTIVITY-TEXT state=3 type=19 want=19 ok
+ACTIVITY-TEXT style size=32 space=-2 line=12 want=32,-2,12 ok
+ACTIVITY-TEXT ordinal collision down type=21 want=21 main-style=28,-1,10 ok
+ACTIVITY-TEXT unknown type=0 want=0 ok
+ACTIVITY-TEXT invalid-state compatibility state=0 type=0 raw=0 ok
+ACTIVITY-TEXT invalid-state compatibility state=4 type=0 raw=0 ok
+ACTIVITY-TEXT recognized CG->empty-text type=21 want=21 ok
+ACTIVITY-TEXT unmarked raw19 after text-style type=19 want=19 ok
+ACTIVITY-TEXT legacy-v13 CG=11 text=13 invalid=-1 want=11,13,-1 ok
+ACTIVITY-TEXT explicit setter clears state=1 type=7 want=7 ok
+ACTIVITY-TEXT explicit setter clears state=2 type=7 want=7 ok
+ACTIVITY-TEXT explicit setter clears state=3 type=7 want=7 ok
+ACTIVITY-TEXT PASS failures=0 (production loader + real ffi, no GL/assets)
+exit=0; ASan/UBSan diagnostics=0

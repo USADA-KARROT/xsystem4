@@ -1,0 +1,9 @@
+ACTIVITY-TEXT lookup exists=1 number=900001 expected=present
+ACTIVITY-TEXT state=1 type=0 want=21 FAIL
+ACTIVITY-TEXT state=2 type=0 want=19 FAIL
+ACTIVITY-TEXT state=3 type=0 want=19 FAIL
+ACTIVITY-TEXT style normal engine state is not PARTS_TEXT FAIL
+ACTIVITY-TEXT unknown type=0 want=0 ok
+ACTIVITY-TEXT explicit setter type=7 want=7 ok
+ACTIVITY-TEXT FAIL failures=4 (production loader + real ffi, no GL/assets)
+exit=86; ASan/UBSan diagnostics=0

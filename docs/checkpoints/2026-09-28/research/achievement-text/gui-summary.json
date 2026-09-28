@@ -1,0 +1,32 @@
+{
+  "before": {
+    "binary_sha256": "95aa6929602ca98c02b4b2746bfe6a4878ee05f52d0fb6e7454d908405aa0638",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "duration_limit_seconds": 150,
+    "stop_reason": "error_log",
+    "elapsed_seconds": 120.865,
+    "exit_code": 0,
+    "peak_rss_bytes": 1891909632,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 0,
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t39.png",
+    "viewed_frame_sha256": "34b5adf9b3cab3bab561dc3db64405fccd20fa5f8aff8e2ec401391491c1ebe9"
+  },
+  "after": {
+    "binary_sha256": "488b8a6852644b81c5854bf6d812adf22dad1aff3a823b3bcf26e5a2531cc4d3",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "duration_limit_seconds": 150,
+    "stop_reason": "duration",
+    "elapsed_seconds": 150.367,
+    "exit_code": 0,
+    "peak_rss_bytes": 2009645056,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 0,
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t39.png",
+    "viewed_frame_sha256": "d1a3e6ad1d308a3b02e101fd5e5c32ca2192e7fc3a1f2b752ee3157a1b9c31ea"
+  }
+}

@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 33 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 34 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
 ```
@@ -42,6 +42,8 @@ bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按�
 - `probe/runtime_probe.c`：把引擎的 `vm.c` 加上探針鉤子後編入，連結正式的引擎目標檔；`main` 依第二個參數分派模式。
 - `probe/build_probe.py`：從 ASan 樹的 `compile_commands.json` 取編譯參數，產生 `runtime-probe-asan`。它不會重編 `Array.c` 等目標檔，所以腳本一律先跑 `ninja`。
 - `probe/*_fixture.inc`：各組測試。以真 AIN 的函式宣告與 lambda 呼叫 `hll_call(libno, fno, arg3)`，並在需要時用 `fork` 隔離預期中的崩潰。
+- `probe/activity_text_fixture.inc`：自造 EX tree 經正式 pactex loader 建立具名文字元件，再透過真 AIN 宣告與 ffi 查詢。混排三種狀態並插入無關 branch，檢查文字／CG 型別、主文字與 ruby 字型隔離、未知型別保留，以及明確 `SetComponentType` 覆寫。文字為空且無 CG 資源，不需要 GL。
+- 此模式的靜態入口由 `build_probe.py` 在 repo 外複製 `parts.c`／`pe_v14_activity.c` 並追加測試 wrapper；僅初始化 parts table/controller 並呼叫正式 static loader，不更改正式邏輯。正式引擎不含測試 API。
 - `deleted_event_fixture.inc` 放在上一層，因為 `runtime_probe.c` 以 `../deleted_event_fixture.inc` 引用它。
 
 新增一組測試：

@@ -29,7 +29,15 @@ def compile_as(original,newfile,out,extra=[]):
     if run.returncode:raise SystemExit(run.stderr)
     return clean
 vmobj=here/('probe-'+a.variant+'.o');sysobj=here/('system-'+a.variant+'.o')
-compiled=[compile_as('vm.c',here/'runtime_probe.c',vmobj,['-DFFI_SOURCE="'+str(source/'src/ffi.c')+'"']),compile_as('system4.c',source/'src/system4.c',sysobj,['-Dmain=xsystem4_original_main'])]
+compiled=[compile_as('vm.c',here/'runtime_probe.c',vmobj,['-DFFI_SOURCE="'+str(source/'src/ffi.c')+'"','-I'+str(source/'src/parts')]),compile_as('system4.c',source/'src/system4.c',sysobj,['-Dmain=xsystem4_original_main'])]
+# Probe-only entry points expose existing static initialization/loader functions.
+# Never patch production behavior or initialize GL for synthetic empty text.
+parts_shadow = here/'probe-parts.c'
+parts_shadow.write_text((source/'src/parts/parts.c').read_text()+"\nvoid probe_init_parts_table(void) { parts_table = ht_create(1024); ctrl_stack_init(); }\n")
+activity_shadow = here/'probe-activity.c'
+activity_shadow.write_text((source/'src/hll/pe_v14_activity.c').read_text()+"\nbool probe_load_activity_tree(struct string *name, struct ex *ex) { if (!PartsEngine_CreateActivity(name)) return false; int i = find_activity(name); return i >= 0 && pactex_load(&activities[i], ex); }\n")
+partsobj=here/('parts-'+a.variant+'.o'); activityobj=here/('activity-'+a.variant+'.o')
+compiled += [compile_as('parts/parts.c', parts_shadow, partsobj, ['-I'+str(source/'src/parts')]), compile_as('hll/pe_v14_activity.c', activity_shadow, activityobj, ['-I'+str(source/'src/hll')])]
 link=shlex.split(subprocess.check_output(['ninja','-t','commands','src/xsystem4'],cwd=build,text=True).splitlines()[-1])
 link.remove('src/xsystem4.p/ffi.c.o')
 binary=here/('runtime-probe-'+a.variant)
@@ -37,11 +45,13 @@ for i,arg in enumerate(link):
     if arg=='src/xsystem4':link[i]=str(binary)
     elif arg=='src/xsystem4.p/vm.c.o':link[i]=str(vmobj)
     elif arg=='src/xsystem4.p/system4.c.o':link[i]=str(sysobj)
+    elif arg=='src/xsystem4.p/parts_parts.c.o':link[i]=str(partsobj)
+    elif arg=='src/xsystem4.p/hll_pe_v14_activity.c.o':link[i]=str(activityobj)
 run=subprocess.run(link,cwd=build,capture_output=True,text=True)
 (here/('link-'+a.variant+'.log')).write_text(run.stdout+run.stderr)
 if run.returncode:raise SystemExit(run.stderr)
-result={'variant':a.variant,'vm_sha256':hashlib.sha256((source/'src/vm.c').read_bytes()).hexdigest(),'probe_sha256':hashlib.sha256((here/'runtime_probe.c').read_bytes()).hexdigest(),'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'compile_commands':compiled,'link_command':link,'scope':'Copied real-AIN lifetime harness with independent Personality string ownership fixture; no GUI; original main renamed; production VM/engine linking; existing legacy fixture modes retained.'}
-result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h']}
+result={'variant':a.variant,'vm_sha256':hashlib.sha256((source/'src/vm.c').read_bytes()).hexdigest(),'probe_sha256':hashlib.sha256((here/'runtime_probe.c').read_bytes()).hexdigest(),'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'compile_commands':compiled,'link_command':link,'scope':'Real-AIN VM/HLL harness; no GUI. Production parts/activity source copies append probe-only static-entry wrappers; no behavior replacement. Other engine objects link from the current build; original main renamed.'}
+result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h',source/'src/parts/parts.c',source/'src/hll/pe_v14_activity.c',source/'src/parts/parts_internal.h']}
 result['fixture_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in here.iterdir() if p.is_file() and p.suffix in ['.c','.inc','.py'] and p.name!='instrumented-vm.inc'}
 result['source_sha256']['include/vm.h']=hashlib.sha256((source/'include/vm.h').read_bytes()).hexdigest()
 (here/('build-'+a.variant+'.json')).write_text(json.dumps(result,indent=2)+'\n')

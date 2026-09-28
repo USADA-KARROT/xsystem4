@@ -452,6 +452,7 @@ struct parts {
 	struct parts_motion_list motion;
 	int controller_no;
 	int component_type;   // v14 component widget type
+	bool component_type_from_state[PARTS_NR_STATES]; // pactex low-level CG/text states
 	int unique_id;        // v14 unique ID for event dispatch
 	char *user_component_name; // v14 user component name from pactex (heap-allocated)
 };

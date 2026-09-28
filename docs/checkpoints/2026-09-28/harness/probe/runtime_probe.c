@@ -85,6 +85,7 @@ static void init_probe(const char *path) {
 #include "sort_fixture.inc"
 #include "string_fixture.inc"
 #include "cif_fixture.inc"
+#include "activity_text_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -105,6 +106,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"sort"))return test_sort();
     if(!strcmp(argv[2],"string"))return test_string();
     if(!strcmp(argv[2],"cif"))return test_cif();
+    if(!strcmp(argv[2],"activity-text"))return test_activity_text();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
     if(!strcmp(argv[2],"deleted-event")) {test_deleted_event();return 0;}
     if(!strcmp(argv[2],"heap-reuse")) {test_heap_reuse();return 0;}

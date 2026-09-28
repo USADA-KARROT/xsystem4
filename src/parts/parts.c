@@ -2057,13 +2057,15 @@ int PE_GetInputState(int parts_no)
 void PE_SetComponentType(int parts_no, int type, int state)
 {
 	// v14 (Dohna Dohna): component types are a game-level widget taxonomy
-	// (button=19 etc.) used by bytecode vtable dispatch via
+	// used by bytecode vtable dispatch via
 	// GetComponentType, not a 1:1 mapping onto engine parts states. Store
 	// the raw value; the actual parts state is built by the pactex loader
 	// and the Create* calls.
 	if (ain->version >= 14) {
 		struct parts *parts = parts_get(parts_no);
 		parts->component_type = type;
+		// Preserve explicit raw setters over the loader's inferred state types.
+		memset(parts->component_type_from_state, 0, sizeof(parts->component_type_from_state));
 		return;
 	}
 	if (!parts_state_valid(--state))
@@ -2092,14 +2094,23 @@ void PE_SetComponentType(int parts_no, int type, int state)
 
 int PE_GetComponentType(int parts_no, int state)
 {
-	// v14: return the raw component type stored by PE_SetComponentType.
+	// v14: recognized low-level pactex states have their own native type.
+	// Other widgets retain the raw value stored by PE_SetComponentType.
 	// -1 is a valid "no parts" sentinel used by bytecode vtable dispatch.
 	if (ain->version >= 14) {
 		if (parts_no < 0)
 			return -1;
 		struct parts *parts = parts_try_get(parts_no);
-		if (parts)
+		if (parts) {
+			if (state >= 1 && state <= PARTS_NR_STATES && parts->component_type_from_state[state - 1]) {
+				switch (parts->states[state - 1].type) {
+				case PARTS_CG: return 19;
+				case PARTS_TEXT: return 21;
+				default: break;
+				}
+			}
 			return parts->component_type;
+		}
 		// Bytecode may probe numbers allocated by GetFreeNumber before
 		// the parts entry exists; auto-create so Wrap/IsValid work.
 		if (parts_no >= 1000000000)
