@@ -1641,43 +1641,6 @@ static void Array_Realloc(struct page **array, int new_size)
 	*array = new_a;
 }
 
-// BinarySearch: binary search on sorted int array, returns index or -1
-static int Array_BinarySearch(struct page **self, int key)
-{
-	struct page *array = (self && *self) ? *self : NULL;
-	if (!array || array->nr_vars == 0)
-		return -1;
-	int lo = 0, hi = array->nr_vars - 1;
-	while (lo <= hi) {
-		int mid = lo + (hi - lo) / 2;
-		int val = array->values[mid].i;
-		if (val == key)
-			return mid;
-		else if (val < key)
-			lo = mid + 1;
-		else
-			hi = mid - 1;
-	}
-	return -1;
-}
-
-// LowerBound: returns index of first element >= key (like std::lower_bound)
-static int Array_LowerBound(struct page **self, int key)
-{
-	struct page *array = (self && *self) ? *self : NULL;
-	if (!array || array->nr_vars == 0)
-		return 0;
-	int lo = 0, hi = array->nr_vars;
-	while (lo < hi) {
-		int mid = lo + (hi - lo) / 2;
-		if (array->values[mid].i < key)
-			lo = mid + 1;
-		else
-			hi = mid;
-	}
-	return lo;
-}
-
 // ShallowCopy: return a shallow copy of the array
 static int Array_ShallowCopy(struct page **self)
 {
@@ -1876,21 +1839,31 @@ static void Array_Add(struct page **array, int value)
  * Keep the callback ABI consistent with IsExist/Erase; vm_call_nopop owns
  * argument retains and hll_call restores the enclosing generic context.
  */
-static bool array_query_callback_shape(struct page **array, int func, int stride)
+/* Callback argument shape. Returns 1 when the callback takes an (array,
+ * index) reference, 0 when it takes the element by value, and -1 with *why
+ * set when the shape is not supported. ret is the declared callback return
+ * type: bool for predicates (Find/Count/IsExist), int for the three-way
+ * comparators of LowerBound/UpperBound/BinarySearch. */
+static int array_callback_kind(struct page **array, int func, int stride,
+			       enum ain_data_type ret, const char **why)
 {
-	if (func < 0 || func >= ain->nr_functions)
-		VM_ERROR("Array query: invalid predicate %d", func);
+	if (func < 0 || func >= ain->nr_functions) {
+		*why = "invalid callback";
+		return -1;
+	}
 	struct ain_function *cb = &ain->functions[func];
-	if (cb->address >= ain->code_size || cb->return_type.data != AIN_BOOL
-	    || !cb->vars || cb->nr_vars < cb->nr_args || cb->nr_args < 1 || cb->nr_args > 2)
-		VM_ERROR("Array query: unsupported predicate signature %d", func);
+	if (cb->address >= ain->code_size || cb->return_type.data != ret
+	    || !cb->vars || cb->nr_vars < cb->nr_args || cb->nr_args < 1 || cb->nr_args > 2) {
+		*why = "unsupported callback signature";
+		return -1;
+	}
 	enum ain_data_type type = cb->vars[0].type.data;
 	if (cb->nr_args == 1 && stride == 1) {
 		switch (type) {
 		case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_LONG_INT:
 		case AIN_ENUM: case AIN_ENUM2: case AIN_STRING: case AIN_REF_STRING:
 		case AIN_STRUCT: case AIN_REF_STRUCT: case AIN_WRAP:
-			return false;
+			return 0;
 		default:
 			break;
 		}
@@ -1900,23 +1873,50 @@ static bool array_query_callback_shape(struct page **array, int func, int stride
 			&& (cb->vars[0].type.array_type->data == AIN_IFACE
 			    || cb->vars[0].type.array_type->data == AIN_IFACE_WRAP);
 		if (stride == 2 && (type == AIN_IFACE || type == AIN_IFACE_WRAP || wrapped_iface))
-			return false;
+			return 0;
 		if (stride == 1 && (type == AIN_REF_INT || type == AIN_REF_FLOAT
 		    || type == AIN_REF_BOOL || type == AIN_REF_LONG_INT)) {
 			if (hll_self_slot < 0 || (size_t)hll_self_slot >= heap_size
 			    || HEAP_REF(hll_self_slot) <= 0 || heap[hll_self_slot].type != VM_PAGE
-			    || heap[hll_self_slot].page != *array)
-				VM_ERROR("Array query: predicate reference has no array owner");
-			return true;
+			    || heap[hll_self_slot].page != *array) {
+				*why = "callback reference has no array owner";
+				return -1;
+			}
+			return 1;
 		}
 	}
-	VM_ERROR("Array query: unsupported predicate argument type %d / stride %d", type, stride);
+	*why = "unsupported callback argument type";
+	return -1;
 }
 
-static bool array_query_predicate(struct page **array, int index, int stride, int func)
+/* Same check, but a mismatch stops the VM. Keep the callback ABI consistent
+ * with IsExist/Erase; vm_call_nopop owns argument retains and hll_call
+ * restores the enclosing generic context. */
+static bool array_callback_shape(struct page **array, int func, int stride, enum ain_data_type ret)
+{
+	const char *why = NULL;
+	int kind = array_callback_kind(array, func, stride, ret, &why);
+	if (kind < 0) {
+		int type = AIN_VOID;
+		if (func >= 0 && func < ain->nr_functions && ain->functions[func].vars
+		    && ain->functions[func].nr_vars > 0)
+			type = ain->functions[func].vars[0].type.data;
+		VM_ERROR("Array query: %s (fno %d, argument type %d, stride %d)", why, func, type, stride);
+	}
+	return kind == 1;
+}
+
+static bool array_query_callback_shape(struct page **array, int func, int stride)
+{
+	return array_callback_shape(array, func, stride, AIN_BOOL);
+}
+
+/* Call the callback on one logical element and return its raw int result. */
+static int array_callback_call(struct page **array, int index, int stride, int func,
+			       enum ain_data_type ret)
 {
 	struct ain_function *cb = &ain->functions[func];
-	bool reference = array_query_callback_shape(array, func, stride);
+	bool reference = array_callback_shape(array, func, stride, ret);
 	struct page *before = *array;
 	int size = before->nr_vars;
 	int owner = hll_self_slot;
@@ -1932,18 +1932,23 @@ static bool array_query_predicate(struct page **array, int index, int stride, in
 			stack_push(before->values[index * stride + 1]);
 	}
 	vm_call_nopop(func, cb->nr_args);
-	bool match = stack_pop().i != 0;
+	int result = stack_pop().i;
 	stack_ptr = saved_sp;
 	// FFI passed a local page snapshot. A nested HLL can replace/free the
 	// owner's page; refresh before touching it or outer FFI writes it back.
 	if (tracked) {
 		if ((size_t)owner >= heap_size || HEAP_REF(owner) <= 0 || heap[owner].type != VM_PAGE)
-			VM_ERROR("Array query: predicate released its array owner");
+			VM_ERROR("Array query: callback released its array owner");
 		*array = heap[owner].page;
 	}
 	if (*array != before || !*array || (*array)->type != ARRAY_PAGE || (*array)->nr_vars != size)
-		VM_ERROR("Array query: predicate changed array storage");
-	return match;
+		VM_ERROR("Array query: callback changed array storage");
+	return result;
+}
+
+static bool array_query_predicate(struct page **array, int index, int stride, int func)
+{
+	return array_callback_call(array, index, stride, func, AIN_BOOL) != 0;
 }
 
 static int Array_CountIf(struct page **array, int func)
@@ -2041,6 +2046,211 @@ static int Array_FindIf(struct page **array, int func)
 	return Array_FindIfRange(array, 0, INT_MAX, func);
 }
 
+/* Sorted-range search: LowerBound / UpperBound / BinarySearch.
+ *
+ * Native engine (dohnadohna_dump_SCY.exe, Array dispatcher 0x644300):
+ *   50 LowerBound(value)    0x644b33 -> 0x648e40 -> core 0x646c70
+ *   51 LowerBound(func)     0x644b4e -> 0x648ef0 -> core 0x646c70
+ *   52 UpperBound(value)    0x644b69 -> 0x648fa0 -> core 0x646cc0
+ *   53 UpperBound(func)     0x644b84 -> 0x649050 -> core 0x646cc0
+ *   54 BinarySearch(value)  0x644b9f -> 0x649100 -> core 0x646d10
+ *   55 BinarySearch(func)   0x644bba -> 0x6491b0 -> core 0x646d10
+ * All three run lo = 0, hi = length, mid = (lo + hi) / 2 over a three-way
+ * comparison cmp(i) = sign(elem[i] - target):
+ *   LowerBound:   cmp < 0 -> lo = mid + 1, else hi = mid; return lo.
+ *   UpperBound:   cmp <= 0 -> lo = mid + 1, else hi = mid; return lo.
+ *   BinarySearch: cmp == 0 -> return mid; cmp < 0 -> lo = mid + 1,
+ *                 else hi = mid; a miss returns -1.
+ * An empty array returns 0 (bounds) or -1 (BinarySearch) without touching
+ * the callback.
+ *
+ * The func overloads take a one-element comparator returning int; the key
+ * is captured by the lambda, never passed, and the result is used as is.
+ * The value overloads compare int/bool/enum by 32-bit wrapping subtraction,
+ * float with NaN comparing equal, and strings bytewise then by length.
+ */
+enum array_bound_kind {
+	ARRAY_LOWER_BOUND,
+	ARRAY_UPPER_BOUND,
+	ARRAY_BINARY_SEARCH,
+};
+
+struct array_bound_key {
+	bool by_func;             // func overload: call the comparator
+	int func;                 // comparator fno
+	union vm_value value;     // value search target
+	enum ain_data_type type;  // AIN_INT, AIN_FLOAT or AIN_STRING
+	int stride;               // slots per logical element
+};
+
+static void array_bound_warn(enum array_bound_kind kind, const char *why, int func, int result)
+{
+	static const char *names[] = { "LowerBound", "UpperBound", "BinarySearch" };
+	static int count;
+	if (count++ < 8)
+		WARNING("Array.%s: %s (fno %d); returning %d", names[kind], why, func, result);
+}
+
+// Element type for the value overloads; false keeps the old raw int compare.
+static bool array_bound_value_type(const struct page *array, enum ain_data_type *type)
+{
+	if (array->array.rank > 1 || array_elem_is_2slot())
+		return false;
+	switch (array->a_type) {
+	case AIN_FLOAT: case AIN_ARRAY_FLOAT:
+		*type = AIN_FLOAT;
+		return true;
+	case AIN_STRING: case AIN_ARRAY_STRING:
+		*type = AIN_STRING;
+		return true;
+	case AIN_INT: case AIN_ARRAY_INT: case AIN_BOOL: case AIN_ARRAY_BOOL:
+	case AIN_ENUM: case AIN_ENUM2:
+		if (!array_elem_is_ref()) {
+			*type = AIN_INT;
+			return true;
+		}
+		// PushBack on a NULL page records AIN_ARRAY_INT even for strings.
+		if (array->nr_vars > 0) {
+			int s = array->values[0].i;
+			if (s > 0 && (size_t)s < heap_size && heap[s].type == VM_STRING) {
+				*type = AIN_STRING;
+				return true;
+			}
+		}
+		return false;
+	default:
+		return false;
+	}
+}
+
+static const struct string *array_bound_string(int slot)
+{
+	static struct string empty = { .size = 0 };
+	if (slot <= 0 || (size_t)slot >= heap_size || HEAP_REF(slot) <= 0
+	    || heap[slot].type != VM_STRING || !heap[slot].s)
+		return &empty;
+	return heap[slot].s;
+}
+
+static int array_bound_compare(struct page **array, int index, const struct array_bound_key *k)
+{
+	if (k->by_func)
+		return array_callback_call(array, index, k->stride, k->func, AIN_INT);
+	union vm_value e = (*array)->values[index];
+	switch (k->type) {
+	case AIN_FLOAT:
+		if (k->value.f > e.f)
+			return -1;
+		return e.f > k->value.f;
+	case AIN_STRING: {
+		const struct string *a = array_bound_string(e.i);
+		const struct string *b = array_bound_string(k->value.i);
+		int n = a->size < b->size ? a->size : b->size;
+		int r = n ? memcmp(a->text, b->text, n) : 0;
+		if (r)
+			return r < 0 ? -1 : 1;
+		return (a->size > b->size) - (a->size < b->size);
+	}
+	default:
+		return (int32_t)((uint32_t)e.i - (uint32_t)k->value.i);
+	}
+}
+
+static int array_bound_search(struct page **array, enum array_bound_kind kind,
+			      struct array_bound_key *k)
+{
+	const int miss = kind == ARRAY_BINARY_SEARCH ? -1 : 0;
+	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+		return miss;
+	k->stride = k->by_func ? array_erase_stride(*array) : 1;
+	int count = (*array)->nr_vars / k->stride;
+	if (count <= 0)
+		return miss;
+	if (k->by_func) {
+		const char *why = NULL;
+		if (array_callback_kind(array, k->func, k->stride, AIN_INT, &why) < 0) {
+			// Interface arrays built by Insert do not keep two slots per
+			// element yet, so their comparators do not fit. The old binding
+			// returned an arbitrary position here; do not stop the game.
+			int fallback = kind == ARRAY_BINARY_SEARCH ? -1 : count;
+			array_bound_warn(kind, why, k->func, fallback);
+			return fallback;
+		}
+	} else if (!array_bound_value_type(*array, &k->type)) {
+		k->type = AIN_INT;
+	}
+	int lo = 0, hi = count;
+	while (lo < hi) {
+		int mid = (lo + hi) / 2;
+		int c = array_bound_compare(array, mid, k);
+		if (kind == ARRAY_BINARY_SEARCH && c == 0)
+			return mid;
+		if (kind == ARRAY_UPPER_BOUND ? c <= 0 : c < 0)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return kind == ARRAY_BINARY_SEARCH ? -1 : lo;
+}
+
+static int Array_LowerBoundValue(struct page **array, int value)
+{
+	struct array_bound_key k = { .by_func = false, .value = { .i = value } };
+	return array_bound_search(array, ARRAY_LOWER_BOUND, &k);
+}
+
+static int Array_LowerBoundIf(struct page **array, int func)
+{
+	struct array_bound_key k = { .by_func = true, .func = func };
+	return array_bound_search(array, ARRAY_LOWER_BOUND, &k);
+}
+
+static int Array_UpperBoundValue(struct page **array, int value)
+{
+	struct array_bound_key k = { .by_func = false, .value = { .i = value } };
+	return array_bound_search(array, ARRAY_UPPER_BOUND, &k);
+}
+
+static int Array_UpperBoundIf(struct page **array, int func)
+{
+	struct array_bound_key k = { .by_func = true, .func = func };
+	return array_bound_search(array, ARRAY_UPPER_BOUND, &k);
+}
+
+static int Array_BinarySearchValue(struct page **array, int value)
+{
+	struct array_bound_key k = { .by_func = false, .value = { .i = value } };
+	return array_bound_search(array, ARRAY_BINARY_SEARCH, &k);
+}
+
+static int Array_BinarySearchIf(struct page **array, int func)
+{
+	struct array_bound_key k = { .by_func = true, .func = func };
+	return array_bound_search(array, ARRAY_BINARY_SEARCH, &k);
+}
+
+static void *array_bound_function(const struct ain_hll_function *f)
+{
+	if (!f->arguments || f->nr_arguments != 2 || f->return_type.data != AIN_INT)
+		return NULL;
+	switch (f->arguments[0].type.data) {
+	case AIN_REF_ARRAY_TYPE:
+	case AIN_REF_ARRAY:
+		break;
+	default:
+		return NULL;
+	}
+	enum ain_data_type arg = f->arguments[1].type.data;
+	bool by_func = arg == AIN_HLL_FUNC || arg == AIN_HLL_FUNC_71;
+	if (!by_func && arg != AIN_HLL_PARAM)
+		return NULL;
+	if (!strcmp(f->name, "LowerBound"))
+		return by_func ? (void *)Array_LowerBoundIf : (void *)Array_LowerBoundValue;
+	if (!strcmp(f->name, "UpperBound"))
+		return by_func ? (void *)Array_UpperBoundIf : (void *)Array_UpperBoundValue;
+	return by_func ? (void *)Array_BinarySearchIf : (void *)Array_BinarySearchValue;
+}
+
 /* Select by declared signature, never by a game's function index. */
 void *array_query_function(const struct ain_hll_function *f)
 {
@@ -2109,6 +2319,11 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 		return array_query_function(f);
 	if (!strcmp(f->name, "First"))
 		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
+	if (!strcmp(f->name, "LowerBound") || !strcmp(f->name, "UpperBound")
+	    || !strcmp(f->name, "BinarySearch")) {
+		void *fn = array_bound_function(f);
+		return fn ? fn : fallback;
+	}
 	return fallback;
 }
 
@@ -2394,23 +2609,6 @@ static void Array_UniqueSorted(struct page **array)
 	Array_Unique(array);
 }
 
-/* UpperBound: find first element > value in sorted array */
-static int Array_UpperBound(struct page **array, int value)
-{
-	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0)
-		return 0;
-	int lo = 0, hi = src->nr_vars;
-	while (lo < hi) {
-		int mid = (lo + hi) / 2;
-		if (src->values[mid].i <= value)
-			lo = mid + 1;
-		else
-			hi = mid;
-	}
-	return lo;
-}
-
 /* Equals: check if two arrays are equal */
 static bool Array_Equals(struct page **a, struct page **b)
 {
@@ -2450,8 +2648,8 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Add, Array_Add),
 	HLL_EXPORT(Find, Array_FindValue),
 	    HLL_EXPORT(Realloc, Array_Realloc),
-	    HLL_EXPORT(BinarySearch, Array_BinarySearch),
-	    HLL_EXPORT(LowerBound, Array_LowerBound),
+	    HLL_EXPORT(BinarySearch, Array_BinarySearchValue),
+	    HLL_EXPORT(LowerBound, Array_LowerBoundValue),
 	    HLL_EXPORT(ShallowCopy, Array_ShallowCopy),
 	    HLL_EXPORT(IsExist, Array_IsExist),
 	    HLL_EXPORT(EmplaceBack, Array_EmplaceBack),
@@ -2663,7 +2861,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Min, Array_Min),
 	    HLL_EXPORT(Remain, Array_Remain),
 	    HLL_EXPORT(UniqueSorted, Array_UniqueSorted),
-	    HLL_EXPORT(UpperBound, Array_UpperBound),
+	    HLL_EXPORT(UpperBound, Array_UpperBoundValue),
 	    HLL_EXPORT(Equals, Array_Equals),
 	    HLL_EXPORT(NV_scne, Array_NV_scne),
 	    HLL_EXPORT(NV_sclo, Array_NV_sclo),
