@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：成就通知 GetText 斷言已修正（`2914b40`）。150 秒新遊戲測試保留 88 筆 MSG、assertion 0、堆疊溢位 0，進入據點場景迴圈；34 個 headless 模式符合預期。角色對話框仍無字，這是下一個修正項目。尚非穩定可玩版，存讀檔與記憶體成長仍未解決。**
+**最新狀態：角色對話正文已恢復（`1540b85`），成就通知斷言已修正（`2914b40`）。正式新遊戲測試跑滿 150.223 秒，MSG 88、assertion 0、堆疊溢位 0，進入 RunHome／SceneAzito；36 個 headless 模式符合預期。下一組是存讀檔持久化，必須同時修 GetStructPageList 與 DeserializeStruct。記憶體成長與長時間穩定性仍未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。libsys4 仍固定於 `8c93946`。
 
@@ -101,9 +101,22 @@ GUI 基準在 120.865 秒因成就斷言停止；修正後跑滿 150.367 秒，M
 
 [研究、原版位址、反駁紀錄及重跑工具](research/achievement-text/README.md) · [34 模式摘要](research/achievement-text/verify-summary.txt) · [GUI 摘要](research/achievement-text/gui-summary.json)。截圖、遊戲資產及完整 dump 均留在 repo 外；libsys4 仍為 `8c93946`。程式修正已推送，git ls-remote 與 GitHub branches API 均確認 `2914b40344dce283812d0817517f0959b748791d`。
 
+## 角色對白與陣列生命週期（`1540b85`）
+
+訊息模型清空後，Array.Free 丟棄型別資訊、Clear 換成整數空頁，使下一個 EmplaceBack 回傳兩槽整數參照，而非呼叫端期待的一槽 CMessageText。原版 `0x67ec50` 清空內容但保留 descriptor 與 stride；本次在 v14 保留空頁型別，並補空集合 Find/Count 早退，避免新增 VM_ERROR。
+
+另依原版 ShallowCopy `0x658d40`／`0x67f2e1`，補上 rank 1、具體 struct/string 元素的獨立 owner。兩個陣列仍共享同一元素；刪除任一陣列不再提早釋放另一份的資料。未知形狀、NULL 及舊版本維持原路徑，完整 wrap descriptor 並未重做。
+
+新增 `dialogue-model` 與 `dialogue-copy`：在 `6855c2f` 皆 exit86、sanitizer 0；修正後皆 exit0，完整 36 模式 `VERDICT PASS`。既有 deleted-event 仍為預期 exit87。
+
+正式 GUI 跑滿 150.223 秒、MSG 88、assertion 0、堆疊溢位 0，後段進入 RunHome／SceneAzito。已視讀正常 framebuffer `xsys4_t18.png`，角色正文可見。僅修 typed clear 的中間版本曾出現 PlayerCollection 斷言；合併 owner 修正後未再出現。逐畫格比對也排除了曾懷疑的後續部件蓋字，沒有修改渲染排序。
+
+峰值 RSS 1,898,332,160 bytes。存檔往返、據點所有互動、長時間穩定性及所有中文切字均未驗證，不以本次短測宣稱已可完整遊玩。
+
+[研究與原版位址](research/dialogue-text/README.md) · [36 模式摘要](research/dialogue-text/verify-summary.txt) · [GUI 摘要](research/dialogue-text/gui-summary.json)。修正已推送；git ls-remote 與 GitHub branches API 均確認 `1540b85d5b7621f50416cf8849526f34df2d1c91`。libsys4 維持 `8c93946`。
+
 ## 下一批卡點
 
-- **角色對話視窗不顯示文字**：日誌有對白，框體與頭像有畫，但文字沒出現；旁白用的視窗有字。
 - **存讀檔未持久化**：`SYSTEMONLY_GetStructPageList` 回傳殘值，成就、設定、共有存檔的序列化靜默失效。修它必須同時修 `system.DeserializeStruct`（目前把讀回的資料寫進用完即丟的臨時陣列），否則第二次啟動會「讀到檔案卻丟資料」。反駁者也指出實機的清單只有 1 個 slot，提議的元素數算法要改。
 - **記憶體**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB；配置器偶有「free list 耗盡或損壞」警告。兩版數字相同，屬既有問題。
 
@@ -116,7 +129,7 @@ GUI 基準在 120.865 秒因成就斷言停止；修正後跑滿 150.367 秒，M
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 34 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 36 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
