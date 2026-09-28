@@ -1150,6 +1150,24 @@ static void link_static_library_function(struct hll_function *dst, struct ain_hl
 }
 
 /*
+ * Pick the C implementation for one declaration. Some HLL libraries declare
+ * one name with several shapes (argument count, int or float, an extra
+ * callback); libffi builds each call from the declaration, so every shape
+ * needs a C function with a matching prototype. Libraries without a
+ * selector, and shapes a selector does not handle, keep the name match.
+ */
+static void *hll_select_overload(const char *lib, const struct ain_hll_function *f, void *fallback)
+{
+	extern void *array_select_function(const struct ain_hll_function *f, void *fallback);
+	extern void *math_select_function(const struct ain_hll_function *f, void *fallback);
+	if (!strcmp(lib, "Array"))
+		return array_select_function(f, fallback);
+	if (!strcmp(lib, "Math"))
+		return math_select_function(f, fallback);
+	return fallback;
+}
+
+/*
  * "Link" a library that has been compiled into the xsystem4 executable.
  */
 static struct hll_function *link_static_library(struct ain_library *ainlib, struct static_library *lib)
@@ -1161,10 +1179,7 @@ static struct hll_function *link_static_library(struct ain_library *ainlib, stru
 		for (int j = 0; lib->functions[j].name; j++) {
 			if (!strcmp(ainlib->functions[i].name, lib->functions[j].name)) {
 				void *funcptr = lib->functions[j].fun;
-				if (!strcmp(lib->name, "Array")) {
-					extern void *array_select_function(const struct ain_hll_function *f, void *fallback);
-					funcptr = array_select_function(&ainlib->functions[i], funcptr);
-				}
+				funcptr = hll_select_overload(lib->name, &ainlib->functions[i], funcptr);
 				if (funcptr)
 					link_static_library_function(&dst[i], &ainlib->functions[i], funcptr);
 				found = true;

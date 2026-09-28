@@ -15,6 +15,8 @@
  */
 
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
 #include <stdint.h>
 #include <math.h>
 #include <time.h>
@@ -117,6 +119,166 @@ static float Math_ClampF(float val, float low, float high)
 static float Math_MaxF(float a, float b)
 {
 	return a > b ? a : b;
+}
+
+/* v14 overloads: Abs/Min/Max/Clamp are declared once per shape under one
+ * name. Semantics follow the native Math dispatcher (0x4c6520, table
+ * 0x4c6ca0). The float helpers rely on IEEE NaN and signed-zero behaviour;
+ * do not build this file with -ffast-math. */
+
+// Abs(int): x86 cdq/xor/sub, so INT_MIN stays INT_MIN (libc abs is UB there).
+static int Math_AbsI(int v)
+{
+	return v < 0 ? (int)(0u - (unsigned)v) : v;
+}
+
+// Abs(float): clears the sign bit; NaN stays NaN.
+static float Math_AbsFloat(float v)
+{
+	return fabsf(v);
+}
+
+// MSVC UCRT fminf: a NaN operand yields the other one; ties prefer -0.0.
+static float msvc_fminf(float x, float y)
+{
+	if (isnan(x))
+		return y;
+	if (isnan(y))
+		return x;
+	if (y < x)
+		return y;
+	if (y == x)
+		return signbit(x) ? x : y;
+	return x;
+}
+
+// MSVC UCRT fmaxf: a NaN operand yields the other one; ties prefer +0.0.
+static float msvc_fmaxf(float x, float y)
+{
+	if (isnan(x))
+		return y;
+	if (isnan(y))
+		return x;
+	if (y > x)
+		return y;
+	if (y == x)
+		return signbit(x) ? y : x;
+	return x;
+}
+
+static int Math_Min3(int x, int y, int z)
+{
+	int r = x;
+	if (y < r) r = y;
+	if (z < r) r = z;
+	return r;
+}
+
+static int Math_Min4(int x, int y, int z, int w)
+{
+	int r = Math_Min3(x, y, z);
+	return w < r ? w : r;
+}
+
+static int Math_Max3(int x, int y, int z)
+{
+	int r = x;
+	if (r < y) r = y;
+	if (r < z) r = z;
+	return r;
+}
+
+static int Math_Max4(int x, int y, int z, int w)
+{
+	int r = Math_Max3(x, y, z);
+	return r < w ? w : r;
+}
+
+// Float Min/Max nest the same way as the native code:
+// three arguments f(f(x, y), z), four arguments f(f(x, y), f(z, w)).
+static float Math_Min2F(float x, float y)
+{
+	return msvc_fminf(x, y);
+}
+
+static float Math_Min3F(float x, float y, float z)
+{
+	return msvc_fminf(msvc_fminf(x, y), z);
+}
+
+static float Math_Min4F(float x, float y, float z, float w)
+{
+	return msvc_fminf(msvc_fminf(x, y), msvc_fminf(z, w));
+}
+
+static float Math_Max2F(float x, float y)
+{
+	return msvc_fmaxf(x, y);
+}
+
+static float Math_Max3F(float x, float y, float z)
+{
+	return msvc_fmaxf(msvc_fmaxf(x, y), z);
+}
+
+static float Math_Max4F(float x, float y, float z, float w)
+{
+	return msvc_fmaxf(msvc_fmaxf(x, y), msvc_fmaxf(z, w));
+}
+
+// Clamp(float value, float low, float high): low > value -> low;
+// high > value -> value; else high. A NaN value returns high. No swap.
+static float Math_Clamp3F(float value, float low, float high)
+{
+	if (low > value)
+		return low;
+	if (high > value)
+		return value;
+	return high;
+}
+
+static bool math_all_args(const struct ain_hll_function *f, enum ain_data_type t)
+{
+	for (int i = 0; i < f->nr_arguments; i++) {
+		if (f->arguments[i].type.data != t)
+			return false;
+	}
+	return true;
+}
+
+// The int two-argument Min/Max, int Clamp and int Abs keep their existing
+// C functions; other shapes get their own implementation.
+void *math_select_function(const struct ain_hll_function *f, void *fallback)
+{
+	if (!f || !f->name || !f->arguments)
+		return fallback;
+	int n = f->nr_arguments;
+	bool flt = n > 0 && f->return_type.data == AIN_FLOAT && math_all_args(f, AIN_FLOAT);
+	bool itg = n > 0 && f->return_type.data == AIN_INT && math_all_args(f, AIN_INT);
+	if (!strcmp(f->name, "Abs")) {
+		if (n == 1 && flt)
+			return (void *)Math_AbsFloat;
+		return n == 1 && itg ? (void *)Math_AbsI : fallback;
+	}
+	if (!strcmp(f->name, "Min")) {
+		if (flt && n == 2) return (void *)Math_Min2F;
+		if (flt && n == 3) return (void *)Math_Min3F;
+		if (flt && n == 4) return (void *)Math_Min4F;
+		if (itg && n == 3) return (void *)Math_Min3;
+		if (itg && n == 4) return (void *)Math_Min4;
+		return fallback;
+	}
+	if (!strcmp(f->name, "Max")) {
+		if (flt && n == 2) return (void *)Math_Max2F;
+		if (flt && n == 3) return (void *)Math_Max3F;
+		if (flt && n == 4) return (void *)Math_Max4F;
+		if (itg && n == 3) return (void *)Math_Max3;
+		if (itg && n == 4) return (void *)Math_Max4;
+		return fallback;
+	}
+	if (!strcmp(f->name, "Clamp") && flt && n == 3)
+		return (void *)Math_Clamp3F;
+	return fallback;
 }
 
 static void Math_Swap(int *a, int *b)
@@ -289,7 +451,7 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Sqrt, sqrtf),
 	    HLL_EXPORT(Atan, atanf),
 	    HLL_EXPORT(Atan2, atan2f),
-	    HLL_EXPORT(Abs, abs),
+	    HLL_EXPORT(Abs, Math_AbsI),
 	    HLL_EXPORT(AbsF, fabsf),
 	    HLL_EXPORT(Pow, powf),
 	    HLL_EXPORT(SetSeed, srand),
