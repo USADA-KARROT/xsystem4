@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：角色對話正文已恢復（`1540b85`），成就通知斷言已修正（`2914b40`）。正式新遊戲測試跑滿 150.223 秒，MSG 88、assertion 0、堆疊溢位 0，進入 RunHome／SceneAzito；36 個 headless 模式符合預期。下一組是存讀檔持久化，必須同時修 GetStructPageList 與 DeserializeStruct。記憶體成長與長時間穩定性仍未解決，尚非穩定可玩版。**
+**最新狀態：存讀檔持久化已接上（`173ff1d`）：AFL_GameSave_StructSave／StructLoad 以原版 v9 格式寫出並就地讀回，存檔註解可讀寫，原版引擎的 AFConfig／Collection／AFCommon／AFInfo 讀入後重存逐位元組相同。兩次 150 秒 GUI（新存檔、重用存檔）皆 MSG 88、assertion 0、堆疊溢位 0，第二次確認設定與 Collection 的讀回狀態；39 個 headless 模式通過。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。libsys4 仍固定於 `8c93946`。
 
@@ -115,21 +115,34 @@ GUI 基準在 120.865 秒因成就斷言停止；修正後跑滿 150.367 秒，M
 
 [研究與原版位址](research/dialogue-text/README.md) · [36 模式摘要](research/dialogue-text/verify-summary.txt) · [GUI 摘要](research/dialogue-text/gui-summary.json)。修正已推送；git ls-remote 與 GitHub branches API 均確認 `1540b85d5b7621f50416cf8849526f34df2d1c91`。libsys4 維持 `8c93946`。
 
+## 存讀檔持久化（`173ff1d`）
+
+`Array.SYSTEMONLY_GetStructPageList` 原本是空函式，AIN 卻宣告回傳 `array<int>`，所以 `system.SerializeStruct` 拿到殘值、回 true 卻沒寫檔；`DeserializeStruct` 把讀回的物件放進用完即丟的清單。新增 `src/serialize_struct.c`：依原版 `0x65f160`／`0x65c910`／`0x65f3b0`／`0x65c250` 寫出 v9、解析 v7..v9、依成員 name2 就地載入，並實作存檔註解。GetStructPageList 依 `0x64a2d0` 回傳 struct handle 清單。所有新綁定依宣告形狀選用，舊形狀保留原綁定。
+
+兩份反駁照改的部分：ffi 在 HLL 重入 VM 後從參數複本釋放 by-value 參數（讀檔時建構子會覆寫參數槽）；`delete_page_vars` 不再把 int 類 option 值當 heap slot 釋放；巢狀記錄參照在套用前檢查；陣列先換新頁再釋放舊元素；寫檔改用同步後的暫存檔再 rename。不同意的兩項與理由見研究文件。
+
+新增 `save-list`、`save-roundtrip`、`save-comment` 三個模式：72a33e5 上 9/9、16/18、5/6 個案例失敗（舊寫出器在 `savedata.c:125` ASan BUS），修正後全過；完整 39 模式 `VERDICT PASS`，deleted-event 仍為預期 exit 87，sanitizer 0。原版存檔的本機副本：AFConfig、Collection、AFCommon、AFInfo 讀入後重存逐位元組相同；SaveData1000／5000 可在 headless 讀入 LocalGame。
+
+GUI：Run 1 新存檔 150.389 秒，寫出 Collection.asd；Run 2 以 Run 1 的存檔加上標記作種子，150.225 秒，AFConfig／Achievement（原版檔副本）／Collection 讀入成功、無警告，AFConfig 的 `<ConfigVoiceMutedByNsfw>` 被遊戲由 1 改回 0 並重寫，Collection 重寫後標記仍在且已讀事件沒有重複。兩次都是 MSG 88、assertion 0、堆疊溢位 0，已查看 framebuffer。PE_Save／PE_Load 與成就通知在兩次執行中都沒有觸發，讀檔後的成就通知仍未驗證。
+
+[研究、原版位址、反駁處理與重跑](research/save-persistence/README.md) · [39 模式摘要](research/save-persistence/verify-summary.txt) · [GUI 摘要](research/save-persistence/gui-summary.json)
+
 ## 下一批卡點
 
-- **存讀檔未持久化**：`SYSTEMONLY_GetStructPageList` 回傳殘值，成就、設定、共有存檔的序列化靜默失效。修它必須同時修 `system.DeserializeStruct`（目前把讀回的資料寫進用完即丟的臨時陣列），否則第二次啟動會「讀到檔案卻丟資料」。反駁者也指出實機的清單只有 1 個 slot，提議的元素數算法要改。
+- **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
 - **記憶體**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB；配置器偶有「free list 耗盡或損壞」警告。兩版數字相同，屬既有問題。
 
 ## 尚未處理
 
 - 上述卡點。
+- 存讀檔的後續：DeleteSaveFile 在檔案不存在時原版回 true；`init_struct_slot` 把 enum 陣列配成 `AIN_ARRAY`，刪除時會把 enum 值當 slot 釋放（R2）；每次經 `AFL_GameSave_*` 包裝呼叫留下一個帶 TEMP 旗標的 A_REF 暫存字串；EnemyNamePostfixGenerator／FixedRandomValue 建構後刪除會殘留 slot；PE_Save／PE_Load 不保存 `component_type_from_state`，讀檔後成就通知未驗證。
 - String 庫的字元規則：CN 原版全面用 GBK 首位元組 0x81..0xFE，xsystem4 的 `Length`、`Find`、`GetPart` 等用 SJIS 規則，中文會被切錯。要一次改齊（Length 110 處、GetPart 76 處），並涉及 libsys4。
 - `Array.First` 的 predicate 版逐實體 slot 走訪；兩槽介面陣列（`Insert` 不保留兩槽）；`Array.Realloc` 縮小不釋放、誤用 `hll_arg3` 當 struct 編號；`Array.Duplicate`（僅編輯器）；`HashMap.Any/Empty/Free`（CN 無法執行到）；PartsEngine `AddChild/InsertChild/RemoveChild/ClearChild`。
 - DeletedEvent 23 個殘留 slot；人眼畫面（本環境無單一視窗擷取權限，只驗 framebuffer）；長時間穩定性。
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 36 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 39 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

@@ -1,0 +1,164 @@
+# verify-step.sh save-persistence-173ff1d：三個新模式的逐案例結果（XSYS4_TRACE_SAVE=1 的 SAVE 行一併保留）
+
+## save-list
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+L1 binding and consumer check                PASS
+L2 X_A_INIT list                             PASS
+L3 two-slot list                             PASS
+L4 invalid elements                          PASS
+L5 one invalid element empties               PASS
+L6 null self                                 PASS
+L7 wrap box                                  PASS
+L8 cached page metadata                      PASS
+  list nr_vars=1 a_type=14 v0=2 obj=2 ret=1
+L9 AFL_GameSave_StructSave list              PASS
+SAVE-LIST summary: 0/9 case(s) failed
+
+## save-roundtrip
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_AFCommon.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+R1 AFCommon v9 format                        PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_AFCommon.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE gspl n=1 stride=1 out=1
+SAVE des T_AFCommon.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+  live 0 -> 0, nonzero-ref slots 0 -> 2
+R2 AFCommon in-place load                    PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_AFConfig.asd roots=1 recs=6 strs=0 arrs=5 bytes=2263 ok
+SAVE gspl n=1 stride=1 out=1
+SAVE des T_AFConfig.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=3 kept2=0 shared_str=0
+R3 AFConfig nested round trip                PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Achievement.asd roots=1 recs=5 strs=2 arrs=3 bytes=525 ok
+SAVE gspl n=1 stride=1 out=1
+SAVE des T_Achievement.asd roots=1 ver=9 ok new_structs=2 new_strings=2 arrays=1 kept2=0 shared_str=0
+R4 Achievement round trip                    PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Collection.asd roots=1 recs=9 strs=3 arrs=5 bytes=797 ok
+SAVE des T_Collection.asd roots=1 ver=9 ok new_structs=4 new_strings=4 arrays=4 kept2=0 shared_str=0
+R5 Collection with constructed members       PASS
+SAVE ser T_History.asd roots=1 recs=3 strs=0 arrs=0 bytes=663 ok
+SAVE des T_History.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+SAVE ser T_Effect.asd roots=1 recs=3 strs=1 arrs=0 bytes=336 ok
+SAVE des T_Effect.asd roots=1 ver=9 ok new_structs=1 new_strings=1 arrays=0 kept2=0 shared_str=0
+SAVE ser T_LocalSave.asd roots=1 recs=2 strs=0 arrs=0 bytes=187 ok
+SAVE des T_LocalSave.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+R6 option and delegate fields                PASS
+SAVE ser T_Spot.asd roots=1 recs=2 strs=0 arrs=0 bytes=228 ok
+SAVE des T_Spot.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+SAVE ser T_NullCfg.asd roots=1 recs=2 strs=0 arrs=2 bytes=1530 ok
+SAVE des T_NullCfg.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=1 kept2=0 shared_str=0
+R7 -1 members                                PASS
+SAVE ser T_Empty.asd roots=0 fail(empty list)
+SAVE ser T_Empty.asd roots=0 fail(empty list)
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Empty.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE des T_Empty.asd roots=0 fail(empty list)
+SAVE des T_Empty.asd roots=0 fail(empty list)
+R8 empty and null lists                      PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Good.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE des T_Bad.asd roots=1 ver=0 fail(key)
+SAVE des T_Bad.asd roots=1 ver=0 fail(key)
+SAVE des T_Bad.asd roots=1 ver=0 fail(magic)
+SAVE des T_Bad.asd roots=1 ver=9 fail(group)
+SAVE des T_Bad.asd roots=1 ver=9 fail(truncated)
+SAVE des T_Bad.asd roots=1 ver=0 fail(read)
+SAVE des T_Bad.asd roots=1 ver=0 fail(read)
+SAVE des T_Bad.asd roots=1 ver=0 fail(read)
+SAVE des T_Bad.asd roots=1 ver=0 fail(key)
+SAVE des T_Bad.asd roots=1 ver=6 fail(version)
+SAVE des T_Bad.asd roots=1 ver=10 fail(version)
+SAVE des T_Bad.asd roots=1 ver=0 fail(magic)
+SAVE des T_Bad.asd roots=1 ver=9 fail(group)
+SAVE des T_Bad.asd roots=1 ver=9 fail(record keyval index)
+SAVE des T_Bad.asd roots=1 ver=9 fail(root record)
+SAVE des T_Bad.asd roots=1 ver=9 fail(fewer globals than roots)
+SAVE des T_Bad.asd roots=1 ver=9 fail(array shape)
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_GoodCfg.asd roots=1 recs=6 strs=0 arrs=5 bytes=2251 ok
+SAVE des T_Bad.asd roots=1 ver=9 fail(record value reference)
+SAVE des T_Bad.asd roots=1 ver=9 fail(record value reference)
+SAVE des T_Bad.asd roots=1 ver=9 fail(record value reference)
+SAVE des T_Bad.asd roots=1 ver=9 fail(record value reference)
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_GoodCfg.asd roots=1 recs=6 strs=0 arrs=5 bytes=2251 ok
+SAVE des T_Bad.asd roots=1 ver=9 fail(unknown struct 'GameConfiX' <- CASConfigData.m_gameConfig) new_structs=0 new_strings=0 arrays=1 kept2=0 shared_str=0
+  body truncated to 1                ret=0 untouched=1 live +0
+  body truncated to 8                ret=0 untouched=1 live +0
+  body truncated to 20               ret=0 untouched=1 live +0
+  body truncated to 97               ret=0 untouched=1 live +0
+  body truncated to 247              ret=0 untouched=1 live +0
+  container signature                ret=0 untouched=1 live +0
+  raw size 0x7fffffff                ret=0 untouched=1 live +0
+  container truncated                ret=0 untouched=1 live +0
+  key                                ret=0 untouched=1 live +0
+  version 6                          ret=0 untouched=1 live +0
+  version 10                         ret=0 untouched=1 live +0
+  magic 999                          ret=0 untouched=1 live +0
+  group                              ret=0 untouched=1 live +0
+  record index                       ret=0 untouched=1 live +0
+  root record out of range           ret=0 untouched=1 live +0
+  globals fewer than roots           ret=0 untouched=1 live +0
+  array shape (flat n != dims)       ret=0 untouched=1 live +0
+  nested struct reference 0          ret=0 untouched=1 live +0
+  nested struct reference 6          ret=0 untouched=1 live +0
+  nested struct reference -2         ret=0 untouched=1 live +0
+  nested struct reference 2147483647 ret=0 untouched=1 live +0
+  unknown struct during apply ret=0 MessageSpeedRate=0.25 m_gameConfig=-1 live +0
+R9 corrupt files                             PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_AFCommon.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE des T_AFCommon.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+R10 other struct type                        PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_AFCommon.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE des T_AFCommon.asd roots=2 ver=9 fail(root record)
+R11 list longer than globals                 PASS
+SAVE ser T_Shared.asd roots=1 recs=6 strs=1 arrs=2 bytes=465 ok
+SAVE des T_Shared.asd roots=1 ver=9 ok new_structs=2 new_strings=0 arrays=2 kept2=0 shared_str=0
+R12 shared sub-object                        PASS
+SAVE ser T_Atomic.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE ser T_Atomic.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 fail(write failed)
+R13 failed write keeps the old file          PASS
+R14 declaration-shape selection              PASS
+R15 original-engine copies (optional)        PASS
+  fileName ref=0 list ref=0 dest ref=1 new ref=1
+R16 ffi argument release after re-entry      PASS
+R17 option<int> payload on delete            PASS
+SAVE ser T_Action.asd roots=1 recs=2 strs=0 arrs=0 bytes=336 ok
+SAVE des T_Action.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+SAVE des T_Action.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+R18 option<wrap<struct>> flag                PASS
+SAVE-ROUNDTRIP summary: 0/18 case(s) failed
+
+## save-comment
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Cmt.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE cmt-w T_Cmt.asd len=39 ok
+SAVE cmt-r T_Cmt.asd r=1
+C1 write and read a comment                  PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Cmt.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE cmt-r T_Cmt.asd r=0
+C2 file without a comment                    PASS
+SAVE cmt-r T_None.asd r=-1 (read)
+C3 missing file                              PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Cmt.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE cmt-w T_Cmt.asd len=39 ok
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Cmt.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE cmt-r T_Cmt.asd r=0
+C4 a new save drops the comment              PASS
+SAVE gspl n=1 stride=1 out=1
+SAVE ser T_Cmt.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE cmt-w T_None.asd len=39 fail(read)
+SAVE cmt-w T_V7.asd len=39 fail(version)
+SAVE cmt-r T_V8.asd r=-1 (version)
+C5 refused writes and versions               PASS
+C6 binding and CIF                           PASS
+SAVE-COMMENT summary: 0/6 case(s) failed

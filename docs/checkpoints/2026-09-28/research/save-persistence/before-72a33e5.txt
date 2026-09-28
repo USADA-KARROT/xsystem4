@@ -1,0 +1,73 @@
+# before-check.sh 72a33e5 save-list save-roundtrip save-comment（src/include 取自 72a33e5，fixture 為本組版本）
+save-list            rc=1 san=0  SAVE-LIST summary: 9/9 case(s) failed
+save-roundtrip       rc=1 san=4  SAVE-ROUNDTRIP summary: 16/18 case(s) failed
+save-comment         rc=1 san=0  SAVE-COMMENT summary: 5/6 case(s) failed
+
+## save-list
+  FAIL sp_l1_binding:508: Array[83] is not the v14 implementation
+L1 binding and consumer check                FAIL (exit 1)
+  FAIL sp_l2_real_shape:527: result 1801514144 is not a one-element array
+L2 X_A_INIT list                             FAIL (exit 1)
+  FAIL sp_l3_stride2:547: stride-2 list
+L3 two-slot list                             FAIL (exit 1)
+  FAIL sp_l4_invalid:560: element -1 must give an empty list
+L4 invalid elements                          FAIL (exit 1)
+  FAIL sp_l5_partial:570: one invalid element must empty the whole list
+L5 one invalid element empties               FAIL (exit 1)
+  FAIL sp_l6_null:578: null self
+L6 null self                                 FAIL (exit 1)
+  FAIL sp_l7_wrap_box:590: wrap box
+L7 wrap box                                  FAIL (exit 1)
+  FAIL sp_l8_cached_page:604: list
+L8 cached page metadata                      FAIL (exit 1)
+  FAIL sp_l9_bytecode:630: AFL_GameSave_StructSave did not pass [obj] to SerializeStruct
+L9 AFL_GameSave_StructSave list              FAIL (exit 1)
+
+## save-roundtrip
+  FAIL sp_r1_afcommon_format:662: file missing or not a GD container
+R1 AFCommon v9 format                        FAIL (exit 1)
+  FAIL sp_r2_afcommon_load:700: StructLoad returned false
+R2 AFCommon in-place load                    FAIL (exit 1)
+  FAIL sp_r3_afconfig:770: load
+R3 AFConfig nested round trip                FAIL (exit 1)
+  FAIL sp_r4_achievement:822: file
+R4 Achievement round trip                    FAIL (exit 1)
+  FAIL sp_r5_collection:886: DeserializeStruct
+R5 Collection with constructed members       FAIL (exit 1)
+  FAIL sp_r6_option_delegate:923: option<int> some
+R6 option and delegate fields                FAIL (exit 1)
+SUMMARY: AddressSanitizer: BUS savedata.c:125 in add_value_to_gsave
+R7 -1 members                                FAIL (signal 6)
+  FAIL sp_r8_empty_list:1006: Serialize(empty) must be false
+R8 empty and null lists                      FAIL (exit 1)
+  FAIL sp_r9_corrupt:1050: files
+R9 corrupt files                             FAIL (exit 1)
+  FAIL sp_r10_other_struct:1161: struct names are not compared
+R10 other struct type                        FAIL (exit 1)
+R11 list longer than globals                 PASS
+  FAIL sp_r12_shared:1197: a shared object is written once per reference (records 0)
+R12 shared sub-object                        FAIL (exit 1)
+  FAIL sp_r13_atomic:1218: save into a read-only folder must fail
+R13 failed write keeps the old file          FAIL (exit 1)
+  FAIL sp_r14_selector:1234: system.SerializeStruct is not bound to system_SerializeStruct_v14
+R14 declaration-shape selection              FAIL (exit 1)
+R15 original-engine copies (optional)        PASS
+  FAIL sp_r16_reentry:1367: arguments released from overwritten stack slots
+R16 ffi argument release after re-entry      FAIL (exit 1)
+  FAIL sp_r17_option_int_delete:1379: option<int> payload released as a slot (ref 0)
+R17 option<int> payload on delete            FAIL (exit 1)
+  FAIL sp_r18_option_wrap:1397: file
+R18 option<wrap<struct>> flag                FAIL (exit 1)
+
+## save-comment
+  FAIL sp_c1_write_read:1484: length 0 -> 0
+C1 write and read a comment                  FAIL (exit 1)
+  FAIL sp_c2_no_comment:1502: file without comment: flag=1 text=(null)
+C2 file without a comment                    FAIL (exit 1)
+C3 missing file                              PASS
+  FAIL sp_c4_resave_clears:1522: a new save must drop the comment
+C4 a new save drops the comment              FAIL (exit 1)
+  FAIL sp_c5_errors:1533: empty comment must be refused
+C5 refused writes and versions               FAIL (exit 1)
+  FAIL sp_c6_cif:1554: ReadSerializeStructComment binding
+C6 binding and CIF                           FAIL (exit 1)

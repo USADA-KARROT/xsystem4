@@ -1,0 +1,159 @@
+{
+  "run1_new_save_folder": {
+    "binary_sha256": "a1e711d470637c44156a16466011556a68fab8bb9736e47a59daae30358f8d62",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "engine_args": [
+      "--skip-title"
+    ],
+    "env": {
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_TRACE_SAVE": "1"
+    },
+    "duration_limit_seconds": 150,
+    "stop_reason": "duration",
+    "matched": [],
+    "elapsed_seconds": 150.389,
+    "exit_code": 0,
+    "peak_rss_bytes": 1908981760,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 0,
+    "deserialize_warnings": 0,
+    "save_trace": [
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Achievement.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Collection.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE ser Collection.asd roots=1 recs=5 strs=1 arrs=3 bytes=511 ok"
+    ],
+    "x_assign_clamp_warnings": 3,
+    "seeded": false,
+    "saves": [
+      {
+        "name": "AFBGMMode.asd",
+        "size": 58,
+        "sha256": "ae8bf2961a3a5caa4e08afc3342c24248324f8b8a867a4d8e0d4715954824bce",
+        "at_start": null,
+        "rewritten": true,
+        "content_changed": true
+      },
+      {
+        "name": "AFCGMode.asd",
+        "size": 237,
+        "sha256": "8c4260012bd79ccd7ac543db0697500d4506e81bce32db18073a021eb3f6a27d",
+        "at_start": null,
+        "rewritten": true,
+        "content_changed": true
+      },
+      {
+        "name": "Collection.asd",
+        "size": 269,
+        "sha256": "fec0ca8ba917d60a73ace4fa862fdc100092054ff8849f3a1857c811aa215cfb",
+        "at_start": null,
+        "rewritten": true,
+        "content_changed": true
+      }
+    ],
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t39.png",
+    "viewed_frame_sha256": "3458cc9750518cfb7138e960baaff7f9c717eb15178c77ac5a1ac2ad3ed2e874",
+    "observed": "場景、立繪、對話框與角色正文可見；後段 heartbeat 在 DohnaDohna@RunHome / SceneAzito",
+    "notes": "Achievement.asd／Collection.asd 不存在時讀取靜默回 false；第一個 ADV 事件前寫出 Collection.asd；150 秒內沒有成就事件"
+  },
+  "run2_seeded_save_folder": {
+    "binary_sha256": "a1e711d470637c44156a16466011556a68fab8bb9736e47a59daae30358f8d62",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "engine_args": [
+      "--skip-title"
+    ],
+    "env": {
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_TRACE_SAVE": "1"
+    },
+    "duration_limit_seconds": 150,
+    "stop_reason": "duration",
+    "matched": [],
+    "elapsed_seconds": 150.225,
+    "exit_code": 0,
+    "peak_rss_bytes": 2016313344,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 0,
+    "deserialize_warnings": 0,
+    "save_trace": [
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des AFConfig.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=3 kept2=0 shared_str=0",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Achievement.asd roots=1 ver=9 ok new_structs=1 new_strings=1 arrays=1 kept2=0 shared_str=0",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Collection.asd roots=1 ver=9 ok new_structs=0 new_strings=2 arrays=2 kept2=0 shared_str=0",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE ser AFConfig.asd roots=1 recs=6 strs=0 arrs=5 bytes=2251 ok",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE ser Collection.asd roots=1 recs=5 strs=2 arrs=3 bytes=532 ok"
+    ],
+    "x_assign_clamp_warnings": 5,
+    "seeded": true,
+    "saves": [
+      {
+        "name": "AFBGMMode.asd",
+        "size": 58,
+        "sha256": "ae8bf2961a3a5caa4e08afc3342c24248324f8b8a867a4d8e0d4715954824bce",
+        "at_start": "ae8bf2961a3a5caa4e08afc3342c24248324f8b8a867a4d8e0d4715954824bce",
+        "rewritten": false,
+        "content_changed": false
+      },
+      {
+        "name": "AFCGMode.asd",
+        "size": 237,
+        "sha256": "8c4260012bd79ccd7ac543db0697500d4506e81bce32db18073a021eb3f6a27d",
+        "at_start": "8c4260012bd79ccd7ac543db0697500d4506e81bce32db18073a021eb3f6a27d",
+        "rewritten": false,
+        "content_changed": false
+      },
+      {
+        "name": "AFConfig.asd",
+        "size": 881,
+        "sha256": "154f0e1f78bbc2d0c40297289518d0ae1b947e6ec734556dcb93fea140aa5ca3",
+        "at_start": "5945f8ff3e549b61b3dbbc1076ea89d678c15e1fe07e5f3ebf0b2645d6ee99ad",
+        "rewritten": true,
+        "content_changed": true
+      },
+      {
+        "name": "Achievement.asd",
+        "size": 269,
+        "sha256": "498810c36b941b426c8b286d5a30e5affa4df79d5507cf1ecb88f00e79983ba3",
+        "at_start": "498810c36b941b426c8b286d5a30e5affa4df79d5507cf1ecb88f00e79983ba3",
+        "rewritten": false,
+        "content_changed": false
+      },
+      {
+        "name": "Collection.asd",
+        "size": 286,
+        "sha256": "1af9a182424faf4084eaad70de2bf43eb420b954afdcc10c3a819fc50f76bc16",
+        "at_start": "1af9a182424faf4084eaad70de2bf43eb420b954afdcc10c3a819fc50f76bc16",
+        "rewritten": true,
+        "content_changed": false
+      }
+    ],
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t37.png",
+    "viewed_frame_sha256": "f287bb7811d3dea479f7ebc41606e25d90423ff4f49a51b4b6c54a1b94c1fff2",
+    "frame_t18_sha256": "f7f9ee803b8ba35c07954ebe6b551116100a76fee965b70e67c926e6b49e96b9",
+    "frame_t18_note": "與 research/dialogue-text/gui-summary.json 的 after.viewed_frame_sha256 相同",
+    "seed": "Run 1 的存檔資料夾複本 + save-seed（Collection 已讀事件依排序插入 ZZ_PERSIST_PROBE；AFConfig <ConfigVoiceMutedByNsfw>=1）+ 原版 Achievement.asd 的副本",
+    "observed": "讀入 AFConfig／Achievement／Collection 皆 ok；AFConfig 重寫後 <ConfigVoiceMutedByNsfw> 1→0；Collection 被重寫但內容與種子相同（標記保留、已讀事件未重複）；Achievement 未變；角色正文可見",
+    "unsorted_seed_control": "先前一次種子把標記附加在已讀清單尾端（未排序），同一事件被重複加入，Collection 由 2 筆變 3 筆；修正種子後不再重複"
+  },
+  "not_exercised": [
+    "ResumeSave/ResumeLoad（PE_Save/PE_Load）",
+    "成就完成與成就通知",
+    "AFCommon/AFInfo/SaveData 寫出",
+    "存檔清單畫面的註解讀取"
+  ]
+}

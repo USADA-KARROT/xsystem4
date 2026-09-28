@@ -1,0 +1,44 @@
+# 原版引擎存檔的本機副本（XS4_SAVE_ORIG_COPY），173ff1d 的 ASan 探針；只保留結果行，不含檔案內容或遊戲文字
+
+## save-roundtrip R15
+== R15 original-engine copies (optional)
+SAVE des AFConfig.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=3 kept2=0 shared_str=0
+SAVE ser RT_AFConfig.asd roots=1 recs=6 strs=0 arrs=5 bytes=2263 ok
+SAVE des Collection.asd roots=1 ver=9 ok new_structs=20 new_strings=10 arrays=4 kept2=0 shared_str=0
+SAVE ser RT_Collection.asd roots=1 recs=25 strs=10 arrs=5 bytes=1444 ok
+SAVE des Achievement.asd roots=1 ver=9 ok new_structs=1 new_strings=1 arrays=1 kept2=0 shared_str=0
+SAVE ser RT_Achievement.asd roots=1 recs=4 strs=1 arrs=3 bytes=484 ok
+SAVE des AFCommon.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+SAVE ser RT_AFCommon.asd roots=1 recs=2 strs=0 arrs=1 bytes=248 ok
+SAVE des AFInfo.asd roots=1 ver=9 ok new_structs=0 new_strings=0 arrays=0 kept2=0 shared_str=0
+SAVE ser RT_AFInfo.asd roots=1 recs=2 strs=0 arrs=1 bytes=465 ok
+  AFConfig.asd ret=1
+    re-saved body: original 2263 bytes, xsystem4 2263 bytes, identical
+    MessageSpeedRate=0.5 MoveMouseCursorSpeedID=2 joy=50 shortcut=4 nsfw.muted=0
+  Collection.asd ret=1
+    re-saved body: original 1444 bytes, xsystem4 1444 bytes, identical
+    events=9 reached=1
+  Achievement.asd ret=1
+    re-saved body: original 744 bytes, xsystem4 484 bytes, first difference at 65
+    achievement states=1
+  AFCommon.asd ret=1
+    re-saved body: original 248 bytes, xsystem4 248 bytes, identical
+  AFInfo.asd ret=1
+    re-saved body: original 465 bytes, xsystem4 465 bytes, identical
+R15 original-engine copies (optional)        PASS
+
+## save-localgame
+MainEXFile: loaded 126 blocks from '<XS4_GAME>/dohnadohnaEx.ex'
+SAVE des SaveData1000.asd roots=1 ver=9 ok new_structs=1109 new_strings=214 arrays=391 kept2=0 shared_str=0
+SAVE ser RT_SaveData1000.asd roots=1 recs=1177 strs=571 arrs=668 bytes=189583 ok
+  SaveData1000.asd load=1 live 0 -> 4 (constructed) -> 2510 (loaded)
+  re-saved body: original 243912 bytes, xsystem4 189583 bytes, first difference at 37
+  teardown live 9 (base 0)
+G1 original SaveData1000 into LocalGame      PASS
+SAVE des SaveData5000.asd roots=1 ver=9 ok new_structs=1014 new_strings=163 arrays=343 kept2=0 shared_str=0
+SAVE ser RT_SaveData5000.asd roots=1 recs=1078 strs=513 arrs=618 bytes=85636 ok
+  SaveData5000.asd load=1 live 0 -> 4 (constructed) -> 2302 (loaded)
+  re-saved body: original 139267 bytes, xsystem4 85636 bytes, first difference at 65
+  teardown live 9 (base 0)
+G2 original SaveData5000 into LocalGame      PASS
+SAVE-LOCALGAME summary: 0/2 case(s) failed
