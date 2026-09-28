@@ -2303,6 +2303,231 @@ static void *array_bound_function(const struct ain_hll_function *f)
 	return by_func ? (void *)Array_BinarySearchIf : (void *)Array_BinarySearchValue;
 }
 
+/* Min / Max / Last(pred).
+ *
+ * Native (Array dispatcher 71-82; each #0/#1 and #2/#3 pair shares a helper):
+ *   Last(pred)  73/74 -> 0x648c80 -> 0x646c10: scan from n-1 down, first hit.
+ *   Min         75-78 -> loop 0x646af0: best = 0; for j = 1..n-1,
+ *               if less(e[j], e[best]) best = j   (first minimum on ties)
+ *   Max         79-82 -> loop 0x646b50: best = 0; for j = 1..n-1,
+ *               if !less(e[j], e[best]) best = j  (last maximum on ties)
+ * The lambda is called as less(lhs = e[j], rhs = e[best]). Every CN Min/Max
+ * site passes a two-argument bool lambda "key(lhs) < key(rhs)"; Max gets
+ * the same less, not a greater. The default less (0x645dd0) compares
+ * int/bool/enum signed, float with <, strings bytewise; any other type uses
+ * an always-false less, so Min() yields e[0] and Max() e[n-1]. With one
+ * element the lambda is never called. Results go through Array_At, which
+ * owns the ref hll_param return contract; a miss is a null reference.
+ */
+enum array_order_kind {
+	ARRAY_ORDER_NONE,
+	ARRAY_ORDER_INT,
+	ARRAY_ORDER_FLOAT,
+	ARRAY_ORDER_STRING,
+};
+
+// hll_arg3 is 1 for both int and float elements, so the page type decides.
+static enum array_order_kind array_order_value_kind(const struct page *a)
+{
+	if (a->array.rank > 1 || array_elem_is_2slot())
+		return ARRAY_ORDER_NONE;
+	switch (a->a_type) {
+	case AIN_FLOAT: case AIN_ARRAY_FLOAT:
+		return ARRAY_ORDER_FLOAT;
+	case AIN_STRING: case AIN_ARRAY_STRING:
+		return ARRAY_ORDER_STRING;
+	case AIN_INT: case AIN_ARRAY_INT: case AIN_BOOL: case AIN_ARRAY_BOOL: case AIN_ENUM:
+		if (!array_elem_is_ref())
+			return ARRAY_ORDER_INT;
+		// PushBack on a NULL page records AIN_ARRAY_INT even for strings.
+		if (a->nr_vars > 0 && a->values[0].i > 0 && (size_t)a->values[0].i < heap_size
+		    && heap[a->values[0].i].type == VM_STRING)
+			return ARRAY_ORDER_STRING;
+		return ARRAY_ORDER_NONE;
+	default:
+		return ARRAY_ORDER_NONE;
+	}
+}
+
+static bool array_order_value_less(const struct page *a, int lhs, int rhs,
+				   enum array_order_kind kind)
+{
+	union vm_value x = a->values[lhs], y = a->values[rhs];
+	switch (kind) {
+	case ARRAY_ORDER_INT:
+		return x.i < y.i;
+	case ARRAY_ORDER_FLOAT:
+		return x.f < y.f;
+	case ARRAY_ORDER_STRING: {
+		const struct string *sx = array_bound_string(x.i), *sy = array_bound_string(y.i);
+		int n = sx->size < sy->size ? sx->size : sy->size;
+		int r = n ? memcmp(sx->text, sy->text, n) : 0;
+		return r ? r < 0 : sx->size < sy->size;
+	}
+	default:
+		return false;
+	}
+}
+
+/* Comparator shape: 0 = two elements by value, 1 = two by-reference
+ * primitives ([owner, index] each), -1 = unsupported. */
+static int array_order_callback_kind(struct page **array, int func, int stride)
+{
+	if (func < 0 || func >= ain->nr_functions || stride != 1)
+		return -1;
+	struct ain_function *cb = &ain->functions[func];
+	if (cb->address >= ain->code_size || cb->return_type.data != AIN_BOOL
+	    || !cb->vars || cb->nr_vars < cb->nr_args)
+		return -1;
+	if (cb->nr_args == 2) {
+		for (int k = 0; k < 2; k++) {
+			switch (cb->vars[k].type.data) {
+			case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_LONG_INT:
+			case AIN_ENUM: case AIN_ENUM2: case AIN_STRING: case AIN_REF_STRING:
+			case AIN_STRUCT: case AIN_REF_STRUCT: case AIN_WRAP:
+				break;
+			default:
+				return -1;
+			}
+		}
+		return 0;
+	}
+	enum ain_data_type t = cb->nr_args == 4 ? cb->vars[0].type.data : AIN_VOID;
+	if ((t == AIN_REF_INT || t == AIN_REF_FLOAT || t == AIN_REF_BOOL || t == AIN_REF_LONG_INT)
+	    && cb->vars[1].type.data == AIN_VOID && cb->vars[2].type.data == t
+	    && cb->vars[3].type.data == AIN_VOID) {
+		if (hll_self_slot < 0 || (size_t)hll_self_slot >= heap_size
+		    || HEAP_REF(hll_self_slot) <= 0 || heap[hll_self_slot].type != VM_PAGE
+		    || heap[hll_self_slot].page != *array)
+			return -1;
+		return 1;
+	}
+	return -1;
+}
+
+// less(e[lhs], e[rhs]) through the game's lambda; same stack and owner
+// refresh discipline as array_callback_call.
+static bool array_order_less(struct page **array, int lhs, int rhs, int func, bool reference)
+{
+	struct ain_function *cb = &ain->functions[func];
+	struct page *before = *array;
+	int size = before->nr_vars;
+	int owner = hll_self_slot;
+	bool tracked = owner >= 0 && (size_t)owner < heap_size && HEAP_REF(owner) > 0
+		&& heap[owner].type == VM_PAGE && heap[owner].page == before;
+	int saved_sp = stack_ptr;
+	if (reference) {
+		stack_push(owner);
+		stack_push(lhs);
+		stack_push(owner);
+		stack_push(rhs);
+	} else {
+		stack_push(before->values[lhs]);
+		stack_push(before->values[rhs]);
+	}
+	vm_call_nopop(func, cb->nr_args);
+	bool less = stack_pop().i != 0;
+	stack_ptr = saved_sp;
+	if (tracked) {
+		if ((size_t)owner >= heap_size || HEAP_REF(owner) <= 0 || heap[owner].type != VM_PAGE)
+			VM_ERROR("Array.Min/Max: comparator released its array owner");
+		*array = heap[owner].page;
+	}
+	if (*array != before || !*array || (*array)->type != ARRAY_PAGE || (*array)->nr_vars != size)
+		VM_ERROR("Array.Min/Max: comparator changed array storage");
+	return less;
+}
+
+// Index of the extreme element, or -1 for a missing or empty array.
+static int array_order_extreme(struct page **array, bool has_func, int func, bool want_max)
+{
+	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+		return -1;
+	int stride = array_erase_stride(*array);
+	int n = (*array)->nr_vars / stride;
+	if (n <= 0)
+		return -1;
+	if (n == 1)
+		return 0;
+	int reference = 0;
+	enum array_order_kind kind = ARRAY_ORDER_NONE;
+	if (has_func) {
+		reference = array_order_callback_kind(array, func, stride);
+		if (reference < 0) {
+			static int warned;
+			int fallback = want_max ? n - 1 : 0;
+			if (warned++ < 8)
+				WARNING("Array.%s: unsupported comparator fno %d (stride %d); returning element %d",
+					want_max ? "Max" : "Min", func, stride, fallback);
+			return fallback;
+		}
+	} else {
+		kind = array_order_value_kind(*array);
+		if (kind == ARRAY_ORDER_NONE) {
+			static int warned;
+			if (warned++ < 8)
+				WARNING("Array.%s: element type %d has no default order",
+					want_max ? "Max" : "Min", (*array)->a_type);
+		}
+	}
+	int best = 0;
+	for (int j = 1; j < n; j++) {
+		bool less = has_func
+			? array_order_less(array, j, best, func, reference == 1)
+			: array_order_value_less(*array, j * stride, best * stride, kind);
+		if (want_max ? !less : less)
+			best = j;
+	}
+	return best;
+}
+
+static int Array_MinNoPred(struct page **array)
+{
+	return Array_At(array, array_order_extreme(array, false, 0, false));
+}
+
+static int Array_MaxNoPred(struct page **array)
+{
+	return Array_At(array, array_order_extreme(array, false, 0, true));
+}
+
+static int Array_MinPredicate(struct page **array, int func)
+{
+	return Array_At(array, array_order_extreme(array, true, func, false));
+}
+
+static int Array_MaxPredicate(struct page **array, int func)
+{
+	return Array_At(array, array_order_extreme(array, true, func, true));
+}
+
+// Last element whose predicate is true. The old binding ignored the
+// predicate and returned the last element; keep that for shapes the
+// predicate ABI does not cover instead of stopping the VM.
+static int Array_LastPredicate(struct page **array, int func)
+{
+	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+		return Array_At(array, -1);
+	int stride = array_erase_stride(*array);
+	int n = (*array)->nr_vars / stride;
+	if (n <= 0)
+		return Array_At(array, -1);
+	const char *why = NULL;
+	if (array_callback_kind(array, func, stride, AIN_BOOL, &why) < 0) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("Array.Last: %s (fno %d); returning the last element", why, func);
+		return Array_Last(array);
+	}
+	for (int i = n - 1; i >= 0; i--) {
+		if (!*array || (*array)->type != ARRAY_PAGE || i >= (*array)->nr_vars / stride)
+			break;
+		if (array_query_predicate(array, i, stride, func))
+			return Array_At(array, i);
+	}
+	return Array_At(array, -1);
+}
+
 /* Select by declared signature, never by a game's function index. */
 void *array_query_function(const struct ain_hll_function *f)
 {
@@ -2382,6 +2607,16 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 	}
 	if (!strcmp(f->name, "First"))
 		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
+	if (!strcmp(f->name, "Min") || !strcmp(f->name, "Max") || !strcmp(f->name, "Last")) {
+		bool func = array_decl_has_func(f);
+		if (f->nr_arguments != (func ? 2 : 1) || f->return_type.data != AIN_REF_HLL_PARAM)
+			return fallback;
+		if (!strcmp(f->name, "Last"))
+			return func ? (void *)Array_LastPredicate : fallback;
+		if (!strcmp(f->name, "Min"))
+			return func ? (void *)Array_MinPredicate : (void *)Array_MinNoPred;
+		return func ? (void *)Array_MaxPredicate : (void *)Array_MaxNoPred;
+	}
 	if (!strcmp(f->name, "LowerBound") || !strcmp(f->name, "UpperBound")
 	    || !strcmp(f->name, "BinarySearch")) {
 		void *fn = array_bound_function(f);
@@ -2444,74 +2679,6 @@ static void Array_Concat(struct page **self, int src_wrap)
 {
 	// self is ref array, src is wrap<array> (heap slot)
 	Array_AddRange(self, src_wrap);
-}
-
-// Max: find element with maximum value via delegate comparison.
-// Returns AIN_REF_HLL_PARAM: pushes directly to VM stack (same as At/Last/First).
-// For struct types (arg3==2): push 1 slot (heap slot of best element).
-// For simple types: push 2 slots [array_heap_slot, element_index].
-static int Array_Max(struct page **array, int func)
-{
-	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0) {
-		if (!array_elem_is_ref()) {
-			stack_push(-1);
-			stack_push(0);
-		} else {
-			stack_push(0);
-		}
-		return 0;
-	}
-	if (func < 0 || func >= ain->nr_functions) {
-		// No comparator — find max value directly (for int arrays)
-		int best_idx = 0;
-		for (int i = 1; i < src->nr_vars; i++) {
-			if (src->values[i].i > src->values[best_idx].i)
-				best_idx = i;
-		}
-		if (!array_elem_is_ref()) {
-			stack_push(hll_self_slot);
-			stack_push(best_idx);
-		} else {
-			int val = src->values[best_idx].i;
-			if (val > 0)
-				heap_ref(val);
-			stack_push(val);
-		}
-		return 0;
-	}
-
-	struct ain_function *cb = &ain->functions[func];
-	int best_idx = 0;
-	int best_score = INT32_MIN;
-
-	for (int i = 0; i < src->nr_vars; i++) {
-		int saved_sp = stack_ptr;
-		if (cb->nr_args >= 2) {
-			stack_push(src->values[i]);
-			stack_push(0);
-		} else {
-			stack_push(src->values[i]);
-		}
-		vm_call_nopop(func, cb->nr_args);
-		int score = stack_pop().i;
-		stack_ptr = saved_sp;
-		if (score > best_score) {
-			best_score = score;
-			best_idx = i;
-		}
-	}
-
-	if (!array_elem_is_ref()) {
-		stack_push(hll_self_slot);
-		stack_push(best_idx);
-	} else {
-		int val = src->values[best_idx].i;
-		if (val > 0)
-			heap_ref(val);
-		stack_push(val);
-	}
-	return 0;
 }
 
 
@@ -2599,20 +2766,6 @@ static void Array_DescSort(struct page **array)
 		return;
 	struct page *a = *array;
 	qsort(a->values, a->nr_vars, sizeof(union vm_value), qsort_int_desc);
-}
-
-/* Min: find minimum element */
-static int Array_Min(struct page **array)
-{
-	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0)
-		return 0;
-	int min_val = src->values[0].i;
-	for (int i = 1; i < src->nr_vars; i++) {
-		if (src->values[i].i < min_val)
-			min_val = src->values[i].i;
-	}
-	return min_val;
 }
 
 /* Remain: keep elements matching predicate (opposite of EraseAll) */
@@ -2710,7 +2863,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Fill, Array_Fill),
 	    HLL_EXPORT(SYSTEMONLY_GetStructPageList, Array_SYSTEMONLY_GetStructPageList),
 	    HLL_EXPORT(Concat, Array_Concat),
-	    HLL_EXPORT(Max, Array_Max),
+	    HLL_EXPORT(Max, Array_MaxNoPred),
 	    HLL_EXPORT(Reverse, Array_Reverse),
 	    HLL_EXPORT(NV_copy, Array_NV_copy),
 	    HLL_EXPORT(NV_add, Array_NV_add),
@@ -2908,7 +3061,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(AscSort, Array_AscSort),
 	    HLL_EXPORT(DescSort, Array_DescSort),
 	    HLL_EXPORT(FindLast, Array_FindLastValue),
-	    HLL_EXPORT(Min, Array_Min),
+	    HLL_EXPORT(Min, Array_MinNoPred),
 	    HLL_EXPORT(Remain, Array_Remain),
 	    HLL_EXPORT(UniqueSorted, Array_UniqueSorted),
 	    HLL_EXPORT(UpperBound, Array_UpperBoundValue),
