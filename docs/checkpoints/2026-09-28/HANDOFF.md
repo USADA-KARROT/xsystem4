@@ -5,8 +5,8 @@
 ## 現在的位置
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 固定於 `8c93946`。
-- 新遊戲可推進開場旁白並進入據點場景。自動點擊 120 秒推進 88 句對白後，停在成就通知的斷言。
-- Headless 驗證 33 個模式全部符合預期，0 個 sanitizer 診斷。
+- 成就通知斷言已由 `2914b40` 修正；150 秒測試 MSG 88、assertion 0、堆疊溢位 0，進入據點場景迴圈。詳見 STATUS.md。下一項為角色對話框無字。
+- Headless 驗證 34 個模式全部符合預期，0 個 sanitizer 診斷。
 - 尚非可玩版：存讀檔沒有持久化、角色對話框不顯示文字、記憶體持續成長。
 
 ## 硬規則
@@ -54,7 +54,7 @@
 
 ## 下一批任務（依優先序）
 
-1. **成就通知斷言**：`SceneAchievementNotify.jaf:12 (nonnull) m_act.GetText("TextAchievement")`。第一個成就解鎖時，activity 依名稱找不到文字元件。先確認 activity 如何建立具名元件，以及查名稱走哪個 HLL 呼叫，再判斷是實作缺漏還是另一個原型錯配。
+1. **已完成：成就通知斷言**（`2914b40`，實際為型別失配；研究見 `research/achievement-text/`）：`SceneAchievementNotify.jaf:12 (nonnull) m_act.GetText("TextAchievement")`。第一個成就解鎖時，activity 依名稱找不到文字元件。先確認 activity 如何建立具名元件，以及查名稱走哪個 HLL 呼叫，再判斷是實作缺漏還是另一個原型錯配。
 2. **角色對話框不顯示文字**：日誌裡 `MSG` 有內容，框體與說話者頭像都有畫，但文字沒出現；旁白用的視窗有字。比較兩種視窗的文字元件建立與繪製路徑。
 3. **存讀檔持久化**：`Array.SYSTEMONLY_GetStructPageList` 回傳殘值，所以 `system.SerializeStruct` 拿到 NULL，直接回 true 卻什麼都沒寫。成就、設定與共有存檔都因此靜默失效。它必須和 `system.DeserializeStruct` 一起修，否則第二次啟動會讀到檔案卻丟掉資料。原版位置是 Array case 83 `0x644ecd` 跳到 `0x64a2d0`。反駁者證實實機清單只配 1 個 slot，先前提議的算法是錯的。細節見 [第二批調查](research/batch2-investigation.txt) 與 [未合併提案](research/unmerged/)。
 4. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB，配置器偶有「free list 耗盡或損壞」警告。這是既有問題，修正前後數字相同。

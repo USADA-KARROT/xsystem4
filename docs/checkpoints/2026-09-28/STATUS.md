@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：新遊戲可推進開場旁白並進入據點場景，120 秒自動點擊推進 88 句對白。Array、Math、String 的同名 overload 與多個 HLL 的 C 原型已改為依宣告選實作；activity 事件分派的無限遞迴已修正。下一個卡點是成就通知的 `GetText("TextAchievement")` 斷言，另有角色對話視窗不顯示文字（見文末）。尚非穩定可玩版，存讀檔尚未持久化。**
+**最新狀態：成就通知 GetText 斷言已修正（`2914b40`）。150 秒新遊戲測試保留 88 筆 MSG、assertion 0、堆疊溢位 0，進入據點場景迴圈；34 個 headless 模式符合預期。角色對話框仍無字，這是下一個修正項目。尚非穩定可玩版，存讀檔與記憶體成長仍未解決。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。libsys4 仍固定於 `8c93946`。
 
@@ -91,9 +91,18 @@ Headless 全部 33 個模式（[總表](array-overload/probe-summary-6ec6258.txt
 
 GUI（150 秒自動點擊）：`4c7b820` 前對白停在第 11 句並有三萬餘次堆疊溢位；之後推進到第 88 句、無溢位，畫面到據點場景（背景、立繪、對話框框體、說話者頭像正確）。第二批其餘 commit 之後結果相同，配置器警告數也相同，沒有新的回歸。
 
+## 成就通知（`2914b40`）
+
+名稱查找本來就成功；失敗原因是低階部件沒有建立各狀態的正確型別。普通狀態應為文字 21，移入與按下應為空 CG 19；getter 原本全部回 0。原版 `0x5b8bc0` 依狀態名稱建立部件，`0x4df5b0`／`0x533d80` 分別回 21／19。相關 HLL 都只有一種宣告，本組沒有更動 ABI 綁定。
+
+新增 `activity-text` 合成 fixture：基準 `2167bbc` exit 86，修正後 exit 0；驗證具名查找、混排狀態、未知分支覆蓋、主文字與 ruby 分離、raw setter、無效 state 回退與 v13 相容。完整 34 模式 `VERDICT PASS`，sanitizer 0；deleted-event 仍為預期 exit 87。
+
+GUI 基準在 120.865 秒因成就斷言停止；修正後跑滿 150.367 秒，MSG 88、assertion 0、堆疊溢位 0，後段 heartbeat 進入 SceneAzito 場景迴圈。已查看 framebuffer：背景、人物、對話框及頭像可見，角色對白仍空白。通知動畫、據點互動與存檔往返未驗證；不能將本次通過解讀為可玩版。
+
+[研究、原版位址、反駁紀錄及重跑工具](research/achievement-text/README.md) · [34 模式摘要](research/achievement-text/verify-summary.txt) · [GUI 摘要](research/achievement-text/gui-summary.json)。截圖、遊戲資產及完整 dump 均留在 repo 外；libsys4 仍為 `8c93946`。程式修正已推送，git ls-remote 與 GitHub branches API 均確認 `2914b40344dce283812d0817517f0959b748791d`。
+
 ## 下一批卡點
 
-- **成就通知斷言**：`SceneAchievementNotify.jaf:12 (nonnull) m_act.GetText("TextAchievement")`，第一個成就解鎖時 activity 依名稱找不到文字元件。
 - **角色對話視窗不顯示文字**：日誌有對白，框體與頭像有畫，但文字沒出現；旁白用的視窗有字。
 - **存讀檔未持久化**：`SYSTEMONLY_GetStructPageList` 回傳殘值，成就、設定、共有存檔的序列化靜默失效。修它必須同時修 `system.DeserializeStruct`（目前把讀回的資料寫進用完即丟的臨時陣列），否則第二次啟動會「讀到檔案卻丟資料」。反駁者也指出實機的清單只有 1 個 slot，提議的元素數算法要改。
 - **記憶體**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB；配置器偶有「free list 耗盡或損壞」警告。兩版數字相同，屬既有問題。
@@ -107,7 +116,7 @@ GUI（150 秒自動點擊）：`4c7b820` 前對白停在第 11 句並有三萬�
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 33 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 34 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **2026-09-28 macOS／多娜多娜 CN：新遊戲可推進開場並進入據點場景（自動點擊 120 秒推進 88 句）；Array、Math、String 同名 overload 與多個 HLL 原型已依宣告修正；尚非穩定可玩版。**
-> 下一個卡點是成就通知的 GetText 斷言與角色對話框無字；存讀檔尚未持久化，DeletedEvent 回收殘留與記憶體成長仍待處理。
+> **2026-09-28 macOS／多娜多娜 CN：成就通知 GetText 斷言已修正（2914b40）；150 秒測試推進 88 筆對白記錄，無斷言與堆疊溢位；34 個 headless 模式符合預期，尚非穩定可玩版。**
+> 下一個修正項目是角色對話框無字；存讀檔持久化、DeletedEvent 殘留與記憶體成長仍待處理。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
