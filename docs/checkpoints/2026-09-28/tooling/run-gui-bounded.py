@@ -1,39 +1,100 @@
 #!/usr/bin/env python3
-"""Bounded, unattended GUI run. Isolated home/saves, stops on error pattern or time.
-usage: run-gui-bounded.py <binary> <source_dir(cwd, has fonts/shaders)> <game_dir> <run_dir> <seconds> [extra engine args...]
-env passthrough: any XSYS4_* / XSYSTEM4_* already set are dropped; set HOLD via RUN_HOLD_KEYS, e.g. RUN_HOLD_KEYS=13
+"""Bounded, unattended GUI run. Isolated home/saves; stops on an error pattern or time limit.
+
+usage: run-gui-bounded.py <binary> <source_dir> <game_dir> <run_dir> <seconds> [engine args...]
+
+source_dir is the cwd (fonts/ and shaders/ are read from it). Existing XSYS4_*/XSYSTEM4_*
+variables are dropped so a run is reproducible; use the RUN_* variables instead:
+  RUN_HOLD_KEYS=13          hold Return (passes the notice screen)
+  RUN_FRAMEBUFFER_SHOTS=1   engine framebuffer PNG every 2 s into <run_dir>/framebuffer/
+  RUN_AUTO_CLICK=1200        engine auto-click every N ms at RUN_AUTO_CLICK_X/Y (default 640,400)
+  RUN_WINDOW_SHOTS=15,35,55 capture only the game window at these seconds into <run_dir>/window-NNs.png
+                            (needs find-window next to this script, built from find-window.swift,
+                            and Screen Recording permission for the calling process)
 """
 import sys, os, subprocess, signal, time, json, hashlib, datetime
 from pathlib import Path
-binary, source, game, run, seconds = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]), int(sys.argv[5])
+
+binary, source, game, run, seconds = (Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
+                                      Path(sys.argv[4]), int(sys.argv[5]))
 extra = sys.argv[6:]
-run.mkdir(parents=True, exist_ok=False); (run/'home').mkdir(); (run/'saves').mkdir()
-env = {k:v for k,v in os.environ.items() if not k.startswith(('XSYS4_','XSYSTEM4_','RUN_'))}
-env.update(XSYSTEM4_HOME=str(run/'home'), XSYS4_STAGE2_PERF='1')
-if os.environ.get('RUN_HOLD_KEYS'): env['XSYS4_HOLD_KEYS'] = os.environ['RUN_HOLD_KEYS']
-cmd = [str(binary), '--echo-message', '--save-folder', str(run/'saves')] + extra + [str(game)]
+run.mkdir(parents=True, exist_ok=False)
+(run / 'home').mkdir(); (run / 'saves').mkdir()
+env = {k: v for k, v in os.environ.items() if not k.startswith(('XSYS4_', 'XSYSTEM4_', 'RUN_'))}
+env.update(XSYSTEM4_HOME=str(run / 'home'), XSYS4_STAGE2_PERF='1')
+if os.environ.get('RUN_HOLD_KEYS'):
+    env['XSYS4_HOLD_KEYS'] = os.environ['RUN_HOLD_KEYS']
+if os.environ.get('RUN_AUTO_CLICK'):
+    env['XSYS4_AUTO_CLICK'] = os.environ['RUN_AUTO_CLICK']
+    env['XSYS4_AUTO_CLICK_X'] = os.environ.get('RUN_AUTO_CLICK_X', '640')
+    env['XSYS4_AUTO_CLICK_Y'] = os.environ.get('RUN_AUTO_CLICK_Y', '400')
+if os.environ.get('RUN_FRAMEBUFFER_SHOTS'):
+    (run / 'framebuffer').mkdir()
+    env['XSYS4_SCREENSHOT_DIR'] = str(run / 'framebuffer')
+window_shots = sorted(int(x) for x in os.environ.get('RUN_WINDOW_SHOTS', '').split(',') if x.strip())
+
+cmd = [str(binary), '--echo-message', '--save-folder', str(run / 'saves')] + extra + [str(game)]
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
 meta = dict(started_at=datetime.datetime.now().astimezone().isoformat(), command=cmd, cwd=str(source),
-            binary_sha256=sha(binary), ain_sha256=sha(game/'dohnadohna.ain'), env={k:v for k,v in env.items() if k.startswith(('XSYS4_','XSYSTEM4_'))},
-            duration_limit_seconds=seconds)
-PATTERNS = [b'error: addresssanitizer', b'runtime error:', b'system.error:', b'vm error', b'vm_call_timeout:', b'assertion failed', b'assert(', b'personality.jaf']
-with (run/'engine.log').open('wb') as log:
-    proc = subprocess.Popen(cmd, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-    begin = time.monotonic(); stop_at=None; off=0; carry=b''
+            binary_sha256=sha(binary), ain_sha256=sha(game / 'dohnadohna.ain'),
+            env={k: v for k, v in env.items() if k.startswith(('XSYS4_', 'XSYSTEM4_'))},
+            duration_limit_seconds=seconds, window_shots=[])
+PATTERNS = [b'error: addresssanitizer', b'runtime error:', b'system.error:', b'vm error',
+            b'vm_call_timeout:', b'assertion failed', b'assert(', b'call stack overflow']
+LOG_LIMIT = int(os.environ.get('RUN_LOG_LIMIT_MB', '300')) * 1024 * 1024
+
+
+def capture_window(tag):
+    """Capture only the game window. Needs find-window and capture-window (ScreenCaptureKit)
+    built next to this script, and Screen Recording permission for the calling app."""
+    here = Path(__file__).resolve().parent
+    fw, cw = here / 'find-window', here / 'capture-window'
+    if not fw.exists() or not cw.exists():
+        return f'{tag}: tools missing'
+    out = subprocess.run([str(fw), 'xsystem4'], capture_output=True, text=True).stdout
+    rows = [r.split('\t') for r in out.splitlines() if r.strip()]
+    area = lambda r: eval(r[4].replace('x', '*')) if len(r) >= 5 else 0
+    rows = [r for r in rows if len(r) >= 5 and r[3] == 'layer=0' and area(r) > 0]
+    if not rows:
+        return f'{tag}: no window'
+    rows.sort(key=lambda r: -area(r))
+    path = run / f'window-{tag}.png'
+    res = subprocess.run([str(cw), rows[0][0], str(path)], capture_output=True, text=True)
+    return f'{tag}: id={rows[0][0]} size={rows[0][4]} rc={res.returncode} {res.stdout.strip()[:160]}'
+
+
+
+with (run / 'engine.log').open('wb') as log:
+    proc = subprocess.Popen(cmd, cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    begin = time.monotonic(); stop_at = None; off = 0; carry = b''
     while True:
         pid, status, usage = os.wait4(proc.pid, os.WNOHANG)
-        if pid: rc = os.waitstatus_to_exitcode(status); break
-        el = time.monotonic()-begin
+        if pid:
+            rc = os.waitstatus_to_exitcode(status)
+            break
+        el = time.monotonic() - begin
         if stop_at is None:
-            with (run/'engine.log').open('rb') as r:
-                r.seek(off); new=r.read(); off=r.tell()
-            tail=(carry+new).lower(); carry=tail[-512:]
-            hit=[p.decode() for p in PATTERNS if p in tail]
-            if hit or el>=seconds or (run/'STOP').exists():
-                meta['stop_reason']='error_log' if hit else ('operator' if (run/'STOP').exists() else 'duration'); meta['matched']=hit
-                os.kill(proc.pid, signal.SIGTERM); stop_at=time.monotonic()
-        elif time.monotonic()-stop_at>5: os.kill(proc.pid, signal.SIGKILL)
+            while window_shots and el >= window_shots[0]:
+                t = window_shots.pop(0)
+                meta['window_shots'].append(capture_window(f'{t:03d}s'))
+            with (run / 'engine.log').open('rb') as r:
+                r.seek(off); new = r.read(); off = r.tell()
+            tail = (carry + new).lower(); carry = tail[-512:]
+            hit = [p.decode() for p in PATTERNS if p in tail]
+            big = off > LOG_LIMIT
+            if hit or big or el >= seconds or (run / 'STOP').exists():
+                meta['stop_reason'] = ('error_log' if hit else 'log_limit' if big
+                                       else 'operator' if (run / 'STOP').exists() else 'duration')
+                meta['matched'] = hit
+                if hit:
+                    meta['window_shots'].append(capture_window('on-error'))
+                os.kill(proc.pid, signal.SIGTERM); stop_at = time.monotonic()
+        elif time.monotonic() - stop_at > 5:
+            os.kill(proc.pid, signal.SIGKILL)
         time.sleep(0.2)
-meta.update(exit_code=rc, elapsed_seconds=round(time.monotonic()-begin,3), peak_rss_bytes=usage.ru_maxrss, finished_at=datetime.datetime.now().astimezone().isoformat())
-(run/'run.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2))
-print(json.dumps({k:meta[k] for k in ['stop_reason','matched','exit_code','elapsed_seconds','peak_rss_bytes']}, ensure_ascii=False))
+meta.update(exit_code=rc, elapsed_seconds=round(time.monotonic() - begin, 3), peak_rss_bytes=usage.ru_maxrss,
+            finished_at=datetime.datetime.now().astimezone().isoformat())
+(run / 'run.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+print(json.dumps({k: meta[k] for k in ['stop_reason', 'matched', 'exit_code', 'elapsed_seconds',
+                                       'peak_rss_bytes', 'window_shots']}, ensure_ascii=False))
