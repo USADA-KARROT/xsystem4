@@ -2046,6 +2046,58 @@ static int Array_FindIf(struct page **array, int func)
 	return Array_FindIfRange(array, 0, INT_MAX, func);
 }
 
+/* FindLast mirrors Find but scans backwards, and its end is inclusive.
+ * Native (Array dispatcher 43/45/47/49 -> reverse scan 0x646c10):
+ * begin = max(begin, 0); end = end >= length ? length - 1 : end;
+ * for i = end down to begin, return the first match; otherwise -1.
+ * The full-range forms pass begin 0 and end length. An empty array
+ * returns -1 before the callback is looked at. */
+static int Array_FindLastValueRange(struct page **array, int begin, int end, int value)
+{
+	const struct page *src = array ? *array : NULL;
+	if (!src || src->type != ARRAY_PAGE || src->nr_vars <= 0)
+		return -1;
+	enum ain_data_type type = array_query_value_type(src);
+	int count = src->nr_vars;
+	if (begin < 0) begin = 0;
+	if (end >= count) end = count - 1;
+	union vm_value needle = {.i = value};
+	for (int i = end; i >= begin; i--) {
+		if (array_query_value_equal(src->values[i], needle, type))
+			return i;
+	}
+	return -1;
+}
+
+static int Array_FindLastValue(struct page **array, int value)
+{
+	return Array_FindLastValueRange(array, 0, INT_MAX, value);
+}
+
+static int Array_FindLastIfRange(struct page **array, int begin, int end, int func)
+{
+	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+		return -1;
+	int stride = array_erase_stride(*array);
+	int count = (*array)->nr_vars / stride;
+	if (count <= 0)
+		return -1;
+	array_query_callback_shape(array, func, stride);
+	if (begin < 0) begin = 0;
+	if (end >= count) end = count - 1;
+	for (int i = end; i >= begin && *array && (*array)->type == ARRAY_PAGE
+	     && i < (*array)->nr_vars / stride; i--) {
+		if (array_query_predicate(array, i, stride, func))
+			return i;
+	}
+	return -1;
+}
+
+static int Array_FindLastIf(struct page **array, int func)
+{
+	return Array_FindLastIfRange(array, 0, INT_MAX, func);
+}
+
 /* Sorted-range search: LowerBound / UpperBound / BinarySearch.
  *
  * Native engine (dohnadohna_dump_SCY.exe, Array dispatcher 0x644300):
@@ -2272,7 +2324,8 @@ void *array_query_function(const struct ain_hll_function *f)
 			return Array_CountIf;
 		return NULL;
 	}
-	if (strcmp(f->name, "Find"))
+	bool last = !strcmp(f->name, "FindLast");
+	if (!last && strcmp(f->name, "Find"))
 		return NULL;
 	bool range = f->nr_arguments == 4;
 	if (range) {
@@ -2282,10 +2335,16 @@ void *array_query_function(const struct ain_hll_function *f)
 		return NULL;
 	}
 	enum ain_data_type arg = f->arguments[range ? 3 : 1].type.data;
-	if (arg == AIN_HLL_PARAM)
+	if (arg == AIN_HLL_PARAM) {
+		if (last)
+			return range ? (void *)Array_FindLastValueRange : (void *)Array_FindLastValue;
 		return range ? (void *)Array_FindValueRange : (void *)Array_FindValue;
-	if (arg == AIN_HLL_FUNC || arg == AIN_HLL_FUNC_71)
+	}
+	if (arg == AIN_HLL_FUNC || arg == AIN_HLL_FUNC_71) {
+		if (last)
+			return range ? (void *)Array_FindLastIfRange : (void *)Array_FindLastIf;
 		return range ? (void *)Array_FindIfRange : (void *)Array_FindIf;
+	}
 	return NULL;
 }
 
@@ -2317,6 +2376,10 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 		return array_isexist_function(f);
 	if (!strcmp(f->name, "Numof") || !strcmp(f->name, "Count") || !strcmp(f->name, "Find"))
 		return array_query_function(f);
+	if (!strcmp(f->name, "FindLast")) {
+		void *fn = array_query_function(f);
+		return fn ? fn : fallback;
+	}
 	if (!strcmp(f->name, "First"))
 		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
 	if (!strcmp(f->name, "LowerBound") || !strcmp(f->name, "UpperBound")
@@ -2536,19 +2599,6 @@ static void Array_DescSort(struct page **array)
 		return;
 	struct page *a = *array;
 	qsort(a->values, a->nr_vars, sizeof(union vm_value), qsort_int_desc);
-}
-
-/* FindLast: find last element matching value or predicate */
-static int Array_FindLast(struct page **array, int value)
-{
-	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0)
-		return -1;
-	for (int i = src->nr_vars - 1; i >= 0; i--) {
-		if (src->values[i].i == value)
-			return i;
-	}
-	return -1;
 }
 
 /* Min: find minimum element */
@@ -2857,7 +2907,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(All, Array_All),
 	    HLL_EXPORT(AscSort, Array_AscSort),
 	    HLL_EXPORT(DescSort, Array_DescSort),
-	    HLL_EXPORT(FindLast, Array_FindLast),
+	    HLL_EXPORT(FindLast, Array_FindLastValue),
 	    HLL_EXPORT(Min, Array_Min),
 	    HLL_EXPORT(Remain, Array_Remain),
 	    HLL_EXPORT(UniqueSorted, Array_UniqueSorted),
