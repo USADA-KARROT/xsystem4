@@ -1,0 +1,32 @@
+libno 以 bind.tsv 為準：HashMap=15，PartsEngine=27；arg3 一律 0（與 bytecode 一致）。
+
+A. HashMap（fno 0 Create、3 Add、6 Empty、7 Any、8 Any#1）
+1. hll_call(15,0,0) 取 id1，再 hll_call(15,0,0) 取 id2（空 map）。
+2. push id1、push 字串 slot "alpha"、push 1 → hll_call(15,3,0)，預期 1。
+3. 汙染暫存器：push id1、push 字串 slot "zzz" → hll_call(15,8,0)，預期 0。緊接著 push id1 → hll_call(15,7,0)，預期 1（修正前是 UB，掃描探針得 0）。
+4. push id2 → hll_call(15,7,0)，預期 0。push 99 → hll_call(15,7,0)，預期 1（原版怪癖）。
+5. push id1、"alpha" → hll_call(15,8,0)，預期 1；push 99、"alpha" → 預期 0。
+6. Empty：push 99 → hll_call(15,6,0) 預期 0；id2 預期 1；id1 預期 0。
+7. link 斷言：ain->libraries[15].functions[7] 與 [8] 的 fun 指標不同，且都不是 NULL（不走 UNIMPL）。
+
+B. PartsEngine（fno 479 SetLayoutBoxLayoutType、481 SetLayoutBoxReturn、482 IsLayoutBoxReturn、483 GetLayoutBoxReturnSize）
+1. push no=100、push 0 → hll_call(27,479,0)，把該 parts 設成 layout box。
+2. push 100、push 1、push float 320.0（union vm_value .f）→ hll_call(27,481,0)。
+3. push 100 → hll_call(27,482,0) 預期 1；push 100 → hll_call(27,483,0)，pop 後以 .f 讀，預期 320.0f（修正前讀 s0 殘值，libffi harness 實測是 0）。
+4. push 12345 → hll_call(27,483,0) 預期 0.0f（parts 不存在）。
+5. link 斷言：functions[481]/[483] 的 fun 是 F 包裝；另造一個 int 形狀的假宣告交給 selector，要拿回 fallback。
+
+已完成的獨立 libffi 驗證（沒有 VM，只照 AIN CIF 直接 ffi_call selector 選出的函式）：scratchpad/overload2/hashmap/t_hashmap（修正版 HashMap.c，全部符合預期）、t_old（原版，Any7 是 UB）、t_pe（舊版 0/0 → 修正 320/320；int 宣告回 fallback）。
+
+ARTIFACTS:
+<scratchpad>/overload2/hashmap/HashMap.c
+<scratchpad>/overload2/hashmap/HashMap.diff
+<scratchpad>/overload2/hashmap/pe_layoutbox_select.inc
+<scratchpad>/overload2/hashmap/ffi_hook.inc
+<scratchpad>/overload2/hashmap/dups.py
+<scratchpad>/overload2/hashmap/fscan.py
+<scratchpad>/overload2/hashmap/t_hashmap.c
+<scratchpad>/overload2/hashmap/t_old.c
+<scratchpad>/overload2/hashmap/t_pe.c
+<scratchpad>/overload2/hashmap/t_stubs.c
+<scratchpad>/overload2/hashmap/find.py

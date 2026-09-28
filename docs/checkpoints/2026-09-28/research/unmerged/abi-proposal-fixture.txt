@@ -1,0 +1,33 @@
+實作位置：<scratchpad>/overload2/g-cif/probe/cif_probe.c，建置腳本為同目錄的 build.py，用法是 `python3 build.py head|headctrl|fix|ctrl`。建置方式：沿用 fixtures/probe-harness/work/stage2/asan-build 的 compile_commands 與 string-stage4 build-asan.json 的 link_command，只替換改過檔案的 .o，並以 #include FFI_SOURCE 帶入被測的 ffi.c。探針不改 harness，也不改 worktree。執行：`ASAN_OPTIONS=detect_leaks=0 ./head/cif-probe <dohnadohna.ain> <tmpdir>`。
+
+初始化：ain_open，stack 用 xcalloc 配置，heap_init，guard/global page，_PreLink（略過 MsgSkip）→ link_libraries → _PostLink。每個案例在 fork 子程序中跑，先按 bytecode 的推疊方式推參數，再呼叫 hll_call(libno, fno, arg3)，最後檢查 stack 增量與副作用。fno 以「名稱 + 同名第 N 個」查 ain->libraries，對應 ain_code.txt 的 #N。
+
+1. Array.Duplicate#0，arg3=1：push self（空 int 陣列 slot）、push src（[7,8,9] slot）。預期 stack 增量 0、self=[7,8,9]，且 self 與 src 不是同一個 page。
+2. Array.Duplicate#0，arg3=2：src=["alpha","beta"]。預期 self[i] 與 src[i] 是不同 slot、內容相同；對 self[0] 做 heap_string_assign 後，src[0] 仍是 "alpha"。
+3. Array.SYSTEMONLY_GetStructPageList#0，arg3=65539：self 為 2-slot iface 陣列 [struct_slot, 0]。預期 stack +1，回傳 slot>1 且為 ARRAY_PAGE、nr_vars=1、values[0]=struct_slot；對回傳 slot 做 exit_unref 後，struct 的 ref 與 page 不變。
+4. TextFile.ReadAll#0，arg3=0：push 檔名字串 slot、push 目標字串 slot（初值 ""）。預期回傳 1，目標 slot 內容等於檔案內容 "hello\nworld"。
+5. TextFile.OpenReader + ReadLine#0：檔案內容為 "l1\r\nsecond line\n"。依序預期 (1,"l1")、(1,"second line")，第三次回傳 0，且 text 維持 "keep"；整段 stack 平衡。
+6. VSFile：OpenForWrite(絕對路徑) → WriteString("chunk") → Close → OpenForRead → ReadString#0(wrap slot)。預期 stack +1、回傳 1，slot 內容為 "chunk"。
+7. FileOperation.GetFileList#0：對含 a.txt 的目錄呼叫，預期回傳 slot>1、ARRAY_PAGE、內含 "a.txt"。GetFolderList#0 對不存在的路徑呼叫，預期回傳 slot>1 且 nr_vars=0（不是 0/1）。
+8. SealEngine.Tool_CreateFBXAscii#0(0,0)：預期 stack +1，且為合法 VM_STRING slot、size 0。GetInstanceInfoText 需要 GL，只檢查 CIF 回傳為 ffi_type_pointer。
+9. PartsEngine.SetLayoutBoxReturn#0 / GetLayoutBoxReturnSize#0：PE_Init 需要 GL，改為斷言 libraries[lib][fno].fun 等於 PE_SetLayoutBoxReturnF / PE_GetLayoutBoxReturnSizeF，且 arg2 與 ret 的 CIF 為 ffi_type_float。有 GL 的 harness 可補做行為測試：SetLayoutBoxLayoutType(n,1) → SetReturn(n,1,300.75f) → Get 預期為 300.0f。
+
+實測結果（ASan+UBSan）：
+- head（763f5bd + patch）：9/9 PASS，err.txt 沒有任何 sanitizer 報告。
+- headctrl（763f5bd 原碼）：7 CRASH + 2 FAIL，SUMMARY 為 Array.c:3166 Array_Duplicate、FileOperation.c:200、VSFile.c:231、hll.h:71 set_string ×2、cif_probe.c:189（SealEngine 回傳的 slot 內 s 是垃圾指標）；SYSTEMONLY 回傳 1875612864；LayoutBox 仍綁在 int 版。
+- a8d92df 的 fix/ctrl 組合結果相同。
+
+建議併入 harness 時，拆成 fixtures/<date>/cif_mismatch_fixture.inc，由 runtime_probe.c include；照 array_overload_fixture.inc 的 fork 模式即可。
+
+ARTIFACTS:
+<scratchpad>/overload2/g-cif/cif-fix-on-763f5bd.diff
+<scratchpad>/overload2/g-cif/cif-fix.diff
+<scratchpad>/overload2/g-cif/head
+<scratchpad>/overload2/g-cif/probe/cif_probe.c
+<scratchpad>/overload2/g-cif/probe/build.py
+<scratchpad>/overload2/g-cif/probe/head/out.txt
+<scratchpad>/overload2/g-cif/probe/headctrl/out.txt
+<scratchpad>/overload2/g-cif/probe/headctrl/err.txt
+<scratchpad>/overload2/g-cif/jt.py
+<scratchpad>/overload2/g-cif/disp.py
+<scratchpad>/overload2/g-cif/sites.py

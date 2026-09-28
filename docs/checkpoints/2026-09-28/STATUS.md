@@ -87,7 +87,7 @@ GUI（`--skip-title`、按住 Return、每 1.2 秒自動點擊畫面中央，120
 
 `link_static_library` 現在對每個庫呼叫一次 `hll_select_overload(庫名, 宣告, 預設)`，由各庫依宣告形狀選 C 實作；不認得的形狀一律保留原綁定。語義同樣由原版 EXE 反組譯確認、每組配一位反駁者。反駁推翻或修正的部分已照改：Copy 長度夾限、HashMap `Free` 語義、`GetStructPageList` 在實機只配 1 個 slot 等。
 
-Headless 全部 30 個模式（[總表](array-overload/probe-summary-6ec6258.txt)）：除既有的 `deleted-event` 外全數通過，0 個 sanitizer 診斷；每組都以上一個 commit 的原始碼做對照，修正前失敗或崩潰。
+Headless 全部 33 個模式（[總表](array-overload/probe-summary-6ec6258.txt)）：除既有的 `deleted-event` 外全數通過，0 個 sanitizer 診斷；每組都以上一個 commit 的原始碼做對照，修正前失敗或崩潰。
 
 GUI（150 秒自動點擊）：`4c7b820` 前對白停在第 11 句並有三萬餘次堆疊溢位；之後推進到第 88 句、無溢位，畫面到據點場景（背景、立繪、對話框框體、說話者頭像正確）。第二批其餘 commit 之後結果相同，配置器警告數也相同，沒有新的回歸。
 
@@ -107,18 +107,14 @@ GUI（150 秒自動點擊）：`4c7b820` 前對白停在第 11 句並有三萬�
 
 ## 重跑
 
-Headless：照 [9/26 REPRODUCE](../2026-09-26/REPRODUCE.md) 建立隔離布局後，用本目錄的 `first-overload/runtime_probe.c` 取代 `work/string-stage4-20260926/probe/runtime_probe.c`，並把 `first_overload_fixture.inc` 放到同一目錄，再執行 `build_probe.py asan`：
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 33 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
-ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$XSYS4_REPRO_ROOT/work/string-stage4-20260926/probe/runtime-probe-asan" "/path/to/dohnadohna.ain" first-overload
+export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
+bash docs/checkpoints/2026-09-28/harness/setup.sh
+bash docs/checkpoints/2026-09-28/harness/verify-step.sh <tag>
 ```
 
-修正前應 exit 88，修正後 exit 0。
+`array-overload/` 與 `first-overload/` 內的探針原始碼是當時快照，已過時。遊戲資料必須是自行提供的合法副本，勿指向原始安裝目錄。
 
-GUI：`tooling/run-gui-bounded.py` 以 repo 根目錄為 cwd（讀 fonts／shaders），遇 assertion、ASan 或 VM error 字樣即停止：
-
-```bash
-RUN_HOLD_KEYS=13 python3 docs/checkpoints/2026-09-28/tooling/run-gui-bounded.py build/src/xsystem4 "$PWD" /path/to/game-copy /path/to/new-run-dir 60 --skip-title
-```
-
-`--skip-title` 會略過 SceneLogo 與 SceneTitle，直接走新遊戲；按住 Return 用來通過注意事項頁。遊戲資料必須是自行提供的合法副本，勿指向原始安裝目錄。
+接手請先讀 [HANDOFF.md](HANDOFF.md)；兩輪調查報告在 [research/](research/)。

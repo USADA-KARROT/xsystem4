@@ -1,0 +1,296 @@
+========================= 調查 =========================
+Math 組已完成原版 EXE 反組譯確認，並給出 selector 和新 C 函式。結論：CN 走錯的 122 次（Abs#1 33、Min#1-#5 24、Max#1-#5 30、Clamp#1 35）全部可以只靠 math_select_function 依宣告形狀分流修好。int Clamp 與現行 Math_Clamp 對全部邊界值等價，不必改。Math 其餘 29 個宣告沒有同名多載，也沒有 float/int 原型錯配，掃描報告沒有漏列。另外發現一個語義差異，但在 CN 裡實際影響為 0：原版 Asin/Acos 回傳弧度，xsystem4（和 Rufim）回傳角度，不過只有沒被呼叫的 AFL_Asin/AFL_Acos（FUNC 6435/6436）會用到。
+
+EXE 定位：名稱字串 "Math" 在 0x7cee14，名稱比較鏈 0x49478f（call 0x41bfa0，相等時 mov eax,0x4c6520）指向 dispatcher 0x4c6520。0x4c654c 做 cmp eax,0x26（39 格，剛好對上 39 個宣告），0x4c6555 跳到跳表 0x4c6ca0。各格的分支形狀（int 版用 0x659f20 取參數、float 版用 0x65a070 取參數；參數個數用 +0x28 步距判斷）和 libraries.txt 的 index 0..38 逐格吻合。證據檔：scratchpad/overload2/math/table.txt、disp.txt、helpers1.txt、helpers2.txt。
+
+原版語義（最高權威）：
+(1) Clamp(value, low, high)，參數順序就是 value、low、high。
+  - int 版（0x4c6bee）：value<low 回 low；否則 value<high 回 value；否則回 high。low>high 時不交換，value<low 回 low，其餘回 high。
+  - float 版（0x4c6c28，comiss 加 jbe/ja）：low>value 回 low；否則 high>value 回 value；否則回 high。所以 value 是 NaN 時回 high，high 是 NaN 時回 NaN。
+(2) int 多參數 Min/Max 是 min_element/max_element 取值（0x4c687c、0x4c7170、0x4c6a85、0x4c71d0）。
+(3) float Min/Max 呼叫 MSVC UCRT 的 fminf 0x769351 和 fmaxf 0x7692f5：有一邊是 NaN 就回另一邊；相等時 fminf 偏好 -0.0、fmaxf 偏好 +0.0。巢狀方式：
+  - 3 參數：f(f(x,y),z)
+  - 4 參數：f(f(x,y),f(z,w))
+(4) Abs(int)（0x4c664a）是 cdq/xor/sub，所以 Abs(INT_MIN)=INT_MIN。Abs(float)（0x4a69a0）是 andps 0x7fffffff，-0.0 變 +0.0。
+
+新 C 函式已用 cc -Wall -Wextra 對快照 headers 做過語法檢查，並用 libffi CIF 在 arm64 實測：abi.out 裡 16 個原本錯的值全部變成期望值（scratchpad/overload2/math/ffi_check.txt）。
+  [錯] Math.Abs[8]#1 float(float) x33: 清掉符號位（andps 0x7fffffff），等同 fabsf：Abs(-3.5)=3.5、Abs(-0.0)=+0.0、NaN 維持 NaN
+  [錯] Math.Min[26]#1 float(float,float) x13: MSVC fminf(x,y)：有一邊是 NaN 就回另一邊；y<x 回 y；相等時 x 帶負號回 x，否則回 y（偏好 -0.0）
+  [錯] Math.Min[27]#2 int(int,int,int) x1: 對 {x,y,z} 做 min_element 取值
+  [錯] Math.Min[28]#3 float(float,float,float) x4: fminf(fminf(x,y),z)
+  [錯] Math.Min[29]#4 int(int,int,int,int) x1: 對 {x,y,z,w} 做 min_element 取值
+  [錯] Math.Min[30]#5 float(float,float,float,float) x5: fminf(fminf(x,y), fminf(z,w))
+  [錯] Math.Max[32]#1 float(float,float) x18: MSVC fmaxf(x,y)：有一邊是 NaN 就回另一邊；y>x 回 y；相等時 x 帶負號回 y，否則回 x（偏好 +0.0）
+  [錯] Math.Max[33]#2 int(int,int,int) x2: 對 {x,y,z} 做 max_element 取值
+  [錯] Math.Max[34]#3 float(float,float,float) x5: fmaxf(fmaxf(x,y),z)
+  [錯] Math.Max[35]#4 int(int,int,int,int) x2: 對 {x,y,z,w} 做 max_element 取值
+  [錯] Math.Max[36]#5 float(float,float,float,float) x3: fmaxf(fmaxf(x,y), fmaxf(z,w))
+  [錯] Math.Clamp[38]#1 float(float value,float low,float high) x35: low>value 回 low；否則 high>value 回 value；否則回 high。比較都是 ordered：value 是 NaN 時回 high；high 是 NaN 時回 NaN；value==high 時回 high（-0.0/+0.0 以 high 為準）。現行未綁到的 Math_ClampF 在 NaN value 時回 NaN，和原版不同，所以另寫 Math_Clamp3F
+  [錯] Math.Asin[3] / Math.Acos[4] float(float) x1: 原版直接回傳弧度（Intel libm asinf 0x78641d、acosf 0x786040，dispatcher 沒有乘換算常數）。對照：Cos/Sin/Tan 在 dispatcher 先 mulss [0x81306c]=0.017453292，也就是輸入是角度
+OPEN: SCY dump 與實際發行的受保護 EXE 是否逐位元一致，沒有獨立驗證（exe-findings.md 已註明）。本組語義以 dump 的 0x4c6520 為準。 ; Asin/Acos：EXE 顯示回傳弧度，xsystem4 和 Rufim 回傳角度。CN 只有 AFL_Asin/AFL_Acos（FUNC 6435/6436）會呼叫，而且沒有任何引用，所以對 CN 沒有實際影響。要不要改成弧度，需要先確認其他舊遊戲的原版語義（可能不同）。本提案不改，未驗證其他作品。 ; float Min/Max 的 signaling NaN：UCRT 的 _fdclass 把 sNaN 也當 NaN，回傳另一邊；目前的 isnan 實作行為相同，但 sNaN 在 ffi 傳遞中可能先被 quiet 掉。未驗證，實務上不會出現。 ; Rand/SetSeed：EXE 使用內部 521 格狀態產生器（0x4c676a、0x4c6e40），xsystem4 用 libc rand/srand，亂數序列不同。MTRand 用的 0x4c6400 是否等同 MT19937：未驗證。不影響 ABI，但如果要重現原版亂數序列，需要另外處理。 ; Ceil/Floor/Round 超出 int 範圍或 NaN 時，x86 cvttss2si 得到 INT_MIN，arm64 的 (int) 轉換則是飽和或 UB。要不要補一個 saturate-to-INT_MIN 的 helper，待決定。CN 實際輸入範圍未驗證。 ; ffi.c 正由另一位工程師修改，掛點行號（a8d92df:1161-1180）會漂移。合併時請放在 Array selector 區塊之後、if (funcptr) 之前。
+========================= 調查 =========================
+HashMap.Any 原版語義已用 EXE 反組譯確認。HashMap 的 dispatcher 在 0x654fb0，從名稱字串 0x7cee30 經比較分支 0x49475f 找到，跳表在 0x655264，共 14 格，正好對上 14 個宣告。
+- [7] Any(id)：走 case 0x655132，回傳 !helper0x6556a0。helper 的語義是「id 有效且 size==0」，所以 Any(id) = !(id 有效 && 空)。無效 id 在原版會回 true。
+- [8] Any(id,key)：走 case 0x65515d 進 0x655710，做 std::map find(key)!=end；無效 id 回 false。
+- 順帶發現 [6] Empty 也跟原版不同：原版 case 0x655108 直接回 helper 值，無效 id 回 false；現行 C（HashMap.c:144-148）回 true。
+
+**呼叫點其實到不了**：CN 的 HashMap.Any 兩個呼叫點都在 CHashMap 包裝函式裡（fno 20966/20967），這個物件只有 AFL_HashMap_Create（fno 20771，ain_code.txt:841823）會 NEW。全 bytecode 搜尋 `CALLFUNC AFL_HashMap_Create` 是 0 筆，也沒有 `PUSH 20771` 之類的間接引用，所以實際執行不到。這個修正屬於 ABI 衛生，優先度低。
+
+**修法**：新增 hashmap_select_function(f, fallback)，依宣告形狀分流：1 個 int 參數給 HashMap_Any，(int, string) 給 HashMap_AnyKey，其他形狀一律回 fallback。libffi 獨立 harness 實測修正後全部符合原版。
+
+**同名多宣告複核**：以 python byte 級重新解析 libraries.txt（36 庫、1701 宣告），並與 bind.tsv、audit2.json 交叉比對。Array/Math/String 以外只有 HashMap.Any 一組，確認報告沒有遺漏。
+
+**float/int 暫存器錯配全掃（全部庫）**：Math 以外有三項。
+- PartsEngine.SetLayoutBoxReturn[481]（float 參數，C 是 int）與 GetLayoutBoxReturnSize[483]（float 回傳，C 是 int）：有呼叫，報告第 6 節已列。本次補上原版語義：值以 float 存在物件 +0x48，回傳型別 0xb。也寫了分流修法並實測：舊版存進 0、讀回 0；修正後 320/320。
+- SystemService.RenderToSurfaceImageByScale[18]：AIN 是 int 參數、bool 回傳，C 是 float 參數、void 回傳，但 0 呼叫，屬潛在問題。
+- Math 的 libc 綁定逐一人工核對：Sqrt/Atan/Atan2/Pow/Log/Log10 都是 float 版 libc，形狀正確；只有 Abs[8] 綁到 abs(int)，屬 Math 組。
+- 另外獨立重現了「AIN 宣告 bool、C 是 void」四項（SetAntiAliasingMode、PopSystemMessageString、SaveThumbnail、RemoveAllActivityParts），報告第 6 節都已列入，本組不另外處理。
+  [錯] HashMap.Any[7]#0 bool Any(int id) x1: 原版 dispatcher 0x654fb0 case 7 = 0x655132：call 0x6556a0 後 test al,al / sete，回傳 type 0x2f(bool)。0x6556a0 在 id<0、id>=vector size 或 slot==NULL 時回 0，否則回 (map->size[+8]==0)。所以 Any(id) = !(id 有效 && size==0)：非空回 true、空 map 回 false、無效 id 回 true（原版的怪癖，照搬）
+  [錯] HashMap.Empty[6]#0 bool Empty(int id)（非多載，順帶發現） x1: 原版 case 6 = 0x655108：直接回 0x6556a0（setne）。無效 id 回 false，空 map 回 true
+  [錯] PartsEngine.SetLayoutBoxReturn[481]#0 void(int Number, bool Return, float ReturnSize) x2: 原版 case 0x5828db：arg2 用 0x65a070 轉成 float（xmm0），arg1 轉 bool、arg0 轉 int，再 call 0x594d80。parts 找不到就不動作；找到時 bool 寫 +0x45、float 寫 +0x48，值有變才設 dirty +0x60
+  [錯] PartsEngine.GetLayoutBoxReturnSize[483]#0 float(int Number) x3: 原版 case 0x58294f → 0x594df0：parts 找不到回 0.0f（xorps），否則回 float [+0x48]；再經 0x657bc0 以 type 0xb(float) 回傳
+  [錯] SystemService.RenderToSurfaceImageByScale[18]#0 bool(wrap<array<int>> SurfaceImage, int ReductionSize) x0: 原版語義未驗證。宣告是 int 參數、bool 回傳；stub 至少應把原型改成 (int,int) 並回傳 bool
+OPEN: HashMap.Any(無效 id) 在原版回 true（0x6556a0 回 0 再 sete）。本修正照原版搬，但 CN 的 HashMap 整組執行不到（AFL_HashMap_Create 0 呼叫），其他遊戲是否依賴這個怪癖未驗證；如果擔心，可以改回 Rufim 的 Numof>0 語義，差別只在無效 id ; HashMap.Empty 的改動（無效 id 回 false）是順帶修正，不是多載問題；Release 之後原版 slot 是否真的變 NULL（0x655430）未驗證 ; PartsEngine layout box 的 wrap_size 仍以 int 存（parts_internal.h:370、save.c:357/369）；CN 只會從 ITOF(int) 傳入，所以 round-trip 精確。原版比較 wrap 時用 float 還是截斷未驗證；如果將來有非整數輸入，需要把欄位改成 float，連帶 save 格式也要改 ; ILayoutBoxParts@SetReturn/ReturnSize::get 經介面 vtable 分派，實際有哪些遊戲層呼叫者、執行頻率多少未驗證（靜態 CALLHLL 各 2/3 處，其中 fno 8447/8449 包裝沒有 CALLFUNC 呼叫者） ; PE_SetLayoutBoxReturn 用 parts_get（可能新建 parts），原版在 lookup 失敗時不動作（0x594da0 je）；這是另一個語義差異，不在本組範圍，未處理 ; HashMap.GetKeyList/GetValueList 宣告 array<?>，CIF 是 pointer 回傳，C 回 int slot；arm64 上只取低 32 位，推定無害（報告第 6 節採同一判準），未實測
+========================= 調查 =========================
+String 組已用原版 EXE 定案，C 實作與 selector 也寫好並測過。
+
+**原版 EXE 位置**：名稱比較鏈 0x49472f，庫名字串 0x7cedb4 "String"。dispatcher 在 0x684120，跳表 0x684984，共 36 格，index 對應 AIN 的 String[0..35]。參數槽間距 0x28；0x65a5f0 取 self，0x659f20 取 int，0x65a1c0 取 string。
+
+1. **GetPart[21]（16 處）**：語義是「從 index 取到字尾」，不是取單一字元。
+   - 證據：[21] 從 0x6845f5 進 0x688290，它直接 `push 0x7fffffff` 再呼叫 [22] 的 0x6882c0，也就是 GetPart(i, INT_MAX)。
+   - [22] 0x6882c0 的規則：begin<0 夾成 0（0x6882fe cmovs）；length<=0 回空字串（0x688309 cmovg）；begin 超出字尾回空字串；end 超出就取到字尾。
+   - index/length 以「字元」計，不是位元組。原版判斷雙位元組的條件是首位元組在 0x81..0xFE（0x68832f/0x688334，另有一段 0xE0..0xEF 的條件被前者涵蓋）。這是 GBK 規則，不處理 GB18030 的 4 位元組字元。
+   - xsystem4 目前的 String_GetPart（String.c:328）：
+     - 字元規則用 sjis_index（SJIS_2BYTE）。
+     - begin<0 時回空字串，原版是夾成 0。
+   - String_GetPartChar（:317）是死碼，語義也不對。
+
+2. **Match[17]（6 處）**：語義是 std::regex_match 全字串匹配，語法 ECMAScript。
+   - 0x6878f0 先用 "CHS" locale（0x811eac）把 self 和 regex 轉成 wstring（0x685e20），再建 std::wregex（0x68afc0）。0x68d120 在 +0x40 存入 1，就是 ECMAScript 旗標。
+   - 接著呼叫 0x68bda0，即 _Regex_match1：`push 1; push 0` 後呼叫 _Match(nullptr, full=1)，代表全字串匹配。
+   - Search[14] 則是 0x686ff0 → 0x68bc20（_Regex_search2），會逐一換起點重試，屬於 regex_search。
+   - regex 例外被 catch，錯誤訊息字串在 0x7e5e44。
+   - 6 個呼叫點（lambda fno 37567/37569/37571/37573/37575/37577，ain_code L1717751–L1718071）的 regex 常值，已在 AIN 解壓後用位元組確認都是單一反斜線：
+     - `Button\d`（L1120231）
+     - `RivalShop\d`（L1216486）
+     - `Skill\d`（L1313252）
+     - `Bonus\d`（L1319245）
+     - `Player\d`（L1319254）
+     - `Button.*`（L1340079）
+   - 全部是 ASCII 字面值加 `\d` 或 `.*`。
+   - meson.build 是 `project('system4','c')`、c_std=c11，專案純 C。Windows 的靜態建置沒有 <regex.h>，glibc 的 ERE 也不支援 `\d`。所以我寫了一個不依賴外部函式庫的 ECMAScript 子集 NFA（Pike 模擬、無 capture、線性時間），同時支援 Search 與 Match。
+
+3. **PadLeft/PadRight**（0x6883d0/0x688640，0 處呼叫）：
+   - 1 參數版就是 paddingChar=0x20。
+   - paddingChar 的高位元組不為 0 時，以 2 位元組字元（高位元組在前）重複 pad/2 次；pad 是奇數時結果少 1 位元組。
+   - self 不會被修改。
+
+4. **Trim 系列**（0x688f10/0x6890c0/0x689230，0 參數版傳入預設清單 `20 0c 0a 0d 09 0b 81 40`）：
+   - charList 是 1 或 2 位元組字元的集合（0x6862a0 建立），空集合代表不修剪。
+   - 回傳新字串，**不修改 self**。
+   - 現行 do_trim（String.c:394-420）和原版有三處不同：
+     - 會把結果寫回 self（13 處呼叫多半是 `ref string` lambda，例如 FrameInfoBgLighting.CustomColor L1068621，會連帶改到來源）；
+     - 會修剪所有 <=0x20 的位元組；
+     - 不會修剪 0x81 0x40。
+
+5. **Search[14]、Trim/TrimStart/TrimEnd 的 charList 版、PadLeft/PadRight 的雙參數版**：目前都是 0 次呼叫。錯配方式分別是讀錯參數槽或忽略參數，這次一併分流。
+
+**修法**：新增 `string_select_function(f, dflt)`。不認得的形狀回傳 dflt，不會回 NULL。ffi.c 在名稱匹配後呼叫它。提案檔已用實際標頭做過 `clang -fsyntax-only -Wall -Wextra` 檢查，沒有警告。新增
+  [錯] String.GetPart[21]#0 string GetPart(ref string self, int index) x16: 從第 index 個字元取到字尾，等同 GetPart(index, 0x7fffffff)。begin<0 夾成 0；begin 在字尾或超出時回空字串。
+  [錯] String.GetPart[22]#1 string GetPart(ref string self, int index, int length) x76: begin<0 夾成 0（不是回空字串）；length<=0 回空字串；end 超出時取到字尾。字元規則在 CN 原版是 GBK 首位元組 0x81..0xFE（本次維持 SJIS，理由見 open_questions）。
+  [錯] String.Match[17]#0 bool Match(ref string self, string regex) x6: std::wregex，ECMAScript 語法，regex_match 全字串匹配，不寫出任何 matchList。self 無效時回 false；regex 語法錯誤被原版 catch，這裡回 false 並記一條 WARNING。
+  [錯] String.Match[18]#1 bool Match(ref string self, wrap<array<string>> matchList, string regex) x0: EXE 0x687b00（未逐指令驗證）；推定為 regex_match 並把 capture 寫入 matchList。0 呼叫，selector 保留預設實作。
+  [錯] String.Search[14]#0 bool Search(ref string self, string regex) x0: std::regex_search（部分匹配），ECMAScript，回傳 bool。
+  [錯] String.Search[15]#1 bool Search(ref string self, wrap<array<string>> matchList, string regex) x0: EXE 0x687200（未驗證）；推定為 regex_search 並寫入 capture。0 呼叫，selector 保留預設實作。
+  [錯] String.PadLeft[24]#1 / PadRight[26]#1 string Pad*(ref string self, int byteLength, int paddingChar) x0: pad = byteLength - strlen(self)；pad<=0 時回 self 的副本。paddingChar 的 bits 8-15 為 0 時，低位元組重複 pad 次；否則以 [hi, lo] 兩位元組重複 pad/2 次（奇數 pad 少 1 位元組）。PadLeft 放在前、PadRight 放在後；self 不修改。
+  [錯] String.Trim[29]#0 string Trim(ref string self) x13: 以預設集合 {20,0c,0a,0d,09,0b,8140} 做字元集合修剪；回傳新字串，self 不變。
+  [錯] String.Trim[30]#1 / TrimStart[32]#1 / TrimEnd[34]#1 (ref string self, string charList) x0: charList 視為 1 或 2 位元組字元的集合；空集合不修剪；Trim 修剪兩端，TrimStart 只修剪前端，TrimEnd 只修剪後端；self 不修改。
+  [錯] String.TrimStart[31]#0 / TrimEnd[33]#0 x0: 預設清單 0x7e5f30 / 0x7e5f24，內容同為 20 0c 0a 0d 09 0b 81 40；self 不修改。
+OPEN: 字元規則要不要整體換成 GBK：CN 原版的 String 庫全面採用首位元組 0x81..0xFE 的規則（GetPart 0x68832f、Length 0x686914、Trim 集合 0x686352）。xsystem4 的 Length（sjis_count_char）、Find（libsys4 string_find）、FindLast（String.c:112）、Erase（string_erase）、PopBack、PushBack，以及 VM 的 C_REF/C_ASSIGN（string_get_char，共 20 次）都用 SJIS_2BYTE。GBK 首位元組 0xA1-0xDF（大部分漢字）會被拆成兩個「字元」，尾位元組 0xE0-0xFE 又會被當成首位元組而吞掉下一個位元組。本次 GetPart 刻意維持 SJIS，以免和 FindLast/Length 的索引錯開。要不要另開一個跨 libsys4 的修正（例如用 ain_is_gb18030 在執行期切換 SJIS_2BYTE 與 sjis_index）？（Length 110 次、GetPart#1 76 次、Find 12 次，影響面未驗證） ; PushBack/C_REF 的字元碼方向：libsys4 的 string_push_back/string_get_char 把首位元組放在 int 的低位元組，但 EXE 的 PadLeft/PadRight 以 (paddingChar>>8) 作首位元組（0x68852f）。目前 Pad 雙參數版是 0 呼叫，影響為 0；但 PushBack(1 次)/C_REF 的方向是否與原版一致未驗證。 ; Match 修好後的遊戲可見行為：原本 Match 恆回 true，GetUser<T> 等於拿到全部 parts；修好後只保留名稱全匹配 Button\d 等的 parts。CN 版 GetPartsNames 實際回傳的名稱格式（例如 'Button1' 還是 'Button01'、是否有中文前綴）未驗證，建議執行期記錄一次。另外 GetUser 之後的 QuickSort#0 仍按 slot 排序（報告 3.5），要一起修才會得到原版順序。 ; Search[15]/SearchAll[16]/Match[18]（帶 matchList 的版本）仍是寫死的方括號 tokenizer。SearchAll 唯一的呼叫點 FUNC 27166 L1001844 的 regex 正是 '([^\[\]]+?)+|\[[^\]]+?\]'，目前可用；[15]/[18] 是 0 呼叫。EXE 0x687200/0x687540/0x687b00 的 capture 寫出格式（matchList 放 match[0] 還是各 gro
+========================= 調查 =========================
+Array 的 Sort／AscSort／DescSort／QuickSort／Remain 在 AIN 都宣告回傳 wrap<?>，a8d92df 的 C 實作全是 void。GetStructPageList 宣告回傳 array<?>，C 是空的 void。四組排序各有兩項錯誤。
+
+第一，回傳值是暫存器殘值，而且 bytecode 會用到它。78 個呼叫點裡，67 個照「存進 dummy，之後 DELETE」處理。另外 11 個直接拿回傳值：A_REF 後 RETURN，或當參數往下傳。例如 PlayerCollection@GetBattlePlayers（fno 27780，L1020775）、ActivityHelper::GetUser<FooterButton/RivalShopView/SkillSelector/BattleBonusView/BattleResultPlayerView/RoundBonusButton>（L1717780 等 6 處）、PartyPlayerViewCollection@GetJoinedPlayerIds（L1179071）。探針實測殘值為 1794821728、1、0，這些函式因此回傳 -1（空陣列）。殘值若落在 [2, heap_size)，就會拿到或 DELETE 任意 live 物件。
+
+第二，排序語義不對。comparator 被丟掉；字串與物件陣列按 heap slot 編號排序。例：Shop@AddPurchasedItem 對 array<string> 呼叫 Sort 後接 UniqueSorted。
+
+原版語義由 EXE 反組譯確認（以下「動作(a,b)」代表回傳 true 時的處理）：
+- 回傳值：六個排序變體與 Remain 都用 0x658150 回傳 self 陣列的 handle（vt+0x30），型別 0x4f，並經 0x679f10 把 [obj+0x1c] 加一，也就是 self 多一個 ref。
+- Sort／AscSort／DescSort 用 0x646980：穩定插入排序，呼叫 less(a[j],a[j-1])，true 就交換。
+- QuickSort 用 0x646a00：Hoare 分割，以索引追蹤 pivot，不穩定。
+- DescSort 的比較是 !less（0x64b350）。
+- 值比較器 0x645dd0 依元素型別：INT/BOOL/ENUM（10/47/92）用有號 <；FLOAT 用 <；STRING 用無號位元組 strcmp<0；其他型別記錯誤，比較器恆為 false。
+- lambda 一律是 (a,b)→bool 的 less-than，呼叫順序為 func(a,b)。
+
+修法已寫成獨立區塊，放 src/hll/Array.c。區塊依 6e6ed53 的新 API array_select_function(f, fallback) 撰寫，另一位工程師已把 ffi.c 改成對每個 Array 函式呼叫它。不認得的形狀會回傳 fallback，也就是原本的 void 版本，所以不會落到 UNIMPL。我用真 AIN 與真 VM 經 hll_call 建了 headless 探針：修補版 25 項全 PASS，基準版（6e6ed53 未修補）19 項 FAIL。
+  [錯] Array.Sort[34]#0 wrap<?>(ref array<hll_param> self, hll_func func) x41: 穩定插入排序（0x646980）：for i in 1..n-1, j=i; while j>0 && func(a[j],a[j-1]): swap(j-1,j), j--。長度只在開頭讀一次。func 是 less-than，參數 (lhs, rhs)，回傳 bool；每個 operand 推 stride 槽，iface 元素是 (page,vtoff) 2 槽，nr_args=4。回傳 self 陣列 slot，並 heap_ref 一次。
+  [錯] Array.Sort[35]#1 wrap<?>(ref array<hll_param> self) x12: 等同 AscSort：插入排序配值比較器。int/bool/enum 用有號 <，float 用 <，string 用無號位元組 strcmp<0，物件類恆為 false（陣列不動）。回傳 self 並 ref+1。
+  [錯] Array.AscSort[36]#0 wrap<?>(ref array<hll_param> self) x4: 插入排序 0x646980 配值比較器 0x645dd0，回傳 self 並 ref+1。
+  [錯] Array.DescSort[37]#0 wrap<?>(ref array<hll_param> self) x0: 插入排序，比較器為 !less(a,b)（>=）。等鍵的原相對順序會反轉，物件陣列（less 恆 false）會整個反轉。回傳 self 並 ref+1。
+  [錯] Array.QuickSort[38]#0 wrap<?>(ref array<hll_param> self) x10: 0x646a00 快速排序，作用範圍 [lo,hi)：pivot 取索引 (lo+hi)/2 並持續追蹤；while i<=j { while less(a[i],a[p]) i++; while less(a[p],a[j]) j--; if i>=j break; swap(i,j); 若 i==p 則 p=j，否則若 j==p 則 p=i；i++; j--; }；遞迴 [lo,i)，再以 lo=i 迴圈處理右半。不穩定。用值比較器，物件陣列比較恆 false，但仍會照原版方式重排。回傳 self 並 ref+
+  [錯] Array.QuickSort[39]#1 wrap<?>(ref array<hll_param> self, hll_func func) x10: 0x646a00 配謂詞比較器 func(a,b)（less）。10 處 lambda 都回傳 bool，形狀為 (ref S,ref S)、(wrap<S>,wrap<S>) 或 (wrap<iwrap<I>>,void,wrap<iwrap<I>>,void)。等鍵可能互換，例如 [1a,1b] 會變 [1b,1a]。回傳 self 並 ref+1。
+  [錯] Array.Remain[19]#0 wrap<?>(ref array<hll_param> self, hll_func func) x1: 依序保留 func(x)==true 的元素，回傳 self 並 ref+1。
+  [錯] Array.SYSTEMONLY_GetStructPageList[83]#0 array<?>(ref array<hll_param> self) x4: 回傳新的 int 陣列，內容是各元素的 page handle；2 槽元素取第 0 槽。新陣列 ref=1。
+OPEN: vt+0x30 回傳的 [this+8] 是 self 自己的 heap handle：這是從 0x658150 → 0x679f10 把它當 handle 驗證並 inc [obj+0x1c] 推定的。page_obj+0x28 的寫入處沒找，屬高信心、未逐欄位驗證。 ; xsystem4 對 GB18030 AIN 的字串是否保留原始位元組（system4.c:655-672 只做偵測）：若內部轉成 UTF-8，中文字串的 strcmp 次序會和原版（原生編碼逐位元組）不同。CN 目前排序的字串多為 ASCII 零件名或 ID，中文比較結果未驗證。 ; arg3=1 的 float 陣列若 a_type 仍是 ARRAY_INT，會被當 int 比較（負數次序錯）。CN 的 Sort#1/AscSort/QuickSort#0 呼叫點全是 array<int> 或 array<string>（sort/selftypes.py），影響未驗證。 ; iface 2 槽 comparator（Sort#0 fno 23988、QuickSort#1 fno 23848，arg3=65539）只做了靜態形狀對應（nr_args=4 → 每個 operand 推 2 槽），探針沒跑到。 ; production（-O2）build 的殘值實際是多少、GetBattlePlayers 與 GetUser<T> 在實機是否因此回 -1：未驗證。ASan -O0 探針分別得到 1794821728、1、0。 ; SYSTEMONLY_GetStructPageList 的元素是 wrap<iwrap<ISerializable>>（2 槽）。修法回傳每個元素的第 0 槽，但 system_SerializeStruct（快照 system.c:181-197）要求 values[0] 是 STRUCT_PAGE；若第 0 槽是 wrap page（index -1）就還要解包。未驗證，建議由 system 那組確認。 ; Remain 的謂詞沿用舊慣例（nr_args>=2 推 (value,0)），2 槽元素不正確。CN 唯一呼叫點是 (string)→bool，暫不影響。 ; 原版插入排序只在開頭讀一次長度，comparator 改動陣列時行為未定義。本修法比照 array_query_predicate 直接 VM_ERROR，是否要改成 WARNING 後中止排序，請另一位工程師依該檔慣例決定。
+========================= 調查 =========================
+結果三的 7 組問題全部確認屬實。我也找到了原版 EXE 的 dispatcher 分支（system 0x693470、FileOperation 0x490e40、VSFile 0x6a73c0、SealEngine 0x6353c0、TextFile 0x697ab0），用來核對語義。修正已寫成 patch：原本以 a8d92df 為基底，但作業期間另一位工程師把 worktree 推進到 763f5bd（Array 已改走 array_select_function(f, fallback)），所以 patch 已重新對齊到 763f5bd，`git apply --check` 通過。驗證用的是 ASan+UBSan 的 headless 探針，走真的 hll_call(libno, fno, arg3) 路徑：修正版 9/9 PASS；對照版（未修）有 9 項失敗，其中 7 項崩潰，SEGV 分別落在 Array.c Duplicate、FileOperation.c:200、VSFile.c:231、hll.h:71；SYSTEMONLY 回傳殘值 slot 1874465984；LayoutBox 仍綁在 int 版。
+
+依遊戲可達性排序：
+- P0，必須一起出：
+  - Array.SYSTEMONLY_GetStructPageList：成就、SaveObject、Collection、共有存檔、設定存檔都走這條存檔路徑。目前回傳的殘值是 stack 位址的低 32 位，SerializeStruct 因此拿到 NULL，直接回 true 什麼都不寫。推定現在這些存檔全部靜默失效。
+  - FileOperation.GetFileList：遊戲一啟動就會跑到（DohnaDohna@Run → LoadUserCreatedWorkers → UserCreatedFiles@Search）。資料夾存在時，C 端會對殘值 x1 做 *out 讀寫，對照探針在 FileOperation.c:200 SEGV。
+  - TextFile.ReadLine：修好 GetFileList 之後，只要使用者自建的 .txt 存在就會走到（UserCreatedFileParser@LoadFile 經 vtable[2] 呼叫 fno 401），原碼在 hll.h:71 SEGV。
+- P1：
+  - VSFile.ReadString：主存檔流程「存檔実行_讀取後復帰処理」（fno 6206）會呼叫 CAS3DSetting@Load，存檔目錄有 3DConfig.vsf 時會崩潰。
+  - LayoutBox 的 float/int 錯位：原版確認存的是 float，但 game 端透過介面 vtable 是否真的呼叫到，未驗證。
+- P2（編輯器、debug、死碼）：
+  - Array.Duplicate：14 處全在編輯器、測試選單，或沒有呼叫者的 enquete 模組。
+  - TextFile.ReadAll、TextFile.Read。
+  - SealEngine 3 個 string 回傳函式。
+  - FileOperation 其餘 15 處。
+
+做法沿用現有慣例：
+- 新增 hll_shape_select_function(lib, f, dflt)，ffi.c 只加一個 else-if 掛點。不認得的形狀一律回傳 dflt，不回 NULL。
+- Array.Duplicate 併入同事的 array_select_function，實作走 Array_Realloc + array_copy_range，對應原版的「resize + Copy helper 0x648210」。
+- hll.h 新增 wrap_slot_set_string：原地取代 VM_STRING slot 的內容，也接受 wrap box。
+
+後續必修：system_DeserializeStruct 目前把載入結果寫進 list[0]。GetStructPageList 修正後，list 變成臨時陣列，載入結果仍然不會回到 dest 物件（修前也從未成功）。這部分需要負責 system.c 的人跟進，原版語義未驗證。
+  [錯] Array.Duplicate[3]#0  void Duplicate(ref array<hll_param> self, wrap<array<hll_param>> src) x14: 原版：case 3 @0x6443d8 → 0x647550。先把 self resize 成 src 的長度（CArrayPage vtable +0x4c），再呼叫 Copy helper 0x648210(self, 0, src, 0, n)，也就是和 Copy(self, src) 同一條路。self 成為與 src 等長的獨立陣列。C 應為 Array_Duplicate_Wrap(struct page **self, int src_slot)：array_wrap_page 解析 slot → A
+  [錯] Array.SYSTEMONLY_GetStructPageList[83]#0  array<?> SYSTEMONLY_GetStructPageList(ref array<hll_param> self) x4: 原版：case 83 @0x644ecd → 0x64a2d0。逐一取 self 每個元素的 struct page；取不到時產生錯誤字串 0x7e2284（「配列要素の構造体ページ取得に失敗しました」）。把 page handle push 進 std::vector<int>，再經 0x657f10 設為回傳陣列。C 應回傳 int：新配置、ref 為 1 的 slot，內容為 AIN_ARRAY_INT，存每個元素的 struct heap slot，不做 heap_ref（與 SerializeStruct
+  [錯] TextFile.ReadAll[5]#0  bool ReadAll(string fileName, wrap<string> text) x4: bytecode 推上堆疊的是目標字串變數本身的 VM_STRING slot（fno 381 的 '.LOCALREF text'；fno 382 的 wrap<string> t 經 X_ASSIGN 後就是 text 的 slot）。原版 case 5 @0x697c2a 經 0x65a5f0 取得字串物件，由 0x6982d0 原地寫入。C 應為 (struct string*, int text_slot)，用 wrap_slot_set_string 原地取代 heap[slot].s。
+  [錯] TextFile.Read[7]#0 / TextFile.ReadLine[8]#0  bool Read/ReadLine(int handle, wrap<string> text) x4: C 應為 (int handle, int text_slot) 並用 wrap_slot_set_string。ReadLine 改成長度不限，去掉結尾 LF/CRLF；EOF 且一個字都沒讀到時回 false，text 保持不動（CTextReader@ReadLine() fno 401 依賴這一點：text 初值為 ""）。
+  [錯] VSFile.ReadString[10]#0  bool ReadString(wrap<string> pIString) x5: 原版 case 10 @0x6a7506：先 0x65a5f0 取字串物件，再進 0x6a7770。該函式讀 type byte，!=3 就失敗（0x6a77d6）；接著讀到 NUL 為止，經 vtable 原地 assign 到字串物件。C 應為 VSFile_ReadString_Wrap(int slot)，用 wrap_slot_set_string。舊形狀 ReadString(ref string) 保留，由 selector 依 arguments[0]==AIN_WRAP 選用新版。
+  [錯] FileOperation.GetFileList[12]#0 / GetFolderList[14]#0  array<?> GetFileList/GetFolderList(string FolderName) x16: 原版 case 12 @0x49128d：0x491540 產生 vector<string>，由 0x657f70 設為回傳陣列。C 應回傳 int：新配置、ref 為 1、擁有 array<string> page 的 slot；資料夾不存在時回空陣列，絕不回 0 或 1。舊形狀 bool(string, ref array) 保留給 v6/v7 遊戲，selector 依 return_type==AIN_ARRAY 且只有 1 個參數時才選用新版（與 Rufim FileOperation.c:227-22
+  [錯] SealEngine.GetInstanceInfoText[118] / GetInstanceMaterialInfoText[119] / Tool_CreateFBXAscii[247]  string (int, int) x3: C 應回傳 struct string *（make_string），由 ffi 配置 slot。其餘邏輯不變。
+  [錯] PartsEngine.SetLayoutBoxReturn[481] void(int, bool, float) / GetLayoutBoxReturnSize[483] float(int) x5: 原版 case 481 @0x5828db → 0x594d80：以 float 存在 +0x48，值有變才把 dirty 設為 1，parts 不存在時 no-op。case 483 @0x58294f → 0x594df0：回傳 float，parts 不存在時回 0.0f。C 新增 PE_SetLayoutBoxReturnF(int, bool, float) 與 float PE_GetLayoutBoxReturnSizeF(int)，用 floorf 轉進既有的 int wrap_size：排版只做「
+OPEN: system_DeserializeStruct（快照 system.c:301-309）把載入結果寫進 structPageList->values[0]，或用 hll_self_slot 換掉整個 page。GetStructPageList 修正後 list 是臨時的 array<int>，載入的 struct 會跟著被丟掉並洩漏，dest 物件不會更新（修前也從來沒載入成功）。原版 case 14 @0x693946 → 0x694240 → 0x673220，推測是把資料載回既有 page，未驗證。這需要 system.c 的負責人跟進，建議與本 patch 同批。另外，修正後 SerializeStruct 會開始真的寫 .asd 檔，gsave 寫入路徑沒有做過端到端測試。 ; 目前的存檔實際狀況：ASan -O0 對照組中 SYSTEMONLY 回傳的是 stack 位址低 32 位，SerializeStruct 拿到 NULL page 後回 true、不寫任何東西。production -O2 下，空函式的 x0 同樣是第一個參數（指標），推定結果一樣是靜默失效，但沒有在 production build 實測。 ; 路徑與編碼（不在本組範圍）：TextFile 直接 fopen 原始字串，沒有經過 unix_path/gamedir/savedir；system.GetSaveFolderName 回傳相對路徑 "SaveData"（system.c:463-466），UserCreatedFiles 的路徑因此相對於 CWD。FileOperation 用 unix_path（sjis2utf）解析路徑，檔名則用 utf2sjis 回傳，但 CN 字串是 GB18030，非 ASCII 的使用者檔名會對不上。VSFile.OpenForRead 用 gamedir_path，CAS3DSetting@Load 卻用 system.ExistSaveFile 檢查存檔目錄，兩者基準不一致。 ; VSFile 原版在 type byte 不是 3 時直接回 false（0x6a77d6）；xsystem4 的 vsf_read_type 忽略型別不符、照讀。本 patch 沒有改這個行為。 ; LayoutBox：game 端是否真的透過 ILayoutBoxParts vtable 呼叫到 CLayoutBoxParts@SetReturn / ReturnSize::get 未驗證。SetLayoutBoxReturnSizeForRate 仍是 stub（pe_v14_prelink.h:297）；rate 模式如果傳入小數，getter 會丟掉小數部分。 ; Array.Duplicate 對值 struct 陣列（arg3==
+------------------------- 驗證 -------------------------
+refuted=False residual=0.9
+REASON: 我逐項試著推翻，沒有成功。
+
+1) 跳表：我讀了 disp.txt 的 0x4c6520 反組譯。0x4c654c 做 cmp eax,0x26，0x4c6555 經 [eax*4+0x4c6ca0] 分派，共 39 格。table.txt 各格的讀參數 helper（0x659f20 讀 int、0x65a070 讀 float）、參數步距（+0x28/+0x50/+0x78）和寫回的型別標記（0xa=int、0xb=float），都和 libraries.txt:416-453 的 index 0..38 逐格吻合。
+
+2) 參數順序：我逐條追了 stack 偏移。
+- Min(ff) 0x4c6840：[esp]=x、[esp+4]=y，得 fminf(x,y)。
+- Min(fff) 0x4c68ec：先 fminf(x,y)；add esp,4 後 fstp [esp]，得 fminf(r,z)。
+- Min(ffff) 0x4c698d：先 t1=fminf(z,w)，再 t2=fminf(x,y)，最後 fminf(t2,t1)。
+- Max 三個版本的形狀相同（0x4c6a45/0x4c6acd/0x4c6b6e→0x4c6a08）。
+- 提議的巢狀方式和參數順序完全一致。
+- int 版 Min/Max 3 參數：陣列 [x,y,z] 做 cmp/cmovl 迴圈（0x4c68b0、0x4c6ab6）。4 參數：ecx=x、edx=y，stack 上 z,w，進 0x4c7170/0x4c71d0。取值結果和提議一致。
+
+3) fminf 0x769351 與 fmaxf 0x7692f5：我反組譯了 0x77a5bb，確認是 _fdtest（exp 全 1 時，mantissa 非 0 回 2、為 0 回 1），所以 cmp ax,2 只攔 NaN。
+- fcom 的 test ah,0x41、fucompp 的 test ah,0x44/jp，加上 [ebp+0xa]&0x8000 測 x 的符號，推出的行為是：y>x 時 fmin 回 x、fmax 回 y；y<x 時 fmin 回 y、fmax 回 x；相等時 fmin 回 signbit(x)?x:y、fmax 回 signbit(x)?y:x。
+- 這和提議的 msvc_fminf/msvc_fmaxf 相同。
+
+4) Clamp float 0x4c6c28：[esp+0x10]=value、[esp+0x18]=low、xmm1=high。comiss low,value 加 jbe：只有 ordered 且 low>value 時回 low。接著 comiss high,value 加 ja：high>value 時回 value，否則回 high。Math_Clamp3F
+  BUG: （非功能性）用 -Wmissing-prototypes 編譯時，math_select_function 會出現 'no previous prototype' 警告；它和 array_select_function 是同一種寫法，meson.build 也沒開這個旗標（已 grep 確認），可以不管
+  BUG: （文件數字錯）摘要寫「Math 其餘 29 個宣告沒有同名多載」：Math 共 39 個宣告，Abs/Min/Max/Clamp 四個同名組佔 16 個，其餘應是 23 個。若只扣掉 12 個走錯的，是 27 個。29 對不上任何算法，只影響文字，結論不受影響
+  BUG: （前提條件）msvc_fminf/msvc_fmaxf/Math_Clamp3F 依賴 IEEE 比較和 isnan/signbit。用 -ffast-math 編譯時，我的對照測試有 46 組邊界值不一致。目前 meson 沒開 fast-math，所以不構成 bug；建議在函式旁加註解，說明不可用 -ffast-math 編譯
+CORRECTED: 語義結論維持原樣，只做文字更正：「Math 其餘 29 個宣告」應改為「Abs/Min/Max/Clamp 以外的 23 個宣告，沒有同名多載，也沒有 float/int 原型錯配」。
+
+建議補兩行註解：
+- 在 msvc_fminf、msvc_fmaxf、Math_Clamp3F 旁註明「依賴 IEEE NaN/±0 語義，不可用 -ffast-math 編譯」。
+- 在 Atan/Atan2 旁註明「EXE 回傳弧度（0x4c6612→0x786f02、0x4c6f30 fpatan），與 atanf/atan2f 一致」，避免之後有人仿照 Cos/Sin 誤加 rad2deg。
+------------------------- 驗證 -------------------------
+refuted=True residual=0.55
+REASON: 我用自己寫的 capstone 腳本（scratchpad/overload2/refute-hashmap/xdis.py）重新反組譯，核心結論都成立：
+- 名稱字串 0x7cee30 的內容是 'HashMap'。0x49475f 做比較，命中後回傳 dispatcher 0x654fb0。0x654fee 的 cmp eax,0xd 加上跳表 0x655264 共 14 格；各 case 的參數數與回傳型別跟 libraries.txt:275-288 的宣告順序逐一對得上（case0 無參數回傳 type 0xa、case3 取三個參數、case8 用 arg1 當 string 等等）。
+- case6 0x655108 是 call 0x6556a0 後 setne；case7 0x655132 是同一個 helper 後 sete。helper 0x6556a0 在 id<0 或越界（0x6556a2/0x6556b4）以及 slot==0（0x6556cd）時回 0，否則回 [obj+8]==0（0x6556e9 sete）。所以 Empty = 有效且空，Any(id) = !(有效且空)，無效 id 讓 Any 回 true。
+- case8 0x65515d 進 0x655710：無效 id 或 NULL slot 回 0，否則呼叫 0x446650，結果和 [obj+4]（end）比較後 setne。
+- PartsEngine 跳表 0x589714[481]=0x5828db、[483]=0x58294f，查表結果確認。0x5828e6 用 0x65a070 取 float 放 xmm0，再從 xmm2 傳進 0x594d80；0x594dbe 把 movss 寫到 +0x48，0x594da0 在查無 parts 時直接不動作。0x594df0 回 [+0x48] 或用 xorps 回 0。0x657bc0 把回傳 type 寫成 0xb。
+- 可達性：ain_code.txt 用 grep -a 找 AFL_HashMap_Create 只有 2 筆，就是 841819 的註解和 841839 的 ENDFUNC，沒有任何 CALLFUNC。PUSH 20771 也是 0 筆；IHashMap 只出現在 841821。可達性判斷成立。
+- 我用 audit2.json 另外重掃了一次 float/int 錯配。排除 float* 指標和 Math 之後只剩 PE481、PE483、SystemService18，和調查摘要一致。
+- 既有 harness t_hashmap、t_pe 我都重跑過，輸出和摘要一致。
+- ffi 部分：AIN_BOOL 的 CIF 是 sint32，hll_call 只讀低 byte（ffi.c 
+  BUG: HashMap.c 快照 :86-89 的 HashMap_Free 直接呼叫 HashMap_Release（active=false），但原版 Free（跳表 0x655264[2]=0x655038 → 0x655480）只做 unordered_map clear：0x6554f8 lea ecx,[esi+4] → 0x446810 清掉節點鏈並把 size 設 0，再呼叫 0x4430f0(8) 重設 bucket；slot 本身不清成 NULL（對照 Release 0x655430 在 0x655458 有 mov [esi+ecx*4],0，Free 沒有）。套用提議後，Free 過的 id：Empty 回 false（原版 true）、Any(id) 回 true（原版 false）；Add 也會失敗（原版成功）。『修正後全部符合原版』在 Free 路徑不成立。此外，『順帶修正』的 Empty（!map||count==0 改成 map&&count==0）把 Free 路徑從原本碰巧符合原版（true）改成不符（false），屬於回歸。建議在同一個 commit 
+  BUG: SystemService.RenderToSurfaceImage[17]（libraries.txt 第 1657 行附近 bool RenderToSurfaceImage(wrap<array<int>>)）同樣是 AIN 宣告回傳 bool、C 寫成 void（快照 SystemService.c:615 static void SystemService_RenderToSurfaceImage(int)）。提議第 4 項只改 [18]，漏了 [17]。audit2.json 的掃描也列出這一項，0 次呼叫。
+  BUG: pe_layoutbox_select.inc 的 PE_SetLayoutBoxReturnF 用 (int)return_size 轉型：只有 |v|≤2^24 時 ITOF→int 才能精確還原。若腳本傳 INT_MAX 之類的哨兵值，ITOF 會得到 2147483648.0f，(int) 轉換超出 int 範圍，在 C 是 UB。『round-trip 精確』的說法需要加上範圍限定；建議先 clamp 或改用 lrintf 並檢查範圍。實際呼叫端是否會傳極端值未驗證（SetReturn 經 vtable 分派）。
+CORRECTED: 原版 HashMap（dohnadohna_dump_SCY.exe，dispatcher 0x654fb0，底層是以 vector 存放 unordered_map<string,int>* 的 slot 表）：
+- [1] Release（0x655430）：把 slot 清成 NULL（0x655458）並解構物件。
+- [2] Free（0x655480）：slot 不變，只做 clear（0x446810 讓 size=0，0x4430f0(8) 重設 bucket），之後 Add 仍然可用。
+- [5] Numof（0x655630）：無效或 NULL slot 回 0，否則回 size。
+- [6] Empty：id 有效（0≤id<vector.size 且 slot≠NULL）且 size==0。Release 過或無效的 id 回 false；Free 過的 id 回 true。
+- [7] Any(id)：!Empty 的 helper，也就是非空、無效或 Release 過都回 true；Free 過或空的回 false。
+- [8] Any(id,key)：無效或 NULL slot 回 false，否則回 unordered_map 中是否有 key（FNV-1a hash，長度加 byte 精確比對）。
+因此提議的 HashMap_Empty/HashMap_Any 只在『xsystem4 的 inactive 等同原版的 NULL slot』時才符合原版，前提是 HashMap_Free 必須改成只清空、保持 active（和 Rufim 相同）。
+PartsEngine：[481]/[483] 以 float 存在 +0x48，其餘同原結論。CN 腳本只會傳 ITOF(int)，所以用 int 儲存時，在 |v|≤2^24 範圍內可精確還原。
+SystemService：[17] 和 [18] 都是 AIN 宣告回傳 bool、C 寫成 void，0 次呼叫。
+------------------------- 驗證 -------------------------
+refuted=False residual=0.86
+REASON: 我用獨立的 capstone 反組譯（腳本在 scratchpad/overload2/refute-string/d.py）逐項檢查。
+
+**dispatcher 與跳表**
+- 0x684120 的 dispatcher 有 `cmp eax,0x23`，跳表 0x684984 共 36 格，第 37 格是 0xcccccccc。
+- 每格的取參形狀都和 AIN String[0..35] 的宣告數一致。取參位移是 +0x28/+0x50，取值函式分別是 0x65a1c0（string）、0x659f20（int）、0x65a5f0（self）。
+
+**GetPart**
+- 0x688290 做 `push 0x7fffffff` 後呼叫 0x6882c0。
+- 0x6882c0 的規則：
+  - begin 用 cmovs 夾成 0；length 用 cmovg 取 max(length,0)。
+  - 雙位元組判斷是 0x81..0xFE。
+  - begin 沒找到就回空字串；end 沒找到就取到字尾。
+- 我寫了一份與 asm 結構一致的 C 鏡像（lead 規則換成 SJIS_2BYTE），和提案的 String_GetPart 隨機比對 154 萬例，0 差異。
+- begin+INT_MAX 溢位在原版只用 == 比較，不影響結果；提案用 long long 計算，行為等價。
+
+**Pad**
+- 0x6883d0 與 0x688640 的判定：pad<=0 回 self 副本；`sar ecx,8; test cl,cl` 決定 1 或 2 位元組。
+- 2 位元組時做 cdq/sar 得 pad/2，先寫 hi 再寫 lo。
+- 0x425290 是 pad+self（PadLeft），0x425230 是 self+pad（PadRight）。
+
+**Trim**
+- 0x688f10、0x6890c0、0x689230 都只經 vtable c_str 讀 self，結果寫到回傳緩衝區，不修改 self。
+- 預設清單 0x7e5f5c、0x7e5f30、0x7e5f24 的位元組，實測都是 20 0c 0a 0d 09 0b 81 40。
+- 集合建立（0x6862a0）、前向跳過（0x686500）、記錄最後一個不在集合內的字元結尾（0x6865b0），以及空集合時直接返回，都與提案一致。
+- 集合元素是 16 位元：2 位元組時 movzx 組成 (lead<<8)|trail；1 位元組在 0x68ed28 也是 movzx。
+
+**Match / Search**
+- Match：0x6878f0 → 0x68afc0（wregex）→ _Parser ctor 0x68d1c6 `mov [edi+0x40],1`（E
+  BUG: [regex 錨點語義與原版不符｜已用指令驗證]原版 MSVC 的 wregex 在這個 EXE 裡，^ 和 $ 會在換行處成立（多行語義）。^ 節點（_N_bol）的處理在 0x68e866：cur!=begin 時，0x68e888 做 `cmp word ptr [eax-2],0xa; setne al`，把結果當 _Failed（[ebp-0x10]，0x68ea3c/0x68ea55 讀取），也就是前一個字元是 '\n' 時 ^ 成立。$ 節點（_N_eol）在 0x68e89a：0x68e8ab 做 `cmp word ptr [eax],0xa; je 0x68ea3c`（成功），也就是 '\n' 前面 $ 也成立。提案的 rx_add 裡，RX_BOL 只在 pos==0、RX_EOL 只在 pos==n 成立。實測：Search("a\nb","^b")、Search("a\nb","a$")、Match("a\nb","a$\n^b")，提案都回 0，原版推定都回 1。CN 的 6 個呼叫點 regex 都沒有 ^/$，所以目前影響為 0。修法：RX_BOL 改成
+  BUG: [regex 字元類別對非 ASCII 字元的行為不同｜部分驗證]EXE 的 _Do_class（0x68feb0）在 wchar≥0x100 時（0x68ff52 `cmp si,0x100; jae`）走 0x68ffc5 → 0x68c980，由它呼叫 ctype<wchar_t> vtable+0x10（do_is）。\w 的遮罩是 0x107 再加上 '_'（0x68c9a0/0x68c9aa）。也就是說，\w、\d、\s 對轉成 Unicode 後的中文字、全形數字等字元，是依 ctype<wchar_t> 判定（UCRT 推定走 GetStringTypeW：中文字屬 alpha，全形數字屬 digit，這一點未逐指令驗證）。提案的 \d 只含 ASCII 0-9、\w 只含 ASCII，\s 只多加 A1A1/8140；Latin-1 範圍的字元（例如 GBK 的 A8A4 à）也只有 ASCII 判定。實測提案結果：Match("部件","\\w+")=0、Match("１"(A3B1),"\\d")=0；原版推定為 1。附帶一提，\b 在原版確實只看 ASCII：0
+  BUG: [regex 編譯時間可能爆炸｜已實測]rx_compile 對 RXN_REPEAT 會照 min 次數展開子樹。子樹如果不產生任何指令（例如 a{0}、(?:) 這類空群組），RX_MAX_INST 永遠不會觸發，時間也就沒有上限。實測：`(?:(?:a{0}){1000}){1000}` 耗時 0.41s；`(?:(?:(?:a{0}){1000}){1000}){1000}` 耗時 9.44s（-O2）；再多一層就要數小時。RX_MAX_DEPTH=64 擋不住。這和提案「線性時間、不會爆」的說法矛盾（該說法只對比對階段成立）。CN 的 regex 都是常值，目前影響為 0。修法：在 rx_compile 加入訪問節點預算（例如總展開量 ≤ RX_MAX_INST*4），或在解析時計算 min×子樹大小的上限。
+  BUG: [小項]聲稱「clang -Wall -Wextra 無警告」不精確。實測提案檔有 3 個既有的 -Wunused-parameter（String_SearchAll 的 regex；String_ReplaceRegex 的 regex、replacer）與 1 個 String_Split 的 containsMode。加上 -Wmissing-prototypes 時，string_select_function 會再多 1 個警告。都是外觀問題，不影響正確性。
+CORRECTED: 語義主幹維持原結論，只補充與修正下列細節。
+
+**Match[17] 與 Search[14]**
+- 就是 MSVC（本 EXE 版本）的 std::wregex，flag 為 ECMAScript：Match 走 regex_match（_Match full=1），Search 走 regex_search。
+- 需修正的部分：
+  - ^ 在字串開頭，或前一字元為 '\\n' 時成立（0x68e866/0x68e888）。
+  - $ 在字串結尾，或目前字元為 '\\n' 時成立（0x68e89a/0x68e8ab），也就是多行錨點。
+  - `.` 排除 '\\n' 與 '\\r'（0x68e95f/0x68e968）。
+  - \\b/\\B 只以 ASCII [A-Za-z0-9_] 判定單字字元（0x811ed8）。
+  - \\w、\\d、\\s 對 wchar≥0x100 走 ctype<wchar_t>::do_is（0x68c980，vtable+0x10），推定依 Unicode 分類，例如中文字屬 \\w、全形數字屬 \\d（未逐指令驗證 UCRT 表）。
+  - subject 與 pattern 都先以 "CHS" locale 轉成 wchar 再比對。
+
+**GetPart[21]/[22]、Pad*、Trim* 系列**
+- 與提案結論相同。
+- Trim 集合元素是 16 位元碼 (lead<<8)|trail 或單一位元組，皆為 zero-extend。
+
+**GetPart 的字元規則**
+- CN 原版是 GBK 首位元組 0x81..0xFE。xsystem4 若維持 SJIS，應明確列為已知偏差，而不是等價實作。
+------------------------- 驗證 -------------------------
+refuted=False residual=0.82
+REASON: 我自己反組譯（腳本在 scratchpad/overload2/refute-sort/，d.py、vt.py、jt.py），逐項驗證調查結論：
+
+1) 跳表索引：0x644f18[19,34..39,83] 依序是 0x6445fc、0x644907、0x644927、0x644940、0x644959、0x644972、0x64498b、0x644ecd，與 libraries.txt 的 Array 段（從第 89 行起算 0）完全對得上。
+
+2) 插入排序 0x646980：n 只在 0x64698f 讀一次；內層把 [esp+0x18]=j-1、[esp+0x1c]=j 以 _Do_call(&j,&j-1) 呼叫比較器，回 true 就 vt+0x60(j-1,j) 交換；jns 條件等價於 j>0。結論正確。
+
+3) 快速排序 0x646a00：p=(lo+hi)/2（cdq/sar，非負時等於 C 的 /）。I 掃描是 _Do_call(&i,&p)，J 掃描是 _Do_call(&p,&j)；i>=j 時 break；交換後 i==p 則 p=j，否則若 j==p 則 p=i（cmove）；遞迴 (lo,i) 後以 lo=i 迴圈。修法的 i<hi、j>=lo 邊界與 clamp，在比較器一致時不會觸發（i==lo 或 i==hi 的情形我推導過都不可能發生）。
+
+4) 謂詞比較器：vtable 0x810f94 的 +8 是 0x64bd40，它 push *pb、*pa，再 call 0x645f90(a,b)；0x645c80 依序對 a、b 呼叫 0x645b10 並 push_back，所以是 func(arr[a],arr[b])。
+
+5) 值比較器 0x645dd0：跳表解碼得 10/47/92 → 0x811020（0x64bef0 setl v[a]<v[b]）；11 → 0x810e44（comiss/seta，也就是 a<b，NaN 為 false）；12 → 0x810f78（0x64bdc0：逐 byte 無號比較加 sbb，等於 strcmp(a,b)<0）；其他 → 0x810e7c（+8=0x49c5c0）恆為 false。DescSort 的 0x64b350 以同順序呼叫 inner 後 sete，也就是取反。
+
+6) 入口：Sort#0（0x648340）與 AscSort（0x648500）走 0x646980；DescSort（0x6485e0）用 0x645dd0 加包裝，再走 0x646980；QuickSort#0/#1（0x648700/0x6487e0）走 0x646a00。全部以 vt+0x30 → 0x658150(h,-1,0x4f) 收尾；0x4f 在跳表中對應值型別 0x50（R
+  BUG: [中，跨模組，已驗證] GetStructPageList 修好之後，system.DeserializeStruct 在整條流程上仍然壞掉，而且修法本身會多出洩漏。system_DeserializeStruct 用取代語義寫回：「structPageList->values[0].i = val.i」（快照 src/hll/system.c:301；陣列為空時走 309 的 heap_set_page(hll_self_slot, …)）。新的 Array_GetStructPageListNew 回傳的是一次性的 int 陣列。它以 AIN_ARRAY 參數傳進 system.DeserializeStruct，呼叫結束後 ffi 走 default 分支 variable_fini 把它釋放（快照 src/ffi.c:752）。結果是反序列化出來的新 struct（ref=1）寫進一個馬上被釋放的 int 陣列：資料遺失，val 永遠不會 unref，函式還回傳 true。受影響的呼叫者：AFL_GameSave_StructLoad（ain_code.txt:385520），
+  BUG: [低] self 是 null 陣列時回傳 -1，不是 self handle。ffi 的 REF_ARRAY 分支在 slot<=0 時會配置 new_slot 並寫回來源變數，但不設 hll_self_slot（快照 src/ffi.c:589-606，只有 585-588 的 array_slot>0 分支會設）。因此 array_sort_run 與 Array_RemainWrap 會以 self=-1 走 array_self_result，回傳 -1；原版則回傳該（空）陣列的 handle。對 `return list.Sort()` 這種寫法，若 list 未初始化，呼叫端會拿到 -1，來源變數卻已指向 new_slot。CN 的 78 個呼叫點有沒有碰到未初始化陣列：未驗證。
+  BUG: [低，未驗證] GetStructPageList 遇到 null 元素時，原版 0x64a35e 的 test eax,eax 會跳到 0x64a3ad（錯誤路徑，沒有 push_back）；修法照樣複製第 0 槽的 -1。CN 的 4 個呼叫點都是單一非 null 元素（ain_code.txt:385456-385484），目前不受影響。
+  BUG: [資訊] 修法 diff 對目前 HEAD ae896d3 做 patch --dry-run 可以乾淨套上；6e6ed53 到 ae896d3 之間 ffi.c 沒有變動。其餘 C 原型和 CIF 逐位一致：ref array 對 pointer、hll_func 對 sint32；回傳 wrap/array 的 CIF 是 pointer 而 C 是 int，這和既有的 Array_Where 慣例相同，只讀 .i 所以實務上安全。
+CORRECTED: 排序與 Remain 的語義維持原結論，已由我獨立反組譯確認：
+- Sort#0 與 AscSort、Sort#1 是穩定插入排序 0x646980，條件為 less(a[j],a[j-1]) 時交換。
+- DescSort 同樣是插入排序，比較器為 !less。
+- QuickSort#0 與 #1 是 0x646a00：以索引追蹤 pivot 的 Hoare 分割，I 掃描 less(a[i],a[p])、J 掃描 less(a[p],a[j])，遞迴左半、迴圈處理右半。
+- 值比較器：INT/BOOL/ENUM 用有號 <；FLOAT 用 <（NaN 為 false）；STRING 用無號 strcmp<0；其他型別恆為 false。謂詞比較器是 func(arr[a],arr[b])。
+- 以上全部和 Remain 一樣，回傳 self handle（值型別 0x50）並 ref+1。
+
+GetStructPageList 的語義是回傳新的 int 陣列，內容為各元素的 page handle（iwrap 元素取第 0 槽，也就是 struct slot），但要補一句：原版消費者 DeserializeStruct 必然是透過 handle 就地載入。xsystem4 的 system_DeserializeStruct 必須跟著改成就地寫入 heap[values[i]].page，不能再取代 values[0]；否則這項修法只修好 Save，Load 仍然遺失資料，而且會洩漏。
