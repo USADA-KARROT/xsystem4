@@ -363,32 +363,6 @@ static bool Array_Any(struct page **array)
 	return src && src->nr_vars > 0;
 }
 
-// Predicate Any: returns true if any element satisfies the predicate function
-static bool Array_AnyPredicate(struct page **array, int func)
-{
-	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
-		return false;
-
-	struct ain_function *cb = &ain->functions[func];
-
-	for (int i = 0; i < src->nr_vars; i++) {
-		int saved_sp = stack_ptr;
-		if (cb->nr_args >= 2) {
-			stack_push(src->values[i]);
-			stack_push(0);
-		} else {
-			stack_push(src->values[i]);
-		}
-		vm_call_nopop(func, cb->nr_args);
-		int result = stack_pop().i;
-		stack_ptr = saved_sp;
-		if (result)
-			return true;
-	}
-	return false;
-}
-
 static void Array_Free(struct page **array)
 {
 	if (array && *array && (*array)->type == ARRAY_PAGE) {
@@ -781,29 +755,6 @@ static void Array_Sort(struct page **array)
 			j--;
 		}
 		a->values[j + 1].i = val;
-	}
-}
-
-// Unique: remove duplicate values from sorted array
-static void Array_Unique(struct page **array)
-{
-	if (!array || !*array || (*array)->nr_vars <= 1)
-		return;
-	struct page *a = *array;
-	int write = 1;
-	for (int read = 1; read < a->nr_vars; read++) {
-		if (a->values[read].i != a->values[read - 1].i) {
-			a->values[write] = a->values[read];
-			write++;
-		}
-	}
-	if (write < a->nr_vars) {
-		struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, write);
-		for (int i = 0; i < write; i++)
-			new_a->values[i] = a->values[i];
-		new_a->array = a->array;
-		free_page(a);
-		*array = new_a;
 	}
 }
 
@@ -2528,6 +2479,310 @@ static int Array_LastPredicate(struct page **array, int func)
 	return Array_At(array, -1);
 }
 
+/* Any / Unique / UniqueSorted / Equals.
+ *
+ * Native (Array dispatcher, jump table 0x644f18):
+ *   26 Any()              0x6446fc: length != 0.
+ *   27 Any(pred)          0x64473a, the same entry as 57 IsExist(pred):
+ *                         find-first predicate match >= 0.
+ *   40 Equals(src)        0x6488c0: same length, then a typed compare of
+ *                         self[i] and src[i].
+ *   41 Equals(src, pred)  0x6489a0: same length, pred(self[i], src[i]) for all i.
+ *   61 Unique()           0x6494f0: remove every later duplicate, keep the
+ *                         first occurrence and the order.
+ *   62 Unique(pred)       0x649670: the same loop; pred(self[i], self[j]) for
+ *                         surviving i < j, true erases j.
+ *   63 UniqueSorted()     adjacent removal against the last kept element.
+ *   64 UniqueSorted(pred) the same with pred(kept, next).
+ * The native loops erase in place. Here the callbacks run against the
+ * unchanged page and the drops are applied once at the end; the call order
+ * and arguments are the same (erasing j only shifts later indices), and the
+ * FFI snapshot of self is never freed while a callback runs. Dropped
+ * reference elements are released.
+ */
+
+/* Element equality for the non-predicate forms: floats by value, strings
+ * by content (an invalid slot counts as the empty string, as the native
+ * std::string would), anything else by identity. */
+static bool array_elem_value_equal(const struct page *a, union vm_value x, union vm_value y)
+{
+	if (a->a_type == AIN_FLOAT || a->a_type == AIN_ARRAY_FLOAT)
+		return x.f == y.f;
+	if (x.i == y.i)
+		return true;
+	if (!array_elem_is_ref())
+		return false;
+	bool xs = x.i > 0 && (size_t)x.i < heap_size && heap[x.i].type == VM_STRING;
+	bool ys = y.i > 0 && (size_t)y.i < heap_size && heap[y.i].type == VM_STRING;
+	bool xo = x.i > 0 && (size_t)x.i < heap_size && HEAP_REF(x.i) > 0 && !xs;
+	bool yo = y.i > 0 && (size_t)y.i < heap_size && HEAP_REF(y.i) > 0 && !ys;
+	if ((!xs && !ys) || xo || yo)
+		return false;
+	const struct string *sx = array_bound_string(x.i), *sy = array_bound_string(y.i);
+	return sx->size == sy->size && (!sx->size || !memcmp(sx->text, sy->text, sx->size));
+}
+
+static bool array_elem_equal_at(const struct page *a, int i, const struct page *b, int j, int stride)
+{
+	if (!array_elem_value_equal(a, a->values[i * stride], b->values[j * stride]))
+		return false;
+	// Extra slots of interface/option elements are compared raw.
+	for (int k = 1; k < stride; k++) {
+		if (a->values[i * stride + k].i != b->values[j * stride + k].i)
+			return false;
+	}
+	return true;
+}
+
+/* (lhs, rhs) -> bool callbacks: one slot per argument (a scalar, a string
+ * slot, or the struct slot). vm_call_nopop owns the argument references. */
+static bool array_pair_callback_ok(int func, int stride)
+{
+	if (func < 0 || func >= ain->nr_functions || stride != 1)
+		return false;
+	struct ain_function *cb = &ain->functions[func];
+	if (cb->address >= ain->code_size || cb->return_type.data != AIN_BOOL
+	    || !cb->vars || cb->nr_vars < cb->nr_args || cb->nr_args != 2)
+		return false;
+	for (int k = 0; k < 2; k++) {
+		switch (cb->vars[k].type.data) {
+		case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_LONG_INT:
+		case AIN_ENUM: case AIN_ENUM2: case AIN_STRING: case AIN_REF_STRING:
+		case AIN_STRUCT: case AIN_REF_STRUCT: case AIN_WRAP:
+			break;
+		default:
+			return false;
+		}
+	}
+	return true;
+}
+
+static void array_pair_warn(const char *name, int func)
+{
+	static int count;
+	if (count++ < 8)
+		WARNING("Array.%s: unsupported pair predicate fno %d; comparing values instead", name, func);
+}
+
+static bool array_pair_predicate(int func, union vm_value lhs, union vm_value rhs)
+{
+	int saved_sp = stack_ptr;
+	stack_push(lhs);
+	stack_push(rhs);
+	vm_call_nopop(func, 2);
+	bool match = stack_pop().i != 0;
+	stack_ptr = saved_sp;
+	return match;
+}
+
+/* The FFI passes a local snapshot of self. A callback that replaces the
+ * owner's page would be overwritten by the FFI write-back; refuse it, as
+ * array_callback_call does. */
+struct array_owner {
+	int slot;
+	bool tracked;
+	struct page *before;
+};
+
+static struct array_owner array_owner_track(struct page *page)
+{
+	int owner = hll_self_slot;
+	struct array_owner o = { owner, false, page };
+	o.tracked = owner >= 0 && (size_t)owner < heap_size && HEAP_REF(owner) > 0
+		&& heap[owner].type == VM_PAGE && heap[owner].page == page;
+	return o;
+}
+
+static void array_owner_check(const struct array_owner *o, struct page **array)
+{
+	if (o->tracked) {
+		if ((size_t)o->slot >= heap_size || HEAP_REF(o->slot) <= 0
+		    || heap[o->slot].type != VM_PAGE)
+			VM_ERROR("Array: predicate released its array owner");
+		*array = heap[o->slot].page;
+	}
+	if (*array != o->before)
+		VM_ERROR("Array: predicate changed array storage");
+}
+
+/* Drop the flagged logical elements in one pass. Only the first slot of an
+ * element owns a heap reference (same contract as Array_Erase). */
+static void array_drop_flagged(struct page **array, const bool *drop, int stride)
+{
+	struct page *a = *array;
+	int count = a->nr_vars / stride;
+	int keep = 0;
+	for (int i = 0; i < count; i++) {
+		if (!drop[i])
+			keep++;
+	}
+	if (keep == count)
+		return;
+	if (array_elem_is_ref()) {
+		for (int i = 0; i < count; i++) {
+			if (drop[i] && a->values[i * stride].i > 0)
+				heap_unref(a->values[i * stride].i);
+		}
+	}
+	struct page *n = alloc_page(ARRAY_PAGE, a->a_type, keep * stride);
+	int w = 0;
+	for (int i = 0; i < count; i++) {
+		if (drop[i])
+			continue;
+		for (int k = 0; k < stride; k++)
+			n->values[w * stride + k] = a->values[i * stride + k];
+		w++;
+	}
+	n->array = a->array;
+	free_page(a);
+	*array = n;
+}
+
+static void array_unique(struct page **array, bool use_pred, int func, bool adjacent)
+{
+	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+		return;
+	struct page *a = *array;
+	int stride = array_erase_stride(a);
+	int count = a->nr_vars / stride;
+	if (count <= 1)
+		return;
+	if (use_pred && !array_pair_callback_ok(func, stride)) {
+		array_pair_warn(adjacent ? "UniqueSorted" : "Unique", func);
+		use_pred = false;
+	}
+	struct array_owner owner = array_owner_track(a);
+	bool *drop = xcalloc(count, sizeof(bool));
+	if (adjacent) {
+		int kept = 0;
+		for (int j = 1; j < count; j++) {
+			bool dup;
+			if (use_pred) {
+				dup = array_pair_predicate(func, a->values[kept], a->values[j]);
+				array_owner_check(&owner, array);
+			} else {
+				dup = array_elem_equal_at(a, kept, a, j, stride);
+			}
+			if (dup)
+				drop[j] = true;
+			else
+				kept = j;
+		}
+	} else {
+		for (int i = 0; i < count; i++) {
+			if (drop[i])
+				continue;
+			for (int j = i + 1; j < count; j++) {
+				if (drop[j])
+					continue;
+				bool dup;
+				if (use_pred) {
+					dup = array_pair_predicate(func, a->values[i], a->values[j]);
+					array_owner_check(&owner, array);
+				} else {
+					dup = array_elem_equal_at(a, i, a, j, stride);
+				}
+				if (dup)
+					drop[j] = true;
+			}
+		}
+	}
+	array_drop_flagged(array, drop, stride);
+	free(drop);
+}
+
+static void Array_Unique(struct page **array)
+{
+	array_unique(array, false, -1, false);
+}
+
+static void Array_UniqueIf(struct page **array, int func)
+{
+	array_unique(array, true, func, false);
+}
+
+static void Array_UniqueSorted(struct page **array)
+{
+	array_unique(array, false, -1, true);
+}
+
+static void Array_UniqueSortedIf(struct page **array, int func)
+{
+	array_unique(array, true, func, true);
+}
+
+/* wrap<array<T>> arrives as the array's heap slot (sint32 in the CIF), not
+ * as a struct page **. A live slot with a NULL page is an empty array. */
+static bool array_wrap_slot_valid(int slot)
+{
+	return slot > 0 && (size_t)slot < heap_size && HEAP_REF(slot) > 0
+		&& heap[slot].type == VM_PAGE
+		&& (!heap[slot].page || heap[slot].page->type == ARRAY_PAGE);
+}
+
+static bool array_equals(struct page **self, int src_slot, bool use_pred, int func)
+{
+	if (!self || !array_wrap_slot_valid(src_slot))
+		return false;
+	struct page *a = *self;
+	struct page *b = heap[src_slot].page;
+	if (a && a->type != ARRAY_PAGE)
+		return false;
+	int stride = a ? array_erase_stride(a) : (b ? array_erase_stride(b) : 1);
+	if (a && b && array_erase_stride(b) != stride)
+		return false;
+	int na = a ? a->nr_vars / stride : 0;
+	int nb = b ? b->nr_vars / stride : 0;
+	if (na != nb)
+		return false;
+	if (na == 0)
+		return true;
+	if (use_pred && !array_pair_callback_ok(func, stride)) {
+		array_pair_warn("Equals", func);
+		use_pred = false;
+	}
+	struct array_owner owner = array_owner_track(a);
+	for (int i = 0; i < na; i++) {
+		bool eq;
+		if (use_pred) {
+			eq = array_pair_predicate(func, a->values[i], b->values[i]);
+			array_owner_check(&owner, self);
+			if (!array_wrap_slot_valid(src_slot) || heap[src_slot].page != b)
+				VM_ERROR("Array.Equals: predicate changed source storage");
+		} else {
+			eq = array_elem_equal_at(a, i, b, i, stride);
+		}
+		if (!eq)
+			return false;
+	}
+	return true;
+}
+
+static bool Array_Equals(struct page **self, int src_slot)
+{
+	return array_equals(self, src_slot, false, -1);
+}
+
+static bool Array_EqualsIf(struct page **self, int src_slot, int func)
+{
+	return array_equals(self, src_slot, true, func);
+}
+
+/* Any(pred) shares IsExist(pred)'s native entry. Use the checked query
+ * path; shapes it does not cover keep the old looser IsExist loop. */
+static bool Array_AnyIf(struct page **array, int func)
+{
+	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+		return false;
+	int stride = array_erase_stride(*array);
+	if ((*array)->nr_vars / stride <= 0)
+		return false;
+	const char *why = NULL;
+	if (array_callback_kind(array, func, stride, AIN_BOOL, &why) < 0)
+		return Array_IsExist(array, func);
+	return Array_FindIf(array, func) >= 0;
+}
+
 /* Select by declared signature, never by a game's function index. */
 void *array_query_function(const struct ain_hll_function *f)
 {
@@ -2607,6 +2862,31 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 	}
 	if (!strcmp(f->name, "First"))
 		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
+	if (!strcmp(f->name, "Any")) {
+		if (f->return_type.data != AIN_BOOL || f->nr_arguments < 1)
+			return fallback;
+		if (f->nr_arguments == 1)
+			return (void *)Array_Any;
+		return f->nr_arguments == 2 && array_decl_has_func(f) ? (void *)Array_AnyIf : fallback;
+	}
+	if (!strcmp(f->name, "Unique") || !strcmp(f->name, "UniqueSorted")) {
+		bool sorted = !strcmp(f->name, "UniqueSorted");
+		if (f->return_type.data != AIN_VOID)
+			return fallback;
+		if (f->nr_arguments == 1)
+			return sorted ? (void *)Array_UniqueSorted : (void *)Array_Unique;
+		if (f->nr_arguments == 2 && array_decl_has_func(f))
+			return sorted ? (void *)Array_UniqueSortedIf : (void *)Array_UniqueIf;
+		return fallback;
+	}
+	if (!strcmp(f->name, "Equals")) {
+		if (f->return_type.data != AIN_BOOL || f->nr_arguments < 2
+		    || f->arguments[1].type.data != AIN_WRAP)
+			return fallback;
+		if (f->nr_arguments == 2)
+			return (void *)Array_Equals;
+		return f->nr_arguments == 3 && array_decl_has_func(f) ? (void *)Array_EqualsIf : fallback;
+	}
 	if (!strcmp(f->name, "Min") || !strcmp(f->name, "Max") || !strcmp(f->name, "Last")) {
 		bool func = array_decl_has_func(f);
 		if (f->nr_arguments != (func ? 2 : 1) || f->return_type.data != AIN_REF_HLL_PARAM)
@@ -2804,27 +3084,6 @@ static void Array_Remain(struct page **array, int func)
 		*array = new_a;
 	}
 	free(keep);
-}
-
-/* UniqueSorted: remove consecutive duplicates */
-static void Array_UniqueSorted(struct page **array)
-{
-	Array_Unique(array);
-}
-
-/* Equals: check if two arrays are equal */
-static bool Array_Equals(struct page **a, struct page **b)
-{
-	struct page *pa = (a && *a) ? *a : NULL;
-	struct page *pb = (b && *b) ? *b : NULL;
-	if (!pa && !pb) return true;
-	if (!pa || !pb) return false;
-	if (pa->nr_vars != pb->nr_vars) return false;
-	for (int i = 0; i < pa->nr_vars; i++) {
-		if (pa->values[i].i != pb->values[i].i)
-			return false;
-	}
-	return true;
 }
 
 HLL_LIBRARY(Array,
