@@ -38,7 +38,7 @@
 | `src/hll/hll_shape_select.c` | system 庫交給 `system_select_function` |
 | `src/vm.c`、`include/vm.h` | `vm_construct_struct`：比照 NEW 在 `orig_ctor == -1` 時的路徑建立 struct 並呼叫無參數建構子；NEW 本身不變 |
 | `src/ffi.c` | `hll_call` 在呼叫前複製參數槽；呼叫結束時堆疊位置未變就從複本釋放 by-value 參數。會自行推回傳值的 `AIN_REF_HLL_PARAM` 函式維持原本行為 |
-| `src/page.c` | `delete_page_vars` 不再把 int／float／bool／enum 的 option 值當成 heap slot 釋放 |
+| `src/page.c` | `delete_page_vars` 不再把 int／float／bool／enum 的 option 值當成 heap slot 釋放。`6b65b12` 把同一判斷（`variable_option_is_value`）擴及 ASSIGN、X_OP_SET 與 `copy_page`，見下節 |
 
 不支援的形狀一律保留原綁定。新程式碼沒有 `VM_ERROR`／`ERROR`／`assert`；失敗時印有限次數的警告，回 false 或空陣列。
 
@@ -77,6 +77,24 @@
 - 語義反駁 8(a)(b)：option 元素陣列非空時，讀入依原版回 false；寫出也回 false（原版會交錯寫出值與旗標，自己讀不回）。2 槽元素陣列讀入時保持不動（原版重建為 -1）。CN 只有 `m_achievements` 屬於這種，它的 name2 是空的，原版本來就不會載入。
 
 **與原版刻意不同之處**：解析或結構驗證失敗時目的端完全不動；多一層防禦性的 wrap box 解包；寫檔用暫存檔加 rename；檔案 root 為 -1 或 globals 少於清單時回 false（原版會 unref 呼叫端的 struct）；上述 option 旗標保護；深度與工作量上限。
+
+## 審查後修正（`6b65b12`）
+
+`173ff1d` 之後的兩位審查者各找到可重現的缺陷，已全部修正。新增 `save-fixes` 模式（5 個案例），在修正前的 `ce2cd59` 上 5/5 失敗，修正後全過。
+
+| 案例 | 缺陷 | 修正前（`ce2cd59`） | 修正 |
+|---|---|---|---|
+| F1 | 讀檔器先寫入 struct 定義數才檢查；數值大於剩餘位元組時，定義表是 NULL，清理時解參照 NULL。遊戲開機就會讀 Achievement／Collection／AFConfig，損壞檔會讓每次啟動都崩潰 | signal 6（UBSan：`serialize_struct.c:788` null member access） | 檢查通過後才寫入計數；清理迴圈另加 NULL 保護 |
+| F2 | `option<int>` 等值型別的第一格是純數值，但只有 `delete_page_vars` 知道。讀檔原樣寫入後，遊戲的 `WorkerHistory@SetIncome`（`X_OP_SET`）覆寫時會 unref「編號等於舊整數」的無關 slot | 無關字串被提前釋放（ref 0） | ASSIGN、X_OP_SET、`delete_page_vars`、`copy_page` 共用 `variable_option_is_value`，值型別 payload 一律不 ref、不 unref、不深拷貝 |
+| F3 | 同上：`X_OP_SET` 對值型別 payload 做 ref，刪除時卻不再 unref，每次指派都洩漏一個參照 | 無關字串 ref 停在 2 | 同上 |
+| F4 | `copy_page` 把 `option<int>` 的整數當 slot，深拷貝那個編號的 page，複本的值被換成新 slot 編號 | 複本的值從 3 變成 6 | 同上 |
+| F5 | 讀檔時新建沒有 STRT 建構子的 struct（例如 BattleContext），成員停在 null。原版 `0x679b30(index, 0)` → `0x656970(member, 0)` 會預設初始化 | `m_actions` 為 -1 | `vm_construct_struct` 對沒有建構子的 struct 做原版預設初始化：struct 成員遞迴建立（不呼叫其建構子）、字串為空字串、delegate 為新物件、option 為 none（旗標 1） |
+
+F2 到 F4 的 ref 計數問題在修正前的 GUI 就已發生：CN 以 `X_OP_SET` 寫 `option<int>` 的地方包括 `WorkerHistory@SetIncome`、`WorkerCollection@SetLimit`、`SelectableIndexArray.m_selected` 等。`72a33e5` 以前 ref 與 unref 雖然對稱，但都作用在編號恰為該整數的無關 slot 上；`173ff1d` 只改了刪除端，才變成不對稱。
+
+驗證：`6b65b12` 上完整 40 模式 `VERDICT PASS`，sanitizer 0，deleted-event 仍為預期 87。150 秒 GUI（新存檔）跑滿 150.376 秒，MSG 88、assertion 0、堆疊溢位 0，寫出 AFBGMMode／AFCGMode／Collection；峰值 RSS 1,770,766,336 bytes，比 `173ff1d` 的 1,908,981,760 低。已查看 framebuffer：場景、人物、對話框、頭像與正文正常。說話者名牌的中文名有缺字方框，推測與 String 的 GBK 字元規則有關，未驗證。
+
+F5 只改讀檔用的 `vm_construct_struct`。一般 `NEW` 建立沒有建構子的 struct 時仍把成員留在 null，與原版不同；這是引擎層的既有差異，另列為待辦。GC 標記仍把值型別 option 的第一格當參照，只會讓無關物件晚一點回收，不會造成錯誤釋放，本組沒有改。
 
 ## Headless 驗證
 

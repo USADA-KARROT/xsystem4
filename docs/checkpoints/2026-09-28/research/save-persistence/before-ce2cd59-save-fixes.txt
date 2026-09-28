@@ -1,0 +1,18 @@
+# before-check.sh ce2cd59 save-fixes（src/include 取自修正前的 ce2cd59）
+== F1 corrupt struct-definition count
+../../worktrees/xsystem4-cn-on-upstream/src/serialize_struct.c:788:8: runtime error: member access within null pointer of type 'struct ss_sd'
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../../worktrees/xsystem4-cn-on-upstream/src/serialize_struct.c:788:8 
+F1 corrupt struct-definition count           FAIL (signal 6)
+== F2 loaded option<int> then SetIncome
+  FAIL sf_loaded_then_setincome:83: victim ref 0 after SetIncome (0 = released by the game's X_OP_SET)
+F2 loaded option<int> then SetIncome         FAIL (exit 1)
+== F3 X_OP_SET option<int> then delete
+  FAIL sf_xopset_delete:117: victim ref 2 after X_OP_SET of an int payload
+F3 X_OP_SET option<int> then delete          FAIL (exit 1)
+== F4 copy struct with option<int>
+  FAIL sf_copy:133: copy payload 6 (want 3)
+F4 copy struct with option<int>              FAIL (exit 1)
+== F5 default members without a ctor
+  FAIL sf_default_members:156: m_actions = -1 (want a struct)
+F5 default members without a ctor            FAIL (exit 1)
+SAVE-FIXES summary: 5/5 case(s) failed

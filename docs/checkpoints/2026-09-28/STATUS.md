@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：存讀檔持久化已接上（`173ff1d`）：AFL_GameSave_StructSave／StructLoad 以原版 v9 格式寫出並就地讀回，存檔註解可讀寫，原版引擎的 AFConfig／Collection／AFCommon／AFInfo 讀入後重存逐位元組相同。兩次 150 秒 GUI（新存檔、重用存檔）皆 MSG 88、assertion 0、堆疊溢位 0，第二次確認設定與 Collection 的讀回狀態；39 個 headless 模式通過。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：存讀檔持久化已接上（`173ff1d`，審查後修正 `6b65b12`）：AFL_GameSave_StructSave／StructLoad 以原版 v9 格式寫出並就地讀回，存檔註解可讀寫，原版引擎的 AFConfig／Collection／AFCommon／AFInfo 讀入後重存逐位元組相同。兩次 150 秒 GUI（新存檔、重用存檔）皆 MSG 88、assertion 0、堆疊溢位 0，第二次確認設定與 Collection 的讀回狀態；40 個 headless 模式通過。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。libsys4 仍固定於 `8c93946`。
 
@@ -125,6 +125,8 @@ GUI 基準在 120.865 秒因成就斷言停止；修正後跑滿 150.367 秒，M
 
 GUI：Run 1 新存檔 150.389 秒，寫出 Collection.asd；Run 2 以 Run 1 的存檔加上標記作種子，150.225 秒，AFConfig／Achievement（原版檔副本）／Collection 讀入成功、無警告，AFConfig 的 `<ConfigVoiceMutedByNsfw>` 被遊戲由 1 改回 0 並重寫，Collection 重寫後標記仍在且已讀事件沒有重複。兩次都是 MSG 88、assertion 0、堆疊溢位 0，已查看 framebuffer。PE_Save／PE_Load 與成就通知在兩次執行中都沒有觸發，讀檔後的成就通知仍未驗證。
 
+**審查後修正（`6b65b12`）**：值型別 option（`option<int>` 等）在 ASSIGN、X_OP_SET、刪除與複製時一律不當 heap slot；讀檔前先驗證 struct 定義數，損壞檔不再崩潰；讀檔新建沒有建構子的 struct 時照原版預設初始化成員。`save-fixes` 5 個案例在 `ce2cd59` 上 5/5 失敗、修正後全過；40 模式 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0，峰值 RSS 降到約 1.77 GB。一般 `NEW` 建立無建構子 struct 時成員仍為 null，另列待辦。
+
 [研究、原版位址、反駁處理與重跑](research/save-persistence/README.md) · [39 模式摘要](research/save-persistence/verify-summary.txt) · [GUI 摘要](research/save-persistence/gui-summary.json)
 
 ## 下一批卡點
@@ -142,7 +144,7 @@ GUI：Run 1 新存檔 150.389 秒，寫出 Collection.asd；Run 2 以 Run 1 的�
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 39 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 40 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
