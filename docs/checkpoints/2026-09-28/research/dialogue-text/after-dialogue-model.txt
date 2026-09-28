@@ -1,0 +1,30 @@
+mode=dialogue-model exit=0 sanitizer=0
+DIALOGUE-MODEL operation=Free
+DIALOGUE-MODEL before-clear append slots=1 type=17 struct=259 size=1 object_ok=1 ok
+DIALOGUE-MODEL before-clear At#1 slots=1 same=1 text_len=16 refs=3 ok
+DIALOGUE-MODEL clear1 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL empty queries find_value=-1 find_pred=-1 count=0 numof=0 callback_steps=0 held_refs=1 ok
+DIALOGUE-MODEL clear2 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL empty queries find_value=-1 find_pred=-1 count=0 numof=0 callback_steps=0 held_refs=1 ok
+DIALOGUE-MODEL after-clear-twice append slots=1 type=17 struct=259 size=1 object_ok=1 ok
+DIALOGUE-MODEL after-clear-twice At#1 slots=1 same=1 text_len=15 refs=3 ok
+DIALOGUE-MODEL Free typed append/read and external owner PASS
+DIALOGUE-MODEL operation=Clear
+DIALOGUE-MODEL before-clear append slots=1 type=17 struct=259 size=1 object_ok=1 ok
+DIALOGUE-MODEL before-clear At#1 slots=1 same=1 text_len=16 refs=3 ok
+DIALOGUE-MODEL clear1 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL empty queries find_value=-1 find_pred=-1 count=0 numof=0 callback_steps=0 held_refs=1 ok
+DIALOGUE-MODEL clear2 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL empty queries find_value=-1 find_pred=-1 count=0 numof=0 callback_steps=0 held_refs=1 ok
+DIALOGUE-MODEL after-clear-twice append slots=1 type=17 struct=259 size=1 object_ok=1 ok
+DIALOGUE-MODEL after-clear-twice At#1 slots=1 same=1 text_len=15 refs=3 ok
+DIALOGUE-MODEL Clear typed append/read and external owner PASS
+DIALOGUE-MODEL Free int typed_empty=1 owner=1 ok
+DIALOGUE-MODEL Free string typed_empty=1 owner=1 ok
+DIALOGUE-MODEL Free null compatibility=1 ok
+DIALOGUE-MODEL Free v13-guard compatibility=1 ok
+DIALOGUE-MODEL Clear int typed_empty=1 owner=1 ok
+DIALOGUE-MODEL Clear string typed_empty=1 owner=1 ok
+DIALOGUE-MODEL Clear null compatibility=1 ok
+DIALOGUE-MODEL Clear v13-guard compatibility=1 ok
+DIALOGUE-MODEL PASS typed append/read survives repeated Free/Clear; external element owner survives

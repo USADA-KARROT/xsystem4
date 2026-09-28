@@ -363,9 +363,27 @@ static bool Array_Any(struct page **array)
 	return src && src->nr_vars > 0;
 }
 
+/* v14 Free/Clear empty the values without discarding the element declaration.
+ * Native CArrayPage::clear (0x67ec50) keeps its descriptor and stride; the next
+ * EmplaceBack still constructs that type. Our page stores that declaration,
+ * so a NULL page would make a struct list restart as an integer list. */
+static void array_clear_typed(struct page **array)
+{
+	struct page *old = *array;
+	struct page *empty = alloc_page(ARRAY_PAGE, old->a_type, 0);
+	empty->array = old->array;
+	delete_page_vars(old);
+	free_page(old);
+	*array = empty;
+}
+
 static void Array_Free(struct page **array)
 {
 	if (array && *array && (*array)->type == ARRAY_PAGE) {
+		if (ain->version >= 14) {
+			array_clear_typed(array);
+			return;
+		}
 		delete_page_vars(*array);
 		free_page(*array);
 		*array = NULL;
@@ -505,6 +523,10 @@ static void Array_Clear(struct page **array)
 {
 	if (!array)
 		return;
+	if (ain->version >= 14 && *array && (*array)->type == ARRAY_PAGE) {
+		array_clear_typed(array);
+		return;
+	}
 	if (*array) {
 		delete_page_vars(*array);
 		free_page(*array);
@@ -1605,8 +1627,18 @@ static int Array_ShallowCopy(struct page **self)
 	}
 	struct page *copy = alloc_page(ARRAY_PAGE, src->a_type, src->nr_vars);
 	copy->array = src->array;
-	for (int i = 0; i < src->nr_vars; i++)
+	/* Native 0x658d40 wraps each string/struct element and 0x67f2e1
+	 * retains its heap owner. These concrete single-slot pages already
+	 * represent the shared object directly; the result needs its own ref.
+	 * Leave unverified primitive, nested and multi-slot shapes unchanged. */
+	bool retain = ain->version >= 14 && src->array.rank == 1
+		&& (src->a_type == AIN_ARRAY_STRUCT || src->a_type == AIN_REF_ARRAY_STRUCT
+		    || src->a_type == AIN_ARRAY_STRING || src->a_type == AIN_REF_ARRAY_STRING);
+	for (int i = 0; i < src->nr_vars; i++) {
 		copy->values[i] = src->values[i];
+		if (retain && copy->values[i].i > 0)
+			heap_ref(copy->values[i].i);
+	}
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, copy);
 	return slot;
@@ -1904,7 +1936,7 @@ static bool array_query_predicate(struct page **array, int index, int stride, in
 
 static int Array_CountIf(struct page **array, int func)
 {
-	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+	if (!array || !*array || (*array)->type != ARRAY_PAGE || (*array)->nr_vars <= 0)
 		return 0;
 	int stride = array_erase_stride(*array);
 	array_query_callback_shape(array, func, stride);
@@ -1956,7 +1988,7 @@ static bool array_query_value_equal(union vm_value a, union vm_value b, enum ain
 static int Array_FindValueRange(struct page **array, int begin, int end, int value)
 {
 	const struct page *src = array ? *array : NULL;
-	if (!src || src->type != ARRAY_PAGE)
+	if (!src || src->type != ARRAY_PAGE || src->nr_vars <= 0)
 		return -1;
 	enum ain_data_type type = array_query_value_type(src);
 	int count = src->nr_vars;
@@ -1977,7 +2009,7 @@ static int Array_FindValue(struct page **array, int value)
 
 static int Array_FindIfRange(struct page **array, int begin, int end, int func)
 {
-	if (!array || !*array || (*array)->type != ARRAY_PAGE)
+	if (!array || !*array || (*array)->type != ARRAY_PAGE || (*array)->nr_vars <= 0)
 		return -1;
 	int stride = array_erase_stride(*array);
 	array_query_callback_shape(array, func, stride);

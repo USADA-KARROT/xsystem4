@@ -1,0 +1,3 @@
+base=6855c2f mode=dialogue-copy exit=86 sanitizer=0
+DIALOGUE-COPY copy-first copy same_object=1 refs=1 want=2 FAIL
+DIALOGUE-COPY FAIL copy must own its shared struct element

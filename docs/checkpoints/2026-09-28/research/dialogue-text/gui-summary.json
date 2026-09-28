@@ -1,0 +1,52 @@
+{
+  "before": {
+    "binary_sha256": "488b8a6852644b81c5854bf6d812adf22dad1aff3a823b3bcf26e5a2531cc4d3",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "duration_limit_seconds": 150,
+    "stop_reason": "duration",
+    "elapsed_seconds": 150.367,
+    "exit_code": 0,
+    "peak_rss_bytes": 2009645056,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 0,
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t18.png",
+    "viewed_frame_sha256": "fffc35514f568a23e701665574a26ffa65049f3b8061150be1b03a0457f2341e",
+    "observed_body_text": false
+  },
+  "typed_clear_only": {
+    "binary_sha256": "2042c14ce77f3b3fdda9c854ca1848f1cd65fea8b5984ef8e6c7cbd04c5d332f",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "duration_limit_seconds": 150,
+    "stop_reason": "error_log",
+    "elapsed_seconds": 115.575,
+    "exit_code": 0,
+    "peak_rss_bytes": 2656567296,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 3,
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t22.png",
+    "viewed_frame_sha256": "7e15a0b700a83b6e9bd0cacf00691a34a039d276d2f6ea03c337e9927367c206",
+    "observed_body_text": false
+  },
+  "after": {
+    "binary_sha256": "75663970a07ca6e312433982af68878a2ca8aef929b6b657902b928d655f02bb",
+    "ain_sha256": "beefa6677237424a9e6dfb304299e5d47c524fb2956e1dd80aed113133fd8947",
+    "duration_limit_seconds": 150,
+    "stop_reason": "duration",
+    "elapsed_seconds": 150.223,
+    "exit_code": 0,
+    "peak_rss_bytes": 1898332160,
+    "msg_lines": 88,
+    "stack_overflows": 0,
+    "assertion_count": 0,
+    "framebuffer_count": 40,
+    "viewed_frame": "xsys4_t18.png",
+    "viewed_frame_sha256": "f7f9ee803b8ba35c07954ebe6b551116100a76fee965b70e67c926e6b49e96b9",
+    "observed_body_text": true,
+    "observed_body_text_note": "正常 framebuffer 已視讀確認角色正文；本次未驗證所有對白與字元。",
+    "last_heartbeat_route": "DohnaDohna@RunHome -> Scene::RunResult<SceneAzito, GamePhase>"
+  }
+}

@@ -1,0 +1,16 @@
+base=6855c2f mode=dialogue-model exit=86 sanitizer=0
+DIALOGUE-MODEL operation=Free
+DIALOGUE-MODEL before-clear append slots=1 type=17 struct=259 size=1 object_ok=1 ok
+DIALOGUE-MODEL before-clear At#1 slots=1 same=1 text_len=16 refs=3 ok
+DIALOGUE-MODEL clear1 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL clear2 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL after-clear-twice append slots=2 type=14 struct=259 size=1 object_ok=0 FAIL
+DIALOGUE-MODEL FAIL Free loses typed append/read contract
+DIALOGUE-MODEL operation=Clear
+DIALOGUE-MODEL before-clear append slots=1 type=17 struct=259 size=1 object_ok=1 ok
+DIALOGUE-MODEL before-clear At#1 slots=1 same=1 text_len=16 refs=3 ok
+DIALOGUE-MODEL clear1 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL clear2 numof=0 empty=1 held_refs=1 held_text=1 ok
+DIALOGUE-MODEL after-clear-twice append slots=2 type=14 struct=0 size=1 object_ok=0 FAIL
+DIALOGUE-MODEL FAIL Clear loses typed append/read contract
+DIALOGUE-MODEL FAIL typed clear/reuse cycle

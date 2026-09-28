@@ -1,0 +1,18 @@
+mode=dialogue-copy exit=0 sanitizer=0
+DIALOGUE-COPY copy-first copy same_object=1 refs=2 want=2 ok
+DIALOGUE-COPY copy-first survivor refs=1 text_ok=1 ok
+DIALOGUE-COPY copy-first At#1 same_object=1 text_ok=1 refs=2 ok
+DIALOGUE-COPY copy-first last owner released=1 ok
+DIALOGUE-COPY source-first copy same_object=1 refs=2 want=2 ok
+DIALOGUE-COPY source-first survivor refs=1 text_ok=1 ok
+DIALOGUE-COPY source-first At#1 same_object=1 text_ok=1 refs=2 ok
+DIALOGUE-COPY source-first last owner released=1 ok
+DIALOGUE-COPY string copy-first same_object=1 refs=2 want=2 ok
+DIALOGUE-COPY string copy-first At#1 same_object=1 text_ok=1 refs=2 ok
+DIALOGUE-COPY string copy-first last owner released=1 ok
+DIALOGUE-COPY string source-first same_object=1 refs=2 want=2 ok
+DIALOGUE-COPY string source-first At#1 same_object=1 text_ok=1 refs=2 ok
+DIALOGUE-COPY string source-first last owner released=1 ok
+DIALOGUE-COPY typed-empty usable_empty=1 ok
+DIALOGUE-COPY null usable_empty=1 ok
+DIALOGUE-COPY PASS shared struct/string survives either array teardown; no deep copy; empty/null compatible
