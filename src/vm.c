@@ -1715,8 +1715,57 @@ void vm_call(int fno, int struct_page)
  * Used by system.DeserializeStruct for members and elements the save file
  * provides but the destination does not have yet; the native loader
  * (0x679d60 -> 0x679b30(index, 1)) constructs such objects as well.
- * NEW itself is unchanged. Returns a slot with one reference, or -1.
+ * A struct without a STRT constructor is default-initialized the native way
+ * (construct_default_members). NEW itself is unchanged; it still leaves such
+ * members null. Returns a slot with one reference, or -1.
  */
+#define CONSTRUCT_DEFAULT_MAX_DEPTH 16
+
+/*
+ * 0x679b30(index, 0) -> 0x656970(member, 0): members of a struct that has no
+ * constructor get defaults instead of staying null. Struct members become new
+ * objects initialized the same way (their constructors are not called),
+ * strings become empty strings, delegates new empty delegates and options
+ * none. Arrays, wraps, interfaces and references keep what create_struct set.
+ */
+static void construct_default_members(int slot, int struct_type, int depth)
+{
+	if (depth > CONSTRUCT_DEFAULT_MAX_DEPTH || !heap_index_valid(slot) || !heap[slot].page)
+		return;
+	struct ain_struct *s = &ain->structures[struct_type];
+	struct page *page = heap[slot].page;
+	int n = s->nr_members < page->nr_vars ? s->nr_members : page->nr_vars;
+	for (int mi = 0; mi < n; mi++) {
+		const struct ain_type *t = &s->members[mi].type;
+		switch (t->data) {
+		case AIN_STRUCT:
+			if (page->values[mi].i == -1 && t->struc >= 0 && t->struc < ain->nr_structures) {
+				union vm_value child;
+				create_struct(t->struc, &child);
+				construct_default_members(child.i, t->struc, depth + 1);
+				page->values[mi] = child;
+			}
+			break;
+		case AIN_STRING:
+			if (page->values[mi].i == -1)
+				page->values[mi] = variable_initval(AIN_STRING);
+			break;
+		case AIN_DELEGATE:
+			if (page->values[mi].i == -1)
+				page->values[mi] = variable_initval(AIN_DELEGATE);
+			break;
+		case AIN_OPTION:
+			// [value, flag]; flag 1 is none (0x656a44). create_struct left
+			// the value at -1, so nothing is owned yet.
+			if (mi + 1 < n && page->values[mi].i == -1)
+				page->values[mi + 1].i = 1;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 int vm_construct_struct(int struct_type)
 {
 	if (ain->version < 14 || struct_type < 0 || struct_type >= ain->nr_structures)
@@ -1745,6 +1794,8 @@ int vm_construct_struct(int struct_type)
 		}
 	}
 	int ctor = s->constructor;
+	if (ctor <= 0 || ctor >= ain->nr_functions)
+		construct_default_members(v.i, struct_type, 0);
 	if (ctor > 0 && ctor < ain->nr_functions && !(struct_flags[struct_type] & STRUCT_FLAG_CDEBUG)) {
 		if (ain->functions[ctor].nr_args == 0) {
 			heap_ref(v.i);
@@ -2396,6 +2447,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		    heap[assign_hidx].page) {
 			struct page *assign_page = heap[assign_hidx].page;
 			enum ain_data_type assign_vtype = variable_type(assign_page, assign_pidx, NULL, NULL);
+			if (assign_vtype == AIN_OPTION && variable_option_is_value(assign_page, assign_pidx))
+				assign_vtype = AIN_INT; // plain value payload: no ref counting
 			switch (assign_vtype) {
 			case AIN_STRING:
 			case AIN_STRUCT:
@@ -4927,6 +4980,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			for (int i = 0; i < n; i++) {
 				// Check variable type for ref counting
 				enum ain_data_type dtype = variable_type(target_page, peek_page_idx + i, NULL, NULL);
+				if (dtype == AIN_OPTION && variable_option_is_value(target_page, peek_page_idx + i))
+					dtype = AIN_INT; // plain value payload: no ref counting
 				switch (dtype) {
 				case AIN_STRING:
 				case AIN_STRUCT:

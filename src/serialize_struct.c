@@ -784,7 +784,7 @@ static void ss_file_free(struct ss_file *f)
 		free(f->rec[i].idx);
 	for (int i = 0; i < f->narr; i++)
 		free(f->arr[i].v);
-	for (int i = 0; i < f->nsd; i++)
+	for (int i = 0; f->sd && i < f->nsd; i++)
 		free(f->sd[i].f);
 	free(f->rec);
 	free(f->glob);
@@ -935,9 +935,10 @@ static bool ss_parse(struct ss_file *f, const char *label, const char **why)
 		f->kv[i] = rd_i32(&r);
 
 	/* struct definitions follow the keyvals without an offset field */
-	f->nsd = rd_i32(&r);
-	if (!rd_count_ok(&r, f->nsd, 5))
+	int32_t nsd = rd_i32(&r);
+	if (!rd_count_ok(&r, nsd, 5))
 		return *why = "struct definitions", false;
+	f->nsd = nsd;
 	f->sd = xcalloc(f->nsd ? f->nsd : 1, sizeof *f->sd);
 	for (int i = 0; i < f->nsd; i++) {
 		f->sd[i].name = rd_cstr(&r, NULL);

@@ -307,9 +307,13 @@ void variable_set(struct page *page, int varno, enum ain_data_type type, union v
 }
 
 // v14 option<T> keeps T's value in its first slot. Only reference payloads
-// own a heap slot; an int/float/bool/enum payload is a plain value.
-static bool option_holds_value(struct page *page, int varno)
+// own a heap slot; an int/float/bool/enum payload is a plain value and must
+// never be ref'd, unref'd or deep-copied. Every path that ref-counts an
+// AIN_OPTION slot (ASSIGN, X_OP_SET, delete_page_vars, copy_page) checks this.
+bool variable_option_is_value(struct page *page, int varno)
 {
+	if (!page || ain->version < 14)
+		return false;
 	const struct ain_type *t = variable_decltype(page, varno);
 	while (t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87))
 		t = t->array_type;
@@ -328,7 +332,7 @@ void delete_page_vars(struct page *page)
 {
 	for (int i = page->nr_vars - 1; i >= 0; i--) {
 		enum ain_data_type type = variable_type(page, i, NULL, NULL);
-		if (type == AIN_OPTION && ain->version >= 14 && option_holds_value(page, i))
+		if (type == AIN_OPTION && variable_option_is_value(page, i))
 			continue;
 		variable_fini(page->values[i], type, true);
 	}
@@ -438,7 +442,11 @@ struct page *copy_page(struct page *src)
 	dst->array = src->array;
 
 	for (int i = 0; i < src->nr_vars; i++) {
-		dst->values[i] = vm_copy(src->values[i], variable_type(src, i, NULL, NULL));
+		enum ain_data_type type = variable_type(src, i, NULL, NULL);
+		if (type == AIN_OPTION && variable_option_is_value(src, i))
+			dst->values[i] = src->values[i];
+		else
+			dst->values[i] = vm_copy(src->values[i], type);
 	}
 	copy_depth--;
 	return dst;
