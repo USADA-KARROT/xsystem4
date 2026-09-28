@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：新遊戲不再停在 `Personality.jaf:27 assert(id != "")`，開場旁白可逐句點擊推進。Array 庫所有同名 overload 已改為依宣告選 C 實作。下一個卡點是點擊按鈕後 activity 事件分派無限遞迴（見文末）。尚非穩定可玩版，未測存讀檔或長時間遊玩。**
+**最新狀態：新遊戲可推進開場旁白並進入據點場景，120 秒自動點擊推進 88 句對白。Array、Math、String 的同名 overload 與多個 HLL 的 C 原型已改為依宣告選實作；activity 事件分派的無限遞迴已修正。下一個卡點是成就通知的 `GetText("TextAchievement")` 斷言，另有角色對話視窗不顯示文字（見文末）。尚非穩定可玩版，存讀檔尚未持久化。**
 
-接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含兩批引擎修正：人物 ID 的 `ff6fc2f`，以及 Array overload 的 `3386e7d`..`763f5bd`（6 個 commit）。libsys4 仍固定於 `8c93946`。
+接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。libsys4 仍固定於 `8c93946`。
 
 ## 根因
 
@@ -74,18 +74,36 @@ GUI（`--skip-title`、按住 Return、每 1.2 秒自動點擊畫面中央，120
 | `a8d92df` 等價建置 | 開場旁白 11 句 | 0 | 0 | SIGTERM 後未退出，被 SIGKILL | 687 MB |
 | `763f5bd` | 開場旁白 11 句 | 0 | 0 | 正常退出 | 492 MB |
 
-## 下一個卡點：activity 事件分派無限遞迴
+## 第二批（`4c7b820`..`6ec6258`）
 
-兩個版本在自動點擊後都出現 `_function_call: call stack overflow` 三萬餘次，約在 1.3 億指令時開始。呼叫鏈為 `CButtonParts@0 → CParts@Attach → DeletedEvent::add → FuncSet::get → CPartsMessageManager@GetFunctionSet`，底部堆疊塞滿 `activity::detail::CallUserComponentEventWithChild`。日誌因此各長到約 9–10 GB（已截為頭尾各 5 MB 保存於本機）。
+| commit | 範圍 | CN 呼叫數 | 修正前 |
+|---|---|---:|---|
+| `4c7b820` | PartsEngine `GetChild`、`GetChildIndex`、`IsExistChild`、`Get/SetUserComponentName` | — | `GetChild` 未實作回 0，activity 事件分派把 0 當根元件，無限遞迴至堆疊溢位 |
+| `3ca107c` | Math `Abs/Min/Max/Clamp` 的 float 版與 3、4 參數版 | 122 | 全綁 int 兩參數版：`Clamp(5.0, 0, 1)` 回 5、`Min(3, 2, 1)` 回 2 |
+| `fa185e4` | Array `Sort/AscSort/DescSort/QuickSort/Remain` | 78 | 比較函式被忽略；C 回 void 而宣告回 `wrap<?>`，殘值被 DELETE；`GetUser<T>` 等 11 處拿到 -1 |
+| `8329dc0` | String `GetPart`、`Trim` 系列、`Pad` 雙參數版 | 105 | `GetPart(index)` 讀殘值；`Trim` 會改動來源字串 |
+| `9ca9200` | `FileOperation.GetFileList/GetFolderList`、`TextFile.Read*`、`VSFile.ReadString`、SealEngine 字串回傳、LayoutBox float | 36 | 啟動時的 `GetFileList` 在資料夾存在時崩潰；讀檔類解參考 slot 編號崩潰 |
+| `6ec6258` | String `Match/Search`（ECMAScript 子集，無回溯） | 6 | `Match` 恆回 true，`GetUser<T>` 的名稱過濾失效 |
 
-初步線索：`PartsEngine.GetUserComponentName`、`GetChild`、`AddChild`、`IsExistChild` 等子元件 API 未實作，走 UNIMPL 一律回 0；其呼叫點包含 activity 事件分派（fno 679）。尚未驗證。
+`link_static_library` 現在對每個庫呼叫一次 `hll_select_overload(庫名, 宣告, 預設)`，由各庫依宣告形狀選 C 實作；不認得的形狀一律保留原綁定。語義同樣由原版 EXE 反組譯確認、每組配一位反駁者。反駁推翻或修正的部分已照改：Copy 長度夾限、HashMap `Free` 語義、`GetStructPageList` 在實機只配 1 個 slot 等。
+
+Headless 全部 30 個模式（[總表](array-overload/probe-summary-6ec6258.txt)）：除既有的 `deleted-event` 外全數通過，0 個 sanitizer 診斷；每組都以上一個 commit 的原始碼做對照，修正前失敗或崩潰。
+
+GUI（150 秒自動點擊）：`4c7b820` 前對白停在第 11 句並有三萬餘次堆疊溢位；之後推進到第 88 句、無溢位，畫面到據點場景（背景、立繪、對話框框體、說話者頭像正確）。第二批其餘 commit 之後結果相同，配置器警告數也相同，沒有新的回歸。
+
+## 下一批卡點
+
+- **成就通知斷言**：`SceneAchievementNotify.jaf:12 (nonnull) m_act.GetText("TextAchievement")`，第一個成就解鎖時 activity 依名稱找不到文字元件。
+- **角色對話視窗不顯示文字**：日誌有對白，框體與頭像有畫，但文字沒出現；旁白用的視窗有字。
+- **存讀檔未持久化**：`SYSTEMONLY_GetStructPageList` 回傳殘值，成就、設定、共有存檔的序列化靜默失效。修它必須同時修 `system.DeserializeStruct`（目前把讀回的資料寫進用完即丟的臨時陣列），否則第二次啟動會「讀到檔案卻丟資料」。反駁者也指出實機的清單只有 1 個 slot，提議的元素數算法要改。
+- **記憶體**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB；配置器偶有「free list 耗盡或損壞」警告。兩版數字相同，屬既有問題。
 
 ## 尚未處理
 
-- 上述遞迴卡點。
-- Array 以外的同型缺陷（全庫掃描）：`Math.Abs/Min/Max/Clamp` 的 float 版與多參數版綁到 int 版（122 處，例如 `Clamp(5.0, 0, 1)` 回 5）；`String.GetPart` 單參數版讀殘值（16 處）；`String.Match` 恆回 true（6 處）；`HashMap.Any` 單參數版；`Array.Sort`/`QuickSort` 忽略比較函式，且 C 端回 void 而宣告回 `wrap<?>`，殘值會被 DELETE。另有 `Array.Duplicate`、`TextFile.Read*` 的 C 原型與宣告不符而崩潰。語義調查進行中。
-- `Array.First` 的 predicate 版逐實體 slot 走訪，兩槽介面陣列可能取錯；`Array.Realloc` 縮小時不釋放 ref 元素、在 page 無 struct_type 時誤用 `hll_arg3` 當 struct 編號。兩者都在運作中的路徑上，未改。
-- DeletedEvent 23 個殘留 slot；人眼畫面（本環境無單一視窗擷取權限，只驗 framebuffer）；存讀檔；長時間穩定性。
+- 上述卡點。
+- String 庫的字元規則：CN 原版全面用 GBK 首位元組 0x81..0xFE，xsystem4 的 `Length`、`Find`、`GetPart` 等用 SJIS 規則，中文會被切錯。要一次改齊（Length 110 處、GetPart 76 處），並涉及 libsys4。
+- `Array.First` 的 predicate 版逐實體 slot 走訪；兩槽介面陣列（`Insert` 不保留兩槽）；`Array.Realloc` 縮小不釋放、誤用 `hll_arg3` 當 struct 編號；`Array.Duplicate`（僅編輯器）；`HashMap.Any/Empty/Free`（CN 無法執行到）；PartsEngine `AddChild/InsertChild/RemoveChild/ClearChild`。
+- DeletedEvent 23 個殘留 slot；人眼畫面（本環境無單一視窗擷取權限，只驗 framebuffer）；長時間穩定性。
 
 ## 重跑
 

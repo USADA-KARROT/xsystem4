@@ -1,0 +1,37 @@
+tag=11-regex head=9ca9200 diff_sha=9024bcd6687a
+ninja optimized rc=0  errors=0  new_warnings_in_Array/ffi=0
+ninja asan rc=0
+build_probe rc=0
+first-overload       rc=0   san=0   FIRST PASS: single-arg First returns a live element
+overload-shapes      rc=0   san=0   OB summary: 0 case(s) with stack mismatch or crash
+overload-shapes-str  rc=0   san=0   OBS summary: 0 case(s) with stack mismatch or crash
+personality          rc=0   san=0   PERSONALITY caller-owned PASS: 20 real constructor calls; caller DELETE leaves Id bytes valid; teard
+deleted-event        rc=87  san=0   DELETED_EVENT functional checks PASS; production ownership teardown remains incomplete
+heap-reuse           rc=0   san=0   HEAP PASS 1000 page-slot reuse/generation/duplicate-unref rounds; exit_unref recycling; stable capac
+assignment           rc=0   san=0   CONTRACT result=pass live=0 baseline=0
+observer             rc=0   san=0   OBSERVER teardown initial_live=0 final_live=0 collection_ref=0 env_ref=0 motion_ref=0 callback_calls
+reentrancy           rc=0   san=0   DELEGATE self-Clear PASS: original 20752->36081; sole frame refs=1/1; callback_steps=64; return rele
+array-reinit         rc=0   san=0   REINIT PASS shared old arrays retain their external owner after original constructor reinitializatio
+metadata             rc=0   san=0   METADATA teardown live=0 (expected 0)
+click                rc=0   san=0   CLICK PASS initial keydown, 350/50ms repeat boundaries, release, nested timer ctor/dtor exactly once
+timer                rc=0   san=0   TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0
+bound-overload       rc=0   san=0   BOUND summary: 0 failure(s)
+findlast             rc=0   san=0   FINDLAST summary: 0 failure(s)
+order                rc=0   san=0   ORDER summary: 0 failure(s)
+unique               rc=0   san=0   UNIQUE summary: 0 failure(s)
+fill-copy-extra      rc=0   san=0   FILLX summary: 0 failure(s)
+fc-selector          rc=0   san=0   FC fc-selector PASS
+fc-fill0             rc=0   san=0   FC fc-fill0 PASS
+fc-fill1-int         rc=0   san=0   FC fc-fill1-int PASS
+fc-fill1-str         rc=0   san=0   FC fc-fill1-str PASS
+fc-fill-clamp        rc=0   san=0   FC fc-fill-clamp PASS
+fc-copy0             rc=0   san=0   FC fc-copy0 PASS
+fc-copy3             rc=0   san=0   FC fc-copy3 PASS
+fc-copy3-str         rc=0   san=0   FC fc-copy3-str PASS
+fc-copy3-dest1       rc=0   san=0   FC fc-copy3-dest1 PASS
+fc-copy-overlap      rc=0   san=0   FC fc-copy-overlap PASS
+fc-realloc           rc=0   san=0   FC fc-realloc PASS
+math                 rc=0   san=0   MATH summary: 0 failure(s)
+sort                 rc=0   san=0   SORT summary: PASS
+string               rc=0   san=0   STRING summary: 0 failure(s)
+cif                  rc=0   san=0   CIF summary: 0 failure(s)
