@@ -1490,6 +1490,62 @@ static int PE_v14_NumofChild(int number)
 	return count;
 }
 
+/* Child queries over the same list NumofChild counts, in insertion order.
+ * CParts@GetChild#1 builds the child list as GetChild(i) for i < NumofChild.
+ * Returning 0 there (the unimplemented default) made
+ * activity::detail::CallUserComponentEventWithChild treat every child as
+ * "the activity root" and recurse until the call stack overflowed. */
+static int PE_v14_GetChildIndex(int number, int child_no)
+{
+	struct parts *p = parts_try_get(number);
+	if (!p)
+		return -1;
+	int i = 0;
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, p) {
+		if (child->no == child_no)
+			return i;
+		i++;
+	}
+	return -1;
+}
+
+static int PE_v14_GetChild(int number, int index)
+{
+	struct parts *p = parts_try_get(number);
+	if (!p || index < 0)
+		return -1;
+	int i = 0;
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, p) {
+		if (i++ == index)
+			return child->no;
+	}
+	return -1;
+}
+
+static bool PE_v14_IsExistChild(int number, int child_no)
+{
+	return PE_v14_GetChildIndex(number, child_no) >= 0;
+}
+
+/* The activity loader fills user_component_name from the pactex tree. */
+static struct string *PE_v14_GetUserComponentName(int number)
+{
+	struct parts *p = parts_try_get(number);
+	const char *name = p && p->user_component_name ? p->user_component_name : "";
+	return make_string(name, strlen(name));
+}
+
+static void PE_v14_SetUserComponentName(int number, struct string *name)
+{
+	struct parts *p = parts_try_get(number);
+	if (!p)
+		return;
+	free(p->user_component_name);
+	p->user_component_name = name && name->size ? xstrdup(name->text) : NULL;
+}
+
 /* --- Panel support (fork implementation) --- */
 static void PE_v14_SetPanelSize(int parts_no, int w, int h)
 {
@@ -1553,6 +1609,11 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "SetPanelSize", PE_v14_SetPanelSize);
 	static_library_register(lib, "SetPanelColor", PE_v14_SetPanelColor);
 	static_library_register(lib, "NumofChild", PE_v14_NumofChild);
+	static_library_register(lib, "GetChild", PE_v14_GetChild);
+	static_library_register(lib, "GetChildIndex", PE_v14_GetChildIndex);
+	static_library_register(lib, "IsExistChild", PE_v14_IsExistChild);
+	static_library_register(lib, "GetUserComponentName", PE_v14_GetUserComponentName);
+	static_library_register(lib, "SetUserComponentName", PE_v14_SetUserComponentName);
 	static_library_register(lib, "Parts_SetComment", PE_v14_Parts_SetComment);
 	static_library_register(lib, "Parts_GetPartsSize", PE_GetPartsSize);
 	static_library_register(lib, "Parts_GetPartsCGDeform", PE_GetPartsCGDeform);
