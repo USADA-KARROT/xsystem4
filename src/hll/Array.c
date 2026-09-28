@@ -2783,6 +2783,240 @@ static bool Array_AnyIf(struct page **array, int func)
 	return Array_FindIf(array, func) >= 0;
 }
 
+/* Fill / Copy / Realloc(n, value).
+ *
+ * Native (Array dispatcher, jump table 0x644f18):
+ *   1  Realloc(self, n)             CArrayPage vtbl+0x50
+ *   2  Realloc(self, n, value)      0x647510: resize, then fill [old, n)
+ *   28 Fill(self, value)            fill(self, 0, Numof(self), value)
+ *   29 Fill(self, i, len, value)    fill(self, i, len, value)
+ *   30 Copy(self, src)              copy(self, 0, src, 0, Numof(src))
+ *   31 Copy(self, d, src)           copy(self, d, src, 0, Numof(src))
+ *   32 Copy(self, src, s, len)      copy(self, 0, src, s, len)
+ *   33 Copy(self, d, src, s, len)   copy(self, d, src, s, len)
+ * fill (0x648120) and copy (0x648210) clamp the range and return the
+ * clamped count, which may be zero or negative. The element setter
+ * (0x646d70) stores values as is, shares reference objects, and gives
+ * strings and value structs their own copy.
+ */
+
+// VM slots per logical element for the current call (2 for iface/option).
+static int array_call_stride(void)
+{
+	return array_elem_is_2slot() ? 2 : 1;
+}
+
+static int array_call_numof(const struct page *a)
+{
+	return (a && a->type == ARRAY_PAGE) ? a->nr_vars / array_call_stride() : 0;
+}
+
+// wrap<array> arguments arrive as the inner heap slot.
+static struct page *array_wrap_page(int slot)
+{
+	if (slot <= 0 || (size_t)slot >= heap_size || heap[slot].type != VM_PAGE)
+		return NULL;
+	struct page *p = heap[slot].page;
+	return (p && p->type == ARRAY_PAGE) ? p : NULL;
+}
+
+// The value one element should hold after being set from v.
+static int array_elem_value_for_store(int v)
+{
+	if (!array_elem_is_ref() || v <= 0 || (size_t)v >= heap_size)
+		return v;
+	if (hll_current_arg3 >= 0x10000) {
+		// Reference elements share the object.
+		if (HEAP_REF(v) > 0)
+			heap_ref(v);
+		return v;
+	}
+	if (heap[v].type == VM_STRING)
+		return vm_copy((union vm_value){ .i = v }, AIN_STRING).i;
+	if (heap[v].type == VM_PAGE && heap[v].page && heap[v].page->type == STRUCT_PAGE)
+		return vm_copy((union vm_value){ .i = v }, AIN_STRUCT).i;
+	if (HEAP_REF(v) > 0)
+		heap_ref(v);
+	return v;
+}
+
+static void array_elem_store(struct page *a, int phys, int value, int slot2)
+{
+	int v = array_elem_value_for_store(value);
+	int old = a->values[phys].i;
+	a->values[phys].i = v;
+	if (array_elem_is_2slot())
+		a->values[phys + 1].i = slot2;
+	if (array_elem_is_ref() && old > 0 && (size_t)old < heap_size && HEAP_REF(old) > 0)
+		heap_unref(old);
+}
+
+static int array_fill_range(struct page **array, int start, int count, int value)
+{
+	if (!array)
+		return 0;
+	struct page *a = *array;
+	if (!a || a->type != ARRAY_PAGE)
+		return 0;
+	int numof = array_call_numof(a);
+	if (start < 0) {
+		count += start;
+		start = 0;
+	}
+	if ((long long)start + count > numof)
+		count = numof - start;
+	int stride = array_call_stride();
+	for (int i = 0; i < count; i++)
+		array_elem_store(a, (start + i) * stride, value, hll_param_slot2);
+	return count;
+}
+
+static int Array_Fill_All(struct page **array, int value)
+{
+	return array_fill_range(array, 0, array ? array_call_numof(*array) : 0, value);
+}
+
+static int Array_Fill_Range(struct page **array, int index, int length, int value)
+{
+	return array_fill_range(array, index, length, value);
+}
+
+static bool array_is_generic(const struct page *a)
+{
+	return a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY;
+}
+
+static int array_copy_range(struct page **dst, int dst_i, struct page *src, int src_i, int count)
+{
+	if (!dst || !*dst || (*dst)->type != ARRAY_PAGE || !src)
+		return 0;
+	struct page *d = *dst;
+	// Same normalisation order as the native helper.
+	while (src_i < 0 || dst_i < 0) {
+		if (src_i < 0) {
+			dst_i -= src_i;
+			count += src_i;
+			src_i = 0;
+		} else {
+			src_i -= dst_i;
+			count += dst_i;
+			dst_i = 0;
+		}
+	}
+	int s_num = array_call_numof(src);
+	int d_num = array_call_numof(d);
+	// Native quirk (0x648262): an overlong source range is clamped with the
+	// destination's length, not the source's.
+	if ((long long)src_i + count > s_num)
+		count = d_num - src_i;
+	if ((long long)dst_i + count > d_num)
+		count = d_num - dst_i;
+	if (count <= 0)
+		return count;
+	bool backward = d == src && dst_i > src_i && dst_i < src_i + count;
+	int stride = array_call_stride();
+	for (int k = 0; k < count; k++) {
+		int e = backward ? count - 1 - k : k;
+		int di = dst_i + e, si = src_i + e;
+		if (si >= s_num) {
+			// The native element read fails and stores a zero value.
+			static int warned;
+			if (warned++ < 8)
+				WARNING("Array.Copy: source index %d past length %d; storing null", si, s_num);
+			array_elem_store(d, di * stride, array_elem_is_ref() ? -1 : 0, 0);
+			continue;
+		}
+		if (stride == 1 && !array_is_generic(d)) {
+			// Typed arrays keep the existing per-type element copy.
+			array_copy(d, di, src, si, 1);
+			continue;
+		}
+		array_elem_store(d, di * stride, src->values[si * stride].i,
+				 stride > 1 ? src->values[si * stride + 1].i : 0);
+	}
+	return count;
+}
+
+static int Array_Copy_All(struct page **dst, int src_wrap)
+{
+	struct page *src = array_wrap_page(src_wrap);
+	return array_copy_range(dst, 0, src, 0, array_call_numof(src));
+}
+
+static int Array_Copy_To(struct page **dst, int dst_i, int src_wrap)
+{
+	struct page *src = array_wrap_page(src_wrap);
+	return array_copy_range(dst, dst_i, src, 0, array_call_numof(src));
+}
+
+static int Array_Copy_From(struct page **dst, int src_wrap, int src_i, int count)
+{
+	return array_copy_range(dst, 0, array_wrap_page(src_wrap), src_i, count);
+}
+
+// destIndex is a plain int in every declaration. The old version looked it
+// up as a wrap<int> handle whenever it matched a live page slot, so
+// destIndex 1 read the first global.
+static int Array_Copy(struct page **dst, int dst_i, int src_wrap, int src_i, int count)
+{
+	return array_copy_range(dst, dst_i, array_wrap_page(src_wrap), src_i, count);
+}
+
+// Resize as Realloc(n), then fill only the added tail [old, n).
+static void Array_Realloc_Fill(struct page **array, int numof, int value)
+{
+	if (!array)
+		return;
+	int old = array_call_numof(*array);
+	Array_Realloc(array, numof * array_call_stride());
+	if (numof > old)
+		array_fill_range(array, old, numof - old, value);
+}
+
+static bool array_arg_is_wrap_array(const struct ain_hll_function *f, int i)
+{
+	return f->arguments[i].type.data == AIN_WRAP && f->arguments[i].type.array_type
+	    && f->arguments[i].type.array_type->data == AIN_ARRAY;
+}
+
+static void *array_fill_copy_function(const struct ain_hll_function *f)
+{
+	int n = f->nr_arguments;
+	enum ain_data_type ret = f->return_type.data;
+#define ARG(i) (f->arguments[i].type.data)
+	if (!strcmp(f->name, "Realloc")) {
+		if (ret != AIN_VOID || n < 2 || ARG(1) != AIN_INT)
+			return NULL;
+		if (n == 2)
+			return (void *)Array_Realloc;
+		if (n == 3 && ARG(2) == AIN_HLL_PARAM)
+			return (void *)Array_Realloc_Fill;
+		return NULL;
+	}
+	if (!strcmp(f->name, "Fill")) {
+		if (ret != AIN_INT)
+			return NULL;
+		if (n == 2 && ARG(1) == AIN_HLL_PARAM)
+			return (void *)Array_Fill_All;
+		if (n == 4 && ARG(1) == AIN_INT && ARG(2) == AIN_INT && ARG(3) == AIN_HLL_PARAM)
+			return (void *)Array_Fill_Range;
+		return NULL;
+	}
+	if (ret != AIN_INT)
+		return NULL;
+	if (n == 2 && array_arg_is_wrap_array(f, 1))
+		return (void *)Array_Copy_All;
+	if (n == 3 && ARG(1) == AIN_INT && array_arg_is_wrap_array(f, 2))
+		return (void *)Array_Copy_To;
+	if (n == 4 && array_arg_is_wrap_array(f, 1) && ARG(2) == AIN_INT && ARG(3) == AIN_INT)
+		return (void *)Array_Copy_From;
+	if (n == 5 && ARG(1) == AIN_INT && array_arg_is_wrap_array(f, 2)
+	    && ARG(3) == AIN_INT && ARG(4) == AIN_INT)
+		return (void *)Array_Copy;
+#undef ARG
+	return NULL;
+}
+
 /* Select by declared signature, never by a game's function index. */
 void *array_query_function(const struct ain_hll_function *f)
 {
@@ -2862,6 +3096,10 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 	}
 	if (!strcmp(f->name, "First"))
 		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
+	if (!strcmp(f->name, "Fill") || !strcmp(f->name, "Copy") || !strcmp(f->name, "Realloc")) {
+		void *fn = f->arguments ? array_fill_copy_function(f) : NULL;
+		return fn ? fn : fallback;
+	}
 	if (!strcmp(f->name, "Any")) {
 		if (f->return_type.data != AIN_BOOL || f->nr_arguments < 1)
 			return fallback;
@@ -2903,54 +3141,6 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 		return fn ? fn : fallback;
 	}
 	return fallback;
-}
-
-// Copy: copy elements between arrays.
-// AIN declares: Copy(ref array<?> dst, wrap<?> dst_i, wrap<array<?>> src, int src_i, int count)
-// arg[1] = AIN_WRAP (dst_i as wrap<int>), arg[2] = AIN_WRAP (src as wrap<array>)
-// FFI passes both as int (heap slot index).
-static void Array_Copy(struct page **dst, int dst_i_wrap, int src_wrap, int src_i, int count)
-{
-	if (!dst || !*dst || count <= 0)
-		return;
-	// Resolve wrap<int> handle for dst_i
-	int dst_i = dst_i_wrap;
-	if (dst_i_wrap > 0 && (size_t)dst_i_wrap < heap_size
-	    && heap[dst_i_wrap].type == VM_PAGE
-	    && heap[dst_i_wrap].page
-	    && heap[dst_i_wrap].page->nr_vars > 0)
-		dst_i = heap[dst_i_wrap].page->values[0].i;
-	// Resolve wrap<array<?>> handle for src
-	struct page *src_page = NULL;
-	if (src_wrap > 0 && (size_t)src_wrap < heap_size
-	    && heap[src_wrap].type == VM_PAGE)
-		src_page = heap[src_wrap].page;
-	if (!src_page || src_page->type != ARRAY_PAGE)
-		return;
-	array_copy(*dst, dst_i, src_page, src_i, count);
-}
-
-// Fill: fill array elements with a value.
-// AIN signature: Fill(array, value, start_index, count)
-static void Array_Fill(struct page **array, int value, int start, int count)
-{
-	struct page *a = (array && *array) ? *array : NULL;
-	if (!a || count <= 0)
-		return;
-	int end = start + count;
-	if (end > a->nr_vars)
-		end = a->nr_vars;
-	for (int i = start; i < end; i++) {
-		if (array_elem_is_ref()) {
-			// Unref old, ref new
-			int old = a->values[i].i;
-			if (old > 0)
-				heap_unref(old);
-			if (value > 0)
-				heap_ref(value);
-		}
-		a->values[i].i = value;
-	}
 }
 
 // Concat: append all elements from src to self (both wrap<array>)
@@ -3119,7 +3309,7 @@ HLL_LIBRARY(Array,
 	    HLL_EXPORT(Shuffle, Array_Shuffle),
 	    HLL_EXPORT(Count, Array_Count),
 	    HLL_EXPORT(AddRange, Array_AddRange),
-	    HLL_EXPORT(Fill, Array_Fill),
+	    HLL_EXPORT(Fill, Array_Fill_Range),
 	    HLL_EXPORT(SYSTEMONLY_GetStructPageList, Array_SYSTEMONLY_GetStructPageList),
 	    HLL_EXPORT(Concat, Array_Concat),
 	    HLL_EXPORT(Max, Array_MaxNoPred),
