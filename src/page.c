@@ -306,10 +306,31 @@ void variable_set(struct page *page, int varno, enum ain_data_type type, union v
 	page->values[varno] = val;
 }
 
+// v14 option<T> keeps T's value in its first slot. Only reference payloads
+// own a heap slot; an int/float/bool/enum payload is a plain value.
+static bool option_holds_value(struct page *page, int varno)
+{
+	const struct ain_type *t = variable_decltype(page, varno);
+	while (t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87))
+		t = t->array_type;
+	if (!t)
+		return false;
+	switch (t->data) {
+	case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_LONG_INT:
+	case AIN_ENUM: case AIN_ENUM2:
+		return true;
+	default:
+		return false;
+	}
+}
+
 void delete_page_vars(struct page *page)
 {
 	for (int i = page->nr_vars - 1; i >= 0; i--) {
-		variable_fini(page->values[i], variable_type(page, i, NULL, NULL), true);
+		enum ain_data_type type = variable_type(page, i, NULL, NULL);
+		if (type == AIN_OPTION && ain->version >= 14 && option_holds_value(page, i))
+			continue;
+		variable_fini(page->values[i], type, true);
 	}
 }
 

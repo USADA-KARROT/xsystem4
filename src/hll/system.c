@@ -19,6 +19,7 @@
 #include "input.h"
 #include "parts.h"
 #include "savedata.h"
+#include "serialize_struct.h"
 #include "gfx/gfx.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -325,6 +326,211 @@ static bool system_ReadSerializeStructComment(struct string *fileName, int *comm
 {
 	(void)comment_out;
 	return false;
+}
+
+/*
+ * v14 SerializeStruct family (native: system case 13..16 -> 0x65f160,
+ * 0x65c910, 0x65f3b0, 0x65c250). Selected by declaration shape in
+ * system_select_function; other shapes keep the functions above.
+ */
+
+static bool system_shape_is(const struct ain_type *t, enum ain_data_type d)
+{
+	return t->data == d;
+}
+
+static bool system_shape_inner(const struct ain_type *t, enum ain_data_type d)
+{
+	return t->array_type && t->array_type->data == d;
+}
+
+/* (string, array<int>, bool) -> bool */
+static bool system_struct_list_shape(const struct ain_hll_function *f)
+{
+	return f && f->return_type.data == AIN_BOOL && f->nr_arguments == 3 && f->arguments
+		&& system_shape_is(&f->arguments[0].type, AIN_STRING)
+		&& system_shape_is(&f->arguments[1].type, AIN_ARRAY)
+		&& system_shape_inner(&f->arguments[1].type, AIN_INT)
+		&& system_shape_is(&f->arguments[2].type, AIN_BOOL);
+}
+
+/* Array.SYSTEMONLY_GetStructPageList only feeds these two functions; its v14
+ * implementation is selected only when both take the list in the v14 shape,
+ * so the older implementations never receive a real struct list. */
+bool system_struct_list_consumers_supported(void)
+{
+	int lib = ain ? ain_get_library(ain, "system") : -1;
+	if (lib < 0)
+		return false;
+	bool ser = false, des = false;
+	for (int i = 0; i < ain->libraries[lib].nr_functions; i++) {
+		const struct ain_hll_function *f = &ain->libraries[lib].functions[i];
+		if (!f->name)
+			continue;
+		if (!strcmp(f->name, "SerializeStruct"))
+			ser = system_struct_list_shape(f);
+		else if (!strcmp(f->name, "DeserializeStruct"))
+			des = system_struct_list_shape(f);
+	}
+	return ser && des;
+}
+
+static bool system_path_segment_is_dotdot(const char *p, size_t n)
+{
+	return n == 2 && p[0] == '.' && p[1] == '.';
+}
+
+/* Save file path for a game-supplied name, or NULL. Absolute names and ".."
+ * segments are refused so that a name never leaves the save folder. */
+static char *system_struct_save_path(struct string *fileName, bool saveFolder, const char *what)
+{
+	if (!fileName || !fileName->text[0]) {
+		WARNING("system.%s: empty file name", what);
+		return NULL;
+	}
+	if (!config.save_dir) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("system.%s('%s'): no save folder configured", what, fileName->text);
+		return NULL;
+	}
+	const char *name = fileName->text;
+	bool bad = is_absolute_path(name) || name[0] == '/' || name[0] == '\\';
+	for (const char *seg = name; !bad && *seg; ) {
+		size_t n = strcspn(seg, "/\\");
+		bad = system_path_segment_is_dotdot(seg, n);
+		seg += n;
+		if (*seg)
+			seg++;
+	}
+	if (bad) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("system.%s('%s'): file name outside the save folder refused", what, name);
+		return NULL;
+	}
+	if (!saveFolder) {
+		/* native: DebugData\01_First\Serialize\ relative to the working
+		 * directory (0x666410); no CN call site uses it */
+		static int warned;
+		if (warned++ < 1)
+			WARNING("system.%s('%s'): saveFolder=false uses the save folder", what, name);
+	}
+	return savedir_path(name);
+}
+
+/* 0x65dc40: every element must be a struct handle, otherwise the list is empty. */
+static int *system_struct_roots(struct page *list, int *n, const char *what, const char *file)
+{
+	*n = 0;
+	if (!list || list == heap[0].page || list->type != ARRAY_PAGE || list->nr_vars <= 0
+	    || (list->a_type != AIN_ARRAY_INT && list->a_type != AIN_ARRAY))
+		return NULL;
+	int *roots = xmalloc(sizeof(int) * list->nr_vars);
+	for (int i = 0; i < list->nr_vars; i++) {
+		roots[i] = ss_struct_slot(list->values[i].i);
+		if (roots[i] < 0) {
+			static int warned;
+			if (warned++ < 8)
+				WARNING("system.%s('%s'): list element %d (slot %d) is not a struct",
+					what, file, i, list->values[i].i);
+			free(roots);
+			return NULL;
+		}
+	}
+	*n = list->nr_vars;
+	return roots;
+}
+
+bool system_SerializeStruct_v14(struct string *fileName, struct page *structPageList, bool saveFolder)
+{
+	const char *label = fileName ? fileName->text : "";
+	int n;
+	int *roots = system_struct_roots(structPageList, &n, "SerializeStruct", label);
+	if (!n) {
+		/* 0x65f1a5: an empty list writes nothing and returns false */
+		ss_trace("ser %s roots=0 fail(empty list)", label);
+		return false;
+	}
+	char *path = system_struct_save_path(fileName, saveFolder, "SerializeStruct");
+	bool ok = path && ss_serialize_file(path, label, roots, n);
+	free(path);
+	free(roots);
+	return ok;
+}
+
+bool system_DeserializeStruct_v14(struct string *fileName, struct page *structPageList, bool saveFolder)
+{
+	const char *label = fileName ? fileName->text : "";
+	int n;
+	int *roots = system_struct_roots(structPageList, &n, "DeserializeStruct", label);
+	if (!n) {
+		/* 0x65c965: an empty list reads nothing and returns false */
+		ss_trace("des %s roots=0 fail(empty list)", label);
+		return false;
+	}
+	char *path = system_struct_save_path(fileName, saveFolder, "DeserializeStruct");
+	bool ok = path && ss_deserialize_file(path, label, roots, n);
+	free(path);
+	free(roots);
+	return ok;
+}
+
+bool system_WriteSerializeStructComment_v14(struct string *fileName, struct string *comment, bool saveFolder)
+{
+	const char *label = fileName ? fileName->text : "";
+	if (!comment || comment->size <= 0) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("system.WriteSerializeStructComment('%s'): empty comment", label);
+		return false;
+	}
+	char *path = system_struct_save_path(fileName, saveFolder, "WriteSerializeStructComment");
+	bool ok = path && ss_write_comment_file(path, label, comment->text, (size_t)comment->size);
+	free(path);
+	return ok;
+}
+
+/* The comment is a wrap<string> slot (CIF sint32): the caller's local string
+ * variable, rewritten in place. */
+bool system_ReadSerializeStructComment_v14(struct string *fileName, int comment_slot, bool saveFolder)
+{
+	const char *label = fileName ? fileName->text : "";
+	if (!string_index_valid(comment_slot))
+		return false; /* 0x65c250: no output object */
+	char *path = system_struct_save_path(fileName, saveFolder, "ReadSerializeStructComment");
+	if (!path)
+		return false;
+	struct string *s = NULL;
+	int r = ss_read_comment_file(path, label, &s);
+	free(path);
+	if (r < 0)
+		return false;
+	if (r == 1) {
+		heap_string_assign(comment_slot, s);
+		free_string(s);
+	}
+	return true;
+}
+
+void *system_select_function(const struct ain_hll_function *f, void *dflt)
+{
+	if (!f || !f->name || f->return_type.data != AIN_BOOL || f->nr_arguments != 3 || !f->arguments)
+		return dflt;
+	const struct ain_type *a0 = &f->arguments[0].type, *a1 = &f->arguments[1].type,
+		*a2 = &f->arguments[2].type;
+	if (!system_shape_is(a0, AIN_STRING) || !system_shape_is(a2, AIN_BOOL))
+		return dflt;
+	if (!strcmp(f->name, "SerializeStruct") && system_struct_list_shape(f))
+		return (void *)system_SerializeStruct_v14;
+	if (!strcmp(f->name, "DeserializeStruct") && system_struct_list_shape(f))
+		return (void *)system_DeserializeStruct_v14;
+	if (!strcmp(f->name, "WriteSerializeStructComment") && system_shape_is(a1, AIN_STRING))
+		return (void *)system_WriteSerializeStructComment_v14;
+	if (!strcmp(f->name, "ReadSerializeStructComment") && system_shape_is(a1, AIN_WRAP)
+	    && system_shape_inner(a1, AIN_STRING))
+		return (void *)system_ReadSerializeStructComment_v14;
+	return dflt;
 }
 
 // [17] ExistSaveFile(fileName) -> bool

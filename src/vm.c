@@ -1707,6 +1707,60 @@ void vm_call(int fno, int struct_page)
 	instr_ptr = saved_ip;
 }
 
+/*
+ * Build a v14 struct at run time the way NEW does when the bytecode names no
+ * constructor (vm.c NEW, orig_ctor == -1, outside the allocation phase):
+ * create_struct, the no-argument constructors of flagged member structs, then
+ * the struct's own no-argument STRT constructor (skipped for CDebug structs).
+ * Used by system.DeserializeStruct for members and elements the save file
+ * provides but the destination does not have yet; the native loader
+ * (0x679d60 -> 0x679b30(index, 1)) constructs such objects as well.
+ * NEW itself is unchanged. Returns a slot with one reference, or -1.
+ */
+int vm_construct_struct(int struct_type)
+{
+	if (ain->version < 14 || struct_type < 0 || struct_type >= ain->nr_structures)
+		return -1;
+	union vm_value v;
+	create_struct(struct_type, &v);
+	if (v.i <= 0 || !heap_index_valid(v.i) || !heap[v.i].page)
+		return -1;
+	struct ain_struct *s = &ain->structures[struct_type];
+	if (struct_flags[struct_type] & STRUCT_FLAG_MEMBER_CTOR) {
+		for (int mi = 0; mi < s->nr_members; mi++) {
+			if (s->members[mi].type.data != AIN_STRUCT)
+				continue;
+			int mst = s->members[mi].type.struc;
+			if (mst < 0 || mst >= ain->nr_structures || ain->structures[mst].constructor <= 0
+			    || ain->structures[mst].constructor >= ain->nr_functions
+			    || ain->functions[ain->structures[mst].constructor].nr_args != 0)
+				continue;
+			int member_slot = heap[v.i].page->values[mi].i;
+			if (member_slot > 0 && heap_index_valid(member_slot)) {
+				heap_ref(member_slot);
+				vm_call(ain->structures[mst].constructor, member_slot);
+				if (heap_index_valid(member_slot) && heap[member_slot].ref > 1)
+					heap_unref(member_slot);
+			}
+		}
+	}
+	int ctor = s->constructor;
+	if (ctor > 0 && ctor < ain->nr_functions && !(struct_flags[struct_type] & STRUCT_FLAG_CDEBUG)) {
+		if (ain->functions[ctor].nr_args == 0) {
+			heap_ref(v.i);
+			vm_call(ctor, v.i);
+			if (v.i > 0 && (size_t)v.i < heap_size && heap[v.i].ref > 1)
+				heap_unref(v.i);
+		} else {
+			static int warned;
+			if (warned++ < 8)
+				WARNING("vm_construct_struct: constructor of '%s' takes %d arguments; not called",
+					s->name, ain->functions[ctor].nr_args);
+		}
+	}
+	return heap_index_valid(v.i) ? v.i : -1;
+}
+
 unsigned long long vm_call_get_insn_count(void)
 {
 	return insn_count;

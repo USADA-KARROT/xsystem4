@@ -3,6 +3,8 @@
 # Unattended GUI run of the optimized build: new game via --skip-title, Return held, auto-click every
 # 1.2 s at the window centre, engine framebuffer PNG every 2 s. Stops on assert/ASan/VM error, stack
 # overflow, the time limit or a file named STOP in the run directory. Saves and home are isolated.
+# RUN_SAVE_SEED=<dir> starts from a copy of <dir> in the run's save folder; RUN_TRACE_SAVE=1 logs
+# the SerializeStruct family (see ../tooling/run-gui-bounded.py).
 source "$(dirname "$0")/env.sh" || exit 1
 NAME=${1:?usage: gui-run.sh <name> [seconds] [engine args...]}; SECS=${2:-150}; shift; shift
 RUN=$XS4_WORK/runs/$NAME
@@ -16,4 +18,5 @@ LOG=$RUN/engine.log
 echo "dialogue lines (MSG): $(grep -ac '^MSG ' "$LOG")"
 echo "stack overflows:      $(grep -ac 'call stack overflow' "$LOG")"
 echo "framebuffer PNGs:     $(ls "$RUN/framebuffer" 2>/dev/null | wc -l | tr -d ' ')"
+echo "save files:           $(ls "$RUN/saves" 2>/dev/null | tr '\n' ' ')"
 echo "last error lines:"; grep -a -i -E 'assert|error' "$LOG" | tail -3 | cut -c1-200

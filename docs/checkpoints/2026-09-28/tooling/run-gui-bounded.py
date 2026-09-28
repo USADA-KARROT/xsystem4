@@ -11,8 +11,11 @@ variables are dropped so a run is reproducible; use the RUN_* variables instead:
   RUN_WINDOW_SHOTS=15,35,55 capture only the game window at these seconds into <run_dir>/window-NNs.png
                             (needs find-window next to this script, built from find-window.swift,
                             and Screen Recording permission for the calling process)
+  RUN_SAVE_SEED=<dir>       copy the files of <dir> into <run_dir>/saves before starting (the seed
+                            itself is never written; refused inside XS4_SRC or XS4_MASTER_GAME)
+  RUN_TRACE_SAVE=1          one "SAVE ..." log line per SerializeStruct family call (XSYS4_TRACE_SAVE)
 """
-import sys, os, subprocess, signal, time, json, hashlib, datetime
+import sys, os, subprocess, signal, time, json, hashlib, datetime, shutil
 from pathlib import Path
 
 binary, source, game, run, seconds = (Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]),
@@ -20,6 +23,16 @@ binary, source, game, run, seconds = (Path(sys.argv[1]), Path(sys.argv[2]), Path
 extra = sys.argv[6:]
 run.mkdir(parents=True, exist_ok=False)
 (run / 'home').mkdir(); (run / 'saves').mkdir()
+seed = os.environ.get('RUN_SAVE_SEED')
+if seed:
+    seed_real = os.path.realpath(seed)
+    for guard in ('XS4_SRC', 'XS4_MASTER_GAME'):
+        root = os.environ.get(guard)
+        if root and (seed_real + '/').startswith(os.path.realpath(root) + '/'):
+            sys.exit(f'RUN_SAVE_SEED is inside {guard}; refused')
+    for f in sorted(Path(seed_real).iterdir()):
+        if f.is_file():
+            shutil.copy2(f, run / 'saves' / f.name)
 env = {k: v for k, v in os.environ.items() if not k.startswith(('XSYS4_', 'XSYSTEM4_', 'RUN_'))}
 env.update(XSYSTEM4_HOME=str(run / 'home'), XSYS4_STAGE2_PERF='1')
 if os.environ.get('RUN_HOLD_KEYS'):
@@ -28,6 +41,8 @@ if os.environ.get('RUN_AUTO_CLICK'):
     env['XSYS4_AUTO_CLICK'] = os.environ['RUN_AUTO_CLICK']
     env['XSYS4_AUTO_CLICK_X'] = os.environ.get('RUN_AUTO_CLICK_X', '640')
     env['XSYS4_AUTO_CLICK_Y'] = os.environ.get('RUN_AUTO_CLICK_Y', '400')
+if os.environ.get('RUN_TRACE_SAVE'):
+    env['XSYS4_TRACE_SAVE'] = '1'
 if os.environ.get('RUN_FRAMEBUFFER_SHOTS'):
     (run / 'framebuffer').mkdir()
     env['XSYS4_SCREENSHOT_DIR'] = str(run / 'framebuffer')
@@ -35,10 +50,13 @@ window_shots = sorted(int(x) for x in os.environ.get('RUN_WINDOW_SHOTS', '').spl
 
 cmd = [str(binary), '--echo-message', '--save-folder', str(run / 'saves')] + extra + [str(game)]
 sha = lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
+manifest = lambda d: [dict(name=f.name, size=f.stat().st_size, sha256=sha(f), mtime=f.stat().st_mtime)
+                      for f in sorted(Path(d).iterdir()) if f.is_file()]
 meta = dict(started_at=datetime.datetime.now().astimezone().isoformat(), command=cmd, cwd=str(source),
             binary_sha256=sha(binary), ain_sha256=sha(game / 'dohnadohna.ain'),
             env={k: v for k, v in env.items() if k.startswith(('XSYS4_', 'XSYSTEM4_'))},
-            duration_limit_seconds=seconds, window_shots=[])
+            duration_limit_seconds=seconds, window_shots=[],
+            save_seed=os.path.realpath(seed) if seed else None, saves_manifest_start=manifest(run / 'saves'))
 PATTERNS = [b'error: addresssanitizer', b'runtime error:', b'system.error:', b'vm error',
             b'vm_call_timeout:', b'assertion failed', b'assert(', b'call stack overflow']
 LOG_LIMIT = int(os.environ.get('RUN_LOG_LIMIT_MB', '300')) * 1024 * 1024
@@ -94,7 +112,8 @@ with (run / 'engine.log').open('wb') as log:
             os.kill(proc.pid, signal.SIGKILL)
         time.sleep(0.2)
 meta.update(exit_code=rc, elapsed_seconds=round(time.monotonic() - begin, 3), peak_rss_bytes=usage.ru_maxrss,
-            finished_at=datetime.datetime.now().astimezone().isoformat())
+            finished_at=datetime.datetime.now().astimezone().isoformat(),
+            saves_manifest_end=manifest(run / 'saves'))
 (run / 'run.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2))
 print(json.dumps({k: meta[k] for k in ['stop_reason', 'matched', 'exit_code', 'elapsed_seconds',
                                        'peak_rss_bytes', 'window_shots']}, ensure_ascii=False))

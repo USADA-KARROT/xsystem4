@@ -15,6 +15,7 @@
  */
 
 #include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <SDL.h>
@@ -29,6 +30,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "serialize_struct.h"
 
 // v14: hll_arg3 from CALLHLL encodes element type info for Array operations.
 // Set by ffi.c before each HLL call. High bits indicate reference-counted elements.
@@ -1806,9 +1808,47 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 	*dst = new_a;
 }
 
-// SYSTEMONLY_GetStructPageList: internal debug function, no-op
+// SYSTEMONLY_GetStructPageList: fallback for declarations other than the v14
+// shape below (no-op, as before).
 static void Array_SYSTEMONLY_GetStructPageList(struct page **array)
 {
+}
+
+/*
+ * v14 SYSTEMONLY_GetStructPageList(ref array<hll_param>) -> array<int>
+ * (native: Array case 83 @0x644ecd -> 0x65a620 -> 0x64a2d0). Returns a new
+ * array (ref 1) holding the struct handle of every element; the handles are
+ * not referenced again (0x418940 copies plain ints). One invalid element
+ * empties the whole result (0x64a3f1). The element count follows the page
+ * layout; xsystem4 needs arg3 to tell the X_A_INIT slot count apart from a
+ * struct index, the same rule Numof/At/Erase use (array_erase_stride).
+ */
+intptr_t Array_SYSTEMONLY_GetStructPageList_v14(struct page **self)
+{
+	struct page *src = self && *self && (*self)->type == ARRAY_PAGE ? *self : NULL;
+	int stride = src ? array_erase_stride(src) : 1;
+	int n = src ? src->nr_vars / stride : 0;
+	int count = n;
+	int *h = n > 0 ? xcalloc(n, sizeof(int)) : NULL;
+	for (int i = 0; i < n; i++) {
+		h[i] = ss_struct_slot(src->values[i * stride].i);
+		if (h[i] < 0) {
+			static int warned;
+			if (warned++ < 8)
+				WARNING("Array.SYSTEMONLY_GetStructPageList: element %d (slot %d) is not a struct; "
+					"returning an empty list", i, src->values[i * stride].i);
+			count = 0;
+			break;
+		}
+	}
+	struct page *out = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, count);
+	out->array.struct_type = -1; // cached pages keep old metadata (_alloc_page)
+	out->array.rank = 1;         // rank 1 + AIN_ARRAY_INT: elements are not unreferenced
+	for (int i = 0; i < count; i++)
+		out->values[i].i = h[i];
+	free(h);
+	ss_trace("gspl n=%d stride=%d out=%d", n, stride, count);
+	return heap_alloc_page(out);
 }
 
 // Add: alias for Pushback (v14 generic array)
@@ -3399,6 +3439,15 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 	    || !strcmp(f->name, "BinarySearch")) {
 		void *fn = array_bound_function(f);
 		return fn ? fn : fallback;
+	}
+	if (!strcmp(f->name, "SYSTEMONLY_GetStructPageList")) {
+		extern bool system_struct_list_consumers_supported(void);
+		if (f->return_type.data == AIN_ARRAY && f->return_type.array_type
+		    && f->return_type.array_type->data == AIN_INT
+		    && f->nr_arguments == 1 && f->arguments && f->arguments[0].type.data == AIN_REF_ARRAY
+		    && system_struct_list_consumers_supported())
+			return (void *)Array_SYSTEMONLY_GetStructPageList_v14;
+		return fallback;
 	}
 	return fallback;
 }

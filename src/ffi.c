@@ -411,6 +411,11 @@ void hll_call(int libno, int fno, int hll_arg3)
 	// (Don't reset here — the X_REF that set it is the one right
 	// before CALLHLL, so it's still valid.)
 
+	// Argument slots are released after the call from their stack copies. An
+	// HLL function that re-enters the VM (constructors run by
+	// system.DeserializeStruct) pushes over that area, so keep a snapshot and
+	// release from it when the call left stack_ptr where the arguments began.
+	int args_top = stack_ptr;
 	for (int i = f->nr_arguments - 1; i >= 0; i--) {
 		switch (f->arguments[i].type.data) {
 		case AIN_REF_INT:
@@ -677,6 +682,13 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 	}
 
+	int args_base = stack_ptr;
+	int args_nslots = args_top - args_base;
+	union vm_value args_copy[HLL_MAX_ARGS * 2];
+	bool have_args_copy = args_nslots >= 0 && args_nslots <= HLL_MAX_ARGS * 2;
+	if (have_args_copy && args_nslots > 0)
+		memcpy(args_copy, &stack[args_base], sizeof(args_copy[0]) * args_nslots);
+
 	union vm_value r;
 
 #ifdef TRACE_HLL
@@ -685,6 +697,9 @@ void hll_call(int libno, int fno, int hll_arg3)
 	ffi_call(&fun->cif, (void*)fun->fun, &r, args);
 #endif
 
+	// Functions returning AIN_REF_HLL_PARAM push their result themselves;
+	// keep the historical stack-relative release for them.
+	bool release_from_copy = have_args_copy && stack_ptr == args_base;
 	for (int i = 0, j = 0; i < f->nr_arguments; i++, j++) {
 		// XXX: We don't increase the ref count when passing ref arguments to HLL
 		//      functions, so we need to avoid decreasing it via variable_fini
@@ -749,7 +764,8 @@ void hll_call(int libno, int fno, int hll_arg3)
 				break;
 			// fallthrough
 		default:
-			variable_fini(stack[stack_ptr+j], f->arguments[i].type.data, false);
+			variable_fini(release_from_copy && j < args_nslots ? args_copy[j] : stack[stack_ptr+j],
+				      f->arguments[i].type.data, false);
 			break;
 		}
 	}
