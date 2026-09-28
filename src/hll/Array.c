@@ -3062,6 +3062,228 @@ void *array_query_function(const struct ain_hll_function *f)
 	return NULL;
 }
 
+/* Sort family: Sort / AscSort / DescSort / QuickSort, and Remain's return value.
+ * Native: dispatcher 0x644300, jump table 0x644f18.
+ *   [34] Sort(self,f)      0x644907 -> 0x648340: insertion 0x646980, pred cmp 0x645f70
+ *   [35] Sort(self)        0x644927 -> 0x648420 -> 0x648500 (== AscSort)
+ *   [36] AscSort(self)     0x644940 -> 0x648500: insertion 0x646980, value cmp 0x645dd0
+ *   [37] DescSort(self)    0x644959 -> 0x6485e0: insertion 0x646980, 0x64b350 = !less(a,b)
+ *   [38] QuickSort(self)   0x644972 -> 0x648700: quicksort 0x646a00, value cmp
+ *   [39] QuickSort(self,f) 0x64498b -> 0x6487e0: quicksort 0x646a00, pred cmp
+ * All return the self handle (vt+0x30) via 0x658150 type 0x4f with ref+1
+ * (0x679f10). v14 bytecode stores it in a wrap<array<T>> dummy (X_ASSIGN
+ * transfers ownership, later DELETE) or A_REFs it for return/chaining.
+ * Value cmp 0x645dd0: INT/BOOL/ENUM signed <, FLOAT <, STRING unsigned strcmp<0,
+ * anything else logs and is constantly false. */
+enum array_sort_cmp { ARRAY_SORT_CMP_NONE, ARRAY_SORT_CMP_INT, ARRAY_SORT_CMP_FLOAT,
+	ARRAY_SORT_CMP_STRING, ARRAY_SORT_CMP_FUNC };
+struct array_sort_ctx {
+	struct page **array; int owner; int stride; int n; enum array_sort_cmp cmp;
+	bool invert; int func; int func_slots; bool func_ref;
+};
+static const char *array_sort_text(union vm_value v)
+{
+	if (v.i > 0 && (size_t)v.i < heap_size && HEAP_REF(v.i) > 0
+	    && heap[v.i].type == VM_STRING && heap[v.i].s)
+		return heap[v.i].s->text;
+	return "";
+}
+// Generic v14 pages usually say AIN_ARRAY_INT whatever they hold; arg3 == 2
+// (string or object handle) is resolved from the heap.
+static enum array_sort_cmp array_sort_value_cmp(const struct page *a, int stride)
+{
+	if (stride != 1 || hll_current_arg3 >= 0x10000) return ARRAY_SORT_CMP_NONE;
+	switch (a->a_type) {
+	case AIN_FLOAT: case AIN_ARRAY_FLOAT: return ARRAY_SORT_CMP_FLOAT;
+	case AIN_STRING: case AIN_ARRAY_STRING: return ARRAY_SORT_CMP_STRING;
+	case AIN_STRUCT: case AIN_ARRAY_STRUCT:
+	case AIN_LONG_INT: case AIN_ARRAY_LONG_INT: return ARRAY_SORT_CMP_NONE; // no LONG_INT case in 0x645dd0
+	default: break;
+	}
+	if ((hll_current_arg3 & 0xFFFF) != 2) return ARRAY_SORT_CMP_INT;
+	for (int i = 0; i < a->nr_vars; i++) {
+		int s = a->values[i].i;
+		if (s <= 0 || (size_t)s >= heap_size || HEAP_REF(s) <= 0) continue;
+		if (heap[s].type == VM_STRING) return ARRAY_SORT_CMP_STRING;
+		if (heap[s].type == VM_PAGE) return ARRAY_SORT_CMP_NONE;
+	}
+	return ARRAY_SORT_CMP_NONE;
+}
+static bool array_sort_func_shape(struct array_sort_ctx *c)
+{
+	if (c->func < 0 || c->func >= ain->nr_functions) return false;
+	struct ain_function *cb = &ain->functions[c->func];
+	if (cb->address >= ain->code_size || !cb->vars || cb->nr_vars < cb->nr_args
+	    || cb->nr_args < 2 || (cb->nr_args & 1)) return false;
+	int per = cb->nr_args / 2;
+	c->func_ref = false;
+	if (per == c->stride) { c->func_slots = per; return true; } // (T,T) or (iface,<void>,iface,<void>)
+	if (per == 2 && c->stride == 1 && cb->vars[1].type.data == AIN_VOID && cb->vars[3].type.data == AIN_VOID) {
+		switch (cb->vars[0].type.data) {
+		case AIN_REF_INT: case AIN_REF_FLOAT: case AIN_REF_BOOL: case AIN_REF_LONG_INT:
+			if (c->owner < 0) return false;
+			c->func_ref = true; break;
+		default: break; // (value, 0), same as Where/First
+		}
+		c->func_slots = 2; return true;
+	}
+	return false;
+}
+static void array_sort_push_operand(const struct array_sort_ctx *c, const struct page *a, int x)
+{
+	if (c->func_ref) { stack_push(c->owner); stack_push(x); return; }
+	for (int k = 0; k < c->func_slots; k++) {
+		if (k < c->stride) stack_push(a->values[x * c->stride + k]);
+		else stack_push(0);
+	}
+}
+static bool array_sort_call(struct array_sort_ctx *c, int x, int y)
+{
+	struct page *before = *c->array;
+	int size = before->nr_vars, saved_sp = stack_ptr;
+	array_sort_push_operand(c, before, x);
+	array_sort_push_operand(c, before, y);
+	vm_call_nopop(c->func, ain->functions[c->func].nr_args);
+	bool r = stack_pop().i != 0;
+	stack_ptr = saved_sp;
+	// Same guard as array_query_predicate.
+	if (c->owner >= 0) {
+		if ((size_t)c->owner >= heap_size || HEAP_REF(c->owner) <= 0 || heap[c->owner].type != VM_PAGE)
+			VM_ERROR("Array.Sort: comparator released its array owner");
+		*c->array = heap[c->owner].page;
+	}
+	if (*c->array != before || !*c->array || (*c->array)->type != ARRAY_PAGE || (*c->array)->nr_vars != size)
+		VM_ERROR("Array.Sort: comparator changed array storage");
+	return r;
+}
+static bool array_sort_less(struct array_sort_ctx *c, int x, int y)
+{
+	const struct page *a = *c->array;
+	union vm_value vx = a->values[x * c->stride], vy = a->values[y * c->stride];
+	bool r;
+	switch (c->cmp) {
+	case ARRAY_SORT_CMP_INT: r = vx.i < vy.i; break;
+	case ARRAY_SORT_CMP_FLOAT: r = vx.f < vy.f; break;
+	case ARRAY_SORT_CMP_STRING: r = strcmp(array_sort_text(vx), array_sort_text(vy)) < 0; break;
+	case ARRAY_SORT_CMP_FUNC: r = array_sort_call(c, x, y); break;
+	default: r = false; break;
+	}
+	return c->invert ? !r : r;
+}
+static void array_sort_swap(struct array_sort_ctx *c, int x, int y)
+{
+	struct page *a = *c->array;
+	for (int k = 0; k < c->stride; k++) {
+		union vm_value t = a->values[x * c->stride + k];
+		a->values[x * c->stride + k] = a->values[y * c->stride + k];
+		a->values[y * c->stride + k] = t;
+	}
+}
+// 0x646980. Length read once; stable for a strict less.
+static void array_sort_insertion(struct array_sort_ctx *c)
+{
+	for (int i = 1; i < c->n; i++)
+		for (int j = i; j > 0 && array_sort_less(c, j, j - 1); j--)
+			array_sort_swap(c, j - 1, j);
+}
+// 0x646a00 on [lo, hi): recurse left, loop right, pivot tracked by index.
+// Bounds/clamps only matter for an inconsistent cmp (native runs off the array).
+static void array_sort_quick(struct array_sort_ctx *c, int lo, int hi)
+{
+	while (hi - lo > 1) {
+		int i = lo, j = hi - 1, p = (lo + hi) / 2;
+		while (i <= j) {
+			while (i < hi && array_sort_less(c, i, p)) i++;
+			while (j >= lo && array_sort_less(c, p, j)) j--;
+			if (i >= j) break;
+			array_sort_swap(c, i, j);
+			if (i == p) p = j; else if (j == p) p = i;
+			i++; j--;
+		}
+		if (i <= lo) i = lo + 1;
+		if (i >= hi) i = hi - 1;
+		array_sort_quick(c, lo, i);
+		lo = i;
+	}
+}
+// Owned reference to the self array for a wrap<?> return; -1 = none.
+static int array_self_result(int self)
+{
+	if (self <= 0 || (size_t)self >= heap_size || HEAP_REF(self) <= 0 || heap[self].type != VM_PAGE)
+		return -1;
+	heap_ref(self);
+	return self;
+}
+static int array_sort_run(struct page **array, int func, bool has_func, bool invert, bool quick)
+{
+	int self = hll_self_slot;
+	struct page *a = (array && *array && (*array)->type == ARRAY_PAGE) ? *array : NULL;
+	if (!a) return array_self_result(self);
+	struct array_sort_ctx c = { .array = array, .owner = -1, .func = func, .invert = invert,
+		.stride = array_elem_is_2slot() ? 2 : 1 };
+	if (a->nr_vars % c.stride) {
+		WARNING("Array.Sort: %d slots not a multiple of stride %d", a->nr_vars, c.stride);
+		return array_self_result(self);
+	}
+	c.n = a->nr_vars / c.stride;
+	if (self > 0 && (size_t)self < heap_size && HEAP_REF(self) > 0
+	    && heap[self].type == VM_PAGE && heap[self].page == a)
+		c.owner = self;
+	if (c.n <= 1) return array_self_result(self);
+	if (has_func) {
+		c.cmp = ARRAY_SORT_CMP_FUNC;
+		if (!array_sort_func_shape(&c)) {
+			static int warned;
+			if (warned++ < 5) WARNING("Array.Sort: unsupported comparator %d (stride %d), not sorted", func, c.stride);
+			return array_self_result(self);
+		}
+	} else {
+		c.cmp = array_sort_value_cmp(a, c.stride);
+		if (c.cmp == ARRAY_SORT_CMP_NONE) { // native logs and continues with a constant-false cmp
+			static int warned;
+			if (warned++ < 5) WARNING("Array.Sort: element type has no default order (a_type %d, arg3 %#x)", a->a_type, hll_current_arg3);
+		}
+	}
+	if (quick) array_sort_quick(&c, 0, c.n); else array_sort_insertion(&c);
+	return array_self_result(self);
+}
+static int Array_SortPred(struct page **array, int func) { return array_sort_run(array, func, true, false, false); }       // [34]
+static int Array_SortValue(struct page **array) { return array_sort_run(array, -1, false, false, false); }                // [35] == AscSort
+static int Array_QuickSortValue(struct page **array) { return array_sort_run(array, -1, false, false, true); }            // [38]
+static int Array_QuickSortPred(struct page **array, int func) { return array_sort_run(array, func, true, false, true); }  // [39]
+static int Array_AscSortWrap(struct page **array) { return array_sort_run(array, -1, false, false, false); }              // [36]
+static int Array_DescSortWrap(struct page **array) { return array_sort_run(array, -1, false, true, false); }             // [37] !less
+// [19] Remain: filtering stays in the existing Array_Remain; native 0x647f60 returns self like Sort.
+static void Array_Remain(struct page **array, int func);
+static int Array_RemainWrap(struct page **array, int func)
+{
+	int self = hll_self_slot;
+	Array_Remain(array, func);
+	return array_self_result(self);
+}
+// NULL = shape not recognised, caller keeps the name-matched default.
+static void *array_sort_function(const struct ain_hll_function *f)
+{
+	if (!f->arguments || f->nr_arguments < 1) return NULL;
+	switch (f->arguments[0].type.data) {
+	case AIN_REF_ARRAY_TYPE:
+	case AIN_REF_ARRAY: break;
+	default: return NULL;
+	}
+	bool func = f->nr_arguments == 2 && (f->arguments[1].type.data == AIN_HLL_FUNC
+					     || f->arguments[1].type.data == AIN_HLL_FUNC_71);
+	enum ain_data_type ret = f->return_type.data;
+	if (ret != AIN_WRAP) return NULL;
+	if (!strcmp(f->name, "Sort"))
+		return func ? (void *)Array_SortPred : f->nr_arguments == 1 ? (void *)Array_SortValue : NULL;
+	if (!strcmp(f->name, "QuickSort"))
+		return func ? (void *)Array_QuickSortPred : f->nr_arguments == 1 ? (void *)Array_QuickSortValue : NULL;
+	if (!strcmp(f->name, "AscSort")) return f->nr_arguments == 1 ? (void *)Array_AscSortWrap : NULL;
+	if (!strcmp(f->name, "DescSort")) return f->nr_arguments == 1 ? (void *)Array_DescSortWrap : NULL;
+	if (!strcmp(f->name, "Remain")) return func ? (void *)Array_RemainWrap : NULL;
+	return NULL;
+}
+
 static bool array_decl_has_func(const struct ain_hll_function *f)
 {
 	for (int i = 0; i < f->nr_arguments; i++) {
@@ -3096,6 +3318,12 @@ void *array_select_function(const struct ain_hll_function *f, void *fallback)
 	}
 	if (!strcmp(f->name, "First"))
 		return array_decl_has_func(f) ? (void *)Array_First : (void *)Array_First_NoPred;
+	if (!strcmp(f->name, "Sort") || !strcmp(f->name, "QuickSort")
+	    || !strcmp(f->name, "AscSort") || !strcmp(f->name, "DescSort")
+	    || !strcmp(f->name, "Remain")) {
+		void *fn = array_sort_function(f);
+		return fn ? fn : fallback;
+	}
 	if (!strcmp(f->name, "Fill") || !strcmp(f->name, "Copy") || !strcmp(f->name, "Realloc")) {
 		void *fn = f->arguments ? array_fill_copy_function(f) : NULL;
 		return fn ? fn : fallback;
