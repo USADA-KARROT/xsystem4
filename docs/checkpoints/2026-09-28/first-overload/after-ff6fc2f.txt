@@ -1,0 +1,24 @@
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FIRST decl indices: First#0=67 First#1=68 First#3=70 Shuffle=60 At=65 Last#1=72 Max#1=80 lib=4
+FIRST round=0 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=1 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST round=2 At(0)=4[alpha] First#1=4[alpha] Last#1=2[beta] Max#1=4[alpha]
+FIRST round=3 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=4 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST round=5 At(0)=4[alpha] First#1=4[alpha] Last#1=2[beta] Max#1=4[alpha]
+FIRST round=6 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=7 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST round=8 At(0)=4[alpha] First#1=4[alpha] Last#1=2[beta] Max#1=4[alpha]
+FIRST round=9 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=10 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST round=11 At(0)=4[alpha] First#1=4[alpha] Last#1=2[beta] Max#1=4[alpha]
+FIRST round=12 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=13 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST round=14 At(0)=4[alpha] First#1=4[alpha] Last#1=2[beta] Max#1=4[alpha]
+FIRST round=15 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=16 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST round=17 At(0)=4[alpha] First#1=4[alpha] Last#1=2[beta] Max#1=4[alpha]
+FIRST round=18 At(0)=2[alpha] First#1=2[alpha] Last#1=3[beta] Max#1=4[gamma]
+FIRST round=19 At(0)=3[alpha] First#1=3[alpha] Last#1=4[beta] Max#1=4[beta]
+FIRST summary: First#1 returned -1/invalid in 0 of 20 rounds, valid in 20
+FIRST PASS: single-arg First returns a live element

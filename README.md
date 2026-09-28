@@ -1,9 +1,9 @@
 xsystem4
 ========
 
-> **2026-09-26 macOS／多娜多娜 CN：已更新研究、Array／生命週期與回呼修正；新遊戲仍失敗，尚非穩定可玩版。**
-> 最新實機未再出現大量字串重複釋放警告，但人物ID assertion與回收殘留尚未解決。
-> [最新進度與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
+> **2026-09-28 macOS／多娜多娜 CN：新遊戲人物 ID assertion 已修正（Array.First 單參數 overload 綁錯實作），實機可進入第一回合主迴圈；尚非穩定可玩版。**
+> 其他 Array overload 的同型綁定缺陷、DeletedEvent 回收殘留、人眼畫面與存讀檔仍待處理。
+> [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
 operating systems.

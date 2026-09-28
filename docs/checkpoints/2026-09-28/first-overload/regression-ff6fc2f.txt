@@ -1,0 +1,11 @@
+first-overload rc=0   sanitizer=0  last: FIRST PASS: single-arg First returns a live element
+personality    rc=0   sanitizer=0  last: PERSONALITY caller-owned PASS: 20 real constructor calls; caller DELETE leaves Id bytes valid; teardown balanc
+deleted-event  rc=87  sanitizer=0  last: DELETED_EVENT functional checks PASS; production ownership teardown remains incomplete
+heap-reuse     rc=0   sanitizer=0  last: HEAP PASS 1000 page-slot reuse/generation/duplicate-unref rounds; exit_unref recycling; stable capacity and li
+assignment     rc=0   sanitizer=0  last: CONTRACT result=pass live=0 baseline=0
+observer       rc=0   sanitizer=0  last: OBSERVER teardown initial_live=0 final_live=0 collection_ref=0 env_ref=0 motion_ref=0 callback_calls=2
+reentrancy     rc=0   sanitizer=0  last: DELEGATE self-Clear PASS: original 20752->36081; sole frame refs=1/1; callback_steps=64; return releases obj/e
+array-reinit   rc=0   sanitizer=0  last: REINIT PASS shared old arrays retain their external owner after original constructor reinitialization
+metadata       rc=0   sanitizer=0  last: METADATA teardown live=0 (expected 0)
+click          rc=0   sanitizer=0  last: CLICK PASS initial keydown, 350/50ms repeat boundaries, release, nested timer ctor/dtor exactly once
+timer          rc=0   sanitizer=0  last: TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0
