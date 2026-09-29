@@ -136,24 +136,18 @@ static void ft_font_set_size(struct font_ft *font, unsigned size)
 
 static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint32_t code, enum font_weight weight);
 
-static float ft_half_width(float size)
-{
-	if (gfx_text_gdi_half_width)
-		return (float)(((int)size + 1) >> 1);
-	return size / 2;
-}
-
 /*
- * A glyph the font does not have is drawn from the other TrueType font
- * (gothic <-> mincho) when that one has it: the default gothic font lacks
- * characters the CN scripts use (for example U+83C8), which otherwise show
- * as .notdef boxes. Only the bitmap comes from the other face; the advance
- * stays the code-point based one below, so the spacing does not change.
+ * In the CN (GBK) build without an .fnl, a glyph the font does not have is
+ * drawn from the other TrueType font (gothic <-> mincho) when that one has
+ * it: the default gothic font lacks characters the CN scripts use (for
+ * example U+83C8), which otherwise show as .notdef boxes. Only the bitmap
+ * comes from the other face; the CN grid does not use the glyph's advance,
+ * so the spacing does not change. Other games keep the .notdef glyph.
  */
 static FT_Face ft_font_fallback_face(struct font_ft *font, uint32_t code, unsigned size)
 {
 	extern struct font *font_ttf[2];
-	if (!code || FT_Get_Char_Index(font->font, code))
+	if (!code || !gfx_text_cn_gdi() || FT_Get_Char_Index(font->font, code))
 		return font->font;
 	for (int i = 0; i < 2; i++) {
 		struct font *other = font_ttf[i];
@@ -213,13 +207,13 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 		return false;
 	}
 
-	glyph->advance = half_width ? ft_half_width(size->size) : size->size;
+	glyph->advance = half_width ? size->size / 2 : size->size;
 	return true;
 }
 
 static float ft_font_size_char(struct font_size *size, uint32_t code)
 {
-	return is_half_width(code) ? ft_half_width(size->size) : size->size;
+	return is_half_width(code) ? size->size / 2 : size->size;
 }
 
 static float ft_font_size_char_kerning(struct font_size *size, uint32_t code,

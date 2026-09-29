@@ -180,6 +180,7 @@ void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
 	ts->size = size;
 	ts->color = (SDL_Color){r, g, b, 255};
 	ts->weight = bold_weight * 1000;
+	ts->bold_weight = bold_weight;
 	ts->edge_color = (SDL_Color){edge_r, edge_g, edge_b, 255};
 	text_style_set_edge_width(ts, edge_weight);
 	message_window_rebuild(parts);

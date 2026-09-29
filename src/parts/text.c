@@ -223,6 +223,7 @@ bool PE_SetFont(int parts_no, int type, int size, int r, int g, int b, float bol
 	text->ts.size = size;
 	text->ts.color = (SDL_Color) { r, g, b, 255 };
 	text->ts.weight = bold_weight * 1000;
+	text->ts.bold_weight = bold_weight;
 	text->ts.edge_color = (SDL_Color) { edge_r, edge_g, edge_b, 255 };
 	text_style_set_edge_width(&text->ts, edge_weight);
 	parts_text_rerender(parts, text);

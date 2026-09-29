@@ -76,6 +76,7 @@ struct text_style {
 	float size;
 	float bold_width; // SengokuRanceFont
 	unsigned weight;  // SACT2, etc.
+	float bold_weight; // v14 SetFont BoldWeight (太さ); only the CN grid reads it
 	float edge_left;
 	float edge_up;
 	float edge_right;
@@ -130,7 +131,12 @@ static inline void text_style_set_edge_width(struct text_style *ts, float w)
 }
 
 extern bool gfx_text_advance_edges;
-extern bool gfx_text_gdi_half_width;
+
+// The GDI grid of the CN (GBK) build without an .fnl; see text.c.
+bool gfx_text_cn_gdi(void);
+int gfx_text_cn_edge(int size, float bold, float edge);
+int gfx_text_cn_width(int size, uint8_t lead);
+int gfx_text_cn_style_edge(struct text_style *ts);
 
 void gfx_font_init(void);
 void ft_font_init(void);
@@ -172,6 +178,8 @@ float gfx_get_actual_font_size_round_down(unsigned face, float size);
 
 static inline float text_style_width(struct text_style *ts, const char *ch)
 {
+	if (gfx_text_cn_gdi())
+		return (gfx_size_char(ts, ch) + 2 * gfx_text_cn_style_edge(ts)) * ts->scale_x;
 	return (gfx_size_char(ts, ch) + (ts->bold_width * 2) + ts->edge_left + ts->edge_right)
 		* ts->scale_x;
 }

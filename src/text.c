@@ -15,6 +15,8 @@
  */
 
 #include <iconv.h>
+#include <limits.h>
+#include <math.h>
 
 #include "system4.h"
 #include "system4/fnl.h"
@@ -48,9 +50,59 @@ struct font *font_fnl[MAX_FNL_FONTS] = {0};
 
 // Controls whether edge widths are taken into account during text layout.
 bool gfx_text_advance_edges = false;
-// The CN (GBK) build lays text out on the GDI grid (0x69c7a0): a half-width
-// character is (size+1)>>1 pixels wide, not size/2.
-bool gfx_text_gdi_half_width = false;
+
+/*
+ * The CN (GBK) build has no .fnl font library. Its engine draws every
+ * character with GDI into a cell of its own and puts the cells side by side:
+ *
+ *   e       = max(min(ceil(bold), size), min(ceil(edge), size))    0x69c7a0
+ *   width   = size when the first byte is 0x81..0xFE, else (size+1)>>1
+ *   cell    = width + 2e; the glyph sits at x = e                  0x69b9d0
+ *   advance = cell + character spacing                  0x4fcb99, 0x5bd0c6
+ *
+ * bold is the 太さ (BoldWeight) and edge the 縁取り (EdgeWeight) of the font;
+ * the glyph's own advance plays no part. TextSurfaceManager.GetFontWidth
+ * returns the same cell width (0x69fb30 -> 0x69c7a0), so the scripts measure
+ * what is drawn. Only this configuration uses the grid: SJIS games and games
+ * with an .fnl keep the layout below.
+ */
+bool gfx_text_cn_gdi(void)
+{
+	return !config.fnl_path && sys4_get_string_charset() == SYS4_CHARSET_GBK;
+}
+
+// cvttss2si of the CRT ceil (0x4c6f60 -> 0x784450)
+static int cn_ceil(float v)
+{
+	float c = ceilf(v);
+	if (isnan(c) || c < (float)INT_MIN || c >= -(float)INT_MIN)
+		return INT_MIN;
+	return (int)c;
+}
+
+int gfx_text_cn_edge(int size, float bold, float edge)
+{
+	int b = min(cn_ceil(bold), size);
+	int e = min(cn_ceil(edge), size);
+	return max(b, e);
+}
+
+int gfx_text_cn_width(int size, uint8_t lead)
+{
+	// 0x69c81b: the 0xE0..0xEF test left over from SJIS lies inside this range
+	if (lead >= 0x81 && lead <= 0xFE)
+		return size;
+	return (size + 1) >> 1;
+}
+
+// SetFont keeps the 太さ in bold_weight; SetPartsFontBoldWeight and the
+// construction process text keep it in bold_width, which also thickens the
+// glyph. Both count, as both end up in the one 太さ field of the original.
+int gfx_text_cn_style_edge(struct text_style *ts)
+{
+	return gfx_text_cn_edge(lroundf(ts->size), max(ts->bold_width, ts->bold_weight),
+			text_style_edge_width(ts));
+}
 
 static struct font *load_font(enum font_face type)
 {
@@ -95,12 +147,6 @@ void gfx_font_init(void)
 		for (unsigned i = 0; i < fnl->nr_fonts && i < MAX_FNL_FONTS; i++) {
 			font_fnl[i] = fnl_font_load(fnl, i);
 		}
-	} else if (sys4_get_string_charset() == SYS4_CHARSET_GBK) {
-		// Without an .fnl the CN build draws each character with GDI into a
-		// cell as wide as the character plus the edge on both sides
-		// (0x69c7a0: width + 2e). The .fnl loader already enables this.
-		gfx_text_advance_edges = true;
-		gfx_text_gdi_half_width = true;
 	}
 	font_initialized = true;
 }
@@ -220,6 +266,8 @@ static uint32_t char_to_code(const char *ch, enum charmap charmap)
 
 float gfx_size_char(struct text_style *ts, const char *ch)
 {
+	if (gfx_text_cn_gdi())
+		return *ch ? gfx_text_cn_width(lroundf(ts->size), *ch) : 0;
 	struct font_size *size = text_style_font_size(ts);
 	return font_size_char(size, char_to_code(ch, size->font->charmap));
 }
@@ -233,6 +281,17 @@ float gfx_size_char_kerning(struct text_style *ts, uint32_t code, uint32_t code_
 float gfx_size_text(struct text_style *ts, const char *text)
 {
 	if (!text || !*text) return 0.0f;
+	if (gfx_text_cn_gdi()) {
+		// the cells, without the character spacing (as below)
+		int size = lroundf(ts->size);
+		int edges = 2 * gfx_text_cn_style_edge(ts);
+		float x = 0.0f;
+		while (*text) {
+			x += gfx_text_cn_width(size, *text) + edges;
+			text += ain_is_gb18030 ? gb18030_skip_char_bytes(text) : (SJIS_2BYTE(*text) ? 2 : 1);
+		}
+		return x;
+	}
 	struct font_size *size = text_style_font_size(ts);
 	if (!size || !size->font) return 0.0f;
 	float edge_advance = gfx_text_advance_edges
@@ -263,20 +322,25 @@ float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 {
 	float pos_x = tm->x;
 	int pos_y = tm->y + tm->font_size->y_offset;
+	bool cn_gdi = gfx_text_cn_gdi();
 
 	while (*msg) {
 		pos_x += tm->edge_spacing;
 		// get glyph for character
 		float scale_x = *msg == ' ' ? tm->space_scale_x : tm->scale_x;
+		uint8_t lead = *msg;
 		uint32_t code = char_to_code(msg, tm->font_size->font->charmap);
 		msg += ain_is_gb18030 ? gb18030_skip_char_bytes(msg) : (SJIS_2BYTE(*msg) ? 2 : 1);
 		struct glyph *glyph = font_get_glyph(tm->font_size, code, tm->weight);
-		if (!glyph)
+		if (!glyph && !cn_gdi)
 			continue;
+		float width = cn_gdi ? gfx_text_cn_width(tm->font_size->size, lead) : glyph->advance;
 
 		// render glyph
-		Texture *t = &glyph->t[tm->weight];
-		if (tm->mode == RENDER_COPY) {
+		Texture *t = glyph ? &glyph->t[tm->weight] : NULL;
+		if (!glyph) {
+			// nothing to draw; the CN grid still keeps the cell
+		} else if (tm->mode == RENDER_COPY) {
 			float x = pos_x - glyph->rect.x;
 			int y = pos_y - glyph->rect.y;
 			gfx_draw_glyph(dst, x, y, t, tm->color, config.text_x_scale, tm->edge_width, false);
@@ -291,7 +355,7 @@ float _gfx_render_text(Texture *dst, char *msg, struct text_render_metrics *tm)
 		}
 
 		// advance
-		pos_x += glyph->advance * scale_x * config.text_x_scale + tm->font_spacing;
+		pos_x += width * scale_x * config.text_x_scale + tm->font_spacing;
 		pos_x += tm->edge_spacing;
 	}
 	return pos_x - tm->x;
@@ -320,9 +384,11 @@ float gfx_render_textf(Texture *dst, float x, int y, char *msg, struct text_styl
 	struct font_size *font_size = text_style_font_size(ts);
 	float edge_width = text_style_edge_width(ts);
 
-	float edge_advance = gfx_text_advance_edges
-		? edge_width + ceilf(ts->bold_width)
-		: 0.f;
+	float edge_advance;
+	if (gfx_text_cn_gdi())
+		edge_advance = gfx_text_cn_style_edge(ts);
+	else
+		edge_advance = gfx_text_advance_edges ? edge_width + ceilf(ts->bold_width) : 0.f;
 
 	enum text_render_mode mode = blend ? RENDER_BLENDED : RENDER_COPY;
 	if (edge_width > 0.01f) {
