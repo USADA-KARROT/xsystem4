@@ -154,24 +154,19 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
 	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 
+	// sprite_deform 1 flips horizontally, 2 vertically; the v14 reverse
+	// flags flip again on top of it.
+	bool flip_x = parts->reverse_lr, flip_y = parts->reverse_tb;
 	switch (parts->sprite_deform) {
-	// Flip horizontally
-	case 1:
-		glm_translate(mw_transform, (vec3){ common->w, 0.0f, 0.0f });
-		glm_scale(mw_transform, (vec3){ -common->w, common->h, 1.0f });
-		break;
-	// Flip vertically
-	case 2:
-		glm_translate(mw_transform, (vec3){ 0.0f, common->h, 0.0f });
-		glm_scale(mw_transform, (vec3){ common->w, -common->h, 1.0f });
-		break;
+	case 0: break;
+	case 1: flip_x = !flip_x; break;
+	case 2: flip_y = !flip_y; break;
 	default:
 		WARNING("Invalid sprite_deform: %d", parts->sprite_deform);
-	// No deform
-	case 0:
-		glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
 		break;
 	}
+	glm_translate(mw_transform, (vec3){ flip_x ? common->w : 0.0f, flip_y ? common->h : 0.0f, 0.0f });
+	glm_scale(mw_transform, (vec3){ flip_x ? -common->w : common->w, flip_y ? -common->h : common->h, 1.0f });
 
 	Rectangle r = common->surface_area;
 	if (!r.w && !r.h) {

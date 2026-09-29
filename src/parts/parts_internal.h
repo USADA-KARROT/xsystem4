@@ -427,6 +427,11 @@ struct parts {
 	int no;
 	int delegate_index;
 	int sprite_deform;
+	// v14 SetComponentReverseLR/TB (native parts +0xaa and its TB twin):
+	// mirror the drawn CG within its own box, combined (XOR) with the
+	// sprite_deform flip.
+	bool reverse_lr;
+	bool reverse_tb;
 	bool clickable;
 	bool pass_cursor;
 	bool pixel_hittest;

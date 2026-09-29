@@ -1449,7 +1449,36 @@ static int PE_v14_GetComponentClipAreaPosX(int n) { (void)n; return 0; }
 static int PE_v14_GetComponentClipAreaPosY(int n) { (void)n; return 0; }
 static int PE_v14_GetComponentClipAreaPosWidth(int n) { (void)n; return 0; }
 static int PE_v14_GetComponentClipAreaPosHeight(int n) { (void)n; return 0; }
-static void PE_v14_SetComponentReverseLR(int n, bool r) { (void)n; (void)r; }
+/* SetComponentReverseLR/TB: the native setter only stores a flag on an
+ * existing parts (0x58e070 writes +0xaa) and ignores an unknown number; the
+ * getter returns false for it. AdvStand flips stands placed on the left
+ * (AdvStand@PosType::set -> Reverse = Side == Left). */
+static void PE_v14_SetComponentReverseLR(int n, bool r)
+{
+	struct parts *parts = parts_try_get(n);
+	if (!parts || parts->reverse_lr == !!r)
+		return;
+	parts->reverse_lr = !!r;
+	parts_dirty(parts);
+}
+static void PE_v14_SetComponentReverseTB(int n, bool r)
+{
+	struct parts *parts = parts_try_get(n);
+	if (!parts || parts->reverse_tb == !!r)
+		return;
+	parts->reverse_tb = !!r;
+	parts_dirty(parts);
+}
+static bool PE_v14_GetComponentReverseLR(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts && parts->reverse_lr;
+}
+static bool PE_v14_GetComponentReverseTB(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts && parts->reverse_tb;
+}
 
 static float PE_v14_GetComponentMagX(int n) { return PE_GetPartsMagX(n); }
 static float PE_v14_GetComponentMagY(int n) { return PE_GetPartsMagY(n); }
@@ -1633,6 +1662,9 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "GetComponentClipAreaPosWidth", PE_v14_GetComponentClipAreaPosWidth);
 	static_library_register(lib, "GetComponentClipAreaPosHeight", PE_v14_GetComponentClipAreaPosHeight);
 	static_library_register(lib, "SetComponentReverseLR", PE_v14_SetComponentReverseLR);
+	static_library_register(lib, "SetComponentReverseTB", PE_v14_SetComponentReverseTB);
+	static_library_register(lib, "GetComponentReverseLR", PE_v14_GetComponentReverseLR);
+	static_library_register(lib, "GetComponentReverseTB", PE_v14_GetComponentReverseTB);
 	static_library_register(lib, "GetMessageWindowText", PE_GetMessageWindowText);
 	static_library_register(lib, "GetMessageWindowFlatName", PE_v14_GetMessageWindowFlatName);
 	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_SetMessageWindowTextOriginPosMode);

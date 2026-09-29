@@ -33,7 +33,7 @@ XS4_MODES="first-overload overload-shapes overload-shapes-str personality delete
 assignment observer reentrancy array-reinit metadata click timer bound-overload findlast order unique
 fill-copy-extra fc-selector fc-fill0 fc-fill1-int fc-fill1-str fc-fill-clamp fc-copy0 fc-copy3
 fc-copy3-str fc-copy3-dest1 fc-copy-overlap fc-realloc math sort string cif activity-text dialogue-model dialogue-copy
-save-list save-roundtrip save-comment save-fixes gbk-string gbk-vm gbk-detect sjis-chars"
+save-list save-roundtrip save-comment save-fixes gbk-string gbk-vm gbk-detect sjis-chars parts-reverse"
 xs4_expected_rc() { case "$1" in deleted-event) echo 87 ;; *) echo 0 ;; esac; }
 
 # Copy the probe sources from the repo into the work directory (build outputs stay out of the repo).

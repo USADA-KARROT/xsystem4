@@ -91,6 +91,7 @@ static void init_probe(const char *path) {
 #include "dialogue_copy_fixture.inc"
 #include "save_persist_fixture.inc"
 #include "save_fixes_fixture.inc"
+#include "parts_reverse_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -123,6 +124,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"save-roundtrip"))return test_save_roundtrip();
     if(!strcmp(argv[2],"save-comment"))return test_save_comment();
     if(!strcmp(argv[2],"save-fixes"))return test_save_fixes();
+    if(!strcmp(argv[2],"parts-reverse"))return test_parts_reverse();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
