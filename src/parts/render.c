@@ -62,6 +62,51 @@ static void set_draw_filter_blend_func(int draw_filter)
 	}
 }
 
+static void parts_reverse_scale(mat4 m, bool lr, bool tb)
+{
+	if (lr || tb)
+		glm_scale(m, (vec3){ lr ? -1.0f : 1.0f, tb ? -1.0f : 1.0f, 1.0f });
+}
+
+/*
+ * The transform around a parts' anchor (its global position):
+ *
+ *   T(global pos) * ancestors' reverse * Rz(angle) * S(global scale) * own reverse
+ *
+ * The original builds each level as S(reverse) * T(-origin) * S(scale) * R *
+ * T(pos) (0x4e6d80, row vectors) on top of the parent's accumulated matrix,
+ * so a parts' flip mirrors its box around its anchor before the scale,
+ * rotation and translation, and the ancestors' flips (global XOR own) mirror
+ * the result again around the anchor, whose position parts_update_global_pos
+ * already mirrored. Without flips this is the transform used before. angle
+ * is in radians; with rotate_scale false (TEXT) neither is applied, as before.
+ */
+void parts_anchor_transform(struct parts *parts, float angle, bool rotate_scale, mat4 out)
+{
+	glm_mat4_identity(out);
+	glm_translate(out, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
+	parts_reverse_scale(out, parts->global.reverse_lr != parts->local.reverse_lr,
+			parts->global.reverse_tb != parts->local.reverse_tb);
+	if (rotate_scale) {
+		// FIXME: need perspective for 3D rotate
+		glm_rotate_z(out, angle, out);
+		glm_scale(out, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
+	}
+	parts_reverse_scale(out, parts->local.reverse_lr, parts->local.reverse_tb);
+}
+
+/*
+ * Maps a point of the parts' box (pixels from its top-left corner, before
+ * sprite_deform) to the screen. The box starts at the origin-mode offset from
+ * the anchor, as the original's quad does (0x5b71b0 / 0x5b7200). The pixel
+ * hit test inverts this (parts_screen_to_box).
+ */
+void parts_box_transform(struct parts *parts, struct parts_common *common, mat4 out)
+{
+	parts_anchor_transform(parts, glm_rad(parts->local.rotation.z), true, out);
+	glm_translate(out, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
+}
+
 static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color, int draw_filter, int alpha_clipper)
 {
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
@@ -88,11 +133,8 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 		struct parts_common *c_common = &clipper->states[clipper->state].common;
 
 		// Calculate the inverse of the clipper's world matrix.
-		mat4 clip_mw = GLM_MAT4_IDENTITY_INIT;
-		glm_translate(clip_mw, (vec3) { clipper->global.pos.x, clipper->global.pos.y, 0 });
-		glm_rotate_z(clip_mw, glm_rad(clipper->local.rotation.z), clip_mw);
-		glm_scale(clip_mw, (vec3){ clipper->global.scale.x, clipper->global.scale.y, 1.0 });
-		glm_translate(clip_mw, (vec3){ c_common->origin_offset.x, c_common->origin_offset.y, 0 });
+		mat4 clip_mw;
+		parts_box_transform(clipper, c_common, clip_mw);
 		glm_scale(clip_mw, (vec3){ c_common->w, c_common->h, 1.0 });
 		mat4 clip_inv;
 		glm_mat4_inv(clip_mw, clip_inv);
@@ -125,6 +167,13 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 	};
 	float blend_rate = parts->global.alpha / 255.0;
 
+	// Reverse flags mirror the text around the parts' anchor like any other
+	// box (text has no rotation or scale here).
+	bool reversed = parts->global.reverse_lr || parts->global.reverse_tb;
+	mat4 anchor;
+	if (reversed)
+		parts_anchor_transform(parts, 0.0f, false, anchor);
+
 	int x = position.x;
 	int y = position.y;
 	for (int i = 0; i < t->nr_lines; i++) {
@@ -132,6 +181,11 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 		for (int j = 0; j < line->nr_chars; j++) {
 			struct parts_text_char *ch = &line->chars[j];
 			mat4 mw_transform = WORLD_TRANSFORM(ch->t.w, ch->t.h, x, y);
+			if (reversed) {
+				glm_mat4_copy(anchor, mw_transform);
+				glm_translate(mw_transform, (vec3){ x - parts->global.pos.x, y - parts->global.pos.y, 0 });
+				glm_scale(mw_transform, (vec3){ ch->t.w, ch->t.h, 1.0f });
+			}
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
 			x += ch->advance;
@@ -145,28 +199,29 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
 	set_draw_filter_blend_func(parts->draw_filter);
 
-	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
-	glm_translate(mw_transform, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
-	// FIXME: need perspective for 3D rotate
-	//glm_rotate_x(mw_transform, parts->rotation.x, mw_transform);
-	//glm_rotate_y(mw_transform, parts->rotation.y, mw_transform);
-	glm_rotate_z(mw_transform, glm_rad(parts->local.rotation.z), mw_transform);
-	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
-	glm_translate(mw_transform, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
+	mat4 mw_transform;
+	parts_box_transform(parts, common, mw_transform);
 
-	// sprite_deform 1 flips horizontally, 2 vertically; the v14 reverse
-	// flags flip again on top of it.
-	bool flip_x = parts->reverse_lr, flip_y = parts->reverse_tb;
+	// sprite_deform flips the CG within its own box (PE_SetPartsCG*); the
+	// reverse flags are part of parts_box_transform.
 	switch (parts->sprite_deform) {
-	case 0: break;
-	case 1: flip_x = !flip_x; break;
-	case 2: flip_y = !flip_y; break;
+	// Flip horizontally
+	case 1:
+		glm_translate(mw_transform, (vec3){ common->w, 0.0f, 0.0f });
+		glm_scale(mw_transform, (vec3){ -common->w, common->h, 1.0f });
+		break;
+	// Flip vertically
+	case 2:
+		glm_translate(mw_transform, (vec3){ 0.0f, common->h, 0.0f });
+		glm_scale(mw_transform, (vec3){ common->w, -common->h, 1.0f });
+		break;
 	default:
 		WARNING("Invalid sprite_deform: %d", parts->sprite_deform);
+	// No deform
+	case 0:
+		glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
 		break;
 	}
-	glm_translate(mw_transform, (vec3){ flip_x ? common->w : 0.0f, flip_y ? common->h : 0.0f, 0.0f });
-	glm_scale(mw_transform, (vec3){ flip_x ? -common->w : common->w, flip_y ? -common->h : common->h, 1.0f });
 
 	Rectangle r = common->surface_area;
 	if (!r.w && !r.h) {
@@ -441,10 +496,9 @@ static void parts_render_flat(struct parts *parts, struct parts_flat *f)
 		return;
 
 	struct flat_draw_ctx ctx;
-	glm_mat4_identity(ctx.matrix);
-	glm_translate(ctx.matrix, (vec3){ parts->global.pos.x, parts->global.pos.y, 0 });
-	glm_rotate_z(ctx.matrix, glm_rad(parts->local.rotation.z), ctx.matrix);
-	glm_scale(ctx.matrix, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0f });
+	// The flat's own keys come on top of the parts chain, reverse included
+	// (the original collects the chain with 0x537b00 from 0x525e83).
+	parts_anchor_transform(parts, glm_rad(parts->local.rotation.z), true, ctx.matrix);
 	ctx.alpha = parts->global.alpha / 255.0f;
 	glm_vec3_zero(ctx.add_color);
 	glm_vec3_one(ctx.mul_color);
@@ -480,10 +534,8 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 	if (!src)
 		ERROR("undefined bitmap id %d", tag->fill_style.bitmap_id);
 
-	mat4 mw_transform = GLM_MAT4_IDENTITY_INIT;
-	glm_translate(mw_transform, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
-	glm_rotate_z(mw_transform, parts->local.rotation.z, mw_transform);
-	glm_scale(mw_transform, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
+	mat4 mw_transform;
+	parts_anchor_transform(parts, parts->local.rotation.z, true, mw_transform);
 	glm_translate(mw_transform, (vec3){ f->common.origin_offset.x, f->common.origin_offset.y, 0 });
 
 	glm_mul(mw_transform, obj->matrix, mw_transform);

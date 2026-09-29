@@ -49,23 +49,21 @@ static Point drag_initial_pos;
 static Point drag_start_cursor;
 static struct parts *drop_target = NULL;
 
-static bool parts_hittest(struct parts *parts, int state, Point pos)
+/*
+ * Invert parts_box_transform: translation, the ancestors' reverse flags,
+ * rotation, scale, the parts' own reverse flags and origin. Returns the point
+ * in the parts' box (pixels from its top-left corner), or false when the
+ * scale is 0.
+ */
+bool parts_screen_to_box(struct parts *parts, struct parts_common *c, float sx, float sy,
+		float *bx, float *by)
 {
-	struct parts_common *c = &parts->states[state].common;
-	Rectangle hitbox = c->hitbox;
-	if (parts->parent) {
-		hitbox.x += parts->parent->global.pos.x;
-		hitbox.y += parts->parent->global.pos.y;
-	}
-	if (!parts->pixel_hittest || !c->texture.handle || c->texture.w <= 0
-			|| c->texture.h <= 0 || c->w <= 0 || c->h <= 0)
-		return SDL_PointInRect(&pos, &hitbox);
-
-	// Invert parts_render_cg's translation, rotation, scale and origin. Use
-	// the full image origin: surface_area clips pixels rather than scaling
-	// the complete image into the smaller hit rectangle.
-	float x = (float)pos.x - parts->global.pos.x;
-	float y = (float)pos.y - parts->global.pos.y;
+	float x = sx - parts->global.pos.x;
+	float y = sy - parts->global.pos.y;
+	if (parts->global.reverse_lr != parts->local.reverse_lr)
+		x = -x;
+	if (parts->global.reverse_tb != parts->local.reverse_tb)
+		y = -y;
 	if (parts->local.rotation.z != 0.0f) {
 		float angle = parts->local.rotation.z * (3.14159265358979323846f / 180.0f);
 		float cs = cosf(angle), sn = sinf(angle);
@@ -75,15 +73,42 @@ static bool parts_hittest(struct parts *parts, int state, Point pos)
 	}
 	if (!parts->global.scale.x || !parts->global.scale.y)
 		return false;
-	x = x / parts->global.scale.x - c->origin_offset.x;
-	y = y / parts->global.scale.y - c->origin_offset.y;
+	x = x / parts->global.scale.x;
+	y = y / parts->global.scale.y;
+	if (parts->local.reverse_lr)
+		x = -x;
+	if (parts->local.reverse_tb)
+		y = -y;
+	*bx = x - c->origin_offset.x;
+	*by = y - c->origin_offset.y;
+	return true;
+}
+
+static bool parts_hittest(struct parts *parts, int state, Point pos)
+{
+	struct parts_common *c = &parts->states[state].common;
+	Rectangle hitbox = parts_screen_hitbox(parts, c);
+	if (!parts->pixel_hittest || !c->texture.handle || c->texture.w <= 0
+			|| c->texture.h <= 0 || c->w <= 0 || c->h <= 0)
+		return SDL_PointInRect(&pos, &hitbox);
+
+	// Use the full image origin: surface_area clips pixels rather than
+	// scaling the complete image into the smaller hit rectangle. A mirrored
+	// box maps a pixel's left edge to the right edge of a texel, so sample
+	// the pixel centre there, as the rasterizer does; unmirrored parts keep
+	// the previous corner sampling (the same texel at scale 1).
+	bool mirrored = parts->global.reverse_lr || parts->global.reverse_tb
+		|| parts->local.reverse_lr || parts->local.reverse_tb;
+	float half = mirrored ? 0.5f : 0.0f, x, y;
+	if (!parts_screen_to_box(parts, c, (float)pos.x + half, (float)pos.y + half, &x, &y))
+		return false;
 	if (!isfinite(x) || !isfinite(y) || x < 0 || y < 0 || x >= c->w || y >= c->h)
 		return false;
 	int tx = (int)((double)x * c->texture.w / c->w);
 	int ty = (int)((double)y * c->texture.h / c->h);
-	if ((parts->sprite_deform == 1) != parts->reverse_lr)
+	if (parts->sprite_deform == 1)
 		tx = c->texture.w - 1 - tx;
-	if ((parts->sprite_deform == 2) != parts->reverse_tb)
+	else if (parts->sprite_deform == 2)
 		ty = c->texture.h - 1 - ty;
 	if (c->surface_area.w || c->surface_area.h) {
 		Point texel = { tx, ty };

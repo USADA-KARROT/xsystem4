@@ -410,6 +410,10 @@ struct parts_params {
 	struct { float x, y, z; } rotation;
 	SDL_Color add_color;
 	SDL_Color multiply_color;
+	// v14 SetComponentReverseLR/TB (native parts +0xaa/+0xa9). local: the
+	// parts' own flags; global: XOR of the flags along the parent chain.
+	bool reverse_lr;
+	bool reverse_tb;
 };
 
 struct parts {
@@ -427,11 +431,6 @@ struct parts {
 	int no;
 	int delegate_index;
 	int sprite_deform;
-	// v14 SetComponentReverseLR/TB (native parts +0xaa and its TB twin):
-	// mirror the drawn CG within its own box, combined (XOR) with the
-	// sprite_deform flip.
-	bool reverse_lr;
-	bool reverse_tb;
 	bool clickable;
 	bool pass_cursor;
 	bool pixel_hittest;
@@ -503,6 +502,9 @@ void parts_set_scale_x(struct parts *parts, float mag);
 void parts_set_scale_y(struct parts *parts, float mag);
 void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
+void parts_set_reverse(struct parts *parts, bool lr, bool tb);
+Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common);
+Point parts_screen_upper_left(struct parts *parts, struct parts_common *common);
 void parts_set_state(struct parts *parts, enum parts_state_type state);
 void parts_release(int parts_no);
 void parts_release_all(void);
@@ -556,6 +558,8 @@ void parts_dirty(struct parts *parts);
 void parts_sprite_render(struct sprite *sp);
 void parts_render(struct parts *parts);
 void parts_render_family(struct parts *parts);
+void parts_anchor_transform(struct parts *parts, float angle, bool rotate_scale, mat4 out);
+void parts_box_transform(struct parts *parts, struct parts_common *common, mat4 out);
 
 // motion.c
 void parts_clear_motion(struct parts *parts);
@@ -564,6 +568,8 @@ void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 // input.c
 extern bool parts_began_click;
 void parts_input_reset_drag(struct parts *parts);
+bool parts_screen_to_box(struct parts *parts, struct parts_common *common, float sx, float sy,
+		float *bx, float *by);
 
 // message.c
 enum parts_message_type {

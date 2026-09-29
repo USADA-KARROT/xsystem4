@@ -1451,33 +1451,31 @@ static int PE_v14_GetComponentClipAreaPosWidth(int n) { (void)n; return 0; }
 static int PE_v14_GetComponentClipAreaPosHeight(int n) { (void)n; return 0; }
 /* SetComponentReverseLR/TB: the native setter only stores a flag on an
  * existing parts (0x58e070 writes +0xaa) and ignores an unknown number; the
- * getter returns false for it. AdvStand flips stands placed on the left
- * (AdvStand@PosType::set -> Reverse = Side == Left). */
+ * getter returns that parts' own flag, false for an unknown number. AdvStand
+ * flips stands placed on the left (AdvStand@PosType::set -> Reverse = Side ==
+ * Left) and its Move across sides flips the stand's rect root through a
+ * Motion; the flags of a parts and its ancestors combine (parts_set_reverse). */
 static void PE_v14_SetComponentReverseLR(int n, bool r)
 {
 	struct parts *parts = parts_try_get(n);
-	if (!parts || parts->reverse_lr == !!r)
-		return;
-	parts->reverse_lr = !!r;
-	parts_dirty(parts);
+	if (parts)
+		parts_set_reverse(parts, !!r, parts->local.reverse_tb);
 }
 static void PE_v14_SetComponentReverseTB(int n, bool r)
 {
 	struct parts *parts = parts_try_get(n);
-	if (!parts || parts->reverse_tb == !!r)
-		return;
-	parts->reverse_tb = !!r;
-	parts_dirty(parts);
+	if (parts)
+		parts_set_reverse(parts, parts->local.reverse_lr, !!r);
 }
 static bool PE_v14_GetComponentReverseLR(int n)
 {
 	struct parts *parts = parts_try_get(n);
-	return parts && parts->reverse_lr;
+	return parts && parts->local.reverse_lr;
 }
 static bool PE_v14_GetComponentReverseTB(int n)
 {
 	struct parts *parts = parts_try_get(n);
-	return parts && parts->reverse_tb;
+	return parts && parts->local.reverse_tb;
 }
 
 static float PE_v14_GetComponentMagX(int n) { return PE_GetPartsMagX(n); }

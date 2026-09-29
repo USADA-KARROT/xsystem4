@@ -433,16 +433,35 @@ void parts_recalculate_hitbox(struct parts *parts)
 	}
 }
 
-static void parts_update_global_pos(struct parts *parts, Point parent_pos)
+/*
+ * A child's position relative to its parent's anchor (the parent's global
+ * position). The parent's reverse flags mirror it around that anchor, as in
+ * the original, where each parts' flip is part of its level of the transform
+ * (0x537b00 records, applied by 0x4e6d80 before the child's own level).
+ */
+static Point parts_child_pos(const struct parts_params *parent, Point local)
 {
-	parts->global.pos = (Point) {
-		parent_pos.x + parts->local.pos.x,
-		parent_pos.y + parts->local.pos.y
+	return (Point) {
+		parent->pos.x + (parent->reverse_lr ? -local.x : local.x),
+		parent->pos.y + (parent->reverse_tb ? -local.y : local.y)
 	};
+}
+
+// parent == NULL: a top-level parts, relative to root_pos and never mirrored.
+static void parts_update_global_pos(struct parts *parts, const struct parts_params *parent)
+{
+	if (parent) {
+		parts->global.pos = parts_child_pos(parent, parts->local.pos);
+	} else {
+		parts->global.pos = (Point) {
+			root_pos.x + parts->local.pos.x,
+			root_pos.y + parts->local.pos.y
+		};
+	}
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_pos(child, parts->global.pos);
+		parts_update_global_pos(child, &parts->global);
 	}
 }
 
@@ -451,7 +470,7 @@ void parts_set_pos(struct parts *parts, Point pos)
 	parts->local.pos.x = pos.x;
 	parts->local.pos.y = pos.y;
 	parts_recalculate_hitbox(parts);
-	parts_update_global_pos(parts, parts->parent ? parts->parent->global.pos : root_pos);
+	parts_update_global_pos(parts, parts->parent ? &parts->parent->global : NULL);
 	parts_dirty(parts);
 }
 
@@ -460,9 +479,49 @@ void parts_set_global_pos(Point pos)
 	root_pos = pos;
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		parts_update_global_pos(parts, root_pos);
+		parts_update_global_pos(parts, NULL);
 	}
 	parts_engine_dirty();
+}
+
+/*
+ * The hit box on screen. common->hitbox is the box at the parts' own
+ * position (local pos + origin offset). The box is placed at the parts'
+ * anchor and mirrored around it by the reverse flags of the parts and of all
+ * its ancestors (like the original, whose hit test 0x57a6b0 transforms the
+ * box corners with the accumulated matrix). Scale and rotation are ignored
+ * here, as before.
+ */
+Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
+{
+	Rectangle box = common->hitbox;
+	Point anchor = parts->parent ? parts_child_pos(&parts->parent->global, parts->local.pos)
+		: parts->local.pos;
+	int rx = box.x - parts->local.pos.x, ry = box.y - parts->local.pos.y;
+	if (parts->global.reverse_lr)
+		rx = -rx - box.w;
+	if (parts->global.reverse_tb)
+		ry = -ry - box.h;
+	box.x = anchor.x + rx;
+	box.y = anchor.y + ry;
+	return box;
+}
+
+/*
+ * The screen position of the box's top-left corner (the texture's first
+ * pixel), as Parts_GetPartsUpperLeftPos returns it: the original transforms
+ * that corner with the parts' matrix (0x534bb0 -> 0x57b6a0), so under a flip
+ * it is mirrored around the anchor like every other point of the box.
+ */
+Point parts_screen_upper_left(struct parts *parts, struct parts_common *common)
+{
+	Point anchor = parts->parent ? parts_child_pos(&parts->parent->global, parts->local.pos)
+		: parts->local.pos;
+	int rx = common->hitbox.x - parts->local.pos.x, ry = common->hitbox.y - parts->local.pos.y;
+	return (Point) {
+		anchor.x + (parts->global.reverse_lr ? -rx : rx),
+		anchor.y + (parts->global.reverse_tb ? -ry : ry)
+	};
 }
 
 static void parts_update_global_z(struct parts *parts, int parent_z)
@@ -520,6 +579,39 @@ void parts_set_alpha(struct parts *parts, int alpha)
 {
 	parts->local.alpha = max(0, min(255, alpha));
 	parts_update_global_alpha(parts, parts->parent ? parts->parent->global.alpha : 255);
+	parts_dirty(parts);
+}
+
+static void parts_update_global_reverse(struct parts *parts, bool parent_lr, bool parent_tb)
+{
+	parts->global.reverse_lr = parent_lr != parts->local.reverse_lr;
+	parts->global.reverse_tb = parent_tb != parts->local.reverse_tb;
+
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_reverse(child, parts->global.reverse_lr, parts->global.reverse_tb);
+	}
+}
+
+/*
+ * SetComponentReverseLR/TB. In the original each level of the transform
+ * starts with S(reverse ? -1 : 1) (0x4e6d80, which also XORs the flags into
+ * the accumulated state), so the flags of a parts and its ancestors combine
+ * by XOR, the parts' box is mirrored around its anchor, and so are the
+ * positions of its children.
+ */
+void parts_set_reverse(struct parts *parts, bool lr, bool tb)
+{
+	if (parts->local.reverse_lr == lr && parts->local.reverse_tb == tb)
+		return;
+	parts->local.reverse_lr = lr;
+	parts->local.reverse_tb = tb;
+	const struct parts_params *parent = parts->parent ? &parts->parent->global : NULL;
+	parts_update_global_reverse(parts, parent && parent->reverse_lr, parent && parent->reverse_tb);
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_pos(child, &parts->global);
+	}
 	parts_dirty(parts);
 }
 
@@ -1087,7 +1179,7 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 		struct parts_params *out)
 {
 	out->z = parent->z + child->z;
-	out->pos = (Point) { parent->pos.x + child->pos.x, parent->pos.y + child->pos.y };
+	out->pos = parts_child_pos(parent, child->pos);
 	out->show = parent->show && child->show;
 	out->alpha = parent->alpha * (child->alpha / 255.0f);
 	out->scale.x = parent->scale.x * child->scale.x;
@@ -1101,6 +1193,8 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 	out->multiply_color.r = parent->multiply_color.r * (child->multiply_color.r / 255.0f);
 	out->multiply_color.g = parent->multiply_color.g * (child->multiply_color.g / 255.0f);
 	out->multiply_color.b = parent->multiply_color.b * (child->multiply_color.b / 255.0f);
+	out->reverse_lr = parent->reverse_lr != child->reverse_lr;
+	out->reverse_tb = parent->reverse_tb != child->reverse_tb;
 }
 
 static void parts_update_component(struct parts *parts)
@@ -1837,10 +1931,7 @@ int PE_GetPartsUpperLeftPosX(int parts_no, int state)
 	if (!parts_state_valid(--state))
 		return 0;
 	struct parts *parts = parts_get(parts_no);
-	int x = parts->states[state].common.hitbox.x;
-	if (parts->parent)
-		x += parts->parent->global.pos.x;
-	return x;
+	return parts_screen_upper_left(parts, &parts->states[state].common).x;
 }
 
 int PE_GetPartsUpperLeftPosY(int parts_no, int state)
@@ -1848,10 +1939,7 @@ int PE_GetPartsUpperLeftPosY(int parts_no, int state)
 	if (!parts_state_valid(--state))
 		return 0;
 	struct parts *parts = parts_get(parts_no);
-	int y = parts->states[state].common.hitbox.y;
-	if (parts->parent)
-		y += parts->parent->global.pos.y;
-	return y;
+	return parts_screen_upper_left(parts, &parts->states[state].common).y;
 }
 
 int PE_GetPartsZ(int parts_no)

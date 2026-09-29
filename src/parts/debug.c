@@ -303,6 +303,8 @@ static cJSON *parts_params_to_json(struct parts_params *params, bool verbose)
 	cJSON_AddNumberToObject(tmp, "z", params->rotation.z);
 	cJSON_AddItemToObjectCS(obj, "add_color", color_to_json(&params->add_color, verbose));
 	cJSON_AddItemToObjectCS(obj, "mul_color", color_to_json(&params->multiply_color, verbose));
+	cJSON_AddBoolToObject(obj, "reverse_lr", params->reverse_lr);
+	cJSON_AddBoolToObject(obj, "reverse_tb", params->reverse_tb);
 	return obj;
 }
 

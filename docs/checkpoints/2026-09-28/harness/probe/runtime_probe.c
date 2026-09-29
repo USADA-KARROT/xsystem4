@@ -94,6 +94,7 @@ static void init_probe(const char *path) {
 #include "save_persist_fixture.inc"
 #include "save_fixes_fixture.inc"
 #include "parts_reverse_fixture.inc"
+#include "reverse_inherit_fixture.inc"
 #include "iface_arg_fixture.inc"
 #include "delegate_args_fixture.inc"
 #include "text_metrics_fixture.inc"
@@ -130,6 +131,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"save-comment"))return test_save_comment();
     if(!strcmp(argv[2],"save-fixes"))return test_save_fixes();
     if(!strcmp(argv[2],"parts-reverse"))return test_parts_reverse();
+    if(!strcmp(argv[2],"reverse-inherit"))return test_reverse_inherit();
     if(!strcmp(argv[2],"iface-arg"))return test_iface_arg();
     if(!strcmp(argv[2],"delegate-args"))return test_delegate_args();
     if(!strcmp(argv[2],"text-metrics"))return test_text_metrics();
