@@ -44,6 +44,7 @@
 #include "input.h"
 #include "parts.h"
 #include "savedata.h"
+#include "serialize_struct.h"
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
@@ -1006,7 +1007,9 @@ static int alloc_scenario_page(const char *fname)
 	slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 	for (int i = 0; i < f->nr_vars; i++) {
-		heap[slot].page->values[i] = variable_initval(f->vars[i].type.data);
+		heap[slot].page->values[i] = ain_option_type_is_value(&f->vars[i].type)
+			? (union vm_value){ .i = -1 }
+			: variable_initval(f->vars[i].type.data);
 	}
 	return slot;
 }
@@ -1185,7 +1188,11 @@ static int _function_call(int fno, int return_address)
 				f->vars[i].type.data, fno, f->name, i);
 			break;
 		}
-		union vm_value initv = variable_initval(f->vars[i].type.data);
+		// A value option (option<int> etc.) is a plain value; allocating a slot
+		// for it leaks one per call, since X_ASSIGN overwrites it without unref.
+		union vm_value initv = ain_option_type_is_value(&f->vars[i].type)
+			? (union vm_value){ .i = -1 }
+			: variable_initval(f->vars[i].type.data);
 		heap[slot].page->values[i] = initv;
 		if (ain->version <= 1 && f->vars[i].type.data == AIN_STRUCT) {
 			create_struct(f->vars[i].type.struc, &heap[slot].page->values[i]);
@@ -1728,6 +1735,29 @@ void vm_call(int fno, int struct_page)
  * strings become empty strings, delegates new empty delegates and options
  * none. Arrays, wraps, interfaces and references keep what create_struct set.
  */
+static void construct_fill_vtable(struct page *page, struct ain_struct *s)
+{
+	// 0x679c9e..0x679d05: after the members, a first member named
+	// "<vtable>" is resized to the struct's method list and filled with it.
+	if (s->nr_members <= 0 || s->nr_vmethods <= 0 || !s->vmethods || page->nr_vars <= 0
+	    || !s->members[0].name || strcmp(s->members[0].name, "<vtable>"))
+		return;
+	int arr = page->values[0].i;
+	if (arr <= 0 || !heap_index_valid(arr) || heap[arr].type != VM_PAGE)
+		return;
+	struct page *old = heap[arr].page;
+	if (old && old->nr_vars > 0)
+		return; // already filled: leave it alone
+	union vm_value dim = { .i = s->nr_vmethods };
+	struct page *np = alloc_array(1, &dim, old ? old->a_type : AIN_ARRAY_INT,
+				      old ? old->array.struct_type : -1, false);
+	for (int k = 0; k < s->nr_vmethods; k++)
+		np->values[k].i = s->vmethods[k];
+	heap_set_page(arr, np);
+	if (old)
+		free_page(old);
+}
+
 static void construct_default_members(int slot, int struct_type, int depth)
 {
 	if (depth > CONSTRUCT_DEFAULT_MAX_DEPTH || !heap_index_valid(slot) || !heap[slot].page)
@@ -1735,6 +1765,7 @@ static void construct_default_members(int slot, int struct_type, int depth)
 	struct ain_struct *s = &ain->structures[struct_type];
 	struct page *page = heap[slot].page;
 	int n = s->nr_members < page->nr_vars ? s->nr_members : page->nr_vars;
+	construct_fill_vtable(page, s);
 	for (int mi = 0; mi < n; mi++) {
 		const struct ain_type *t = &s->members[mi].type;
 		switch (t->data) {
@@ -1754,12 +1785,25 @@ static void construct_default_members(int slot, int struct_type, int depth)
 			if (page->values[mi].i == -1)
 				page->values[mi] = variable_initval(AIN_DELEGATE);
 			break;
-		case AIN_OPTION:
-			// [value, flag]; flag 1 is none (0x656a44). create_struct left
-			// the value at -1, so nothing is owned yet.
-			if (mi + 1 < n && page->values[mi].i == -1)
-				page->values[mi + 1].i = 1;
+		case AIN_OPTION: {
+			// 0x656a44: none is -1 in every slot but the last, which holds
+			// the number of option layers (1 for option<T>). option<int>
+			// is [value, flag]; option<wrap<iwrap<T>>> is [value, vtable
+			// offset, flag]. create_struct left the value at -1, so
+			// nothing is owned yet.
+			int slots = ss_type_slot_count(t);
+			int layers = 0;
+			for (const struct ain_type *o = t; o && (o->data == AIN_OPTION
+			     || o->data == AIN_UNKNOWN_TYPE_87); o = o->array_type)
+				layers++;
+			if (slots >= 2 && mi + slots - 1 < n && page->values[mi].i == -1) {
+				for (int k = 0; k < slots - 1; k++)
+					page->values[mi + k].i = -1;
+				page->values[mi + slots - 1].i = layers;
+				mi += slots - 1;
+			}
 			break;
+		}
 		default:
 			break;
 		}

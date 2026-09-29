@@ -106,6 +106,7 @@ union vm_value variable_initval(enum ain_data_type type);
 void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor);
 struct ain_type;
 const struct ain_type *variable_decltype(struct page *page, int varno);
+bool ain_option_type_is_value(const struct ain_type *t);
 bool variable_option_is_value(struct page *page, int varno);
 enum ain_data_type variable_type(struct page *page, int varno, int *struct_type, int *array_rank);
 void variable_set(struct page *page, int varno, enum ain_data_type type, union vm_value val);

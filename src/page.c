@@ -310,11 +310,10 @@ void variable_set(struct page *page, int varno, enum ain_data_type type, union v
 // own a heap slot; an int/float/bool/enum payload is a plain value and must
 // never be ref'd, unref'd or deep-copied. Every path that ref-counts an
 // AIN_OPTION slot (ASSIGN, X_OP_SET, delete_page_vars, copy_page) checks this.
-bool variable_option_is_value(struct page *page, int varno)
+bool ain_option_type_is_value(const struct ain_type *t)
 {
-	if (!page || ain->version < 14)
+	if (!t || ain->version < 14 || t->data != AIN_OPTION)
 		return false;
-	const struct ain_type *t = variable_decltype(page, varno);
 	while (t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87))
 		t = t->array_type;
 	if (!t)
@@ -326,6 +325,11 @@ bool variable_option_is_value(struct page *page, int varno)
 	default:
 		return false;
 	}
+}
+
+bool variable_option_is_value(struct page *page, int varno)
+{
+	return page && ain_option_type_is_value(variable_decltype(page, varno));
 }
 
 void delete_page_vars(struct page *page)

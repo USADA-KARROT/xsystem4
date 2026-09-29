@@ -28,6 +28,11 @@ int ss_read_comment_file(const char *path, const char *label, struct string **ou
  * SerializeStruct list refers to, or -1. Unwraps an xsystem4 wrap box. */
 int ss_struct_slot(int slot);
 
+/* Number of VM slots a value of type t occupies, as the native engine counts
+ * them (0x653420): option<wrap<iwrap<T>>> is 3, option<int> 2, int 1. */
+struct ain_type;
+int ss_type_slot_count(const struct ain_type *t);
+
 /* XSYS4_TRACE_SAVE=1 enables one line per call (at most 200 lines). */
 void ss_trace(const char *fmt, ...);
 

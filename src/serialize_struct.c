@@ -162,6 +162,11 @@ static int ss_slot_count(const struct ain_type *t)
 	}
 }
 
+int ss_type_slot_count(const struct ain_type *t)
+{
+	return ss_slot_count(t);
+}
+
 enum ss_kind { SS_ZERO, SS_RAW, SS_STR, SS_STRUCT, SS_ARRAY, SS_NULLREF, SS_BAD };
 
 /* Shared classification of the writer (0x660070) and the loader (0x65d390). */
