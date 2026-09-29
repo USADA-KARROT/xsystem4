@@ -152,5 +152,9 @@ struct page *delegate_plusa(struct page *dst, struct page *add);
 struct page *delegate_minusa(struct page *dst, struct page *minus);
 struct page *delegate_clear(struct page *page);
 bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
+// v14 weak method targets (original 0x652210/0x681f70)
+void delegate_page_register(int slot);
+void delegate_target_freed(int obj);
+void delegate_targets_reset(void);
 
 #endif /* SYSTEM4_PAGE_H */

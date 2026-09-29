@@ -64,6 +64,7 @@ void heap_grow(size_t new_size);
 int32_t heap_alloc_slot(enum vm_pointer_type type);
 void heap_ref(int slot);
 void heap_unref(int slot);
+bool heap_set_defer_frees(bool defer);
 void exit_unref(int slot);
 
 uint32_t heap_get_seq(int slot);

@@ -5,13 +5,21 @@
 # overflow, the time limit or a file named STOP in the run directory. Saves and home are isolated.
 # RUN_SAVE_SEED=<dir> starts from a copy of <dir> in the run's save folder; RUN_TRACE_SAVE=1 logs
 # the SerializeStruct family (see ../tooling/run-gui-bounded.py).
+# RUN_FROM_TITLE=1 starts at the logo and title instead (no --skip-title, no held key, no periodic
+# click unless RUN_HOLD_KEYS/RUN_AUTO_CLICK are given); drive it with RUN_AUTO_CLICK_SEQ.
+# RUN_AUTO_CLICK_SEQ, RUN_CLICK_TRACE and RUN_SHOTS are passed through (see run-gui-bounded.py).
 source "$(dirname "$0")/env.sh" || exit 1
 NAME=${1:?usage: gui-run.sh <name> [seconds] [engine args...]}; SECS=${2:-150}; shift; shift
 RUN=$XS4_WORK/runs/$NAME
 [ -e "$RUN" ] && { echo "已存在：$RUN"; exit 2; }
 ninja -C "$XS4_OPTIMIZED_BUILD" >"$XS4_WORK/ninja-opt.log" 2>&1 || { tail -20 "$XS4_WORK/ninja-opt.log"; exit 1; }
-[ $# -gt 0 ] || set -- --skip-title
-RUN_HOLD_KEYS=13 RUN_AUTO_CLICK=1200 RUN_FRAMEBUFFER_SHOTS=1 \
+if [ -n "$RUN_FROM_TITLE" ]; then
+	export RUN_HOLD_KEYS=${RUN_HOLD_KEYS-} RUN_AUTO_CLICK=${RUN_AUTO_CLICK-}
+else
+	[ $# -gt 0 ] || set -- --skip-title
+	export RUN_HOLD_KEYS=${RUN_HOLD_KEYS-13} RUN_AUTO_CLICK=${RUN_AUTO_CLICK-1200}
+fi
+RUN_FRAMEBUFFER_SHOTS=1 \
 	python3 "$XS4_SRC/docs/checkpoints/2026-09-28/tooling/run-gui-bounded.py" \
 	"$XS4_OPTIMIZED_BUILD/src/xsystem4" "$XS4_SRC" "$XS4_GAME" "$RUN" "$SECS" "$@"
 LOG=$RUN/engine.log

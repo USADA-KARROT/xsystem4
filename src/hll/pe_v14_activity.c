@@ -1169,24 +1169,37 @@ static bool PartsEngine_CreateActivity(struct string *name)
 	return true;
 }
 
-static void release_parts_recursive(int parts_no)
+static void release_parts_recursive(int parts_no, struct page **delegate_indices)
 {
 	struct parts *p = parts_try_get(parts_no);
 	if (!p) return;
+	*delegate_indices = array_pushback(*delegate_indices,
+			(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
 	while (!TAILQ_EMPTY(&p->children)) {
 		struct parts *child = TAILQ_FIRST(&p->children);
-		release_parts_recursive(child->no);
+		release_parts_recursive(child->no, delegate_indices);
 	}
 	parts_release(parts_no);
 }
 
+void pe_v14_append_int_list(int out_slot, const struct page *list);
+
+/* The erase list returns the released parts' delegate indices (0x540050 ->
+ * 0x55e400 reads them with 0x56d620, as RemoveController does), which
+ * activity::detail::Release hands to ReleaseFunctionSetList. */
 static bool PartsEngine_ReleaseActivity(struct string *name, int erase_list)
 {
 	int idx = find_activity(name);
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
+	struct page *delegate_indices = NULL;
 	for (int i = 0; i < act->nr_parts; i++)
-		release_parts_recursive(act->parts[i].number);
+		release_parts_recursive(act->parts[i].number, &delegate_indices);
+	pe_v14_append_int_list(erase_list, delegate_indices);
+	if (delegate_indices) {
+		delete_page_vars(delegate_indices);
+		free_page(delegate_indices);
+	}
 	if (idx < nr_activities - 1)
 		activities[idx] = activities[nr_activities - 1];
 	nr_activities--;
@@ -1332,8 +1345,13 @@ static void PartsEngine_RemoveAllActivityParts(struct string *name)
 	int idx = find_activity(name);
 	if (idx < 0) return;
 	struct activity *act = &activities[idx];
+	struct page *delegate_indices = NULL;
 	for (int i = 0; i < act->nr_parts; i++)
-		release_parts_recursive(act->parts[i].number);
+		release_parts_recursive(act->parts[i].number, &delegate_indices);
+	if (delegate_indices) {
+		delete_page_vars(delegate_indices);
+		free_page(delegate_indices);
+	}
 	act->nr_parts = 0;
 }
 

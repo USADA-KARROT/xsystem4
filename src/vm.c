@@ -949,6 +949,49 @@ int vm_copy_page(struct page *page)
 	return slot;
 }
 
+/*
+ * v14 A_REF of an array. The original copies (0x66b790 -> 0x6794d0: a new
+ * array, filled by 0x67ffb0, which copies int/float/bool/long elements as
+ * values and shares wrap/interface elements with a reference each,
+ * 0x656d60 -> 0x656f7c), so `result = source; result.Reverse()` leaves
+ * source alone (ArrayExtensions::GetReverse, TitleCharacterView@FadeIn).
+ * v14 arrays here are type-erased, so the copy follows what the page's own
+ * teardown does: number and string arrays are copied as copy_page copies
+ * them (a new string slot per element); a generic array (wrap, interface,
+ * option elements) gets a new page holding the same values, each value the
+ * teardown would release retained once more, so the elements are shared as
+ * the original shares wrap/interface elements. Struct-value and nested
+ * arrays keep sharing the page, as before. Returns the new slot, or -1.
+ */
+static int v14_array_value_copy(struct page *p)
+{
+	if (p->array.rank > 1)
+		return -1;
+	switch (p->a_type) {
+	case AIN_ARRAY_INT:
+	case AIN_ARRAY_FLOAT:
+	case AIN_ARRAY_BOOL:
+	case AIN_ARRAY_LONG_INT:
+	case AIN_ARRAY_STRING:
+		return vm_copy_page(p);
+	case AIN_ARRAY:
+	case AIN_REF_ARRAY: {
+		struct page *dst = alloc_page(ARRAY_PAGE, p->a_type, p->nr_vars);
+		dst->array = p->array;
+		for (int i = 0; i < p->nr_vars; i++) {
+			dst->values[i] = p->values[i];
+			// delete_page_vars releases every value of a generic
+			// array (variable_type: AIN_STRUCT)
+			if (p->values[i].i > 1 && heap_index_valid(p->values[i].i))
+				heap_ref(p->values[i].i);
+		}
+		return heap_alloc_page(dst);
+	}
+	default:
+		return -1;
+	}
+}
+
 union vm_value vm_copy(union vm_value v, enum ain_data_type type)
 {
 	switch (type) {
@@ -3978,6 +4021,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case A_REF: {
+		int copy;
 		int array = stack_pop().i;
 		if (array < 0 || (size_t)array >= heap_size || heap[array].ref <= 0) {
 			stack_push(-1);
@@ -4012,6 +4056,9 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				int slot = heap_alloc_slot(VM_PAGE);
 				heap_set_page(slot, copy_page(p));
 				stack_push(slot);
+			} else if (ain->version >= 14 && p && p->type == ARRAY_PAGE
+					&& (copy = v14_array_value_copy(p)) > 0) {
+				stack_push(copy);
 			} else if (ain->version >= 14) {
 				// v14: reference semantics for structs/arrays
 				heap_ref(array);
@@ -4719,8 +4766,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			stack_push(slot);
 			break;
 		}
+		// v14: only a lambda keeps the creating frame's local page as
+		// its environment (X_GETENV); the original (0x6522c0) passes
+		// the current local page when the function descriptor's lambda
+		// flag is set and -1 otherwise. Lambdas without the flag never
+		// use X_GETENV. The object is not retained (delegate_page_register).
 		int env = 0;
-		if (ain->version >= 14) {
+		if (ain->version >= 14 && fun < ain->nr_functions
+				&& ain->functions[fun].is_lambda) {
 			env = local_page_slot();
 		}
 		if (obj == -1 && ain->version >= 14) {

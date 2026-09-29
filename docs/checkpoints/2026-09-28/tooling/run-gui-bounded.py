@@ -8,6 +8,10 @@ variables are dropped so a run is reproducible; use the RUN_* variables instead:
   RUN_HOLD_KEYS=13          hold Return (passes the notice screen)
   RUN_FRAMEBUFFER_SHOTS=1   engine framebuffer PNG every 2 s into <run_dir>/framebuffer/
   RUN_AUTO_CLICK=1200        engine auto-click every N ms at RUN_AUTO_CLICK_X/Y (default 640,400)
+  RUN_AUTO_CLICK_SEQ="ms,x,y;..."  click at these absolute times instead (XSYS4_AUTO_CLICK_SEQ)
+  RUN_CLICK_TRACE=1         log each v14 click's target ("S2 click target=...", XSYS4_STAGE2_TRACE)
+  RUN_SHOTS=start,step,count  framebuffer PNG schedule in ms (default 2000,2000,40;
+                            XSYS4_SCREENSHOT_SCHEDULE; needs RUN_FRAMEBUFFER_SHOTS=1)
   RUN_WINDOW_SHOTS=15,35,55 capture only the game window at these seconds into <run_dir>/window-NNs.png
                             (needs find-window next to this script, built from find-window.swift,
                             and Screen Recording permission for the calling process)
@@ -41,6 +45,14 @@ if os.environ.get('RUN_AUTO_CLICK'):
     env['XSYS4_AUTO_CLICK'] = os.environ['RUN_AUTO_CLICK']
     env['XSYS4_AUTO_CLICK_X'] = os.environ.get('RUN_AUTO_CLICK_X', '640')
     env['XSYS4_AUTO_CLICK_Y'] = os.environ.get('RUN_AUTO_CLICK_Y', '400')
+if os.environ.get('RUN_AUTO_CLICK_SEQ'):
+    env['XSYS4_AUTO_CLICK_SEQ'] = os.environ['RUN_AUTO_CLICK_SEQ']
+    for k in ('XSYS4_AUTO_CLICK', 'XSYS4_AUTO_CLICK_X', 'XSYS4_AUTO_CLICK_Y'):
+        env.pop(k, None)
+if os.environ.get('RUN_CLICK_TRACE'):
+    env['XSYS4_STAGE2_TRACE'] = '1'
+if os.environ.get('RUN_SHOTS'):
+    env['XSYS4_SCREENSHOT_SCHEDULE'] = os.environ['RUN_SHOTS']
 if os.environ.get('RUN_TRACE_SAVE'):
     env['XSYS4_TRACE_SAVE'] = '1'
 if os.environ.get('RUN_FRAMEBUFFER_SHOTS'):
@@ -111,6 +123,12 @@ with (run / 'engine.log').open('wb') as log:
         elif time.monotonic() - stop_at > 5:
             os.kill(proc.pid, signal.SIGKILL)
         time.sleep(0.2)
+if 'stop_reason' not in meta:
+    # the engine exited by itself (e.g. right after a VM error) before a poll saw the log
+    with (run / 'engine.log').open('rb') as r:
+        r.seek(off); tail = (carry + r.read()).lower()
+    meta['matched'] = [p.decode() for p in PATTERNS if p in tail]
+    meta['stop_reason'] = 'error_log' if meta['matched'] else 'exited'
 meta.update(exit_code=rc, elapsed_seconds=round(time.monotonic() - begin, 3), peak_rss_bytes=usage.ru_maxrss,
             finished_at=datetime.datetime.now().astimezone().isoformat(),
             saves_manifest_end=manifest(run / 'saves'))

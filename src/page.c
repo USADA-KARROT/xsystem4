@@ -23,6 +23,7 @@
 #endif
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/hashtable.h"
 #include "system4/string.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -292,8 +293,10 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 			*array_rank = page->array.rank - 1;
 		return page->array.rank > 1 ? page->a_type : array_type(page->a_type);
 	case DELEGATE_PAGE:
+		// v14 entries are (object, function, environment): only the
+		// environment is owned (see delegate_page_register).
 		if (ain->version >= 14 && varno >= 0 && varno < page->nr_vars)
-			return varno % 3 == 1 ? AIN_VOID : AIN_REF_INT;
+			return varno % 3 == 2 ? AIN_REF_INT : AIN_VOID;
 		// Pre-v14 method targets are weak; the third word is a sequence.
 		return AIN_VOID;
 	}
@@ -595,7 +598,12 @@ void init_global_struct_v14(int no, int slot)
 }
 
 static int destructor_depth = 0;
-#define MAX_DESTRUCTOR_DEPTH 4
+// Objects freed by a destructor's code are destroyed before that code goes on
+// (see heap_set_defer_frees), so destructors nest as deep as ownership does:
+// a scene's activity wrapper releases its user components, whose activity
+// wrappers release theirs. The original has no limit (reference counting in
+// C++); this only guards against runaway recursion.
+#define MAX_DESTRUCTOR_DEPTH 64
 
 // Blacklist for struct types whose destructors loop/timeout
 static bool *dtor_blacklist = NULL;
@@ -618,44 +626,24 @@ static void dtor_blacklist_init(void)
 	}
 }
 
-// Struct index for parts::detail::CParts — resolved once at runtime.
-// When a CParts page is freed, we auto-release its parts_no (member 0).
-static int cparts_struct_index = -2; // -2 = not yet resolved
-extern struct parts *parts_try_get(int parts_no);
-extern void parts_release(int parts_no);
+// A CParts page used to release "its parts" here, reading member 0 as the
+// parts number. Member 0 is the <vtable> array (the number is <Number>, member
+// 1), so that released whatever parts happened to be numbered like the array's
+// heap slot; the destructor CParts@1 itself releases the parts when
+// <AutoRelease> is set, as the original does.
 
 void delete_struct(int no, int slot)
 {
 	if (no < 0 || no >= ain->nr_structures)
 		return;
 
-	// One-time resolution of CParts struct index
-	if (cparts_struct_index == -2) {
-		cparts_struct_index = -1;
-		for (int si = 0; si < ain->nr_structures; si++) {
-			const char *name = ain->structures[si].name;
-			if (name && strcmp(name, "parts::detail::CParts") == 0) {
-				cparts_struct_index = si;
-				break;
-			}
-		}
-	}
-
-	// Auto-release parts when CParts page is destroyed
-	if (no == cparts_struct_index && slot > 0) {
-		struct page *page = heap[slot].page;
-		if (page && page->nr_vars > 0) {
-			int parts_no = page->values[0].i;
-			struct parts *p = parts_try_get(parts_no);
-			if (p) {
-				parts_release(parts_no);
-			}
-		}
-	}
-
 	struct ain_struct *s = &ain->structures[no];
 	if (s->destructor > 0 && s->destructor < ain->nr_functions) {
 		if (destructor_depth >= MAX_DESTRUCTOR_DEPTH) {
+			static int depth_warn = 0;
+			if (depth_warn++ < 5)
+				WARNING("delete_struct: destructor '%s' skipped at depth %d",
+					ain->functions[s->destructor].name, destructor_depth);
 			return;
 		}
 		// Check blacklist
@@ -666,7 +654,15 @@ void delete_struct(int no, int slot)
 		destructor_depth++;
 		extern unsigned long long vm_call_get_insn_count(void);
 		unsigned long long before = vm_call_get_insn_count();
+		// v14: what the destructor lets go of is destroyed before its
+		// next instruction, as in the original, not after this object:
+		// CActivityWrap@1 removes the user components and then
+		// releases the activity's parts, and each component's own
+		// activity must be released while its parts still exist.
+		bool deferred = ain->version >= 14 ? heap_set_defer_frees(false) : true;
 		vm_call(s->destructor, slot);
+		if (ain->version >= 14)
+			heap_set_defer_frees(deferred);
 		unsigned long long after = vm_call_get_insn_count();
 		destructor_depth--;
 		// If destructor consumed >400K instructions, it likely timed out — blacklist it
@@ -1149,6 +1145,140 @@ void array_reverse(struct page *page)
 	}
 }
 
+/*
+ * v14 delegate targets. A method delegate does not own its object: the
+ * original adds an entry (0x6522c0 -> 0x652210) without touching the
+ * object's reference count, records the delegate's heap index in a list
+ * kept by the object (+0x2c) and retains only a lambda's environment. When
+ * the object's last reference goes, its destructor runs and then every
+ * delegate in that list drops the entries for the object (0x6813c0 ->
+ * 0x681f70 -> 0x652970), releasing their environments. So a scene that
+ * registers its own methods as event handlers is still destroyed when the
+ * scene runner lets go of it, and its destructor erases its layer.
+ *
+ * Here the list is a table keyed by the object's slot. A delegate page is
+ * entered when it is stored in a heap slot (heap_set_page/heap_alloc_page),
+ * which every path that adds entries goes through. Entries may go stale
+ * (the delegate was freed or no longer targets the object); they are
+ * checked when used and pruned when a list grows.
+ */
+struct dg_target_list {
+	int n, cap;
+	int32_t dg[];
+};
+static struct hash_table *dg_targets;
+
+static bool dg_target_is_struct(int obj)
+{
+	return obj > 1 && page_index_valid(obj) && heap[obj].page
+		&& heap[obj].page->type == STRUCT_PAGE;
+}
+
+static bool dg_page_targets(int dg_slot, int obj)
+{
+	if (!page_index_valid(dg_slot) || !heap[dg_slot].page
+			|| heap[dg_slot].page->type != DELEGATE_PAGE)
+		return false;
+	struct page *dg = heap[dg_slot].page;
+	for (int i = 0; i + 2 < dg->nr_vars; i += 3) {
+		if (dg->values[i].i == obj)
+			return true;
+	}
+	return false;
+}
+
+static void dg_target_add(int obj, int dg_slot)
+{
+	if (!dg_targets)
+		dg_targets = ht_create(4096);
+	struct ht_slot *s = ht_put_int(dg_targets, obj, NULL);
+	struct dg_target_list *l = s->value;
+	if (l) {
+		for (int i = 0; i < l->n; i++) {
+			if (l->dg[i] == dg_slot)
+				return;
+		}
+	}
+	if (l && l->n == l->cap) {
+		// prune delegates that were freed or no longer target obj
+		int n = 0;
+		for (int i = 0; i < l->n; i++) {
+			if (dg_page_targets(l->dg[i], obj))
+				l->dg[n++] = l->dg[i];
+		}
+		l->n = n;
+	}
+	if (!l || l->n == l->cap) {
+		int cap = l ? l->cap * 2 : 4;
+		l = xrealloc(l, sizeof(struct dg_target_list) + sizeof(int32_t) * cap);
+		if (!s->value)
+			l->n = 0;
+		l->cap = cap;
+		s->value = l;
+	}
+	l->dg[l->n++] = dg_slot;
+}
+
+void delegate_page_register(int slot)
+{
+	if (ain->version < 14 || slot <= 1 || (size_t)slot >= heap_size)
+		return;
+	struct page *dg = heap[slot].page;
+	if (!dg || dg->type != DELEGATE_PAGE)
+		return;
+	for (int i = 0; i + 2 < dg->nr_vars; i += 3) {
+		int obj = dg->values[i].i;
+		if (dg_target_is_struct(obj))
+			dg_target_add(obj, slot);
+	}
+}
+
+static void delegate_drop_entries(struct page *dg, int obj)
+{
+	// back to front, as 0x652970 does
+	for (int i = dg->nr_vars - 3; i >= 0; i -= 3) {
+		if (dg->values[i].i != obj)
+			continue;
+		int env = dg->values[i+2].i;
+		for (int j = i + 3; j < dg->nr_vars; j++)
+			dg->values[j-3] = dg->values[j];
+		dg->nr_vars -= 3;
+		heap_unref(env);
+	}
+}
+
+void delegate_target_freed(int obj)
+{
+	if (!dg_targets || ain->version < 14)
+		return;
+	struct dg_target_list *l = ht_get_int(dg_targets, obj, NULL);
+	if (!l)
+		return;
+	ht_remove_int(dg_targets, obj);
+	for (int i = 0; i < l->n; i++) {
+		int dg_slot = l->dg[i];
+		if (!page_index_valid(dg_slot) || !heap[dg_slot].page
+				|| heap[dg_slot].page->type != DELEGATE_PAGE)
+			continue;
+		delegate_drop_entries(heap[dg_slot].page, obj);
+	}
+	free(l);
+}
+
+static void dg_target_list_free(void *value)
+{
+	free(value);
+}
+
+void delegate_targets_reset(void)
+{
+	if (!dg_targets)
+		return;
+	ht_foreach_value(dg_targets, dg_target_list_free);
+	ht_free_int(dg_targets);
+	dg_targets = NULL;
+}
+
 struct page *delegate_new_from_method(int obj, int fun)
 {
 	return delegate_new_from_method_env(obj, fun, 0);
@@ -1157,10 +1287,10 @@ struct page *delegate_new_from_method(int obj, int fun)
 struct page *delegate_new_from_method_env(int obj, int fun, int env)
 {
 	struct page *page = alloc_page(DELEGATE_PAGE, 0, 3);
-	if (ain->version >= 14) {
-		if (heap_index_valid(obj)) heap_ref(obj);
-		if (heap_index_valid(env)) heap_ref(env);
-	}
+	// v14: the object is not retained (see above); a lambda's
+	// environment is.
+	if (ain->version >= 14 && heap_index_valid(env))
+		heap_ref(env);
 	page->values[0].i = obj;
 	page->values[1].i = fun;
 	page->values[2].i = (ain->version >= 14) ? env : heap_get_seq(obj);
@@ -1195,10 +1325,8 @@ static struct page *delegate_append_env(struct page *dst, int obj, int fun, int 
 	dst->values[dst->nr_vars+0].i = obj;
 	dst->values[dst->nr_vars+1].i = fun;
 	dst->values[dst->nr_vars+2].i = ain->version >= 14 ? env : heap_get_seq(obj);
-	if (ain->version >= 14) {
-		if (heap_index_valid(obj)) heap_ref(obj);
-		if (heap_index_valid(env)) heap_ref(env);
-	}
+	if (ain->version >= 14 && heap_index_valid(env))
+		heap_ref(env);
 	dst->nr_vars += 3;
 	return dst;
 }
@@ -1255,10 +1383,8 @@ void delegate_erase(struct page *page, int obj, int fun)
 				page->values[j-1].i = page->values[j+2].i;
 			}
 			page->nr_vars -= 3;
-			if (ain->version >= 14) {
-				heap_unref(obj);
+			if (ain->version >= 14)
 				heap_unref(old_env);
-			}
 			break;
 		}
 	}
@@ -1315,10 +1441,8 @@ struct page *delegate_clear(struct page *page)
 		if (count) memcpy(old, page->values, sizeof(*old) * count);
 		page->index = 0;
 		page->nr_vars = 0;
-		for (int i = 0; i + 2 < count; i += 3) {
-			heap_unref(old[i].i);
+		for (int i = 0; i + 2 < count; i += 3)
 			heap_unref(old[i+2].i);
-		}
 		free(old);
 		return page;
 	}

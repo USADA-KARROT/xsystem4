@@ -524,23 +524,36 @@ void gfx_swap(void)
 	// Test facility: periodically dump the main surface when
 	// XSYS4_SCREENSHOT_DIR is set (framebuffer capture; unaffected by
 	// window occlusion). Used by the port's runtime gates.
+	// XSYS4_SCREENSHOT_SCHEDULE="start,step,count" (ms) replaces the
+	// default of one shot every 2 s from 2 s on, 40 shots.
 	{
 		static const char *shot_dir = NULL;
 		static bool shot_checked = false;
 		static uint32_t next_shot = 2000;
+		static uint32_t shot_step = 2000;
+		static int shot_max = 40;
 		static int shot_count = 0;
 		if (!shot_checked) {
 			shot_dir = getenv("XSYS4_SCREENSHOT_DIR");
+			const char *sched = getenv("XSYS4_SCREENSHOT_SCHEDULE");
+			unsigned start, step;
+			int count;
+			if (sched && sscanf(sched, "%u,%u,%d", &start, &step, &count) == 3
+					&& step > 0 && count > 0 && count <= 1000) {
+				next_shot = start;
+				shot_step = step;
+				shot_max = count;
+			}
 			shot_checked = true;
 		}
-		if (shot_dir && shot_count < 40 && SDL_GetTicks() > next_shot) {
+		if (shot_dir && shot_count < shot_max && SDL_GetTicks() > next_shot) {
 			char path[PATH_MAX];
 			snprintf(path, sizeof(path), "%s/xsys4_t%02d.png", shot_dir, shot_count);
 			// Read back here; compress and write on a worker thread.
 			Texture *t = gfx_main_surface();
 			gfx_write_pixels_async(gfx_get_pixels(t), t->w, t->h, path, ALCG_PNG);
 			shot_count++;
-			next_shot += 2000;
+			next_shot += shot_step;
 		}
 	}
 

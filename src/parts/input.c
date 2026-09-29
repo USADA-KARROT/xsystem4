@@ -160,11 +160,19 @@ static int parts_click_sound(struct parts *parts)
 	return parts->button_disabled ? -1 : parts->on_click_sound;
 }
 
+static bool parts_takes_input(struct parts *parts)
+{
+	return parts->global.show && parts->global.alpha != 0;
+}
+
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
 		int passed_time, bool *hover_consumed, bool *click_consumed)
 {
 	// Always use DEFAULT state hitbox regardless of the current display state.
-	bool is_hovered = parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
+	// v14: a hidden or fully transparent parts takes no input, as in the
+	// click dispatch below.
+	bool is_hovered = (ain->version < 14 || parts_takes_input(parts))
+		&& parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
 		&& !*hover_consumed;
 
 	bool was_hovered = parts->is_hovered;
@@ -357,6 +365,18 @@ void PE_UpdateInputState(int passed_time)
 	// flag +0xb0 is only read by the rebuild (0x528870/0x529280), the
 	// per-frame sound reset (0x5285b0), a CG size lookup (0x529490), save
 	// (0x526ab0) and the HLL getter/setter (0x590b70/0x590ba0).
+	//
+	// The target is chosen as the hover above chooses the parts under the
+	// cursor: front to back, the first shown parts hit that is clickable or
+	// does not pass the cursor (オン指針透過 0). A clickable one gets the
+	// MouseClick; one that only blocks the cursor (a CG image, a panel)
+	// keeps the click from the parts behind it and the click becomes the
+	// whole-screen click. System parts (1000001000 and up) are not skipped:
+	// InputDisabler's and the dialogs' full-screen blockers are clickable
+	// rects that must stop a click reaching the buttons behind them. (They
+	// used to be skipped because a leaked InputDisabler, kept alive by a
+	// delegate, covered the screen for good; delegates no longer own their
+	// objects, see delegate_page_register.)
 	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
 		struct parts *click_target = NULL;
 		if (getenv("XSYS4_STAGE2_TRACE")) {
@@ -374,15 +394,14 @@ void PE_UpdateInputState(int passed_time)
 			}
 		}
 		PARTS_LIST_FOREACH_REVERSE(parts) {
-			if (parts->no >= 1000001000)
+			if (!parts_takes_input(parts))
 				continue;
-			if (!parts->clickable || !parts->global.show || parts->global.alpha == 0)
-				continue;
-			if (parts->pass_cursor)
+			if (!parts->clickable && parts->pass_cursor)
 				continue;
 			if (!parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos))
 				continue;
-			click_target = parts;
+			if (parts->clickable)
+				click_target = parts;
 			break;
 		}
 		int vars[3] = { cur_pos.x, cur_pos.y, 1 };

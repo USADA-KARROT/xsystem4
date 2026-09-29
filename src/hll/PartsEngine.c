@@ -904,24 +904,46 @@ static void parts_link_cg_name_getter(int libno, const char *name)
 	}
 }
 
+// Append ints to a v14 wrap<array<int>> out-parameter: the caller's array
+// slot (or a wrap box holding it).
+void pe_v14_append_int_list(int out_slot, const struct page *list)
+{
+	if (!list || !list->nr_vars || !page_index_valid(out_slot) || !heap[out_slot].page)
+		return;
+	int array_slot = -1;
+	struct page *p = heap[out_slot].page;
+	if (p->type == ARRAY_PAGE)
+		array_slot = out_slot;
+	else if (p->type == STRUCT_PAGE && p->index == -1 && p->nr_vars >= 1
+			&& page_index_valid(p->values[0].i))
+		array_slot = p->values[0].i; // wrap box
+	if (array_slot <= 0)
+		return;
+	struct page *dst = heap[array_slot].page;
+	for (int i = 0; i < list->nr_vars; i++)
+		dst = array_pushback(dst, list->values[i], AIN_ARRAY_INT, -1);
+	heap_set_page(array_slot, dst);
+}
+
 // v14 (Dohna Dohna) declares:
 //   void RemoveController(wrap<array<int>> EraseNumberList, int Index);
 // The wrap argument arrives from the FFI as an int heap slot, not the
 // page** the legacy 'ref array<int>' declaration produces. Calling the
 // legacy implementation with that cif dereferences a garbage pointer.
+// The out-list is the caller's array<int> (EraseLayer's delegateIndexList,
+// created empty by X_A_INIT). EraseLayer passes it straight on to
+// CPartsMessageManager@ReleaseFunctionSetList, which fires the DeletedEvent
+// of every erased parts (the CParts wrappers detach, user components are
+// released) and frees their function sets; an empty list left stale
+// wrappers behind, and a scene opened a second time reused them.
 static void PE_v14_RemoveController(int erase_slot, int index)
 {
-	// The v14 wrap<array<int>> out-list is not populated: the fork this
-	// port derives from never wrote it and Dohna Dohna runs fine without
-	// it (the erased parts numbers are only diagnostics for the game
-	// script). Writing it would require v14 array-page construction;
-	// revisit with the parts message wave if a scene turns out to read it.
-	(void)erase_slot;
-	struct page *scratch = NULL;
-	PE_RemoveController(&scratch, index);
-	if (scratch) {
-		delete_page_vars(scratch);
-		free_page(scratch);
+	struct page *list = NULL;
+	PE_RemoveController(&list, index);
+	pe_v14_append_int_list(erase_slot, list);
+	if (list) {
+		delete_page_vars(list);
+		free_page(list);
 	}
 }
 

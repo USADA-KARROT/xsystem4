@@ -108,6 +108,7 @@ void heap_init(void)
 	} else {
 		memset(heap, 0, heap_size * sizeof(struct vm_pointer));
 	}
+	delegate_targets_reset();
 
 	// Build free list starting at slot 2 (0=guard, 1=global page reserved)
 	heap_free_head = -1;
@@ -613,6 +614,23 @@ void heap_ref(int32_t slot)
 
 
 
+// Freeing is iterative: the pages a freed page releases are queued and
+// destroyed by the drain loop in heap_unref. While a destructor runs, frees
+// caused by its code start their own drain (delete_struct turns deferral
+// off), so the objects it lets go of are destroyed before it continues, in
+// the order the original's reference counting destroys them.
+#define DEFERRED_QUEUE_MAX (1 << 20)  // 1M entries
+static int deferred_queue[DEFERRED_QUEUE_MAX];
+static int deferred_count = 0;
+static bool deferred_processing = false;
+
+bool heap_set_defer_frees(bool defer)
+{
+	bool old = deferred_processing;
+	deferred_processing = defer;
+	return old;
+}
+
 void heap_unref(int slot)
 {
 	// Never unref reserved slots (0=guard, 1=global page) or invalid slots
@@ -631,16 +649,12 @@ void heap_unref(int slot)
 	// actual_ref == 1, about to become 0
 	extern void vm_stage2_trace_page_event(const char *event, int slot, int index, int value, int width);
 	vm_stage2_trace_page_event("unref-last", slot, -1, 0, 0);
-	static bool deferred_processing = false;
 	heap[slot].ref = 0;
 
 	// Deferred iterative free — fixed-size queue.
 	// Items that don't fit are left with ref=0 for GC to reclaim.
 	{
-		#define DEFERRED_QUEUE_MAX (1 << 20)  // 1M entries
-		static int deferred_queue[DEFERRED_QUEUE_MAX];
-		static int deferred_count = 0;
-
+		int base = deferred_count;
 		if (deferred_count < DEFERRED_QUEUE_MAX) {
 			deferred_queue[deferred_count++] = slot;
 		} else {
@@ -650,8 +664,11 @@ void heap_unref(int slot)
 			switch (heap[slot].type) {
 			case VM_PAGE:
 				if (heap[slot].page) {
+					bool was_struct = heap[slot].page->type == STRUCT_PAGE;
 					free_page(heap[slot].page);
 					heap[slot].page = NULL;
+					if (was_struct)
+						delegate_target_freed(slot);
 				}
 				break;
 			case VM_STRING:
@@ -672,7 +689,9 @@ void heap_unref(int slot)
 			// Destructor allocations must not let pressure GC put queued or
 			// in-progress slots on the free list before this drain does so.
 			heap_gc_inhibit();
-			while (deferred_count > 0) {
+			// Drain only what this unref queued (a destructor's code may
+			// start a nested drain while an outer one is in progress).
+			while (deferred_count > base) {
 				int s = deferred_queue[--deferred_count];
 				// Skip if re-allocated (ref > 0) or already freed (ref < 0)
 				if (heap[s].ref != 0)
@@ -683,7 +702,12 @@ void heap_unref(int slot)
 				switch (heap[s].type) {
 				case VM_PAGE:
 					if (heap[s].page) {
+						bool was_struct = heap[s].page->type == STRUCT_PAGE;
 						delete_page(s);
+						// after the destructor, drop the delegate
+						// entries that target it (0x681f70)
+						if (was_struct)
+							delegate_target_freed(s);
 					}
 					break;
 				case VM_STRING:
@@ -855,6 +879,8 @@ void heap_set_page(int slot, struct page *page)
 		return;
 	}
 	heap[slot].page = page;
+	if (page && page->type == DELEGATE_PAGE)
+		delegate_page_register(slot);
 }
 
 void heap_string_assign(int slot, struct string *string)
@@ -904,6 +930,8 @@ int32_t heap_alloc_page(struct page *page)
 {
 	int slot = heap_alloc_slot(VM_PAGE);
 	heap[slot].page = page;
+	if (page && page->type == DELEGATE_PAGE)
+		delegate_page_register(slot);
 	return slot;
 }
 

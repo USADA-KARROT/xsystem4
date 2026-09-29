@@ -2,8 +2,9 @@
  * Optional strict lifetime observation: forward-declare observer_probe_step()
  * and call it from the harness's existing probe_step(). No VM callbacks mocked.
  * Fixture owns one root each for observer, collection, motion and environment.
- * The production delegate constructor owns its receiver/environment refs;
- * teardown never repairs missing releases by hand. */
+ * The production delegate constructor owns its environment ref, not its
+ * receiver (v14 method targets are weak, original 0x652210; see
+ * delegate_page_register); teardown never repairs missing releases by hand. */
 static int observer_fixture_active, observer_fixture_phase;
 static int observer_fixture_env = -1;
 static unsigned long observer_fixture_checked_steps, observer_fixture_setter_steps;
@@ -60,29 +61,31 @@ static void test_delegate_ownership_smoke(void)
     size_t baseline = live_slots();
     int obj = heap_alloc_page(alloc_page(ARRAY_PAGE, AIN_INT, 0));
     int env = heap_alloc_page(alloc_page(ARRAY_PAGE, AIN_INT, 0));
+    /* The receiver is not retained by any delegate operation (weak v14
+     * method target); the environment is. */
     int src = heap_alloc_page(delegate_new_from_method_env(obj, 36081, env));
-    assert(HEAP_REF(obj) == 2 && HEAP_REF(env) == 2);
+    assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 2);
     int copy = heap_alloc_page(copy_page(heap[src].page));
-    assert(HEAP_REF(obj) == 3 && HEAP_REF(env) == 3);
+    assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 3);
     assert(heap[copy].page != heap[src].page);
     assert(heap[copy].page->values[0].i == obj && heap[copy].page->values[2].i == env);
     heap_set_page(src, delegate_clear(heap[src].page));
     heap_set_page(src, delegate_clear(heap[src].page));
-    assert(HEAP_REF(obj) == 2 && HEAP_REF(env) == 2);
+    assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 2);
     int dst = heap_alloc_page(alloc_page(DELEGATE_PAGE, 0, 0));
     heap_set_page(dst, delegate_plusa(heap[dst].page, heap[copy].page));
     assert(heap[dst].page->values[2].i == env);
-    assert(HEAP_REF(obj) == 3 && HEAP_REF(env) == 3);
+    assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 3);
     heap_set_page(dst, delegate_plusa(heap[dst].page, heap[copy].page));
-    assert(HEAP_REF(obj) == 3 && HEAP_REF(env) == 3);
+    assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 3);
     delegate_erase(heap[dst].page, obj, 36081);
-    assert(HEAP_REF(obj) == 2 && HEAP_REF(env) == 2);
+    assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 2);
     heap_set_page(dst, delegate_append(heap[dst].page, obj, 36081));
-    assert(heap[dst].page->values[2].i == 0 && HEAP_REF(obj) == 3);
+    assert(heap[dst].page->values[2].i == 0 && HEAP_REF(obj) == 1);
     heap_unref(dst); heap_unref(copy); heap_unref(src);
     assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 1);
     int alias = heap_alloc_page(delegate_new_from_method_env(obj, 36081, obj));
-    assert(HEAP_REF(obj) == 3);
+    assert(HEAP_REF(obj) == 2); /* as environment only */
     heap_unref(alias);
     assert(HEAP_REF(obj) == 1);
     int version = ain->version;

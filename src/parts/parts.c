@@ -1099,11 +1099,28 @@ bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, in
 	return parts_numeral_update(parts, num);
 }
 
+/*
+ * A hover/press state with nothing to show keeps the state below it. Besides
+ * an uninitialized state, that is a CG state without a CG: the v14 pactex
+ * gives every low-level ＣＧ部件 three states, and none of the game's 1,759
+ * on-cursor states names a CG, while 699 normal states do and others get
+ * theirs at run time (SceneTutorial's Image0). The original does not blank
+ * those parts under the cursor, so the empty state shows the one below it
+ * (inferred; the original's state switch itself was not traced).
+ */
+static bool parts_state_is_empty(struct parts_state *state)
+{
+	if (state->type == PARTS_UNINITIALIZED)
+		return true;
+	return ain->version >= 14 && state->type == PARTS_CG
+		&& !state->common.texture.handle && !state->cg.name;
+}
+
 void parts_set_state(struct parts *parts, enum parts_state_type state)
 {
 	if (parts->lock_input_state)
 		return;
-	while (state > PARTS_STATE_DEFAULT && parts->states[state].type == PARTS_UNINITIALIZED)
+	while (state > PARTS_STATE_DEFAULT && parts_state_is_empty(&parts->states[state]))
 		state--;
 	if (parts->state != state) {
 		parts->state = state;
@@ -2579,8 +2596,14 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 	while (p) {
 		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
 		if (p->controller_no == index) {
+			// The list returns each erased parts' delegate index
+			// (SetEventID), not its number: the original collects
+			// parts +0x88 (0x53d500 -> 0x5386c0), the field SetEventID
+			// writes (0x56d580), and EraseLayer hands the list to
+			// CPartsMessageManager@ReleaseFunctionSetList, which fires
+			// each parts' DeletedEvent and frees its function set.
 			*erase_number_list = array_pushback(*erase_number_list,
-					(union vm_value){.i = p->no}, AIN_ARRAY_INT, -1);
+					(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
 			parts_release(p->no);
 		} else if (p->controller_no > index
 				&& p->controller_no < PARTS_CONTROLLER_SYSTEM_OVERLAY) {

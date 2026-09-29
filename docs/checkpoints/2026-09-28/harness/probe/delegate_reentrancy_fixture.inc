@@ -6,6 +6,9 @@
  * callback result, changes bytecode, or adds a keep-alive reference.
  * Empty collection is an intentional input to the original true branch.
  * This covers normal RETURN, not scenario/timeout unwinding or cycle GC.
+ * The delegate owns the environment but not the receiver (v14 method targets
+ * are weak, original 0x652210), so the harness keeps the collection's root;
+ * the callback frame pins both while it runs.
  */
 static struct {
     bool active, cleared, return_seen, released_seen;
@@ -30,13 +33,14 @@ static void delegate_reentrancy_probe_step(void)
         if (!delegate_reentrancy.cleared) {
             assert(callback == &call_stack[call_stack_ptr - 1]);
             assert(instr_ptr == ain->functions[36081].address);
-            /* Harness roots were already relinquished: delegate + frame. */
+            /* obj: harness root + frame pin; env: delegate + frame pin
+             * (the harness root of env was relinquished). */
             assert(HEAP_REF(obj) == 2 && HEAP_REF(env) == 2);
             int dg = delegate_reentrancy.notify;
             assert(heap[dg].page->nr_vars == 3);
             heap_set_page(dg, delegate_clear(heap[dg].page));
             assert(heap[dg].page->nr_vars == 0);
-            assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 1);
+            assert(HEAP_REF(obj) == 2 && HEAP_REF(env) == 1);
             delegate_reentrancy.cleared = true;
         }
         assert(HEAP_REF(obj) >= 1 && HEAP_REF(env) >= 1);
@@ -57,7 +61,7 @@ static void delegate_reentrancy_probe_step(void)
         /* First original caller instruction after callback RETURN: no new
          * bytecode allocation has had an opportunity to reuse either slot. */
         assert(delegate_reentrancy.return_seen);
-        assert(HEAP_REF(obj) == 0 && HEAP_REF(env) == 0);
+        assert(HEAP_REF(obj) == 1 && HEAP_REF(env) == 0);
         delegate_reentrancy.released_seen = true;
     }
 }
@@ -94,8 +98,8 @@ static void test_delegate_reentrancy(void)
     int notify = heap_alloc_page(delegate_new_from_method_env(collection, 36081, env));
     heap[observer].page->values[1].i = notify;
     heap[observer].page->values[2].i = 0;
-    assert(HEAP_REF(collection) == 2 && HEAP_REF(env) == 2);
-    heap_unref(collection); heap_unref(env); /* surrender only harness roots */
+    assert(HEAP_REF(collection) == 1 && HEAP_REF(env) == 2);
+    heap_unref(env); /* surrender the harness root of env only */
     assert(HEAP_REF(collection) == 1 && HEAP_REF(env) == 1);
     heap[global_page_slot].page->values[2].i = 0;
     heap[global_page_slot].page->values[3].i = 12345;
@@ -115,11 +119,12 @@ static void test_delegate_reentrancy(void)
     assert(stack_ptr == initial_sp && call_stack_ptr == initial_csp);
     delegate_reentrancy.active = false;
     heap_unref(observer); /* does not compensate for any missing release */
+    heap_unref(collection); /* the harness root kept for the weak target */
     assert(live_slots() == baseline);
     heap[global_page_slot].page->values[2] = saved_global2;
     heap[global_page_slot].page->values[3] = saved_global3;
-    printf("DELEGATE self-Clear PASS: original 20752->36081; sole frame refs=1/1; "
-           "callback_steps=%lu; return releases obj/env; live=%zu baseline=%zu\n",
+    printf("DELEGATE self-Clear PASS: original 20752->36081; after Clear obj=root+pin env=pin; "
+           "callback_steps=%lu; return releases env, frame unpins obj; live=%zu baseline=%zu\n",
            delegate_reentrancy.active_steps, live_slots(), baseline);
     fflush(stdout);
 }

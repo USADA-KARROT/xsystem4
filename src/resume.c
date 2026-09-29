@@ -770,6 +770,13 @@ static void load_rsave_heap(struct rsave *save)
 		}
 	}
 	heap_next_seq = save->next_seq;
+	// v14 delegates do not own their objects; rebuild the object ->
+	// delegate lists once every object is back (see delegate_page_register).
+	delegate_targets_reset();
+	for (int slot = 0; slot < save->nr_heap_objs; slot++) {
+		if (*(enum rsave_heap_tag *)save->heap[slot] == RSAVE_DELEGATE)
+			delegate_page_register(slot);
+	}
 }
 
 static void load_json_call_stack(cJSON *json)
