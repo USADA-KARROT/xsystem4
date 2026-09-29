@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：delegate 呼叫的參數複製改為一格堆疊對一個參數變數（`2005274`，本機 commit，尚未推送）。修正前，兩槽參數（介面、option、ref int 等）後面的 void 伴隨變數被當成下一個參數：參數後的第一個區域變數被寫成 delegate page 的 slot，後續參數依錯的型別加參照。Tutorial 的 selector 因此讓 `ArrayExtensions::Select` 的 delegate page 被釋放，特殊客人收入函式則會釋放借用的 SpecialCustomer。修正照原版 `0x66dce0`／`0x657430`。新模式 `delegate-args` 在 `6421e6e` 上 3/4 失敗、修正後全過；48 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組是 CN 文字依原版 GDI 字格排版（`9f81bd9`）。此前各組到 `6421e6e`（含 `9f81bd9` 與立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：翻轉旗標改為作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）。原版 `0x535260` → `0x4e6d80` 沿父元件鏈把翻轉 XOR 累積，並以元件的錨點為軸鏡像它的方框，父元件翻轉時子元件位置也鏡像；修正前只有 CG 類元件在自己的方框內翻轉，`AdvStand@Move` 跨側與戰鬥 `PlayerViewPartsLayer@Reverse` 設在 rect 上的翻轉沒有效果。新模式 `reverse-inherit` 在 `b5d8b9e` 上 3/3 失敗、修正後全過；49 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；兩次 150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組：delegate 呼叫的參數複製改為一格堆疊對一個參數變數（`2005274`，本機 commit，尚未推送）。修正前，兩槽參數（介面、option、ref int 等）後面的 void 伴隨變數被當成下一個參數：參數後的第一個區域變數被寫成 delegate page 的 slot，後續參數依錯的型別加參照。Tutorial 的 selector 因此讓 `ArrayExtensions::Select` 的 delegate page 被釋放，特殊客人收入函式則會釋放借用的 SpecialCustomer。修正照原版 `0x66dce0`／`0x657430`。新模式 `delegate-args` 在 `6421e6e` 上 3/4 失敗、修正後全過；48 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組是 CN 文字依原版 GDI 字格排版（`9f81bd9`）。此前各組到 `6421e6e`（含 `9f81bd9` 與立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -191,9 +191,23 @@ uaf.md〈另案〉的第一項。v14 的兩槽參數在變數表裡占兩個變�
 
 特殊客人事件與編輯器路徑在 150 秒 GUI 中走不到，只有 headless 驗證。詳見 [delegate-args.md](research/gui-visual/delegate-args.md)。
 
+## 翻轉作用在整棵元件樹（`0ab8476`）
+
+側審查 D5–D7。`4a82758` 的 `SetComponentReverseLR/TB` 只讓 CG 類元件在自己的方框內翻轉，TEXT、FLAT、rect 不理會，子元件也不繼承。原版（只做靜態反組譯）的每個元件更新 `0x535260` 先複製父元件累積好的 sprite 參數（`0x579460`），再用 `0x579bb0` → `0x4e6d80` 套上自己這一層：旗標 XOR 進累積狀態（`+0x49`／`+0x48`），矩陣乘上 `S(reverse ? -1 : 1)·T(-origin)·S(scale)·R·T(pos)`。所以翻轉以元件的錨點為軸，父元件翻轉時子元件位置也以父元件錨點鏡像；點擊判定 `0x57a6b0` 與 `Parts_GetPartsUpperLeftPos`（`0x534bb0`）走同一個矩陣，FLAT 也沿父元件鏈收同樣的紀錄（`0x537b00`）。
+
+| 項目 | 修正前（`b5d8b9e`） | 修正後 |
+|---|---|---|
+| `reverse-inherit` RI1：真 AIN 宣告的三層元件，父元件翻轉 | 子孫位置、`Parts_IsCursorIn`、`Parts_GetPartsUpperLeftPosX` 都不變（17 項失敗） | 以父元件錨點鏡像，XOR 往下累積，還原後回到原值 |
+| RI2：繪製變換與像素判定的反變換（16 種翻轉組合、旋轉、倍率；TEXT／FLAT；surface area） | 沒有共用變換 | 80 點與獨立公式一致，surface area 仍在錨點（D6） |
+| RI3：真 bytecode `AdvStand@Move` 跨側 + `Motion::EndAll` | rect 根被設成 1，但影像照舊不翻轉 | 影像以錨點鏡像 |
+| 49 模式（預設／GBK） | — | `VERDICT PASS`／`VERDICT PASS` |
+| 150 秒 GUI MSG／assertion／堆疊溢位 | 88／0／0 | 88／0／0（兩次），MSG 逐行相同，多張 framebuffer 逐像素相同 |
+
+開場 150 秒沒有跨側移動（臨時追蹤：40 次呼叫都在剛建立的立繪影像上），珀爾諾換到左側是新立繪。rect 根的翻轉以臨時注入驗證：立繪以錨點精確鏡像（最大像素差 0），朝向與原版實機截圖中被翻轉的珀爾諾相同。詳見 [reverse-inherit.md](research/gui-visual/reverse-inherit.md)。
+
 ## 下一批卡點
 
-- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）已修正。剩下側審查 D5–D7（翻轉不作用在 TEXT／FLAT 與子元件等）；立繪站位與原版實機截圖逐格對照尚未做；backlog 等畫面的字距只有 headless 驗證。
+- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）、翻轉作用在整棵元件樹（`0ab8476`，側審查 D5–D7）已修正。立繪站位與原版實機截圖逐格對照尚未做；跨側移動與戰鬥翻轉只有 headless 與臨時注入驗證；backlog 等畫面的字距只有 headless 驗證。
 
 - **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
 - **記憶體**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 後 150 秒峰值 RSS 約 1.3–1.4 GB，配置器警告消失；STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放仍是成長來源候選。
@@ -208,7 +222,7 @@ uaf.md〈另案〉的第一項。v14 的兩槽參數在變數表裡占兩個變�
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 48 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 49 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

@@ -128,7 +128,7 @@ framebuffer 比對：每 2 秒一張，第 12–39 張（共 28 張），逐張�
 
 側審查在 `7e16dee` 另外建置驗證：45 模式在兩種組態都通過，150 秒 GUI MSG 88。左側翻轉的朝向與原版實機截圖一致（水平位置差 1 px），名牌字距也和原版相同。另外找到以下缺陷，都沒有併入本次修正，已列入 HANDOFF：
 
-> D1–D4 已在 `9f81bd9` 修正，見 [spacing-fix.md](spacing-fix.md)。D5–D7 仍待處理。
+> D1–D4 已在 `9f81bd9` 修正，見 [spacing-fix.md](spacing-fix.md)。D5–D7 已在 `0ab8476` 修正，見 [reverse-inherit.md](reverse-inherit.md)。
 
 - **D1【中】**：`05d2441` 讓實際繪字變寬，但腳本用來量字寬的 `TextSurfaceManager.GetFontWidth` 仍用半形 size/2、也不算外框。例如 backlog 樣式（字級 25、外框 1、字距 −3）量到每字 22 px，實際畫出 24 px，接近行寬的行推定會被裁切。修正前兩邊一致。
   - 已驗證的部分：程式碼與 AIN 呼叫鏈。畫面未驗證，測試腳本走不到 backlog。
@@ -136,13 +136,13 @@ framebuffer 比對：每 2 秒一張，第 12–39 張（共 28 張），逐張�
 - **D2【低～中】**：外框沒取 ceil，太さ與外框是相加而不是取 max。event 視窗每字 24 px，原版是 25 px。
 - **D3【低】**：半形判斷看 Unicode，不看首位元組。
 - **D4【低】**：缺字 fallback 沒有限定 GBK，commit 訊息也沒提這項行為變更。
-- **D5【中低】**：翻轉只作用在 CG 類元件本身，不作用在 TEXT／FLAT 與子元件；`AdvStand@Move` 跨側時作用在 rect 上的 ReverseLR 沒有效果。這是功能缺口，不是回歸。
-- **D6【低】**：設了 surface area 又翻轉時會錯位。
-- **D7【低】**：`parts-reverse` 只測 setter／getter，沒測繪製與點擊判定。
+- **D5【中低】（已修正，`0ab8476`）**：翻轉只作用在 CG 類元件本身，不作用在 TEXT／FLAT 與子元件；`AdvStand@Move` 跨側時作用在 rect 上的 ReverseLR 沒有效果。這是功能缺口，不是回歸。修正後照原版 `0x535260` → `0x4e6d80` 沿父元件鏈 XOR，並以錨點為軸鏡像方框與子元件位置。
+- **D6【低】（已修正，`0ab8476`）**：設了 surface area 又翻轉時會錯位。翻轉軸改成錨點後消失。
+- **D7【低】（已修正，`0ab8476`）**：`parts-reverse` 只測 setter／getter，沒測繪製與點擊判定。新模式 `reverse-inherit` 補上。
 
 ## 未驗證事項
 
-- 立繪最終站位是否與原版完全一致：本次只確認 `Move` 不再被略過、舊立繪會退場，沒有與原版實機截圖逐格對照。跨側移動時的 ReverseLR 仍受 D5 影響。
+- 立繪最終站位是否與原版完全一致：本次只確認 `Move` 不再被略過、舊立繪會退場，沒有與原版實機截圖逐格對照。跨側移動時的 ReverseLR 已由 `0ab8476` 處理，但開場 150 秒內沒有跨側移動，GUI 只以臨時注入驗證（見 reverse-inherit.md §5）。
 - 呼叫點 0x66a166、0x66a45b 所在常式各對應哪個 opcode 只是推定：0x66a166 推定屬於由 0x66e1ea 呼叫的 `0x66a0e0`，以 obj 是否為 -1 分派，推定為 delegate 路徑；0x66a082 屬於 `0x66a020`，由從 VM 堆疊彈出參數的 0x66d123 呼叫。
 - 巢狀 option（option<option<wrap<T>>>）的參數：依 `0x6535e0` 剝層處理，但沒有查 AIN 中是否有實例，也沒有案例覆蓋。
 - `GETPAGE_BAD` 494→0 由哪一條規則消除（見上）。

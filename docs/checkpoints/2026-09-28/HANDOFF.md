@@ -6,10 +6,11 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 48 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 49 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
+- 翻轉旗標作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）：沿父元件鏈 XOR、以錨點為軸鏡像方框與子元件位置（原版 `0x535260` → `0x4e6d80`，見 `research/gui-visual/reverse-inherit.md`）。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
@@ -72,14 +73,17 @@
      - **`Motion::Executer` 結束後不釋放**：修正後 Executer 正常註冊，但移出集合後停在 ref=2（GUI 追蹤觀察，推定是 delegate 強參照循環）。`parts::detail::CParts` 從未釋放，`ReleaseParts` 也一直沒被呼叫。
      - Tutorial 路徑以 null 物件呼叫 `Motion::Create` 等方法（每 150 秒 34 次 -1）。`2005274` 前後的 GUI 追蹤分布相同：SceneParentStack 的陣列本身就含 null rect，與 delegate 伴隨槽無關。
      - `vm_call_nopop`（HLL 回呼）的 option 規則已在 `4d52a87` 補上（審查者重現）。delegate 路徑的 option 規則在 `2005274` 之後與 `function_call` 相同；三槽 option<介面> 當 delegate 參數在本 AIN 沒有實例。
-     - 立繪最終站位與原版實機截圖逐格對照尚未做；跨側移動的 ReverseLR 受下列 D5 影響。
+     - 立繪最終站位與原版實機截圖逐格對照尚未做。跨側移動的 ReverseLR 已由 `0ab8476` 處理（下列 D5），但開場 150 秒內沒有跨側移動，只有 headless 與臨時注入驗證。
    - **已完成：左側角色翻轉**（`4a82758`）。
    - **已完成：字型缺字**（`05d2441`，逐字 fallback 到 HanaMinA，前進量不變）。
    - **已完成：字距**（`05d2441` 修法 A；`9f81bd9` 修法 B 與側審查 D1–D4，研究見 `research/gui-visual/spacing-fix.md`）。GBK 字元規則且無 .fnl 時照原版 `0x69c7a0` 的字格排版：e = max(ceil 太さ, ceil 縁取り)（各自不超過字級）、字寬依首位元組、前進量 = 字寬 + 2e + 字距；`TextSurfaceManager.GetFontWidth` 回傳同一個字格（`0x69fb30`），backlog 量到的寬度與繪字一致（24 px）；`PE_SetFont`／`PE_SetMessageWindowTextFont` 保存太さ；缺字 fallback 只在這個組態啟用。SJIS 與有 .fnl 的遊戲不變（`text-metrics` 的 SJIS 輸出與 `05d2441` 之前逐行相同）。後續：
      - backlog、DungeonSelector、成就通知的折行與裁切沒有在畫面上確認（測試腳本走不到）。
      - 太さ只算進字格，字形粗細仍依 `weight`；行高與字形 y 位置、行寬含最後一個字距（spacing.md R4）沒有改；`bold_weight` 不會被 PE_Save 存下。
      - `9f81bd9` 尚未經獨立反駁者審查。
-   - **側審查 D5–D7【低】**（詳見 uaf.md〈側審查〉）：翻轉不作用在 TEXT／FLAT 與子元件（`AdvStand@Move` 跨側的 ReverseLR、戰鬥的 `PlayerViewPartsLayer@Reverse` 無效，屬功能缺口，D5）；surface area 加翻轉會錯位（D6）；`parts-reverse` 沒測繪製與點擊判定（D7）。
+   - **已完成：側審查 D5–D7**（`0ab8476`，研究見 `research/gui-visual/reverse-inherit.md`）：翻轉原本只作用在 CG 類元件自己的方框內，TEXT／FLAT 與子元件不理會（`AdvStand@Move` 跨側的 ReverseLR、戰鬥的 `PlayerViewPartsLayer@Reverse` 無效，D5）；surface area 加翻轉會錯位（D6）；`parts-reverse` 沒測繪製與點擊判定（D7）。原版 `0x535260` 複製父元件的累積參數，`0x4e6d80` 把旗標 XOR 進累積狀態並乘上 `S(±1)·T(-origin)·S·R·T(pos)`，所以翻轉以錨點為軸，父元件翻轉時子元件位置也鏡像。修正把旗標移到 `parts_params`（local／global），所有型別共用 `parts_anchor_transform`／`parts_box_transform`，點擊判定與 `Parts_GetPartsUpperLeftPos` 跟著翻轉。新模式 `reverse-inherit` 在 `b5d8b9e` 上 3/3 失敗、修正後全過（RI3 以真 bytecode 跑 `AdvStand@Move` 跨側與 `Motion::EndAll`）；49 模式兩種組態通過；兩次 150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。後續：
+     - 開場 150 秒內沒有跨側移動（追蹤 40 次 `SetComponentReverseLR` 都打在剛建立的立繪影像上）；珀爾諾換到左側是新的「■立繪（左左）」，不是 Move。rect 根的翻轉以臨時注入驗證：立繪以錨點精確鏡像，朝向與原版翻轉的立繪相同。真正的跨側移動、戰鬥 `PlayerViewPartsLayer@Reverse` 與 TEXT 翻轉都沒有 GUI 畫面驗證。
+     - 放在左側的立繪再移到右側會保持鏡像（葉 1 XOR rect 0），依 AIN 推定是原版行為，沒有原版畫面佐證。
+     - 父元件的倍率與旋轉仍不作用在子元件位置上（既有簡化）；翻轉旗標不寫進 parts 存檔；尚未經獨立反駁者審查。
    - 字距審查（`9f81bd9`，兩位審查者皆 ship）留下的低嚴重度項目：新欄位 `text_style.bold_weight` 沒寫進 parts 存檔（`iarray_write_text_style`），PE_Save→PE_Load 後有太さ 的樣式每字少 2 px，量字寬與繪字再度不一致；修法是把存檔版本升到 4 並寫出 bold_weight（不要用 weight/1000 反推）。另有兩個走不到的次要差異：同一文字元件改字級時字級快取過期、`Parts_SetPartsFontBoldWeight` 在 SetFont 之後設定的順序。
 5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放（見第 4 項）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：

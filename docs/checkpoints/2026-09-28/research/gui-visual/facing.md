@@ -1,5 +1,7 @@
 # 左側立繪朝向調查（2026-09-29）
 
+> 後續：§2.2、§4、§6 列為未驗證的父子合成語義，已在 [reverse-inherit.md](reverse-inherit.md) 以靜態反組譯確認（沿父元件鏈 XOR，以錨點為軸鏡像，子元件位置也鏡像），並在 `0ab8476` 實作。
+
 本調查只讀。沒有修改 `$WT`（`$PORT/worktrees/xsystem4-cn-on-upstream`，HEAD `ffa8b63`），也沒有修改遊戲母片。沒有執行遊戲 GUI，也沒有執行 EXE（EXE 只用 capstone 做靜態反組譯）。
 路徑記號：`$PORT`＝`<PORT>`，`$DUMP`＝`<cn-dump>`，`$FB`＝`$PORT/claude-work/runs/save-fixes2-gui/framebuffer`，`$GAME`＝`$PORT/game-workcopy/多娜多娜 一起幹壞事吧`（只讀）。
 證據等級：**已驗證**＝有逐指令、位元組或截圖量測直接佐證；**推定**＝靜態推論合理，但沒有逐指令或執行期確認；**未驗證**＝尚無證據。

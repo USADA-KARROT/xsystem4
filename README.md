@@ -1,7 +1,7 @@
 xsystem4
 ========
 
-> **2026-09-29 macOS／多娜多娜 CN：delegate 呼叫的參數複製已修正（`2005274`，本機 commit，尚未推送）：改照原版 `0x66dce0`／`0x657430` 一格堆疊對一個參數變數，兩槽參數的 void 伴隨變數不再被當成下一個參數（修正前會把 delegate page 寫進區域變數並提早釋放它，或釋放借用的參數）；48 個 headless 模式在預設與強制 GBK 下皆通過，150 秒 GUI 88 筆對白、無斷言與堆疊溢位。CN 文字的 GDI 字格排版（`9f81bd9`）、立繪與名牌不退場的 use-after-free（`9e30c0f`、`4d52a87`）、GBK 字元規則、左側翻轉、缺字 fallback 與存讀檔持久化到 `6421e6e` 已推送。**
+> **2026-09-29 macOS／多娜多娜 CN：翻轉旗標改為作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送）：照原版 `0x535260`／`0x4e6d80` 沿父元件鏈 XOR、以錨點為軸鏡像方框與子元件位置，`AdvStand@Move` 跨側與戰鬥的 rect 翻轉因此生效；49 個 headless 模式在預設與強制 GBK 下皆通過，兩次 150 秒 GUI 88 筆對白、無斷言與堆疊溢位。delegate 呼叫的參數複製（`2005274`）同為本機 commit：改照原版 `0x66dce0`／`0x657430` 一格堆疊對一個參數變數。CN 文字的 GDI 字格排版（`9f81bd9`）、立繪與名牌不退場的 use-after-free（`9e30c0f`、`4d52a87`）、GBK 字元規則、左側翻轉、缺字 fallback 與存讀檔持久化到 `6421e6e` 已推送。**
 > 從讀檔畫面讀一般存檔仍需 system.Reset；記憶體成長（STRUCT 參數多加參照、Motion 執行器與 CParts 不釋放等候選）以及長時間穩定性仍待處理，尚非穩定可玩版。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
