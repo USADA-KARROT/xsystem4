@@ -1,0 +1,18 @@
+# base-ui 修正後（6d39915 的 src/include，預設組態；*WARNING* 行已刪）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BU1 activity tree: ok
+BU2 parent links: ok
+BU3 button enable: ok
+BU4 two-slot Add/PopBack: ok
+BU5 MainEXFile.Col: ok
+BASE-UI PASS: 0 of 5 cases failed
+
+# 同上，XS4_PROBE_GBK=1
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BU1 activity tree: ok
+BU2 parent links: ok
+BU3 button enable: ok
+BU4 two-slot Add/PopBack: ok
+BU5 MainEXFile.Col: ok
+BASE-UI PASS: 0 of 5 cases failed

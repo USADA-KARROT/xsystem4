@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：翻轉旗標改為作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）。原版 `0x535260` → `0x4e6d80` 沿父元件鏈把翻轉 XOR 累積，並以元件的錨點為軸鏡像它的方框，父元件翻轉時子元件位置也鏡像；修正前只有 CG 類元件在自己的方框內翻轉，`AdvStand@Move` 跨側與戰鬥 `PlayerViewPartsLayer@Reverse` 設在 rect 上的翻轉沒有效果。新模式 `reverse-inherit` 在 `b5d8b9e` 上 3/3 失敗、修正後全過；49 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；兩次 150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組：delegate 呼叫的參數複製改為一格堆疊對一個參數變數（`2005274`，本機 commit，尚未推送）。修正前，兩槽參數（介面、option、ref int 等）後面的 void 伴隨變數被當成下一個參數：參數後的第一個區域變數被寫成 delegate page 的 slot，後續參數依錯的型別加參照。Tutorial 的 selector 因此讓 `ArrayExtensions::Select` 的 delegate page 被釋放，特殊客人收入函式則會釋放借用的 SpecialCustomer。修正照原版 `0x66dce0`／`0x657430`。新模式 `delegate-args` 在 `6421e6e` 上 3/4 失敗、修正後全過；48 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組是 CN 文字依原版 GDI 字格排版（`9f81bd9`）。此前各組到 `6421e6e`（含 `9f81bd9` 與立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：據點畫面的元件照原版建立，「下一步」可以推進（`6d39915`，本機 commit，尚未推送；研究見 [research/gui-visual/base-ui.md](research/gui-visual/base-ui.md)）。第一個失敗點是 v14 `Parts_SetParentPartsNumber` 延到下一次更新才掛上，`activity::detail::Load` 讀檔後走訪不到子元件，底列、金錢列、貼紙、橫幅與教學按鈕的使用者元件一個也沒建立；原版 `0x58f060` 立即掛上。其後依原版修正 pactex 的 `部件タイプ` 型別表（UC 17、數字 24、ＣＧ判定 27）、`SetComponentType` 對低階元件的語義、`GetActivityParts`、`Get/SetUserComponentData`、`Array.Add` 兩槽、`MainEXFile.Col`、`編輯上表示`、父元件倍率與文字倍率、字型數字，並實作 `SetButtonEnable`／`IsButtonEnable`。新模式 `base-ui` 在 `22339c1` 上 5/5 失敗、修正後全過；50 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；150／220 秒 GUI MSG 88、assertion 0、堆疊溢位 0。點擊序列下據點畫面與原版截圖一致（背景除外），關閉教學後按「下一步」進入階段選擇；之後因教學場景的物件沒有釋放（delegate 循環），在下一個 `AddController` 停止。前一組：翻轉旗標改為作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）。原版 `0x535260` → `0x4e6d80` 沿父元件鏈把翻轉 XOR 累積，並以元件的錨點為軸鏡像它的方框，父元件翻轉時子元件位置也鏡像；修正前只有 CG 類元件在自己的方框內翻轉，`AdvStand@Move` 跨側與戰鬥 `PlayerViewPartsLayer@Reverse` 設在 rect 上的翻轉沒有效果。新模式 `reverse-inherit` 在 `b5d8b9e` 上 3/3 失敗、修正後全過；49 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；兩次 150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組：delegate 呼叫的參數複製改為一格堆疊對一個參數變數（`2005274`，本機 commit，尚未推送）。修正前，兩槽參數（介面、option、ref int 等）後面的 void 伴隨變數被當成下一個參數：參數後的第一個區域變數被寫成 delegate page 的 slot，後續參數依錯的型別加參照。Tutorial 的 selector 因此讓 `ArrayExtensions::Select` 的 delegate page 被釋放，特殊客人收入函式則會釋放借用的 SpecialCustomer。修正照原版 `0x66dce0`／`0x657430`。新模式 `delegate-args` 在 `6421e6e` 上 3/4 失敗、修正後全過；48 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組是 CN 文字依原版 GDI 字格排版（`9f81bd9`）。此前各組到 `6421e6e`（含 `9f81bd9` 與立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -205,17 +205,34 @@ uaf.md〈另案〉的第一項。v14 的兩槽參數在變數表裡占兩個變�
 
 開場 150 秒沒有跨側移動（臨時追蹤：40 次呼叫都在剛建立的立繪影像上），珀爾諾換到左側是新立繪。rect 根的翻轉以臨時注入驗證：立繪以錨點精確鏡像（最大像素差 0），朝向與原版實機截圖中被翻轉的珀爾諾相同。詳見 [reverse-inherit.md](research/gui-visual/reverse-inherit.md)。
 
+## 據點畫面的元件（`6d39915`）
+
+visual-compare 的 D1–D5、D7：據點畫面沒有底列（含「下一步」）、日數與金錢、貼紙、據點環節橫幅與教學覆蓋層，遊戲停在據點。`activity::detail::Load` 讀完 activity 立刻用 `NumofChild`／`GetChild` 走訪元件樹，把 EPartsType 17 交給使用者元件管理器；xsystem4 的 loader 用 `PE_SetParentPartsNumber` 只記下 `pending_parent`，走訪看不到子元件。原版（只做靜態反組譯）`0x58f060` → `0x58f310` → `0x550d90` 立即掛上。之後依序擋住的缺陷都照原版修正：`部件タイプ` 名稱表（`0x4eda70`／`0x5b8f90`）與 UC 名稱、`數據`；低階元件的數字（24）與 ＣＧ判定（27）狀態；`SetComponentType` 對低階元件只改狀態（`0x535e20` → `0x5653d0`）；`GetActivityParts`（`0x58a9c0`）；`Get/SetUserComponentData`（`0x597ff0`／`0x598020`）；`Array.Add` 與 PushBack 同一處理（`0x644455`）；`MainEXFile.Col` 先回 list 元素數（`0x4b00e0`）；`編輯上表示`（+0xac，`0x53c3c5`）；父元件倍率作用在子元件位置與文字（`0x4e6d80`）；`表示タイプ 2` 的字型數字；`SetButtonEnable`／`IsButtonEnable`（`0x590b70`／`0x590ba0`，停用時 `／無効`）。
+
+| 項目 | 修正前（`22339c1`） | 修正後 |
+|---|---|---|
+| `base-ui` BU1：合成 pactex 讀檔後的走訪、型別、UC 名稱與數據、`GetActivityParts` | 子元件 0、型別全 0、名稱是節點名、數據與輸出都沒有 | 全部符合原版 |
+| BU2：父元件立即掛上、循環與未知父元件、0 脫離、父元件倍率 | 更新前看不到子元件，循環讓更新迴圈卡住 | 通過 |
+| BU3：`SetButtonEnable`／`IsButtonEnable` | 未實作／恆 false | 預設 true、可切換 |
+| BU4：`Array.Add`／`PopBack` 兩槽、真 bytecode `SceneParentStack@Push`／`@Pop` | 只存一槽 | 兩槽、元素數正確 |
+| BU5：`MainEXFile.Col`、真 bytecode `EXHelper::GetStringArray` | 0 | 3 |
+| 50 模式（預設／GBK） | — | `VERDICT PASS`／`VERDICT PASS` |
+| 150 秒 GUI MSG／assertion／堆疊溢位 | 88／0／0（UNIMPL `SetButtonEnable` 2 次） | 88／0／0，對白逐行相同；220 秒亦同 |
+| 點擊序列推進 | 停在據點 | 教學兩頁、關閉、「下一步」→ 階段選擇 |
+
+據點背景仍是黑的：教學結束後 `SceneTutorial` 被按鈕事件的 delegate 循環持有，`SceneContext` 不解構、教學圖層與底圖留下來；在階段選擇點選項後，引擎在 `PE_AddController` 停止。詳見 [base-ui.md](research/gui-visual/base-ui.md) 與 HANDOFF 第 4 項。
+
 ## 下一批卡點
 
-- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）、翻轉作用在整棵元件樹（`0ab8476`，側審查 D5–D7）已修正。立繪站位與原版實機截圖逐格對照尚未做；跨側移動與戰鬥翻轉只有 headless 與臨時注入驗證；backlog 等畫面的字距只有 headless 驗證。
+- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）、翻轉作用在整棵元件樹（`0ab8476`，側審查 D5–D7）、據點畫面的元件（`6d39915`）已修正。據點之後：教學場景的物件被按鈕 delegate 循環持有而不解構，教學圖層與底圖留下（據點背景黑）、階段選擇後 `PE_AddController` 停止；輸入限作用中 controller、跨 controller 繪製順序、Motion 終值、alpha clipper 繼承、構築部件見 HANDOFF 第 4 項。立繪站位與原版實機截圖逐格對照尚未做；跨側移動與戰鬥翻轉只有 headless 與臨時注入驗證；backlog 等畫面的字距只有 headless 驗證。
 
 - **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
-- **記憶體**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 後 150 秒峰值 RSS 約 1.3–1.4 GB，配置器警告消失；STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放仍是成長來源候選。
+- **記憶體**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 後 150 秒峰值 RSS 約 1.3–1.4 GB，配置器警告消失；STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放、場景物件因 delegate 循環不解構仍是成長來源候選。
 
 ## 尚未處理
 
 - 上述卡點。
-- 存讀檔的後續：DeleteSaveFile 在檔案不存在時原版回 true；`init_struct_slot` 把 enum 陣列配成 `AIN_ARRAY`，刪除時會把 enum 值當 slot 釋放（R2）；每次經 `AFL_GameSave_*` 包裝呼叫留下一個帶 TEMP 旗標的 A_REF 暫存字串；EnemyNamePostfixGenerator／FixedRandomValue 建構後刪除會殘留 slot；PE_Save／PE_Load 不保存 `component_type_from_state`，讀檔後成就通知未驗證。
+- 存讀檔的後續：DeleteSaveFile 在檔案不存在時原版回 true；`init_struct_slot` 把 enum 陣列配成 `AIN_ARRAY`，刪除時會把 enum 值當 slot 釋放（R2）；每次經 `AFL_GameSave_*` 包裝呼叫留下一個帶 TEMP 旗標的 A_REF 暫存字串；EnemyNamePostfixGenerator／FixedRandomValue 建構後刪除會殘留 slot；PE_Save／PE_Load 不保存 `component_state_type`（`6d39915` 前名為 `component_type_from_state`）、按鈕停用、UC data、字型數字設定與 `編輯上表示`，讀檔後成就通知與據點畫面未驗證。
 - GBK 字元規則的另案：字型 fallback（名牌等缺字，約 11.4% 的對白）、名牌殘影、舊偵測誤判 SJIS 遊戲、`utf2sjis`／`sjis2utf` 轉碼、`Int.ToCharacter` 與 ReplaceRegex（見 [研究文件](research/gbk-string-rules/README.md)）。
 - `Array.First` 的 predicate 版逐實體 slot 走訪；兩槽介面陣列（`Insert` 不保留兩槽）；`Array.Realloc` 縮小不釋放、誤用 `hll_arg3` 當 struct 編號；`Array.Duplicate`（僅編輯器）；`HashMap.Any/Empty/Free`（CN 無法執行到）；PartsEngine `AddChild/InsertChild/RemoveChild/ClearChild`。
 - DeletedEvent 23 個殘留 slot；人眼畫面（本環境無單一視窗擷取權限，只驗 framebuffer）；長時間穩定性。

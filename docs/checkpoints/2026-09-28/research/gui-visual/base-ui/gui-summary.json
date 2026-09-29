@@ -1,0 +1,76 @@
+{
+  "after_150s": {
+    "what": "after: 6d39915 tree (verified diff 82ceebc56cf9), gui-run.sh 150",
+    "binary_sha256": "f956c1cd3c6ef485d29984e56e123ebb882d0d0dc2ac7b5dfd3cc61bed76e7ec",
+    "ain_sha256": "beefa6677237",
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/base-ui-g150/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/base-ui-g150/framebuffer"
+    },
+    "elapsed_seconds": 150.286,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1155907584,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "unimpl_hll_lines": 0,
+    "cp_unknown_type_102": 10,
+    "framebuffer_pngs": 40
+  },
+  "after_220s": {
+    "what": "after: same build, gui-run.sh 220 (reaches the base screen)",
+    "binary_sha256": "f956c1cd3c6ef485d29984e56e123ebb882d0d0dc2ac7b5dfd3cc61bed76e7ec",
+    "ain_sha256": "beefa6677237",
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/base-ui-g220/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/base-ui-g220/framebuffer"
+    },
+    "elapsed_seconds": 220.234,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1674035200,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "unimpl_hll_lines": 0,
+    "cp_unknown_type_102": 10,
+    "framebuffer_pngs": 40
+  },
+  "before_150s": {
+    "what": "before: 22339c1 (separate clone), gui-run.sh 150",
+    "binary_sha256": "3f685befd0adb9db6734f91504b7c804c50a8e2f63c503bb31b760c2ff5fa31d",
+    "ain_sha256": "beefa6677237",
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK_BEFORE/runs/base-before-g150/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK_BEFORE/runs/base-before-g150/framebuffer"
+    },
+    "elapsed_seconds": 150.356,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1314570240,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "unimpl_hll_lines": 2,
+    "cp_unknown_type_102": 0,
+    "framebuffer_pngs": 40
+  },
+  "frames": "after_150s vs before_150s: dialogue identical (same msg_sha256); 22 of 40 framebuffer PNGs pixel-identical, the other 18 differ by fade/message timing (checked by eye: same stands, text and windows at different moments)",
+  "click_sequence_run": "WT source of 6d39915 plus a temporary patch (not committed) for a later screenshot schedule and XSYS4_AUTO_CLICK_SEQ pass-through: centre clicks until 126 s, then 237,677 (tutorial next page) at 134 s, 1180,677 (close) at 139 s, 1180,677 (Next) at 143 s. MSG 88, no assertion. Next reached the phase selection (SceneHome@Exit(7) from the Footer lambda)."
+}

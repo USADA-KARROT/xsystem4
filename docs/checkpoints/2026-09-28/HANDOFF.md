@@ -12,6 +12,7 @@
 - delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
 - 翻轉旗標作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）：沿父元件鏈 XOR、以錨點為軸鏡像方框與子元件位置（原版 `0x535260` → `0x4e6d80`，見 `research/gui-visual/reverse-inherit.md`）。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
+- 據點畫面缺件與 SetButtonEnable（`6d39915`，本機 commit，尚未推送；第 4 項）：父元件立即掛上、pactex 依原版 `部件タイプ` 表設型別等九項（見 `research/gui-visual/base-ui.md`）。底列與「下一步」出現，按下後進入階段選擇；階段選擇之後因教學圖層沒有釋放而停在 `PE_AddController`。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
 ## 硬規則
@@ -63,7 +64,7 @@
 2. **已完成：角色對話正文**（`1540b85`，研究見 `research/dialogue-text/`）：v14 Free/Clear 保留元素型別、ShallowCopy 保留共享 struct/string owner。兩個 before fixture 失敗、修後通過；正式 GUI 已確認正文可見。沒有修改渲染排序，其他未驗證形狀保留原綁定。
 3. **已完成：存讀檔持久化**（`173ff1d`，研究見 `research/save-persistence/`）：GetStructPageList、SerializeStruct、DeserializeStruct（就地載入）與存檔註解依原版 v9 實作；ffi 重入時的參數釋放與 option<int> 刪除一併修正。審查後的 `6b65b12` 修掉三個可重現缺陷：值型別 option 在 ASSIGN／X_OP_SET／複製時仍被當 slot、損壞檔的 struct 定義數讓讀檔崩潰、讀檔新建無建構子 struct 的成員停在 null（`save-fixes` 模式）；第二輪 `ff77c18` 補上 `<vtable>` 填寫、三槽 option 的 none 與 option<int> 區域變數洩漏。後續小項：
    - `system.Reset` 是 stub，讀檔畫面讀一般存檔的路徑走不到；先確認原版 Reset 的語義（重新進入 `main` 並保留 GameVariable）。
-   - PE_Save／PE_Load 不保存 `2914b40` 的 `component_type_from_state`；ResumeLoad 之後成就通知的 GetText 是否再次失敗尚未驗證（本組兩次 GUI 都沒有觸發 ResumeLoad）。
+   - PE_Save／PE_Load 不保存 `2914b40` 的 `component_type_from_state`（`6d39915` 改名為 `component_state_type`，同樣未保存）；ResumeLoad 之後成就通知的 GetText 是否再次失敗尚未驗證（本組兩次 GUI 都沒有觸發 ResumeLoad）。
    - 一般 `NEW` 建立沒有 STRT 建構子的 struct 時，成員仍留在 null；原版 `0x679b30` 會依 `0x656970` 預設初始化。`6b65b12` 只修了讀檔路徑，引擎層要另外評估影響面。
    - DeleteSaveFile 在檔案不存在時原版回 true（`0x5c69f0`）；`init_struct_slot` 的 enum 陣列型別（R2）；A_REF 暫存字串殘留（F13）。
 4. **使用者回報的畫面問題**（研究見 `research/gui-visual/`，依建議順序）：
@@ -85,10 +86,16 @@
      - 放在左側的立繪再移到右側會保持鏡像（葉 1 XOR rect 0），依 AIN 推定是原版行為，沒有原版畫面佐證。
      - 父元件的倍率與旋轉仍不作用在子元件位置上（既有簡化）；翻轉旗標不寫進 parts 存檔；尚未經獨立反駁者審查。
    - 字距審查（`9f81bd9`，兩位審查者皆 ship）留下的低嚴重度項目：新欄位 `text_style.bold_weight` 沒寫進 parts 存檔（`iarray_write_text_style`），PE_Save→PE_Load 後有太さ 的樣式每字少 2 px，量字寬與繪字再度不一致；修法是把存檔版本升到 4 並寫出 bold_weight（不要用 weight/1000 反推）。另有兩個走不到的次要差異：同一文字元件改字級時字級快取過期、`Parts_SetPartsFontBoldWeight` 在 SetFont 之後設定的順序。
-   - **原版逐句比對**（`research/gui-visual/visual-compare.md`，Wine 原版對照開場 130 句）：對白場景的立繪、背景、名牌、色彩一致。下一步依序：據點畫面缺件（底列存檔／讀取／物品／**下一步**／ToDo、日數與金錢列、Q 版貼紙、教學覆蓋層；「下一步」缺席使遊戲在據點推不下去）→ `SetButtonEnable` 未實作 → 訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
+   - **原版逐句比對**（`research/gui-visual/visual-compare.md`，Wine 原版對照開場 130 句）：對白場景的立繪、背景、名牌、色彩一致。
+   - **已完成：據點畫面缺件與 `SetButtonEnable`**（`6d39915`，研究見 `research/gui-visual/base-ui.md`）。第一個失敗點是 v14 `Parts_SetParentPartsNumber` 延後掛上，`activity::detail::Load` 讀檔後走訪不到子元件，使用者元件一個也沒建立；原版 `0x58f060` 立即掛上。其後依序修正：pactex 依原版 `部件タイプ` 名稱表（`0x4eda70`／`0x5b8f90`）設型別、UC 名稱與 `數據`，低階元件的數字（24）與 ＣＧ判定（27）狀態；`SetComponentType` 對低階元件只改狀態（`0x535e20`）；`GetActivityParts`、`Get/SetUserComponentData`；`Array.Add` 兩槽（`0x644455`）；`MainEXFile.Col` 回 list 元素數（`0x4b00e0`）；`編輯上表示`；父元件倍率作用在子元件位置與文字；字型數字；`SetButtonEnable`／`IsButtonEnable`（`0x590b70`／`0x590ba0`，停用時顯示 `／無効` CG）。新模式 `base-ui` 在 `22339c1` 上 5/5 失敗、修正後全過；50 模式兩種組態通過；150／220 秒 GUI MSG 88、assertion 0、堆疊溢位 0。以點擊序列關閉教學後按「下一步」，遊戲進入階段選擇「今天要選哪件事做呢？」。後續（依影響排序，詳見 base-ui.md §7）：
+     - **場景物件不釋放**：教學結束後 `SceneTutorial`（ref 4，全部來自按鈕事件的 delegate page）與它的 `SceneContext` 都沒有解構，`EraseLayer` 不執行，教學圖層與中央不透明黑的教學底圖留下來（關閉教學後據點背景是黑的）。在階段選擇點選項後，下一個 `AddController` 時作用中的 controller 不在最上層，引擎依現有檢查結束。原版 `0x53d3a0` 會插在作用中者之後，但 xsystem4 的 controller 編號兼作 ID；臨時試做插入後遊戲停住，已撤回。要先確認原版 delegate 對物件是否為強參照，並把 controller ID 與堆疊位置分開。這也是記憶體成長（第 5 項）的候選。
+     - **輸入只給作用中的 controller**（`0x53e690` 只對作用中者傳輸入旗標）：實作後教學期間點空白處不會穿透到據點按鈕，但要等上一項解決，否則教學結束後據點無法點擊。
+     - **跨 controller 的繪製順序**：原版教學框內看得到 SceneAzito 的模糊背景，xsystem4 依 controller 排序，SceneAzito 在教學底圖之下；是否依 z 全域排序未驗證。
+     - Motion 結束不套終值（MoveParent 停在 0.975 倍、Footer 的 ToDo／Tips 停在交替中途）；alpha clipper 不作用在子元件（教學框外溢出）；構築部件（D6 模糊背景、`FillCircle` type 102、`Create` 應為透明）；低階元件的其他狀態型別（20、22、23、25、26 等）；`SetNumeralFont` 等仍是 stub；新欄位不寫進 parts 存檔；停用按鈕是否擋點擊未驗證。
+   - 其餘下一步依序：訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
    - **流暢度**（使用者回報「說不出的卡頓」）：`STAGE2_PERF` 顯示幀率 120–520 fps 不穩（`video.c` 的 `wait_vsync` 預設關閉），150 秒內 29 個 5 秒時段有 20 段出現 >50 ms 長幀、前 80 秒常有 180–250 ms 停頓。先查原版的幀率控制，再逐一追長幀的原因（字形產生、貼圖載入、GC、存檔 fsync、測試模式日誌），並分開量測測試模式與一般模式。
    - 翻轉繼承審查（`0ab8476`，ship）留下的低嚴重度項目：父元件被釋放後，孤兒子元件的 `global.reverse_lr/tb` 仍保留舊父鏈的 XOR，整棵子樹持續鏡像；修法是在 `parts_release` 讓子元件脫離時重算 global 翻轉與位置。
-5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放（見第 4 項）。
+5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放、場景物件因按鈕事件的 delegate 循環不解構（`SceneTutorial`，見第 4 項據點畫面的後續）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
    - 名牌殘影：已由 `9e30c0f` 解決（名牌 root 被提早釋放，`Hide` 落空）。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000、字串寫 `Time:150` 的差異仍未查（未驗證是否影響淡出時間）。

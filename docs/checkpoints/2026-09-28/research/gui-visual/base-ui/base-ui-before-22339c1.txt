@@ -1,0 +1,45 @@
+# before-check.sh 22339c1 base-ui（暫存 clone，src/include 取自 22339c1；*WARNING* 行已刪）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: NumofChild(root) right after loading = 0, want 6
+  FAIL: NumofChild(Group) = 0, want 1
+  FAIL: GetComponentType root (layout box) = 0, want 8
+  FAIL: GetComponentType Footer (user component) = 0, want 17
+  FAIL: GetComponentType NumDay normal (numeral) = 0, want 24
+  FAIL: GetComponentType Detector normal (CG detection) = 0, want 27
+  FAIL: GetComponentType Group (layout box) = 0, want 8
+  FAIL: SetComponentType(Detector, 27, 1): states 27/27, want 27/19
+  FAIL: GetUserComponentName(Footer) = "Footer", want "Fotter"
+  FAIL: GetUserComponentData(Footer, Button) = "(null)", want "A,B,C,D"
+  FAIL: GetUserComponentData(Footer, Key2) = "(null)", want "V2"
+  FAIL: GetUserComponentData(Footer, Missing) = "(null)", want ""
+  FAIL: SetUserComponentData then Get = "(null)", want "W"
+  FAIL: GetActivityParts(0) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(1) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(2) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(3) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(4) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(5) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(6) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(7) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(8) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts(9) = 1 name "unset" number -12345, GetActivityPartsNumber(name) = -1
+  FAIL: GetActivityParts listed 0 of the 6 named components
+BU1 activity tree: FAIL
+BU1 FAILED (exit 1)
+BU2 FAILED (signal 14)
+  FAIL: default IsButtonEnable = 0, want 1
+  FAIL: SetButtonEnable false/true -> IsButtonEnable 0/0, want 0/1
+  FAIL: IsButtonEnable on a user component widget left type 17, want 0 (button)
+BU3 button enable: FAIL
+BU3 FAILED (exit 1)
+  FAIL: Add x2: 2 slots [2 3 0 0], want 4 [2 5 3 7]
+  FAIL: PopBack: 1 slots, Numof 1, ref(B) 2 -> 1; want 2 slots [A 5], Numof 1, one ref released
+  FAIL: SceneParentStack@Push x2: m_parts has 2 slots, want 4 [A 0 B 0]
+  FAIL: SceneParentStack@Pop: m_parts has 1 slots, want 2 [A 0]
+BU4 two-slot Add/PopBack: FAIL
+BU4 FAILED (exit 1)
+  FAIL: Col(flat list of 3) = 0, want 3
+  FAIL: EXHelper::GetStringArray(list) returned 0 strings, want the 3 list items
+BU5 MainEXFile.Col: FAIL
+BU5 FAILED (exit 1)
+BASE-UI FAIL: 5 of 5 cases failed
