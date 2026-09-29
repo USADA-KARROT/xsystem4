@@ -121,7 +121,7 @@ framebuffer 比對：每 2 秒一張，第 12–39 張（共 28 張），逐張�
 - **Motion::Executer 沒被釋放**（GUI 追蹤觀察，未由本次重測）：修正前大多數 Executer 在 `Motion::Create` 當場就被釋放（`ExecuterCollection@Add` 拿到 -1）。修正後它們正常註冊，但被 `EraseEndTask` 移出集合後仍停在 ref=2，75 秒內 86 個一個都沒釋放。推定是 `DG_NEW_FROM_METHOD` 與 `A_REF` 複製的 delegate 形成強參照循環。pre-v14 的方法 delegate 目標是弱參照；v14 原版語義未驗證。即使有這個洩漏，修正後的峰值 RSS 仍比修正前低。
 - **`parts::detail::CParts` 從未釋放**，所以 `ReleaseParts` 一直沒被呼叫（GUI 追蹤觀察）。這是另一個洩漏，與本根因無關。
 - **Tutorial 路徑以 null 物件呼叫方法**：修正後剩下的 34 次 -1 都屬這類，見上。
-- **`vm_call_nopop` 沒有 option 規則**（未驗證）：HLL 回呼路徑（Array 的 predicate 等）已經處理 IFACE，但不處理 option。是否有 option 參數的 HLL 回呼尚未查。
+- **已修正（`4d52a87`）：`vm_call_nopop` 沒有 option 規則**。兩位審查者都以真 ffi 重現：`Array.Where`（arg3 196610）經 HLL 回呼呼叫 `ItemStock@ToItem` 的 lambda（參數 `option<wrap<Item>>`）時，每呼叫一次謂詞，元素就少一個參照；受影響的還有 `MapView@GetNode`、`GetAvailableNodes`、`GetAvailableEdges`（商店、道具欄、地城地圖）。IA6 只涵蓋 `delegate_call`，所以沒抓到。修正後在全部參數複製完才套用 option 規則；新案例 IA7 走遊戲的實際呼叫形狀，在 `4e4e87d` 上失敗、修正後通過。
 - **option<介面>（三槽）當 delegate 參數**（未驗證）：`delegate_arg_is_2slot` 把 option 一律當兩槽。本次修正遇到這種情況時保守地不加參照，行為與修正前相同。
 
 ## 側審查（`4a82758`、`05d2441`、`4dc7b85`）
@@ -156,3 +156,8 @@ bash $H/verify-step.sh <tag>                   # 46 模式
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk
 bash $H/gui-run.sh <name> 150
 ```
+
+## 審查與追加修正（2026-09-29）
+
+- 兩位獨立審查者（參照計數、遊戲行為）都確認 `9e30c0f` 的修法符合原版 `0x657430`，沒有新的雙重釋放或洩漏；46 模式在預設與 GBK 組態都通過。行為審查者另把立繪站位與原版實機截圖逐格對照（同一句台詞的四人站位一致），並確認名牌第 12–62 張都沒有疊字。
+- 兩人共同找到 `vm_call_nopop` 的 option 缺口，已在 `4d52a87` 修正（見上）。修正後 46 模式在兩種組態 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0、`heap_alloc_slot` 警告 0，峰值 RSS 1,309,130,752 bytes。

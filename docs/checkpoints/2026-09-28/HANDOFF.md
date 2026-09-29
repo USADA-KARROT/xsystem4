@@ -69,7 +69,7 @@
      - **STRUCT／DELEGATE／ARRAY 參數多加一次參照**（headless 驗證一例）：原版不加，呼叫端的 `A_REF` 已交出所有權，每次呼叫多漏一份。拿掉之前要確認沒有借用傳 struct 的路徑。
      - **`Motion::Executer` 結束後不釋放**：修正後 Executer 正常註冊，但移出集合後停在 ref=2（GUI 追蹤觀察，推定是 delegate 強參照循環）。`parts::detail::CParts` 從未釋放，`ReleaseParts` 也一直沒被呼叫。
      - Tutorial 路徑以 null 物件呼叫 `Motion::Create` 等方法（每 150 秒 34 次 -1）。
-     - `vm_call_nopop`（HLL 回呼）沒有 option 規則；三槽的 option<介面> 當 delegate 參數時被當成兩槽（皆未驗證）。
+     - `vm_call_nopop`（HLL 回呼）的 option 規則已在 `4d52a87` 補上（審查者重現）。三槽的 option<介面> 當 delegate 參數時被當成兩槽，仍未驗證。
      - 立繪最終站位與原版實機截圖逐格對照尚未做；跨側移動的 ReverseLR 受下列 D5 影響。
    - **已完成：左側角色翻轉**（`4a82758`）。
    - **已完成：字型缺字**（`05d2441`，逐字 fallback 到 HanaMinA，前進量不變）。
