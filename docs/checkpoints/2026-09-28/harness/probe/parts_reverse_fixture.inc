@@ -59,22 +59,24 @@ static int test_parts_reverse(void)
 		}
 	}
 	const int n = 9001, unknown = 9002;
-	struct parts *p = parts_get(n);
-	PR_CHECK(p && !p->reverse_lr && !p->reverse_tb, "new parts starts unflipped");
+	/* Only the HLL getters are used below (no struct fields), so this file
+	 * also compiles against revisions before the flags existed. */
+	PR_CHECK(parts_get(n) != NULL, "parts_get(%d)", n);
+	PR_CHECK(pr_get("GetComponentReverseLR", n) == 0 && pr_get("GetComponentReverseTB", n) == 0,
+		 "new parts starts unflipped");
 
 	pr_set("SetComponentReverseLR", n, 1);
-	PR_CHECK(p->reverse_lr, "SetComponentReverseLR(n, true) did not set the flag");
 	PR_CHECK(pr_get("GetComponentReverseLR", n) == 1, "GetComponentReverseLR after set = %d", pr_get("GetComponentReverseLR", n));
 	PR_CHECK(pr_get("GetComponentReverseTB", n) == 0, "GetComponentReverseTB changed by the LR setter");
 
 	pr_set("SetComponentReverseTB", n, 1);
-	PR_CHECK(p->reverse_tb && pr_get("GetComponentReverseTB", n) == 1, "SetComponentReverseTB(n, true)");
+	PR_CHECK(pr_get("GetComponentReverseTB", n) == 1, "SetComponentReverseTB(n, true)");
 	PR_CHECK(pr_get("GetComponentReverseLR", n) == 1, "LR flag lost after the TB setter");
 
 	pr_set("SetComponentReverseLR", n, 0);
-	PR_CHECK(!p->reverse_lr && pr_get("GetComponentReverseLR", n) == 0, "SetComponentReverseLR(n, false)");
+	PR_CHECK(pr_get("GetComponentReverseLR", n) == 0, "SetComponentReverseLR(n, false)");
 	pr_set("SetComponentReverseTB", n, 0);
-	PR_CHECK(!p->reverse_tb && pr_get("GetComponentReverseTB", n) == 0, "SetComponentReverseTB(n, false)");
+	PR_CHECK(pr_get("GetComponentReverseTB", n) == 0, "SetComponentReverseTB(n, false)");
 
 	pr_set("SetComponentReverseLR", unknown, 1);
 	PR_CHECK(!parts_try_get(unknown), "the setter created parts %d for an unknown number", unknown);
