@@ -1,0 +1,93 @@
+# before-check.sh 7c1daaa：真正的修正前組態（src/include 7c1daaa + libsys4 8c93946）
+libsys4=8c93946
+src/include from 7c1daaa
+gbk-string           rc=134 san=2   $XS4_SRC/docs/checkpoints/2
+gbk-vm               rc=89  san=0   GBK-VM summary: 18 failure(s)
+gbk-detect           rc=89  san=0   GBK gb18030_detect_strings not found: FAIL
+sjis-chars           rc=0   san=0   SJIS-CHARS summary: 0 failure(s)
+string               rc=0   san=0   STRING summary: 0 failure(s)
+restored src/include to 6400e3c, dirty=0
+
+# before-check.sh 7c1daaa：src/include 7c1daaa + libsys4 247f544（預設 SJIS）
+libsys4=247f544
+src/include from 7c1daaa
+gbk-string           rc=134 san=2   $XS4_SRC/docs/checkpoints/2
+gbk-vm               rc=89  san=0   GBK-VM summary: 18 failure(s)
+gbk-detect           rc=89  san=0   GBK gb18030_detect_strings not found: FAIL
+sjis-chars           rc=0   san=0   SJIS-CHARS summary: 0 failure(s)
+string               rc=0   san=0   STRING summary: 0 failure(s)
+restored src/include to 6400e3c, dirty=0
+
+# 真正修正前的失敗案例（gbk-string；最後一案在修正前越界讀取，ASan 中止）
+GBK Length(QI_LA QI_LA)                            got=7 want=4 FAIL
+GBK GetPart#0(PANEL, 3)                            got=4C A3 AF B0 A2 D0 DC want=B0 A2 D0 DC FAIL
+GBK Length(ACHV)                                   got=15 want=8 FAIL
+GBK GetPart#1(ACHV, Length-1, 1)                   got=C3 want=A3 C3 FAIL
+GBK GetPart(i,1) for i < Length(BASE4)             got=[93 FE]|[FC 63]|[AD]|[68]|[B9]|[9D] want=[93 FE]|[FC 63]|[AD 68]|[B9 9D] FAIL
+GBK Find(PANEL, B0A2 D0DC)                         got=6 want=3 FAIL
+GBK Contains(TAIL_BS, \)                           got=1 want=0 FAIL
+GBK Find(TAIL_VB x, |)                             got=1 want=-1 FAIL
+GBK FindLast(A/B/C, SLASH)                         got=4 want=3 FAIL
+GBK FindLast(QI_LA, "")                            got=-1 want=1 FAIL
+GBK Erase(QI_LA QI_LA, 1, 2)                       got=BE 89 BE 5F C7 89 want=BE 5F C7 89 FAIL
+GBK Erase(QI_LA QI_LA, -1, 1)                      got=5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 FAIL
+GBK Erase(QI_LA QI_LA, 1, -1)                      got=BE 5F C7 89 BE 5F C7 89 want=BE 5F FAIL
+GBK Erase(QI_LA QI_LA, 4, 1)                       got=BE 5F C7 89 BE C7 89 want=BE 5F C7 89 BE 5F C7 89 FAIL
+GBK Erase(PANEL, 3, 5)                             got=C1 A2 C0 D0 DC want=C1 A2 C0 4C A3 AF FAIL
+GBK PopBack(QI_LA)                                 got=BE 5F C7 want=BE 5F FAIL
+GBK PushBack("", 0xA3B0)                           got=B0 want=A3 B0 FAIL
+GBK PushBack("", 0)                                got=00 want="" FAIL
+GBK Insert(QI_LA, 1, X)                            got=BE 58 5F C7 89 want=BE 5F 58 C7 89 FAIL
+GBK Replace(TAIL_VB |, |, !)                       got=DF 21 21 want=DF 7C 21 FAIL
+GBK   self after Replace                           got=DF 21 21 want=DF 7C 7C FAIL
+GBK   self after Replace                           got=2C 61 2C want=A3 AF 61 A3 AF FAIL
+GBK Split(PANEL4, SLASH, 0)                        got=8:[C1 A2 C0 4C]|[]|[B0 A2 D0 DC]|[]|[B4 F2 F4 59]|[]|[B0 A7]|[C4] want=4:[C1 A2 C0 4C]|[B0 A2 D0 DC]|[B4 F2 F4 59]|[B0 A7 A3 C4] FAIL
+GBK Split(/a//b/, SLASH, 0)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=2:[61]|[62] FAIL
+GBK Split(/a//b/, SLASH, 1)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=6:[A3 AF]|[61]|[A3 AF]|[A3 AF]|[62]|[A3 AF] FAIL
+GBK Split(/a//b/, SLASH, 2)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=4:[]|[61]|[]|[62] FAIL
+GBK Split(/a//b/, SLASH, 3)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=8:[]|[A3 AF]|[61]|[A3 AF]|[]|[A3 AF]|[62]|[A3 AF] FAIL
+GBK Split(TAIL_VB x, |, 0)                         got=2:[DF]|[78] want=1:[DF 7C 78] FAIL
+SUMMARY: AddressSanitizer: heap-buffer-overflow probe-parts-text.c:35 in extract_multibyte_char
+ot=4:[61]|[62]|[]|[63] want=3:[61]|[62]|[63] FAIL
+GBK ToUpper(B461 a 8281)                           got=B4 41 41 82 81 want=B4 61 41 82 60 FAIL
+GBK ToLower(8260 A)                                got=82 60 61 want=82 81 61 FAIL
+GBK ToInt(A3B1 A3B2)                               got=0 want=12 FAIL
+GBK ToFloat(A3B1 8144 A3B5)*10                     got=0 want=15 FAIL
+GBK ToFloat(A3B1 A3AE A3B5)*10                     got=0 want=10 FAIL
+GBK SearchAll(a[b]TAIL_RB c) (found=1)             got=4:[61]|[5B 62 5D]|[D5]|[63] want=3:[61]|[5B 62 5D]|[D5 5D 63] FAIL
+GBK skip(BE) lone lead                             got=2 want=1 FAIL
+GBK skip(BE 31) truncated 4-byte                   got=4 want=2 FAIL
+GBK skip(BE 31 81) truncated 4-byte                got=4 want=3 FAIL
+GBK extract(BE) lone lead                          got=2 want=1 FAIL
+GBK extract(FF) lone byte                          got=2 want=1 FAIL
+GBK extract(BE 31 81) truncated 4-byte             got=4 want=3 FAIL
+
+# 真正修正前的失敗案例（gbk-vm）
+GBK Motion::GetCompiled task 0: 209-byte tree, same as the SJIS rule ({2.608:{3.17:{2.616:1000,0,{3.17:{2.615:{3.14:27050,27049},1,opt0:-,t0,opt0:-,t0,0,-30,0,0,1,1,5},{2.615:{3.14:27050,27049},0,opt0:-,t0,opt0:-,t0,255,0,0,0,0,0,)
+GBK Motion::GetCompiled task 1: 209-byte tree, same as the SJIS rule ({2.608:{3.17:{2.616:1000,0,{3.17:{2.615:{3.14:27050,27049},1,opt0:-,t0,opt0:-,t0,-30,0,0,0,1,1,5},{2.615:{3.14:27050,27049},0,opt0:-,t0,opt0:-,t0,0,255,0,0,0,0,)
+GBK Motion parse trees differing between rules [child] got=0 want=0 ok
+GBK string_get_char(QI_LA, 1)                      got=95 want=51081 FAIL
+GBK string_get_char(QI_LA, 2)                      got=-57 want=0 FAIL
+GBK string_get_char(82A0, 0)                       got=41090 want=33440 FAIL
+GBK string_get_char(B1, 0)                         got=-79 want=45312 FAIL
+GBK string_get_char(QI_LA, 99) [child]             got=-2147483648 want=0 FAIL
+GBK string_get_char(ab, -1) [child]                got=-2147483648 want=97 FAIL
+GBK string_set_char(QI_LA, 5, x) unchanged [child] got=-2147483648 want=1 FAIL
+GBK SYS_AddPunct(ab TAIL_BS)                       got=61 62 D5 5C want=61 62 D5 5C 5C FAIL
+GBK SYS_DeletePunct(ab TAIL_BS)                    got=61 62 D5 want=61 62 D5 5C FAIL
+GBK SYS_AddPunct("") [child]                       got=-2147483648 want=92 FAIL
+GBK SYS_ToUpper(B461 a 8281)                       got=B4 41 41 82 81 want=B4 61 41 82 60 FAIL
+GBK SYS_ToLower(8260 A)                            got=82 60 61 want=82 81 61 FAIL
+GBK format(C2B7 C8CB %D, 12)                       got=C2 B7 C8 CB 82 50 82 51 want=C2 B7 C8 CB A3 B1 A3 B2 FAIL
+GBK format(SLASH %02D, 5)                          got=A3 AF 82 4F 82 54 want=A3 AF A3 B0 A3 B5 FAIL
+GBK format(%3D, -7)                                got=81 40 81 7C 82 56 want=81 40 81 7C A3 B7 FAIL
+GBK iarray round trip QI_LA                        got=BE 5F C7 89 FF want=BE 5F C7 89 FAIL
+GBK iarray round trip 89                           got=89 FF want=89 FAIL
+GBK iarray round trip STR0 (6143 non-ASCII) changed got=703 want=0 FAIL
+
+# gbk-detect
+GBK gb18030_detect_strings not found: FAIL
+
+# sjis-chars 的 'SJIS ' 行：真正修正前、舊 src＋新 libsys4、修正後三者逐行相同（各 91 行）
+diff true-before after: empty
+diff old-src+247f544 after: empty

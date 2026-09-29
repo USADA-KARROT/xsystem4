@@ -4,9 +4,10 @@
 
 ## 現在的位置
 
-- 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 固定於 `8c93946`。
+- 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 41 個模式全部符合預期，0 個 sanitizer 診斷。
+- Headless 驗證 44 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
 ## 硬規則
@@ -15,7 +16,7 @@
 2. 原版 EXE 的解殼傾印只能靜態反組譯（例如 capstone），不可執行。它是原版語義的最高權威。
 3. 這是公開 repo。不可提交遊戲資產、執行檔、存檔、截圖、完整 AIN 反編譯 dump、個人路徑或帳號資訊。
 4. GitHub 是唯一真相，本機目錄隨時可能被清除。每完成一組就推送。
-5. 不 force push、不 rebase、不改 submodule 指標。這三件事要先得到使用者同意。
+5. 不 force push、不 rebase、不改 submodule 指標。這三件事要先得到使用者同意。（GBK 字元規則一組已得到使用者同意，更新了 libsys4 指標。推送時先推 libsys4 `cn-on-upstream`，確認遠端 SHA 後再推 xsystem4。）
 6. 不向上游 nunuhara/xsystem4 開 PR 或 issue。上游貢獻暫緩，由使用者決定時機。
 7. 報告與文件使用台灣繁體中文。commit 訊息沿用現有英文風格：`Area: imperative summary`，內文說明根因、原版語義來源與驗證。
 
@@ -62,7 +63,12 @@
    - 一般 `NEW` 建立沒有 STRT 建構子的 struct 時，成員仍留在 null；原版 `0x679b30` 會依 `0x656970` 預設初始化。`6b65b12` 只修了讀檔路徑，引擎層要另外評估影響面。
    - DeleteSaveFile 在檔案不存在時原版回 true（`0x5c69f0`）；`init_struct_slot` 的 enum 陣列型別（R2）；A_REF 暫存字串殘留（F13）。
 4. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB，配置器偶有「free list 耗盡或損壞」警告。這是既有問題，修正前後數字相同。
-5. **String 字元規則**：CN 原版全面使用 GBK 首位元組 0x81..0xFE，xsystem4 的 `Length`、`Find`、`GetPart` 等使用 SJIS 規則，中文會被切錯。影響 `Length` 110 處、`GetPart` 76 處，而且牽涉 libsys4，要先得到使用者同意。
+5. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
+   - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
+   - 名牌殘影：舊名牌文字沒有淡出。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000，字串寫的是 `Time:150`，可從這裡查起（未驗證）。
+   - 舊 GB18030 偵測會誤判 SJIS 遊戲（`ain_is_gb18030` 仍依舊判準），修正會改變 SJIS 遊戲行為，需使用者決定。
+   - `utf2sjis`／`sjis2utf` 轉碼路徑、`Int.ToCharacter`、ReplaceRegex（CN 3 處，仍是 stub）。
+   - 推送後，本機另一個 libsys4 worktree 的 `cn-on-upstream` 分支要 fast-forward 到 `247f544`。
 6. 其他延後項目：
    - `Array.First` 的 predicate 版逐實體 slot 走訪。
    - 兩槽介面陣列的 `Insert` 沒有保留兩槽。
@@ -80,5 +86,6 @@
   - `batch1-*.md`：Array 各組的原版語義與反駁紀錄。
   - `batch2-investigation.txt`：Math、Sort、String、檔案原型、HashMap、GetStructPageList 的調查、反駁與待解問題。
   - `save-persistence/`：serialize_struct v9 格式、原版位址、反駁處理、原版存檔相容與兩次 GUI 結果。
+  - `gbk-string-rules/`：GBK 字元規則的原版位址、反駁處理、修正前後對照與 GUI 結果。
   - `upstream-gap-2026-09-26.md`、`distill-review-2026-09-26.md`：與上游的差距及程式碼蒸餾審查。
 - [../2026-09-26/](../2026-09-26/STATUS.md)：前一輪由 Codex 完成的研究與修正。

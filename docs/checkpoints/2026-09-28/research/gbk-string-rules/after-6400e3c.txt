@@ -1,0 +1,244 @@
+# gbk-string（6400e3c，預設組態）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+GBK enable via gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+GBK Length(QI_LA QI_LA)                            got=4 want=4 ok
+GBK GetPart#0(PANEL, 3)                            got=B0 A2 D0 DC want=B0 A2 D0 DC ok
+GBK   self after GetPart                           got=C1 A2 C0 4C A3 AF B0 A2 D0 DC want=C1 A2 C0 4C A3 AF B0 A2 D0 DC ok
+GBK Length(ACHV)                                   got=8 want=8 ok
+GBK GetPart#1(ACHV, Length-1, 1)                   got=A3 C3 want=A3 C3 ok
+GBK   self after GetPart                           got=D6 F7 D2 AA A3 AF A3 B2 A3 B6 A3 B0 A3 B1 A3 C3 want=D6 F7 D2 AA A3 AF A3 B2 A3 B6 A3 B0 A3 B1 A3 C3 ok
+GBK GetPart(i,1) for i < Length(BASE4)             got=[93 FE]|[FC 63]|[AD 68]|[B9 9D] want=[93 FE]|[FC 63]|[AD 68]|[B9 9D] ok
+GBK Find(PANEL, B0A2 D0DC)                         got=3 want=3 ok
+GBK Contains(TAIL_BS, \)                           got=0 want=0 ok
+GBK Find(TAIL_VB x, |)                             got=-1 want=-1 ok
+GBK Find(PANEL, "")                                got=0 want=0 ok
+GBK FindLast(A/B/C, SLASH)                         got=3 want=3 ok
+GBK FindLast(QI_LA, "")                            got=1 want=1 ok
+GBK FindLast("", "")                               got=-1 want=-1 ok
+GBK Erase(QI_LA QI_LA, 1, 2)                       got=BE 5F C7 89 want=BE 5F C7 89 ok
+GBK Erase(QI_LA QI_LA, -1, 1)                      got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+GBK Erase(QI_LA QI_LA, 1, -1)                      got=BE 5F want=BE 5F ok
+GBK Erase(QI_LA QI_LA, 9, 1)                       got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+GBK Erase(QI_LA QI_LA, 4, 1)                       got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+GBK Erase(QI_LA QI_LA, 1, 0)                       got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+GBK Erase(PANEL, 3, 5)                             got=C1 A2 C0 4C A3 AF want=C1 A2 C0 4C A3 AF ok
+GBK PopBack(QI_LA)                                 got=BE 5F want=BE 5F ok
+GBK PopBack("")                                    got="" want="" ok
+GBK PushBack("", 0xA3B0)                           got=A3 B0 want=A3 B0 ok
+GBK PushBack("", 0)                                got="" want="" ok
+GBK PushBack("a", 92)                              got=61 5C want=61 5C ok
+GBK Insert(QI_LA, 1, X)                            got=BE 5F 58 C7 89 want=BE 5F 58 C7 89 ok
+GBK Insert(QI_LA, 9, X)                            got=BE 5F C7 89 58 want=BE 5F C7 89 58 ok
+GBK Replace(TAIL_VB |, |, !)                       got=DF 7C 21 want=DF 7C 21 ok
+GBK   self after Replace                           got=DF 7C 7C want=DF 7C 7C ok
+GBK Replace(SLASH a SLASH, SLASH, ,)               got=2C 61 2C want=2C 61 2C ok
+GBK   self after Replace                           got=A3 AF 61 A3 AF want=A3 AF 61 A3 AF ok
+GBK Replace(QI_LA, "", x)                          got=BE 5F C7 89 want=BE 5F C7 89 ok
+GBK   self after Replace                           got=BE 5F C7 89 want=BE 5F C7 89 ok
+GBK Replace(QI_LA, zz, x) no match                 got=BE 5F C7 89 want=BE 5F C7 89 ok
+GBK   self after Replace                           got=BE 5F C7 89 want=BE 5F C7 89 ok
+GBK Split(PANEL4, SLASH, 0)                        got=4:[C1 A2 C0 4C]|[B0 A2 D0 DC]|[B4 F2 F4 59]|[B0 A7 A3 C4] want=4:[C1 A2 C0 4C]|[B0 A2 D0 DC]|[B4 F2 F4 59]|[B0 A7 A3 C4] ok
+GBK Split(/a//b/, SLASH, 0)                        got=2:[61]|[62] want=2:[61]|[62] ok
+GBK Split(/a//b/, SLASH, 1)                        got=6:[A3 AF]|[61]|[A3 AF]|[A3 AF]|[62]|[A3 AF] want=6:[A3 AF]|[61]|[A3 AF]|[A3 AF]|[62]|[A3 AF] ok
+GBK Split(/a//b/, SLASH, 2)                        got=4:[]|[61]|[]|[62] want=4:[]|[61]|[]|[62] ok
+GBK Split(/a//b/, SLASH, 3)                        got=8:[]|[A3 AF]|[61]|[A3 AF]|[]|[A3 AF]|[62]|[A3 AF] want=8:[]|[A3 AF]|[61]|[A3 AF]|[]|[A3 AF]|[62]|[A3 AF] ok
+GBK Split(TAIL_VB x, |, 0)                         got=1:[DF 7C 78] want=1:[DF 7C 78] ok
+GBK Split(a,b A3AC c, ", A3AC", 0)                 got=3:[61]|[62]|[63] want=3:[61]|[62]|[63] ok
+GBK Split(a|b, "", 0)                              got=1:[61 7C 62] want=1:[61 7C 62] ok
+GBK Split("", |, 0)                                got=0: want=0: ok
+GBK ToUpper(B461 a 8281)                           got=B4 61 41 82 60 want=B4 61 41 82 60 ok
+GBK   self after ToUpper                           got=B4 61 61 82 81 want=B4 61 61 82 81 ok
+GBK ToLower(8260 A)                                got=82 81 61 want=82 81 61 ok
+GBK   self after ToLower                           got=82 60 41 want=82 60 41 ok
+GBK ToInt(A3B1 A3B2)                               got=12 want=12 ok
+GBK ToInt(-12)                                     got=-12 want=-12 ok
+GBK ToInt(1 A3)                                    got=1 want=1 ok
+GBK ToFloat(A3B1 8144 A3B5)*10                     got=15 want=15 ok
+GBK ToFloat(A3B1 A3AE A3B5)*10                     got=10 want=10 ok
+GBK SearchAll(a[b]TAIL_RB c) (found=1)             got=3:[61]|[5B 62 5D]|[D5 5D 63] want=3:[61]|[5B 62 5D]|[D5 5D 63] ok
+GBK Trim#0(8140 hi 8140) control                   got=68 69 want=68 69 ok
+GBK   self after Trim                              got=81 40 68 69 81 40 want=81 40 68 69 81 40 ok
+GBK GetPart#0(abc, 1) control                      got=62 63 want=62 63 ok
+GBK   self after GetPart                           got=61 62 63 want=61 62 63 ok
+GBK skip(BE5F)                                     got=2 want=2 ok
+GBK skip(a)                                        got=1 want=1 ok
+GBK skip(B1 31 41 42) 4-byte form kept             got=4 want=4 ok
+GBK skip(80)                                       got=1 want=1 ok
+GBK skip(BE) lone lead                             got=1 want=1 ok
+GBK skip(BE 31) truncated 4-byte                   got=2 want=2 ok
+GBK skip(BE 31 81) truncated 4-byte                got=3 want=3 ok
+GBK extract(BE5F)                                  got=2 want=2 ok
+GBK   copied by extract(BE5F)                      got=BE 5F want=BE 5F ok
+GBK extract(B1 31 41 42) 4-byte form kept          got=4 want=4 ok
+GBK   copied by extract(B1 31 41 42) 4-byte form kept got=B1 31 41 42 want=B1 31 41 42 ok
+GBK extract(80 41) width kept                      got=2 want=2 ok
+GBK   copied by extract(80 41) width kept          got=80 41 want=80 41 ok
+GBK extract(BE) lone lead                          got=1 want=1 ok
+GBK   copied by extract(BE) lone lead              got=BE want=BE ok
+GBK extract(FF) lone byte                          got=1 want=1 ok
+GBK   copied by extract(FF) lone byte              got=FF want=FF ok
+GBK extract(BE 31 81) truncated 4-byte             got=3 want=3 ok
+GBK   copied by extract(BE 31 81) truncated 4-byte got=BE 31 81 want=BE 31 81 ok
+GBK extract(BE 31) truncated 4-byte                got=2 want=2 ok
+GBK   copied by extract(BE 31) truncated 4-byte    got=BE 31 want=BE 31 ok
+GBK-STRING summary: 0 failure(s)
+
+# gbk-vm（6400e3c，預設組態）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+GBK Motion::GetCompiled task 0: 209-byte tree, same as the SJIS rule ({2.608:{3.17:{2.616:1000,0,{3.17:{2.615:{3.14:27050,27049},1,opt0:-,t0,opt0:-,t0,0,-30,0,0,1,1,5},{2.615:{3.14:27050,27049},0,opt0:-,t0,opt0:-,t0,255,0,0,0,0,0,)
+GBK Motion::GetCompiled task 1: 209-byte tree, same as the SJIS rule ({2.608:{3.17:{2.616:1000,0,{3.17:{2.615:{3.14:27050,27049},1,opt0:-,t0,opt0:-,t0,-30,0,0,0,1,1,5},{2.615:{3.14:27050,27049},0,opt0:-,t0,opt0:-,t0,0,255,0,0,0,0,)
+GBK Motion parse trees differing between rules [child] got=0 want=0 ok
+SJIS iarray round trip QI_LA, SJIS rule (control)   got=BE 5F C7 89 FF want=BE 5F C7 89 FF ok
+GBK enable via gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+GBK string_get_char(QI_LA, 1)                      got=51081 want=51081 ok
+GBK string_get_char(QI_LA, 2)                      got=0 want=0 ok
+GBK string_get_char(82A0, 0)                       got=33440 want=33440 ok
+GBK string_get_char(B1, 0)                         got=45312 want=45312 ok
+*WARNING*(subprojects/libsys4/src/string.c:gbk_oob_warn:80): GBK character read index 99 out of range for a 4-byte string; using the original engine's safe value
+GBK string_get_char(QI_LA, 99) [child]             got=0 want=0 ok
+*WARNING*(subprojects/libsys4/src/string.c:gbk_oob_warn:80): GBK character read index -1 out of range for a 2-byte string; using the original engine's safe value
+GBK string_get_char(ab, -1) [child]                got=97 want=97 ok
+*WARNING*(subprojects/libsys4/src/string.c:gbk_oob_warn:80): GBK character write index 5 out of range for a 4-byte string; using the original engine's safe value
+GBK string_set_char(QI_LA, 5, x) unchanged [child] got=1 want=1 ok
+GBK SYS_AddPunct(ab TAIL_BS)                       got=61 62 D5 5C 5C want=61 62 D5 5C 5C ok
+GBK SYS_DeletePunct(ab TAIL_BS)                    got=61 62 D5 5C want=61 62 D5 5C ok
+GBK SYS_AddPunct(ab)                               got=61 62 5C want=61 62 5C ok
+*WARNING*(subprojects/libsys4/src/string.c:gbk_oob_warn:80): GBK character read index -1 out of range for a 0-byte string; using the original engine's safe value
+GBK SYS_AddPunct("") [child]                       got=92 want=92 ok
+GBK SYS_ToUpper(B461 a 8281)                       got=B4 61 41 82 60 want=B4 61 41 82 60 ok
+GBK SYS_ToLower(8260 A)                            got=82 81 61 want=82 81 61 ok
+GBK format(C2B7 C8CB %D, 12)                       got=C2 B7 C8 CB A3 B1 A3 B2 want=C2 B7 C8 CB A3 B1 A3 B2 ok
+GBK format(SLASH %02D, 5)                          got=A3 AF A3 B0 A3 B5 want=A3 AF A3 B0 A3 B5 ok
+GBK format(%3D, -7)                                got=81 40 81 7C A3 B7 want=81 40 81 7C A3 B7 ok
+GBK format(%d, 12)                                 got=31 32 want=31 32 ok
+GBK iarray round trip QI_LA                        got=BE 5F C7 89 want=BE 5F C7 89 ok
+GBK iarray round trip BE                           got=BE want=BE ok
+GBK iarray round trip 82A0 a                       got=82 A0 61 want=82 A0 61 ok
+GBK iarray round trip 89                           got=89 want=89 ok
+GBK iarray round trip STR0 (6143 non-ASCII) changed got=0 want=0 ok
+GBK-VM summary: 0 failure(s)
+
+# gbk-detect（6400e3c，預設組態）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DETECT real AIN n=38310 legacy=92 boundary=92 sjis_invalid=1419 nonascii=6143 utf8_valid=22 strict=1
+GBK real AIN legacy score                          got=92 want=92 ok
+GBK real AIN strict                                got=1 want=1 ok
+GBK real AIN boundary > 5                          got=1 want=1 ok
+GBK real AIN sjis_invalid >= 16                    got=1 want=1 ok
+GBK real AIN utf8_valid below half                 got=1 want=1 ok
+DETECT synthetic SJIS                   n=100 legacy=50 boundary=25 sjis_invalid=0 nonascii=75 utf8_valid=0 strict=0
+GBK synthetic SJIS legacy > 5 (old check misfires) got=1 want=1 ok
+GBK synthetic SJIS strict                          got=0 want=0 ok
+DETECT synthetic UTF-8                  n=112 legacy=76 boundary=76 sjis_invalid=49 nonascii=112 utf8_valid=112 strict=0
+GBK synthetic UTF-8 legacy > 5                     got=1 want=1 ok
+GBK synthetic UTF-8 boundary > 5 && sjis_invalid >= 16 got=1 want=1 ok
+GBK synthetic UTF-8 strict (UTF-8 excluded)        got=0 want=0 ok
+DETECT synthetic GBK                    n=100 legacy=80 boundary=80 sjis_invalid=40 nonascii=80 utf8_valid=0 strict=1
+GBK synthetic GBK strict                           got=1 want=1 ok
+DETECT NULL entries                     n=3 legacy=0 boundary=0 sjis_invalid=0 nonascii=0 utf8_valid=0 strict=0
+GBK NULL entries strict                            got=0 want=0 ok
+DETECT empty list                       n=0 legacy=0 boundary=0 sjis_invalid=0 nonascii=0 utf8_valid=0 strict=0
+GBK empty list strict                              got=0 want=0 ok
+GBK empty list legacy                              got=0 want=0 ok
+GBK-DETECT summary: 0 failure(s)
+
+# sjis-chars（6400e3c，預設組態）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+SJIS-CHARS rule=SJIS ain_is_gb18030=0
+SJIS Length(QI_LA QI_LA)                            got=7 want=7 ok
+SJIS GetPart#0(PANEL, 3)                            got=4C A3 AF B0 A2 D0 DC want=4C A3 AF B0 A2 D0 DC ok
+SJIS   self after GetPart                           got=C1 A2 C0 4C A3 AF B0 A2 D0 DC want=C1 A2 C0 4C A3 AF B0 A2 D0 DC ok
+SJIS Length(ACHV)                                   got=15 want=15 ok
+SJIS GetPart#1(ACHV, Length-1, 1)                   got=C3 want=C3 ok
+SJIS   self after GetPart                           got=D6 F7 D2 AA A3 AF A3 B2 A3 B6 A3 B0 A3 B1 A3 C3 want=D6 F7 D2 AA A3 AF A3 B2 A3 B6 A3 B0 A3 B1 A3 C3 ok
+SJIS GetPart(i,1) for i < Length(BASE4)             got=[93 FE]|[FC 63]|[AD]|[68]|[B9]|[9D] want=[93 FE]|[FC 63]|[AD]|[68]|[B9]|[9D] ok
+SJIS Find(PANEL, B0A2 D0DC)                         got=6 want=6 ok
+SJIS Contains(TAIL_BS, \)                           got=1 want=1 ok
+SJIS Find(TAIL_VB x, |)                             got=1 want=1 ok
+SJIS Find(PANEL, "")                                got=0 want=0 ok
+SJIS FindLast(A/B/C, SLASH)                         got=4 want=4 ok
+SJIS FindLast(QI_LA, "")                            got=-1 want=-1 ok
+SJIS FindLast("", "")                               got=-1 want=-1 ok
+SJIS Erase(QI_LA QI_LA, 1, 2)                       got=BE 89 BE 5F C7 89 want=BE 89 BE 5F C7 89 ok
+SJIS Erase(QI_LA QI_LA, -1, 1)                      got=5F C7 89 BE 5F C7 89 want=5F C7 89 BE 5F C7 89 ok
+SJIS Erase(QI_LA QI_LA, 1, -1)                      got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+SJIS Erase(QI_LA QI_LA, 9, 1)                       got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+SJIS Erase(QI_LA QI_LA, 4, 1)                       got=BE 5F C7 89 BE C7 89 want=BE 5F C7 89 BE C7 89 ok
+SJIS Erase(QI_LA QI_LA, 1, 0)                       got=BE 5F C7 89 BE 5F C7 89 want=BE 5F C7 89 BE 5F C7 89 ok
+SJIS Erase(PANEL, 3, 5)                             got=C1 A2 C0 D0 DC want=C1 A2 C0 D0 DC ok
+SJIS PopBack(QI_LA)                                 got=BE 5F C7 want=BE 5F C7 ok
+SJIS PopBack("")                                    got="" want="" ok
+SJIS PushBack("", 0xA3B0)                           got=B0 want=B0 ok
+SJIS PushBack("", 0)                                got=00 want=00 ok
+SJIS PushBack("a", 92)                              got=61 5C want=61 5C ok
+SJIS Insert(QI_LA, 1, X)                            got=BE 58 5F C7 89 want=BE 58 5F C7 89 ok
+SJIS Insert(QI_LA, 9, X)                            got=BE 5F C7 89 58 want=BE 5F C7 89 58 ok
+SJIS Replace(TAIL_VB |, |, !)                       got=DF 21 21 want=DF 21 21 ok
+SJIS   self after Replace                           got=DF 21 21 want=DF 21 21 ok
+SJIS Replace(SLASH a SLASH, SLASH, ,)               got=2C 61 2C want=2C 61 2C ok
+SJIS   self after Replace                           got=2C 61 2C want=2C 61 2C ok
+SJIS Replace(QI_LA, "", x)                          got=BE 5F C7 89 want=BE 5F C7 89 ok
+SJIS   self after Replace                           got=BE 5F C7 89 want=BE 5F C7 89 ok
+SJIS Replace(QI_LA, zz, x) no match                 got=BE 5F C7 89 want=BE 5F C7 89 ok
+SJIS   self after Replace                           got=BE 5F C7 89 want=BE 5F C7 89 ok
+SJIS Split(PANEL4, SLASH, 0)                        got=8:[C1 A2 C0 4C]|[]|[B0 A2 D0 DC]|[]|[B4 F2 F4 59]|[]|[B0 A7]|[C4] want=8:[C1 A2 C0 4C]|[]|[B0 A2 D0 DC]|[]|[B4 F2 F4 59]|[]|[B0 A7]|[C4] ok
+SJIS Split(/a//b/, SLASH, 0)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] ok
+SJIS Split(/a//b/, SLASH, 1)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] ok
+SJIS Split(/a//b/, SLASH, 2)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] ok
+SJIS Split(/a//b/, SLASH, 3)                        got=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] want=9:[]|[]|[61]|[]|[]|[]|[62]|[]|[] ok
+SJIS Split(TAIL_VB x, |, 0)                         got=2:[DF]|[78] want=2:[DF]|[78] ok
+SJIS Split(a,b A3AC c, ", A3AC", 0)                 got=4:[61]|[62]|[]|[63] want=4:[61]|[62]|[]|[63] ok
+SJIS Split(a|b, "", 0)                              got=1:[61 7C 62] want=1:[61 7C 62] ok
+SJIS Split("", |, 0)                                got=0: want=0: ok
+SJIS ToUpper(B461 a 8281)                           got=B4 41 41 82 81 want=B4 41 41 82 81 ok
+SJIS   self after ToUpper                           got=B4 61 61 82 81 want=B4 61 61 82 81 ok
+SJIS ToLower(8260 A)                                got=82 60 61 want=82 60 61 ok
+SJIS   self after ToLower                           got=82 60 41 want=82 60 41 ok
+SJIS ToInt(A3B1 A3B2)                               got=0 want=0 ok
+SJIS ToInt(-12)                                     got=-12 want=-12 ok
+SJIS ToInt(1 A3)                                    got=1 want=1 ok
+SJIS ToFloat(A3B1 8144 A3B5)*10                     got=0 want=0 ok
+SJIS ToFloat(A3B1 A3AE A3B5)*10                     got=0 want=0 ok
+SJIS SearchAll(a[b]TAIL_RB c) (found=1)             got=4:[61]|[5B 62 5D]|[D5]|[63] want=4:[61]|[5B 62 5D]|[D5]|[63] ok
+SJIS Trim#0(8140 hi 8140) control                   got=68 69 want=68 69 ok
+SJIS   self after Trim                              got=81 40 68 69 81 40 want=81 40 68 69 81 40 ok
+SJIS GetPart#0(abc, 1) control                      got=62 63 want=62 63 ok
+SJIS   self after GetPart                           got=61 62 63 want=61 62 63 ok
+SJIS string_get_char(QI_LA, 1)                      got=95 want=95 ok
+SJIS string_get_char(QI_LA, 2)                      got=-57 want=-57 ok
+SJIS string_get_char(82A0, 0)                       got=41090 want=41090 ok
+SJIS string_get_char(B1, 0)                         got=-79 want=-79 ok
+*ERROR*(subprojects/libsys4/src/string.c:string_get_char:439): String index out of bounds
+SJIS string_get_char(QI_LA, 99) [child]             got=-2147483648 want=-2147483648 ok
+*ERROR*(subprojects/libsys4/src/string.c:string_get_char:439): String index out of bounds
+SJIS string_get_char(ab, -1) [child]                got=-2147483648 want=-2147483648 ok
+*ERROR*(subprojects/libsys4/src/string.c:string_set_char:506): String index out of bounds
+SJIS string_set_char(QI_LA, 5, x) unchanged [child] got=-2147483648 want=-2147483648 ok
+SJIS SYS_AddPunct(ab TAIL_BS)                       got=61 62 D5 5C want=61 62 D5 5C ok
+SJIS SYS_DeletePunct(ab TAIL_BS)                    got=61 62 D5 want=61 62 D5 ok
+SJIS SYS_AddPunct(ab)                               got=61 62 5C want=61 62 5C ok
+*ERROR*(subprojects/libsys4/src/string.c:string_get_char:439): String index out of bounds
+SJIS SYS_AddPunct("") [child]                       got=-2147483648 want=-2147483648 ok
+SJIS SYS_ToUpper(B461 a 8281)                       got=B4 41 41 82 81 want=B4 41 41 82 81 ok
+SJIS SYS_ToLower(8260 A)                            got=82 60 61 want=82 60 61 ok
+SJIS format(C2B7 C8CB %D, 12)                       got=C2 B7 C8 CB 82 50 82 51 want=C2 B7 C8 CB 82 50 82 51 ok
+SJIS format(SLASH %02D, 5)                          got=A3 AF 82 4F 82 54 want=A3 AF 82 4F 82 54 ok
+SJIS format(%3D, -7)                                got=81 40 81 7C 82 56 want=81 40 81 7C 82 56 ok
+SJIS format(%d, 12)                                 got=31 32 want=31 32 ok
+SJIS iarray round trip QI_LA                        got=BE 5F C7 89 FF want=BE 5F C7 89 FF ok
+SJIS iarray round trip BE                           got=BE want=BE ok
+SJIS iarray round trip 82A0 a                       got=82 A0 61 want=82 A0 61 ok
+SJIS iarray round trip 89                           got=89 FF want=89 FF ok
+SJIS iarray round trip STR0 (6143 non-ASCII) changed got=703 want=703 ok
+SJIS Length(82A0 82A2 82A4)                         got=3 want=3 ok
+SJIS Find(82A0 82A2 82A4, 82A4)                     got=2 want=2 ok
+SJIS GetPart#1(82A0 82A2 82A4, 1, 1)                got=82 A2 want=82 A2 ok
+SJIS   self after GetPart                           got=82 A0 82 A2 82 A4 want=82 A0 82 A2 82 A4 ok
+SJIS PopBack(82A0 82A2)                             got=82 A0 want=82 A0 ok
+SJIS PushBack("", 0xA082)                           got=82 A0 want=82 A0 ok
+SJIS extract(82A0) SJIS                             got=2 want=2 ok
+SJIS   copied by extract(82A0) SJIS                 got=82 A0 want=82 A0 ok
+SJIS extract(B1) SJIS half-width                    got=1 want=1 ok
+SJIS   copied by extract(B1) SJIS half-width        got=B1 want=B1 ok
+SJIS-CHARS summary: 0 failure(s)
+

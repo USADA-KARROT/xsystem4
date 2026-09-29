@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：存讀檔持久化已接上（`173ff1d`，審查後修正 `6b65b12`、`ff77c18`）：AFL_GameSave_StructSave／StructLoad 以原版 v9 格式寫出並就地讀回，存檔註解可讀寫，原版引擎的 AFConfig／Collection／AFCommon／AFInfo 讀入後重存逐位元組相同。兩次 150 秒 GUI（新存檔、重用存檔）皆 MSG 88、assertion 0、堆疊溢位 0，第二次確認設定與 Collection 的讀回狀態；41 個 headless 模式通過。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：String 字元規則改用 GBK（`6400e3c`，libsys4 `247f544`，兩者皆為本機 commit、尚未推送）：CN AIN 經嚴格判定後，String 庫、C_REF／C_ASSIGN、`%D` 與 iarray 讀取改照原版的 GBK 首位元組規則，SJIS 遊戲的程式路徑不變。新增 4 個 headless 模式，修正前失敗、修正後通過；44 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`。三次 150 秒 GUI 皆 MSG 88、assertion 0、堆疊溢位 0。名牌「綺□綺□」確認是字型缺字，不屬本組。存讀檔持久化（`173ff1d`、`6b65b12`、`ff77c18`）見下文。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
-接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。libsys4 仍固定於 `8c93946`。
+接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
 ## 根因
 
@@ -131,6 +131,16 @@ GUI：Run 1 新存檔 150.389 秒，寫出 Collection.asd；Run 2 以 Run 1 的�
 
 [研究、原版位址、反駁處理與重跑](research/save-persistence/README.md) · [39 模式摘要](research/save-persistence/verify-summary.txt) · [GUI 摘要](research/save-persistence/gui-summary.json)
 
+## GBK 字元規則（`6400e3c`，libsys4 `247f544`）
+
+CN 原版的 String 庫、C_REF／C_ASSIGN 與排版都以首位元組 `0x81..0xFE` 判斷雙位元組，字元碼為 `(lead<<8)|trail`，越界回安全值（dispatcher `0x684120`；Length `0x6868f0`、GetPart `0x6882c0`、Split `0x6892f0`、C_REF `0x67dbb0`、C_ASSIGN `0x67dc10`）。xsystem4 與 libsys4 原本都用 SJIS 規則，大部分漢字被拆成兩個字，C_REF 回 little-endian 碼且越界中止，`%D` 輸出 SJIS 全形數字，iarray 讀回時 6,143 筆非 ASCII STR0 字串中有 703 筆多一個 `FF`。
+
+libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本體不改），各字元函式加 GBK 分支；`8181da6` 先以測試記錄 SJIS 現況。xsystem4 在舊偵測成立且嚴格判定（SJIS 邊界分數、SJIS 非法而 GBK 合法的字串數、UTF-8 比例）也成立時才開啟；String 各函式的 GBK 分支照原版語義（Erase、FindLast、Replace 不改 self、Split 的 containsMode、ToLower／ToUpper、ToInt／ToFloat、SearchAll）；iarray 讀取在 GBK 模式下是寫入的精確反函數；渲染器的 GB18030 切字不再越過 NUL。`ain_is_gb18030` 與其使用點不變。
+
+驗證：真正的修正前組態（`7c1daaa` + libsys4 `8c93946`，submodule 暫時切回）下 `gbk-string` 41 案失敗並以 ASan 中止、`gbk-vm` 18 案失敗、`gbk-detect` 缺函式；修正後全過。`sjis-chars` 的 91 行輸出修正前後逐行相同，`test/Run/test.ain` 輸出相同。44 模式在預設與 `XS4_PROBE_GBK=1` 下都 `VERDICT PASS`；libsys4 四個單元測試在 ASan／UBSan 下通過。三次 150 秒 GUI（新存檔、以修正前存檔為種子、HanaMinA 字型探針）MSG 88、assertion 0、堆疊溢位 0，MSG 內容與修正前相同。修正後名牌仍缺字，HanaMinA 探針則完整顯示，確認是字型問題；修正前同一角色兩種表情同時出現的立繪情況在修正後消失（推定改善，未與原版對照）。
+
+[研究、原版位址、反駁處理與重跑](research/gbk-string-rules/README.md) · [驗證摘要](research/gbk-string-rules/verify-summary.txt) · [GUI 摘要](research/gbk-string-rules/gui-summary.json)
+
 ## 下一批卡點
 
 - **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
@@ -140,13 +150,13 @@ GUI：Run 1 新存檔 150.389 秒，寫出 Collection.asd；Run 2 以 Run 1 的�
 
 - 上述卡點。
 - 存讀檔的後續：DeleteSaveFile 在檔案不存在時原版回 true；`init_struct_slot` 把 enum 陣列配成 `AIN_ARRAY`，刪除時會把 enum 值當 slot 釋放（R2）；每次經 `AFL_GameSave_*` 包裝呼叫留下一個帶 TEMP 旗標的 A_REF 暫存字串；EnemyNamePostfixGenerator／FixedRandomValue 建構後刪除會殘留 slot；PE_Save／PE_Load 不保存 `component_type_from_state`，讀檔後成就通知未驗證。
-- String 庫的字元規則：CN 原版全面用 GBK 首位元組 0x81..0xFE，xsystem4 的 `Length`、`Find`、`GetPart` 等用 SJIS 規則，中文會被切錯。要一次改齊（Length 110 處、GetPart 76 處），並涉及 libsys4。
+- GBK 字元規則的另案：字型 fallback（名牌等缺字，約 11.4% 的對白）、名牌殘影、舊偵測誤判 SJIS 遊戲、`utf2sjis`／`sjis2utf` 轉碼、`Int.ToCharacter` 與 ReplaceRegex（見 [研究文件](research/gbk-string-rules/README.md)）。
 - `Array.First` 的 predicate 版逐實體 slot 走訪；兩槽介面陣列（`Insert` 不保留兩槽）；`Array.Realloc` 縮小不釋放、誤用 `hll_arg3` 當 struct 編號；`Array.Duplicate`（僅編輯器）；`HashMap.Any/Empty/Free`（CN 無法執行到）；PartsEngine `AddChild/InsertChild/RemoveChild/ClearChild`。
 - DeletedEvent 23 個殘留 slot；人眼畫面（本環境無單一視窗擷取權限，只驗 framebuffer）；長時間穩定性。
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 41 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 44 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

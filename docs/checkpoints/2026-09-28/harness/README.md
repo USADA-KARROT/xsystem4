@@ -8,7 +8,7 @@
 
 - macOS（Apple Silicon 已驗證）、Command Line Tools 的 clang。
 - Homebrew：`meson ninja pkg-config libffi sdl2 freetype libpng jpeg-turbo webp cglm libsndfile ffmpeg glew bison flex`。
-- 已初始化的 submodule：`git submodule update --init`（libsys4 固定於 `8c93946`，不要改）。
+- 已初始化的 submodule：`git submodule update --init`（libsys4 以 xsystem4 記錄的指標為準，目前是 `247f544`，含 GBK 字元規則；不要自行改指標）。
 - 自行合法取得的遊戲**工作副本**，內含 `dohnadohna.ain`（繁中版，sha256 `beefa667…8947`）。絕不可指向原始安裝目錄或母片。
 
 ## 變數
@@ -26,14 +26,16 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 41 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 44 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
 ```
 
-- `verify-step.sh` 的輸出在 `$XS4_WORK/logs/verify/<tag>/`，每個模式一個檔案，另有 `summary.txt`。
+- `verify-step.sh` 的輸出在 `$XS4_WORK/logs/verify/<tag>/`，每個模式一個檔案，另有 `summary.txt`。第一行記錄 HEAD、libsys4 SHA 與 `probe_gbk`。
+- `XS4_PROBE_GBK=1`：探針在 `init_probe` 之後呼叫 `gbk_string_rules_enable`（以 dlsym 取得；舊版沒有時只設 `ain_is_gb18030`）。正式引擎對 CN AIN 會開這個規則，探針預設不開，所以兩種組態都要跑。`sjis-chars` 與 `gbk-vm` 會自行切回 SJIS。
 - `deleted-event` 預期 exit 87：23 個殘留 slot 是既有問題，功能檢查本身通過。其他模式預期 exit 0 且沒有 sanitizer 診斷。
-- `before-check.sh` 要求 `src/`、`include/` 沒有未提交修改。它會暫時改寫 checkout 的這兩個目錄，被中斷時也會還原。
+- `before-check.sh` 要求 `src/`、`include/` 沒有未提交修改。它會暫時改寫 checkout 的這兩個目錄，被中斷時也會還原。它**不會**切換 libsys4 submodule；修正涉及 libsys4 時，要另外把 submodule 暫時切回舊 SHA 才是真正的修正前組態，結束後切回（見 `research/gbk-string-rules/README.md`）。
 - `gui-run.sh` 遇到 assertion、ASan、VM error、堆疊溢位、日誌超過 300 MB 或時間到就停止。結束時印出對白行數（`MSG` 行）、堆疊溢位次數與 framebuffer 張數。在執行目錄建立名為 `STOP` 的檔案可手動停止。
 - 存讀檔驗證用的 GUI 變數：`RUN_TRACE_SAVE=1` 讓引擎對 SerializeStruct 系列每次呼叫印一行 `SAVE ...`（`XSYS4_TRACE_SAVE`，上限 200 行）；`RUN_SAVE_SEED=<目錄>` 先把該目錄的檔案複製到本次的 `saves/` 再啟動，種子本身不會被寫入，位於 `XS4_SRC` 或 `XS4_MASTER_GAME` 內時拒絕執行。`run.json` 另記錄 `save_seed` 與開始／結束時每個存檔的大小、sha256、mtime（`saves_manifest_start`／`saves_manifest_end`）。
 - 本機若沒有「螢幕錄製」權限，無法擷取單一視窗；請以 framebuffer PNG 作為畫面證據。截圖與存檔都不要提交到 repo。
@@ -50,6 +52,7 @@ bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按�
 - `probe/save_fixes_fixture.inc`：`save-fixes`，`173ff1d` 審查後的回歸測試。F1 損壞的 struct 定義數；F2 讀入 `option<int>` 後由真 bytecode `WorkerHistory@SetIncome` 覆寫；F3 `X_OP_SET` 後刪除 struct；F4 複製含 `option<int>` 的 struct；F5 沒有建構子的 struct 由 `vm_construct_struct` 預設初始化；F6 其 `<vtable>` 填入方法清單；F7 三槽 option 預設為 none；F8 `option<int>` 區域變數不配置 slot。只用 dlsym 取新函式，所以也能在修正前的版本編譯。
 - `probe/save_persist_fixture.inc`：存讀檔持久化。`save-list` 檢查 `Array.SYSTEMONLY_GetStructPageList`（綁定、X_A_INIT 單槽清單、無效元素整批清空、快取頁 metadata、真 bytecode `AFL_GameSave_StructSave` 傳入的清單）；`save-roundtrip` 以真 AIN struct 與真 `AFL_GameSave_Struct*` bytecode 做 v9 格式、就地讀回、巢狀／陣列／option／delegate、損壞檔、原子寫入、選擇器、ffi 重入後的參數釋放與 option<int> 刪除；`save-comment` 檢查存檔註解。存檔寫在 `$XS4_SAVE_TMP` 或 `$TMPDIR` 下的 mkdtemp 資料夾（位於 `XS4_SRC`／`XS4_MASTER_GAME` 內時拒絕），結束即刪除。
 - 選用模式（不在 `XS4_MODES`）：`save-roundtrip` 的 R15 與 `save-localgame` 需要 `XS4_SAVE_ORIG_COPY=<原版存檔的複本資料夾>`，讀入原版引擎寫的 `.asd` 複本並重存比對；不可指向原始存檔資料夾本身，也不可提交。`save-seed` 以 `XS4_SAVE_SEED_DIR=<XS4_WORK 內的資料夾>` 為 GUI 第二次執行準備種子（在 Collection 的已讀事件清單依排序插入 `ZZ_PERSIST_PROBE`，並寫出 `<ConfigVoiceMutedByNsfw>=1` 的 AFConfig.asd）。
+- `probe/gbk_chars_fixture.inc`：GBK 字元規則（2026-09-29）。`gbk-string` 經真 ffi 呼叫 String 庫並測渲染器的 GB18030 切字 NUL 防護；`gbk-vm` 執行真 AIN 的 `SYS_AddPunct`／`SYS_DeletePunct`／`SYS_ToUpper`／`SYS_ToLower`、libsys4 的字元讀寫、`%D`、iarray 往返（含全部 STR0 非 ASCII 字串），並比較名牌 Show／Hide 的 Motion 字串在兩種規則下由 `Motion::GetCompiled` 解析出的樹；`gbk-detect` 檢查偵測分數；`sjis-chars` 在 SJIS 規則下跑同一批案例，記錄修正前的行為，修正前後的 `SJIS ` 行必須逐行相同。渲染器的 `gb18030_skip_char_bytes`／`extract_multibyte_char` 是 static，`build_probe.py` 在 repo 外複製 `src/text.c`、`src/parts/text.c` 並加上 `probe_*` 包裝函式。
 - `deleted_event_fixture.inc` 放在上一層，因為 `runtime_probe.c` 以 `../deleted_event_fixture.inc` 引用它。
 
 新增一組測試：

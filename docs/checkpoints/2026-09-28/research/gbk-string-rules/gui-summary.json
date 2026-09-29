@@ -1,0 +1,143 @@
+{
+  "gbk-before": {
+    "what": "before: 7c1daaa + libsys4 8c93946, new save folder",
+    "binary_sha256": "185861d362445b64568c41dfb7ecb94db1826ba7e9076c875fed2e3c4fe9ce93",
+    "engine_args": null,
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/gbk-before/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_TRACE_SAVE": "1",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/gbk-before/framebuffer"
+    },
+    "elapsed_seconds": 150.392,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1727479808,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "asan_lines": 0,
+    "gbk_rules_enabled_line": false,
+    "gbk_out_of_range_warnings": 0,
+    "framebuffer_pngs": 40,
+    "save_trace": [
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Achievement.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Collection.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE ser Collection.asd roots=1 recs=5 strs=1 arrs=3 bytes=511 ok"
+    ],
+    "seeded": false
+  },
+  "gbk-after": {
+    "what": "after: 6400e3c-equivalent tree + libsys4 247f544, new save folder",
+    "binary_sha256": "cdb52fad1f6cf4aef784a363e2ac130428de812a7ac6f3bf2eeadc316d95c339",
+    "engine_args": null,
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/gbk-after/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_TRACE_SAVE": "1",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/gbk-after/framebuffer"
+    },
+    "elapsed_seconds": 150.249,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1796571136,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "asan_lines": 0,
+    "gbk_rules_enabled_line": true,
+    "gbk_out_of_range_warnings": 0,
+    "framebuffer_pngs": 40,
+    "save_trace": [
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Achievement.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Collection.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE ser Collection.asd roots=1 recs=5 strs=1 arrs=3 bytes=511 ok"
+    ],
+    "seeded": false
+  },
+  "gbk-after-seeded": {
+    "what": "after, save folder seeded with the gbk-before saves",
+    "binary_sha256": "cdb52fad1f6cf4aef784a363e2ac130428de812a7ac6f3bf2eeadc316d95c339",
+    "engine_args": null,
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/gbk-after-seeded/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_TRACE_SAVE": "1",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/gbk-after-seeded/framebuffer"
+    },
+    "elapsed_seconds": 150.402,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 2213101568,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "asan_lines": 0,
+    "gbk_rules_enabled_line": true,
+    "gbk_out_of_range_warnings": 0,
+    "framebuffer_pngs": 40,
+    "save_trace": [
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Achievement.asd roots=1 ver=0 fail(read)",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE des Collection.asd roots=1 ver=9 ok new_structs=0 new_strings=1 arrays=2 kept2=0 shared_str=0",
+      "SAVE gspl n=1 stride=1 out=1",
+      "SAVE ser Collection.asd roots=1 recs=5 strs=1 arrs=3 bytes=511 ok"
+    ],
+    "seeded": true
+  },
+  "gbk-font-probe": {
+    "what": "after, --font-gothic fonts/HanaMinA.ttf (root-cause check only)",
+    "binary_sha256": "cdb52fad1f6cf4aef784a363e2ac130428de812a7ac6f3bf2eeadc316d95c339",
+    "engine_args": null,
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/gbk-font-probe/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/gbk-font-probe/framebuffer"
+    },
+    "elapsed_seconds": 150.213,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 2191785984,
+    "msg_lines": 88,
+    "msg_sha256": "7dee685a3aed28c234c0cadf51ef4cc509c36a8d2b9c433df3d597746c507691",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "asan_lines": 0,
+    "gbk_rules_enabled_line": true,
+    "gbk_out_of_range_warnings": 0,
+    "framebuffer_pngs": 40,
+    "save_trace": [],
+    "seeded": false
+  },
+  "framebuffer_comparison": {
+    "dialogue_sequence": "MSG lines identical (same sha256) in gbk-before, gbk-after, gbk-after-seeded and gbk-font-probe",
+    "paired_frames_by_identical_dialogue_box": 8,
+    "name_plate_identical_in_pairs": "7/8 (the 8th pair differs in a fading overlay; both show the same two asterisks)",
+    "name_plate_missing_glyph": "the 2-character name still shows a box for its 2nd character in gbk-after, as in gbk-before; with HanaMinA as gothic (gbk-font-probe) it renders completely",
+    "name_plate_residue": "the previous plate still shows through in gbk-before, gbk-after and gbk-font-probe",
+    "standing_pictures": "gbk-before t15-t19 shows the same character twice with two expressions; gbk-after shows each character once (not compared with the original engine)",
+    "progress": "gbk-after reaches the base menu at t35 (70 s); gbk-before is still in the opening dialogue at t39 (cause not verified)"
+  }
+}

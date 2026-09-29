@@ -84,6 +84,7 @@ static void init_probe(const char *path) {
 #include "math_fixture.inc"
 #include "sort_fixture.inc"
 #include "string_fixture.inc"
+#include "gbk_chars_fixture.inc"
 #include "cif_fixture.inc"
 #include "activity_text_fixture.inc"
 #include "dialogue_model_fixture.inc"
@@ -93,6 +94,7 @@ static void init_probe(const char *path) {
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
+    gk_probe_enable_from_env();
     printf("PROBE initialized real VM/AIN, %d functions, live slots %zu\n",ain->nr_functions,live_slots());
     fflush(stdout);
     if(!strcmp(argv[2],"personality-literal")) {test_personality_literal();return 0;}
@@ -109,6 +111,10 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"math"))return test_math();
     if(!strcmp(argv[2],"sort"))return test_sort();
     if(!strcmp(argv[2],"string"))return test_string();
+    if(!strcmp(argv[2],"gbk-string"))return test_gbk_string();
+    if(!strcmp(argv[2],"gbk-vm"))return test_gbk_vm();
+    if(!strcmp(argv[2],"gbk-detect"))return test_gbk_detect();
+    if(!strcmp(argv[2],"sjis-chars"))return test_sjis_chars();
     if(!strcmp(argv[2],"cif"))return test_cif();
     if(!strcmp(argv[2],"activity-text"))return test_activity_text();
     if(!strcmp(argv[2],"dialogue-model"))return test_dialogue_model();

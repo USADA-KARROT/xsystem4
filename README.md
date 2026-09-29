@@ -1,7 +1,7 @@
 xsystem4
 ========
 
-> **2026-09-29 macOS／多娜多娜 CN：存讀檔持久化已接上（173ff1d，審查後修正 6b65b12、ff77c18）：StructSave／StructLoad 以原版 v9 格式寫出並就地讀回，GUI 已確認設定與 Collection 跨次保留，原版存檔檔案可讀入（成就寫出與一般存檔僅 headless 驗證）。兩次 150 秒測試（新存檔、重用存檔）皆 88 筆對白記錄，無斷言與堆疊溢位；39 個 headless 模式符合預期。**
+> **2026-09-29 macOS／多娜多娜 CN：String 字元規則改照原版的 GBK 首位元組規則（6400e3c，libsys4 247f544；本機 commit，尚未推送），只在嚴格判定為 GBK 的 AIN 啟用，SJIS 遊戲路徑不變；44 個 headless 模式在預設與強制 GBK 下皆通過，三次 150 秒 GUI 皆 88 筆對白、無斷言與堆疊溢位。名牌缺字確認為字型問題，另案處理。存讀檔持久化（173ff1d、6b65b12、ff77c18）已接上。**
 > 從讀檔畫面讀一般存檔仍需 system.Reset；記憶體成長與長時間穩定性仍待處理，尚非穩定可玩版。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
