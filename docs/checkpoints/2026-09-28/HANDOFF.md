@@ -62,14 +62,19 @@
    - PE_Save／PE_Load 不保存 `2914b40` 的 `component_type_from_state`；ResumeLoad 之後成就通知的 GetText 是否再次失敗尚未驗證（本組兩次 GUI 都沒有觸發 ResumeLoad）。
    - 一般 `NEW` 建立沒有 STRT 建構子的 struct 時，成員仍留在 null；原版 `0x679b30` 會依 `0x656970` 預設初始化。`6b65b12` 只修了讀檔路徑，引擎層要另外評估影響面。
    - DeleteSaveFile 在檔案不存在時原版回 true（`0x5c69f0`）；`init_struct_slot` 的 enum 陣列型別（R2）；A_REF 暫存字串殘留（F13）。
-4. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB，配置器偶有「free list 耗盡或損壞」警告。這是既有問題，修正前後數字相同。
-5. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
+4. **使用者回報的畫面問題**（研究見 `research/gui-visual/`，依建議順序）：
+   - 立繪與名牌的退場、換位、隱藏沒有作用（原因未驗證）：先用 `XSYS4_TRACE_FNO` 追蹤 AdvStand／名牌 Hide 實際傳入的元件號碼，確認是否為長期持有的包裝物件被提早釋放或重用；找到原因前不要在引擎硬加「退場就刪除」的特例。
+   - 左側角色翻轉：實作 `SetComponentReverseLR` 與 Get／TB 版本，在繪製與點擊判定套用，並回歸事件 CG、戰鬥 cut-in 等其他呼叫者。
+   - 字型缺字：gothic 缺字時逐字改用 HanaMinA，前進量不變。
+   - 字距：無 .fnl 時也把外框與太さ算進前進量，半形寬改用 (字級+1)>>1，同步修 `TextSurfaceManager` 的量字寬。
+5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB，配置器偶有「free list 耗盡或損壞」警告。這是既有問題，修正前後數字相同。
+6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
    - 名牌殘影：舊名牌文字沒有淡出。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000，字串寫的是 `Time:150`，可從這裡查起（未驗證）。
    - 舊 GB18030 偵測會誤判 SJIS 遊戲（`ain_is_gb18030` 仍依舊判準），修正會改變 SJIS 遊戲行為，需使用者決定。
    - `utf2sjis`／`sjis2utf` 轉碼路徑、`Int.ToCharacter`、ReplaceRegex（CN 3 處，仍是 stub）。
    - 推送後，本機另一個 libsys4 worktree 的 `cn-on-upstream` 分支要 fast-forward 到 `247f544`。
-6. 其他延後項目：
+7. 其他延後項目：
    - `Array.First` 的 predicate 版逐實體 slot 走訪。
    - 兩槽介面陣列的 `Insert` 沒有保留兩槽。
    - `Array.Realloc` 縮小時不釋放。
