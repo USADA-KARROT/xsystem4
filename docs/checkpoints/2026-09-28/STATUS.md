@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：String 字元規則改用 GBK（`6400e3c`，libsys4 `247f544`，兩者皆為本機 commit、尚未推送）：CN AIN 經嚴格判定後，String 庫、C_REF／C_ASSIGN、`%D` 與 iarray 讀取改照原版的 GBK 首位元組規則，SJIS 遊戲的程式路徑不變。新增 4 個 headless 模式，修正前失敗、修正後通過；44 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`。三次 150 秒 GUI 皆 MSG 88、assertion 0、堆疊溢位 0。名牌「綺□綺□」確認是字型缺字，不屬本組。存讀檔持久化（`173ff1d`、`6b65b12`、`ff77c18`）見下文。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`，本機 commit，尚未推送）。v14 呼叫的介面參數與有值的參照型 option 參數以借用方式傳入，被呼叫端返回時卻會釋放；`function_call` 與 delegate 路徑現在照原版 `0x657430` 替它們加參照。新模式 `iface-arg` 在 `7e16dee` 上 6/6 失敗、修正後通過，46 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`。150 秒 GUI 修正後三次皆 MSG 88、assertion 0、堆疊溢位 0：講完話的立繪會退場，名牌不再疊字，`heap_alloc_slot` 警告歸零，峰值 RSS 由 1.76／2.05 GB 降為 1.33／1.38 GB。此前各組（GBK 字元規則 `6400e3c`／libsys4 `247f544`、左側翻轉 `4a82758`、缺字與字距 `05d2441`，到 `7e16dee` 為止）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -141,12 +141,30 @@ libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本
 
 [研究、原版位址、反駁處理與重跑](research/gbk-string-rules/README.md) · [驗證摘要](research/gbk-string-rules/verify-summary.txt) · [GUI 摘要](research/gbk-string-rules/gui-summary.json)
 
+## 立繪與名牌的 use-after-free（`9e30c0f`）
+
+使用者在 GUI 中看到：角色講完話不退場、一直疊加，名牌留下前一個名字，劇本放在右側的立繪停在左邊。追蹤結果：立繪的 sprite 在第一次登場時就被釋放了。釋放點是 `Motion::Create` 與 `Motion::Executer@0` 的 `RETURN`，被釋放的是 `IParts` 參數。原因是 v14 呼叫端以 `X_REF 2` 借用傳入介面參數，被呼叫端的 local page 在返回時卻會釋放它，而 `function_call` 沒有替 `AIN_IFACE` 加參照。這個 slot 被重用之後，`AdvStand@MoveOut`／`Move`、`AdvNamePlate@Hide` 讀 vtable 得到函式號 -1，VM 就靜默略過呼叫。
+
+原版 `0x657430` 複製參數時，會替 REF、WRAP、87、IFACE、REF_ENUM 加參照；option 若有值，就依內含型別分派。修正照這套規則處理 `AIN_IFACE` 與 option 參數，delegate 路徑也一樣。
+
+| 項目 | 修正前 | 修正後 |
+|---|---|---|
+| `iface-arg`（6 案） | 6/6 失敗，rc 89 | 全過 |
+| 46 模式（預設／GBK） | — | `VERDICT PASS`／`VERDICT PASS` |
+| 150 秒 GUI MSG／assertion／堆疊溢位 | 88／0／0（兩次） | 88／0／0（三次） |
+| 名牌疊字（第 12–39 張 framebuffer） | 11、12 張 | 0 張 |
+| `heap_alloc_slot` 警告／次 | 15 | 0 |
+| 峰值 RSS | 1.76／2.05 GB | 1.33／1.38／1.33 GB |
+| GUI 追蹤：-1 方法呼叫 | 334 | 34（皆為 Tutorial 的 null 物件） |
+
+同源而一併消失的還有 `Motion::ExecuterCollection` 的 vtable 讀取越界與 free list 損壞警告。另案（delegate 伴隨槽被當成參數、STRUCT 參數多加參照、Executer 與 CParts 不釋放）與側審查的字寬缺陷 D1 見 [uaf.md](research/gui-visual/uaf.md) 與 [HANDOFF.md](HANDOFF.md) 第 4 項。
+
 ## 下一批卡點
 
-- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與有外框文字的字距（`05d2441`）已修正；已在畫面上的立繪與名牌退場、換位、隱藏沒有作用：追蹤證實立繪的 sprite 物件被提早釋放、slot 被字串重用，方法呼叫因此被 VM 靜默略過（use-after-free），是下一個優先項目。
+- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與有外框文字的字距（`05d2441`）、立繪與名牌不退場（`9e30c0f`）已修正。剩下太さ計入前進量與 `TextSurfaceManager` 量字寬（側審查 D1，中）；立繪站位與原版實機截圖逐格對照尚未做。
 
 - **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
-- **記憶體**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB；配置器偶有「free list 耗盡或損壞」警告。兩版數字相同，屬既有問題。
+- **記憶體**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 後 150 秒峰值 RSS 約 1.3–1.4 GB，配置器警告消失；STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放仍是成長來源候選。
 
 ## 尚未處理
 
@@ -158,7 +176,7 @@ libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 44 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 46 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

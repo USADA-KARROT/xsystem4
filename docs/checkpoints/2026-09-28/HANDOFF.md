@@ -6,7 +6,8 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 44 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 46 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`，本機 commit，尚未推送）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
@@ -63,14 +64,23 @@
    - 一般 `NEW` 建立沒有 STRT 建構子的 struct 時，成員仍留在 null；原版 `0x679b30` 會依 `0x656970` 預設初始化。`6b65b12` 只修了讀檔路徑，引擎層要另外評估影響面。
    - DeleteSaveFile 在檔案不存在時原版回 true（`0x5c69f0`）；`init_struct_slot` 的 enum 陣列型別（R2）；A_REF 暫存字串殘留（F13）。
 4. **使用者回報的畫面問題**（研究見 `research/gui-visual/`，依建議順序）：
-   - **下一個優先項目：立繪與名牌的退場、換位、隱藏沒有作用。** 已追到直接原因：`AdvStand.m_parent`（`wrap<iwrap<ISpriteParts>>`）與 Motion 執行器持有的物件被提早釋放，slot 被字串重用；方法呼叫讀 vtable 失敗得到函式號 -1，被 VM 靜默略過（見 research/gui-visual/README.md「追蹤結果二」）。先寫 headless fixture 重現 ref 遺失，再修參照計數；不要在引擎硬加「退場就刪除」的特例，也不要只把 -1 呼叫改成錯誤而不修根因。
+   - **已完成：立繪與名牌的退場、換位、隱藏**（`9e30c0f`，研究見 `research/gui-visual/uaf.md`）。根因是 v14 呼叫的介面參數（`AIN_IFACE`）與有值的參照型 option 參數以借用方式傳入，被呼叫端返回時卻會釋放；`function_call` 與 delegate 路徑沒有加參照，`Motion::Create`／`Motion::Executer@0` 因此把 `AdvStand.m_parent` 的 sprite 與名牌 root 提早釋放。修正照原版 `0x657430` 補上 retain。新模式 `iface-arg` 修正前 6/6 失敗；150 秒 GUI 修正後三次 MSG 88，立繪會退場，名牌不再疊字，`heap_alloc_slot` 警告歸零。後續另案（詳見 uaf.md〈另案〉）：
+     - **delegate 呼叫把 void 伴隨槽當參數**（已用臨時探針驗證）：`delegate_call` 的複製迴圈沒有跳過兩槽參數後的伴隨槽，會把堆疊上多讀的一格（例如 delegate page 的 slot 號碼）寫進被呼叫函式的第一個區域變數。返回時該 slot 可能被多減一次參照。要先寫 fixture，再讓迴圈像 `delegate_param_slots` 一樣跳過伴隨槽。
+     - **STRUCT／DELEGATE／ARRAY 參數多加一次參照**（headless 驗證一例）：原版不加，呼叫端的 `A_REF` 已交出所有權，每次呼叫多漏一份。拿掉之前要確認沒有借用傳 struct 的路徑。
+     - **`Motion::Executer` 結束後不釋放**：修正後 Executer 正常註冊，但移出集合後停在 ref=2（GUI 追蹤觀察，推定是 delegate 強參照循環）。`parts::detail::CParts` 從未釋放，`ReleaseParts` 也一直沒被呼叫。
+     - Tutorial 路徑以 null 物件呼叫 `Motion::Create` 等方法（每 150 秒 34 次 -1）。
+     - `vm_call_nopop`（HLL 回呼）沒有 option 規則；三槽的 option<介面> 當 delegate 參數時被當成兩槽（皆未驗證）。
+     - 立繪最終站位與原版實機截圖逐格對照尚未做；跨側移動的 ReverseLR 受下列 D5 影響。
    - **已完成：左側角色翻轉**（`4a82758`）。
    - **已完成：字型缺字**（`05d2441`，逐字 fallback 到 HanaMinA，前進量不變）。
-   - **部分完成：字距**（`05d2441`，外框計入前進量、半形寬 (字級+1)>>1）；太さ計入前進量與 `TextSurfaceManager` 的量字寬（spacing.md 修法 B）仍待做。
-5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot，峰值 RSS 約 1.9 GB，配置器偶有「free list 耗盡或損壞」警告。這是既有問題，修正前後數字相同。
+   - **部分完成：字距**（`05d2441`，外框計入前進量、半形寬 (字級+1)>>1）；太さ計入前進量與 `TextSurfaceManager` 的量字寬（spacing.md 修法 B）仍待做。側審查結果（詳見 uaf.md〈側審查〉）：
+     - **D1【中】**：`TextSurfaceManager.GetFontWidth` 仍用 size/2、不算外框，但 `05d2441` 之後實際繪字變寬。backlog（字級 25、外框 1）量到每字 22 px、實際畫 24 px，接近行寬的行推定會被裁切（程式碼與 AIN 呼叫鏈已驗證，畫面未驗證）。要和 D2 一起依 `0x69c7a0` 修，量字寬與繪字才會一致。
+     - **D2【低～中】**：外框沒取 ceil、太さ與外框相加而非取 max；event 視窗每字 24 px，原版 25 px。
+     - **D3–D7【低】**：半形判斷看 Unicode 而非首位元組；缺字 fallback 未限定 GBK；翻轉不作用在 TEXT／FLAT 與子元件（`AdvStand@Move` 跨側的 ReverseLR、戰鬥的 `PlayerViewPartsLayer@Reverse` 無效，屬功能缺口，D5）；surface area 加翻轉會錯位；`parts-reverse` 沒測繪製與點擊判定。
+5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放（見第 4 項）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
-   - 名牌殘影：舊名牌文字沒有淡出。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000，字串寫的是 `Time:150`，可從這裡查起（未驗證）。
+   - 名牌殘影：已由 `9e30c0f` 解決（名牌 root 被提早釋放，`Hide` 落空）。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000、字串寫 `Time:150` 的差異仍未查（未驗證是否影響淡出時間）。
    - 舊 GB18030 偵測會誤判 SJIS 遊戲（`ain_is_gb18030` 仍依舊判準），修正會改變 SJIS 遊戲行為，需使用者決定。
    - `utf2sjis`／`sjis2utf` 轉碼路徑、`Int.ToCharacter`、ReplaceRegex（CN 3 處，仍是 stub）。
    - 推送後，本機另一個 libsys4 worktree 的 `cn-on-upstream` 分支要 fast-forward 到 `247f544`。
