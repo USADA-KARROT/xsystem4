@@ -90,6 +90,18 @@
 | F4 | `copy_page` 把 `option<int>` 的整數當 slot，深拷貝那個編號的 page，複本的值被換成新 slot 編號 | 複本的值從 3 變成 6 | 同上 |
 | F5 | 讀檔時新建沒有 STRT 建構子的 struct（例如 BattleContext），成員停在 null。原版 `0x679b30(index, 0)` → `0x656970(member, 0)` 會預設初始化 | `m_actions` 為 -1 | `vm_construct_struct` 對沒有建構子的 struct 做原版預設初始化：struct 成員遞迴建立（不呼叫其建構子）、字串為空字串、delegate 為新物件、option 為 none（旗標 1） |
 
+### 第二輪審查（`6b65b12` 之後）
+
+對 `6b65b12` 的審查確認前一輪修正沒有遺漏其他 option 路徑，但指出預設初始化仍不完整，另外發現一個既有洩漏。三項都已修正，並加進 `save-fixes`（共 8 個案例）。
+
+| 案例 | 缺陷 | 修正 |
+|---|---|---|
+| F6 | 沒有建構子的 struct 新建時，原版會把第一個成員 `<vtable>` 填成該 struct 的方法清單（`0x679c9e`..`0x679d05`），xsystem4 留成空陣列。讀檔重建的 Player（22 項）與 BattleSkill（51 項）因此無法經 IBattlePlayer／IBattleSkill 分派，戰鬥時會無聲地呼叫錯誤函式（審查者以真 bytecode `BattlePlayer@0` 證實 Hp／Mp 事件不會訂閱）。此缺陷從 `173ff1d` 就存在 | `construct_default_members` 對頂層與遞迴建立的成員都填 `<vtable>` |
+| F7 | 三槽 option（`option<wrap<iwrap<T>>>`，[值, vtable 偏移, 旗標]）的 none 被設成 (-1, 1, 0)，旗標槽仍是 0，等於 some。原版 `0x656a44` 為 (-1, -1, 1)。目前讀檔路徑碰不到 | 依原版槽數（`0x653420`，匯出為 `ss_type_slot_count`）設定，最後一槽為 option 層數 |
+| F8 | 區域變數 `option<int>` 初始化時配置一個空 page 的 slot，隨後被 X_ASSIGN 覆寫而不釋放，每次呼叫漏一個 slot（`LocalSave@Available` 等 12 個函式） | 值型別 option 的區域變數與 scenario page 變數初始化為 -1，不配置 slot（`ain_option_type_is_value`） |
+
+驗證：`ff77c18` 上 41 模式 `VERDICT PASS`，sanitizer 0；`save-fixes` 在第二輪修正前的 `64bb9be` 上 F1..F5 通過、F6..F8 失敗（[對照](before-64bb9be-save-fixes.txt)），修正後 8/8 通過（[摘要](verify-summary-ff77c18.txt)）。150 秒 GUI 跑滿 150.41 秒，MSG 88、assertion 0、堆疊溢位 0；峰值 RSS 1,439,137,792 bytes，比 `6b65b12` 的 1,770,766,336 再低約 19%。
+
 F2 到 F4 的 ref 計數問題在修正前的 GUI 就已發生：CN 以 `X_OP_SET` 寫 `option<int>` 的地方包括 `WorkerHistory@SetIncome`、`WorkerCollection@SetLimit`、`SelectableIndexArray.m_selected` 等。`72a33e5` 以前 ref 與 unref 雖然對稱，但都作用在編號恰為該整數的無關 slot 上；`173ff1d` 只改了刪除端，才變成不對稱。
 
 驗證：`6b65b12` 上完整 40 模式 `VERDICT PASS`，sanitizer 0，deleted-event 仍為預期 87。150 秒 GUI（新存檔）跑滿 150.376 秒，MSG 88、assertion 0、堆疊溢位 0，寫出 AFBGMMode／AFCGMode／Collection；峰值 RSS 1,770,766,336 bytes，比 `173ff1d` 的 1,908,981,760 低。已查看 framebuffer：場景、人物、對話框、頭像與正文正常。說話者名牌的中文名有缺字方框，推測與 String 的 GBK 字元規則有關，未驗證。

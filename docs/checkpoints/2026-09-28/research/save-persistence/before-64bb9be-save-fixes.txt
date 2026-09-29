@@ -1,0 +1,21 @@
+# before-check.sh 64bb9be save-fixes（src/include 取自第二輪修正前的 64bb9be）
+== F1 corrupt struct-definition count
+F1 corrupt struct-definition count           PASS
+== F2 loaded option<int> then SetIncome
+F2 loaded option<int> then SetIncome         PASS
+== F3 X_OP_SET option<int> then delete
+F3 X_OP_SET option<int> then delete          PASS
+== F4 copy struct with option<int>
+F4 copy struct with option<int>              PASS
+== F5 default members without a ctor
+F5 default members without a ctor            PASS
+== F6 <vtable> of ctor-less structs
+  FAIL sf_vtable_of:208: Player.<vtable> has 0 entries (want 22)
+F6 <vtable> of ctor-less structs             FAIL (exit 1)
+== F7 3-slot option defaults to none
+  FAIL sf_option3:239: m_innerAction = (-1,1,0) (want none = (-1,-1,1))
+F7 3-slot option defaults to none            FAIL (exit 1)
+== F8 local option<int> owns no slot
+  FAIL sf_local_option:272: slots with a NULL page 0 -> 4 after 4 calls (a local option<int> leaks one per call)
+F8 local option<int> owns no slot            FAIL (exit 1)
+SAVE-FIXES summary: 3/8 case(s) failed

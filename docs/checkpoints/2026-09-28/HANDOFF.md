@@ -6,7 +6,7 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 固定於 `8c93946`。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 40 個模式全部符合預期，0 個 sanitizer 診斷。
+- Headless 驗證 41 個模式全部符合預期，0 個 sanitizer 診斷。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
 ## 硬規則
@@ -56,7 +56,7 @@
 
 1. **已完成：成就通知斷言**（`2914b40`，實際為型別失配；研究見 `research/achievement-text/`）：`SceneAchievementNotify.jaf:12 (nonnull) m_act.GetText("TextAchievement")`。第一個成就解鎖時，activity 依名稱找不到文字元件。先確認 activity 如何建立具名元件，以及查名稱走哪個 HLL 呼叫，再判斷是實作缺漏還是另一個原型錯配。
 2. **已完成：角色對話正文**（`1540b85`，研究見 `research/dialogue-text/`）：v14 Free/Clear 保留元素型別、ShallowCopy 保留共享 struct/string owner。兩個 before fixture 失敗、修後通過；正式 GUI 已確認正文可見。沒有修改渲染排序，其他未驗證形狀保留原綁定。
-3. **已完成：存讀檔持久化**（`173ff1d`，研究見 `research/save-persistence/`）：GetStructPageList、SerializeStruct、DeserializeStruct（就地載入）與存檔註解依原版 v9 實作；ffi 重入時的參數釋放與 option<int> 刪除一併修正。審查後的 `6b65b12` 修掉三個可重現缺陷：值型別 option 在 ASSIGN／X_OP_SET／複製時仍被當 slot、損壞檔的 struct 定義數讓讀檔崩潰、讀檔新建無建構子 struct 的成員停在 null（`save-fixes` 模式）。後續小項：
+3. **已完成：存讀檔持久化**（`173ff1d`，研究見 `research/save-persistence/`）：GetStructPageList、SerializeStruct、DeserializeStruct（就地載入）與存檔註解依原版 v9 實作；ffi 重入時的參數釋放與 option<int> 刪除一併修正。審查後的 `6b65b12` 修掉三個可重現缺陷：值型別 option 在 ASSIGN／X_OP_SET／複製時仍被當 slot、損壞檔的 struct 定義數讓讀檔崩潰、讀檔新建無建構子 struct 的成員停在 null（`save-fixes` 模式）；第二輪 `ff77c18` 補上 `<vtable>` 填寫、三槽 option 的 none 與 option<int> 區域變數洩漏。後續小項：
    - `system.Reset` 是 stub，讀檔畫面讀一般存檔的路徑走不到；先確認原版 Reset 的語義（重新進入 `main` 並保留 GameVariable）。
    - PE_Save／PE_Load 不保存 `2914b40` 的 `component_type_from_state`；ResumeLoad 之後成就通知的 GetText 是否再次失敗尚未驗證（本組兩次 GUI 都沒有觸發 ResumeLoad）。
    - 一般 `NEW` 建立沒有 STRT 建構子的 struct 時，成員仍留在 null；原版 `0x679b30` 會依 `0x656970` 預設初始化。`6b65b12` 只修了讀檔路徑，引擎層要另外評估影響面。
