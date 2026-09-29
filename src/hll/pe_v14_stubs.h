@@ -31,7 +31,6 @@ static void PE_stub_ResumeTexture(possibly_unused int partsnumber) { }
 static void PE_stub_SetEnableSpeedUp(possibly_unused int partsnumber, possibly_unused bool enable) { }
 static bool PE_stub_IsEnableSpeedUp(possibly_unused int partsnumber) { return false; }
 static void PE_stub_SetButtonSize(possibly_unused int number, possibly_unused int width, possibly_unused int height) { }
-static bool PE_stub_IsButtonEnable(possibly_unused int number) { return false; }
 static void PE_stub_SetButtonColor(possibly_unused int number, possibly_unused int red, possibly_unused int green, possibly_unused int blue) { }
 static int PE_stub_GetButtonR(possibly_unused int number) { return 0; }
 static int PE_stub_GetButtonG(possibly_unused int number) { return 0; }

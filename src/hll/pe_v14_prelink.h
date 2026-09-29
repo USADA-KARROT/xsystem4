@@ -28,7 +28,6 @@
 	static_library_register(&lib_PartsEngine, "SetEnableSpeedUp", PE_stub_SetEnableSpeedUp);
 	static_library_register(&lib_PartsEngine, "IsEnableSpeedUp", PE_stub_IsEnableSpeedUp);
 	static_library_register(&lib_PartsEngine, "SetButtonSize", PE_stub_SetButtonSize);
-	static_library_register(&lib_PartsEngine, "IsButtonEnable", PE_stub_IsButtonEnable);
 	static_library_register(&lib_PartsEngine, "SetButtonColor", PE_stub_SetButtonColor);
 	static_library_register(&lib_PartsEngine, "GetButtonR", PE_stub_GetButtonR);
 	static_library_register(&lib_PartsEngine, "GetButtonG", PE_stub_GetButtonG);

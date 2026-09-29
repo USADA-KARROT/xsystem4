@@ -127,6 +127,13 @@ static void Array_PushBack(struct page **array, int value)
 	int slots = is_2slot ? 2 : 1;
 	int new_size = old_size + slots;
 
+	// An empty generic array (X_A_INIT 0 of e.g. array<wrap<iwrap<T>>>) gets
+	// its element stride from the first two-slot element, so Numof/At and
+	// X_A_SIZE count elements, not slots.
+	if (a && is_2slot && old_size == 0
+	    && (a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY))
+		a->array.struct_type = 2;
+
 	if (a) {
 		// Try to grow in-place if malloc has extra room
 		size_t needed = sizeof(struct page) + sizeof(union vm_value) * new_size;
@@ -492,13 +499,17 @@ static int Array_First_NoPred(struct page **array)
 	return Array_At(array, 0);
 }
 
-// PopBack (capital B) — v14 name
+// PopBack (capital B) — v14 name. A two-slot element (interface, option)
+// is removed whole; its first slot holds the reference.
 static void Array_PopBack(struct page **array)
 {
 	if (!array || !*array || (*array)->nr_vars <= 0)
 		return;
 	struct page *a = *array;
-	int new_size = a->nr_vars - 1;
+	int slots = array_elem_is_2slot() && a->nr_vars >= 2
+		&& (a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
+		&& a->array.struct_type == 2 ? 2 : 1;
+	int new_size = a->nr_vars - slots;
 	// v14: unref the removed element if it's a heap object
 	if (array_elem_is_ref()) {
 		int removed = a->values[new_size].i;
@@ -1851,10 +1862,11 @@ intptr_t Array_SYSTEMONLY_GetStructPageList_v14(struct page **self)
 	return heap_alloc_page(out);
 }
 
-// Add: alias for Pushback (v14 generic array)
+// Add: the native jump table sends Add and PushBack to the same handler
+// (0x644455), so a two-slot element (interface, option) keeps both slots.
 static void Array_Add(struct page **array, int value)
 {
-	Array_Pushback(array, value);
+	Array_PushBack(array, value);
 }
 
 /* Array query overloads. Ranges are [begin, end), in logical elements.

@@ -304,13 +304,18 @@ static int MainEXFile_Row(struct string *name, int id)
 
 /*
  * [ 8] int Col(string Name, int ID)
+ *
+ * Native 0x4ae006 -> 0x4b00e0 looks the name up as a list first (EX object
+ * vt+0x2c, node type 5) and returns its element count (list vt+8 =
+ * 0x478e50); only a table (vt+0x28, type 4) reports its column count.
+ * EXHelper::GetStringArray sizes flat lists with it (Tutorial::GetCgs).
  */
 static int MainEXFile_Col(struct string *name, int id)
 {
+	struct ex_list *list = resolve_list(name);
+	if (list) return list->nr_items;
 	struct ex_table *t = resolve_table(name);
-	if (t) return t->nr_columns;
-	struct ex_table *lt = list_item_table(resolve_list(name), 0);
-	return lt ? lt->nr_columns : 0;
+	return t ? t->nr_columns : 0;
 }
 
 /*

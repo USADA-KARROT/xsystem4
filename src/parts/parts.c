@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <math.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -255,6 +256,8 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_NUMERAL:
 		state->num.length = 1;
 		state->num.font_no = -1;
+		state->num.zero_pad = true;
+		state->num.font = default_text_style;
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		TAILQ_INIT(&state->cproc.ops);
@@ -435,15 +438,19 @@ void parts_recalculate_hitbox(struct parts *parts)
 
 /*
  * A child's position relative to its parent's anchor (the parent's global
- * position). The parent's reverse flags mirror it around that anchor, as in
- * the original, where each parts' flip is part of its level of the transform
- * (0x537b00 records, applied by 0x4e6d80 before the child's own level).
+ * position). The parent's reverse flags mirror it around that anchor and the
+ * parent's accumulated scale scales it, as in the original, where each parts'
+ * flip and scale are part of its level of the transform (0x537b00 records,
+ * applied by 0x4e6d80 before the child's own level). E.g. Tutorial's
+ * MoveParent shrinks the scene parents to 0.85 with their whole scene.
+ * Rotation still does not move the children (existing simplification).
  */
 static Point parts_child_pos(const struct parts_params *parent, Point local)
 {
+	float x = parent->scale.x * local.x, y = parent->scale.y * local.y;
 	return (Point) {
-		parent->pos.x + (parent->reverse_lr ? -local.x : local.x),
-		parent->pos.y + (parent->reverse_tb ? -local.y : local.y)
+		parent->pos.x + (int)lroundf(parent->reverse_lr ? -x : x),
+		parent->pos.y + (int)lroundf(parent->reverse_tb ? -y : y)
 	};
 }
 
@@ -547,12 +554,22 @@ void parts_set_z(struct parts *parts, int z)
 
 static void parts_update_global_show(struct parts *parts, bool parent_show)
 {
-	parts->global.show = parent_show && parts->local.show;
+	parts->global.show = parent_show && parts->local.show && !parts->edit_hidden;
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
 		parts_update_global_show(child, parts->global.show);
 	}
+}
+
+/* v14 pactex 編輯上表示 = 0: the parts and its subtree are never shown. */
+void parts_set_edit_hidden(struct parts *parts, bool hidden)
+{
+	if (parts->edit_hidden == hidden)
+		return;
+	parts->edit_hidden = hidden;
+	parts_update_global_show(parts, parts->parent ? parts->parent->global.show : true);
+	parts_dirty(parts);
 }
 
 void parts_set_show(struct parts *parts, bool show)
@@ -683,6 +700,11 @@ void parts_set_scale_x(struct parts *parts, float mag)
 	parts->local.scale.x = mag;
 	parts_recalculate_hitbox(parts);
 	parts_update_global_scale_x(parts, parts->parent ? parts->parent->global.scale.x : 1.0f);
+	// The children's offsets scale with it (parts_child_pos).
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_pos(child, &parts->global);
+	}
 	parts_dirty(parts);
 }
 
@@ -701,6 +723,11 @@ void parts_set_scale_y(struct parts *parts, float mag)
 	parts->local.scale.y = mag;
 	parts_recalculate_hitbox(parts);
 	parts_update_global_scale_y(parts, parts->parent ? parts->parent->global.scale.y : 1.0f);
+	// The children's offsets scale with it (parts_child_pos).
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_update_global_pos(child, &parts->global);
+	}
 	parts_dirty(parts);
 }
 
@@ -940,8 +967,66 @@ static int parts_load_numeral_font_combined(struct cg *cg, int cg_no, int w[12])
 	return font_no;
 }
 
+/*
+ * v14 表示タイプ 2 (e.g. SceneHome's NumDay, MoneyView's Money): the number
+ * is drawn as text with the numeral's font, digit spacing, comma grouping
+ * and zero padding. The exact native layout was not traced; the digits use
+ * the same text renderer as text parts.
+ */
+static bool parts_numeral_update_font(struct parts *parts, struct parts_numeral *num)
+{
+	int_least64_t n = num->num;
+	bool negative = n < 0;
+	if (negative)
+		n = -n;
+	char digits[32];
+	int nd = 0;
+	do {
+		digits[nd++] = '0' + n % 10;
+		n /= 10;
+	} while (n && nd < 20);
+	while (num->zero_pad && nd < num->length && nd < 20)
+		digits[nd++] = '0';
+
+	// digits[] is least significant first; build the string forwards.
+	char buf[128];
+	int len = 0;
+	const bool full = num->full_pitch;
+	#define PUT_CHAR(c) do { \
+		if (full) { buf[len++] = '\xa3'; buf[len++] = (c) == '-' ? '\xad' : (c) == ',' ? '\xac' : '\xb0' + ((c) - '0'); } \
+		else buf[len++] = (c); \
+	} while (0)
+	if (negative)
+		PUT_CHAR('-');
+	for (int i = nd - 1; i >= 0; i--) {
+		PUT_CHAR(digits[i]);
+		if (num->show_comma && i > 0 && i % 3 == 0)
+			PUT_CHAR(',');
+	}
+	#undef PUT_CHAR
+	buf[len] = '\0';
+
+	struct text_style ts = num->font;
+	ts.font_spacing = num->space;
+	int w = (int)ceilf(gfx_size_text(&ts, buf));
+	int h = (int)ceilf(ts.size + ts.edge_up + ts.edge_down);
+	if (w <= 0 || h <= 0)
+		return true;
+	gfx_delete_texture(&num->common.texture);
+	gfx_init_texture_rgba(&num->common.texture, w, h, (SDL_Color){0, 0, 0, 0});
+	// As a construction CopyText: transparent edge colour, then copy glyphs.
+	gfx_fill_with_alpha(&num->common.texture, 0, 0, w, h,
+			ts.edge_color.r, ts.edge_color.g, ts.edge_color.b, 0);
+	gfx_render_text(&num->common.texture, 0, 0, buf, &ts, false);
+	parts_set_dims(parts, &num->common, w, h);
+	parts_dirty(parts);
+	return true;
+}
+
 static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 {
+	if (num->have_num && num->show_type == 2)
+		return parts_numeral_update_font(parts, num);
 	// XXX: don't generate texture if number hasn't been set yet
 	if (!num->have_num || num->font_no < 0)
 		return true;
@@ -1109,6 +1194,11 @@ void parts_release(int parts_no)
 
 	parts_list_remove(parts);
 	dirty_list_remove(parts);
+	free(parts->user_component_name);
+	free(parts->button_cg_name);
+	for (int i = 0; i < parts->nr_uc_data; i++)
+		free(parts->uc_data[i]);
+	free(parts->uc_data);
 	free(parts);
 	slot->value = NULL;
 	parts_engine_dirty();
@@ -1201,6 +1291,8 @@ static void parts_update_component(struct parts *parts)
 {
 	if (parts->parent) {
 		parts_combine_params(&parts->parent->global, &parts->local, &parts->global);
+		if (parts->edit_hidden)
+			parts->global.show = false;
 	}
 	if (parts_get_sprite_z(parts) != parts->sp.z
 			|| parts_get_sprite_z2(parts) != parts->sp.z2) {
@@ -1990,9 +2082,52 @@ int PE_GetPartsOriginPosMode(int parts_no)
 	return parts_get(parts_no)->origin_mode;
 }
 
+static bool parts_is_ancestor(struct parts *ancestor, struct parts *parts)
+{
+	for (struct parts *p = parts; p; p = p->parent) {
+		if (p == ancestor)
+			return true;
+	}
+	return false;
+}
+
+/* v14: the native setter (0x58f060 -> 0x58f310 -> 0x550d90) links the child
+ * immediately and 0 detaches it (0x53ab60); an unknown parent is ignored.
+ * AIN walks the tree with NumofChild/GetChild in the same call, e.g.
+ * activity::detail::CallUserComponentEventWithChild right after ReadFile. */
+static void parts_set_parent_now(struct parts *parts, int parent_parts_no)
+{
+	struct parts *parent = NULL;
+	if (parent_parts_no != 0) {
+		parent = parts_try_get(parent_parts_no);
+		if (!parent || parts_is_ancestor(parts, parent))
+			return;
+	}
+	parts->pending_parent = -1;
+	if (parts->parent == parent)
+		return;
+	if (parts->parent) {
+		struct parts *old = parts->parent;
+		TAILQ_REMOVE(&old->children, parts, child_list_entry);
+		if (old->states[0].type == PARTS_LAYOUT_BOX)
+			parts_component_dirty(old);
+	}
+	parts->parent = parent;
+	if (parent) {
+		TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
+		if (parent->states[0].type == PARTS_LAYOUT_BOX)
+			parts_component_dirty(parent);
+	}
+	parts_component_dirty(parts);
+}
+
 void PE_SetParentPartsNumber(int parts_no, int parent_parts_no)
 {
 	struct parts *parts = parts_get(parts_no);
+	if (ain->version >= 14) {
+		parts_set_parent_now(parts, parent_parts_no);
+		return;
+	}
 	parts->pending_parent = parent_parts_no;
 	parts_component_dirty(parts);
 }
@@ -2151,9 +2286,28 @@ void PE_SetComponentType(int parts_no, int type, int state)
 	// and the Create* calls.
 	if (ain->version >= 14) {
 		struct parts *parts = parts_get(parts_no);
+		// Native 0x535e20: the widget already has the type -> nothing
+		// (0x536540). A low-level widget (outer type 18) takes a state type
+		// (19 and up) into that state (0x5653d0) and stays low-level, so
+		// e.g. GetCGDetection's wrapper keeps a detection CG undrawn.
+		// Any other type replaces the widget (raw value, state types
+		// cleared).
+		if (PE_GetComponentType(parts_no, state) == type)
+			return;
+		if (type > 18 && parts->component_type == 18 && state >= 1 && state <= PARTS_NR_STATES) {
+			switch (type) {
+			case 19: case 27: parts_get_cg(parts, state - 1); break;
+			case 21: parts_get_text(parts, state - 1); break;
+			case 24: parts_get_numeral(parts, state - 1); break;
+			default: break;
+			}
+			parts->component_state_type[state - 1] = type;
+			parts_dirty(parts);
+			return;
+		}
 		parts->component_type = type;
 		// Preserve explicit raw setters over the loader's inferred state types.
-		memset(parts->component_type_from_state, 0, sizeof(parts->component_type_from_state));
+		memset(parts->component_state_type, 0, sizeof(parts->component_state_type));
 		return;
 	}
 	if (!parts_state_valid(--state))
@@ -2190,11 +2344,15 @@ int PE_GetComponentType(int parts_no, int state)
 			return -1;
 		struct parts *parts = parts_try_get(parts_no);
 		if (parts) {
-			if (state >= 1 && state <= PARTS_NR_STATES && parts->component_type_from_state[state - 1]) {
+			int native = state >= 1 && state <= PARTS_NR_STATES
+				? parts->component_state_type[state - 1] : 0;
+			if (native) {
+				// A recognized state follows a later CG/text transition.
 				switch (parts->states[state - 1].type) {
-				case PARTS_CG: return 19;
 				case PARTS_TEXT: return 21;
-				default: break;
+				case PARTS_CG: return native == 21 ? 19 : native;
+				case PARTS_NUMERAL: return 24;
+				default: return native;
 				}
 			}
 			return parts->component_type;
@@ -2243,6 +2401,98 @@ bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
 		parts_state_reset(&parts->states[state], PARTS_RECT_DETECTION);
 	parts_set_dims(parts, &parts->states[state].common, w, h);
 	return true;
+}
+
+/* v14 button widget CGs: <base>／普通, ／オン, ／ダウン for the three states;
+ * a disabled button shows <base>／無効 in all three (native rebuild 0x528870
+ * -> 0x529280). The suffixes follow the base name's encoding (GBK ／ is
+ * A3 AF, SJIS ／ is 81 5E). A missing disabled CG keeps the enabled CGs;
+ * the native falls back to a generated panel there (0x528c80), which is
+ * not implemented. */
+static void parts_button_apply_cg(struct parts *parts)
+{
+	static const char *const gbk[] = {
+		"\xa3\xaf\xc6\xd5\xcd\xa8", "\xa3\xaf\xa5\xaa\xa5\xf3",
+		"\xa3\xaf\xa5\xc0\xa5\xa6\xa5\xf3", "\xa3\xaf\x9f\x6f\x84\xbf" };
+	static const char *const sjis[] = {
+		"\x81\x5e\x92\xca\x8f\xed", "\x81\x5e\x83\x49\x83\x93",
+		"\x81\x5e\x83\x5f\x83\x45\x83\x93", "\x81\x5e\x96\xb3\x8c\xf8" };
+	const char *base = parts->button_cg_name;
+	if (!base)
+		return;
+	const char *const *suffix = strstr(base, "\xa3\xaf") ? gbk : sjis;
+	char name[512];
+	bool disabled = false;
+	if (parts->button_disabled) {
+		snprintf(name, sizeof(name), "%s%s", base, suffix[3]);
+		disabled = asset_exists_by_name(ASSET_CG, name, NULL);
+	}
+	for (int st = 0; st < PARTS_NR_STATES; st++) {
+		if (!disabled)
+			snprintf(name, sizeof(name), "%s%s", base, suffix[st]);
+		struct string *cg = cstr_to_string(name);
+		PE_SetPartsCG(parts->no, cg, 0, st + 1);
+		free_string(cg);
+	}
+}
+
+void parts_button_set_cg_name(struct parts *parts, const char *base)
+{
+	free(parts->button_cg_name);
+	parts->button_cg_name = base && base[0] ? xstrdup(base) : NULL;
+	parts_button_apply_cg(parts);
+}
+
+/* Native 0x53d990: an existing parts becomes a button widget (SetComponentType
+ * 0, state 1; no change for a button) and the call acts on that widget. */
+static struct parts *parts_button_widget(int parts_no)
+{
+	struct parts *parts = parts_try_get(parts_no);
+	if (parts && ain->version >= 14 && parts->component_type != 0)
+		PE_SetComponentType(parts_no, 0, 1);
+	return parts;
+}
+
+/* SetButtonEnable (case 212 -> 0x590b70): write the flag only when it
+ * changes, then rebuild the button's CGs. A missing parts is ignored. */
+void PE_SetButtonEnable(int parts_no, bool enable)
+{
+	struct parts *parts = parts_button_widget(parts_no);
+	if (!parts || parts->button_disabled == !enable)
+		return;
+	parts->button_disabled = !enable;
+	parts_button_apply_cg(parts);
+}
+
+/* IsButtonEnable (case 213 -> 0x590ba0): the flag; false without a parts. */
+bool PE_IsButtonEnable(int parts_no)
+{
+	struct parts *parts = parts_button_widget(parts_no);
+	return parts && !parts->button_disabled;
+}
+
+const char *parts_uc_data_get(struct parts *parts, const char *key)
+{
+	for (int i = 0; i + 1 < parts->nr_uc_data; i += 2) {
+		if (!strcmp(parts->uc_data[i], key))
+			return parts->uc_data[i + 1];
+	}
+	return NULL;
+}
+
+void parts_uc_data_set(struct parts *parts, const char *key, const char *value)
+{
+	for (int i = 0; i + 1 < parts->nr_uc_data; i += 2) {
+		if (!strcmp(parts->uc_data[i], key)) {
+			free(parts->uc_data[i + 1]);
+			parts->uc_data[i + 1] = xstrdup(value);
+			return;
+		}
+	}
+	parts->uc_data = xrealloc_array(parts->uc_data, parts->nr_uc_data,
+			parts->nr_uc_data + 2, sizeof(char*));
+	parts->uc_data[parts->nr_uc_data++] = xstrdup(key);
+	parts->uc_data[parts->nr_uc_data++] = xstrdup(value);
 }
 
 bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)

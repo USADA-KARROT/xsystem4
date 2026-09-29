@@ -183,6 +183,11 @@ struct parts_numeral {
 	int show_comma;
 	int length;
 	int font_no;
+	// v14 表示タイプ 2: the digits are drawn with a font, not a CG font.
+	int show_type;
+	bool zero_pad;   // ゼロパディング: pad to `length` with 0
+	bool full_pitch; // 全角: full-width digits
+	struct text_style font;
 };
 
 struct parts_gauge {
@@ -455,10 +460,25 @@ struct parts {
 	int margin_right;
 	struct parts_motion_list motion;
 	int controller_no;
-	int component_type;   // v14 component widget type
-	bool component_type_from_state[PARTS_NR_STATES]; // pactex low-level CG/text states
+	int component_type;   // v14 component widget type (EPartsType)
+	// v14 low-level (EPartsType 18) state types recognized by the pactex
+	// loader (19 CG, 21 text, 24 numeral, 27 CG detection); 0 = none.
+	int component_state_type[PARTS_NR_STATES];
 	int unique_id;        // v14 unique ID for event dispatch
 	char *user_component_name; // v14 user component name from pactex (heap-allocated)
+	// v14 button widget: base CG name (<base>／普通 etc.) and the native
+	// enable flag (+0xb0, default enabled), stored inverted so a new parts
+	// starts enabled.
+	char *button_cg_name;
+	bool button_disabled;
+	// v14 user component data: key/value strings from the pactex 數據 list
+	// (Get/SetUserComponentData), stored as key0, value0, key1, value1, ...
+	char **uc_data;
+	int nr_uc_data;
+	// v14 pactex 編輯上表示 = 0: the parts and its subtree are never shown
+	// (folded into global.show). The native parts keeps it at +0xac beside
+	// 表示 (+0xab) and skips a parts unless both are set (e.g. 0x53c3c5).
+	bool edit_hidden;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -467,6 +487,10 @@ struct parts {
 
 // parts.c
 extern struct parts_list parts_list;
+void parts_button_set_cg_name(struct parts *parts, const char *base);
+void parts_set_edit_hidden(struct parts *parts, bool hidden);
+void parts_uc_data_set(struct parts *parts, const char *key, const char *value);
+const char *parts_uc_data_get(struct parts *parts, const char *key);
 
 // Controllers are identified by their position in the stack (0 = bottom). The
 // system overlay controller lives outside the stack.

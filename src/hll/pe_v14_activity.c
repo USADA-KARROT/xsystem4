@@ -464,31 +464,142 @@ static void pactex_apply_text_style(struct ex_tree *state, int parts_no, int pe_
 	}
 }
 
-static enum parts_type pactex_low_level_type(struct ex_tree *state)
+/* 部件タイプ names in EPartsType order: native 0x4eda70 builds this table
+ * and 0x5b8f90 uses a name's index as the widget type (CN/GBK spellings from
+ * the table's string literals). A name outside the table keeps the loader's
+ * legacy structural guess. */
+enum {
+	PACTEX_EPT_BUTTON = 0,
+	PACTEX_EPT_LAYOUT_BOX = 8,
+	PACTEX_EPT_USER_COMPONENT = 17,
+	PACTEX_EPT_LOW_LEVEL = 18,
+	PACTEX_EPT_CG = 19,
+	PACTEX_EPT_TEXT = 21,
+	PACTEX_EPT_NUMERAL = 24,
+	PACTEX_EPT_CG_DETECTION = 27,
+	PACTEX_EPT_COUNT = 31,
+};
+static const char *const pactex_ept_names[PACTEX_EPT_COUNT] = {
+	"\xb0\xb4\xe2\x6f",                                     /* 0 按鈕 */
+	"\x99\x7a\xb2\xe9\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9",             /* 1 檢查ボックス */
+	"\xd8\x51\x9d\x4c\x84\xd3\x97\x6c",                         /* 2 豎滾動條 */
+	"\x99\x4d\x9d\x4c\x84\xd3\x97\x6c",                         /* 3 橫滾動條 */
+	"\xce\xc4\xb1\xbe\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9",             /* 4 文本ボックス */
+	"\xa5\xea\xa5\xb9\xa5\xc8\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9",     /* 5 リストボックス */
+	"\xa5\xb3\xa5\xf3\xa5\xdc\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9",     /* 6 コンボボックス */
+	"\xa5\xde\xa5\xeb\xa5\xc1\xa5\xe9\xa5\xa4\xa5\xf3\xce\xc4\xb1\xbe\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9", /* 7 */
+	"\xa5\xec\xa5\xa4\xa5\xa2\xa5\xa6\xa5\xc8\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9", /* 8 レイアウトボックス */
+	"\xa5\xe9\xa5\xb8\xa5\xaa\xb0\xb4\xe2\x6f\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9", /* 9 ラジオ按鈕ボックス */
+	"\xd0\xc5\xcf\xa2\xb4\xb0\xbf\xda",                         /* 10 信息窗口 */
+	"\xa5\xb9\xa5\xd4\xa5\xf3\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9",     /* 11 スピンボックス */
+	"\xd8\x51\xbb\xac\x89\x4b\xa9\x60\xa5\xd0\xa9\x60",             /* 12 豎滑塊ーバー */
+	"\x99\x4d\xbb\xac\x89\x4b\xa9\x60\xa5\xd0\xa9\x60",             /* 13 橫滑塊ーバー */
+	"\xa5\xd1\xa5\xcd\xa5\xeb",                                 /* 14 パネル */
+	"\xa5\xd5\xa5\xa9\xa9\x60\xa5\xe0",                         /* 15 フォーム */
+	"\xa5\xd5\xa5\xa9\xa9\x60\xa5\xe0\xc8\xba\xbd\x4d",             /* 16 フォーム群組 */
+	"\xa5\xe6\xa9\x60\xa5\xb6\xa5\xb3\xa5\xf3\xa5\xdd\xa9\x60\xa5\xcd\xa5\xf3\xa5\xc8", /* 17 ユーザコンポーネント */
+	"\xb5\xcd\xb5\xc8\xbc\x89\xb2\xbf\xbc\xfe",                     /* 18 低等級部件 */
+	"\xa3\xc3\xa3\xc7\xb2\xbf\xbc\xfe",                         /* 19 ＣＧ部件 */
+	"\xd1\xad\xad\x68\xa3\xc3\xa3\xc7\xb2\xbf\xbc\xfe",             /* 20 循環ＣＧ部件 */
+	"\xce\xc4\xb1\xbe\xb2\xbf\xbc\xfe",                         /* 21 文本部件 */
+	"\x99\x4d\xa5\xb2\xa9\x60\xa5\xb8\xb2\xbf\xbc\xfe",             /* 22 橫ゲージ部件 */
+	"\xd8\x51\xa5\xb2\xa9\x60\xa5\xb8\xb2\xbf\xbc\xfe",             /* 23 豎ゲージ部件 */
+	"\x94\xb5\xd7\xd6\xb2\xbf\xbc\xfe",                         /* 24 數字部件 */
+	"\xbe\xd8\xd0\xce\xb2\xbf\xbc\xfe",                         /* 25 矩形部件 */
+	"\x98\x8b\xba\x42\xb2\xbf\xbc\xfe",                         /* 26 構築部件 */
+	"\xa3\xc3\xa3\xc7\xc5\xd0\xb6\xa8\xb2\xbf\xbc\xfe",             /* 27 ＣＧ判定部件 */
+	"\xa5\xd5\xa5\xe9\xa5\xc3\xa5\xc8\xb2\xbf\xbc\xfe",             /* 28 フラット部件 */
+	"\xa3\xb3\xa3\xc4\xa5\xec\xa5\xa4\xa5\xe4\xb2\xbf\xbc\xfe",     /* 29 ３Ｄレイヤ部件 */
+	"\xa5\xe0\xa9\x60\xa5\xd3\xa9\x60\xb2\xbf\xbc\xfe",             /* 30 ムービー部件 */
+};
+
+static int pactex_native_type(const char *name)
 {
-	const char *type = pactex_get_string(state, SJIS_PARTS_TYPE);
-	if (!type) type = pactex_get_string(state, GBK_PARTS_TYPE);
-	if (!type) return PARTS_UNINITIALIZED;
-	if (!strcmp(type, "\x83\x65\x83\x4c\x83\x58\x83\x67\x83\x70\x81\x5b\x83\x63") ||
-			!strcmp(type, "\xce\xc4\xb1\xbe\xb2\xbf\xbc\xfe")) /* テキストパーツ / 文本部件 */
-		return PARTS_TEXT;
-	if (!strcmp(type, "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63") ||
-			!strcmp(type, "\xa3\xc3\xa3\xc7\xb2\xbf\xbc\xfe")) /* ＣＧパーツ / ＣＧ部件 */
-		return PARTS_CG;
-	return PARTS_UNINITIALIZED;
+	if (!name)
+		return -1;
+	for (int i = 0; i < PACTEX_EPT_COUNT; i++) {
+		if (!strcmp(name, pactex_ept_names[i]))
+			return i;
+	}
+	return -1;
+}
+
+static const char *pactex_parts_type_name(struct ex_tree *node)
+{
+	const char *type = pactex_get_string(node, SJIS_PARTS_TYPE);
+	return type ? type : pactex_get_string(node, GBK_PARTS_TYPE);
+}
+
+/* Low-level state types the loader builds (see pactex_apply_low_level_state);
+ * others keep the legacy ordinal CG fallback and report the outer type. */
+static int pactex_low_level_type(struct ex_tree *state)
+{
+	const char *type = pactex_parts_type_name(state);
+	if (!type) return -1;
+	if (!strcmp(type, "\x83\x65\x83\x4c\x83\x58\x83\x67\x83\x70\x81\x5b\x83\x63")) /* テキストパーツ */
+		return PACTEX_EPT_TEXT;
+	if (!strcmp(type, "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63")) /* ＣＧパーツ */
+		return PACTEX_EPT_CG;
+	switch (pactex_native_type(type)) {
+	case PACTEX_EPT_CG: return PACTEX_EPT_CG;
+	case PACTEX_EPT_TEXT: return PACTEX_EPT_TEXT;
+	case PACTEX_EPT_NUMERAL: return PACTEX_EPT_NUMERAL;
+	case PACTEX_EPT_CG_DETECTION: return PACTEX_EPT_CG_DETECTION;
+	default: return -1;
+	}
+}
+
+/* 數字部件: numeral widget state. 表示タイプ 2 draws the digits with the
+ * state's font (フォントタイプ/サイズ/色/太さ/縁取り/縁取り色), padded with
+ * zeros (ゼロパディング) and full-width if 全角; see parts_numeral_update_font. */
+static void pactex_apply_numeral_state(struct ex_tree *state, int parts_no, int pe_state)
+{
+	struct parts_numeral *num = parts_get_numeral(parts_get(parts_no), pe_state - 1);
+	num->show_type = pactex_get_int(state, "\x95\x5c\x8e\xa6\x83\x5e\x83\x43\x83\x76", /* 表示タイプ */
+		pactex_get_int(state, "\xb1\xed\xca\xbe\xa5\xbf\xa5\xa4\xa5\xd7", 0));
+	num->zero_pad = pactex_get_int(state, "\x83\x5b\x83\x8d\x83\x70\x83\x66\x83\x42\x83\x93\x83\x4f", /* ゼロパディング */
+		pactex_get_int(state, "\xa5\xbc\xa5\xed\xa5\xd1\xa5\xc7\xa5\xa3\xa5\xf3\xa5\xb0", 1)) != 0;
+	num->full_pitch = pactex_get_int(state, "\x91\x53\x8a\x70", /* 全角 */
+		pactex_get_int(state, "\xc8\xab\xbd\xc7", 0)) != 0;
+	struct text_style *ts = &num->font;
+	ts->face = pactex_message_number(state, PACTEX_MW_FACE, 0);
+	ts->size = pactex_message_number(state, PACTEX_MW_SIZE, 16);
+	ts->color = (SDL_Color) { pactex_message_item(state, PACTEX_MW_COLOR, 0, 255),
+		pactex_message_item(state, PACTEX_MW_COLOR, 1, 255),
+		pactex_message_item(state, PACTEX_MW_COLOR, 2, 255), 255 };
+	float bold = pactex_message_number(state, PACTEX_MW_WEIGHT, 0);
+	ts->weight = bold * 1000;
+	ts->bold_weight = bold;
+	ts->edge_color = (SDL_Color) { pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 0, 0),
+		pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 1, 0),
+		pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 2, 0), 255 };
+	text_style_set_edge_width(ts, pactex_message_number(state, PACTEX_MW_EDGE, 0));
+	int length = pactex_get_int(state, "\x8c\x85\x90\x94", /* 桁数 */
+		pactex_get_int(state, "\xe8\xec\x94\xb5", 1)); /* 桁數 */
+	PE_SetNumeralLength(parts_no, length, pe_state);
+	int comma = pactex_get_int(state, "\x83\x52\x83\x93\x83\x7d\x95\x5c\x8e\xa6", /* コンマ表示 */
+		pactex_get_int(state, "\xa5\xb3\xa5\xf3\xa5\xde\xb1\xed\xca\xbe", 0));
+	PE_SetNumeralShowComma(parts_no, comma != 0, pe_state);
+	int space = pactex_get_int(state, "\x8e\x9a\x8a\xd4\x8a\x75", /* 字間隔 */
+		pactex_get_int(state, "\xd7\xd6\xe9\x67\xb8\xf4", 0));
+	PE_SetNumeralSpace(parts_no, space, pe_state);
 }
 
 static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, int pe_state)
 {
 	if (!pe_state) return false;
-	enum parts_type type = pactex_low_level_type(state);
-	if (type == PARTS_UNINITIALIZED) return false;
-	bool text = type == PARTS_TEXT;
+	int type = pactex_low_level_type(state);
+	if (type < 0) return false;
+	bool text = type == PACTEX_EPT_TEXT;
+	bool numeral = type == PACTEX_EPT_NUMERAL;
 	struct parts *parts = parts_get(parts_no);
 	if (text) {
 		parts_get_text(parts, pe_state - 1);
 		pactex_apply_text_style(state, parts_no, pe_state);
+	} else if (numeral) {
+		pactex_apply_numeral_state(state, parts_no, pe_state);
 	} else {
+		// ＣＧ部件, or ＣＧ判定部件: a CG kept for hit testing, not drawn.
 		parts_get_cg(parts, pe_state - 1);
 		const char *cg_name = pactex_find_cg_name(state, 0);
 		if (cg_name) {
@@ -496,8 +607,10 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 			PE_SetPartsCG(parts_no, s, 0, pe_state);
 			free_string(s);
 		}
+		if (type == PACTEX_EPT_CG_DETECTION)
+			PE_SetClickable(parts_no, true);
 	}
-	parts->component_type_from_state[pe_state - 1] = true;
+	parts->component_state_type[pe_state - 1] = type;
 	// Use the matching setter: the CG setter would destroy a text state.
 	struct ex_list *area = pactex_get_list(state, SJIS_SURFACE_AREA);
 	if (!area) area = pactex_get_list(state, "\xa5\xb5\xa9\x60\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2");
@@ -507,10 +620,11 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 			area->items[2].value.type == EX_INT && area->items[3].value.type == EX_INT) {
 		x = area->items[0].value.i; y = area->items[1].value.i;
 		w = area->items[2].value.i; h = area->items[3].value.i;
-	} else if (text || !pactex_get_surface_area(state, &x, &y, &w, &h, 0)) {
+	} else if (text || numeral || !pactex_get_surface_area(state, &x, &y, &w, &h, 0)) {
 		return true;
 	}
 	if (text) PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, pe_state);
+	else if (numeral) PE_SetNumeralSurfaceArea(parts_no, x, y, w, h, pe_state);
 	else PE_SetPartsCGSurfaceArea(parts_no, x, y, w, h, pe_state);
 	return true;
 }
@@ -543,6 +657,11 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	int show = pactex_get_int(node, SJIS_SHOW, -1);
 	if (show < 0) show = pactex_get_int(node, GBK_SHOW, 1);
 	PE_SetShow(parts_no, show);
+	/* 編輯上表示 = 0 hides the parts and its subtree at run time as well
+	 * (native parser 0x553dfa stores it at parts +0xac; see
+	 * parts->edit_hidden). Only the CN spelling is known. */
+	parts_set_edit_hidden(parts_get(parts_no),
+		!pactex_get_int(node, "\xbe\x8e\xdd\x8b\xc9\xcf\xb1\xed\xca\xbe", 1));
 
 	/* Extract alpha: アルファ = int 0-255 */
 	int alpha = pactex_get_int(node, SJIS_ALPHA, -1);
@@ -657,36 +776,14 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	/* --- Handle ボタン / 按鈕 (Button) type: load CG images for each state --- */
 	if (ptype && (strstr(ptype, SJIS_BUTTON) || strstr(ptype, GBK_BUTTON)
 			|| strstr(ptype, GBK_CN_BUTTON))) {
-		/* ＣＧ名 field has the base CG path (e.g. "システム／タイトル／ボタン／はじめから").
-		 * Button CGs are stored as <base>／通常, <base>／オン, <base>／ダウン. */
+		/* ＣＧ名 is the base path (e.g. "システム／タイトル／ボタン／はじめから");
+		 * the widget shows <base>／普通 (SJIS ／通常), ／オン, ／ダウン, and
+		 * <base>／無効 while disabled (see parts_button_set_cg_name). */
 		const char *cg_base = pactex_get_string(type_info, SJIS_CG_MEI);
 		if (!cg_base)
 			cg_base = pactex_get_string(type_info, GBK_CG_MEI);
 		if (cg_base) {
-			/* Detect encoding from CG base path. GBK fullwidth ／ = A3 AF.
-			 * SJIS fullwidth ／ = 81 5E. */
-			bool is_gbk_path = (strstr(cg_base, "\xa3\xaf") != NULL);
-
-			/* SJIS: ／通常, ／オン, ／ダウン */
-			static const char *sjis_suffixes[] = {
-				"\x81\x5E\x92\xCA\x8F\xED",       /* ／通常 (DEFAULT) */
-				"\x81\x5E\x83\x49\x83\x93",       /* ／オン (HOVERED) */
-				"\x81\x5E\x83\x5F\x83\x45\x83\x93" /* ／ダウン (CLICKED) */
-			};
-			/* GBK: ／普通, ／オン, ／ダウン (CN uses 普通 instead of 通常) */
-			static const char *gbk_suffixes[] = {
-				"\xa3\xaf\xc6\xd5\xcd\xa8",             /* ／普通 (DEFAULT) */
-				"\xa3\xaf\xa5\xaa\xa5\xf3",             /* ／オン (HOVERED) */
-				"\xa3\xaf\xa5\xc0\xa5\xa6\xa5\xf3"      /* ／ダウン (CLICKED) */
-			};
-			const char **suffixes = is_gbk_path ? gbk_suffixes : sjis_suffixes;
-			for (int st = 0; st < 3; st++) {
-				char buf[512];
-				snprintf(buf, sizeof(buf), "%s%s", cg_base, suffixes[st]);
-				struct string *cg_name = cstr_to_string(buf);
-				PE_SetPartsCG(parts_no, cg_name, 0, st + 1);
-				free_string(cg_name);
-			}
+			parts_button_set_cg_name(parts_get(parts_no), cg_base);
 			/* Mark as clickable */
 			PE_SetClickable(parts_no, true);
 		}
@@ -714,7 +811,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		if (state->is_leaf) continue;
 
 		int pe_state = ++state_idx; /* Preserve legacy order for unknown types. */
-		if (low_level && pactex_named_state(state) && pactex_low_level_type(state) != PARTS_UNINITIALIZED)
+		if (low_level && pactex_named_state(state) && pactex_low_level_type(state) >= 0)
 			continue;
 
 		/* Search for ＣＧ名 (CG name) leaf — may be nested in 素材リスト/素材N/ */
@@ -750,11 +847,55 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	}
 }
 
+static const char *pactex_get_exact_string(struct ex_tree *node, const char *name)
+{
+	if (!node || node->is_leaf) return NULL;
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (c->is_leaf && c->name && !strcmp(c->name->text, name)
+				&& c->leaf.value.type == EX_STRING && c->leaf.value.s)
+			return c->leaf.value.s->text;
+	}
+	return NULL;
+}
+
+/* Widget type and user component name of a pactex component. The native
+ * loader (0x5b8f90) indexes 部件タイプ in the EPartsType name table and a
+ * user component reads ユーザコンポーネント名 (0x4e50c0); GetUserComponentName
+ * returns that string, e.g. "Fotter" for SceneHome's Footer. Returns false
+ * for a name outside the table so the caller keeps its legacy guess. */
+static bool pactex_apply_native_type(struct ex_tree *node, struct parts *p)
+{
+	struct ex_tree *type_info = pactex_find_type_info(node);
+	int type = pactex_native_type(type_info ? pactex_parts_type_name(type_info) : NULL);
+	if (type < 0)
+		return false;
+	p->component_type = type;
+	free(p->user_component_name);
+	p->user_component_name = NULL;
+	if (type == PACTEX_EPT_USER_COMPONENT) {
+		const char *uc = pactex_get_exact_string(type_info,
+			"\xa5\xe6\xa9\x60\xa5\xb6\xa5\xb3\xa5\xf3\xa5\xdd\xa9\x60\xa5\xcd\xa5\xf3\xa5\xc8\xc3\xfb");
+		if (!uc) uc = pactex_get_exact_string(type_info,
+			"\x83\x86\x81\x5b\x83\x55\x83\x52\x83\x93\x83\x7c\x81\x5b\x83\x6c\x83\x93\x83\x67\x96\xbc");
+		if (uc && uc[0])
+			p->user_component_name = strdup(uc);
+		/* 數據 (SJIS データ): a key, value, key, value, ... string list. */
+		struct ex_list *data = pactex_get_list(type_info, "\x94\xb5\x93\xfe");
+		if (!data) data = pactex_get_list(type_info, "\x83\x66\x81\x5b\x83\x5e");
+		for (unsigned i = 0; data && i + 1 < data->nr_items; i += 2) {
+			struct ex_value *k = &data->items[i].value, *v = &data->items[i + 1].value;
+			if (k->type == EX_STRING && v->type == EX_STRING && k->s && v->s)
+				parts_uc_data_set(p, k->s->text, v->s->text);
+		}
+	}
+	return true;
+}
+
 /* Recursively create PE parts entries from a pactex component branch.
- * Component type is determined STRUCTURALLY:
- *   - Has a "部件" sub-branch → type 17 (UserComponent / container)
- *   - No children → type 1 (leaf component, e.g. sprite)
- * This avoids unreliable parsing of GBK field names for type detection. */
+ * A 部件タイプ from the native table decides the widget type (see
+ * pactex_apply_native_type). Otherwise the type is guessed structurally:
+ * containers and CG-less leaves 0, leaves with a CG 1. */
 static void pactex_create_component(struct activity *act, struct ex_tree *node,
 		int parent_no, int depth)
 {
@@ -763,7 +904,7 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	int parts_no = alloc_activity_parts_no();
 	struct parts *p = parts_get(parts_no);
 
-	/* Store user component name from pactex tree node */
+	/* Legacy: the node name stands in for an unknown widget's UC name. */
 	free(p->user_component_name);
 	p->user_component_name = strdup(node->name->text);
 
@@ -781,11 +922,11 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 	/* Find child components branch — determines if this is a container */
 	struct ex_tree *buhin = pactex_find_buhin(node);
 
-	/* Component type: 0 for containers, 1 for leaf sprites, 17 for UserComponent.
-	 * Type 17 = UserComponent — tells game code to instantiate a registered
-	 * component template via GetUserComponentManager/AddUserComponent system.
-	 * Rule: leaf nodes (no children) without a CG texture → UserComponent. */
-	if (buhin && buhin->nr_children > 0) {
+	/* Legacy structural guess: 0 for containers and CG-less leaves, 1 for
+	 * leaves with a CG. */
+	if (pactex_apply_native_type(node, p)) {
+		/* native widget type */
+	} else if (buhin && buhin->nr_children > 0) {
 		p->component_type = 0;   /* generic container */
 	} else {
 		/* Check if this leaf has CG data (texture) — if so, it's a sprite.
@@ -861,9 +1002,10 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	free(root->user_component_name);
 	root->user_component_name = strdup(root_branch->name->text);
 
-	/* Root container — type 0 (not 17, which would trigger UserComponent lookup) */
+	/* Root container: its native type (usually a layout box), else 0. */
 	struct ex_tree *root_buhin = pactex_find_buhin(root_branch);
 	root->component_type = 0;
+	pactex_apply_native_type(root_branch, root);
 
 	/* Register root with actual name, empty name sentinel, and "ルートパーツ" alias.
 	 * The game looks up root parts by various names:
@@ -1125,13 +1267,21 @@ static int PartsEngine_NumofActivityParts(struct string *name)
 	return idx >= 0 ? activities[idx].nr_parts : 0;
 }
 
-static bool PartsEngine_GetActivityParts(int index, struct string *name, int parts_name_slot, int number_slot)
+/* bool GetActivityParts(int Index, string Name, wrap<string> PartsName,
+ * wrap<int> Number): native case 36 (0x57c2f5 -> 0x58a9c0) writes both
+ * outputs for the index-th entry. ActivityHelper::GetPartsNames builds the
+ * list GetUser<T>("Button\d") binds (Footer buttons, among others). */
+static bool PartsEngine_GetActivityParts(int index, struct string *name, int parts_name_slot,
+		union vm_value *number)
 {
 	int idx = find_activity(name);
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
 	if (index < 0 || index >= act->nr_parts) return false;
-	/* TODO: set parts_name and number via wrap slots */
+	struct activity_part *ap = &act->parts[index];
+	wrap_slot_set_string(parts_name_slot, make_string(ap->name, strlen(ap->name)));
+	if (number)
+		number->i = ap->number;
 	return true;
 }
 

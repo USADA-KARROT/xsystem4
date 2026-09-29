@@ -129,6 +129,8 @@ bool PE_SetThumbnailReductionSize(int reduction_size);
 bool PE_SetThumbnailMode(bool Mode);
 void PE_SetComponentType(int parts_no, int type, int state);
 int PE_GetComponentType(int parts_no, int state);
+void PE_SetButtonEnable(int parts_no, bool enable);
+bool PE_IsButtonEnable(int parts_no);
 void PE_SetInputState(int parts_no, int state);
 int PE_GetInputState(int parts_no);
 bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state);

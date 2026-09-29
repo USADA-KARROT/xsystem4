@@ -167,12 +167,12 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 	};
 	float blend_rate = parts->global.alpha / 255.0;
 
-	// Reverse flags mirror the text around the parts' anchor like any other
-	// box (text has no rotation or scale here).
-	bool reversed = parts->global.reverse_lr || parts->global.reverse_tb;
+	// The glyphs are placed in the parts' anchor frame like any other box:
+	// reverse flags mirror, and scale and rotation apply around the anchor
+	// (e.g. a FooterButton caption: font size 49 at scale 0.5). Without
+	// either this is the plain translate/scale of each glyph.
 	mat4 anchor;
-	if (reversed)
-		parts_anchor_transform(parts, 0.0f, false, anchor);
+	parts_anchor_transform(parts, glm_rad(parts->local.rotation.z), true, anchor);
 
 	int x = position.x;
 	int y = position.y;
@@ -180,12 +180,10 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 		struct parts_text_line *line = &t->lines[i];
 		for (int j = 0; j < line->nr_chars; j++) {
 			struct parts_text_char *ch = &line->chars[j];
-			mat4 mw_transform = WORLD_TRANSFORM(ch->t.w, ch->t.h, x, y);
-			if (reversed) {
-				glm_mat4_copy(anchor, mw_transform);
-				glm_translate(mw_transform, (vec3){ x - parts->global.pos.x, y - parts->global.pos.y, 0 });
-				glm_scale(mw_transform, (vec3){ ch->t.w, ch->t.h, 1.0f });
-			}
+			mat4 mw_transform;
+			glm_mat4_copy(anchor, mw_transform);
+			glm_translate(mw_transform, (vec3){ x - parts->global.pos.x, y - parts->global.pos.y, 0 });
+			glm_scale(mw_transform, (vec3){ ch->t.w, ch->t.h, 1.0f });
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
 			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
 			x += ch->advance;
@@ -642,6 +640,9 @@ void parts_render(struct parts *parts)
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];
+	// v14 ＣＧ判定部件 (EPartsType 27): the CG only defines the hit area.
+	if (parts->component_state_type[parts->state] == 27)
+		return;
 	switch (state->type) {
 	case PARTS_UNINITIALIZED:
 	case PARTS_RECT_DETECTION:

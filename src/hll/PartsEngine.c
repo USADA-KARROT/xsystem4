@@ -1573,6 +1573,34 @@ static void PE_v14_SetUserComponentName(int number, struct string *name)
 	p->user_component_name = name && name->size ? xstrdup(name->text) : NULL;
 }
 
+/* Native 0x53e470 -> 0x5372c0: an existing parts becomes a user component
+ * widget (SetComponentType 17, state 1; no change for one) and the data
+ * calls act on its key/value map. Without a parts, Get returns "". */
+static struct parts *pe_v14_user_component(int number)
+{
+	struct parts *p = parts_try_get(number);
+	if (p && p->component_type != 17)
+		PE_SetComponentType(number, 17, 1);
+	return p;
+}
+
+/* SetUserComponentData (case 695 -> 0x597ff0 -> 0x4e4860). */
+static void PE_v14_SetUserComponentData(int number, struct string *key, struct string *value)
+{
+	struct parts *p = pe_v14_user_component(number);
+	if (p)
+		parts_uc_data_set(p, key->text, value->text);
+}
+
+/* GetUserComponentData (case 696 -> 0x598020): the value for the key, or ""
+ * (e.g. SceneHome's Footer: "Button" -> the four footer captions). */
+static struct string *PE_v14_GetUserComponentData(int number, struct string *key)
+{
+	struct parts *p = pe_v14_user_component(number);
+	const char *value = p ? parts_uc_data_get(p, key->text) : NULL;
+	return value ? make_string(value, strlen(value)) : string_ref(&EMPTY_STRING);
+}
+
 /* --- Panel support (fork implementation) --- */
 static void PE_v14_SetPanelSize(int parts_no, int w, int h)
 {
@@ -1641,6 +1669,8 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "IsExistChild", PE_v14_IsExistChild);
 	static_library_register(lib, "GetUserComponentName", PE_v14_GetUserComponentName);
 	static_library_register(lib, "SetUserComponentName", PE_v14_SetUserComponentName);
+	static_library_register(lib, "SetUserComponentData", PE_v14_SetUserComponentData);
+	static_library_register(lib, "GetUserComponentData", PE_v14_GetUserComponentData);
 	static_library_register(lib, "Parts_SetComment", PE_v14_Parts_SetComment);
 	static_library_register(lib, "Parts_GetPartsSize", PE_GetPartsSize);
 	static_library_register(lib, "Parts_GetPartsCGDeform", PE_GetPartsCGDeform);
@@ -1667,6 +1697,8 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "GetMessageWindowFlatName", PE_v14_GetMessageWindowFlatName);
 	static_library_register(lib, "SetMessageWindowTextOriginPosMode", PE_SetMessageWindowTextOriginPosMode);
 	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
+	static_library_register(lib, "SetButtonEnable", PE_SetButtonEnable);
+	static_library_register(lib, "IsButtonEnable", PE_IsButtonEnable);
 #include "pe_v14_prelink.h"
 }
 

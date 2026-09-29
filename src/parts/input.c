@@ -148,6 +148,18 @@ void parts_input_reset_drag(struct parts *parts)
 		drop_target = NULL;
 }
 
+/* A disabled v14 button has no cursor or click sound: native 0x5285b0 empties
+ * the inner parts' sound names every frame while +0xb0 is false. */
+static int parts_cursor_sound(struct parts *parts)
+{
+	return parts->button_disabled ? -1 : parts->on_cursor_sound;
+}
+
+static int parts_click_sound(struct parts *parts)
+{
+	return parts->button_disabled ? -1 : parts->on_click_sound;
+}
+
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
 		int passed_time, bool *hover_consumed, bool *click_consumed)
 {
@@ -197,7 +209,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	bool click_eligible = parts->clickable || !parts->pass_cursor;
 	if (!click_eligible || *click_consumed) {
 		if (!was_hovered)
-			audio_play_sound(parts->on_cursor_sound);
+			audio_play_sound(parts_cursor_sound(parts));
 		parts_set_state(parts, PARTS_STATE_HOVERED);
 		return;
 	}
@@ -224,7 +236,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		parts_set_state(parts, PARTS_STATE_CLICKED);
 	} else {
 		if (!was_hovered) {
-			audio_play_sound(parts->on_cursor_sound);
+			audio_play_sound(parts_cursor_sound(parts));
 		}
 		parts_set_state(parts, PARTS_STATE_HOVERED);
 	}
@@ -236,7 +248,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	// every later WaitForClick exit immediately (dialogue auto-skipped).
 	if (ain->version < 14 && parts->clickable && prev_clicking && !cur_clicking
 			&& click_down_parts == parts->no) {
-		audio_play_sound(parts->on_click_sound);
+		audio_play_sound(parts_click_sound(parts));
 		clicked_parts = parts->no;
 
 		parts_msg_push(parts, PARTS_MSG_MOUSE_CLICK,
@@ -363,8 +375,8 @@ void PE_UpdateInputState(int passed_time)
 		if (getenv("XSYS4_STAGE2_TRACE"))
 			NOTICE("S2 click target=%d", click_target ? click_target->no : 0);
 		if (click_target) {
-			if (click_target->on_click_sound >= 0)
-				audio_play_sound(click_target->on_click_sound);
+			if (parts_click_sound(click_target) >= 0)
+				audio_play_sound(parts_click_sound(click_target));
 			clicked_parts = click_target->no;
 			// type 4 = MouseClick (CallEvent3: x,y,keyCode) in
 			// CPartsMessageManager's SWITCH (bytecode-verified; type 5
