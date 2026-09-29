@@ -85,6 +85,9 @@
      - 放在左側的立繪再移到右側會保持鏡像（葉 1 XOR rect 0），依 AIN 推定是原版行為，沒有原版畫面佐證。
      - 父元件的倍率與旋轉仍不作用在子元件位置上（既有簡化）；翻轉旗標不寫進 parts 存檔；尚未經獨立反駁者審查。
    - 字距審查（`9f81bd9`，兩位審查者皆 ship）留下的低嚴重度項目：新欄位 `text_style.bold_weight` 沒寫進 parts 存檔（`iarray_write_text_style`），PE_Save→PE_Load 後有太さ 的樣式每字少 2 px，量字寬與繪字再度不一致；修法是把存檔版本升到 4 並寫出 bold_weight（不要用 weight/1000 反推）。另有兩個走不到的次要差異：同一文字元件改字級時字級快取過期、`Parts_SetPartsFontBoldWeight` 在 SetFont 之後設定的順序。
+   - **原版逐句比對**（`research/gui-visual/visual-compare.md`，Wine 原版對照開場 130 句）：對白場景的立繪、背景、名牌、色彩一致。下一步依序：據點畫面缺件（底列存檔／讀取／物品／**下一步**／ToDo、日數與金錢列、Q 版貼紙、教學覆蓋層；「下一步」缺席使遊戲在據點推不下去）→ `SetButtonEnable` 未實作 → 訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
+   - **流暢度**（使用者回報「說不出的卡頓」）：`STAGE2_PERF` 顯示幀率 120–520 fps 不穩（`video.c` 的 `wait_vsync` 預設關閉），150 秒內 29 個 5 秒時段有 20 段出現 >50 ms 長幀、前 80 秒常有 180–250 ms 停頓。先查原版的幀率控制，再逐一追長幀的原因（字形產生、貼圖載入、GC、存檔 fsync、測試模式日誌），並分開量測測試模式與一般模式。
+   - 翻轉繼承審查（`0ab8476`，ship）留下的低嚴重度項目：父元件被釋放後，孤兒子元件的 `global.reverse_lr/tb` 仍保留舊父鏈的 XOR，整棵子樹持續鏡像；修法是在 `parts_release` 讓子元件脫離時重算 global 翻轉與位置。
 5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放（見第 4 項）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
