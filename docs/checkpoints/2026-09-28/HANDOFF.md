@@ -79,6 +79,7 @@
      - 太さ只算進字格，字形粗細仍依 `weight`；行高與字形 y 位置、行寬含最後一個字距（spacing.md R4）沒有改；`bold_weight` 不會被 PE_Save 存下。
      - `9f81bd9` 尚未經獨立反駁者審查。
    - **側審查 D5–D7【低】**（詳見 uaf.md〈側審查〉）：翻轉不作用在 TEXT／FLAT 與子元件（`AdvStand@Move` 跨側的 ReverseLR、戰鬥的 `PlayerViewPartsLayer@Reverse` 無效，屬功能缺口，D5）；surface area 加翻轉會錯位（D6）；`parts-reverse` 沒測繪製與點擊判定（D7）。
+   - 字距審查（`9f81bd9`，兩位審查者皆 ship）留下的低嚴重度項目：新欄位 `text_style.bold_weight` 沒寫進 parts 存檔（`iarray_write_text_style`），PE_Save→PE_Load 後有太さ 的樣式每字少 2 px，量字寬與繪字再度不一致；修法是把存檔版本升到 4 並寫出 bold_weight（不要用 weight/1000 反推）。另有兩個走不到的次要差異：同一文字元件改字級時字級快取過期、`Parts_SetPartsFontBoldWeight` 在 SetFont 之後設定的順序。
 5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放（見第 4 項）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
