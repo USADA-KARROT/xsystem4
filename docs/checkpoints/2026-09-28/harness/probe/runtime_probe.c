@@ -7,6 +7,7 @@ static void observer_probe_step(void);
 static void delegate_reentrancy_probe_step(void);
 static int probe_key_is_down(int key);
 static void personality_probe_step(void);
+static void iface_arg_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -31,6 +32,7 @@ static void probe_step(unsigned op) {
     observer_probe_step();
     delegate_reentrancy_probe_step();
     personality_probe_step();
+    iface_arg_probe_step();
 
 }
 static size_t live_slots(void) {
@@ -92,6 +94,7 @@ static void init_probe(const char *path) {
 #include "save_persist_fixture.inc"
 #include "save_fixes_fixture.inc"
 #include "parts_reverse_fixture.inc"
+#include "iface_arg_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -125,6 +128,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"save-comment"))return test_save_comment();
     if(!strcmp(argv[2],"save-fixes"))return test_save_fixes();
     if(!strcmp(argv[2],"parts-reverse"))return test_parts_reverse();
+    if(!strcmp(argv[2],"iface-arg"))return test_iface_arg();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

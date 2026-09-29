@@ -1299,6 +1299,56 @@ static int delegate_return_slots(struct ain_type *type)
 	return ain_return_slots_type(type);
 }
 
+/*
+ * v14 argument ownership. Callers push interface and option arguments
+ * borrowed (X_REF 2; a temporary stays alive in a <dummy> local that the
+ * caller releases with .LOCALDELETE after the call), while the callee's local
+ * page releases every reference variable when it is freed (variable_fini).
+ * The original copies the arguments into the new page with 0x657430 (called
+ * at 0x66a082, 0x66a166 and 0x66a45b), whose type table (0x657508 ->
+ * 0x6574fc) retains the value with 0x679f10 for REF 18-21/51/67/80,
+ * WRAP 82, 87, IFACE 89 and REF_ENUM 93, and stores string, struct,
+ * delegate and array values without a retain (the caller hands those over
+ * with A_REF). An option (86) whose last slot is 0 holds a value and is
+ * dispatched on its payload type (0x6535e0 strips every option layer and maps
+ * wrap<T> to the matching reference type, all of which are retained); an
+ * empty option is stored as is.
+ */
+static bool v14_option_payload_retained(const struct ain_type *t)
+{
+	while (t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87))
+		t = t->array_type;
+	if (!t)
+		return false;
+	switch (t->data) {
+	case AIN_REF_TYPE:
+	case AIN_REF_ENUM:
+	case AIN_WRAP:
+	case AIN_IFACE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/* Does the option argument at values[index] hold a value that 0x657430 retains? */
+static bool v14_option_arg_retained(const struct ain_type *t, const union vm_value *values, int index, int nr_values)
+{
+	if (ain->version < 14 || !t || t->data != AIN_OPTION)
+		return false;
+	int slots = ss_type_slot_count(t);
+	if (slots < 2 || index + slots - 1 >= nr_values || values[index + slots - 1].i != 0)
+		return false;
+	return v14_option_payload_retained(t->array_type);
+}
+
+/* Retain a borrowed argument value that the callee's local page will release. */
+static void v14_retain_arg(int value)
+{
+	if (value > 0 && heap_index_valid(value))
+		heap_ref(value);
+}
+
 static void function_call(int fno, int return_address)
 {
 	int slot = _function_call(fno, return_address);
@@ -1319,6 +1369,14 @@ static void function_call(int fno, int return_address)
 		case AIN_WRAP:
 			if (heap[slot].page->values[i].i != -1)
 				heap_ref(heap[slot].page->values[i].i);
+			break;
+		case AIN_IFACE:
+			// [object, vtable offset]: the object is borrowed (see above).
+			v14_retain_arg(heap[slot].page->values[i].i);
+			break;
+		case AIN_OPTION:
+			if (v14_option_arg_retained(&f->vars[i].type, heap[slot].page->values, i, f->nr_args))
+				v14_retain_arg(heap[slot].page->values[i].i);
 			break;
 		case AIN_STRING: {
 			// v14 leak fix: use "temp" flag to distinguish owned vs shared slots.
@@ -1573,7 +1631,9 @@ static union vm_value delegate_copy_argument(union vm_value value, enum ain_data
 		switch (type) {
 		case AIN_REF_TYPE:
 		case AIN_WRAP:
-			// A wrapped delegate is also a borrowed heap value here. The
+		case AIN_IFACE:
+			// A wrapped delegate or an interface object is also a
+			// borrowed heap value here (0x657430 retains 82 and 89). The
 			// callback's local page releases it on return, so it needs its
 			// own reference while the caller/optional field still owns it.
 			if (value.i > 0 && heap_index_valid(value.i))
@@ -1632,8 +1692,13 @@ static void delegate_call(int dg_no, int return_address)
 			for (int i = 0; i < dg->nr_arguments && vi < heap[slot].page->nr_vars; i++) {
 				bool is2 = delegate_arg_is_2slot(&dg->variables[i].type);
 				heap[slot].page->values[vi] = delegate_copy_argument(stack_peek(base - 1), dg->variables[i].type.data);
-				if (is2 && vi + 1 < heap[slot].page->nr_vars)
+				if (is2 && vi + 1 < heap[slot].page->nr_vars) {
 					heap[slot].page->values[vi + 1] = stack_peek(base - 2);
+					// An option holding a wrap/interface value is retained
+					// like a plain argument of that type (0x657430).
+					if (v14_option_arg_retained(&dg->variables[i].type, heap[slot].page->values, vi, vi + 2))
+						v14_retain_arg(heap[slot].page->values[vi].i);
+				}
 				base -= is2 ? 2 : 1;
 				vi += is2 ? 2 : 1;
 			}
