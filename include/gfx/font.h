@@ -130,6 +130,7 @@ static inline void text_style_set_edge_width(struct text_style *ts, float w)
 }
 
 extern bool gfx_text_advance_edges;
+extern bool gfx_text_gdi_half_width;
 
 void gfx_font_init(void);
 void ft_font_init(void);

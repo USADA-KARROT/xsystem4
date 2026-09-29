@@ -48,6 +48,9 @@ struct font *font_fnl[MAX_FNL_FONTS] = {0};
 
 // Controls whether edge widths are taken into account during text layout.
 bool gfx_text_advance_edges = false;
+// The CN (GBK) build lays text out on the GDI grid (0x69c7a0): a half-width
+// character is (size+1)>>1 pixels wide, not size/2.
+bool gfx_text_gdi_half_width = false;
 
 static struct font *load_font(enum font_face type)
 {
@@ -92,6 +95,12 @@ void gfx_font_init(void)
 		for (unsigned i = 0; i < fnl->nr_fonts && i < MAX_FNL_FONTS; i++) {
 			font_fnl[i] = fnl_font_load(fnl, i);
 		}
+	} else if (sys4_get_string_charset() == SYS4_CHARSET_GBK) {
+		// Without an .fnl the CN build draws each character with GDI into a
+		// cell as wide as the character plus the edge on both sides
+		// (0x69c7a0: width + 2e). The .fnl loader already enables this.
+		gfx_text_advance_edges = true;
+		gfx_text_gdi_half_width = true;
 	}
 	font_initialized = true;
 }

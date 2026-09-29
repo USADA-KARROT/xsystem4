@@ -134,6 +134,40 @@ static void ft_font_set_size(struct font_ft *font, unsigned size)
 	font->current_size = size;
 }
 
+static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint32_t code, enum font_weight weight);
+
+static float ft_half_width(float size)
+{
+	if (gfx_text_gdi_half_width)
+		return (float)(((int)size + 1) >> 1);
+	return size / 2;
+}
+
+/*
+ * A glyph the font does not have is drawn from the other TrueType font
+ * (gothic <-> mincho) when that one has it: the default gothic font lacks
+ * characters the CN scripts use (for example U+83C8), which otherwise show
+ * as .notdef boxes. Only the bitmap comes from the other face; the advance
+ * stays the code-point based one below, so the spacing does not change.
+ */
+static FT_Face ft_font_fallback_face(struct font_ft *font, uint32_t code, unsigned size)
+{
+	extern struct font *font_ttf[2];
+	if (!code || FT_Get_Char_Index(font->font, code))
+		return font->font;
+	for (int i = 0; i < 2; i++) {
+		struct font *other = font_ttf[i];
+		if (!other || other == &font->super || other->get_glyph != ft_font_get_glyph)
+			continue;
+		struct font_ft *o = (struct font_ft*)other;
+		if (!FT_Get_Char_Index(o->font, code))
+			continue;
+		ft_font_set_size(o, size);
+		return o->font;
+	}
+	return font->font;
+}
+
 static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint32_t code, enum font_weight weight)
 {
 	Texture *t = &glyph->t[weight];
@@ -142,25 +176,26 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 	bool half_width = is_half_width(code);
 	struct font_ft *font = (struct font_ft*)size->font;
 	ft_font_set_size(font, size->size);
-	if (FT_Load_Char(font->font, code, FT_LOAD_RENDER)) {
+	FT_Face face = ft_font_fallback_face(font, code, size->size);
+	if (FT_Load_Char(face, code, FT_LOAD_RENDER)) {
 		WARNING("Failed to load glyph for codepoint 0x%x", code);
 		return false;
 	}
 	if (weight != FONT_WEIGHT_NORMAL) {
 		int bold_weight = weight == FONT_WEIGHT_HEAVY ? 128 : 64;
-		FT_GlyphSlot_Own_Bitmap(font->font->glyph);
-		FT_Bitmap_Embolden(ft_lib, &font->font->glyph->bitmap, bold_weight, 0);
+		FT_GlyphSlot_Own_Bitmap(face->glyph);
+		FT_Bitmap_Embolden(ft_lib, &face->glyph->bitmap, bold_weight, 0);
 	}
 
 	// create texture from bitmap
-	FT_Bitmap *bitmap = &font->font->glyph->bitmap;
+	FT_Bitmap *bitmap = &face->glyph->bitmap;
 	if (bitmap->pixel_mode == FT_PIXEL_MODE_GRAY) {
-		glyph->rect = init_glyph_texture(t, bitmap, font->font->glyph->bitmap_left,
-				font->font->glyph->bitmap_top, size->size, half_width);
+		glyph->rect = init_glyph_texture(t, bitmap, face->glyph->bitmap_left,
+				face->glyph->bitmap_top, size->size, half_width);
 	} else if (bitmap->pixel_mode == FT_PIXEL_MODE_MONO) {
 		FT_Bitmap tmp;
 		FT_Bitmap_New(&tmp);
-		if (FT_Bitmap_Convert(ft_lib, &font->font->glyph->bitmap, &tmp, 1)) {
+		if (FT_Bitmap_Convert(ft_lib, &face->glyph->bitmap, &tmp, 1)) {
 			WARNING("Failed to convert monochrome glyph to grayscale");
 			FT_Bitmap_Done(ft_lib, &tmp);
 			return false;
@@ -170,21 +205,21 @@ static bool ft_font_get_glyph(struct font_size *size, struct glyph *glyph, uint3
 			if (tmp.buffer[i])
 				tmp.buffer[i] = 255;
 		}
-		glyph->rect = init_glyph_texture(t, &tmp, font->font->glyph->bitmap_left,
-				font->font->glyph->bitmap_top, size->size, half_width);
+		glyph->rect = init_glyph_texture(t, &tmp, face->glyph->bitmap_left,
+				face->glyph->bitmap_top, size->size, half_width);
 		FT_Bitmap_Done(ft_lib, &tmp);
 	} else {
 		WARNING("Font returned glyph with unsupported pixel mode");
 		return false;
 	}
 
-	glyph->advance = half_width ? size->size / 2 : size->size;
+	glyph->advance = half_width ? ft_half_width(size->size) : size->size;
 	return true;
 }
 
 static float ft_font_size_char(struct font_size *size, uint32_t code)
 {
-	return is_half_width(code) ? size->size / 2 : size->size;
+	return is_half_width(code) ? ft_half_width(size->size) : size->size;
 }
 
 static float ft_font_size_char_kerning(struct font_size *size, uint32_t code,
