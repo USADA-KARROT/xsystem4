@@ -1683,24 +1683,32 @@ static void delegate_call(int dg_no, int return_address)
 		call_stack[call_stack_ptr-1].base_sp = stack_ptr;
 		call_stack[call_stack_ptr-1].is_delegate_call = true;
 		call_stack[call_stack_ptr-1].dg_return_slots = return_values;
-		// copy arguments into local page (slot-aware for multi-slot types)
+		// Copy the arguments into the local page: one stack slot per
+		// argument variable, as function_call does. A v14 two-slot
+		// argument (interface, option, ref int, ...) is followed by a void
+		// companion variable, which receives its second slot. The original
+		// DG_CALL handler (0x66dce0) takes nr_arguments values off the
+		// stack and 0x657430 stores value i in variable i, retaining by the
+		// type of variable i. DG_CALLBEGIN pushed delegate_param_slots()
+		// slots, which equals nr_arguments for every delegate of the game.
 		struct ain_function_type *dg = &ain->delegates[dg_no];
-		if (heap[slot].page) {
-			int arg_slots_total = delegate_param_slots(dg);
-			int base = 2 + arg_slots_total;
-			int vi = 0; // local page variable index (may advance 2 for 2-slot args)
-			for (int i = 0; i < dg->nr_arguments && vi < heap[slot].page->nr_vars; i++) {
-				bool is2 = delegate_arg_is_2slot(&dg->variables[i].type);
-				heap[slot].page->values[vi] = delegate_copy_argument(stack_peek(base - 1), dg->variables[i].type.data);
-				if (is2 && vi + 1 < heap[slot].page->nr_vars) {
-					heap[slot].page->values[vi + 1] = stack_peek(base - 2);
-					// An option holding a wrap/interface value is retained
-					// like a plain argument of that type (0x657430).
-					if (v14_option_arg_retained(&dg->variables[i].type, heap[slot].page->values, vi, vi + 2))
-						v14_retain_arg(heap[slot].page->values[vi].i);
-				}
-				base -= is2 ? 2 : 1;
-				vi += is2 ? 2 : 1;
+		struct page *local = heap[slot].page;
+		if (local) {
+			int arg_slots = delegate_param_slots(dg);
+			int n = arg_slots;
+			if (n > dg->nr_arguments)
+				n = dg->nr_arguments;
+			if (n > local->nr_vars)
+				n = local->nr_vars;
+			for (int i = 0; i < n; i++)
+				local->values[i] = delegate_copy_argument(stack_peek(arg_slots + 1 - i), dg->variables[i].type.data);
+			// An option holding a wrap/interface value is retained like a
+			// plain argument of that type (0x657430); decide once its
+			// discriminant slot has been copied.
+			for (int i = 0; i < n; i++) {
+				if (dg->variables[i].type.data == AIN_OPTION
+				    && v14_option_arg_retained(&dg->variables[i].type, local->values, i, n))
+					v14_retain_arg(local->values[i].i);
 			}
 		}
 
