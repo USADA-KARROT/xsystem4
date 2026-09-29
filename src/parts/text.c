@@ -28,18 +28,23 @@ static int extract_multibyte_char(const char *src, char *dst)
 {
 	unsigned char c = (unsigned char)*src;
 	if (ain_is_gb18030 && c >= 0x81 && c <= 0xFE) {
+		/* 2-byte, or 4-byte GB18030; a character cut short by the NUL keeps
+		 * only the bytes before it */
 		unsigned char c2 = (unsigned char)src[1];
-		if (c2 >= 0x30 && c2 <= 0x39) {
-			/* 4-byte GB18030 */
-			dst[0] = src[0]; dst[1] = src[1];
-			dst[2] = src[2]; dst[3] = src[3];
-			dst[4] = '\0';
-			return 4;
-		}
+		int n = 2;
+		if (!c2)
+			n = 1;
+		else if (c2 >= 0x30 && c2 <= 0x39)
+			n = !src[2] ? 2 : !src[3] ? 3 : 4;
+		memcpy(dst, src, n);
+		dst[n] = '\0';
+		return n;
+	}
+	if (ain_is_gb18030 && SJIS_2BYTE(*src) && !src[1]) {
+		/* 0x80 or 0xFF right before the NUL */
 		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = '\0';
-		return 2;
+		dst[1] = '\0';
+		return 1;
 	}
 	if (SJIS_2BYTE(*src)) {
 		dst[0] = src[0];

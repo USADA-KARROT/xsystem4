@@ -41,6 +41,137 @@ bool game_rance8_mg = false;
 bool game_dungeons_and_dolls = false;
 bool ain_is_gb18030 = false;
 
+static bool gb_sjis_boundary_hit(const uint8_t *s)
+{
+	while (*s) {
+		if (SJIS_2BYTE(*s) && s[1]) {
+			s += 2;
+			continue;
+		}
+		if (*s >= 0xA1 && *s <= 0xDF && s[1] >= 0x40)
+			return true;
+		s++;
+	}
+	return false;
+}
+
+// Something SJIS cannot contain: 80, A0, FD..FF, or a lead byte without a
+// valid trail (40..7E, 80..FC).
+static bool gb_sjis_invalid(const uint8_t *s, int n)
+{
+	for (int i = 0; i < n; ) {
+		uint8_t b = s[i];
+		if (b == 0x80 || b == 0xA0 || b >= 0xFD)
+			return true;
+		if (SJIS_2BYTE(b)) {
+			if (i + 1 >= n)
+				return true;
+			uint8_t t = s[i+1];
+			if (t < 0x40 || t == 0x7F || t > 0xFC)
+				return true;
+			i += 2;
+			continue;
+		}
+		i++;
+	}
+	return false;
+}
+
+// Lead 81..FE with a trail in 40..FE except 7F; no other byte >= 0x80.
+static bool gb_gbk_valid(const uint8_t *s, int n)
+{
+	for (int i = 0; i < n; ) {
+		uint8_t b = s[i];
+		if (b >= 0x81 && b <= 0xFE) {
+			if (i + 1 >= n)
+				return false;
+			uint8_t t = s[i+1];
+			if (t < 0x40 || t == 0x7F || t == 0xFF)
+				return false;
+			i += 2;
+			continue;
+		}
+		if (b >= 0x80)
+			return false;
+		i++;
+	}
+	return true;
+}
+
+static bool gb_utf8_valid(const uint8_t *s, int n)
+{
+	for (int i = 0; i < n; ) {
+		uint8_t b = s[i];
+		int len;
+		uint8_t lo = 0x80, hi = 0xBF;
+		if (b < 0x80) {
+			i++;
+			continue;
+		} else if (b >= 0xC2 && b <= 0xDF) {
+			len = 2;
+		} else if (b >= 0xE0 && b <= 0xEF) {
+			len = 3;
+			if (b == 0xE0) lo = 0xA0;
+			if (b == 0xED) hi = 0x9F;
+		} else if (b >= 0xF0 && b <= 0xF4) {
+			len = 4;
+			if (b == 0xF0) lo = 0x90;
+			if (b == 0xF4) hi = 0x8F;
+		} else {
+			return false;
+		}
+		if (i + len > n || s[i+1] < lo || s[i+1] > hi)
+			return false;
+		for (int k = 2; k < len; k++)
+			if ((s[i+k] & 0xC0) != 0x80)
+				return false;
+		i += len;
+	}
+	return true;
+}
+
+bool gb18030_detect_strings(struct string **strs, int n, struct gb18030_scores *out)
+{
+	struct gb18030_scores sc = { 0 };
+	for (int i = 0; i < n && i < 100; i++) {
+		if (!strs[i]) continue;
+		// the historical check, unchanged
+		const uint8_t *s = (const uint8_t *)strs[i]->text;
+		for (; *s; s++) {
+			if (*s >= 0xA1 && *s <= 0xDF && *(s+1) >= 0x40) {
+				sc.legacy++;
+				break;
+			}
+		}
+		if (gb_sjis_boundary_hit((const uint8_t *)strs[i]->text))
+			sc.boundary++;
+	}
+	for (int i = 0; i < n; i++) {
+		if (!strs[i]) continue;
+		const uint8_t *s = (const uint8_t *)strs[i]->text;
+		int len = strs[i]->size;
+		bool high = false;
+		for (int k = 0; k < len && !high; k++)
+			high = s[k] >= 0x80;
+		if (!high)
+			continue;
+		sc.nonascii++;
+		if (gb_utf8_valid(s, len))
+			sc.utf8_valid++;
+		if (gb_sjis_invalid(s, len) && gb_gbk_valid(s, len))
+			sc.sjis_invalid++;
+	}
+	if (out)
+		*out = sc;
+	return sc.boundary > 5 && sc.sjis_invalid >= 16 && sc.utf8_valid * 2 < sc.nonascii;
+}
+
+void gbk_string_rules_enable(void)
+{
+	ain_is_gb18030 = true;
+	sys4_set_string_charset(SYS4_CHARSET_GBK);
+}
+
 static void write_instruction0(struct buffer *out, enum opcode op)
 {
 	buffer_write_int16(out, op);

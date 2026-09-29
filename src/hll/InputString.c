@@ -98,7 +98,7 @@ static void handle_editing(const char *text, int start, int length)
 static void handle_key(int code)
 {
 	if (code == VK_BACK && !has_editing_text && result && result->size > 0)
-		string_pop_back(&result);
+		string_pop_back_sjis(&result); // result holds utf2sjis() output
 }
 
 static void InputString_OpenIME(void)

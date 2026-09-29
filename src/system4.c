@@ -654,23 +654,39 @@ int main(int argc, char *argv[])
 
 	// Auto-detect GB18030 encoding: check if STR0 strings contain
 	// GB18030 byte patterns (lead byte 0xA1-0xDF followed by valid second byte)
-	// that are NOT valid SJIS (SJIS uses 0xA1-0xDF as single-byte half-width katakana)
+	// that are NOT valid SJIS (SJIS uses 0xA1-0xDF as single-byte half-width katakana).
+	// The legacy score keeps driving ain_is_gb18030 exactly as before. The GBK
+	// character rule of the String library and CharRef/CharAssign also needs
+	// the strict check, because the legacy score fires on real SJIS tables too
+	// (see gb18030_detect_strings). XSYS4_STRING_CHARSET=sjis|gbk overrides
+	// the character rule only.
 	if (ain->nr_strings > 0) {
-		int gb_score = 0;
-		for (int i = 0; i < ain->nr_strings && i < 100; i++) {
-			if (!ain->strings[i]) continue;
-			const uint8_t *s = (const uint8_t *)ain->strings[i]->text;
-			for (; *s; s++) {
-				if (*s >= 0xA1 && *s <= 0xDF && *(s+1) >= 0x40) {
-					gb_score++; // This byte pair is GB18030 2-byte but SJIS 1-byte
-					break;
-				}
+		struct gb18030_scores sc;
+		bool strict = gb18030_detect_strings(ain->strings, ain->nr_strings, &sc);
+		if (sc.legacy > 5) {
+			ain_is_gb18030 = true;
+			WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", sc.legacy);
+	WARNING("AINCHECK: msgf=%d nr_messages=%d messages=%p", ain->msgf, ain->nr_messages, (void*)ain->messages);
+			if (strict) {
+				gbk_string_rules_enable();
+				WARNING("GBK string rules enabled (boundary=%d, sjis_invalid=%d, utf8=%d/%d)",
+					sc.boundary, sc.sjis_invalid, sc.utf8_valid, sc.nonascii);
+			} else {
+				WARNING("GB18030 check not confirmed (boundary=%d, sjis_invalid=%d, utf8=%d/%d); "
+					"String character rules stay SJIS",
+					sc.boundary, sc.sjis_invalid, sc.utf8_valid, sc.nonascii);
 			}
 		}
-		if (gb_score > 5) {
-			ain_is_gb18030 = true;
-			WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", gb_score);
-	WARNING("AINCHECK: msgf=%d nr_messages=%d messages=%p", ain->msgf, ain->nr_messages, (void*)ain->messages);
+	}
+	const char *charset_override = getenv("XSYS4_STRING_CHARSET");
+	if (charset_override && *charset_override) {
+		if (!strcmp(charset_override, "sjis") || !strcmp(charset_override, "gbk")) {
+			bool gbk = !strcmp(charset_override, "gbk");
+			sys4_set_string_charset(gbk ? SYS4_CHARSET_GBK : SYS4_CHARSET_SJIS);
+			WARNING("XSYS4_STRING_CHARSET=%s: String character rules forced to %s (ain_is_gb18030=%d)",
+				charset_override, gbk ? "GBK" : "SJIS", ain_is_gb18030);
+		} else {
+			WARNING("XSYS4_STRING_CHARSET=%s ignored (expected sjis or gbk)", charset_override);
 		}
 	}
 

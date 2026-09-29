@@ -3694,12 +3694,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	}
 	case S_LENGTH: {
 		int str = stack_pop_var()->i;
-		stack_push(sjis_count_char(heap_get_string(str)->text));
+		stack_push(mbcs_count_char(heap_get_string(str)->text));
 		break;
 	}
 	case S_LENGTH2: {
 		int str = stack_pop().i;
-		stack_push(sjis_count_char(heap_get_string(str)->text));
+		stack_push(mbcs_count_char(heap_get_string(str)->text));
 		heap_unref(str);
 		break;
 	}

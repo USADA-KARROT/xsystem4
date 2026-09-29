@@ -25,7 +25,7 @@
 
 static int vmString_GetLength(struct string *string)
 {
-	return sjis_count_char(string->text);
+	return mbcs_count_char(string->text);
 }
 
 static int vmString_GetLengthA(struct string *string)

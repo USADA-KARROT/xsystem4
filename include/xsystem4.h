@@ -103,4 +103,31 @@ extern bool game_dungeons_and_dolls;
  * is no longer available, so it lives here and is defined in hacks.c. */
 extern bool ain_is_gb18030;
 
+/*
+ * GB18030/GBK detection over an AIN string table (hacks.c).
+ * legacy:       the historical check: among the first 100 strings, those with
+ *               a byte in A1..DF followed by a byte >= 0x40. It also fires on
+ *               real SJIS tables (e.g. hiragana 82 A2 before a lead byte), so
+ *               it only keeps driving ain_is_gb18030 as before.
+ * boundary:     the same test at SJIS character boundaries only (first 100).
+ * sjis_invalid: strings that are invalid SJIS but valid GBK (all strings).
+ * nonascii, utf8_valid: strings with a byte >= 0x80, and how many of those
+ *               are well-formed UTF-8.
+ * Returns the strict verdict: boundary > 5, sjis_invalid >= 16 and fewer than
+ * half of the non-ASCII strings are UTF-8. NULL entries are skipped.
+ */
+struct gb18030_scores {
+	int legacy;
+	int boundary;
+	int sjis_invalid;
+	int nonascii;
+	int utf8_valid;
+};
+struct string;
+bool gb18030_detect_strings(struct string **strs, int n, struct gb18030_scores *out);
+
+// Turns on the Chinese text paths (ain_is_gb18030) and libsys4's GBK
+// character rule for String/CharRef/CharAssign.
+void gbk_string_rules_enable(void);
+
 #endif /* XSYSTEM4_H */

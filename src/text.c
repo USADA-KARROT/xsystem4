@@ -154,7 +154,9 @@ static int gb18030_skip_char_bytes(const char *s)
 	if (c < 0x80) return 1;
 	if (c >= 0x81 && c <= 0xFE) {
 		unsigned char c2 = (unsigned char)s[1];
-		if (c2 >= 0x30 && c2 <= 0x39) return 4; /* 4-byte */
+		if (!c2) return 1; /* lone lead byte: never step over the NUL */
+		if (c2 >= 0x30 && c2 <= 0x39) /* 4-byte, unless the NUL cuts it short */
+			return !s[2] ? 2 : !s[3] ? 3 : 4;
 		return 2; /* 2-byte */
 	}
 	return 1;

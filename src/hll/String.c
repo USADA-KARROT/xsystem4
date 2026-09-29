@@ -24,11 +24,87 @@
 // Since all v14 String functions use AIN_REF_STRING, self is always struct string **.
 #define SELF_STR(self) ((self) ? *(self) : NULL)
 
+/*
+ * GBK character rule. The Chinese EXE decides character boundaries with a
+ * lead byte of 0x81..0xFE in every String helper (dispatcher 0x684120, e.g.
+ * Length 0x6868f0, Find 0x686e00, GetPart 0x6882c0, Split 0x6892f0) and uses
+ * (lead << 8) | trail character codes. libsys4 switches its string_* and
+ * mbcs_* helpers with sys4_set_string_charset(), which the engine turns on
+ * for GB18030 AINs (gbk_string_rules_enable). Every function below that
+ * behaves differently under that rule has an early GBK branch; the code after
+ * it is the unchanged SJIS behaviour.
+ */
+static inline bool str_gbk(void)
+{
+	return sys4_get_string_charset() == SYS4_CHARSET_GBK;
+}
+
+// Bytes of the character at p under the GBK rule, never more than remain.
+static inline int gbk_bytes(const uint8_t *p, int remain)
+{
+	if (remain <= 0)
+		return 0;
+	return (remain >= 2 && GBK_LEAD(p[0])) ? 2 : 1;
+}
+
+static inline uint32_t gbk_code(const uint8_t *p, int n)
+{
+	return n == 2 ? ((uint32_t)p[0] << 8) | p[1] : p[0];
+}
+
+static bool gbk_set_has(const uint8_t *set, int set_len, uint32_t code)
+{
+	for (int i = 0; i < set_len; ) {
+		int n = gbk_bytes(set + i, set_len - i);
+		if (gbk_code(set + i, n) == code)
+			return true;
+		i += n;
+	}
+	return false;
+}
+
+// Growable list of byte spans (offset, length) of a source string.
+struct gbk_spans { int nr, cap; int (*v)[2]; };
+
+static void gbk_spans_push(struct gbk_spans *sp, int off, int len)
+{
+	if (sp->nr == sp->cap) {
+		sp->cap = sp->cap ? sp->cap * 2 : 8;
+		sp->v = xrealloc(sp->v, sp->cap * sizeof *sp->v);
+	}
+	sp->v[sp->nr][0] = off;
+	sp->v[sp->nr][1] = len;
+	sp->nr++;
+}
+
+// array<string> page with one new string per span; frees the span list.
+static struct page *gbk_spans_to_page(const struct string *src, struct gbk_spans *sp)
+{
+	struct page *result = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRING, sp->nr);
+	result->array.rank = 1;
+	for (int i = 0; i < sp->nr; i++) {
+		int slot = heap_alloc_slot(VM_STRING);
+		heap[slot].s = make_string(src->text + sp->v[i][0], sp->v[i][1]);
+		result->values[i].i = slot;
+	}
+	free(sp->v);
+	*sp = (struct gbk_spans){ 0 };
+	return result;
+}
+
 // [0] int ToInt(ref string self)
 static int String_ToInt(struct string **self)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0) return 0;
+	if (str_gbk()) {
+		// EXE 0x686740 -> 0x686040: A3 B0..B9 and 81 44 become ASCII first
+		char *buf = xstrdup(s->text);
+		string_zen2han_number(buf);
+		int n = atoi(buf);
+		free(buf);
+		return n;
+	}
 	return atoi(s->text);
 }
 
@@ -37,6 +113,14 @@ static float String_ToFloat(struct string **self)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0) return 0.0f;
+	if (str_gbk()) {
+		// EXE 0x686810 -> 0x686040, as ToInt
+		char *buf = xstrdup(s->text);
+		string_zen2han_number(buf);
+		float f = (float)atof(buf);
+		free(buf);
+		return f;
+	}
 	return (float)atof(s->text);
 }
 
@@ -44,7 +128,7 @@ static float String_ToFloat(struct string **self)
 static int String_Length(struct string **self)
 {
 	struct string *s = SELF_STR(self);
-	return s ? sjis_count_char(s->text) : 0;
+	return s ? mbcs_count_char(s->text) : 0;
 }
 
 // [3] int LengthByte(ref string self)
@@ -79,6 +163,29 @@ static void String_PopBack(struct string **self)
 static void String_Erase(struct string **self, int index, int length)
 {
 	if (!self || !*self) return;
+	if (str_gbk()) {
+		// EXE 0x686b80/0x686c40: nothing for index < 0, index >= Length or
+		// length == 0; a negative or oversized length erases to the end.
+		struct string *s = *self;
+		if (index < 0 || length == 0)
+			return;
+		int b = mbcs_index(s->text, index);
+		if (b < 0)
+			return;
+		int e = s->size;
+		if (length > 0) {
+			int n = mbcs_index(s->text + b, length);
+			if (n >= 0)
+				e = b + n;
+		}
+		if (e <= b)
+			return;
+		struct string *r = make_string(s->text, b);
+		string_append_cstr(&r, s->text + e, s->size - e);
+		free_string(*self);
+		*self = r;
+		return;
+	}
 	for (int i = 0; i < length; i++) {
 		string_erase(self, index);
 	}
@@ -89,7 +196,7 @@ static void String_Insert(struct string **self, int index, struct string *text)
 {
 	if (!self || !*self || !text || text->size == 0) return;
 	struct string *s = *self;
-	int byte_idx = sjis_index(s->text, index);
+	int byte_idx = mbcs_index(s->text, index);
 	if (byte_idx < 0) byte_idx = s->size;
 
 	int new_size = s->size + text->size;
@@ -115,6 +222,17 @@ static int String_Find(struct string **self, struct string *key)
 static int String_FindLast(struct string **self, struct string *key)
 {
 	struct string *s = SELF_STR(self);
+	if (str_gbk()) {
+		// EXE 0x686ea0: compares at every character start and keeps the last
+		// hit, so an empty key gives the index of the last character.
+		if (!s || !key) return -1;
+		int last = -1;
+		for (int i = 0, c = 0; i < s->size; i += gbk_bytes((uint8_t *)s->text + i, s->size - i), c++) {
+			if (i + key->size <= s->size && !memcmp(s->text + i, key->text, key->size))
+				last = c;
+		}
+		return last;
+	}
 	if (!s || !key || key->size == 0) return -1;
 
 	int last = -1;
@@ -171,11 +289,74 @@ static bool String_Search(struct string **self, int ml_slot, struct string *rege
 // The game uses regex: ([^\[\]]+?)+|\[[^\]]+?\]
 // This is a bracket tokenizer: match [bracketed] tokens and non-bracket text.
 // v14: ml_slot is either a wrap STRUCT_PAGE slot or a direct ARRAY_PAGE slot.
+// Stores the token array in matchList (a wrap or a direct array slot).
+static void string_searchall_store(int ml_slot, struct page *flat)
+{
+	// ml_slot may be a wrap STRUCT_PAGE (values[0] = inner array slot)
+	// OR a direct ARRAY_PAGE heap slot (local array<string> variable).
+	if (ml_slot > 0 && (size_t)ml_slot < heap_size
+	    && heap[ml_slot].type == VM_PAGE && heap[ml_slot].page
+	    && heap[ml_slot].page->type == STRUCT_PAGE
+	    && heap[ml_slot].page->nr_vars >= 1) {
+		// wrap<array<string>>: store flat array as the wrap's inner slot
+		wrap_set_slot(ml_slot, 0, heap_alloc_page(flat));
+	} else if (ml_slot > 0 && (size_t)ml_slot < heap_size
+	           && heap[ml_slot].type == VM_PAGE) {
+		// Direct array slot: replace the page in-place
+		heap_set_page(ml_slot, flat);
+	} else {
+		free_page(flat);
+	}
+}
+
+// The same bracket tokenizer on GBK characters: '[' and ']' only count as
+// single-byte characters, never as the trail byte of a 2-byte character.
+static bool string_searchall_gbk(const struct string *s, int ml_slot)
+{
+	const uint8_t *t = (const uint8_t *)s->text;
+	int len = s->size;
+	struct gbk_spans spans = { 0 };
+	for (int i = 0; i < len; ) {
+		int n = gbk_bytes(t + i, len - i), j;
+		if (n == 1 && t[i] == ']') {
+			i++;
+			continue;
+		}
+		if (n == 1 && t[i] == '[') {
+			for (j = i + 1; j < len; ) {
+				int m = gbk_bytes(t + j, len - j);
+				if (m == 1 && t[j] == ']')
+					break;
+				j += m;
+			}
+			if (j < len)
+				j++;
+		} else {
+			for (j = i; j < len; ) {
+				int m = gbk_bytes(t + j, len - j);
+				if (m == 1 && (t[j] == '[' || t[j] == ']'))
+					break;
+				j += m;
+			}
+		}
+		gbk_spans_push(&spans, i, j - i);
+		i = j;
+	}
+	if (!spans.nr) {
+		free(spans.v);
+		return false;
+	}
+	string_searchall_store(ml_slot, gbk_spans_to_page(s, &spans));
+	return true;
+}
+
 static bool String_SearchAll(struct string **self, int ml_slot, struct string *regex)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0)
 		return false;
+	if (str_gbk())
+		return string_searchall_gbk(s, ml_slot);
 
 	const char *text = s->text;
 	int len = s->size;
@@ -241,21 +422,7 @@ static bool String_SearchAll(struct string **self, int ml_slot, struct string *r
 	}
 
 	// Write flat array back to ml_slot.
-	// ml_slot may be a wrap STRUCT_PAGE (values[0] = inner array slot)
-	// OR a direct ARRAY_PAGE heap slot (local array<string> variable).
-	if (ml_slot > 0 && (size_t)ml_slot < heap_size
-	    && heap[ml_slot].type == VM_PAGE && heap[ml_slot].page
-	    && heap[ml_slot].page->type == STRUCT_PAGE
-	    && heap[ml_slot].page->nr_vars >= 1) {
-		// wrap<array<string>>: store flat array as the wrap's inner slot
-		wrap_set_slot(ml_slot, 0, heap_alloc_page(flat));
-	} else if (ml_slot > 0 && (size_t)ml_slot < heap_size
-	           && heap[ml_slot].type == VM_PAGE) {
-		// Direct array slot: replace the page in-place
-		heap_set_page(ml_slot, flat);
-	} else {
-		free_page(flat);
-	}
+	string_searchall_store(ml_slot, flat);
 	return true;
 }
 
@@ -267,9 +434,38 @@ static bool String_Match(struct string **self, int ml_slot, struct string *regex
 }
 
 // [19] string Replace(ref string self, string key, string replacer)
+// EXE 0x687df0 (dispatcher case 0x684525): compares key at character starts,
+// emits replacer and skips the key's bytes on a hit, else copies one
+// character; the result is returned and self is left untouched.
+static struct string *string_replace_gbk(struct string *s, struct string *from, struct string *to)
+{
+	if (!from || from->size == 0)
+		return string_ref(s); // the EXE loops forever on an empty key
+	const uint8_t *t = (const uint8_t *)s->text;
+	int len = s->size;
+	struct string *out = NULL;
+	for (int i = 0; i < len; ) {
+		if (i + from->size <= len && !memcmp(t + i, from->text, from->size)) {
+			if (!out)
+				out = make_string(s->text, i);
+			if (to)
+				string_append(&out, to);
+			i += from->size;
+		} else {
+			int n = gbk_bytes(t + i, len - i);
+			if (out)
+				string_append_cstr(&out, s->text + i, n);
+			i += n;
+		}
+	}
+	return out ? out : string_ref(s);
+}
+
 static struct string *String_Replace(struct string **self, struct string *from, struct string *to)
 {
 	struct string *s = SELF_STR(self);
+	if (str_gbk())
+		return s ? string_replace_gbk(s, from, to) : string_ref(&EMPTY_STRING);
 	if (!s || !from || from->size == 0)
 		return s ? string_ref(s) : string_ref(&EMPTY_STRING);
 
@@ -347,10 +543,9 @@ static uint32_t string_lib_char_code(const uint8_t *p, int remain, int *bytes)
  *   begin < 0 -> 0 (cmovs at 0x6882fe); length <= 0 -> empty (cmovg at 0x688309);
  *   begin past the last char -> empty; end past the last char -> to the end.
  * GetPart(index) is 0x688290 = GetPart(index, 0x7fffffff), i.e. to the end.
- * Character stepping deliberately uses SJIS_2BYTE, the same rule as
- * sjis_index/sjis_count_char/String_FindLast/string_find, so indices produced
- * by Length/Find/FindLast stay valid here. Switching to the GBK rule has to
- * happen for all of them at once (see open questions).
+ * Characters are stepped with the active rule (GBK lead 0x81..0xFE as in
+ * 0x68832f, or SJIS_2BYTE), the same one Length/Find/FindLast use, so the
+ * indices they produce stay valid here.
  */
 static struct string *string_get_part(const struct string *s, int begin, int length)
 {
@@ -361,6 +556,7 @@ static struct string *string_get_part(const struct string *s, int begin, int len
 	long long end = (long long)begin + (length > 0 ? length : 0);
 	int b = -1, e = -1;
 	long long c = 0;
+	bool gbk = str_gbk();
 	for (int i = 0; i < s->size; c++) {
 		if (c == begin)
 			b = i;
@@ -368,7 +564,9 @@ static struct string *string_get_part(const struct string *s, int begin, int len
 			e = i;
 			break;
 		}
-		i += (SJIS_2BYTE((uint8_t)s->text[i]) && i + 1 < s->size) ? 2 : 1;
+		uint8_t byte = s->text[i];
+		bool lead = gbk ? GBK_LEAD(byte) : SJIS_2BYTE(byte);
+		i += (lead && i + 1 < s->size) ? 2 : 1;
 	}
 	if (b < 0)
 		return string_ref(&EMPTY_STRING);
@@ -530,11 +728,42 @@ static struct string *String_TrimEndChars(struct string **self, struct string *c
 }
 #undef TRIM_ARGS
 
+/*
+ * EXE ToLower 0x688880 / ToUpper 0x688b70 under the GBK rule: first the SJIS
+ * full-width letters 82 60..79 <-> 82 81..9A (trail +-0x21, checked before
+ * the GBK test, e.g. 0x688c22..0x688c9c), then any other 2-byte character is
+ * copied, and ASCII A-Z/a-z is converted.
+ */
+static struct string *string_case_gbk(const struct string *s, bool upper)
+{
+	struct string *r = string_dup(s);
+	uint8_t *t = (uint8_t *)r->text;
+	for (int i = 0; i < r->size; ) {
+		uint8_t b = t[i];
+		if (GBK_LEAD(b) && i + 1 < r->size) {
+			uint8_t c = t[i+1];
+			if (b == 0x82 && !upper && c >= 0x60 && c <= 0x79)
+				t[i+1] = c + 0x21;
+			else if (b == 0x82 && upper && c >= 0x81 && c <= 0x9a)
+				t[i+1] = c - 0x21;
+			i += 2;
+			continue;
+		}
+		if (!upper && b >= 'A' && b <= 'Z')
+			t[i] = b + 0x20;
+		else if (upper && b >= 'a' && b <= 'z')
+			t[i] = b - 0x20;
+		i++;
+	}
+	return r;
+}
+
 // [27] string ToLower(ref string self)
 static struct string *String_ToLower(struct string **self)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0) return string_ref(&EMPTY_STRING);
+	if (str_gbk()) return string_case_gbk(s, false);
 	struct string *result = string_dup(s);
 	for (int i = 0; i < result->size; i++) {
 		if (SJIS_2BYTE(result->text[i])) { i++; continue; }
@@ -548,12 +777,46 @@ static struct string *String_ToUpper(struct string **self)
 {
 	struct string *s = SELF_STR(self);
 	if (!s || s->size == 0) return string_ref(&EMPTY_STRING);
+	if (str_gbk()) return string_case_gbk(s, true);
 	struct string *result = string_dup(s);
 	for (int i = 0; i < result->size; i++) {
 		if (SJIS_2BYTE(result->text[i])) { i++; continue; }
 		result->text[i] = toupper((unsigned char)result->text[i]);
 	}
 	return result;
+}
+
+/*
+ * Split under the GBK rule, EXE 0x6892f0 (set 0x6862a0, scan 0x686440):
+ * separators is a set of characters; containsMode bit 0 adds each separator
+ * as its own piece, bit 1 keeps empty pieces; a separator at the very end
+ * does not produce a trailing piece.
+ */
+static struct page *string_split_gbk(const struct string *str, const struct string *separators, int mode)
+{
+	const uint8_t *t = (const uint8_t *)str->text;
+	const uint8_t *set = (const uint8_t *)separators->text;
+	int len = str->size;
+	struct gbk_spans spans = { 0 };
+	for (int p = 0; p < len; ) {
+		int q = p, n = 0;
+		while (q < len) {
+			n = gbk_bytes(t + q, len - q);
+			if (gbk_set_has(set, separators->size, gbk_code(t + q, n)))
+				break;
+			q += n;
+		}
+		if (q > p)
+			gbk_spans_push(&spans, p, q - p);
+		else if (mode & 2)
+			gbk_spans_push(&spans, p, 0);
+		if (q >= len)
+			break;
+		if (mode & 1)
+			gbk_spans_push(&spans, q, n);
+		p = q + n;
+	}
+	return gbk_spans_to_page(str, &spans);
 }
 
 // [35] array<string> Split(ref string self, string separators, int containsMode)
@@ -571,6 +834,12 @@ static int String_Split(struct string **self, struct string *separators, int con
 		}
 		int slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, result);
+		return slot;
+	}
+
+	if (str_gbk()) {
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, string_split_gbk(str, separators, containsMode));
 		return slot;
 	}
 
