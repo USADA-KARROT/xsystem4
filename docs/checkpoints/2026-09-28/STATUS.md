@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：CN 文字依原版 GDI 字格排版（`9f81bd9`，本機 commit，尚未推送；側審查 D1–D4）。GBK 字元規則且無 .fnl 時，每字前進量 = 字寬 + 2e + 字距，e = max(ceil 太さ, ceil 縁取り)（各自不超過字級），字寬依首位元組；`TextSurfaceManager.GetFontWidth` 回傳同一個字格，腳本量到的寬度與繪字一致；缺字 fallback 只在這個組態啟用。新模式 `text-metrics` 在 `ca2ebff` 上失敗、修正後通過，SJIS 輸出與 `05d2441` 之前逐行相同；47 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`。150 秒 GUI MSG 88、assertion 0、堆疊溢位 0，event 視窗每字 25 px（原為 24）、名牌 30／27 px、主對白 24 px，與原版截圖一致。此前各組到 `ca2ebff`（含立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：delegate 呼叫的參數複製改為一格堆疊對一個參數變數（`2005274`，本機 commit，尚未推送）。修正前，兩槽參數（介面、option、ref int 等）後面的 void 伴隨變數被當成下一個參數：參數後的第一個區域變數被寫成 delegate page 的 slot，後續參數依錯的型別加參照。Tutorial 的 selector 因此讓 `ArrayExtensions::Select` 的 delegate page 被釋放，特殊客人收入函式則會釋放借用的 SpecialCustomer。修正照原版 `0x66dce0`／`0x657430`。新模式 `delegate-args` 在 `6421e6e` 上 3/4 失敗、修正後全過；48 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0。前一組是 CN 文字依原版 GDI 字格排版（`9f81bd9`）。此前各組到 `6421e6e`（含 `9f81bd9` 與立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -157,7 +157,7 @@ libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本
 | 峰值 RSS | 1.76／2.05 GB | 1.33／1.38／1.33 GB |
 | GUI 追蹤：-1 方法呼叫 | 334 | 34（皆為 Tutorial 的 null 物件） |
 
-同源而一併消失的還有 `Motion::ExecuterCollection` 的 vtable 讀取越界與 free list 損壞警告。另案（delegate 伴隨槽被當成參數、STRUCT 參數多加參照、Executer 與 CParts 不釋放）與側審查的字寬缺陷 D1 見 [uaf.md](research/gui-visual/uaf.md) 與 [HANDOFF.md](HANDOFF.md) 第 4 項。
+同源而一併消失的還有 `Motion::ExecuterCollection` 的 vtable 讀取越界與 free list 損壞警告。另案（delegate 伴隨槽被當成參數〔已由 `2005274` 修正〕、STRUCT 參數多加參照、Executer 與 CParts 不釋放）與側審查的字寬缺陷 D1 見 [uaf.md](research/gui-visual/uaf.md) 與 [HANDOFF.md](HANDOFF.md) 第 4 項。
 
 ## 字距：原版 GDI 字格（`9f81bd9`）
 
@@ -174,6 +174,22 @@ libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本
 | backlog：GetFontWidth + 字距 對 實際前進 | 22 對 24 | 24 對 24 |
 
 backlog、DungeonSelector、成就通知的畫面沒有走到；太さ的字形粗細、行高、PE_Save 不保存 `bold_weight` 等限制見 [spacing-fix.md](research/gui-visual/spacing-fix.md)。
+
+## delegate 參數的伴隨槽（`2005274`）
+
+uaf.md〈另案〉的第一項。v14 的兩槽參數在變數表裡占兩個變數：參數本身與一個 void 伴隨變數，delegate 的 `nr_arguments` 也把伴隨變數算在內。`delegate_call` 複製兩槽參數時已寫入兩個變數，之後又把伴隨變數當成下一個參數，於是之後每個變數都拿到下一格，最後一格讀到 `DG_CALLBEGIN` 放在參數上方的 delegate page slot。原版的 DG_CALL 處理常式 `0x66dce0` 從堆疊取 `nr_arguments` 個值，交給 `0x657430`，第 i 格進第 i 個變數，並依該變數的型別決定是否加參照；上游 xsystem4 原本也是一格對一個變數。修正照這個做法，option 規則改在全部複製完才套用。
+
+| 項目 | 修正前（`6421e6e`） | 修正後 |
+|---|---|---|
+| `delegate-args` DA1：Tutorial selector lambda（真 rect） | 區域變數 2 = delegate page slot，呼叫後 delegate page 被釋放 | 區域變數 2 是自己的初值，delegate page ref 不變 |
+| DA2：真 `ArrayExtensions::Select` 走四個真 rect | selector 只跑 2 次，2 個結果為 null | 跑 4 次，4 個都存活 |
+| DA3：特殊客人收入函式（option, void, wrap, int） | 借用的 SpecialCustomer 被釋放；int 被當成 slot 加參照 | 兩者 ref 不變，回傳值相同 |
+| 48 模式（預設／GBK） | — | `VERDICT PASS`／`VERDICT PASS` |
+| 150 秒 GUI MSG／assertion／堆疊溢位 | 88／0／0（追蹤執行） | 88／0／0（兩次，其中一次為追蹤執行），MSG 內容相同 |
+| GUI 追蹤：Select 的 `DG_CALL` 遇到 ref 0 delegate page | 1 | 0 |
+| GUI 追蹤：-1 方法呼叫 | 34 | 34（分布相同，屬 null 物件的另案） |
+
+特殊客人事件與編輯器路徑在 150 秒 GUI 中走不到，只有 headless 驗證。詳見 [delegate-args.md](research/gui-visual/delegate-args.md)。
 
 ## 下一批卡點
 
@@ -192,7 +208,7 @@ backlog、DungeonSelector、成就通知的畫面沒有走到；太さ的字形�
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 47 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 48 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

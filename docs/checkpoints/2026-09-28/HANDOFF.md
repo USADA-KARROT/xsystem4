@@ -6,9 +6,10 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 47 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
-- 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `ca2ebff` 為止已在遠端。
-- 字距依原版 GDI 字格修正（`9f81bd9`，本機 commit，尚未推送；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
+- Headless 驗證 48 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
+- 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
+- delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
@@ -66,11 +67,11 @@
    - DeleteSaveFile 在檔案不存在時原版回 true（`0x5c69f0`）；`init_struct_slot` 的 enum 陣列型別（R2）；A_REF 暫存字串殘留（F13）。
 4. **使用者回報的畫面問題**（研究見 `research/gui-visual/`，依建議順序）：
    - **已完成：立繪與名牌的退場、換位、隱藏**（`9e30c0f`，研究見 `research/gui-visual/uaf.md`）。根因是 v14 呼叫的介面參數（`AIN_IFACE`）與有值的參照型 option 參數以借用方式傳入，被呼叫端返回時卻會釋放；`function_call` 與 delegate 路徑沒有加參照，`Motion::Create`／`Motion::Executer@0` 因此把 `AdvStand.m_parent` 的 sprite 與名牌 root 提早釋放。修正照原版 `0x657430` 補上 retain。新模式 `iface-arg` 修正前 6/6 失敗；150 秒 GUI 修正後三次 MSG 88，立繪會退場，名牌不再疊字，`heap_alloc_slot` 警告歸零。後續另案（詳見 uaf.md〈另案〉）：
-     - **delegate 呼叫把 void 伴隨槽當參數**（已用臨時探針驗證）：`delegate_call` 的複製迴圈沒有跳過兩槽參數後的伴隨槽，會把堆疊上多讀的一格（例如 delegate page 的 slot 號碼）寫進被呼叫函式的第一個區域變數。返回時該 slot 可能被多減一次參照。要先寫 fixture，再讓迴圈像 `delegate_param_slots` 一樣跳過伴隨槽。
+     - **已完成：delegate 呼叫把 void 伴隨槽當參數**（`2005274`，研究見 `research/gui-visual/delegate-args.md`）：`delegate_call` 改為一格堆疊對一個參數變數，照原版 DG_CALL 處理常式 `0x66dce0`（取 `nr_arguments` 個值）與 `0x657430`（第 i 格進第 i 個變數）。修正前，兩槽參數在最後時，第一個區域變數被寫成 delegate page；在中間時，之後的參數依錯的型別加參照。真 AIN 重現：Tutorial selector 讓 `ArrayExtensions::Select` 的 delegate page 被釋放；特殊客人收入函式釋放借用的 SpecialCustomer。新模式 `delegate-args` 在 `6421e6e` 上 3/4 失敗，修正後全過；48 模式兩種組態通過；150 秒 GUI MSG 88。特殊客人事件與編輯器路徑在 GUI 走不到，只有 headless 驗證；尚未經獨立反駁者審查。
      - **STRUCT／DELEGATE／ARRAY 參數多加一次參照**（headless 驗證一例）：原版不加，呼叫端的 `A_REF` 已交出所有權，每次呼叫多漏一份。拿掉之前要確認沒有借用傳 struct 的路徑。
      - **`Motion::Executer` 結束後不釋放**：修正後 Executer 正常註冊，但移出集合後停在 ref=2（GUI 追蹤觀察，推定是 delegate 強參照循環）。`parts::detail::CParts` 從未釋放，`ReleaseParts` 也一直沒被呼叫。
-     - Tutorial 路徑以 null 物件呼叫 `Motion::Create` 等方法（每 150 秒 34 次 -1）。
-     - `vm_call_nopop`（HLL 回呼）的 option 規則已在 `4d52a87` 補上（審查者重現）。三槽的 option<介面> 當 delegate 參數時被當成兩槽，仍未驗證。
+     - Tutorial 路徑以 null 物件呼叫 `Motion::Create` 等方法（每 150 秒 34 次 -1）。`2005274` 前後的 GUI 追蹤分布相同：SceneParentStack 的陣列本身就含 null rect，與 delegate 伴隨槽無關。
+     - `vm_call_nopop`（HLL 回呼）的 option 規則已在 `4d52a87` 補上（審查者重現）。delegate 路徑的 option 規則在 `2005274` 之後與 `function_call` 相同；三槽 option<介面> 當 delegate 參數在本 AIN 沒有實例。
      - 立繪最終站位與原版實機截圖逐格對照尚未做；跨側移動的 ReverseLR 受下列 D5 影響。
    - **已完成：左側角色翻轉**（`4a82758`）。
    - **已完成：字型缺字**（`05d2441`，逐字 fallback 到 HanaMinA，前進量不變）。

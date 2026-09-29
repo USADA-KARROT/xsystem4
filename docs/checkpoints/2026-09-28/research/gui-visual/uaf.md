@@ -116,13 +116,13 @@ framebuffer 比對：每 2 秒一張，第 12–39 張（共 28 張），逐張�
 
 ## 另案（未修）
 
-- **delegate 呼叫把伴隨槽當成參數**（已驗證，未修）：delegate 型別的 `nr_arguments` 包含兩槽參數後面的 void 伴隨槽。以臨時探針確認 `DG_ReleaseUserComponentHandler` 的 `nr_arguments=2`，變數型別為 89、0。但 `delegate_call` 的複製迴圈沒有像 `delegate_param_slots` 那樣跳過伴隨槽，每遇到一個伴隨槽就多讀一格堆疊，寫進下一個變數。以該 delegate 呼叫 fno 22726（`CAEPropertyFlat` 的 lambda，變數 2 是 `wrap<iwrap<IParts>>`）時，區域變數 2 被寫成 delegate page 的 slot 號碼。這個區域變數原本的初值會因此洩漏；返回或重新賦值時則會對 delegate page 減參照，可能提早釋放它。修正後仍有 1 次 `GETPAGE_BAD` 發生在 `ArrayExtensions::Select<IParts&, IRectParts&>` 的 `DG_CALL`，可能與此有關（未驗證）。修法應是在複製迴圈跳過伴隨槽，需另寫 fixture。
+- **已修正（`2005274`）：delegate 呼叫把伴隨槽當成參數**。delegate 型別的 `nr_arguments` 包含兩槽參數後面的 void 伴隨槽，`delegate_call` 的複製迴圈卻把伴隨槽再當成一個參數，多讀一格堆疊。兩槽參數在最後時，第一個區域變數會被寫成 delegate page 的 slot；在中間時，之後的參數依錯的型別加參照。真 AIN 重現：Tutorial 的 selector lambda 每次呼叫都讓 `ArrayExtensions::Select` 的 delegate page 少一個參照；特殊客人收入函式的 `wrap<SpecialCustomer>` 被提早釋放。修正後照原版 `0x66dce0`／`0x657430`，一格對一個變數。〈驗證〉追蹤表中修正後剩下的 1 次 `GETPAGE_BAD` 位在這個 Select 的 `DG_CALL`，與 `2005274` 修正前 GUI 追蹤中 Select 遇到 ref 0 delegate page 的事件吻合；修正後該事件為 0（GETPAGE_BAD 本身未用原追蹤 patch 重測）。詳見 [delegate-args.md](delegate-args.md)。
 - **STRUCT／DELEGATE／ARRAY 參數多加一次參照**（headless 已驗證一例，未修）：原版 `0x657430` 對這些型別不加參照，呼叫端的 `A_REF` 已經交出一份。探針以 `A_REF` 呼叫 `AdvStand@GetMoveFrom(CASPos)` 後，ref 從 1 變 2，CASPos 存活數也從 1 變 2，每次呼叫多漏一份。可能是記憶體成長的來源之一。拿掉之前，要先確認沒有任何路徑以借用方式傳 struct。
 - **Motion::Executer 沒被釋放**（GUI 追蹤觀察，未由本次重測）：修正前大多數 Executer 在 `Motion::Create` 當場就被釋放（`ExecuterCollection@Add` 拿到 -1）。修正後它們正常註冊，但被 `EraseEndTask` 移出集合後仍停在 ref=2，75 秒內 86 個一個都沒釋放。推定是 `DG_NEW_FROM_METHOD` 與 `A_REF` 複製的 delegate 形成強參照循環。pre-v14 的方法 delegate 目標是弱參照；v14 原版語義未驗證。即使有這個洩漏，修正後的峰值 RSS 仍比修正前低。
 - **`parts::detail::CParts` 從未釋放**，所以 `ReleaseParts` 一直沒被呼叫（GUI 追蹤觀察）。這是另一個洩漏，與本根因無關。
-- **Tutorial 路徑以 null 物件呼叫方法**：修正後剩下的 34 次 -1 都屬這類，見上。
+- **Tutorial 路徑以 null 物件呼叫方法**：修正後剩下的 34 次 -1 都屬這類，見上。`2005274` 的前後追蹤中分布完全相同，selector lambda 收到的 rect 本身就是 0，和 delegate 伴隨槽無關（見 delegate-args.md）。
 - **已修正（`4d52a87`）：`vm_call_nopop` 沒有 option 規則**。兩位審查者都以真 ffi 重現：`Array.Where`（arg3 196610）經 HLL 回呼呼叫 `ItemStock@ToItem` 的 lambda（參數 `option<wrap<Item>>`）時，每呼叫一次謂詞，元素就少一個參照；受影響的還有 `MapView@GetNode`、`GetAvailableNodes`、`GetAvailableEdges`（商店、道具欄、地城地圖）。IA6 只涵蓋 `delegate_call`，所以沒抓到。修正後在全部參數複製完才套用 option 規則；新案例 IA7 走遊戲的實際呼叫形狀，在 `4e4e87d` 上失敗、修正後通過。
-- **option<介面>（三槽）當 delegate 參數**（未驗證）：`delegate_arg_is_2slot` 把 option 一律當兩槽。本次修正遇到這種情況時保守地不加參照，行為與修正前相同。
+- **option<介面>（三槽）當 delegate 參數**：`2005274` 之後 delegate 路徑一格對一個變數，option 規則與 `function_call` 相同，也會檢查三槽 option 的最後一槽。以臨時探針列舉本 AIN 全部 delegate，沒有任何一個帶三槽 option 參數，沒有實例可測。
 
 ## 側審查（`4a82758`、`05d2441`、`4dc7b85`）
 
