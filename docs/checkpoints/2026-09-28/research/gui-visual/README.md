@@ -26,3 +26,13 @@
 以臨時追蹤（未提交）跑 80 秒 GUI，`SetComponentReverseLR` 共收到 28 次呼叫，對象都是頂層元件（沒有父元件與子元件），型別為未初始化或組合型立繪（`PARTS_CONSTRUCTION_PROCESS`，繪製走 CG 路徑）。只有一組立繪收到「翻轉」，其餘 13 組都是「不翻轉」。
 
 AIN 的規則是 `AdvStand@GetSide`：位置 0–2 為左側、3–5 為右側，`Reverse = (Side == Left)`。所以收到「不翻轉」的立繪，劇本是放在右側；它們卻出現在畫面左邊，推定是換位移動沒有生效、停在初始位置。這與「已在畫面上的立繪退場、換位、隱藏都無效」是同一個現象，應一起追查，先確認 AdvStand 的位置是以 Motion 還是直接設定座標、以及該呼叫實際作用在哪個元件號碼上。
+
+### 追蹤結果二：退場、換位、名牌隱藏無效的直接原因（2026-09-29）
+
+以臨時追蹤（未提交）各跑 90 秒 GUI：
+
+1. **設定從未送出**：每個新立繪登場時，淡入（Alpha 0→255）與移入（X 120→220 或 1160→1060）都送到它的元件號碼；之後同一號碼再也沒有收到任何 Alpha、位置或顯示設定。`ReleaseParts` 在 90 秒內一次都沒有被呼叫。所有記錄到的設定都打在存在的元件上，不是打錯號碼。
+2. **VM 靜默略過方法呼叫**：CALLMETHOD 拿到函式號 -1 而略過的次數：`Motion::Executer@0` 92、`Motion::Create` 53、`AdvNamePlate@Hide` 28、`AdvStand@IsMotion::get` 10、`AdvStand@Move` 8、`AdvStand@MoveOut` 6。另有 `Motion::ExecuterCollection` 的 vtable 讀取越界。
+3. **被讀取的物件 slot 已經是字串**：`AdvStand@MoveOut` 以 `m_parent`（`wrap<iwrap<ISpriteParts>>`，成員 3）取得介面物件後讀它的 `<vtable>`（成員 0）；追蹤到的 slot（例如 9020347、9518975）當時的 heap 型別是 `VM_STRING`，不是 page。也就是立繪的 sprite 物件已被釋放，slot 又被配置給字串（use-after-free）。之後讀 vtable 失敗，函式號變成 -1，呼叫被略過，Motion 與 Show 都沒有執行。`Motion::Executer@0` 也有同樣的型別不符。
+
+結論：根因是 `wrap<iwrap<T>>` 成員（以及 Motion 執行器）所持有物件的參照計數錯誤，物件在仍被持有時就被釋放。下一步應以 headless fixture 重現：用真 AIN 建立 `AdvStand` 並經 `AFL_Parts_CreateSprite` 設定 `m_parent`，跑過一般的函式返回與 DELETE 之後檢查該 slot 的 ref 與型別，再往 X_ASSIGN（v14 不加參照）、`.LOCALREF` 暫存的 DELETE、`function_return` 與 wrap box 解包逐一排查。這也可能與 `heap_alloc_slot: skipped in-use entries` 警告及記憶體成長有關。

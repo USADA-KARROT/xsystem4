@@ -63,7 +63,7 @@
    - 一般 `NEW` 建立沒有 STRT 建構子的 struct 時，成員仍留在 null；原版 `0x679b30` 會依 `0x656970` 預設初始化。`6b65b12` 只修了讀檔路徑，引擎層要另外評估影響面。
    - DeleteSaveFile 在檔案不存在時原版回 true（`0x5c69f0`）；`init_struct_slot` 的 enum 陣列型別（R2）；A_REF 暫存字串殘留（F13）。
 4. **使用者回報的畫面問題**（研究見 `research/gui-visual/`，依建議順序）：
-   - 立繪與名牌的退場、換位、隱藏沒有作用（原因未驗證）：先用 `XSYS4_TRACE_FNO` 追蹤 AdvStand／名牌 Hide 實際傳入的元件號碼，確認是否為長期持有的包裝物件被提早釋放或重用；找到原因前不要在引擎硬加「退場就刪除」的特例。 追蹤顯示劇本放在右側的立繪出現在畫面左邊，推定換位移動沒有生效，與不退場同源（見 research/gui-visual/README.md 的追蹤結果）。這是下一個優先項目。
+   - **下一個優先項目：立繪與名牌的退場、換位、隱藏沒有作用。** 已追到直接原因：`AdvStand.m_parent`（`wrap<iwrap<ISpriteParts>>`）與 Motion 執行器持有的物件被提早釋放，slot 被字串重用；方法呼叫讀 vtable 失敗得到函式號 -1，被 VM 靜默略過（見 research/gui-visual/README.md「追蹤結果二」）。先寫 headless fixture 重現 ref 遺失，再修參照計數；不要在引擎硬加「退場就刪除」的特例，也不要只把 -1 呼叫改成錯誤而不修根因。
    - **已完成：左側角色翻轉**（`4a82758`）。
    - **已完成：字型缺字**（`05d2441`，逐字 fallback 到 HanaMinA，前進量不變）。
    - **部分完成：字距**（`05d2441`，外框計入前進量、半形寬 (字級+1)>>1）；太さ計入前進量與 `TextSurfaceManager` 的量字寬（spacing.md 修法 B）仍待做。
