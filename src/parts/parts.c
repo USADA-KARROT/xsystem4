@@ -2299,6 +2299,11 @@ void PE_SetComponentType(int parts_no, int type, int state)
 			case 19: case 27: parts_get_cg(parts, state - 1); break;
 			case 21: parts_get_text(parts, state - 1); break;
 			case 24: parts_get_numeral(parts, state - 1); break;
+			case 25:
+				if (parts->states[state - 1].type != PARTS_RECT_DETECTION)
+					parts_state_reset(&parts->states[state - 1], PARTS_RECT_DETECTION);
+				break;
+			case 26: parts_get_construction_process(parts, state - 1); break;
 			default: break;
 			}
 			parts->component_state_type[state - 1] = type;

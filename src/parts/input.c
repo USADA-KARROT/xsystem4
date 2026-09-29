@@ -343,6 +343,20 @@ void PE_UpdateInputState(int passed_time)
 	// never fires. Front-to-back hit test; a miss becomes a whole-screen
 	// click message (parts_no=0) which drives scene navigation
 	// (WholeMouseLClickEvent), plus the g_EndPartsBusyLoop global.
+	//
+	// The hit test uses the default state's area, as the hover above does:
+	// the press has already switched the parts to its down state, and a
+	// ＣＧ判定部件 detector (FooterButton) defines its area only in the
+	// normal state (on-cursor and down are CG parts without a CG).
+	//
+	// A disabled button (SetButtonEnable false) takes the click and sends
+	// nothing, neither its MouseClick nor the whole-screen click: the
+	// original does not react to its greyed buttons (成员/商店 on the base
+	// screen), while the AIN click handlers and SceneHome@Exit do not check
+	// Enable. How the original drops the click is not known: the widget
+	// flag +0xb0 is only read by the rebuild (0x528870/0x529280), the
+	// per-frame sound reset (0x5285b0), a CG size lookup (0x529490), save
+	// (0x526ab0) and the HLL getter/setter (0x590b70/0x590ba0).
 	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
 		struct parts *click_target = NULL;
 		if (getenv("XSYS4_STAGE2_TRACE")) {
@@ -366,15 +380,18 @@ void PE_UpdateInputState(int passed_time)
 				continue;
 			if (parts->pass_cursor)
 				continue;
-			if (!parts_hittest(parts, parts->state, cur_pos))
+			if (!parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos))
 				continue;
 			click_target = parts;
 			break;
 		}
 		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
 		if (getenv("XSYS4_STAGE2_TRACE"))
-			NOTICE("S2 click target=%d", click_target ? click_target->no : 0);
-		if (click_target) {
+			NOTICE("S2 click target=%d%s", click_target ? click_target->no : 0,
+				click_target && click_target->button_disabled ? " (disabled)" : "");
+		if (click_target && click_target->button_disabled) {
+			// swallowed (see above)
+		} else if (click_target) {
 			if (parts_click_sound(click_target) >= 0)
 				audio_play_sound(parts_click_sound(click_target));
 			clicked_parts = click_target->no;

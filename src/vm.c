@@ -5825,6 +5825,9 @@ _Noreturn void _vm_error(const char *fmt, ...)
 	va_end(ap);
 
 	dbg_repl(DBG_STOP_ERROR, msg);
+	// sys_exit is _exit, so atexit handlers never run: finish a pending
+	// test-mode screenshot (XSYS4_SCREENSHOT_DIR) here.
+	gfx_wait_pixels_writes();
 	sys_exit(1);
 }
 
@@ -5840,6 +5843,9 @@ void vm_sleep(int ms)
 
 _Noreturn void vm_exit(int code)
 {
+	// sys_exit is _exit (atexit handlers never run): finish a pending
+	// test-mode screenshot (XSYS4_SCREENSHOT_DIR) first.
+	gfx_wait_pixels_writes();
 	vm_free();
 #ifdef DEBUG_HEAP
 	for (size_t i = 0; i < heap_size; i++) {

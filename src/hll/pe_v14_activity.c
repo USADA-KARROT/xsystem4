@@ -27,6 +27,7 @@
  */
 
 #include <assert.h>
+#include <math.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -476,6 +477,8 @@ enum {
 	PACTEX_EPT_CG = 19,
 	PACTEX_EPT_TEXT = 21,
 	PACTEX_EPT_NUMERAL = 24,
+	PACTEX_EPT_RECT = 25,
+	PACTEX_EPT_CONSTRUCTION = 26,
 	PACTEX_EPT_CG_DETECTION = 27,
 	PACTEX_EPT_COUNT = 31,
 };
@@ -544,9 +547,64 @@ static int pactex_low_level_type(struct ex_tree *state)
 	case PACTEX_EPT_CG: return PACTEX_EPT_CG;
 	case PACTEX_EPT_TEXT: return PACTEX_EPT_TEXT;
 	case PACTEX_EPT_NUMERAL: return PACTEX_EPT_NUMERAL;
+	case PACTEX_EPT_RECT: return PACTEX_EPT_RECT;
+	case PACTEX_EPT_CONSTRUCTION: return PACTEX_EPT_CONSTRUCTION;
 	case PACTEX_EPT_CG_DETECTION: return PACTEX_EPT_CG_DETECTION;
 	default: return -1;
 	}
+}
+
+/* 構築部件 with a non-empty 手順リスト: the loader does not run construction
+ * steps (e.g. SceneAzito's Bg: load 背景／那由多, then blur), so such a state
+ * keeps the legacy CG fallback (the first step's ＣＧ名) and only reports
+ * type 26. An empty list (StandView's PlayerC) is filled by the game. */
+static bool pactex_construction_has_steps(struct ex_tree *state)
+{
+	for (unsigned i = 0; i < state->nr_children; i++) {
+		struct ex_tree *c = &state->children[i];
+		if (!c->is_leaf && pactex_name_is(c, "\x8e\xe8\x8f\x87\x83\x8a\x83\x58\x83\x67",
+				"\xca\xd6\xed\x98\xa5\xea\xa5\xb9\xa5\xc8")) /* 手順リスト */
+			return c->nr_children > 0;
+	}
+	return false;
+}
+
+static bool pactex_low_level_keeps_legacy_cg(struct ex_tree *state)
+{
+	return pactex_low_level_type(state) == PACTEX_EPT_CONSTRUCTION
+		&& pactex_construction_has_steps(state);
+}
+
+/* 矩形部件: the bounding box of the four corners 左上/右上/左下/右下 (矩形模式 1,
+ * the only mode in the game's pactex; all have 左上 = (0, 0)). */
+static void pactex_rect_size(struct ex_tree *state, int *w, int *h)
+{
+	static const char *const corners[4][2] = {
+		{ "\x8d\xb6\x8f\xe3", "\xd7\xf3\xc9\xcf" },	/* 左上 */
+		{ "\x89\x45\x8f\xe3", "\xd3\xd2\xc9\xcf" },	/* 右上 */
+		{ "\x8d\xb6\x89\xba", "\xd7\xf3\xcf\xc2" },	/* 左下 */
+		{ "\x89\x45\x89\xba", "\xd3\xd2\xcf\xc2" },	/* 右下 */
+	};
+	float min_x = 0, min_y = 0, max_x = 0, max_y = 0;
+	bool any = false;
+	for (int i = 0; i < 4; i++) {
+		struct ex_list *l = pactex_get_list(state, corners[i][0]);
+		if (!l) l = pactex_get_list(state, corners[i][1]);
+		if (!l || l->nr_items < 2)
+			continue;
+		float v[2];
+		for (int k = 0; k < 2; k++) {
+			struct ex_value *e = &l->items[k].value;
+			v[k] = e->type == EX_FLOAT ? e->f : e->type == EX_INT ? e->i : 0;
+		}
+		if (!any || v[0] < min_x) min_x = v[0];
+		if (!any || v[0] > max_x) max_x = v[0];
+		if (!any || v[1] < min_y) min_y = v[1];
+		if (!any || v[1] > max_y) max_y = v[1];
+		any = true;
+	}
+	*w = (int)lroundf(max_x - min_x);
+	*h = (int)lroundf(max_y - min_y);
 }
 
 /* 數字部件: numeral widget state. 表示タイプ 2 draws the digits with the
@@ -590,6 +648,23 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 	if (!pe_state) return false;
 	int type = pactex_low_level_type(state);
 	if (type < 0) return false;
+	if (type == PACTEX_EPT_RECT || type == PACTEX_EPT_CONSTRUCTION) {
+		// 矩形部件: an undrawn rectangle (GetRect -> CRectParts, sized by
+		// RectSize/AFL_Parts_GetSize); 構築部件: a construction state
+		// (GetConstruction -> CConstructionParts). CompParts(name, 25/26, 1)
+		// needs the state type (ThumbnailPage, StandView). Their
+		// サーフェイスエリア are all (0, 0, 0, 0) in the game's pactex.
+		struct parts *parts = parts_get(parts_no);
+		if (type == PACTEX_EPT_RECT) {
+			int w, h;
+			pactex_rect_size(state, &w, &h);
+			PE_SetPartsRectangleDetectionSize(parts_no, w, h, pe_state);
+		} else if (!pactex_construction_has_steps(state)) {
+			parts_get_construction_process(parts, pe_state - 1);
+		}
+		parts->component_state_type[pe_state - 1] = type;
+		return true;
+	}
 	bool text = type == PACTEX_EPT_TEXT;
 	bool numeral = type == PACTEX_EPT_NUMERAL;
 	struct parts *parts = parts_get(parts_no);
@@ -811,7 +886,8 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		if (state->is_leaf) continue;
 
 		int pe_state = ++state_idx; /* Preserve legacy order for unknown types. */
-		if (low_level && pactex_named_state(state) && pactex_low_level_type(state) >= 0)
+		if (low_level && pactex_named_state(state) && pactex_low_level_type(state) >= 0
+				&& !pactex_low_level_keeps_legacy_cg(state))
 			continue;
 
 		/* Search for ＣＧ名 (CG name) leaf — may be nested in 素材リスト/素材N/ */

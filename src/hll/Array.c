@@ -178,12 +178,46 @@ static void Array_PushBack(struct page **array, int value)
 	}
 }
 
+static int array_erase_stride(const struct page *a);
+static int Array_At(struct page **self, int index);
+static int array_callback_kind(struct page **array, int func, int stride,
+			       enum ain_data_type ret, const char **why);
+static bool array_query_predicate(struct page **array, int index, int stride, int func);
+static void array_drop_flagged(struct page **array, const bool *drop, int stride);
+
 // EraseAll: erase all elements matching a predicate
 static bool Array_EraseAll(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
 	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
 		return false;
+
+	// Two-slot elements (0x10003, an interface): the predicate takes a whole
+	// element (object, vtable offset) and a match removes both slots. The
+	// slot loop below would call it on half elements.
+	int stride = array_elem_is_2slot() && array_elem_is_ref() ? array_erase_stride(src) : 1;
+	const char *why = NULL;
+	if (stride > 1 && array_callback_kind(array, func, stride, AIN_BOOL, &why) == 0) {
+		int n = src->nr_vars / stride;
+		bool *drop = xcalloc(n, sizeof(bool));
+		bool any = false;
+		for (int i = 0; i < n; i++) {
+			if (!*array || (*array)->type != ARRAY_PAGE || i >= (*array)->nr_vars / stride)
+				break;
+			drop[i] = array_query_predicate(array, i, stride, func);
+			any = any || drop[i];
+		}
+		if (any)
+			array_drop_flagged(array, drop, stride);
+		free(drop);
+		return any;
+	}
+	if (stride > 1) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("Array.EraseAll: %s (fno %d); nothing erased", why, func);
+		return false;
+	}
 
 	struct ain_function *cb = &ain->functions[func];
 
@@ -317,14 +351,29 @@ static int Array_Where(struct page **array, int func)
 static int Array_First(struct page **array, int func)
 {
 	struct page *src = (array && *array) ? *array : NULL;
-	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions) {
-		if (!array_elem_is_ref()) {
-			stack_push(-1);
-			stack_push(0);
-		} else {
-			stack_push(-1);
+	if (!src || src->nr_vars == 0 || func < 0 || func >= ain->nr_functions)
+		return Array_At(array, -1);
+
+	// Two-slot elements (0x10003, an interface): walk elements, pass the
+	// whole element to the predicate and return it as At does (two slots).
+	// e.g. Motion::PartsParamCollection@0 finds its TimeParam this way.
+	int stride = array_elem_is_2slot() && array_elem_is_ref() ? array_erase_stride(src) : 1;
+	const char *why = NULL;
+	if (stride > 1 && array_callback_kind(array, func, stride, AIN_BOOL, &why) == 0) {
+		int n = src->nr_vars / stride;
+		for (int i = 0; i < n; i++) {
+			if (!*array || (*array)->type != ARRAY_PAGE || i >= (*array)->nr_vars / stride)
+				break;
+			if (array_query_predicate(array, i, stride, func))
+				return Array_At(array, i);
 		}
-		return 0;
+		return Array_At(array, -1);
+	}
+	if (stride > 1) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("Array.First: %s (fno %d); returning none", why, func);
+		return Array_At(array, -1);
 	}
 
 	struct ain_function *cb = &ain->functions[func];
@@ -426,6 +475,10 @@ static int Array_Empty(struct page **self)
 // Array.At: returns AIN_REF_HLL_PARAM.
 // For simple element types: push 2-slot reference [array_page_slot, index].
 // For struct/ref-counted types: push 1-slot (the struct heap slot value).
+// For two-slot elements (0x10003, an interface): push both slots, the
+// object (retained) and its vtable offset; a missing element is (-1, 0).
+// The AIN takes such a result as two slots (X_MOV 4 2; X_ASSIGN 2 into an
+// interface local, e.g. SceneParentStack@Get, AnimateText@AdjustPos).
 // ffi.c does NOT push the C return value for AIN_REF_HLL_PARAM.
 static int Array_At(struct page **self, int index)
 {
@@ -443,6 +496,8 @@ static int Array_At(struct page **self, int index)
 		} else {
 			// v14: null reference is -1, not 0
 			stack_push(-1);
+			if (array_elem_is_2slot())
+				stack_push(0);
 		}
 		return 0;
 	}
@@ -458,37 +513,18 @@ static int Array_At(struct page **self, int index)
 		if (result > 0)
 			heap_ref(result);
 		stack_push(result);
+		if (array_elem_is_2slot())
+			stack_push(index + 1 < array->nr_vars ? array->values[index + 1].i : 0);
 	}
 	return 0;
 }
 
-// Array.Last: returns AIN_REF_HLL_PARAM (same convention as Array.At).
+// Array.Last: returns AIN_REF_HLL_PARAM (same convention as Array.At): the
+// last element, which is the last two slots for two-slot elements.
 static int Array_Last(struct page **self)
 {
 	struct page *array = (self && *self) ? *self : NULL;
-	if (!array || array->nr_vars <= 0) {
-		if (!array_elem_is_ref()) {
-			stack_push(-1);
-			stack_push(0);
-		} else {
-			stack_push(-1);
-		}
-		return 0;
-	}
-	int last_idx = array->nr_vars - 1;
-	if (!array_elem_is_ref()) {
-		if (ain->version >= 14) heap_ref(hll_self_slot);
-		stack_push(hll_self_slot);
-		stack_push(last_idx);
-	} else {
-		int result = array->values[last_idx].i;
-		if (result <= 0)
-			result = -1;
-		if (result > 0)
-			heap_ref(result);
-		stack_push(result);
-	}
-	return 0;
+	return Array_At(self, array ? array->nr_vars / array_erase_stride(array) - 1 : -1);
 }
 
 // First without a predicate: same contract as At(0). The AIN declares
@@ -752,6 +788,8 @@ void *array_erase_function(const struct ain_hll_function *f)
 	return NULL;
 }
 
+// Insert: a two-slot element (0x10003, an interface) is inserted whole, at
+// a logical index, like PushBack/Add store it (see Array_PushBack).
 static void Array_Insert(struct page **array, int index, int value)
 {
 	if (!array)
@@ -760,19 +798,29 @@ static void Array_Insert(struct page **array, int index, int value)
 	if (array_elem_is_ref() && value > 0)
 		heap_ref(value);
 	struct page *a = *array;
+	int stride = array_elem_is_2slot() ? 2 : 1;
 	int old_size = a ? a->nr_vars : 0;
 	if (index < 0) index = 0;
-	if (index > old_size) index = old_size;
-	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
+	if (index > old_size / stride) index = old_size / stride;
+	int at = index * stride;
+	int a_type = a ? a->a_type : (stride > 1 ? AIN_ARRAY : AIN_ARRAY_INT);
+	struct page *new_a = alloc_page(ARRAY_PAGE, a_type, old_size + stride);
 	if (a) {
-		for (int i = 0; i < index; i++)
+		for (int i = 0; i < at; i++)
 			new_a->values[i] = a->values[i];
-		for (int i = index; i < old_size; i++)
-			new_a->values[i + 1] = a->values[i];
+		for (int i = at; i < old_size; i++)
+			new_a->values[i + stride] = a->values[i];
 		new_a->array = a->array;
 		free_page(a);
+	} else if (stride > 1) {
+		new_a->array.rank = 1;
 	}
-	new_a->values[index].i = value;
+	new_a->values[at].i = value;
+	if (stride > 1) {
+		new_a->values[at + 1].i = hll_param_slot2;
+		if (old_size == 0 && (a_type == AIN_ARRAY || a_type == AIN_REF_ARRAY))
+			new_a->array.struct_type = 2;
+	}
 	*array = new_a;
 }
 
@@ -1810,11 +1858,18 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 	} else {
 		new_a->array.rank = 1;
 	}
+	// Two-slot elements (0x10003): only the first slot of a pair is an
+	// object; the second is its vtable offset and gains no reference. An
+	// empty generic destination takes the stride (see Array_PushBack).
+	int stride = array_elem_is_2slot() ? 2 : 1;
 	for (int i = 0; i < src_count; i++) {
 		new_a->values[old_size + i] = src_vals[i];
-		if (array_elem_is_ref() && src_vals[i].i > 0)
+		if (array_elem_is_ref() && i % stride == 0 && src_vals[i].i > 0)
 			heap_ref(src_vals[i].i);
 	}
+	if (stride > 1 && old_size == 0
+	    && (new_a->a_type == AIN_ARRAY || new_a->a_type == AIN_REF_ARRAY))
+		new_a->array.struct_type = stride;
 	free(src_vals);
 	*dst = new_a;
 }
@@ -3477,7 +3532,20 @@ static void Array_Reverse(struct page **array)
 {
 	if (!array || !*array)
 		return;
-	array_reverse(*array);
+	// Two-slot elements keep their (object, vtable offset) order.
+	struct page *a = *array;
+	int stride = array_erase_stride(a);
+	if (stride <= 1) {
+		array_reverse(a);
+		return;
+	}
+	for (int i = 0, j = a->nr_vars / stride - 1; i < j; i++, j--) {
+		for (int k = 0; k < stride; k++) {
+			union vm_value t = a->values[i * stride + k];
+			a->values[i * stride + k] = a->values[j * stride + k];
+			a->values[j * stride + k] = t;
+		}
+	}
 }
 
 /* Duplicate: copy array elements.

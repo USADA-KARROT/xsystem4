@@ -99,6 +99,7 @@ static void init_probe(const char *path) {
 #include "delegate_args_fixture.inc"
 #include "text_metrics_fixture.inc"
 #include "base_ui_fixture.inc"
+#include "base_ui_review_fixture.inc"
 #include "frame_pacing_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
@@ -138,6 +139,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"delegate-args"))return test_delegate_args();
     if(!strcmp(argv[2],"text-metrics"))return test_text_metrics();
     if(!strcmp(argv[2],"base-ui"))return test_base_ui();
+    if(!strcmp(argv[2],"base-ui-review"))return test_base_ui_review();
     if(!strcmp(argv[2],"frame-pacing"))return test_frame_pacing();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();

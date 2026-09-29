@@ -444,6 +444,9 @@ static void error_handler(const char *msg)
 	// Never show SDL message box — it blocks in non-interactive environments.
 	// Errors are already logged to stderr by sys_verror.
 	(void)msg;
+	// sys_error ends in sys_exit (_exit): finish a pending test-mode
+	// screenshot (XSYS4_SCREENSHOT_DIR) first.
+	gfx_wait_pixels_writes();
 }
 
 static void sigsegv_handler(int sig)
@@ -702,5 +705,7 @@ int main(int argc, char *argv[])
 		set_msgskip_delay(ain, config.msgskip_delay);
 	asset_manager_init();
 	dbg_init(debug_info_path);
-	sys_exit(vm_execute_ain(ain));
+	int rc = vm_execute_ain(ain);
+	gfx_wait_pixels_writes();
+	sys_exit(rc);
 }

@@ -888,8 +888,12 @@ int gfx_write_pixels(void *pixels, int w, int h, const char *path, enum cg_type 
  * Background writes (the XSYS4_SCREENSHOT_DIR test facility): a 1280x720
  * framebuffer PNG took 174-220 ms, nearly all of it compression, and held up
  * the frame it was taken in (research/gui-visual/pacing.md). One write at a
- * time, in call order; a new one and the process exit wait for the previous
- * one.
+ * time, in call order; a new one waits for the previous one. The engine
+ * exits through sys_exit, which is _exit and skips atexit handlers, so
+ * vm_exit, VM errors, sys_error's handler and the end of main call
+ * gfx_wait_pixels_writes explicitly; the atexit registration only covers a
+ * plain exit(). A kill signal (SIGTERM at a runner's time limit) still loses
+ * a write in progress.
  */
 struct pixels_write {
 	void *pixels;
@@ -912,7 +916,8 @@ static int pixels_write_main(void *data)
 
 void gfx_wait_pixels_writes(void)
 {
-	if (pixels_write_thread) {
+	// An error on the writer thread itself must not wait for itself.
+	if (pixels_write_thread && SDL_GetThreadID(pixels_write_thread) != SDL_ThreadID()) {
 		SDL_WaitThread(pixels_write_thread, NULL);
 		pixels_write_thread = NULL;
 	}
