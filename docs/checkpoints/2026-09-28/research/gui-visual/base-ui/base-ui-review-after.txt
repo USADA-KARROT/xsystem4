@@ -1,0 +1,10 @@
+# verify-step.sh 的 base-ui-review 輸出（src/include = 本組修正；*WARNING* 行已刪）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BR1 disabled button: ok
+BR2 detector click: ok
+BR3 two-slot At/First/Last: ok
+BR4 two-slot First(pred)/EraseAll/Concat/Reverse/Insert: ok
+BR5 AnimateText@AdjustPos: ok
+BR6 rect/construction states: ok
+BR7 exits wait for the screenshot write: ok
+BASE-UI-REVIEW PASS: 0 of 7 cases failed

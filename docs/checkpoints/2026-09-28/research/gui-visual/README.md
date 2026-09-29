@@ -12,7 +12,7 @@
 
 修正順序建議見 [HANDOFF.md](../../HANDOFF.md) 的任務清單。
 
-## 修正進度（2026-09-29）
+## 修正進度（2026-09-29 起）
 
 | 問題 | commit | 驗證 |
 |---|---|---|
@@ -25,6 +25,7 @@
 | 翻轉作用在整棵元件樹（側審查 D5–D7） | `0ab8476`：旗標移到 `parts_params`（local＝自己、global＝沿父元件鏈 XOR），照原版 `0x535260` → `0x4e6d80` 以錨點為軸鏡像自己的方框，父元件翻轉時子元件位置也以父元件錨點鏡像；CG、TEXT、FLAT、FLASH、3D 圖層與 alpha clipper 共用同一變換，矩形與像素點擊判定、`Parts_GetPartsUpperLeftPos` 跟著翻轉；surface area 的錯位（D6）一併消失 | 新模式 `reverse-inherit`：`b5d8b9e` 上 3/3 失敗（RI1 17 項），修正後全過，其中 RI3 以真 bytecode 跑 `AdvStand@Move` 跨側與 `Motion::EndAll`；49 模式兩種組態 `VERDICT PASS`；150 秒 GUI MSG 88、assertion 0、堆疊溢位 0，8 張 framebuffer 與修正前逐像素相同。開場沒有跨側移動（追蹤 40 次呼叫都在葉元件），以臨時注入確認 rect 根翻轉會讓立繪以錨點精確鏡像、朝向與原版翻轉的立繪相同。詳見 [reverse-inherit.md](reverse-inherit.md) |
 | 據點畫面缺件（D1–D5、D7）與 SetButtonEnable | `6d39915`：v14 父元件立即掛上（`0x58f060`），pactex 依原版 `部件タイプ` 名稱表設型別（UC 17 與其名稱、數據；低階的數字 24、ＣＧ判定 27），`SetComponentType` 對低階元件只改狀態、`GetActivityParts`／`Get/SetUserComponentData` 實作，`Array.Add` 兩槽、`MainEXFile.Col` 回 list 元素數，`編輯上表示`、父元件倍率作用在子元件位置與文字、字型數字、`SetButtonEnable`／`IsButtonEnable` | 新模式 `base-ui`：`22339c1` 上 5/5 失敗，修正後全過；50 模式兩種組態 `VERDICT PASS`；150／220 秒 GUI MSG 88、assertion 0、堆疊溢位 0；點擊序列下底列、Day／金錢、貼紙、橫幅、教學兩頁與原版截圖一致，「下一步」進入階段選擇；背景仍黑等差異見 [base-ui.md](base-ui.md) |
 | 流暢度（限速、每幀推進兩次、截圖停頓、換句排版） | `44964f9`：照原版 `0x4676f0` 的算式與 `0x4c5450` 的順序在 `UpdateView` 限速後呈現一次（1 ms 刻度的 Sleep），`UpdateComponent` 之外不再推進元件時間，`ChipmunkSpriteEngine.Update`／`TRANS_Update` 畫、`UpdateView` 呈現，`system.Peek` 不再呈現；截圖 PNG 移到背景執行緒；訊息視窗文字在繪製時才排版 | 新模式 `frame-pacing`：`f489d23` 上 5/5 失敗，修正後全過；51 模式兩種組態 `VERDICT PASS`；同條件前後各兩輪 150 秒 GUI：一般遊玩 321–324 次／秒（浮動）→ 58.7，AIN 時間倍率 0.74→0.97、元件時間倍率 1.67–1.70→0.97；測試模式 >50 ms 間隔 40–42→2–3、最長 241–253→72–75 ms；MSG 88、assertion 0、堆疊溢位 0，約 80 秒進入據點並顯示底列。立繪 DCF 重複解碼等未修。詳見 [pacing.md](pacing.md) |
+| 據點審查的修正（停用按鈕、偵測元件點擊、兩槽 Array、矩形／構築部件、結束時等待截圖） | `fb28975`：停用按鈕吃掉點擊（不送 MouseClick 也不送全畫面點擊）；v14 點擊派送用預設狀態的判定區；`Array.At`／`First`／`Last` 對兩槽元素推兩槽，`First(pred)`／`EraseAll`／`Concat`／`Reverse`／`Insert` 以元素為單位（頁首與據點環節橫幅右偏 73 px 的根因，也讓 `Motion::PartsParamCollection@0` 找到 TimeParam，motion 不再一律 1000 ms）；pactex 的 矩形部件（25）、構築部件（26）回報型別；`vm_exit`／VM 錯誤／`sys_error`／`main` 結尾等待背景截圖 | 新模式 `base-ui-review`：`1e56cd6` 上 7/7 失敗，修正後全過；52 模式兩種組態 `VERDICT PASS`；150 秒 GUI MSG 88（對白雜湊不變）、assertion 0、堆疊溢位 0、58.7 fps；自動點擊：停用的成员／商店不反應、人材→卡片→返回回到一覽、鑑賞模式不再斷言、橫幅文字中心 639.0（原版 639.5，修正前 714）。回到一覽後再按返回仍無反應（修正前相同）。詳見 [base-ui.md](base-ui.md) §10 |
 
 ### 追蹤結果：站錯邊與不退場可能同源
 

@@ -1,0 +1,15 @@
+{
+  "note": "fb28975 review fixes. gui-run.sh runs use the optimized build of the commit; the scenario runs use a scratch copy of the same src with only a screenshot-schedule patch (XS4DBG_SHOT_*) and XSYS4_AUTO_CLICK_SEQ, not committed. Times are ms since start.",
+  "gui_run_150s": [
+    {"run": "gui-run.sh implC-150a (src = fb28975 before three cosmetic edits)", "msg": 88, "msg_sha1_12": "4b147bd1722e", "assertions": 0, "stack_overflows": 0, "unimpl": 0, "framebuffer_pngs": 40, "peak_rss_mb": 607},
+    {"run": "gui-run.sh implC-150b (fb28975)", "msg": 88, "msg_sha1_12": "4b147bd1722e", "assertions": 0, "stack_overflows": 0, "unimpl": 0, "framebuffer_pngs": 40, "peak_rss_mb": 607, "avg_fps": 58.67, "intervals_over_50ms": 3, "max_interval_ms": 64.5},
+    {"run": "gui-run.sh pacing-44964f9-g150 (1e56cd6 code, for reference)", "msg": 88, "msg_sha1_12": "4b147bd1722e"}
+  ],
+  "scenarios": [
+    {"name": "disabled member/shop", "clicks": "tutorial next 90000 (237,677), close 95000 (1180,677), 成员 102000 (190,378), 商店 110000 (480,348), 成员 118000", "result": "S2 click target=900263 (disabled), 900261 (disabled), 900263 (disabled); the base screen stays until 128000", "original": "wine deep/d035, d036: no reaction"},
+    {"name": "rencai -> card -> return", "clicks": "人材 102000 (150,198), card 112000 (70,350), 返回 122000 (1180,678)", "result": "target 900762 (detector); the list comes back; no assertion (StandView GetConstruction)", "original": "wine deep/d027", "still_different": "a second 返回 on the list (127000-145000) is not taken: no press reaches the dispatch, same on 1e56cd6 (review r3)"},
+    {"name": "collection (鑑賞模式) from the title", "clicks": "4000/8000 (640,700), 14000 (152,296)", "result": "no assertion (1e56cd6: ThumbnailPage.jaf:57/58 GetRect)", "original": "no reference shot"},
+    {"name": "據點環節 banner", "result": "band y 316-399, text x 542-736 (centre 639.0) at 67001", "original": "run3/s052a: band y 316-399, text x 544-735 (centre 639.5); 1e56cd6 (review r4): x 617-811 (centre 714)"},
+    {"name": "achievements header (AnimateText@AdjustPos)", "result": "characters at x -50..50 around the anchor (1e56cd6: 0..100)"}
+  ]
+}

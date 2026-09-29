@@ -95,7 +95,7 @@ AIN 的 passedTime 以毫秒計，每幀在 `CalcPassedTime` 的讀取之間丟�
 | `TRANS_Update` | `UpdateView` 呈現時：畫場景與轉場（`effect_render`），不呈現 |
 | `PartsEngine.UpdateComponent`（v14） | 推進後標記本幀已推進；`UpdateView` 呈現時不再自己呈現（其餘情形保留每 16 ms 呈現） |
 | `system.Peek` | `UpdateView` 呈現時只處理事件 |
-| `video.c` | 截圖：讀回後交給背景執行緒寫檔（`gfx_write_pixels_async`，一次一張、依序，結束時等待）；`gfx_save_texture` 拆出 `gfx_write_pixels`。`STAGE2_PERF` 每 5 秒另印超過 33／50 ms 的間隔數（`gt33`／`gt50`）。vsync 開啟時限速器不睡（呈現本身已等待；原版不開 vsync） |
+| `video.c` | 截圖：讀回後交給背景執行緒寫檔（`gfx_write_pixels_async`，一次一張、依序）。原本寫「結束時等待」不正確：引擎一律經 `sys_exit`（`_exit`）結束，`atexit` 不會執行，`fb28975` 才在 `vm_exit`、VM 錯誤、`sys_error` handler 與 `main` 結尾明確等待（審查指出，見 base-ui.md §10.5）；`gfx_save_texture` 拆出 `gfx_write_pixels`。`STAGE2_PERF` 每 5 秒另印超過 33／50 ms 的間隔數（`gt33`／`gt50`）。vsync 開啟時限速器不睡（呈現本身已等待；原版不開 vsync） |
 | `parts/message_window.c` | 文字、字型、字距改變時只標記，繪製時才排版一次（排版結果只有繪製會讀） |
 
 沒有為單一畫面加特例。限速、跳幀與非作用中視窗的行為都跟隨遊戲自己的設定值。
@@ -176,7 +176,7 @@ AIN 的 passedTime 以毫秒計，每幀在 `CalcPassedTime` 的讀取之間丟�
 
 - **立繪 DCF 重複解碼**：換表情時 libsys4 的 `dcf_extract` 每次都重新解碼底圖（1481×1935，約 21–25 ms），150 秒內 CG 解碼 200 次、只有 80 張不同，重複解碼共 291 ms（診斷 D4）。底圖快取要改 libsys4（`dcf_get_base_cg`），本組不改 submodule；在 xsystem4 端可以對「名稱→解碼後的 cg」做 LRU（每張 11.5 MB），或把解碼移到背景執行緒（`SetPartsCG` 的同步語義會變）。
 - **`heap_grow`**：一次觸碰全部新 slot（約 21 ms，偶發）。
-- **`SetWindowSetting` type 2**：AIN 的 type 2 是「全螢幕失焦時最小化」，xsystem4 當成 `WAIT_VSYNC`；在設定畫面切換會打開 vsync。SDL 2.32 的 macOS vsync 在螢幕休眠時會卡住（診斷 E/E2：一次 swap 阻塞 159 秒）。依 AIN 函式名推定，未反組譯確認。
+- **`SetWindowSetting` type 2**：AIN 的 type 2 是「全螢幕失焦時最小化」，xsystem4 當成 `WAIT_VSYNC`。原本寫「在設定畫面切換會打開 vsync」沒有 AIN 證據：審查者靜態確認 type 2 唯一的呼叫者 `config::detail::SetMinimizeByFullScreenInactive` 只被 `AFL_Config_SetMinimizeByFullScreenInactive` 呼叫，而後者在 AIN 內沒有呼叫者，推定遊戲不會打開 vsync，只有 WindowSetting.json 的 `wait_vsync` 能開。SDL 2.32 的 macOS vsync 在螢幕休眠時會卡住（診斷 E/E2：一次 swap 阻塞 159 秒）。依 AIN 函式名推定，未反組譯確認。
 - 其他：事件處理偶發 23.8 ms、貼圖上傳。
 
 ---
