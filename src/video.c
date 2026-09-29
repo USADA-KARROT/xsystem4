@@ -21,6 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdlib.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -71,6 +72,7 @@ static GLint max_texture_size;
 static SDL_Color clear_color = { 0, 0, 0, 255 };
 static float frame_rate;
 static bool wait_vsync = false;
+static bool vsync_active = false;
 
 static GLchar *read_shader_file(const char *path)
 {
@@ -266,6 +268,7 @@ int gfx_init(void)
 #endif
 
 	SDL_GL_SetSwapInterval(wait_vsync ? 1 : 0);
+	vsync_active = SDL_GL_GetSwapInterval() != 0;
 	gl_initialize();
 	gfx_draw_init();
 	gfx_set_window_logical_size(config.view_width, config.view_height);
@@ -373,8 +376,25 @@ void gfx_update_screen_scale(void)
 void gfx_set_wait_vsync(bool wait)
 {
 	wait_vsync = wait;
-	if (gfx_initialized)
+	if (gfx_initialized) {
 		SDL_GL_SetSwapInterval(wait ? 1 : 0);
+		vsync_active = SDL_GL_GetSwapInterval() != 0;
+	}
+}
+
+void gfx_flush(void)
+{
+	glFlush();
+}
+
+bool gfx_vsync_active(void)
+{
+	return vsync_active;
+}
+
+bool gfx_window_active(void)
+{
+	return gfx_initialized && (SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_INPUT_FOCUS);
 }
 
 void gfx_set_clear_color(int r, int g, int b, int a)
@@ -429,7 +449,7 @@ static struct {
 	bool initialized, enabled;
 	uint64_t frequency, previous_present, window_start;
 	uint64_t frames, total_swap, max_interval, max_swap;
-	unsigned samples;
+	unsigned samples, over33, over50;
 	uint64_t intervals[STAGE2_PERF_SAMPLES], swaps[STAGE2_PERF_SAMPLES];
 } stage2_perf;
 
@@ -467,6 +487,11 @@ static void gfx_stage2_perf_presented(uint64_t swap_start, uint64_t presented)
 	stage2_perf.total_swap += swap;
 	stage2_perf.max_interval = max(stage2_perf.max_interval, interval);
 	stage2_perf.max_swap = max(stage2_perf.max_swap, swap);
+	// Long intervals: more than 33 ms / 50 ms between two presents.
+	if (interval * 1000 > stage2_perf.frequency * 33)
+		stage2_perf.over33++;
+	if (interval * 1000 > stage2_perf.frequency * 50)
+		stage2_perf.over50++;
 	if (stage2_perf.samples < STAGE2_PERF_SAMPLES) {
 		stage2_perf.intervals[stage2_perf.samples] = interval;
 		stage2_perf.swaps[stage2_perf.samples++] = swap;
@@ -480,18 +505,18 @@ static void gfx_stage2_perf_presented(uint64_t swap_start, uint64_t presented)
 	// Nearest-rank p95; expose sample count if an unusually fast caller caps it.
 	unsigned p95 = (stage2_perf.samples * 95 + 99) / 100 - 1;
 	double ms_per_tick = 1000.0 / stage2_perf.frequency;
-	NOTICE("STAGE2_PERF t_ms=%llu window_ms=%.3f presents=%llu samples=%u avg_fps=%.3f p95_interval_ms=%.3f max_interval_ms=%.3f avg_swap_ms=%.3f p95_swap_ms=%.3f max_swap_ms=%.3f window_flags=0x%x vsync=%d",
+	NOTICE("STAGE2_PERF t_ms=%llu window_ms=%.3f presents=%llu samples=%u avg_fps=%.3f p95_interval_ms=%.3f max_interval_ms=%.3f avg_swap_ms=%.3f p95_swap_ms=%.3f max_swap_ms=%.3f gt33=%u gt50=%u window_flags=0x%x vsync=%d",
 		(unsigned long long)SDL_GetTicks64(), elapsed * ms_per_tick,
 		(unsigned long long)stage2_perf.frames, stage2_perf.samples,
 		stage2_perf.frames * (double)stage2_perf.frequency / elapsed,
 		stage2_perf.intervals[p95] * ms_per_tick, stage2_perf.max_interval * ms_per_tick,
 		stage2_perf.total_swap * ms_per_tick / stage2_perf.frames,
 		stage2_perf.swaps[p95] * ms_per_tick, stage2_perf.max_swap * ms_per_tick,
-		SDL_GetWindowFlags(sdl.window), SDL_GL_GetSwapInterval());
+		stage2_perf.over33, stage2_perf.over50, SDL_GetWindowFlags(sdl.window), SDL_GL_GetSwapInterval());
 	stage2_perf.window_start = presented;
 	stage2_perf.frames = stage2_perf.total_swap = 0;
 	stage2_perf.max_interval = stage2_perf.max_swap = 0;
-	stage2_perf.samples = 0;
+	stage2_perf.samples = stage2_perf.over33 = stage2_perf.over50 = 0;
 }
 
 void gfx_swap(void)
@@ -511,7 +536,9 @@ void gfx_swap(void)
 		if (shot_dir && shot_count < 40 && SDL_GetTicks() > next_shot) {
 			char path[PATH_MAX];
 			snprintf(path, sizeof(path), "%s/xsys4_t%02d.png", shot_dir, shot_count);
-			gfx_save_texture(gfx_main_surface(), path, ALCG_PNG);
+			// Read back here; compress and write on a worker thread.
+			Texture *t = gfx_main_surface();
+			gfx_write_pixels_async(gfx_get_pixels(t), t->w, t->h, path, ALCG_PNG);
 			shot_count++;
 			next_shot += 2000;
 		}
@@ -827,15 +854,22 @@ void *gfx_get_pixels(Texture *t)
 int gfx_save_texture(Texture *t, const char *path, enum cg_type format)
 {
 	void *pixels = gfx_get_pixels(t);
+	int r = gfx_write_pixels(pixels, t->w, t->h, path, format);
+	free(pixels);
+	return r;
+}
+
+int gfx_write_pixels(void *pixels, int w, int h, const char *path, enum cg_type format)
+{
 	struct cg cg = {
 		.type = ALCG_UNKNOWN,
 		.metrics = {
-			.w = t->w,
-			.h = t->h,
+			.w = w,
+			.h = h,
 			.bpp = 24,
 			.has_pixel = true,
 			.has_alpha = true,
-			.pixel_pitch = t->w * 3,
+			.pixel_pitch = w * 3,
 			.alpha_pitch = 1
 		},
 		.pixels = pixels
@@ -843,11 +877,64 @@ int gfx_save_texture(Texture *t, const char *path, enum cg_type format)
 	FILE *fp = file_open_utf8(path, "wb");
 	if (!fp) {
 		WARNING("Failed to open %s: %s", display_utf0(path), strerror(errno));
-		free(pixels);
 		return 0;
 	}
 	int r = cg_write(&cg, format, fp);
 	fclose(fp);
-	free(pixels);
 	return r;
+}
+
+/*
+ * Background writes (the XSYS4_SCREENSHOT_DIR test facility): a 1280x720
+ * framebuffer PNG took 174-220 ms, nearly all of it compression, and held up
+ * the frame it was taken in (research/gui-visual/pacing.md). One write at a
+ * time, in call order; a new one and the process exit wait for the previous
+ * one.
+ */
+struct pixels_write {
+	void *pixels;
+	int w, h;
+	enum cg_type format;
+	char *path;
+};
+
+static SDL_Thread *pixels_write_thread;
+
+static int pixels_write_main(void *data)
+{
+	struct pixels_write *job = data;
+	gfx_write_pixels(job->pixels, job->w, job->h, job->path, job->format);
+	free(job->pixels);
+	free(job->path);
+	free(job);
+	return 0;
+}
+
+void gfx_wait_pixels_writes(void)
+{
+	if (pixels_write_thread) {
+		SDL_WaitThread(pixels_write_thread, NULL);
+		pixels_write_thread = NULL;
+	}
+}
+
+void gfx_write_pixels_async(void *pixels, int w, int h, const char *path, enum cg_type format)
+{
+	static bool at_exit_registered = false;
+	gfx_wait_pixels_writes();
+	if (!at_exit_registered) {
+		atexit(gfx_wait_pixels_writes);
+		at_exit_registered = true;
+	}
+	struct pixels_write *job = xmalloc(sizeof(struct pixels_write));
+	*job = (struct pixels_write) {
+		.pixels = pixels,
+		.w = w,
+		.h = h,
+		.format = format,
+		.path = xstrdup(path),
+	};
+	pixels_write_thread = SDL_CreateThread(pixels_write_main, "xsys4-pixels-write", job);
+	if (!pixels_write_thread)
+		pixels_write_main(job);
 }

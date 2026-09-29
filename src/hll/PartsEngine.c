@@ -29,6 +29,7 @@
 #include "hll.h"
 #include "input.h"
 #include <SDL.h>
+#include "frame_pacing.h"
 #include "gfx/gfx.h"
 #include "scene.h"
 #include "sprite.h"
@@ -953,13 +954,14 @@ static bool PE_v14_Load(int buf_slot)
 
 // v14 declares: void UpdateComponent(int PassedTime, int ScaledPassedTime,
 // bool MessageWindowShow, float MessageWindowMulColorRate,
-// float MessageWindowAlphaRate). On v14 this call drives the whole frame
-// on scenes that never call SystemService.UpdateView (e.g. the title
-// screen), so pump events and motion here too.
+// float MessageWindowAlphaRate). view::detail::View_Update calls it first in
+// every frame with the game's passed time, so the parts advance here, once
+// per frame; SystemService.UpdateView then presents the frame without
+// advancing them again (frame_pacing.h).
 // Fork-verified semantics: reentrancy guard (PE_Update can trigger VM
-// callbacks that call UpdateComponent again), and present the frame here —
-// on scenes that never call SystemService.UpdateView (e.g. the title
-// screen) this is the only per-frame driver.
+// callbacks that call UpdateComponent again). When UpdateView is not
+// presenting (View_Update leaves it out while the ADV engine skips, or the
+// game never calls it), present here, at most every 16 ms.
 static bool pe_v14_in_update = false;
 static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 		bool message_window_show, float mul_color_rate, float alpha_rate)
@@ -975,7 +977,8 @@ static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 	sprite_call_plugins();
 	PE_UpdateMotionTime(passed_time, false);
 	PE_Update(passed_time, message_window_show);
-	{
+	frame_pacing_parts_updated();
+	if (!frame_pacing_update_view_presents()) {
 		static uint32_t last_render_ms = 0;
 		uint32_t now_ms = SDL_GetTicks();
 		if (now_ms - last_render_ms >= 16) {

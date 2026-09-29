@@ -80,6 +80,7 @@ extern const char *effect_names[NR_EFFECTS];
 
 int effect_init(enum effect type);
 void effect_update_texture(int type, struct texture *dst, struct texture *old, struct texture *new, float rate);
+int effect_render(float rate);
 int effect_update(float rate);
 int effect_fini(void);
 

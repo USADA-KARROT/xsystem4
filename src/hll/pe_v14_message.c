@@ -285,7 +285,7 @@ static void PE_v14_SetMessageWindowText(int parts_no, struct string *text,
 
 static void PE_v14_FixMessageWindowText(possibly_unused int parts_no)
 {
-	// Text renders synchronously in SetMessageWindowText.
+	// The text is laid out when it is next drawn (message_window.c).
 }
 
 static bool PE_v14_IsFixedMessageWindowText(possibly_unused int parts_no)

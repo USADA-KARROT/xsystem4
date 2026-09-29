@@ -39,6 +39,7 @@
 #include "system4/utfsjis.h"
 
 #include "debugger.h"
+#include "frame_pacing.h"
 #include "gfx/gfx.h"
 #include "gfx/font.h"
 #include "input.h"
@@ -2333,8 +2334,13 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_PEEK: {// system.Peek(void)
 		handle_events();
-		scene_render();
-		gfx_swap();
+		// v14: view::detail::View_Update calls Peek right after
+		// SystemService.UpdateView, which already presented the frame
+		// (frame_pacing.h).
+		if (!frame_pacing_update_view_presents()) {
+			scene_render();
+			gfx_swap();
+		}
 		break;
 	}
 	case SYS_SLEEP: {// system.Sleep(int nSleep)

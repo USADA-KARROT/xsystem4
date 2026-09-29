@@ -27,6 +27,7 @@
 #include "asset_manager.h"
 #include "audio.h"
 #include "effect.h"
+#include "frame_pacing.h"
 #include "input.h"
 #include "queue.h"
 #include "gfx/gfx.h"
@@ -179,6 +180,19 @@ int sact_Update(void)
 {
 	handle_events();
 	sprite_call_plugins();
+	// v14: SystemService.UpdateView presents this frame right after this
+	// call (frame_pacing.h). Draw it here as the original does (0x468a10),
+	// except for the frames the message-skip frame skip leaves out.
+	if (frame_pacing_update_view_presents()) {
+		if (frame_pacing_draw_frame()) {
+			scene_render();
+			scene_is_dirty = false;
+			frame_pacing_set_frame(FRAME_PACING_DRAWN);
+		} else {
+			frame_pacing_set_frame(FRAME_PACING_SKIPPED);
+		}
+		return 1;
+	}
 	if (scene_is_dirty) {
 		scene_render();
 		gfx_swap();
@@ -1038,6 +1052,14 @@ int sact_TRANS_Begin(int type)
 int sact_TRANS_Update(float rate)
 {
 	sprite_call_plugins();
+	// v14: draw the transition here and let SystemService.UpdateView
+	// present it (frame_pacing.h).
+	if (frame_pacing_update_view_presents()) {
+		scene_render();
+		scene_is_dirty = false;
+		frame_pacing_set_frame(FRAME_PACING_DRAWN);
+		return effect_render(rate);
+	}
 	if (scene_is_dirty)
 		scene_render();
 	return effect_update(rate);

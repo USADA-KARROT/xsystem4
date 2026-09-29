@@ -333,7 +333,7 @@ int effect_init(enum effect type)
 	return 1;
 }
 
-int effect_update(float rate)
+int effect_render(float rate)
 {
 	if (!effect.on) {
 		return 0;
@@ -347,7 +347,13 @@ int effect_update(float rate)
 		render_effect_shader(effect_shaders[effect.type], &effect.view, &effect.old, &new, rate);
 		gfx_delete_texture(&new);
 	}
+	return 1;
+}
 
+int effect_update(float rate)
+{
+	if (!effect_render(rate))
+		return 0;
 	gfx_swap();
 	return 1;
 }

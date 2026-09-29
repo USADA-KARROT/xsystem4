@@ -19,6 +19,8 @@ struct parts_message_window {
 	Rectangle text_area;
 	int text_origin_mode;
 	bool key_wait_show;
+	// The text, font or spacing changed since the text was laid out.
+	bool text_changed;
 };
 
 static struct parts_message_window *message_window_get(struct parts *parts)
@@ -83,7 +85,12 @@ static struct string *message_window_plain_text(struct string *raw)
 	return plain;
 }
 
-static void message_window_rebuild(struct parts *parts)
+/* Lays the text out (one texture per glyph). Only the drawing reads the
+ * layout, so it runs there, once for all the changes before it: the game
+ * sets the text three to four times per line (GetMessageWindowText + append +
+ * SetMessageWindowText), and laying the whole text out on every call took
+ * about 1 ms each, up to 5 ms (research/gui-visual/pacing.md). */
+static void message_window_layout(struct parts *parts)
 {
 	struct parts_message_window *mw = parts->message;
 	struct text_style style = mw->text.ts;
@@ -96,6 +103,12 @@ static void message_window_rebuild(struct parts *parts)
 	mw->plain_bytes = plain->size;
 	parts_text_append(parts, &mw->text, plain);
 	free_string(plain);
+	mw->text_changed = false;
+}
+
+static void message_window_rebuild(struct parts *parts)
+{
+	parts->message->text_changed = true;
 	parts_dirty(parts);
 }
 
@@ -212,6 +225,8 @@ bool PE_IsKeyWaitShow(int parts_no)
 struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position)
 {
 	struct parts_message_window *mw = parts->message;
+	if (mw && mw->text_changed)
+		message_window_layout(parts);
 	if (!mw || !mw->text.nr_lines)
 		return NULL;
 	Point background = parts->states[PARTS_STATE_DEFAULT].common.origin_offset;

@@ -26,6 +26,7 @@
 #include "cJSON.h"
 #include "audio.h"
 #include "input.h"
+#include "frame_pacing.h"
 #include "gfx/gfx.h"
 #include "mixer.h"
 #include "savedata.h"
@@ -105,6 +106,12 @@ extern void PE_Update(int passed_time, bool message_window_show);
 extern void PE_UpdateMotionTime(int time, bool skip);
 extern bool parts_message_window_show;
 
+// One game frame ends here, as in the original (0x4c5450): wait (the 60 fps
+// limiter, frame_pacing.h) and present the frame once. The frame was
+// already drawn by ChipmunkSpriteEngine.Update or TRANS_Update, and the parts
+// were already advanced by PartsEngine.UpdateComponent with the game's own
+// passed time (view::detail::View_Update calls both first). Advance and draw
+// here only what did not happen since the previous UpdateView.
 static bool SystemService_UpdateView(void)
 {
 	// Compute elapsed time for animation/motion updates
@@ -121,24 +128,29 @@ static bool SystemService_UpdateView(void)
 	}
 	last_time = now;
 
+	frame_pacing_update_view();
 	handle_events();
 	sprite_call_plugins();
-	// Motion timing first (v14 games do not call UpdateMotionTime
-	// themselves), then the upstream parts pipeline: component updates,
-	// audio, loop animations, input state, render update.
-	PE_UpdateMotionTime(passed_time, false);
-	PE_Update(passed_time, parts_message_window_show);
-
-	// Throttle scene_render + gfx_swap to ~60fps.
-	static uint32_t sv_last_render_ms = 0;
-	uint32_t now_ms = SDL_GetTicks();
-	if (now_ms - sv_last_render_ms >= 16) {
-		scene_render();
-		gfx_swap();
-		sv_last_render_ms = now_ms;
-	} else {
-		SDL_Delay(1); // yield to OS when render is skipped
+	bool advanced = frame_pacing_take_parts_updated();
+	if (!advanced) {
+		// Motion timing first, then the upstream parts pipeline: component
+		// updates, audio, loop animations, input state, render update.
+		PE_UpdateMotionTime(passed_time, false);
+		PE_Update(passed_time, parts_message_window_show);
 	}
+
+	enum frame_pacing_frame frame = frame_pacing_take_frame();
+	if (frame == FRAME_PACING_SKIPPED) {
+		frame_pacing_wait();
+		return true;
+	}
+	if (frame != FRAME_PACING_DRAWN || !advanced) {
+		scene_render();
+		scene_is_dirty = false;
+	}
+	gfx_flush(); // let the GPU draw while the limiter sleeps
+	frame_pacing_wait();
+	gfx_swap();
 	return true;
 }
 

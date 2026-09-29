@@ -82,6 +82,9 @@ bool gfx_is_fullscreen(void);
 void gfx_toggle_fullscreen(void);
 void gfx_update_screen_scale(void);
 void gfx_set_wait_vsync(bool wait);
+void gfx_flush(void);
+bool gfx_vsync_active(void);
+bool gfx_window_active(void);
 float gfx_get_frame_rate(void);
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path);
@@ -117,6 +120,12 @@ void gfx_reset_framebuffer(GLenum target, GLuint fbo);
 SDL_Color gfx_get_pixel(Texture *t, int x, int y);
 void *gfx_get_pixels(Texture *t);
 int gfx_save_texture(Texture *t, const char *path, enum cg_type);
+// Writes RGBA pixels (w*h*4, as gfx_get_pixels returns them) to an image file.
+int gfx_write_pixels(void *pixels, int w, int h, const char *path, enum cg_type format);
+// Same on a worker thread; takes ownership of pixels. Writes run one at a
+// time in call order; gfx_wait_pixels_writes waits for the last one.
+void gfx_write_pixels_async(void *pixels, int w, int h, const char *path, enum cg_type format);
+void gfx_wait_pixels_writes(void);
 
 // drawing
 void gfx_draw_init(void);
