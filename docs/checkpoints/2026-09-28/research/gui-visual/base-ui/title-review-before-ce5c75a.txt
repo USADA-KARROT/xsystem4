@@ -1,0 +1,33 @@
+# before-check.sh ce5c75a title-review（src/include 取自 ce5c75a；*WARNING* 行已刪，只留摘要行）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: RegisterEvent's four delegates hold the scene: ref 1 -> 5
+  FAIL: scene still alive after its owner let go (ref 4)
+  FAIL: the freed scene's entry is still in the button's event (1 entries)
+TR1 weak delegate target: FAIL
+TR1 FAILED (exit 1)
+  FAIL: inside the outer destructor the inner object was not destroyed: 0 nested destructor calls, ref 0
+TR2 nested destruction: FAIL
+TR2 FAILED (exit 1)
+  FAIL: RemoveController list: 0 entries (0 0); want the delegate indices 37 41
+  FAIL: ReleaseActivity list: 0 entries (0); want the delegate index 53
+TR3 erase lists hold delegate indices: FAIL
+TR3 FAILED (exit 1)
+  FAIL: GetReverse<IRectParts&> changed its source: [4 0 3 1 2 0]
+  FAIL: GetReverse<IRectParts&> result: slot 5 (source 5)
+  FAIL: GetReverse<ActionTarget&> changed its source: [8 7 6]
+  FAIL: GetReverse<ActionTarget&> result: slot 9 (source 9)
+  FAIL: GetSort<string> changed its source: apple fig pear
+  FAIL: GetSort<string> result: slot 13 (source 13)
+TR4 A_REF copies arrays: FAIL
+TR4 FAILED (exit 1)
+  FAIL: system blocker: 1 messages, first type 4 parts 9901; want 1, 4, 1000001500
+  FAIL: cursor blocker: 1 messages, first type 4 parts 9901; want 1, 4, 0 (whole screen)
+TR5 click targets: FAIL
+TR5 FAILED (exit 1)
+  FAIL: empty on-cursor state entered (state 1); want the normal state kept
+TR6 empty hover state: FAIL
+TR6 FAILED (exit 1)
+  FAIL: parts 3 (numbered like the freed <vtable> slot) was released
+TR7 CParts teardown: FAIL
+TR7 FAILED (exit 1)
+TITLE-REVIEW FAIL: 7 of 7 cases failed

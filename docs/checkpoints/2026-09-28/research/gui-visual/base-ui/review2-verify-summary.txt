@@ -1,0 +1,117 @@
+# verify-step.sh（預設組態）；diff_sha dd3cfd8d779a = 本組 src/include 相對 ce5c75a 的差異
+tag=implD-final head=ce5c75a diff_sha=dd3cfd8d779a ain=beefa6677237 libsys4=247f544 probe_gbk=0
+ninja optimized rc=0 errors=0
+asan build + probe link rc=0
+first-overload       rc=0   want=0   san=0   ok   FIRST PASS: single-arg First returns a live element
+overload-shapes      rc=0   want=0   san=0   ok   OB summary: 0 case(s) with stack mismatch or crash
+overload-shapes-str  rc=0   want=0   san=0   ok   OBS summary: 0 case(s) with stack mismatch or crash
+personality          rc=0   want=0   san=0   ok   PERSONALITY caller-owned PASS: 20 real constructor calls; caller DELETE leaves Id bytes va
+deleted-event        rc=87  want=87  san=0   ok   DELETED_EVENT functional checks PASS; production ownership teardown remains incomplete
+heap-reuse           rc=0   want=0   san=0   ok   HEAP PASS 1000 page-slot reuse/generation/duplicate-unref rounds; exit_unref recycling; st
+assignment           rc=0   want=0   san=0   ok   CONTRACT result=pass live=0 baseline=0
+observer             rc=0   want=0   san=0   ok   OBSERVER teardown initial_live=0 final_live=0 collection_ref=0 env_ref=0 motion_ref=0 call
+reentrancy           rc=0   want=0   san=0   ok   DELEGATE self-Clear PASS: original 20752->36081; after Clear obj=root+pin env=pin; callbac
+array-reinit         rc=0   want=0   san=0   ok   REINIT PASS shared old arrays retain their external owner after original constructor reini
+metadata             rc=0   want=0   san=0   ok   METADATA teardown live=0 (expected 0)
+click                rc=0   want=0   san=0   ok   CLICK PASS initial keydown, 350/50ms repeat boundaries, release, nested timer ctor/dtor ex
+timer                rc=0   want=0   san=0   ok   TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0
+bound-overload       rc=0   want=0   san=0   ok   BOUND summary: 0 failure(s)
+findlast             rc=0   want=0   san=0   ok   FINDLAST summary: 0 failure(s)
+order                rc=0   want=0   san=0   ok   ORDER summary: 0 failure(s)
+unique               rc=0   want=0   san=0   ok   UNIQUE summary: 0 failure(s)
+fill-copy-extra      rc=0   want=0   san=0   ok   FILLX summary: 0 failure(s)
+fc-selector          rc=0   want=0   san=0   ok   FC fc-selector PASS
+fc-fill0             rc=0   want=0   san=0   ok   FC fc-fill0 PASS
+fc-fill1-int         rc=0   want=0   san=0   ok   FC fc-fill1-int PASS
+fc-fill1-str         rc=0   want=0   san=0   ok   FC fc-fill1-str PASS
+fc-fill-clamp        rc=0   want=0   san=0   ok   FC fc-fill-clamp PASS
+fc-copy0             rc=0   want=0   san=0   ok   FC fc-copy0 PASS
+fc-copy3             rc=0   want=0   san=0   ok   FC fc-copy3 PASS
+fc-copy3-str         rc=0   want=0   san=0   ok   FC fc-copy3-str PASS
+fc-copy3-dest1       rc=0   want=0   san=0   ok   FC fc-copy3-dest1 PASS
+fc-copy-overlap      rc=0   want=0   san=0   ok   FC fc-copy-overlap PASS
+fc-realloc           rc=0   want=0   san=0   ok   FC fc-realloc PASS
+math                 rc=0   want=0   san=0   ok   MATH summary: 0 failure(s)
+sort                 rc=0   want=0   san=0   ok   SORT summary: PASS
+string               rc=0   want=0   san=0   ok   STRING summary: 0 failure(s)
+cif                  rc=0   want=0   san=0   ok   CIF summary: 0 failure(s)
+activity-text        rc=0   want=0   san=0   ok   ACTIVITY-TEXT PASS failures=0 (production loader + real ffi, no GL/assets)
+dialogue-model       rc=0   want=0   san=0   ok   DIALOGUE-MODEL PASS typed append/read survives repeated Free/Clear; external element owner
+dialogue-copy        rc=0   want=0   san=0   ok   DIALOGUE-COPY PASS shared struct/string survives either array teardown; no deep copy; empt
+save-list            rc=0   want=0   san=0   ok   SAVE-LIST summary: 0/9 case(s) failed
+save-roundtrip       rc=0   want=0   san=0   ok   SAVE-ROUNDTRIP summary: 0/18 case(s) failed
+save-comment         rc=0   want=0   san=0   ok   SAVE-COMMENT summary: 0/6 case(s) failed
+save-fixes           rc=0   want=0   san=0   ok   SAVE-FIXES summary: 0/8 case(s) failed
+gbk-string           rc=0   want=0   san=0   ok   GBK-STRING summary: 0 failure(s)
+gbk-vm               rc=0   want=0   san=0   ok   GBK-VM summary: 0 failure(s)
+gbk-detect           rc=0   want=0   san=0   ok   GBK-DETECT summary: 0 failure(s)
+sjis-chars           rc=0   want=0   san=0   ok   SJIS-CHARS summary: 0 failure(s)
+parts-reverse        rc=0   want=0   san=0   ok   PARTS-REVERSE summary: 0 failure(s)
+iface-arg            rc=0   want=0   san=0   ok   IFACE-ARG summary: 0/7 case(s) failed
+text-metrics         rc=0   want=0   san=0   ok   TEXT-METRICS PASS GBK grid and SJIS unchanged
+delegate-args        rc=0   want=0   san=0   ok   DELEGATE-ARGS summary: 0/4 case(s) failed
+reverse-inherit      rc=0   want=0   san=0   ok   REVERSE-INHERIT summary: 0/3 case(s) failed
+base-ui              rc=0   want=0   san=0   ok   BASE-UI PASS: 0 of 5 cases failed
+frame-pacing         rc=0   want=0   san=0   ok   FRAME-PACING PASS 0/5 failed
+base-ui-review       rc=0   want=0   san=0   ok   BASE-UI-REVIEW PASS: 0 of 7 cases failed
+title-review         rc=0   want=0   san=0   ok   TITLE-REVIEW PASS: 0 of 7 cases failed
+VERDICT PASS
+
+# verify-step.sh（XS4_PROBE_GBK=1）
+tag=implD-final-gbk head=ce5c75a diff_sha=dd3cfd8d779a ain=beefa6677237 libsys4=247f544 probe_gbk=1
+ninja optimized rc=0 errors=0
+asan build + probe link rc=0
+first-overload       rc=0   want=0   san=0   ok   FIRST PASS: single-arg First returns a live element
+overload-shapes      rc=0   want=0   san=0   ok   OB summary: 0 case(s) with stack mismatch or crash
+overload-shapes-str  rc=0   want=0   san=0   ok   OBS summary: 0 case(s) with stack mismatch or crash
+personality          rc=0   want=0   san=0   ok   PERSONALITY caller-owned PASS: 20 real constructor calls; caller DELETE leaves Id bytes va
+deleted-event        rc=87  want=87  san=0   ok   DELETED_EVENT functional checks PASS; production ownership teardown remains incomplete
+heap-reuse           rc=0   want=0   san=0   ok   HEAP PASS 1000 page-slot reuse/generation/duplicate-unref rounds; exit_unref recycling; st
+assignment           rc=0   want=0   san=0   ok   CONTRACT result=pass live=0 baseline=0
+observer             rc=0   want=0   san=0   ok   OBSERVER teardown initial_live=0 final_live=0 collection_ref=0 env_ref=0 motion_ref=0 call
+reentrancy           rc=0   want=0   san=0   ok   DELEGATE self-Clear PASS: original 20752->36081; after Clear obj=root+pin env=pin; callbac
+array-reinit         rc=0   want=0   san=0   ok   REINIT PASS shared old arrays retain their external owner after original constructor reini
+metadata             rc=0   want=0   san=0   ok   METADATA teardown live=0 (expected 0)
+click                rc=0   want=0   san=0   ok   CLICK PASS initial keydown, 350/50ms repeat boundaries, release, nested timer ctor/dtor ex
+timer                rc=0   want=0   san=0   ok   TIMER PASS 60 constructors/destructors; clock, reset, hole reuse, GC, teardown live=0
+bound-overload       rc=0   want=0   san=0   ok   BOUND summary: 0 failure(s)
+findlast             rc=0   want=0   san=0   ok   FINDLAST summary: 0 failure(s)
+order                rc=0   want=0   san=0   ok   ORDER summary: 0 failure(s)
+unique               rc=0   want=0   san=0   ok   UNIQUE summary: 0 failure(s)
+fill-copy-extra      rc=0   want=0   san=0   ok   FILLX summary: 0 failure(s)
+fc-selector          rc=0   want=0   san=0   ok   FC fc-selector PASS
+fc-fill0             rc=0   want=0   san=0   ok   FC fc-fill0 PASS
+fc-fill1-int         rc=0   want=0   san=0   ok   FC fc-fill1-int PASS
+fc-fill1-str         rc=0   want=0   san=0   ok   FC fc-fill1-str PASS
+fc-fill-clamp        rc=0   want=0   san=0   ok   FC fc-fill-clamp PASS
+fc-copy0             rc=0   want=0   san=0   ok   FC fc-copy0 PASS
+fc-copy3             rc=0   want=0   san=0   ok   FC fc-copy3 PASS
+fc-copy3-str         rc=0   want=0   san=0   ok   FC fc-copy3-str PASS
+fc-copy3-dest1       rc=0   want=0   san=0   ok   FC fc-copy3-dest1 PASS
+fc-copy-overlap      rc=0   want=0   san=0   ok   FC fc-copy-overlap PASS
+fc-realloc           rc=0   want=0   san=0   ok   FC fc-realloc PASS
+math                 rc=0   want=0   san=0   ok   MATH summary: 0 failure(s)
+sort                 rc=0   want=0   san=0   ok   SORT summary: PASS
+string               rc=0   want=0   san=0   ok   STRING summary: 0 failure(s)
+cif                  rc=0   want=0   san=0   ok   CIF summary: 0 failure(s)
+activity-text        rc=0   want=0   san=0   ok   ACTIVITY-TEXT PASS failures=0 (production loader + real ffi, no GL/assets)
+dialogue-model       rc=0   want=0   san=0   ok   DIALOGUE-MODEL PASS typed append/read survives repeated Free/Clear; external element owner
+dialogue-copy        rc=0   want=0   san=0   ok   DIALOGUE-COPY PASS shared struct/string survives either array teardown; no deep copy; empt
+save-list            rc=0   want=0   san=0   ok   SAVE-LIST summary: 0/9 case(s) failed
+save-roundtrip       rc=0   want=0   san=0   ok   SAVE-ROUNDTRIP summary: 0/18 case(s) failed
+save-comment         rc=0   want=0   san=0   ok   SAVE-COMMENT summary: 0/6 case(s) failed
+save-fixes           rc=0   want=0   san=0   ok   SAVE-FIXES summary: 0/8 case(s) failed
+gbk-string           rc=0   want=0   san=0   ok   GBK-STRING summary: 0 failure(s)
+gbk-vm               rc=0   want=0   san=0   ok   GBK-VM summary: 0 failure(s)
+gbk-detect           rc=0   want=0   san=0   ok   GBK-DETECT summary: 0 failure(s)
+sjis-chars           rc=0   want=0   san=0   ok   SJIS-CHARS summary: 0 failure(s)
+parts-reverse        rc=0   want=0   san=0   ok   PARTS-REVERSE summary: 0 failure(s)
+iface-arg            rc=0   want=0   san=0   ok   IFACE-ARG summary: 0/7 case(s) failed
+text-metrics         rc=0   want=0   san=0   ok   TEXT-METRICS PASS GBK grid and SJIS unchanged
+delegate-args        rc=0   want=0   san=0   ok   DELEGATE-ARGS summary: 0/4 case(s) failed
+reverse-inherit      rc=0   want=0   san=0   ok   REVERSE-INHERIT summary: 0/3 case(s) failed
+base-ui              rc=0   want=0   san=0   ok   BASE-UI PASS: 0 of 5 cases failed
+frame-pacing         rc=0   want=0   san=0   ok   FRAME-PACING PASS 0/5 failed
+base-ui-review       rc=0   want=0   san=0   ok   BASE-UI-REVIEW PASS: 0 of 7 cases failed
+title-review         rc=0   want=0   san=0   ok   TITLE-REVIEW PASS: 0 of 7 cases failed
+VERDICT PASS

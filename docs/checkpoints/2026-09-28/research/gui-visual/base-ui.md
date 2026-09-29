@@ -1,6 +1,6 @@
 # 據點畫面缺件（D1–D5、D7）與 SetButtonEnable（2026-09-29）
 
-修正 commit：`6d39915`（接在 `22339c1` 之後，本機 commit，尚未推送）；審查後修正 `fb28975`（§10，接在 `1e56cd6` 之後，本機 commit，尚未推送）。原版 EXE 只做靜態反組譯（capstone），沒有執行。
+修正 commit：`6d39915`（接在 `22339c1` 之後，本機 commit，尚未推送）；審查後修正 `fb28975`（§10，接在 `1e56cd6` 之後，本機 commit，尚未推送）；第二輪審查後修正 `6582e38`（§11，接在 `ce5c75a` 之後，本機 commit，尚未推送）。原版 EXE 只做靜態反組譯（capstone），沒有執行。
 證據等級：**已驗證**＝逐指令或執行結果直接佐證；**推定**＝靜態推論合理，但沒有逐指令或執行期確認；**未驗證**＝尚無證據。
 路徑記號：`$PORT`＝`<PORT>`。並排圖、原版截圖與臨時追蹤工具都在 repo 外（`$PORT/reports/base-ui-20260929/`），不提交。差異編號 D1–D15 沿用 [visual-compare.md](visual-compare.md)。
 
@@ -11,7 +11,7 @@
 1. **第一個失敗點**：`activity::detail::Load` 讀完 activity 後，立刻用 `NumofChild`／`GetChild` 走訪元件樹，把 EPartsType 17 的元件交給使用者元件管理器建立。xsystem4 的 pactex loader 用 `PE_SetParentPartsNumber` 設父元件，但這個函式只記下 `pending_parent`，要等下一次 `UpdateComponent` 才掛上，所以走訪看到的根元件沒有子元件，底列、金錢列、貼紙、Schedule、據點環節橫幅、教學的按鈕全部沒有建立。原版的 setter 立即掛上。（已驗證：追蹤與 fixture）
 2. 掛上之後還有八個獨立缺陷依序擋住，全部照原版語義修正（§2）。其中讓「下一步」出現並能按的必要條件是：元件型別照原版表（17／24／27）、`GetActivityParts` 寫出名稱與編號、`GetUserComponentData`、`SetComponentType` 對低階元件只改一個狀態、`Array.Add` 兩槽、`MainEXFile.Col`。
 3. 修正後，據點畫面的底列（存檔／讀取／物品／下一步、ToDo／Tips）、Day 1、¥10,000、三張 FEEL 貼紙、據點環節橫幅、教學覆蓋層兩頁都會出現，「成员」「商店」依原版顯示為停用（D3）。以點擊序列翻頁、關閉教學後按「下一步」，遊戲進入下一個畫面「今天要選哪件事做呢？」（階段選擇）。（已驗證：GUI）
-4. 仍與原版不同：據點背景是黑的（教學的底圖與圖層沒有釋放，另有跨圖層繪製順序未驗證）、關閉教學後畫面停在 0.975 倍、頁點是黑色方塊、教學外框外有據點畫面溢出。這些各有獨立的原因，列在 §7 與 HANDOFF。
+4. 仍與原版不同：據點背景是黑的（教學的底圖與圖層沒有釋放，另有跨圖層繪製順序未驗證）、關閉教學後畫面停在 0.975 倍、頁點是黑色方塊、教學外框外有據點畫面溢出。這些各有獨立的原因，列在 §7 與 HANDOFF。其中黑背景與 0.975 倍的根因是場景物件不釋放，已由 §11 修正。
 
 ---
 
@@ -205,7 +205,7 @@ visual-compare D4 提到的上方中央頁籤點，所有 pactex 都沒有對應
   | `First(pred)`（11 處，含 `Motion::PartsParamCollection@0`、`Motion::EasingArgumentAnalyzer`、成就、戰鬥） | 逐槽呼叫 predicate（偶數槽傳 (物件, 0)、奇數槽把 vtable 偏移當物件），命中時推一槽 | 逐元素、傳整個元素，命中時照 `At` 推兩槽；predicate 形狀不支援時警告並回 none |
   | `EraseAll(pred)`（3 處，戰鬥） | 逐槽判斷、逐槽刪 | 逐元素判斷、整個元素刪除並釋放物件 |
   | `Concat`（2 處，資源搜尋） | 對第二槽（vtable 偏移）也加參照；空陣列不設步幅 | 只對物件加參照；空的通用陣列設步幅 2 |
-  | `Reverse`（1 處，`GetSort<BattleBonus>`） | 逐槽反轉，拆散（物件, 偏移） | 以元素為單位反轉 |
+  | `Reverse`（1 處，`ArrayExtensions::GetReverse<IRectParts&>`，由 `TitleCharacterView@FadeIn` 呼叫；原寫 `GetSort<BattleBonus>` 有誤，§11.2 更正） | 逐槽反轉，拆散（物件, 偏移） | 以元素為單位反轉 |
   | `Insert`（5 處，資源集合、編輯器） | 只存一槽、索引以槽計 | 在元素索引存兩槽；空的通用陣列設步幅 2 |
   | Where、Numof／Count、IsExist(pred)、Find(pred)、Any(pred)、Erase、LowerBound(pred)、Sort／QuickSort(pred)、Realloc、PopBack、Clear、Free、Empty | — | 已依步幅處理，未改 |
 - **連帶效果：Motion 的 Time**。`Motion::PartsParamCollection@0` 以 `First(pred)`（predicate 是 `X_ICAST Motion::TimeParam`）找 TimeParam 再 `Time::set`／`DelayTime::set`；修正前堆疊錯位，Time 永遠停在預設 1000。修正後 GUI 追蹤（除錯副本，開場 60 秒）Time 分布為 250×14、200×8、500×4、150×4、1000×4、700、350、30、2500、100。HANDOFF 第 6 項「名牌淡出 Motion 的 `<Time>` 是 1000、字串寫 `Time:150`」推定就是這個原因（fixture BR4 以真 bytecode 確認 Time 150、Delay 20）。所有 motion 變成各自的長度，開場到據點環節橫幅由約 78 秒提早到約 67 秒；與原版的時間軸沒有對照（未驗證）。
@@ -249,3 +249,113 @@ visual-compare D4 提到的上方中央頁籤點，所有 pactex 都沒有對應
 2. **三槽 option 回傳被截成兩槽**：`function_return` 依 `ain_return_slots_type` 把 `option<T>` 一律當兩槽，`option<wrap<iwrap<T>>>`（原版 `0x653420` 算 3 槽）的回傳只留最上面兩槽。受影響的有 `SceneParentStack@Get`（沒有呼叫者）、`PlayerAction@InnerAction::get`、`BattleSkillCollection@Find`、`SceneBattle@GetAvailableBattleSkill`、`BadgeSlot@FindSkillFromBadgeId` 等 13 個函式（多在戰鬥）。在 fixture 試做時發現，影響面大，沒有併入本組。
 3. 已知而未變的差異：據點與人材一覽的背景是黑的、關閉教學後停在 0.975 倍（Motion Time 修正後仍然如此）、人材一覽右上的 TP／房間欄沒有出現、卡片數值欄位與原版不同。
 4. 原版擋掉停用按鈕點擊的位置、原版低階 widget 用哪個狀態判定點擊、矩形四角與 `矩形模式` 的原版語義、motion 長度改變後與原版的時間軸對照，都**未驗證**。
+
+## 11. 第二輪審查後修正（`6582e38`，2026-09-30）
+
+第二輪審查（`22339c1`..`ce5c75a` 整體、`fb28975` 本身）都是 fix-first：高 1（標題按鈕在按下新遊戲後仍可點）、中 1（兩槽 `Reverse` 修對後標題構圖約 3 秒後被打亂）、低 2（鑑賞模式返回時 VM_ERROR、點擊派送略過系統元件）。四項追到同一類根因：**v14 的 delegate 對目標物件是強參照，場景物件因此從不釋放**，以及 **A_REF 對陣列不複製**。本節記錄原版語義（全部為靜態反組譯）、修法、連帶暴露的問題與驗證。臨時追蹤碼只在 repo 外的除錯副本；並排圖在 `$PORT/reports/title-review-20260930/`（不提交）。
+
+### 11.0 結論
+
+1. **高：標題按鈕仍可點** 的根因不是 `6d39915` 的元件位置，而是 `SceneTitle` 從不釋放：它把自己的方法註冊成按鈕事件與更新事件（`DG_NEW_FROM_METHOD`），xsystem4 v14 的 delegate 對目標物件加參照，形成循環；`Scene::RunResult<SceneTitle, TitleResult>` 放手後 `SceneTitle` 與它的 `SceneContext` 都活著，`SceneContext@1` 不執行，`EraseLayer` 不發生，標題圖層（controller 2）的按鈕一直留著。`6d39915` 讓子元件位置乘上父元件的 3 倍，這些看不見的按鈕才移到畫面中央而被點到。原版的 delegate **不持有目標物件**（§11.1），修正後按下新遊戲，標題按鈕隨圖層釋放。（已驗證：反組譯、fixture TR1、GUI）
+2. 同一個循環也讓教學（`SceneTutorial`）、鑑賞模式、成就等所有場景不釋放。修正後：關閉教學後據點背景出現、不再停在 0.975 倍（與 Wine `base/b04` 相同），「下一步」→ 階段選擇 → 選卡片可以進入春銷，原本在 `PE_AddController` 結束的路徑走得通；鑑賞模式返回不再 VM_ERROR（低 1）。（已驗證：GUI）
+3. 場景真的會被釋放後，暴露並修正四個相依的問題，都照原版：解構子內的釋放要立即完成（§11.1.2）、`RemoveController`／`ReleaseActivity` 的清單是 delegate index（§11.1.3）、一個錯讀成員的 CParts 釋放特例（§11.1.4）、`InputDisabler` 的全螢幕矩形終於會被釋放後才看得到的懸停與點擊規則（§11.1.5、§11.4）。
+4. **中：構圖被打亂**：原版 `A_REF` 對陣列一律**複製**（§11.2）。依原版改為複製可確定元素語義的陣列（數字、字串、通用 wrap／介面／option 元素）；struct 值陣列與巢狀陣列沿用共用頁（影響面見 §11.2），並更正 §10.3 表格中 `Reverse` 的呼叫者。修正後標題構圖 25 秒內不變，與 Wine run2 相同。
+
+### 11.1 高：delegate 不持有目標物件
+
+#### 11.1.1 delegate 項目只持有環境
+
+**原版（已驗證：反組譯）**
+
+- 指令分派：`0x667f3d` 以位元組表 `0x668adc` 取索引、跳表 `0x668920` 分派。`DG_NEW_FROM_METHOD`（0xfd）→ `0x66bec0`；`A_REF`（0x79）→ `0x66b790`；`X_SET`（0x104）→ `0x66f870`；`DG_CALL` → `0x66dce0`（與 delegate-args.md 相同，交叉確認對應正確）。
+- `0x66bec0` 彈出函式號與物件，`0x679460` 配置 delegate 頁（建構子 `0x651d80`：型別 5、參照數 +0x1c = 1、子物件 vtable `0x811094`），再以子物件 vtable[1]（`0x6522a0`：先清空再加入）加入項目。
+- 加入（`0x6522c0`）：函式號 ≤ 0 不加；**環境**只有在函式描述（每筆 0x6c 位元組）+0x54 的 lambda 旗標成立時才取目前的 local page，否則為 -1；接著 `0x652210(obj, fun, env)`：
+  - `0x67ac30(obj)` 取得物件頁（型別 4 才算 struct），把**這個 delegate 的 heap index** 推入物件頁 +0x2c 的清單（`0x418940`）；
+  - `env != -1` 才 `0x679f10`（參照 +1）；
+  - **物件本身不加參照**。
+- 物件釋放：`0x679f90` 在參照數為 1 時依型別分派，struct 走 `0x67b0d0` → vtable[1] `0x6813c0`：以 `0x669cb0` 執行解構子、`0x656cf0` 釋放成員，最後 `0x681f70`：對 +0x2c 清單中（去重後）每個 delegate 呼叫 `0x652970`，由後往前刪掉目標是這個物件的項目（vtable[3]，同時釋放環境）。
+- 清空 delegate（`0x652620`）時對每個項目以 `0x681df0` 把自己從物件的清單移除，並釋放環境。
+- AIN 佐證：4,030 個名稱含 `<lambda` 的函式中，1,031 個有 `is_lambda` 旗標，其中 1,030 個用到 `X_GETENV`；沒有旗標的 2,999 個都不用 `X_GETENV`（以 FUNC 區塊掃描，推定與原版 +0x54 為同一旗標）。
+
+**xsystem4 修正前**：`c3b5ff0` 讓 v14 delegate 對物件與環境都加參照（當時是為了避免回呼時物件已被釋放），並對每個 `DG_NEW_FROM_METHOD` 都把目前 local page 當環境。於是「物件把自己的方法交給別人保管」就是循環：`SceneTitle`、`SceneTutorial`（HANDOFF 已記錄 ref 4 全部來自按鈕事件）、`Motion::Executer`（uaf.md 另案）、`CParts`（`DeletedEvent` 的 lambda）都不會釋放。
+
+**修法**
+
+- `src/page.c`：v14 的 delegate 項目 (物件, 函式, 環境) 只持有環境；`variable_type` 對 delegate 頁只把第三格當參照，複製與刪除 delegate 頁因此只動環境。新增物件 → delegate 的對照表（`delegate_page_register`）：delegate 頁存進 heap slot 時（`heap_set_page`／`heap_alloc_page`，所有加入項目的路徑都經過這裡）登記其中的 struct 目標；struct 頁最後一個參照放掉、解構子執行完後，`delegate_target_freed` 刪掉所有目標是它的項目並釋放環境（`0x681f70` → `0x652970`）。清單中失效的 delegate 在使用時略過、清單變長時清理。ResumeLoad 讀回 heap 後重建對照表。
+- `src/vm.c`：`DG_NEW_FROM_METHOD` 只對 `is_lambda` 的函式帶環境。物件為 -1 時沿用舊的「以 local page 當物件」（不持有，影響只在 `this` 無意義的靜態 lambda）。
+- 回呼執行期間，呼叫框本來就會暫時持有物件與環境（`delegate_obj_ref`），目標在回呼中被放掉也不會提早釋放。
+
+#### 11.1.2 解構子放掉的物件立即解構
+
+- 場景會釋放以後，第二次進入鑑賞模式時頁首文字與按鈕都不見：`SceneCgMode` 的 `CActivityWrap@1` → `AFL_Activity_Release` 先移除使用者元件（`CallUserComponentReleaseEventWithChild` → `RemoveComponent`），再 `ReleaseActivity` 釋放整棵元件樹。xsystem4 的 `heap_unref` 在釋放途中把新歸零的物件排入佇列，等外層物件整個處理完才處理，所以被移除的 `Header` 元件要到 `ReleaseActivity` 之後才解構；那時它自己的 activity 元件已被上層一併釋放，`Header` 的 activity 找不到子元件、`Caption1/2` 從未從元件管理器移除，第二次進入時沿用舊的（元件號碼指向已釋放的元件）。（已驗證：追蹤）
+- 原版是 C++ 參照計數，歸零即解構。修正：解構子執行期間，由它的程式碼放掉的物件開一個巢狀的釋放迴圈立即處理（`heap_set_defer_frees`，只處理本層排入的項目），外層的佇列不受影響。解構子巢狀深度上限由 4 提高到 64（原版沒有上限；超過時會印警告，不再默默略過）。只作用於 v14。
+
+#### 11.1.3 `RemoveController`／`ReleaseActivity` 回傳 delegate index
+
+- 原版 `RemoveController`（PartsEngine 跳表 4，`0x57ba2a` → `0x53fd90`）：`0x53d5f0` 依 ID（controller +0x40）找位置，`0x53d500` 以 `0x5386c0` 遞迴收集每個元件的 **+0x88**，刪除 controller，`0x53f850` 把清單寫入 AIN 的陣列。+0x88 是 `SetEventID` 寫入的 delegate index（`0x57cb71` → `0x58b180` → `0x56d580` 寫 +0x88 與 +0x8c 的 unique ID；`GetDelegateIndex` 讀 `0x56d620`）。`ReleaseActivity`（跳表 26，`0x57be7d` → `0x540050` → `0x55e400`）以 `0x56d620` 收集同一個值。（已驗證）
+- AIN：`parts::detail::EraseLayer` 與 `activity::detail::Release` 把清單交給 `CPartsMessageManager@ReleaseFunctionSetList` → `ReleaseFunctionSetWithoutGC`（`CallFunctionDeleted` 觸發 `DeletedEvent`，`CPartsFunctionSet@Release`）。
+- xsystem4 修正前：v14 的 `RemoveController` 包裝完全不寫清單（註解寫「只是診斷用」），舊的共用實作寫的是元件號碼（上游寫的是 delegate index）；`ReleaseActivity` 也不寫。`DeletedEvent` 因此從未觸發，函式集合也從未歸還。修正後兩者都寫 delegate index。
+
+#### 11.1.4 移除 CParts 的釋放特例
+
+`delete_struct` 有一段從 v14 fork 帶來的特例：`parts::detail::CParts` 頁釋放時，把**成員 0** 當元件號碼釋放。成員 0 其實是 `<vtable>` 陣列（號碼是成員 1 `<Number>`），等於釋放「號碼剛好等於那個陣列 heap slot」的元件。以前 CParts 被 delegate 循環留住，很少走到；修正 §11.1 後每幀都有 CParts 釋放，heap slot 長到 90 萬以上就可能釋放到真正的元件。原版由解構子 `CParts@1` 自己判斷 `<AutoRelease>` 再呼叫 `Release`，特例刪除。
+
+#### 11.1.5 空的懸停狀態
+
+- 修正 §11.1 後 `InputDisabler`（`Motion::Join` 期間的全螢幕矩形）在 Join 結束後被釋放；修正前它們永遠留著（`z = 2147483647`），在第一次 Join 之後吃掉所有懸停，也是點擊派送必須略過 1000001000 以上元件的原因。懸停因此第一次真正作用，教學頁的 `Image0` 在游標下被切到 on-cursor 狀態：pactex 給它三個 ＣＧ部件 狀態，只有普通狀態在執行期設了 CG，on-cursor 是空的，教學頁就在游標下消失。（已驗證：追蹤）
+- 全遊戲 pactex 的低階元件中，1,759 個 on-cursor 狀態沒有一個有 ＣＧ名，699 個普通狀態有；原版不會讓這些元件在游標下消失。修正：`parts_set_state` 把「沒有 CG 的 CG 狀態」當成未初始化，停在下一層狀態（推定：原版的狀態切換本身沒有逐指令追到）。只作用於 v14。懸停與點擊一樣不理會隱藏或完全透明的元件。
+
+### 11.2 中：A_REF 對陣列複製
+
+**原版（已驗證：反組譯）**
+
+- `A_REF`（`0x66b790`）→ `0x6794d0` 依頁型別：字串建新字串；**陣列**以 `0x679350` 建新陣列再由 `0x67ffb0` 複製；struct 建新 struct 並以 vtable[1] 指派；delegate 建新 delegate 並以 `0x652710` 加入全部項目。四種都是複製。
+- `0x67ffb0`：元素型別 int／float／bool／long（10、11、47、92）直接複製記憶體；其他逐元素 `0x6801d0` → `0x656d60`：字串（12）複製內容、struct（13）值指派、delegate（63）與陣列（79）複製、wrap／參照 wrap／介面（82、87、89）走 `0x656f7c`：複製各槽、對新物件加參照（**共用物件**）。
+- 陣列指派 `X_SET`（`0x66f870`）也是把來源內容以 `0x67ffb0` 複製進目的陣列。
+
+**xsystem4 修正前**：v14 的 `A_REF` 對 struct 與陣列都回傳同一頁（加參照）。`ArrayExtensions::GetReverse<IRectParts&>` 的 `result = source`（`.LOCALREF source; A_REF; X_ASSIGN 1`）因此與 `TitleCharacterView.m_uiCharacters` 共用同一頁，`Reverse` 就地反轉了角色陣列；`UpdateCharacterPos` 以同一個 index 取 `m_characterPos`，每個角色被放到對稱位置。`fb28975` 之前逐槽反轉把陣列弄壞、`UpdateCharacterPos` 等於沒作用，反而看起來正確。
+
+**修法與範圍**：`A_REF` 對 v14 一維陣列：數字與字串陣列照 `copy_page` 複製（字串每個元素一個新的字串 slot）；通用陣列（wrap、介面、option 元素）建新頁放相同的值，並對頁面拆除時會釋放的每個值加一次參照，元素因此共用（與原版 wrap／介面元素相同）。**沒有改**的部分：struct 值陣列（原版逐元素值複製）、巢狀陣列、struct 值本身的 `A_REF`、`X_SET` 的內容複製，仍共用頁。理由：xsystem4 的 v14 陣列不保留元素型別，通用陣列的 `array.struct_type` 同時被當成元素槽數與 struct 編號（`Array_Alloc` 對 0x10002 會寫入 2），無法可靠判斷元素是否為 struct 值；struct 值的深複製在 xsystem4 會連同 wrap 成員一起複製（`vm_copy_page`），風險大於收益。AIN 中 `A_REF` 約 1.7 萬處，可由前一指令判定是陣列的至少約 770 處（字串陣列 494、wrap 陣列 102、數字 59、介面 31、struct 值約 80）。後續見 §11.6。
+
+### 11.3 低：鑑賞模式返回時 VM_ERROR
+
+- 不是 `fb28975` 引入：`22339c1` 的返回鈕點不到（點擊目標 0），`6d39915` 讓它點得到之後才走到這條路徑。原因與 §11.1 相同：`SceneOmake`、第二個 `SceneTitle` 的圖層沒有釋放，下一個 `AddController` 時作用中的 controller 不在最上層。修正 §11.1 後，標題 ↔ 鑑賞模式可以往返兩次再開新遊戲，沒有錯誤；第二次進入時的頁首與按鈕由 §11.1.2、§11.1.3 修正。
+- 原版 controller 的語義與 xsystem4 仍不同，沒有改：`AddController(-1)` 插在作用中者之後、`RemoveController` 刪掉作用中者後改由它下面那一層作用（`0x53d500`），ID 與位置分開；xsystem4 仍以位置當 ID、刪除後改由最上層作用。已測的路徑都是後進先出，沒有碰到差異（未驗證其他路徑）。
+
+### 11.4 低：點擊派送與懸停一致
+
+- 修正前 v14 派送一律略過 1000001000 以上與不可點擊的元件，對話框的全螢幕遮擋層擋不住點擊。略過系統元件的起因是 §11.1.5 的 `InputDisabler` 洩漏；原版 `InputDisabler@SetPartsParam` 把兩個 1280×720 的矩形設成 `EnableInputProcess` = 1、`Clickable` = 1、`Transparent` = 0（AIN），也就是要擋住並接收點擊。
+- 修正：由前往後，第一個顯示中、命中、可點擊或不透過游標（オン指針透過 0）的元件決定結果：可點擊的收到 MouseClick；只擋游標的（圖片、面板）讓點擊不再往後傳，改送全畫面點擊。與懸停選擇游標下元件的規則相同。原版派送本身沒有逐指令追到，「擋游標的元件把點擊變成全畫面點擊」是推定（ADV 以全畫面點擊推進，背景圖不能吞掉點擊）。
+
+### 11.5 驗證
+
+- **新模式 `title-review`**（`probe/title_review_fixture.inc`，TR1–TR7 各自 fork）：TR1 真 bytecode `SceneTutorial@RegisterEvent` 的弱目標、TR2 解構子內的巢狀解構（真 `CBackLogUnit@1`）、TR3 `RemoveController`／`ReleaseActivity` 的 delegate index 清單、TR4 真 bytecode `GetReverse<IRectParts&>`／`GetReverse<ActionTarget&>`／`GetSort<string>` 不改來源、TR5 系統元件與只擋游標的元件的點擊、TR6 空的 on-cursor 狀態、TR7 CParts 釋放不動 `<vtable>` 號碼的元件。
+  | 版本 | 結果 |
+  |---|---|
+  | `ce5c75a`（`before-check.sh ce5c75a title-review`） | rc 89，7/7 失敗（[輸出](base-ui/title-review-before-ce5c75a.txt)） |
+  | `6582e38` | 7/7 通過（[輸出](base-ui/title-review-after.txt)） |
+- `observer`、`reentrancy` 兩個既有模式原本斷言「delegate 對物件加參照」，改成弱目標語義（物件參照數不變、環境保留；回呼中 Clear 時物件由集合根與暫時的 pin 持有）。改後的 fixture 在 `ce5c75a` 上失敗（`observer_fixture.inc:67`、`delegate_reentrancy_fixture.inc:101` 的斷言），本組通過。
+- **verify-step**：53 個模式在預設與 `XS4_PROBE_GBK=1` 兩種組態都 `VERDICT PASS`，sanitizer 0（[摘要](base-ui/review2-verify-summary.txt)；`diff_sha dd3cfd8d779a` = 本組 src/include 相對 `ce5c75a` 的差異）。
+- **gui-run 150 秒**（optimized build）：MSG 88，對白與 `fb28975` 的 150 秒執行逐行相同；assertion 0、堆疊溢位 0、UNIMPL 0、VM 錯誤 0；framebuffer 40 張（最後一張 PNG 完整）；58.82 fps、>50 ms 間隔 1 個、最長 70.6 ms；峰值 RSS 506 MB（`fb28975` 607 MB）（[摘要](base-ui/review2-gui-summary.json)）。
+- **逐格截圖**（`gui-run.sh` 新增 `RUN_FROM_TITLE=1`、`RUN_AUTO_CLICK_SEQ`、`RUN_SHOTS`；`ce5c75a` 以 `git archive` 加上同一個截圖排程測試設施建置）：
+  | 情境 | 本組 | `ce5c75a` | 原版 |
+  |---|---|---|---|
+  | 標題 9–36.5 秒，每 0.5 秒一張 | 每張與 12 秒那張的平均差 ≤ 9.7（只有背景動畫） | 13.0 秒起角色被放到對稱位置（差 60.8，最大 65.5） | Wine `run2/f000`–`f630`（約 12 分鐘）構圖不變，與本組相同 |
+  | 新遊戲（14 秒）後連點畫面中央，62–68 秒點原本四個標題按鈕的位置 | 900016 之後只有 ADV 系統元件與全畫面點擊；75 秒內 MSG 68；無錯誤 | 之後每次點擊都打到舊的標題按鈕 900018（16 次），MSG 0，約 38 秒 `FooterButton.jaf:53/54`、`CActivityWrap.jaf:20` 斷言 | 按下新遊戲後標題按鈕消失 |
+  | 標題 → 鑑賞模式 → 返回，兩次，再開新遊戲 | 900019、900102、900118、900201、900214；第二次進入頁首與按鈕都在；進入開場；無錯誤 | 第一次返回（約 24.7 秒）`PE_AddController` VM_ERROR 結束 | 無原版截圖 |
+  | 開場 → 據點 → 教學翻頁、關閉 → 下一步 → 選卡片 | MSG 88；關閉教學後據點背景出現、倍率 1.0；約 94 秒「今天要選哪件事做呢？」、約 104 秒春銷環節；無錯誤 | （`fb28975`）背景黑、0.975 倍；選卡片後 `PE_AddController` VM_ERROR | Wine `base/b04` 版面相同（原版背景有模糊，見 §11.6） |
+  | 人材 → 卡片 → 研修（開出 YesNo 對話框）→ 點對話框按鈕以外 → 取消 | 對話框外的點擊由遮擋層接收（全畫面點擊，對話框不關）；取消回到 STATUS | 沒有在 GUI 重跑；TR5 在 `ce5c75a` 上派送略過遮擋層，點擊落到後方元件 | 無原版截圖 |
+  並排圖在 `$PORT/reports/title-review-20260930/`（不提交）。
+
+### 11.6 沒有修的部分與新發現
+
+1. **A_REF 只複製一部分陣列**（§11.2）：struct 值陣列、巢狀陣列、struct 值本身的 `A_REF`、`X_SET` 的內容複製仍共用頁。要照原版 `0x67ffb0` 逐元素複製，v14 陣列要先保留元素型別。
+2. **controller 語義**（§11.3）：ID 與堆疊位置分開、`AddController(-1)` 插在作用中者之後、移除後由下一層作用（`0x53d500`）、輸入只給作用中的 controller（`0x53e690`）都沒有實作。
+3. **返回鈕在某些路徑沒有反應**：STATUS → 一覽後的「返回」（§10.7 第 1 項），以及 YesNo 對話框取消後 STATUS 的「返回」，都是 `PE_BeginInput` 沒有再被呼叫、點擊進不了派送。本組沒有改變這個行為，原因未查。
+4. **據點環節／春銷環節的橫幅文字留在畫面上**：橫幅的色帶離開後文字仍在原位（據點畫面、人材、春銷畫面都看得到）。`fb28975` 已經如此（150 秒執行的 68 秒影格：色帶離開、文字留著），之前被沒有釋放的教學黑色底圖蓋住；原版沒有（Wine `base/b04`）。`PhaseBar@FadeIn(false)` 以 `Motion::Create` 把 `Clipper` 移到 X 1280，文字是 `AnimateText` 的子元件，推定是 clipper 移動或裁切沒有作用在文字上（未驗證）。
+5. 據點背景沒有模糊（原版有；有步驟的構築部件仍走 CG 後備，§10.4）。YesNo 對話框後方是黑底，與原版沒有對照（未驗證）。
+6. 推定而沒有逐指令確認的：空的 on-cursor 狀態停在下一層（§11.1.5）、只擋游標的元件把點擊變成全畫面點擊（§11.4）、`is_lambda` 與原版 +0x54 為同一旗標。`EnableInputProcess` 仍是 stub。
+7. 物件為 -1 的 `DG_NEW_FROM_METHOD` 仍以 local page 當物件；加入項目時以 `delegate_contains` 去重，與原版的加入流程是否一致未驗證。
+8. 29 個介面實作的 vtable 偏移大於 1（最大 316），通用兩槽陣列拆除時會對偏移槽做 unref（修正前就存在的風險；GUI 追蹤中低號 slot 的參照數 120 秒內穩定為 1）。
+9. 時間軸：`InputDisabler` 會被釋放、點擊不再穿透後，Join 期間的點擊由遮擋層接收；開場到據點的時間與原版沒有對照。
+10. 記憶體：峰值 RSS 150 秒 506 MB（開場）、499 MB（據點到春銷）、541 MB（人材與對話框），`fb28975` 為 607 MB；heap 成長本身沒有處理。

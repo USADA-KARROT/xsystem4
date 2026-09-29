@@ -1,0 +1,65 @@
+{
+  "note": "Second review fixes (base-ui.md section 11). gui-run.sh runs use the optimized build of 6582e38 (diff_sha dd3cfd8d779a over ce5c75a). Scenario runs use gui-run.sh with RUN_FROM_TITLE=1 or --skip-title, RUN_AUTO_CLICK_SEQ (XSYS4_AUTO_CLICK_SEQ) and RUN_SHOTS (XSYS4_SCREENSHOT_SCHEDULE). The ce5c75a runs use git archive ce5c75a with only the screenshot-schedule test facility added. Times are ms since start unless marked s. Click targets are the parts numbers the v14 dispatch chose (0 = whole-screen click).",
+  "gui_run_150s": [
+    {
+      "run": "gui-run.sh implD-g150 (6582e38)",
+      "msg": 88,
+      "dialogue": "line for line the same as fb28975 (implC-150b) and 44964f9",
+      "assertions": 0,
+      "stack_overflows": 0,
+      "unimpl": 0,
+      "vm_errors": 0,
+      "framebuffer_pngs": 40,
+      "last_png_complete": true,
+      "avg_fps": 58.82,
+      "intervals_over_50ms": 1,
+      "max_interval_ms": 70.6,
+      "peak_rss_mb": 506
+    },
+    {
+      "run": "gui-run.sh implC-150b (fb28975, for reference)",
+      "msg": 88,
+      "avg_fps": 58.67,
+      "intervals_over_50ms": 3,
+      "max_interval_ms": 64.5,
+      "peak_rss_mb": 607
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "title composition",
+      "clicks": "4000/8000 (640,700); shots 9 s to 36.5 s every 500 ms",
+      "result": "every frame within mean abs diff 9.7 of the 12 s frame (background animation only)",
+      "before_ce5c75a": "from 13.0 s the character layout is replaced (diff 60.8, max 65.5): characters mirrored",
+      "original": "wine run2 f000 to f630 (about 12 minutes on the title) keep the same layout as this commit"
+    },
+    {
+      "name": "new game, then click where the title buttons were",
+      "clicks": "新游戏 14000 (152,130); (640,400) every 1200 ms 20000-59600; title button positions 62000-68000",
+      "result": "targets: 900016 (新游戏), then only ADV system parts (1000001038/1042/1064) and whole-screen clicks; the clicks on the old title button positions at 62000-68000 are whole-screen clicks; MSG 68 by 75 s; no error",
+      "before_ce5c75a": "after 900016 every (640,400) click hits the old title button 900018 (16 times); MSG 0; FooterButton.jaf:53/54 and CActivityWrap.jaf:20 assertions at about 38 s"
+    },
+    {
+      "name": "title <-> collection (鑑賞模式) twice, then new game",
+      "clicks": "鑑賞模式 14000 (152,296), 返回 24000 (1180,678), 鑑賞模式 32000, 返回 42000, 新游戏 50000 (152,130)",
+      "result": "targets 900019, 900102, 900118, 900201, 900214; header and buttons present on the second visit; MSG 2 by 62 s; no error",
+      "before_ce5c75a": "targets 900019, 900102, then VM_ERROR 'active controller is not at the top of the stack' (PE_AddController) at about 24.7 s"
+    },
+    {
+      "name": "opening to the base, tutorial, next, phase select",
+      "clicks": "(640,400) every 1200 ms to 64800 with Return held; tutorial next 80000 (237,690); close 85000 (1180,690); 下一步 92000 (1180,675); card 102000 (450,470)",
+      "result": "MSG 88; targets (640,400) 64807 -> 1000001185, tutorial next 80017 -> 900436, close 85012 -> 900422, 下一步 92007 -> 900358, card 102009 -> 900441; base background visible after the tutorial (the scale stays 1.0); 今天要選哪件事做呢？ at about 94 s; 春銷環節 at about 104 s; no error",
+      "before": "fb28975: the base stayed black and at 0.975 scale; 下一步 -> phase select -> card ended in PE_AddController VM_ERROR"
+    },
+    {
+      "name": "dialog blocker",
+      "clicks": "as above to the base, then 人材 92000 (152,166), card 100000 (320,300), 研修 108000 (320,300), outside the YesNo buttons 116000 (1180,678), 取消 122000 (820,469), 返回 130000/138000 (1180,678)",
+      "result": "targets 900257 (人材), 900565 (card -> STATUS), 900783 (opens the YesNo dialog), 0 (the blocker takes the click, whole-screen click, the dialog stays), 900862 (取消, back to STATUS); the two 返回 presses after that are not dispatched (PE_BeginInput not called again; same symptom as base-ui.md 10.7 item 1)"
+    }
+  ],
+  "still_different": [
+    "據點環節 / 春銷環節 banner text stays on screen after the band leaves; fb28975 (implC-150b, 68 s frame) already shows it before the tutorial black layer covered it",
+    "base background is not blurred (original: blurred)",
+    "the black backdrop behind the YesNo dialog is not compared with the original"
+  ]
+}

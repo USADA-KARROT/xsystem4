@@ -1,0 +1,10 @@
+# verify-step.sh 的 title-review 輸出（src/include = 本組修正；*WARNING* 行已刪）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+TR1 weak delegate target: ok
+TR2 nested destruction: ok
+TR3 erase lists hold delegate indices: ok
+TR4 A_REF copies arrays: ok
+TR5 click targets: ok
+TR6 empty hover state: ok
+TR7 CParts teardown: ok
+TITLE-REVIEW PASS: 0 of 7 cases failed
