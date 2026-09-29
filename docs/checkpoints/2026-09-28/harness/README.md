@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 46 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 47 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -54,6 +54,7 @@ bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按�
 - 選用模式（不在 `XS4_MODES`）：`save-roundtrip` 的 R15 與 `save-localgame` 需要 `XS4_SAVE_ORIG_COPY=<原版存檔的複本資料夾>`，讀入原版引擎寫的 `.asd` 複本並重存比對；不可指向原始存檔資料夾本身，也不可提交。`save-seed` 以 `XS4_SAVE_SEED_DIR=<XS4_WORK 內的資料夾>` 為 GUI 第二次執行準備種子（在 Collection 的已讀事件清單依排序插入 `ZZ_PERSIST_PROBE`，並寫出 `<ConfigVoiceMutedByNsfw>=1` 的 AFConfig.asd）。
 - `probe/gbk_chars_fixture.inc`：GBK 字元規則（2026-09-29）。`gbk-string` 經真 ffi 呼叫 String 庫並測渲染器的 GB18030 切字 NUL 防護；`gbk-vm` 執行真 AIN 的 `SYS_AddPunct`／`SYS_DeletePunct`／`SYS_ToUpper`／`SYS_ToLower`、libsys4 的字元讀寫、`%D`、iarray 往返（含全部 STR0 非 ASCII 字串），並比較名牌 Show／Hide 的 Motion 字串在兩種規則下由 `Motion::GetCompiled` 解析出的樹；`gbk-detect` 檢查偵測分數；`sjis-chars` 在 SJIS 規則下跑同一批案例，記錄修正前的行為，修正前後的 `SJIS ` 行必須逐行相同。渲染器的 `gb18030_skip_char_bytes`／`extract_multibyte_char` 是 static，`build_probe.py` 在 repo 外複製 `src/text.c`、`src/parts/text.c` 並加上 `probe_*` 包裝函式。
 - `probe/iface_arg_fixture.inc`：`iface-arg`（2026-09-29），v14 參數所有權。以真 AIN 函式與 delegate 借用傳入介面參數（`AIN_IFACE`）與 `option<wrap<T>>` 參數，檢查呼叫前後 ref 不變、存進成員後各持一份：CALLFUNC、CALLMETHOD、delegate、真 `AdvStand` 的 MoveIn／Move／MoveOut（`m_parent` 的 sprite 必須存活且 vtable 可解析），以及 CALLMETHOD 與 delegate 的 option 參數。6 個案例各自 fork；失敗時印出 ref 在哪個 opcode、哪個函式降低。只用修正前就存在的 VM 函式，`before-check.sh` 可直接建置。
+- `probe/text_metrics_fixture.inc`：`text-metrics`（2026-09-29），CN 的 GDI 字格（`0x69c7a0`）。12 組真 pactex 樣式經真 AIN 宣告（`Parts_SetFont`、`Parts_SetTextCharSpace`、`Parts_SetPartsFontBoldWeight`、`SetMessageWindowTextFont`／`TextSpace`）設到元件上，檢查 `TextSurfaceManager.GetFontWidth`（真 ffi）、每字貼圖寬 `text_style_width`、`gfx_size_text`，以及 `gfx_render_textf` 回傳的前進量。探針沒有 GL，前進量改用「字形永遠載入失敗」的假字型量：不繪製，但排版照跑；字形存在的分支由 GUI 量測涵蓋。另查缺字 fallback 只在 CN 組態啟用。GBK 與 SJIS 各在 fork 出的子行程跑（`gfx_font_init` 每行程一次），字型取 `$XS4_SRC/fonts`；SJIS 的 `SJIS ` 行在修正前後（`05d2441` 之前）必須逐行相同。`build_probe.py` 在 repo 外複製 `src/font_freetype.c` 並加上 `probe_ft_font_fallback`（舊版沒有 fallback 時加回傳 false 的替身）。
 - `deleted_event_fixture.inc` 放在上一層，因為 `runtime_probe.c` 以 `../deleted_event_fixture.inc` 引用它。
 
 新增一組測試：

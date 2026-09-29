@@ -1,6 +1,6 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`，本機 commit，尚未推送）。v14 呼叫的介面參數與有值的參照型 option 參數以借用方式傳入，被呼叫端返回時卻會釋放；`function_call` 與 delegate 路徑現在照原版 `0x657430` 替它們加參照。新模式 `iface-arg` 在 `7e16dee` 上 6/6 失敗、修正後通過，46 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`。150 秒 GUI 修正後三次皆 MSG 88、assertion 0、堆疊溢位 0：講完話的立繪會退場，名牌不再疊字，`heap_alloc_slot` 警告歸零，峰值 RSS 由 1.76／2.05 GB 降為 1.33／1.38 GB。此前各組（GBK 字元規則 `6400e3c`／libsys4 `247f544`、左側翻轉 `4a82758`、缺字與字距 `05d2441`，到 `7e16dee` 為止）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
+**最新狀態：CN 文字依原版 GDI 字格排版（`9f81bd9`，本機 commit，尚未推送；側審查 D1–D4）。GBK 字元規則且無 .fnl 時，每字前進量 = 字寬 + 2e + 字距，e = max(ceil 太さ, ceil 縁取り)（各自不超過字級），字寬依首位元組；`TextSurfaceManager.GetFontWidth` 回傳同一個字格，腳本量到的寬度與繪字一致；缺字 fallback 只在這個組態啟用。新模式 `text-metrics` 在 `ca2ebff` 上失敗、修正後通過，SJIS 輸出與 `05d2441` 之前逐行相同；47 個模式在預設與強制 GBK 兩種組態都 `VERDICT PASS`。150 秒 GUI MSG 88、assertion 0、堆疊溢位 0，event 視窗每字 25 px（原為 24）、名牌 30／27 px、主對白 24 px，與原版截圖一致。此前各組到 `ca2ebff`（含立繪與名牌 use-after-free 的 `9e30c0f`、`4d52a87`）已在遠端。從讀檔畫面讀一般存檔仍需 `system.Reset`（stub），記憶體成長與長時間穩定性未解決，尚非穩定可玩版。**
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -159,9 +159,25 @@ libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本
 
 同源而一併消失的還有 `Motion::ExecuterCollection` 的 vtable 讀取越界與 free list 損壞警告。另案（delegate 伴隨槽被當成參數、STRUCT 參數多加參照、Executer 與 CParts 不釋放）與側審查的字寬缺陷 D1 見 [uaf.md](research/gui-visual/uaf.md) 與 [HANDOFF.md](HANDOFF.md) 第 4 項。
 
+## 字距：原版 GDI 字格（`9f81bd9`）
+
+側審查指出 `05d2441` 的四個缺陷：`TextSurfaceManager.GetFontWidth` 仍用 size/2 且不算外框，腳本量到的寬度比實際繪字窄（backlog 量 22 px、畫 24 px，D1）；外框沒取 ceil、太さ與外框相加而非取 max，`PE_SetFont` 也沒保存太さ（event 視窗每字 24 px，原版 25，D2）；半形看 Unicode 不看首位元組（D3）；缺字 fallback 沒有限定 GBK（D4）。
+
+原版 `0x69c7a0` 對 GDI 字型：e = max(min(ceil 太さ, 字級), min(ceil 縁取り, 字級))，字寬 = 首位元組 0x81..0xFE 時為字級、否則 (字級+1)>>1，回傳字寬 + 2e；`GetFontWidth` 的 HLL 入口 `0x69fb30` 只看第一個字，空字串回 2e；`Parts_SetFont`（跳表 case 729 → `0x69f230`）把 BoldWeight 與 EdgeWeight 存在它讀的兩個欄位。修正以 `gfx_text_cn_gdi()`（GBK 字元規則且無 .fnl）為條件，讓繪字、每字貼圖寬、`gfx_size_text` 與 `GetFontWidth` 共用這個字格；`PE_SetFont`／`PE_SetMessageWindowTextFont` 把太さ存進新的 `text_style.bold_weight`；缺字 fallback 只在這個組態啟用。
+
+| 項目 | 修正前（`ca2ebff`） | 修正後 |
+|---|---|---|
+| `text-metrics`（12 組 pactex 樣式，GBK 161 項＋SJIS 97 項） | GBK 131 項失敗、SJIS 1 項失敗（fallback），rc 86 | 全過；SJIS 109 行與 `4a82758` 逐行相同 |
+| 47 模式（預設／GBK） | — | `VERDICT PASS`／`VERDICT PASS` |
+| 150 秒 GUI MSG／assertion／堆疊溢位 | 88／0／0（`9e30c0f` 參考執行） | 88／0／0，MSG 內容相同，峰值 RSS 1.30 GB |
+| event 視窗／event 名牌／主視窗名牌／主對白（px／字） | 24／27／30／24（event 名牌依側審查與公式，其餘為 `9e30c0f` 執行的 framebuffer） | 25／27／30／24（原版 25／27／30／24） |
+| backlog：GetFontWidth + 字距 對 實際前進 | 22 對 24 | 24 對 24 |
+
+backlog、DungeonSelector、成就通知的畫面沒有走到；太さ的字形粗細、行高、PE_Save 不保存 `bold_weight` 等限制見 [spacing-fix.md](research/gui-visual/spacing-fix.md)。
+
 ## 下一批卡點
 
-- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與有外框文字的字距（`05d2441`）、立繪與名牌不退場（`9e30c0f`）已修正。剩下太さ計入前進量與 `TextSurfaceManager` 量字寬（側審查 D1，中）；立繪站位與原版實機截圖逐格對照尚未做。
+- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）已修正。剩下側審查 D5–D7（翻轉不作用在 TEXT／FLAT 與子元件等）；立繪站位與原版實機截圖逐格對照尚未做；backlog 等畫面的字距只有 headless 驗證。
 
 - **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
 - **記憶體**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 後 150 秒峰值 RSS 約 1.3–1.4 GB，配置器警告消失；STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放仍是成長來源候選。
@@ -176,7 +192,7 @@ libsys4 新增執行期開關 `sys4_set_string_charset()`（預設 SJIS，舊本
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 46 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 47 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

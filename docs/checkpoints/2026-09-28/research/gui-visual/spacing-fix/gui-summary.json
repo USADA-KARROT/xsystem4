@@ -1,0 +1,50 @@
+{
+  "after": {
+    "what": "after: b215e6d (same tree as 9f81bd9, message-only amend), new save folder",
+    "binary_sha256": "319f1fb33641956a132cb5e5b0febea90788b5d3cc421592343c9baf1d77dacc",
+    "ain_sha256": "beefa6677237",
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/spacing-b215e6d-gui/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/spacing-b215e6d-gui/framebuffer"
+    },
+    "elapsed_seconds": 150.35,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1304625152,
+    "msg_lines": 88,
+    "msg_sha256": "711d4ea64b13c9737093cfdb02f0498341b8c59a9faf9b417e0359f6a3a37bf7",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "asan_lines": 0,
+    "glyph_load_failures": 0,
+    "framebuffer_pngs": 40
+  },
+  "reference": {
+    "what": "reference: 9e30c0f (includes 05d2441), earlier run of the same harness",
+    "binary_sha256": "d9881bc29ea0b2a36fde7345149f982669bb8d19813bc36b16de06838c4a0899",
+    "ain_sha256": "beefa6677237",
+    "env": {
+      "XSYSTEM4_HOME": "$XS4_WORK/runs/uaf-after-3-9e30c0f/home",
+      "XSYS4_STAGE2_PERF": "1",
+      "XSYS4_HOLD_KEYS": "13",
+      "XSYS4_AUTO_CLICK": "1200",
+      "XSYS4_AUTO_CLICK_X": "640",
+      "XSYS4_AUTO_CLICK_Y": "400",
+      "XSYS4_SCREENSHOT_DIR": "$XS4_WORK/runs/uaf-after-3-9e30c0f/framebuffer"
+    },
+    "elapsed_seconds": 150.237,
+    "stop_reason": "duration",
+    "peak_rss_bytes": 1327808512,
+    "msg_lines": 88,
+    "msg_sha256": "711d4ea64b13c9737093cfdb02f0498341b8c59a9faf9b417e0359f6a3a37bf7",
+    "stack_overflows": 0,
+    "assertion_lines": 0,
+    "asan_lines": 0,
+    "glyph_load_failures": 0,
+    "framebuffer_pngs": 40
+  }
+}

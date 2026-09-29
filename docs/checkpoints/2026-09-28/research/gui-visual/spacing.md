@@ -2,6 +2,8 @@
 
 本組只讀調查。沒有修改 `$WT`，也沒有修改母片；沒有執行遊戲 GUI，也沒有執行 EXE（EXE 只做 capstone 靜態反組譯）。
 
+> **修正進度**：修法 A 與半形寬在 `05d2441`；修法 B（太さ、ceil 後取 max、首位元組半形、`TextSurfaceManager.GetFontWidth`）與缺字 fallback 限定 CN 在 `9f81bd9`，修法、原版位址與驗證見 [spacing-fix.md](spacing-fix.md)。本文的行號與「現行」數值是 `6400e3c` 當時的狀態。
+
 路徑記號：
 
 - `$PORT` = `<PORT>`

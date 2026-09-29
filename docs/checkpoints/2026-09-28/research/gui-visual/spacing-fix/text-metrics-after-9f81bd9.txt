@@ -1,0 +1,290 @@
+# verify-step.sh spacing-9f81bd9 的 text-metrics：rc=0
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+GBK enable via gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+GBK  [AdvMessageWindow_main] size=25 太さ=0 縁取り=0 字距=-1 e=0
+GBK  fw  2-byte                                                 got=25      want=25      ok
+GBK  fw  1-byte                                                 got=13      want=13      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=25      want=25      ok
+GBK  fw  empty text = 2e                                        got=0       want=0       ok
+GBK  fw  "10萬" = first character only                         got=13      want=13      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=24      want=24      ok
+GBK  cell 2-byte                                                got=25      want=25      ok
+GBK  cell 1-byte                                                got=13      want=13      ok
+GBK  cell pinyin A8A4                                           got=25      want=25      ok
+GBK  size "10萬"                                               got=51      want=51      ok
+GBK  adv 2-byte                                                 got=24      want=24      ok
+GBK  adv 1-byte                                                 got=12      want=12      ok
+GBK  adv "10萬"                                                got=48      want=48      ok
+GBK  [AdvMessageWindow_event] size=25 太さ=0 縁取り=1.5 字距=-4 e=2
+GBK  fw  2-byte                                                 got=29      want=29      ok
+GBK  fw  1-byte                                                 got=17      want=17      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=29      want=29      ok
+GBK  fw  empty text = 2e                                        got=4       want=4       ok
+GBK  fw  "10萬" = first character only                         got=17      want=17      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=25      want=25      ok
+GBK  cell 2-byte                                                got=29      want=29      ok
+GBK  cell 1-byte                                                got=17      want=17      ok
+GBK  cell pinyin A8A4                                           got=29      want=29      ok
+GBK  size "10萬"                                               got=63      want=63      ok
+GBK  adv 2-byte                                                 got=25      want=25      ok
+GBK  adv 1-byte                                                 got=13      want=13      ok
+GBK  adv "10萬"                                                got=51      want=51      ok
+GBK  [AdvMessageWindow_plot] size=20 太さ=0 縁取り=1 字距=-2 e=1
+GBK  fw  2-byte                                                 got=22      want=22      ok
+GBK  fw  1-byte                                                 got=12      want=12      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=22      want=22      ok
+GBK  fw  empty text = 2e                                        got=2       want=2       ok
+GBK  fw  "10萬" = first character only                         got=12      want=12      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=20      want=20      ok
+GBK  cell 2-byte                                                got=22      want=22      ok
+GBK  cell 1-byte                                                got=12      want=12      ok
+GBK  cell pinyin A8A4                                           got=22      want=22      ok
+GBK  size "10萬"                                               got=46      want=46      ok
+GBK  adv 2-byte                                                 got=20      want=20      ok
+GBK  adv 1-byte                                                 got=10      want=10      ok
+GBK  adv "10萬"                                                got=40      want=40      ok
+GBK  [AdvNamePlate] size=28 太さ=0 縁取り=3 字距=-4 e=3
+GBK  fw  2-byte                                                 got=34      want=34      ok
+GBK  fw  1-byte                                                 got=20      want=20      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=34      want=34      ok
+GBK  fw  empty text = 2e                                        got=6       want=6       ok
+GBK  fw  "10萬" = first character only                         got=20      want=20      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=30      want=30      ok
+GBK  cell 2-byte                                                got=34      want=34      ok
+GBK  cell 1-byte                                                got=20      want=20      ok
+GBK  cell pinyin A8A4                                           got=34      want=34      ok
+GBK  size "10萬"                                               got=74      want=74      ok
+GBK  adv 2-byte                                                 got=30      want=30      ok
+GBK  adv 1-byte                                                 got=16      want=16      ok
+GBK  adv "10萬"                                                got=62      want=62      ok
+GBK  [AdvNamePlate_event] size=25 太さ=0 縁取り=3 字距=-4 e=3
+GBK  fw  2-byte                                                 got=31      want=31      ok
+GBK  fw  1-byte                                                 got=19      want=19      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=31      want=31      ok
+GBK  fw  empty text = 2e                                        got=6       want=6       ok
+GBK  fw  "10萬" = first character only                         got=19      want=19      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=27      want=27      ok
+GBK  cell 2-byte                                                got=31      want=31      ok
+GBK  cell 1-byte                                                got=19      want=19      ok
+GBK  cell pinyin A8A4                                           got=31      want=31      ok
+GBK  size "10萬"                                               got=69      want=69      ok
+GBK  adv 2-byte                                                 got=27      want=27      ok
+GBK  adv 1-byte                                                 got=15      want=15      ok
+GBK  adv "10萬"                                                got=57      want=57      ok
+GBK  [BackLog SYS_text] size=25 太さ=0 縁取り=1 字距=-3 e=1
+GBK  fw  2-byte                                                 got=27      want=27      ok
+GBK  fw  1-byte                                                 got=15      want=15      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=27      want=27      ok
+GBK  fw  empty text = 2e                                        got=2       want=2       ok
+GBK  fw  "10萬" = first character only                         got=15      want=15      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=24      want=24      ok
+GBK  cell 2-byte                                                got=27      want=27      ok
+GBK  cell 1-byte                                                got=15      want=15      ok
+GBK  cell pinyin A8A4                                           got=27      want=27      ok
+GBK  size "10萬"                                               got=57      want=57      ok
+GBK  adv 2-byte                                                 got=24      want=24      ok
+GBK  adv 1-byte                                                 got=12      want=12      ok
+GBK  adv "10萬"                                                got=48      want=48      ok
+GBK  [DungeonSelector TextName] size=22 太さ=0 縁取り=2 字距=-4 e=2
+GBK  fw  2-byte                                                 got=26      want=26      ok
+GBK  fw  1-byte                                                 got=15      want=15      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=26      want=26      ok
+GBK  fw  empty text = 2e                                        got=4       want=4       ok
+GBK  fw  "10萬" = first character only                         got=15      want=15      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=22      want=22      ok
+GBK  cell 2-byte                                                got=26      want=26      ok
+GBK  cell 1-byte                                                got=15      want=15      ok
+GBK  cell pinyin A8A4                                           got=26      want=26      ok
+GBK  size "10萬"                                               got=56      want=56      ok
+GBK  adv 2-byte                                                 got=22      want=22      ok
+GBK  adv 1-byte                                                 got=11      want=11      ok
+GBK  adv "10萬"                                                got=44      want=44      ok
+GBK  [AchievementNotify Text] size=32 太さ=0 縁取り=2.7 字距=-2 e=3
+GBK  fw  2-byte                                                 got=38      want=38      ok
+GBK  fw  1-byte                                                 got=22      want=22      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=38      want=38      ok
+GBK  fw  empty text = 2e                                        got=6       want=6       ok
+GBK  fw  "10萬" = first character only                         got=22      want=22      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=36      want=36      ok
+GBK  cell 2-byte                                                got=38      want=38      ok
+GBK  cell 1-byte                                                got=22      want=22      ok
+GBK  cell pinyin A8A4                                           got=38      want=38      ok
+GBK  size "10萬"                                               got=82      want=82      ok
+GBK  adv 2-byte                                                 got=36      want=36      ok
+GBK  adv 1-byte                                                 got=20      want=20      ok
+GBK  adv "10萬"                                                got=76      want=76      ok
+GBK  [AchievementNotify Caption] size=40 太さ=0 縁取り=3.5 字距=-7 e=4
+GBK  fw  2-byte                                                 got=48      want=48      ok
+GBK  fw  1-byte                                                 got=28      want=28      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=48      want=48      ok
+GBK  fw  empty text = 2e                                        got=8       want=8       ok
+GBK  fw  "10萬" = first character only                         got=28      want=28      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=41      want=41      ok
+GBK  cell 2-byte                                                got=48      want=48      ok
+GBK  cell 1-byte                                                got=28      want=28      ok
+GBK  cell pinyin A8A4                                           got=48      want=48      ok
+GBK  size "10萬"                                               got=104     want=104     ok
+GBK  adv 2-byte                                                 got=41      want=41      ok
+GBK  adv 1-byte                                                 got=21      want=21      ok
+GBK  adv "10萬"                                                got=83      want=83      ok
+GBK  [WorkerParamView bold 0.8] size=25 太さ=0.8 縁取り=0 字距=-3 e=1
+GBK  fw  2-byte                                                 got=27      want=27      ok
+GBK  fw  1-byte                                                 got=15      want=15      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=27      want=27      ok
+GBK  fw  empty text = 2e                                        got=2       want=2       ok
+GBK  fw  "10萬" = first character only                         got=15      want=15      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=24      want=24      ok
+GBK  cell 2-byte                                                got=27      want=27      ok
+GBK  cell 1-byte                                                got=15      want=15      ok
+GBK  cell pinyin A8A4                                           got=27      want=27      ok
+GBK  size "10萬"                                               got=57      want=57      ok
+GBK  adv 2-byte                                                 got=24      want=24      ok
+GBK  adv 1-byte                                                 got=12      want=12      ok
+GBK  adv "10萬"                                                got=48      want=48      ok
+GBK  [AdvCaption bold 0.5 edge 3] size=56 太さ=0.5 縁取り=3 字距=-6 e=3
+GBK  fw  2-byte                                                 got=62      want=62      ok
+GBK  fw  1-byte                                                 got=34      want=34      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=62      want=62      ok
+GBK  fw  empty text = 2e                                        got=6       want=6       ok
+GBK  fw  "10萬" = first character only                         got=34      want=34      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=56      want=56      ok
+GBK  cell 2-byte                                                got=62      want=62      ok
+GBK  cell 1-byte                                                got=34      want=34      ok
+GBK  cell pinyin A8A4                                           got=62      want=62      ok
+GBK  size "10萬"                                               got=130     want=130     ok
+GBK  adv 2-byte                                                 got=56      want=56      ok
+GBK  adv 1-byte                                                 got=28      want=28      ok
+GBK  adv "10萬"                                                got=112     want=112     ok
+GBK  [SetPartsFontBoldWeight 2 edge 4] size=19 太さ=2 縁取り=4 字距=0 e=4
+GBK  fw  2-byte                                                 got=27      want=27      ok
+GBK  fw  1-byte                                                 got=18      want=18      ok
+GBK  fw  pinyin A8A4 (2-byte)                                   got=27      want=27      ok
+GBK  fw  empty text = 2e                                        got=8       want=8       ok
+GBK  fw  "10萬" = first character only                         got=18      want=18      ok
+GBK  fw + spacing = adv (what the scripts wrap by)              got=27      want=27      ok
+GBK  cell 2-byte                                                got=27      want=27      ok
+GBK  cell 1-byte                                                got=18      want=18      ok
+GBK  cell pinyin A8A4                                           got=27      want=27      ok
+GBK  size "10萬"                                               got=63      want=63      ok
+GBK  adv 2-byte                                                 got=27      want=27      ok
+GBK  adv 1-byte                                                 got=18      want=18      ok
+GBK  adv "10萬"                                                got=63      want=63      ok
+GBK  fb  U+83C8 drawn from HanaMinA                             got=1       want=1       ok
+GBK  fb  U+4E0B stays in VL Gothic                              got=0       want=0       ok
+GBK+fnl fw  2-byte, 25/0/1.5 (legacy)                              got=25      want=25      ok
+GBK+fnl fw  1-byte, 25/0/1.5 (legacy)                              got=12      want=12      ok
+GBK+fnl fw  empty (legacy)                                         got=0       want=0       ok
+TEXT-METRICS GBK summary: 0 failure(s)
+TEXT-METRICS GBK child: pass (status 0)
+SJIS [AdvMessageWindow_main]
+SJIS fw  2-byte                                                 got=25      want=25      ok
+SJIS fw  1-byte                                                 got=12      want=12      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=37      want=37      ok
+SJIS cell 2-byte                                                got=25      want=25      ok
+SJIS cell 1-byte                                                got=12.5    want=12.5    ok
+SJIS size "1亜"                                                got=37.5    want=37.5    ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AdvMessageWindow_event]
+SJIS fw  2-byte                                                 got=25      want=25      ok
+SJIS fw  1-byte                                                 got=12      want=12      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=37      want=37      ok
+SJIS cell 2-byte                                                got=28      want=28      ok
+SJIS cell 1-byte                                                got=15.5    want=15.5    ok
+SJIS size "1亜"                                                got=37.5    want=37.5    ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AdvMessageWindow_plot]
+SJIS fw  2-byte                                                 got=20      want=20      ok
+SJIS fw  1-byte                                                 got=10      want=10      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=30      want=30      ok
+SJIS cell 2-byte                                                got=22      want=22      ok
+SJIS cell 1-byte                                                got=12      want=12      ok
+SJIS size "1亜"                                                got=30      want=30      ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AdvNamePlate]
+SJIS fw  2-byte                                                 got=28      want=28      ok
+SJIS fw  1-byte                                                 got=14      want=14      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=42      want=42      ok
+SJIS cell 2-byte                                                got=34      want=34      ok
+SJIS cell 1-byte                                                got=20      want=20      ok
+SJIS size "1亜"                                                got=42      want=42      ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AdvNamePlate_event]
+SJIS fw  2-byte                                                 got=25      want=25      ok
+SJIS fw  1-byte                                                 got=12      want=12      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=37      want=37      ok
+SJIS cell 2-byte                                                got=31      want=31      ok
+SJIS cell 1-byte                                                got=18.5    want=18.5    ok
+SJIS size "1亜"                                                got=37.5    want=37.5    ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [BackLog SYS_text]
+SJIS fw  2-byte                                                 got=25      want=25      ok
+SJIS fw  1-byte                                                 got=12      want=12      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=37      want=37      ok
+SJIS cell 2-byte                                                got=27      want=27      ok
+SJIS cell 1-byte                                                got=14.5    want=14.5    ok
+SJIS size "1亜"                                                got=37.5    want=37.5    ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [DungeonSelector TextName]
+SJIS fw  2-byte                                                 got=22      want=22      ok
+SJIS fw  1-byte                                                 got=11      want=11      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=33      want=33      ok
+SJIS cell 2-byte                                                got=26      want=26      ok
+SJIS cell 1-byte                                                got=15      want=15      ok
+SJIS size "1亜"                                                got=33      want=33      ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AchievementNotify Text]
+SJIS fw  2-byte                                                 got=32      want=32      ok
+SJIS fw  1-byte                                                 got=16      want=16      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=48      want=48      ok
+SJIS cell 2-byte                                                got=37.4    want=37.4    ok
+SJIS cell 1-byte                                                got=21.4    want=21.4    ok
+SJIS size "1亜"                                                got=48      want=48      ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AchievementNotify Caption]
+SJIS fw  2-byte                                                 got=40      want=40      ok
+SJIS fw  1-byte                                                 got=20      want=20      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=60      want=60      ok
+SJIS cell 2-byte                                                got=47      want=47      ok
+SJIS cell 1-byte                                                got=27      want=27      ok
+SJIS size "1亜"                                                got=60      want=60      ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [WorkerParamView bold 0.8]
+SJIS fw  2-byte                                                 got=25      want=25      ok
+SJIS fw  1-byte                                                 got=12      want=12      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=37      want=37      ok
+SJIS cell 2-byte                                                got=25      want=25      ok
+SJIS cell 1-byte                                                got=12.5    want=12.5    ok
+SJIS size "1亜"                                                got=37.5    want=37.5    ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [AdvCaption bold 0.5 edge 3]
+SJIS fw  2-byte                                                 got=56      want=56      ok
+SJIS fw  1-byte                                                 got=28      want=28      ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=84      want=84      ok
+SJIS cell 2-byte                                                got=62      want=62      ok
+SJIS cell 1-byte                                                got=34      want=34      ok
+SJIS size "1亜"                                                got=84      want=84      ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS [SetPartsFontBoldWeight 2 edge 4]
+SJIS fw  2-byte                                                 got=19      want=19      ok
+SJIS fw  1-byte                                                 got=9       want=9       ok
+SJIS fw  empty                                                  got=0       want=0       ok
+SJIS fw  "1亜" (sum)                                           got=28      want=28      ok
+SJIS cell 2-byte                                                got=31      want=31      ok
+SJIS cell 1-byte                                                got=21.5    want=21.5    ok
+SJIS size "1亜"                                                got=28.5    want=28.5    ok
+SJIS adv (glyph not loaded: skipped)                            got=0       want=0       ok
+SJIS fb  U+83C8 keeps the .notdef of VL Gothic                  got=0       want=0       ok
+TEXT-METRICS SJIS summary: 0 failure(s)
+TEXT-METRICS SJIS child: pass (status 0)
+TEXT-METRICS PASS GBK grid and SJIS unchanged

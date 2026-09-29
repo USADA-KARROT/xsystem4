@@ -17,8 +17,9 @@
 | 問題 | commit | 驗證 |
 |---|---|---|
 | 左側角色朝向 | `4a82758`：`struct parts` 加 `reverse_lr`／`reverse_tb`，Set／Get 的 LR／TB 四個函式照原版語義實作（未知號碼 setter 忽略、getter 回 false），CG 繪製與像素點擊判定和 `sprite_deform` 的翻轉 XOR | `parts-reverse`：`da2c22f` 上 3 項失敗，修正後全過；45 模式 `VERDICT PASS` |
-| 字型缺字 | `05d2441`：`ft_font_get_glyph` 在字型沒有該字、另一套 TrueType 有時改用它的字形，前進量不變 | 150 秒 GUI：名牌完整顯示「綺菈綺菈」 |
-| 字距（修法 A 與半形寬） | `05d2441`：GBK 字元規則且無 .fnl 時，外框計入前進量，半形寬改為 (字級+1)>>1 | 150 秒 GUI：名牌與有外框視窗的字距與原版截圖一致；主對白視窗不變。太さ仍未計入前進量（修法 B 未做） |
+| 字型缺字 | `05d2441`：`ft_font_get_glyph` 在字型沒有該字、另一套 TrueType 有時改用它的字形，前進量不變。`9f81bd9` 限定只在 GBK 字元規則且無 .fnl 時啟用（側審查 D4） | 150 秒 GUI：名牌完整顯示「綺菈綺菈」；`text-metrics`：SJIS 組態不再 fallback |
+| 字距（修法 A 與半形寬） | `05d2441`：GBK 字元規則且無 .fnl 時，外框計入前進量，半形寬改為 (字級+1)>>1 | 150 秒 GUI：名牌與有外框視窗的字距與原版截圖一致；主對白視窗不變 |
+| 字距（修法 B，側審查 D1–D3） | `9f81bd9`：同一組態下照原版 `0x69c7a0` 的字格排版：e = max(ceil 太さ, ceil 縁取り)（各自不超過字級），字寬依首位元組，字格 = 字寬 + 2e、前進量 = 字格 + 字距；`TextSurfaceManager.GetFontWidth` 回傳同一個字格（`0x69fb30`）；`PE_SetFont` 與 `PE_SetMessageWindowTextFont` 保存太さ。SJIS 與有 .fnl 的遊戲不變 | 新模式 `text-metrics`（12 組 pactex 樣式）：`ca2ebff` 上 131 項失敗、SJIS 1 項失敗，修正後全過，SJIS 輸出與 `05d2441` 之前逐行相同；47 模式兩種組態 `VERDICT PASS`；150 秒 GUI MSG 88，event 視窗 25 px／字（原為 24）、名牌 30／27、主對白 24，與原版截圖一致。詳見 [spacing-fix.md](spacing-fix.md) |
 | 立繪與名牌不消失 B | `9e30c0f`：`function_call` 對 `AIN_IFACE` 參數、以及判別槽為 0 且內含參照／wrap／介面的 option 參數加參照；`delegate_copy_argument` 與 `delegate_call` 套用同樣規則（原版 `0x657430`） | `iface-arg`：`7e16dee` 上 6/6 失敗，修正後全過；46 模式在預設與 GBK 組態 `VERDICT PASS`。150 秒 GUI 修正後三次 MSG 88，講完話的立繪會退場，名牌疊字 0 張（修正前 11、12 張），`heap_alloc_slot` 警告 15→0，峰值 RSS 1.76／2.05→1.33／1.38 GB。詳見 [uaf.md](uaf.md) |
 
 ### 追蹤結果：站錯邊與不退場可能同源

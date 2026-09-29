@@ -6,8 +6,9 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 46 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
-- 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`，本機 commit，尚未推送）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。
+- Headless 驗證 47 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `ca2ebff` 為止已在遠端。
+- 字距依原版 GDI 字格修正（`9f81bd9`，本機 commit，尚未推送；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
@@ -73,10 +74,11 @@
      - 立繪最終站位與原版實機截圖逐格對照尚未做；跨側移動的 ReverseLR 受下列 D5 影響。
    - **已完成：左側角色翻轉**（`4a82758`）。
    - **已完成：字型缺字**（`05d2441`，逐字 fallback 到 HanaMinA，前進量不變）。
-   - **部分完成：字距**（`05d2441`，外框計入前進量、半形寬 (字級+1)>>1）；太さ計入前進量與 `TextSurfaceManager` 的量字寬（spacing.md 修法 B）仍待做。側審查結果（詳見 uaf.md〈側審查〉）：
-     - **D1【中】**：`TextSurfaceManager.GetFontWidth` 仍用 size/2、不算外框，但 `05d2441` 之後實際繪字變寬。backlog（字級 25、外框 1）量到每字 22 px、實際畫 24 px，接近行寬的行推定會被裁切（程式碼與 AIN 呼叫鏈已驗證，畫面未驗證）。要和 D2 一起依 `0x69c7a0` 修，量字寬與繪字才會一致。
-     - **D2【低～中】**：外框沒取 ceil、太さ與外框相加而非取 max；event 視窗每字 24 px，原版 25 px。
-     - **D3–D7【低】**：半形判斷看 Unicode 而非首位元組；缺字 fallback 未限定 GBK；翻轉不作用在 TEXT／FLAT 與子元件（`AdvStand@Move` 跨側的 ReverseLR、戰鬥的 `PlayerViewPartsLayer@Reverse` 無效，屬功能缺口，D5）；surface area 加翻轉會錯位；`parts-reverse` 沒測繪製與點擊判定。
+   - **已完成：字距**（`05d2441` 修法 A；`9f81bd9` 修法 B 與側審查 D1–D4，研究見 `research/gui-visual/spacing-fix.md`）。GBK 字元規則且無 .fnl 時照原版 `0x69c7a0` 的字格排版：e = max(ceil 太さ, ceil 縁取り)（各自不超過字級）、字寬依首位元組、前進量 = 字寬 + 2e + 字距；`TextSurfaceManager.GetFontWidth` 回傳同一個字格（`0x69fb30`），backlog 量到的寬度與繪字一致（24 px）；`PE_SetFont`／`PE_SetMessageWindowTextFont` 保存太さ；缺字 fallback 只在這個組態啟用。SJIS 與有 .fnl 的遊戲不變（`text-metrics` 的 SJIS 輸出與 `05d2441` 之前逐行相同）。後續：
+     - backlog、DungeonSelector、成就通知的折行與裁切沒有在畫面上確認（測試腳本走不到）。
+     - 太さ只算進字格，字形粗細仍依 `weight`；行高與字形 y 位置、行寬含最後一個字距（spacing.md R4）沒有改；`bold_weight` 不會被 PE_Save 存下。
+     - `9f81bd9` 尚未經獨立反駁者審查。
+   - **側審查 D5–D7【低】**（詳見 uaf.md〈側審查〉）：翻轉不作用在 TEXT／FLAT 與子元件（`AdvStand@Move` 跨側的 ReverseLR、戰鬥的 `PlayerViewPartsLayer@Reverse` 無效，屬功能缺口，D5）；surface area 加翻轉會錯位（D6）；`parts-reverse` 沒測繪製與點擊判定（D7）。
 5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放（見第 4 項）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
