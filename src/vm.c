@@ -1981,6 +1981,16 @@ void vm_call_nopop(int fno, int nargs)
 			break;
 		}
 	}
+	// Option arguments are [value, flag]: decide once both slots are copied
+	// (0x657430 retains a present reference payload, as in function_call).
+	// HLL callbacks such as Array.Where/First pass option<wrap<T>> elements
+	// to lambdas (ItemStock@ToItem, MapView@GetNode, ...).
+	int copied = nargs < f->nr_args ? nargs : f->nr_args;
+	for (int i = 0; i < copied; i++) {
+		if (f->vars[i].type.data == AIN_OPTION
+		    && v14_option_arg_retained(&f->vars[i].type, heap[slot].page->values, i, copied))
+			v14_retain_arg(heap[slot].page->values[i].i);
+	}
 
 	vm_execute();
 	instr_ptr = saved_ip;

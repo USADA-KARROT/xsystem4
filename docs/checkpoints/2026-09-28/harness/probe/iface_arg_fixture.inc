@@ -45,6 +45,11 @@
  *   IA5 option argument: real CustomerEffect@Personality::set(
  *       option<wrap<Personality>>) stores the value with X_OP_SET; the
  *       caller's own reference and the member's must both remain.
+ *   IA7 HLL callback option argument: Array.Where (arg3 196610, the game's
+ *       ItemStock@ToItem call shape) calls the real lambda
+ *       ItemStock@<lambda : ItemStock@ToItem()(52, 20)>(option<wrap<Item>>)
+ *       through vm_call_nopop; the element's refcount must balance (caller +
+ *       array + the result's copy). IA6 below covers delegate_call only.
  *   IA6 delegate option argument: <ArrayFindFunc@Item&?>(option<wrap<Item>>)
  *       invoking the real lambda ItemStock@<lambda : ItemStock@ToItem()>
  *       (OptionalExtensions::HasValue) through delegate_call must return true
@@ -354,6 +359,43 @@ static void ia_delegate_option(void)
 	printf("IA6 delegate option path checked\n");
 }
 
+static void ia_hll_option(void)
+{
+	int lib = fo_find_lib("Array");
+	int fn = fo_find_fn(lib, "Where", 2, 1, 0);
+	int fno = ain_get_function(ain, "ItemStock@<lambda : ItemStock@ToItem()(52, 20)>");
+	int item_type = ain_get_struct(ain, "Item");
+	if (lib < 0 || fn < 0 || fno < 0 || item_type < 0 || ain->functions[fno].vars[0].type.data != AIN_OPTION) {
+		printf("  IA7 setup: lib=%d Where=%d lambda=%d Item=%d\n", lib, fn, fno, item_type);
+		ia_failures++;
+		return;
+	}
+	int item = alloc_struct(item_type);
+	unsigned seq = heap[item].seq;
+	struct page *arr = alloc_page(ARRAY_PAGE, AIN_ARRAY, 1);
+	arr->array.rank = 1;
+	arr->values[0].i = item;
+	heap_ref(item); /* the array's own reference */
+	int arr_slot = heap_alloc_page(arr);
+	int before = heap[item].ref;
+	int sp = stack_ptr;
+	stack_push(arr_slot); stack_push(-1); stack_push(fno);
+	hll_call(lib, fn, 196610);
+	int res = stack_pop().i;
+	int copies = 0;
+	if (res > 0 && heap_index_valid(res) && heap[res].type == VM_PAGE && heap[res].page)
+		for (int i = 0; i < heap[res].page->nr_vars; i++)
+			if (heap[res].page->values[i].i == item)
+				copies++;
+	bool same = heap[item].seq == seq;
+	int after = heap[item].ref;
+	if (!same || after != before + copies || stack_ptr != sp) {
+		printf("  IA7 item ref before=%d after=%d result copies=%d same_object=%d stack_ok=%d (want after=%d)\n",
+		       before, after, copies, same, stack_ptr == sp, before + copies);
+		ia_failures++;
+	}
+}
+
 static int ia_run(const char *name, void (*fn)(void))
 {
 	fflush(stdout);
@@ -381,6 +423,7 @@ static int test_iface_arg(void)
 	failed += ia_run("IA4 AdvStand m_parent across MoveIn/Move/MoveOut", ia_stand);
 	failed += ia_run("IA5 option<wrap<T>> argument stored in a member", ia_option);
 	failed += ia_run("IA6 delegate option<wrap<T>> argument", ia_delegate_option);
-	printf("IFACE-ARG summary: %d/6 case(s) failed\n", failed);
+	failed += ia_run("IA7 HLL callback option<wrap<T>> argument (Array.Where)", ia_hll_option);
+	printf("IFACE-ARG summary: %d/7 case(s) failed\n", failed);
 	return failed ? 89 : 0;
 }
