@@ -1,0 +1,20 @@
+# before-check.sh f489d23 frame-pacing（src/include 取自 f489d23；*WARNING* 行已刪）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: frame_pacing_limiter_step is missing (frame pacing not implemented)
+FRAME-PACING FP1 FAIL
+  FAIL: frame_pacing_wait is missing (frame pacing not implemented)
+  FAIL: frame_pacing_limit is missing (frame pacing not implemented)
+  FAIL: frame_pacing_draw_frame is missing (frame pacing not implemented)
+FRAME-PACING FP2 FAIL
+  FAIL: frame_pacing_update_view is missing (frame pacing not implemented)
+  FAIL: frame_pacing_update_view_presents is missing (frame pacing not implemented)
+  FAIL: frame_pacing_parts_updated is missing (frame pacing not implemented)
+  FAIL: frame_pacing_take_parts_updated is missing (frame pacing not implemented)
+FRAME-PACING FP3 FAIL
+  FAIL: frame_pacing_update_view is missing (frame pacing not implemented)
+FRAME-PACING FP4 FAIL
+  FAIL: gfx_write_pixels is missing (frame pacing not implemented)
+  FAIL: gfx_write_pixels_async is missing (frame pacing not implemented)
+  FAIL: gfx_wait_pixels_writes is missing (frame pacing not implemented)
+FRAME-PACING FP5 FAIL
+FRAME-PACING FAIL 5/5 failed

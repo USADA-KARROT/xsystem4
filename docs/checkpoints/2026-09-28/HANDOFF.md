@@ -6,13 +6,14 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 49 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 51 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
 - 翻轉旗標作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）：沿父元件鏈 XOR、以錨點為軸鏡像方框與子元件位置（原版 `0x535260` → `0x4e6d80`，見 `research/gui-visual/reverse-inherit.md`）。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
 - 據點畫面缺件與 SetButtonEnable（`6d39915`，本機 commit，尚未推送；第 4 項）：父元件立即掛上、pactex 依原版 `部件タイプ` 表設型別等九項（見 `research/gui-visual/base-ui.md`）。底列與「下一步」出現，按下後進入階段選擇；階段選擇之後因教學圖層沒有釋放而停在 `PE_AddController`。
+- 流暢度（`44964f9`，本機 commit，尚未推送；第 4 項）：照原版 `0x4676f0`／`0x4c5450` 限速並每幀呈現一次，元件時間只推進一次，截圖改在背景執行緒寫檔，訊息視窗文字在繪製時才排版（見 `research/gui-visual/pacing.md`）。一般遊玩固定 58.7 fps，AIN 時間倍率 0.74→0.97。`6d39915`、`f489d23` 與本組都還沒經獨立審查。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
 ## 硬規則
@@ -93,9 +94,15 @@
      - **跨 controller 的繪製順序**：原版教學框內看得到 SceneAzito 的模糊背景，xsystem4 依 controller 排序，SceneAzito 在教學底圖之下；是否依 z 全域排序未驗證。
      - Motion 結束不套終值（MoveParent 停在 0.975 倍、Footer 的 ToDo／Tips 停在交替中途）；alpha clipper 不作用在子元件（教學框外溢出）；構築部件（D6 模糊背景、`FillCircle` type 102、`Create` 應為透明）；低階元件的其他狀態型別（20、22、23、25、26 等）；`SetNumeralFont` 等仍是 stub；新欄位不寫進 parts 存檔；停用按鈕是否擋點擊未驗證。
    - 其餘下一步依序：訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
-   - **流暢度**（使用者回報「說不出的卡頓」）：`STAGE2_PERF` 顯示幀率 120–520 fps 不穩（`video.c` 的 `wait_vsync` 預設關閉），150 秒內 29 個 5 秒時段有 20 段出現 >50 ms 長幀、前 80 秒常有 180–250 ms 停頓。先查原版的幀率控制，再逐一追長幀的原因（字形產生、貼圖載入、GC、存檔 fsync、測試模式日誌），並分開量測測試模式與一般模式。
+   - **已完成：流暢度**（`44964f9`，研究見 `research/gui-visual/pacing.md`）。原因三個：沒有限速（邏輯迴圈 460–480 Hz、每幀最多呈現三次）、`SystemService.UpdateView` 用自己的時鐘再推進一次元件時間（1.67–1.81 倍）、測試模式截圖在主執行緒壓 PNG。修正照原版：`0x4676f0` 的限速算式（毫秒計時、16.666666 ms、保留截斷的小數）與 `0x4c5450` 的 Sleep(50)／限速／Sleep(1)／呈現，Sleep 做成「到期後的第一個 1 ms 刻度醒來」（原版 `timeBeginPeriod(1)`，macOS 的 sleep 常晚醒數 ms），`OverFrameRateSleep`、`SleepByInactiveWindow`、略過已讀時十幀畫一幀都跟遊戲設定；元件時間只在 `UpdateComponent` 推進；`ChipmunkSpriteEngine.Update`／`TRANS_Update` 畫、`UpdateView` 呈現，`system.Peek` 不再呈現；截圖讀回後在背景執行緒寫檔；訊息視窗文字在繪製時才排版。新模式 `frame-pacing` 在 `f489d23` 上 5/5 失敗、修正後全過；51 模式兩種組態通過；同條件前後各兩輪 150 秒 GUI：一般遊玩 321–324 次／秒（浮動）→ 58.7，AIN 時間倍率 0.74→0.97，元件時間倍率 1.67–1.70→0.97；測試模式 >50 ms 間隔 40–42→2–3、最長 241–253→72–75 ms；MSG 88、assertion 0、堆疊溢位 0，約 80 秒進入據點並顯示底列。後續：
+     - **fps 是 58.7 不是 60**：原版算式在 1 ms 刻度的 Sleep 下每幀固定 17 個刻度（保留的小數是加到下一幀，精確 Sleep 反而是 16 ms）。原版在 Windows 上的實際 fps 沒有量過；若要剛好 60，只能偏離原版算式（例如期限式排程），需要使用者決定。
+     - **立繪 DCF 重複解碼**（換句時 >50 ms 長幀的推定主因）：libsys4 `dcf_extract` 每次都重解底圖（約 21–25 ms），150 秒內 200 次解碼只有 80 張不同。底圖快取要改 libsys4（submodule，需要同意）；xsystem4 端可做「名稱→解碼後 cg」的 LRU（每張約 11.5 MB，注意記憶體），或背景解碼（會改變 `SetPartsCG` 的同步語義）。
+     - **`SetWindowSetting` type 2**：AIN 是「全螢幕失焦時最小化」，xsystem4 當成 `WAIT_VSYNC`；設定畫面切換會開 vsync，而 SDL 2.32 的 macOS vsync 在螢幕休眠時會卡住（診斷：一次 swap 阻塞 159 秒）。依 AIN 函式名推定，要反組譯原版 `SetWindowSetting` 確認後再改。
+     - **`PE_Update` 的零時間後備**：passedTime 為 0 時改用「距上次後備」的實際時間，可能重複計時；限速後量測中 0 次觸發，ADV 略過時仍會觸發。原版沒有這個後備，移除前要確認沒有場景依賴它。
+     - `heap_grow` 一次觸碰全部新 slot（約 21 ms，偶發）；事件處理偶發 23.8 ms；貼圖上傳。
+     - ADV 略過（`View_Update` 不呼叫 `UpdateView`）時沿用舊的呈現路徑，不限速；原版此時不畫也不呈現。影片、跳過已讀（Ctrl）、設定畫面切換兩個休眠選項、亮螢幕與前景視窗下的表現都未驗證。
    - 翻轉繼承審查（`0ab8476`，ship）留下的低嚴重度項目：父元件被釋放後，孤兒子元件的 `global.reverse_lr/tb` 仍保留舊父鏈的 XOR，整棵子樹持續鏡像；修法是在 `parts_release` 讓子元件脫離時重算 global 翻轉與位置。
-5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放、場景物件因按鈕事件的 delegate 循環不解構（`SceneTutorial`，見第 4 項據點畫面的後續）。
+5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`44964f9` 限速後，150 秒 GUI 的峰值 RSS 從 1.0–1.4 GB 降到 0.5–0.6 GB（推定是邏輯幀少了八成，暫時配置跟著減少），成長本身沒有處理。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照、`Motion::Executer` 與 `CParts` 不釋放、場景物件因按鈕事件的 delegate 循環不解構（`SceneTutorial`，見第 4 項據點畫面的後續）。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
    - 名牌殘影：已由 `9e30c0f` 解決（名牌 root 被提早釋放，`Hide` 落空）。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000、字串寫 `Time:150` 的差異仍未查（未驗證是否影響淡出時間）。

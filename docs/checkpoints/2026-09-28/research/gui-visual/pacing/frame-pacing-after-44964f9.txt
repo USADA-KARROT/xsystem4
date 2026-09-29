@@ -1,0 +1,13 @@
+# frame-pacing 修正後（44964f9 的 src/include，預設組態；*WARNING* 行已刪）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FP1 limiter step matches the original; simulated period 17.000 ms (Sleep ends on a 1 ms tick), 16.000 ms (exact Sleep)
+FRAME-PACING FP1 PASS
+FP2 Sleep(n) at most n + 1.149 ms (0 of 15 off the tick); limited 17.053 ms/frame, off 4.994, skipping 5.001, restart sleep 16.971, inactive wait 53.082
+FRAME-PACING FP2 PASS
+FP3 present ownership checked
+FRAME-PACING FP3 PASS
+FP4 alpha after frames: 16 32 (16 ms each), then +43 by UpdateView alone
+FRAME-PACING FP4 PASS
+FP5 3/3 background PNGs identical; call 0.204 ms vs synchronous write 27.050 ms
+FRAME-PACING FP5 PASS
+FRAME-PACING PASS 0/5 failed
