@@ -6,7 +6,7 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 53 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 54 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
@@ -15,7 +15,8 @@
 - 據點畫面缺件與 SetButtonEnable（`6d39915`，本機 commit，尚未推送；第 4 項）：父元件立即掛上、pactex 依原版 `部件タイプ` 表設型別等九項（見 `research/gui-visual/base-ui.md`）。底列與「下一步」出現，按下後進入階段選擇；階段選擇之後因教學圖層沒有釋放而停在 `PE_AddController`（根因是場景物件不釋放，已由 `6582e38` 修正）。獨立審查 fix-first，審查項目由 `fb28975` 修正（見下一條）。
 - 流暢度（`44964f9`，本機 commit，尚未推送；第 4 項）：照原版 `0x4676f0`／`0x4c5450` 限速並每幀呈現一次，元件時間只推進一次，截圖改在背景執行緒寫檔，訊息視窗文字在繪製時才排版（見 `research/gui-visual/pacing.md`）。一般遊玩固定 58.7 fps，AIN 時間倍率 0.74→0.97。獨立審查 ship（低：結束時沒有等待截圖寫完，`fb28975` 修正）。
 - 據點審查的修正（`fb28975`，本機 commit，尚未推送；第 4 項）：停用按鈕不送點擊、偵測元件的點擊判定改用預設狀態、兩槽 Array 元素（`At`／`First`／`Last` 推兩槽，`First(pred)`／`EraseAll`／`Concat`／`Reverse`／`Insert` 以元素為單位）、pactex 的 矩形部件／構築部件型別、結束時等待截圖（見 `research/gui-visual/base-ui.md` §10）。兩槽 `First(pred)` 修正後 `Motion::PartsParamCollection@0` 才找得到 TimeParam，所有 motion 不再一律 1000 ms，開場到據點約提早 11 秒。52 模式兩種組態通過。第二輪獨立審查 fix-first，審查項目由 `6582e38` 修正（見下一條）。
-- 第二輪審查的修正（`6582e38`，本機 commit，尚未推送；第 4 項）：v14 delegate 照原版不持有目標物件（`0x652210`／`0x681f70`），場景物件終於會釋放，按下新遊戲後標題按鈕隨圖層消失、教學關閉後據點背景出現、鑑賞模式返回不再 VM_ERROR、階段選擇可以進入春銷；連帶照原版補上解構子內的立即解構、`RemoveController`／`ReleaseActivity` 回傳 delegate index、空的懸停狀態，並刪除錯讀 `<vtable>` 的 CParts 釋放特例；`A_REF` 對陣列照原版複製（數字、字串、通用元素陣列），標題構圖不再被 `GetReverse` 就地反轉；點擊派送與懸停規則一致（見 `research/gui-visual/base-ui.md` §11）。53 模式兩種組態通過。尚未經獨立審查。
+- 第二輪審查的修正（`6582e38`，本機 commit，尚未推送；第 4 項）：v14 delegate 照原版不持有目標物件（`0x652210`／`0x681f70`），場景物件終於會釋放，按下新遊戲後標題按鈕隨圖層消失、教學關閉後據點背景出現、鑑賞模式返回不再 VM_ERROR、階段選擇可以進入春銷；連帶照原版補上解構子內的立即解構、`RemoveController`／`ReleaseActivity` 回傳 delegate index、空的懸停狀態，並刪除錯讀 `<vtable>` 的 CParts 釋放特例；`A_REF` 對陣列照原版複製（數字、字串、通用元素陣列），標題構圖不再被 `GetReverse` 就地反轉；點擊派送與懸停規則一致（見 `research/gui-visual/base-ui.md` §11）。53 模式兩種組態通過。第三輪獨立審查 fix-first，審查項目由 `80db27d` 修正（見下一條）。
+- 第三輪審查的修正（`80db27d`，本機 commit，尚未推送；第 4 項）：v14 pactex loader 照原版讀 `オン指針透過`（`0x5547f4` → 元件 +0x1a5），懸停與點擊共用原版的輸入目標（`0x546890`／`0x545e10`／`0x546e20`：可點擊或不穿透游標的第一個命中元件，懸停只有一個目標），標題角色、人材卡的文字、環節卡的角色小圖不再擋住後方按鈕；刪除 v14 fork 依指令數把解構子列入黑名單的邏輯（巢狀解構讓 `CActivityWrap@1` 在第一次長拆除後被永久略過，這也是人材 → 返回 → 下一步後 `Executer.jaf:55` 的根因）。新模式 `third-review` 在 `7cb6ba3` 上 5/5 失敗、修正後全過；54 模式兩種組態通過（見 `research/gui-visual/base-ui.md` §12）。尚未經獨立審查。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
 ## 硬規則
@@ -106,6 +107,16 @@
      - **據點環節／春銷環節的橫幅文字留在畫面上**：色帶離開後文字仍在；`fb28975` 已如此，只是被沒有釋放的教學底圖蓋住。推定 `PhaseBar@FadeIn(false)` 移動的 `Clipper` 沒有帶走或裁切 `AnimateText` 的字元件（未驗證）。
      - **YesNo 對話框取消後 STATUS 的「返回」沒有反應**：與一覽的「返回」相同，`PE_BeginInput` 沒有再被呼叫。
      - 推定項：空懸停狀態的規則、只擋游標的元件改送全畫面點擊、`is_lambda` 對應原版 +0x54；物件為 -1 的 lambda 仍以 local page 當物件；29 個介面實作的 vtable 偏移大於 1，通用兩槽陣列拆除時會 unref 偏移槽（既有風險）。據點背景沒有模糊、YesNo 對話框後方黑底都與原版不同或未對照。
+   - **已完成：第三輪審查的修正**（`80db27d`，研究見 `research/gui-visual/base-ui.md` §12）。第三輪審查（`6d39915`..`7cb6ba3` 整體與 `6582e38`）兩份都是 fix-first：高 1、中 1、低 2。高：v14 pactex loader 不讀 `オン指針透過`，`pass_cursor` 全是 0，`6582e38` 讓擋游標的元件吃掉點擊後，原版標成穿透的 407 個裝飾（標題角色、人材卡的文字與數值、環節卡的角色小圖、STATUS 研修面板）擋住後方按鈕。原版解析器 `0x553650`（區塊在元件 +0x84）把 `點擊許可`、`オン指針透過`、`鼠標指針ピクセル判定` 以 `== 1` 讀到 +0x1a4／+0x1a5／+0x1ad；輸入更新 `0x546890` 以 `0x545e10` 與判斷式 `0x546e20`（可點擊，或滑動中，或不穿透游標）找一個元素，同時當懸停與按下的目標。修正：loader 讀 `オン指針透過`，新增 `v14_input_target`，v14 懸停只有這個元件，點擊派送也用它。中：`delete_struct` 對超過 40 萬指令的解構子永久列入黑名單（v14 fork 為從未啟用的 `vm_call` 指令上限留下的保險），`6582e38` 的巢狀解構讓指令數包含巢狀解構子，`CActivityWrap@1` 在第一次長拆除後被永久略過；刪除，只留 `CParts3DLayerManager`。低（人材 → 返回 → 下一步 → `Executer.jaf:55`）：根因同中項，離開人材一覽時 `SceneWorkerList` 的 wrap 花 487,655 指令被列入黑名單，第二個 `SceneHome` 的 wrap 不執行 `Release`，Footer 留在 `CUserComponentManager`；原版在 `SceneHome` 解構時由 `CActivityWrap@1` → `Release` → `AFL_Activity_Release` 移除。新模式 `third-review`（RV1–RV5）在 `7cb6ba3` 上 5/5 失敗、修正後全過；54 模式兩種組態通過；格點比對（ce5c75a 規則對本組）在標題、鑑賞模式、據點、人材一覽、STATUS、環節選擇都是 0 點不同；人材卡 (70,350) 進 STATUS、標題色帶 (300,340)／(1100,620) 到鑑賞模式／退出遊戲、環節卡 (350,420) 選到春銷；人材 → 返回 → 下一步與春銷 Start 都沒有黑名單與 Executer 斷言；150 秒 GUI MSG 88（對白不變）。後續：
+     - **卡死與斷言路徑**（都不是 `6582e38`／`80db27d` 引入，`ce5c75a` 相同，`22339c1` 走不到；前三條本組已重跑確認）：
+       1. 系統選單：據點點選單鈕 (1228,588) 開啟、返回 (1180,678) 關閉後，之後的點擊都沒有進入派送（`PE_BeginInput` 沒有再被呼叫），據點完全無法操作。
+       2. 成就：標題點成就 (152,240)、返回 (1180,678) 回到標題後，點成就、新遊戲、畫面中央都沒有進入派送，無法開始新遊戲（鑑賞模式往返正常）。
+       3. 春銷：進入春銷後按 Start (1180,675)，每次都出現 `DecisionTimerView.jaf:19: (nonnull) m_act . GetHGauge("Gauge")` 斷言，`gui-run.sh` 就此停止；推定是 §10.4 第 7 項沒有建立的橫ゲージ部件型別（未驗證）。
+       4. 審查者另記（兩版相同，本組未重跑）：標題 → 配置在 `PE_AddController` 出錯；標題 → 讀取 → 返回之後輸入失效；系統選單 → 劇情回顧在 `PE_AddController` 出錯。
+       - 第 1、2 條與「人材一覽的返回」「YesNo 對話框取消後的返回」推定是同一類問題：子畫面返回後 `PE_BeginInput` 不再被呼叫（未驗證）。建議先追 AIN 在子畫面關閉後重新進入輸入迴圈的路徑。
+     - **`點擊許可` 沒有讀**：原版同一層也把它讀到 +0x1a4。pactex 中為 1 的約 50 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange 等）目前要等 AIN 設 Clickable，否則只擋游標（全畫面點擊）；讀入的影響要另外評估。
+     - **懸停訊息**：v14 的 `parts_msg_push` 直接返回，MouseEnter／Leave／On 從未送進 AIN；原版懸停人材卡時卡片變黃（Wine `deep/d024`），xsystem4 不變。
+     - 擋游標的元件收到按下時原版送出什麼仍未追到（沿用「全畫面點擊」的推定）；判斷式的滑動條件沒有實作。
    - 其餘下一步依序：訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
    - **已完成：流暢度**（`44964f9`，研究見 `research/gui-visual/pacing.md`）。原因三個：沒有限速（邏輯迴圈 460–480 Hz、每幀最多呈現三次）、`SystemService.UpdateView` 用自己的時鐘再推進一次元件時間（1.67–1.81 倍）、測試模式截圖在主執行緒壓 PNG。修正照原版：`0x4676f0` 的限速算式（毫秒計時、16.666666 ms、保留截斷的小數）與 `0x4c5450` 的 Sleep(50)／限速／Sleep(1)／呈現，Sleep 做成「到期後的第一個 1 ms 刻度醒來」（原版 `timeBeginPeriod(1)`，macOS 的 sleep 常晚醒數 ms），`OverFrameRateSleep`、`SleepByInactiveWindow`、略過已讀時十幀畫一幀都跟遊戲設定；元件時間只在 `UpdateComponent` 推進；`ChipmunkSpriteEngine.Update`／`TRANS_Update` 畫、`UpdateView` 呈現，`system.Peek` 不再呈現；截圖讀回後在背景執行緒寫檔；訊息視窗文字在繪製時才排版。新模式 `frame-pacing` 在 `f489d23` 上 5/5 失敗、修正後全過；51 模式兩種組態通過；同條件前後各兩輪 150 秒 GUI：一般遊玩 321–324 次／秒（浮動）→ 58.7，AIN 時間倍率 0.74→0.97，元件時間倍率 1.67–1.70→0.97；測試模式 >50 ms 間隔 40–42→2–3、最長 241–253→72–75 ms；MSG 88、assertion 0、堆疊溢位 0，約 80 秒進入據點並顯示底列。後續：
      - **fps 是 58.7 不是 60**：原版算式在 1 ms 刻度的 Sleep 下每幀固定 17 個刻度（保留的小數是加到下一幀，精確 Sleep 反而是 16 ms）。原版在 Windows 上的實際 fps 沒有量過；若要剛好 60，只能偏離原版算式（例如期限式排程），需要使用者決定。
@@ -116,7 +127,7 @@
      - `heap_grow` 一次觸碰全部新 slot（約 21 ms，偶發）；事件處理偶發 23.8 ms；貼圖上傳。
      - ADV 略過（`View_Update` 不呼叫 `UpdateView`）時沿用舊的呈現路徑，不限速；原版此時不畫也不呈現。影片、跳過已讀（Ctrl）、設定畫面切換兩個休眠選項、亮螢幕與前景視窗下的表現都未驗證。
    - 翻轉繼承審查（`0ab8476`，ship）留下的低嚴重度項目：父元件被釋放後，孤兒子元件的 `global.reverse_lr/tb` 仍保留舊父鏈的 XOR，整棵子樹持續鏡像；修法是在 `parts_release` 讓子元件脫離時重算 global 翻轉與位置。
-5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`44964f9` 限速後，150 秒 GUI 的峰值 RSS 從 1.0–1.4 GB 降到 0.5–0.6 GB（推定是邏輯幀少了八成，暫時配置跟著減少），成長本身沒有處理。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。`6582e38` 讓 delegate 不再持有目標物件後，場景物件、`Motion::Executer` 與 `CParts` 都會釋放，150 秒 GUI 的峰值 RSS 從 607 MB（`fb28975`）降到 499–541 MB（三種點擊情境）。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照；heap slot 數的成長沒有重新量測。
+5. **記憶體成長**：heap 在 120 秒內長到 1730 萬個 slot。`44964f9` 限速後，150 秒 GUI 的峰值 RSS 從 1.0–1.4 GB 降到 0.5–0.6 GB（推定是邏輯幀少了八成，暫時配置跟著減少），成長本身沒有處理。`9e30c0f` 之後，150 秒 GUI 的峰值 RSS 從 1.76／2.05 GB 降到 1.33／1.38 GB，配置器的「skipped in-use」「free list 耗盡或損壞」警告消失（那是 use-after-free 的下游）。`6582e38` 讓 delegate 不再持有目標物件後，場景物件、`Motion::Executer` 與 `CParts` 都會釋放，150 秒 GUI 的峰值 RSS 從 607 MB（`fb28975`）降到 499–541 MB（三種點擊情境）。`80db27d` 刪除解構子黑名單後，春銷 Start 情境峰值 RSS 548→528 MB（審查者 `7cb6ba3` 對照），150 秒 GUI 537 MB。仍有的成長來源候選：STRUCT／DELEGATE／ARRAY 參數多加的參照；heap slot 數的成長沒有重新量測。
 6. **已完成：String 字元規則**（`6400e3c`，libsys4 `8181da6`、`247f544`；研究見 `research/gbk-string-rules/`）：libsys4 加入執行期 GBK 規則（預設 SJIS、舊本體不改），xsystem4 只在舊偵測與嚴格判定都成立時開啟，String 各函式、C_REF／C_ASSIGN、`%D`、iarray 讀取照原版語義。使用者已同意更新 submodule 指標。後續另案：
    - 字型 fallback：名牌「綺□綺□」是 VL Gothic 沒有 U+83C8，HanaMinA 探針已確認；約 11.4% 的對白含缺字。
    - 名牌殘影：已由 `9e30c0f` 解決（名牌 root 被提早釋放，`Hide` 落空）。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000、字串寫 `Time:150` 的差異，推定就是兩槽 `Array.First(pred)` 的堆疊錯位：`Motion::PartsParamCollection@0` 找不到 TimeParam，Time 停在預設 1000。`fb28975` 修正後 fixture BR4 以真 bytecode 得到 150，GUI 追蹤中有 150 ms 的 motion（名牌淡出本身的時間與原版未逐格對照）。

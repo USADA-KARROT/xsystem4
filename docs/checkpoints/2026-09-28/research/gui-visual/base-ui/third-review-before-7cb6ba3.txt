@@ -1,0 +1,24 @@
+# before-check.sh 7cb6ba3 third-review（src/include 取自 7cb6ba3；*WARNING* 行已刪，只留摘要行）
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: Parts_GetPartsPassCursor(Pass1, オン指針透過 1) = 0, want 1
+RV1 pactex オン指針透過: FAIL
+RV1 FAILED (exit 1)
+  FAIL: button behind a pass-through decoration: 1 messages, first type 4 parts 0; want 1, 4, 9961
+  FAIL: button behind a pass-through decoration: hovered 0 state 0; want 1, 1
+  FAIL: the pass-through decoration is hovered
+  FAIL: after moving back: 0 0 0; want 1 0 0
+RV2 pass-through decorations: FAIL
+RV2 FAILED (exit 1)
+  FAIL: clickable pass-cursor parts in front: front hovered 1, back hovered 1; want 1, 0
+  FAIL: the parts behind the target entered state 1
+  FAIL: non-clickable pass-cursor parts in front: front hovered 1, back hovered 1; want 0, 1
+RV3 one hover target: FAIL
+RV3 FAILED (exit 1)
+  FAIL: after a long teardown, object 1: 0 destructor calls, want 1 (blacklisted)
+  FAIL: after a long teardown, object 2: 0 destructor calls, want 1 (blacklisted)
+RV4 long nested teardown: FAIL
+RV4 FAILED (exit 1)
+  FAIL: next wrap: destructor 0, Release 0; want 1, 1 (its activity and user components would stay)
+RV5 activity wrap after a long teardown: FAIL
+RV5 FAILED (exit 1)
+THIRD-REVIEW FAIL: 5 of 5 cases failed

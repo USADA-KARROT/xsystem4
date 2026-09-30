@@ -1,0 +1,93 @@
+{
+  "note": "Third review fixes (base-ui.md section 12). Runs use the optimized build of this commit (src/include diff_sha 0496ce085c8b over 7cb6ba3; the GUI binaries were built before a comment-only edit in input.c) through gui-run.sh with RUN_FROM_TITLE=1 or --skip-title and Return held, RUN_AUTO_CLICK_SEQ, RUN_CLICK_TRACE and RUN_SHOTS. The spring sales run uses a copy of run-gui-bounded.py outside the repo that does not stop on assertions (the known DecisionTimerView assertion at Start). Grid and deletion traces come from a debug copy outside the repo (XS4DBG_GRID, XS4DBG_DELTRACE, XS4DBG_BLACKLIST, XS4DBG_MOVE), not committed. Times are ms since start unless marked s. Click targets are the parts numbers the v14 dispatch chose (0 = whole-screen click). The 7cb6ba3 column quotes the third review's runs.",
+  "gui_run_150s": {
+    "run": "gui-run.sh 150 s (this commit)",
+    "msg": 88,
+    "dialogue": "sha of the 88 MSG lines 4b147bd1722e, the same as 6582e38 (implD-g150) and the reviews",
+    "assertions": 0,
+    "stack_overflows": 0,
+    "unimpl": 0,
+    "vm_errors": 0,
+    "destructor_blacklisting": 0,
+    "framebuffer_pngs": 40,
+    "last_png_complete": true,
+    "avg_fps": "58.6-58.8 (5 s windows)",
+    "intervals_over_50ms": 1,
+    "max_interval_ms": 72.3,
+    "peak_rss_mb": 537
+  },
+  "scenarios": [
+    {
+      "name": "worker card (review high 1)",
+      "clicks": "--skip-title; (640,400) every 1200 ms to 64800; 80000 (237,690); 85000 (1180,690); 92000 人材 (150,198); 100000 card (70,350); 104000 (70,500); 112000 返回 (1180,678)",
+      "result": "900257 (人材), 900525 (the card's ClickTarget, 131x577) -> STATUS; (70,500) on STATUS blocked by 900773 (whole-screen click); 900762 返回 -> back to the list; no error",
+      "at_7cb6ba3": "(70,350) and (70,500) target 0, stays on the list",
+      "original": "wine deep/d025 -> d026: (70,350) opens STATUS"
+    },
+    {
+      "name": "title band (review high 2)",
+      "clicks": "RUN_FROM_TITLE; 4000/8000 (640,700); 14000 (300,340) or (1100,620)",
+      "result": "(300,340) -> 900019 鑑賞模式; (1100,620) -> 900023 退出遊戲 (MsgBoxOkCancel)",
+      "at_7cb6ba3": "target 0 for both"
+    },
+    {
+      "name": "choice card portrait (review high 3)",
+      "clicks": "--skip-title base sequence; 92000 下一步 (1180,675); 100000 (350,420)",
+      "result": "900358, then 900441 (春銷環節 chosen)",
+      "at_7cb6ba3": "target 0, not chosen"
+    },
+    {
+      "name": "人材 -> 返回 -> 下一步 (review low 1)",
+      "clicks": "base sequence; 92000 (150,198); 100000 (1180,678); 108000 (1180,678); 118000 (450,470); 128000 (640,400)",
+      "result": "900257, 900671, 900797, 900810; 140 s without assertion; no blacklisting",
+      "at_7cb6ba3": "CActivityWrap@1 blacklisted at 487,655 instructions after 900671; Executer.jaf:55 at about 110.6 s",
+      "debug_trace": "with the old blacklist restored (XS4DBG_BLACKLIST) the second SceneHome's CActivityWrap is skipped at 108.25 s and no Footer is deleted, then Executer.jaf:55; without it CActivityWrap@1 -> nested wraps -> Footer (depth 1) -> four FooterButton"
+    },
+    {
+      "name": "spring sales Start and its tutorial (review medium)",
+      "clicks": "base sequence; 92000 (1180,675); 102000 (450,470); 115000 (235,675); 123000 (105,683); 131000 Start (1180,675); 150000/158000 (237,690); 166000/176000 (1180,690); 186000 (640,400); 196000 (1180,675); 205 s, not stopping on assertions",
+      "result": "MSG 94; no blacklisting; no Executer.jaf:55; 0 PE_SetPartsRotateY calls on parts 0 (4,650 on live parts, the unimplemented stub); one DecisionTimerView.jaf:19 GetHGauge assertion at Start (known); peak RSS 528 MB",
+      "at_7cb6ba3": "CActivityWrap@1 blacklisted at Start (422,074 instructions); two Executer.jaf:55; 28,720 PE_SetPartsRotateY(0, ...) calls; peak RSS 548 MB"
+    },
+    {
+      "name": "title composition",
+      "clicks": "RUN_FROM_TITLE; 4000/8000 (640,700); shots 9 s to 36.5 s every 500 ms",
+      "result": "from 11 s every frame within mean abs diff 9.7 of the 12 s frame (background animation only); the layout matches wine run2 f000 and f630"
+    },
+    {
+      "name": "new game, then click where the title buttons were",
+      "clicks": "新游戏 14000 (152,130); (640,400) every 1200 ms 20000-59600; title button positions 62000-68000",
+      "result": "900016 (新游戏) is the only title parts hit; afterwards ADV system parts and whole-screen clicks; MSG 68 by 75 s; no error"
+    },
+    {
+      "name": "collection round trip twice, then new game",
+      "clicks": "14000 (152,296); 24000 (1180,678); 32000 (152,296); 42000 (1180,678); 50000 (152,130)",
+      "result": "900019, 900102, 900118, 900201, 900214; the opening starts; no error"
+    },
+    {
+      "name": "opening, base, tutorial, next, spring sales",
+      "clicks": "--skip-title base sequence; 92000 (1180,675); 102000 (450,470); then (640,400)",
+      "result": "MSG 88; 900436/900422 tutorial next and close; 900358 下一步; 900441 春銷環節; the spring sales screen; later clicks are whole-screen clicks as on 6582e38; no error"
+    },
+    {
+      "name": "system menu open and close, then garage",
+      "clicks": "base sequence; 92000 (1228,588); 100000 (1180,678); 108000 (490,218); 116000 (1180,678)",
+      "result": "900253 opens the menu, 900482 closes it; the 108000 and 116000 clicks are never dispatched (no PE_BeginInput after the menu closes, as on ce5c75a and 7cb6ba3)"
+    },
+    {
+      "name": "achievements and back to the title",
+      "clicks": "RUN_FROM_TITLE; 14000 (152,240); 24000 (1180,678); 32000 (152,240); 40000 (152,130); 46000 (640,400)",
+      "result": "900018 opens the achievements, 900086 returns to the title; the later clicks are never dispatched (as in the review on ce5c75a)"
+    }
+  ],
+  "grid": {
+    "method": "debug copy, every second, 576 points on a 40 px grid: the ce5c75a rule (clickable, shown, not passing the cursor, skipping 1000001000 and up) against v14_input_target",
+    "title_12_29s": 0,
+    "collection": 0,
+    "base_after_tutorial_list_status": 0,
+    "choice": 0,
+    "system_menu_open": "124: base buttons behind the menu's full-screen background (construction 900438, CG 900439, オン指針透過 0)",
+    "tutorial_shown": "86: base buttons behind the tutorial images 900368/900369",
+    "transitions": "576: InputDisabler full-screen rects (clickable system parts)"
+  }
+}
