@@ -130,8 +130,9 @@ static const char GBK_SHOW[]        = "\xb1\xed\xca\xbe";         /* 表示 (GBK
 static const char GBK_ALPHA[]       = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1"; /* アルファ (GBK) */
 static const char GBK_ORIGIN_MODE[] = "\xd4\xad\xfc\x63\xd7\xf9\x98\xcb\xc4\xa3\xca\xbd"; /* 原點座標模式 (GBK) */
 static const char GBK_CG_MEI[]      = "\xa3\xc3\xa3\xc7\xc3\xfb"; /* ＣＧ名 (GBK) */
-/* static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; */ /* 加算色 (GBK) — unused */
 /* static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; */ /* 乗算色 (GBK) — unused */
+static const char GBK_DRAW_FILTER[] = "\xc3\xe8\xae\x8b\xa5\xd5\xa5\xa3\xa5\xeb\xa5\xbf"; /* 描畫フィルタ (GBK) */
+static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; /* 加算色 (GBK) */
 static const char GBK_PARTS_TYPE[]  = "\xb2\xbf\xbc\xfe\xa5\xbf\xa5\xa4\xa5\xd7"; /* 部件タイプ (GBK) */
 static const char GBK_PANEL[]       = "\xa5\xd1\xa5\xcd\xa5\xeb"; /* パネル (GBK) */
 static const char GBK_SIZE[]        = "\xa5\xb5\xa5\xa4\xa5\xba"; /* サイズ (GBK) */
@@ -799,13 +800,17 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			PE_SetPartsRotateY(parts_no, ry);
 	}
 
-	/* Extract draw filter: 描画フィルタ = int (0=normal, 1=additive) */
+	/* Extract draw filter: 描画フィルタ = int (0 normal, 1 additive,
+	 * 2 multiply, 3 screen). The CN files spell it 描畫フィルタ; without the
+	 * GBK key SceneLogo's gloss (3) was drawn as a plain yellow band. */
 	int draw_filter = pactex_get_int(node, SJIS_DRAW_FILTER, -1);
+	if (draw_filter < 0) draw_filter = pactex_get_int(node, GBK_DRAW_FILTER, -1);
 	if (draw_filter >= 0)
 		PE_SetPartsDrawFilter(parts_no, draw_filter);
 
 	/* Extract add color: 加算色 = list[3] = [r, g, b] */
 	struct ex_list *add_col = pactex_get_list(node, SJIS_ADD_COLOR);
+	if (!add_col) add_col = pactex_get_list(node, GBK_ADD_COLOR);
 	if (add_col && add_col->nr_items >= 3)
 		PE_SetAddColor(parts_no, add_col->items[0].value.i,
 			add_col->items[1].value.i, add_col->items[2].value.i);
@@ -1141,7 +1146,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		}
 	} else {
 		WARNING("pactex: no child components found in root '%s'",
-			root_branch->name->text);
+			display_game0(root_branch->name->text));
 	}
 
 	/* Apply properties to root component too */
@@ -1270,7 +1275,7 @@ static bool PartsEngine_ReadActivityFile(struct string *name, struct string *fil
 		static int pact_miss = 0;
 		if (pact_miss++ < 10)
 			WARNING("pactex NOT FOUND for activity '%s' filename '%s'",
-				name->text, fname);
+				display_game0(name->text), display_game1(fname));
 	}
 
 	if (dfile) {
@@ -1422,7 +1427,7 @@ static bool PartsEngine_IsExistActivityPartsByNumber(struct string *name, int nu
 static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string *parts_name)
 {
 	int idx = find_activity(name);
-	if (idx < 0) { WARNING("GetActivityPartsNumber: act='%s' NOT FOUND (looking for '%s')", name->text, parts_name->text); return -1; }
+	if (idx < 0) { WARNING("GetActivityPartsNumber: act='%s' NOT FOUND (looking for '%s')", display_game0(name->text), display_game1(parts_name->text)); return -1; }
 	struct activity *act = &activities[idx];
 
 	/* If parts_name is empty, return the root (sentinel entry) */
@@ -1442,7 +1447,7 @@ static int PartsEngine_GetActivityPartsNumber(struct string *name, struct string
 		}
 	}
 
-	WARNING("GetActivityPartsNumber: act='%s' parts='%s' NOT FOUND", name->text, parts_name->text);
+	WARNING("GetActivityPartsNumber: act='%s' parts='%s' NOT FOUND", display_game0(name->text), display_game1(parts_name->text));
 	return -1;
 }
 

@@ -193,9 +193,28 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 	}
 }
 
+/*
+ * 描畫フィルタ covers the subtree: a parts without its own filter is drawn
+ * with the nearest ancestor's. SceneLogo's Light has 描畫フィルタ 3 (screen)
+ * and its two pale yellow panels have 0; the original screens the panels, so
+ * the gloss shows only on the dark parts of the logo and nothing is left on
+ * the white background when it stops at X 904. Drawn with the normal blend,
+ * the panels were a yellow band across the screen. (Flat layers already take
+ * the parent's filter the same way, see render_flat_item.)
+ */
+static int parts_effective_draw_filter(struct parts *parts)
+{
+	for (struct parts *p = parts; p; p = p->parent) {
+		if (p->draw_filter != PARTS_DRAW_FILTER_NORMAL)
+			return p->draw_filter;
+	}
+	return PARTS_DRAW_FILTER_NORMAL;
+}
+
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
-	set_draw_filter_blend_func(parts->draw_filter);
+	int draw_filter = parts_effective_draw_filter(parts);
+	set_draw_filter_blend_func(draw_filter);
 
 	mat4 mw_transform;
 	parts_box_transform(parts, common, mw_transform);
@@ -236,7 +255,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, parts->draw_filter, parts->alpha_clipper_parts_no);
+	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, draw_filter, parts->alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
