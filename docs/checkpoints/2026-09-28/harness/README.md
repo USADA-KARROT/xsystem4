@@ -43,6 +43,19 @@ RUN_FROM_TITLE=1 RUN_AUTO_CLICK_SEQ="4000,640,700;8000,640,700;14000,152,130" RU
 - 存讀檔驗證用的 GUI 變數：`RUN_STRING_CHARSET=sjis|gbk` 轉給 `XSYS4_STRING_CHARSET`（對照組用）；`RUN_TRACE_SAVE=1` 讓引擎對 SerializeStruct 系列每次呼叫印一行 `SAVE ...`（`XSYS4_TRACE_SAVE`，上限 200 行）；`RUN_SAVE_SEED=<目錄>` 先把該目錄的檔案複製到本次的 `saves/` 再啟動，種子本身不會被寫入，位於 `XS4_SRC` 或 `XS4_MASTER_GAME` 內時拒絕執行。`run.json` 另記錄 `save_seed` 與開始／結束時每個存檔的大小、sha256、mtime（`saves_manifest_start`／`saves_manifest_end`）。
 - 本機若沒有「螢幕錄製」權限，無法擷取單一視窗；請以 framebuffer PNG 作為畫面證據。截圖與存檔都不要提交到 repo。
 
+## Control 快進診斷
+
+使用者確認 Control 可快進；AIN 的全文快進檢查也直接讀取 VK 17，沒有已讀／未讀條件，但仍受遊戲的快進許可與單段設定控制。左右 Control 都映射 17；13 是 Return。
+
+```bash
+RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
+  bash $H/gui-run.sh codex-input-control-skip 50
+```
+
+本組實測約 7 秒到據點教學，50 秒內 MSG 88 雜湊與正常 run 相同，assertion／overflow 0。`RUN_AUTO_CLICK=` 明確關掉預設週期點擊，避免提早到據點後持續點中畫面；測教學與選單時，要先確認目前頁面再給座標／時間表，不能套用未快進的抵達秒數。run 名稱必須未使用過。
+
+`RUN_HOLD_KEYS` 在整個 run 持續按住指定鍵；不能在執行途中改 shell 環境變數放開。若需要到據點後放開 Control，應使用實際按下／放開操作。這個快進組態適合快速到場景診斷，**不取代固定 150 秒正常回歸**，也不能用來宣稱動畫、文字等待與 Wine 原版逐幀時序相同。
+
 ## 探針結構
 
 - `probe/runtime_probe.c`：把引擎的 `vm.c` 加上探針鉤子後編入，連結正式的引擎目標檔；`main` 依第二個參數分派模式。

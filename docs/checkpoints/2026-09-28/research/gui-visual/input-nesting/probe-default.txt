@@ -1,0 +1,17 @@
+  IN1 nested HLL scope returns input to its caller
+IN1 ok
+  IN2 three levels, depth zero and unmatched EndInput checked
+IN2 ok
+  IN3 outer/nested BeginInput snapshot held buttons without ghost DOWN
+IN3 ok
+  IN4 inner EndInput snapshots held buttons while restoring parent input
+IN4 ok
+  IN5 Begin/End clear stale click state, preserve queued messages and accept new clicks
+IN5 ok
+  IN6 unchanged AIN wrappers survive eight open/return cycles
+IN6 ok
+  IN7 v13 Begin/End retain their non-nested latch contract
+IN7 ok
+  IN8 manager reset discards nesting, preserves queue/manual state and starts afresh
+IN8 ok
+INPUT-NESTING PASS: 0 of 8 cases failed

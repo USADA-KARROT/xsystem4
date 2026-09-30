@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態：v14 ClipArea 已修正並推送（`190c1c8`）：開場 ALICESOFT 與標題按鈕恢復擦入，依原版以錨點／本地倍率建立螢幕矩形並取祖先交集。57 個探針模式在預設與強制 GBK 均 PASS，修正前 4/4 新案例失敗；正式 GUI 150.267 秒、88 筆相同對白、斷言與堆疊溢位皆 0，峰值 RSS 約 514 MB。已完成 Wine 逐幀比對與獨立審查；標題粉金閃光仍有既有外觀差異，尚非穩定可玩版。**
+**最新狀態：本組修正 `a870409` 恢復子畫面返回後的滑鼠操作。成就／讀取各往返兩次後仍能開始新遊戲，據點系統選單往返兩次後仍能進出庫房。58 模式在預設與 GBK 均 PASS，sanitizer 0；新探針修正前 7/8 失敗、修正後 8/8 通過。正式 GUI 150.323 秒、MSG 88、assertion 0、堆疊溢位 0，峰值 RSS 507,871,232 bytes（約 508 MB）。已完成 Wine 操作與採樣影格對照、獨立審查及推送雙源驗證，尚非穩定可玩版。**
 
-[本組原版語義、探針、GUI 與視覺證據](research/gui-visual/clip-area.md)。下一組為子畫面返回後輸入失效，其後處理春銷 Start 斷言。
+[本組原版語義、探針、GUI 與限制](research/gui-visual/input-nesting.md)。下一組是春銷 Start 的 `GetHGauge` 斷言，其後處理訊息視窗系統 UI。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -273,9 +273,26 @@ visual-compare 的 D1–D5、D7：據點畫面沒有底列（含「下一步」�
 
 `clip-area` 四案例修正前全失敗、修正後全通過；兩種組態的 57 模式皆 `VERDICT PASS`。GUI 150.267 秒、MSG 88 與基準逐行相同，assertion 0、overflow 0。已比較 Wine 開場與標題逐幀擦入，也視讀角色正文與據點教學；原版粉金閃光、特殊 ComboBox 的繼承裁切重設與非標準 3D／畫面比例尚未涵蓋。[完整證據與限制](research/gui-visual/clip-area.md)。
 
+## 子畫面返回後的輸入恢復（本組修正 `a870409`）
+
+標題成就／讀取與據點系統選單，會從點擊 callback 同步進入第二層 `WaitForClick`；舊 `EndInput` 用單一 bool 關閉輸入，連仍在等待的外層也停掉。原版 `BeginInput 0x58a720`／`EndInput 0x58a750` 保持巢狀深度，內層結束後恢復外層；`0x546030` 重新採樣目前按鍵，避免按住返回鈕時觸發重複點擊。本組照此清除 session 暫存、保留訊息佇列並補初始化／reset；v13 保留原本行為。
+
+| 驗證 | 結果 |
+|---|---|
+| 預設／GBK 全部 58 模式 | `final-v3` 兩組 `VERDICT PASS`，sanitizer 0 |
+| `input-nesting` 修正前 `a6a8f5b`／修正後 | 7/8 失敗（v13 防回歸案例通過）／8/8 通過 |
+| 調整觀察時機的既有 `third-review` | `a6a8f5b` 仍 5/5 PASS，原 hover／state assertions 保留 |
+| 正式 GUI | 150.323 秒、MSG 88、assertion 0、overflow 0；峰值 RSS 507,871,232 bytes |
+| 成就、讀取返回 | 修正前第一次返回後新點擊不再派送；修正後各往返兩次，再開始新遊戲 |
+| 據點系統選單返回 | 修正前返回後不再派送；修正後開關兩次，再進出庫房 |
+| Control 快進診斷 | `13,17` 持續按鍵，50 秒 run 約 7 秒到據點教學；MSG 88 雜湊與正常 run 相同，無 assertion／overflow；不取代固定 150 秒回歸 |
+| Wine 原版同操作對照 | 成就／讀取／據點選單的重複往返均與修正版相同；轉場與穩定影格已對照，既有外觀差異保留紀錄 |
+
+本組沒有修 `system.Reset`、XPE 的輸入深度持久化、controller ID／輸入限制、MouseLeave／KeyUp 派送。系統選單缺少標籤、左半黑底仍是既有外觀問題。下一組處理春銷 Start 的 `GetHGauge` 斷言；人材狀態頁與 YesNo 的返回不在本組三條 GUI 驗證路徑內，不宣稱一併解決。[完整研究](research/gui-visual/input-nesting.md)。
+
 ## 下一批卡點
 
-- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）、翻轉作用在整棵元件樹（`0ab8476`，側審查 D5–D7）、據點畫面的元件（`6d39915`）已修正。場景物件因 delegate 循環不解構的問題已由 `6582e38` 修正，據點背景出現、階段選擇可進入春銷；透過元件擋住按鈕與解構子黑名單由 `80db27d` 修正。之後：子畫面關閉後輸入不再派送（系統選單、成就、人材一覽、YesNo 對話框）、春銷 Start 的 GetHGauge 斷言、橫幅文字殘留、controller ID 語義、輸入限作用中 controller、跨 controller 繪製順序、Motion 終值、alpha clipper 繼承、構築部件（據點背景模糊）見 HANDOFF 第 4 項。立繪站位與原版實機截圖逐格對照尚未做；跨側移動與戰鬥翻轉只有 headless 與臨時注入驗證；backlog 等畫面的字距只有 headless 驗證。
+- **使用者回報的畫面問題**（[調查與進度](research/gui-visual/README.md)）：左側角色翻轉（`4a82758`）、字型缺字與字距（`05d2441`、`9f81bd9`）、立繪與名牌不退場（`9e30c0f`）、翻轉作用在整棵元件樹（`0ab8476`，側審查 D5–D7）、據點畫面的元件（`6d39915`）已修正。場景物件因 delegate 循環不解構的問題已由 `6582e38` 修正，據點背景出現、階段選擇可進入春銷；透過元件擋住按鈕與解構子黑名單由 `80db27d` 修正。系統選單、成就與讀取返回的輸入恢復已由 `a870409` 修正；人材一覽、YesNo 返回仍待重測。之後：春銷 Start 的 GetHGauge 斷言、橫幅文字殘留、controller ID 語義、輸入限作用中 controller、跨 controller 繪製順序、Motion 終值、alpha clipper 繼承、構築部件（據點背景模糊）見 HANDOFF 第 4 項。立繪站位與原版實機截圖逐格對照尚未做；跨側移動與戰鬥翻轉只有 headless 與臨時注入驗證；backlog 等畫面的字距只有 headless 驗證。
 
 - **從讀檔畫面讀一般存檔**：要經過 `system.Reset`，目前是 stub；`SceneLoad@Load` 之後不會重新啟動，也就讀不到 SaveData。`Ａ＿標題界面返回＿確認沒有` 在 Reset 之後的 Peek 迴圈可能卡住（未在執行中驗證）。
 - **記憶體**：heap 在 120 秒內長到 1730 萬個 slot。`9e30c0f` 後 150 秒峰值 RSS 約 1.3–1.4 GB，配置器警告消失；`6582e38` 之後場景物件、`Motion::Executer` 與 `CParts` 會釋放，150 秒峰值 RSS 499–541 MB（`fb28975` 607 MB）；STRUCT／DELEGATE／ARRAY 參數多加的參照仍是成長來源候選。
@@ -290,7 +307,7 @@ visual-compare 的 D1–D5、D7：據點畫面沒有底列（含「下一步」�
 
 ## 重跑
 
-驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 57 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
+驗證環境在 [harness/](harness/README.md)：一次設定兩棵建置樹，之後一個指令跑全部 58 個模式、對任一舊版本做修正前對照，或做無人值守 GUI 執行。所有輸出寫在 repo 外。
 
 ```bash
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original

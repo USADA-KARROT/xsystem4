@@ -1,0 +1,137 @@
+{
+  "method": "Sequential screenshot samples aligned by scene transition; not a 60 fps recording, identical save state, equal-time or pixel-equivalence test.",
+  "wine_frame_gap_seconds": 0.1,
+  "xsystem4_frame_gap_seconds": 1,
+  "actions": [
+    {
+      "action": "achievement-open-1",
+      "game_x": 152,
+      "game_y": 240,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.245
+    },
+    {
+      "action": "achievement-open-2",
+      "game_x": 152,
+      "game_y": 240,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.08
+    },
+    {
+      "action": "achievement-return-1",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.326
+    },
+    {
+      "action": "achievement-return-2",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.283
+    },
+    {
+      "action": "garage-open",
+      "game_x": 500,
+      "game_y": 230,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.179
+    },
+    {
+      "action": "garage-return",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.313
+    },
+    {
+      "action": "load-open-1",
+      "game_x": 152,
+      "game_y": 180,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.134
+    },
+    {
+      "action": "load-open-2",
+      "game_x": 152,
+      "game_y": 180,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.165
+    },
+    {
+      "action": "load-return-1",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.179
+    },
+    {
+      "action": "load-return-2",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.4
+    },
+    {
+      "action": "menu-open-1",
+      "game_x": 1228,
+      "game_y": 588,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.144
+    },
+    {
+      "action": "menu-open-2",
+      "game_x": 1228,
+      "game_y": 588,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.097
+    },
+    {
+      "action": "menu-return-1",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.149
+    },
+    {
+      "action": "menu-return-2",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.276
+    },
+    {
+      "action": "newgame",
+      "game_x": 160,
+      "game_y": 110,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.109
+    },
+    {
+      "action": "tutorial-close",
+      "game_x": 1180,
+      "game_y": 678,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.133
+    },
+    {
+      "action": "tutorial-next",
+      "game_x": 230,
+      "game_y": 675,
+      "captured_frames": 20,
+      "last_frame_elapsed": 4.315
+    }
+  ],
+  "verified": [
+    "achievement roundtrip twice then new game",
+    "load UI roundtrip twice then new game",
+    "home system menu roundtrip twice then garage roundtrip",
+    "Control held 15 seconds reaches home tutorial"
+  ],
+  "remaining_differences": [
+    "menu labels missing and black left backdrop in xsystem4; unchanged versus baseline",
+    "phase banner text remains in xsystem4 garage",
+    "title subscene list equivalence unverified with different save state"
+  ]
+}

@@ -2,19 +2,20 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-09-30 ClipArea 完成後接續
+## 2026-09-30 子畫面輸入修正後接續
 
-- 最新修正 `190c1c8` 已推送，libsys4 維持 `247f544`。推送後本機、ls-remote、GitHub branches API 三方一致。
-- **任務 1 ClipArea 已完成**：開場與標題擦入、七個 HLL、pactex 載入、v14 子樹矩形裁切與 XPE v4 存讀。原版證據推翻最初的最近祖先／box-origin 建議，實作為錨點、本地倍率、螢幕軸對齊整數矩形與祖先交集。詳見 [研究與驗證](research/gui-visual/clip-area.md)。
-- 57 模式 default／GBK 均 PASS；before-check 基準 `4168ff8` 新模式 4/4 失敗；正式 GUI 150.267 秒 MSG 88、assertion 0、overflow 0。獨立審查已通過。
-- **下一組先做任務 2：子畫面關閉後輸入不再派送**（系統選單、成就／讀取返回標題）。再做任務 3 春銷 Start 的 GetHGauge 斷言，之後訊息視窗系統 UI。
-- 剩餘 ClipArea 限制：ComboBox 內部子元件清除繼承裁切、額外 pivot／3D／非標準畫面比例未驗證；負尺寸繪製視為空。原版標題粉金閃光仍未相同。不要把方向與逐列擦入通過解讀為全部影格逐像素一致。
+- **本組修正 `a870409` 已推送**；libsys4 維持 `247f544`。推送後本機、ls-remote 與 GitHub branches API 三方確認 `a87040975b2f29f45920931a7128ea9151eb60f4`。
+- **任務 2 已修正並完成 xsystem4 驗證**：原版 `0x58a720`／`0x58a750` 是巢狀輸入計數，內層 End 後恢復外層；`0x546030` 重新採樣當下按鍵，避免返回鍵重複觸發。成就／讀取各往返兩次後可開新遊戲；據點選單往返兩次後可進出庫房。Wine 同操作與採樣影格對照已完成，詳見 [本組研究與驗證](research/gui-visual/input-nesting.md)。
+- 58 模式 default／GBK 的 `final-v3` 均 PASS、sanitizer 0；before-check `a6a8f5b input-nesting` 7/8 失敗（v13 案例通過），修後 8/8 PASS。`third-review` 保留原 assertions、改在 EndInput 前觀察 hover，基準仍 5/5 PASS。
+- 正式 GUI 150.323 秒，MSG 88、assertion 0、overflow 0，峰值 RSS 507,871,232 bytes。另以 Control（`RUN_HOLD_KEYS=13,17`）快進診斷約 7 秒到據點教學，50 秒 run 的 88 MSG 雜湊相同、無斷言或溢位；快進不取代正式 150 秒驗證，操作方法見 [harness](harness/README.md#control-快進診斷)。
+- **下一組做任務 3：春銷 Start 的 `GetHGauge` 斷言**，之後是訊息視窗系統 UI。一般讀檔的 `system.Reset`、ResumeLoad 輸入深度恢復、controller ID／作用中輸入限制尚未修；系統選單缺標籤與左半黑底仍是既有外觀問題。人材狀態頁／YesNo 返回未在本組重新驗證。
+- 任務 1 ClipArea 先前已由 `190c1c8` 完成並推送；原版證據推翻最初的最近祖先／box-origin 建議，實作為錨點、本地倍率、螢幕軸對齊整數矩形與祖先交集。[研究與驗證](research/gui-visual/clip-area.md)。剩餘 ComboBox 內部子元件裁切重設、額外 pivot／3D／非標準比例未涵蓋；標題粉金閃光仍有差異。
 
 ## 現在的位置
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 57 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 58 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，已在遠端）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
@@ -121,7 +122,7 @@
        2. 成就：標題點成就 (152,240)、返回 (1180,678) 回到標題後，點成就、新遊戲、畫面中央都沒有進入派送，無法開始新遊戲（鑑賞模式往返正常）。
        3. 春銷：進入春銷後按 Start (1180,675)，每次都出現 `DecisionTimerView.jaf:19: (nonnull) m_act . GetHGauge("Gauge")` 斷言，`gui-run.sh` 就此停止；推定是 §10.4 第 7 項沒有建立的橫ゲージ部件型別（未驗證）。
        4. 審查者另記（兩版相同，本組未重跑）：標題 → 配置在 `PE_AddController` 出錯；標題 → 讀取 → 返回之後輸入失效；系統選單 → 劇情回顧在 `PE_AddController` 出錯。
-       - 第 1、2 條與「人材一覽的返回」「YesNo 對話框取消後的返回」推定是同一類問題：子畫面返回後 `PE_BeginInput` 不再被呼叫（未驗證）。建議先追 AIN 在子畫面關閉後重新進入輸入迴圈的路徑。
+       - **本組後續 `a870409` 已修正第 1、2 條**：AIN 保留外層 WaitForClick，原版以 Begin／End 巢狀深度恢復外層輸入；不應要求腳本再次 Begin。成就／讀取／系統選單各兩次往返已驗證。「人材一覽的返回」「YesNo 對話框取消後的返回」尚未重測，不推定通過。
      - **`點擊許可` 沒有讀**：原版同一層也把它讀到 +0x1a4。pactex 中為 1 的約 50 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange 等）目前要等 AIN 設 Clickable，否則只擋游標（全畫面點擊）；讀入的影響要另外評估。
      - **懸停訊息**：v14 的 `parts_msg_push` 直接返回，MouseEnter／Leave／On 從未送進 AIN；原版懸停人材卡時卡片變黃（Wine `deep/d024`），xsystem4 不變。
      - 擋游標的元件收到按下時原版送出什麼仍未追到（沿用「全畫面點擊」的推定）；判斷式的滑動條件沒有實作。

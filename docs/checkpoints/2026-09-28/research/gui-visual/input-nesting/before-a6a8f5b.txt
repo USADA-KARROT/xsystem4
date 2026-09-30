@@ -1,0 +1,35 @@
+  FAIL: outer scope after inner EndInput: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  IN1 nested HLL scope returns input to its caller
+IN1 FAIL
+  FAIL: depth two after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: depth one after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  IN2 three levels, depth zero and unmatched EndInput checked
+IN2 FAIL
+  FAIL: held before outer BeginInput is not a new DOWN: messages=1 first=(4,18501), want count=0 parts=0
+  FAIL: outer begin retained a ghost click number
+  FAIL: held before nested BeginInput is not a new DOWN: messages=1 first=(4,18501), want count=0 parts=0
+  FAIL: nested begin did not reset clicked number
+  IN3 outer/nested BeginInput snapshot held buttons without ghost DOWN
+IN3 FAIL
+  FAIL: parent gets a subsequent fresh press: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  IN4 inner EndInput snapshots held buttons while restoring parent input
+IN4 FAIL
+  FAIL: nested begin kept the parent's old click
+  FAIL: parent new click after child state was cleared: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  IN5 Begin/End clear stale click state, preserve queued messages and accept new clicks
+IN5 FAIL
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1), want count=1 type=4 parts=18501
+  IN6 unchanged AIN wrappers survive eight open/return cycles
+IN6 FAIL
+  IN7 v13 Begin/End retain their non-nested latch contract
+IN7 ok
+  FAIL: parts_reset_input is unavailable
+IN8 FAIL
+INPUT-NESTING FAIL: 7 of 8 cases failed

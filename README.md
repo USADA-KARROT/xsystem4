@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **2026-09-30 macOS／多娜多娜 CN：v14 ClipArea 已修正並推送（`190c1c8`）：開場 ALICESOFT 與標題按鈕恢復擦入，依原版以錨點／本地倍率建立螢幕矩形並取祖先交集。57 個探針模式在預設與強制 GBK 均 PASS，修正前 4/4 新案例失敗；正式 GUI 150.267 秒、88 筆相同對白、斷言與堆疊溢位皆 0，峰值 RSS 約 514 MB。已完成 Wine 逐幀比對與獨立審查；標題粉金閃光仍有既有外觀差異，尚非穩定可玩版。**
-> 下一組：子畫面關閉後輸入不再派送；接著是春銷 Start 的 GetHGauge 斷言。一般讀檔仍受 system.Reset 未實作阻擋，長時間穩定性未驗證。
+> **2026-09-30 macOS／多娜多娜 CN：本組修正 `a870409` 恢復子畫面返回後的滑鼠操作。依原版 BeginInput／EndInput 的巢狀計數及按鍵採樣，成就／讀取各往返兩次後仍能開始新遊戲，據點系統選單往返兩次後仍能進出庫房。58 模式在預設與 GBK 均 PASS；新探針修正前 7/8 失敗、修正後 8/8 通過。正式 GUI 150.323 秒、MSG 88、斷言與堆疊溢位皆 0，峰值 RSS 約 508 MB。已完成 Wine 操作與採樣影格對照、獨立審查及推送雙源驗證，尚非穩定可玩版。**
+> 下一組：春銷 Start 的 GetHGauge 斷言，再處理訊息視窗系統 UI。一般讀檔仍受 system.Reset 未實作阻擋，ResumeLoad 的輸入深度恢復與長時間穩定性未驗證。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
