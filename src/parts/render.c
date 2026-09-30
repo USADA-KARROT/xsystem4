@@ -131,11 +131,16 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 	glUniform1i(parts_shader.draw_filter, draw_filter);
 
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
+	// A clipper without a texture has no alpha to sample (SceneWorkResult's
+	// IncomeBase/InfoBase are constructions the loader does not build yet):
+	// draw unmasked, as before the clippers were read.
+	if (clipper && !clipper->states[clipper->state].common.texture.handle)
+		clipper = NULL;
 	if (clipper) {
 		struct parts_common *c_common = &clipper->states[clipper->state].common;
 		// A clipper with no area (e.g. SceneLogo's badge while it is scaled
 		// to 0) masks everything; its inverse transform would be singular.
-		if (c_common->w <= 0 || c_common->h <= 0 || !c_common->texture.handle
+		if (c_common->w <= 0 || c_common->h <= 0
 				|| clipper->global.scale.x == 0.0f || clipper->global.scale.y == 0.0f)
 			return;
 
