@@ -12,12 +12,13 @@
  *       renamed with its contents; both exist -> the new one is used and the
  *       old one is left alone; neither -> the new path, nothing created; the
  *       new name is a file -> the old save folder is kept.
- *   MJ3 savedir_path: a save file created under its sjis2utf name is renamed
- *       to the decoded name the first time the game uses it.
+ *   MJ3 savedir_path decodes the name and does not rename on access (with
+ *       both names present, deleting the new file would revive the old).
  *   MJ4 migrate_legacy_save_files: a file in the save folder whose name is
  *       the sjis2utf form of a game string (the dump files of
  *       debug::detail::UpdateDumpData) is renamed; other names, the old name
- *       plus a suffix, and strings with a path separator are not.
+ *       plus a suffix, strings with a path separator, and an old name shared
+ *       by two game strings (sjis2utf is many-to-one) are not.
  *   MJ5 FileOperation.GetFileList returns names in GB18030 (utf2sjis turned
  *       零氪战士 into 零??士), and TextFile.OpenReader opens the path built
  *       from that name. Before: the name did not match and fopen failed.
@@ -36,6 +37,8 @@ static int mj_failures;
 #define MJ_MEM_UTF8 "<memory>ダンプ文件_メモリ"
 #define MJ_USER_GB "\xc1\xe3\xeb\xb4\xd5\xbd\xca\xbf.txt"	/* 零氪战士.txt */
 #define MJ_USER_UTF8 "零氪战士.txt"
+#define MJ_COL_A "\xa5\xeb\xa5\xc0.asd"	/* ルダ.asd */
+#define MJ_COL_B "\xa5\xec\xa5\xc0.asd"	/* レダ.asd */
 #define MJ_SEP "\xce\xc4\xbc\xfe.txt"	/* 文件.txt: its old name as a file ... */
 #define MJ_SEP_PATH "User\\\xce\xc4\xbc\xfe.txt"	/* ... but the AIN string is User\文件.txt */
 
@@ -213,10 +216,11 @@ static void mj3_savedir_path(void)
 	mj_touch(legacy);
 	char *p = savedir_path(MJ_DUMP);
 	MJ_CHECK(!strcmp(p, want), "savedir_path='%s'", p);
-	MJ_CHECK(mj_exists(want) && !mj_exists(legacy), "old file not renamed");
+	/* no rename on access (a delete of the new name would revive the old) */
+	MJ_CHECK(mj_exists(legacy) && !mj_exists(want), "savedir_path touched the files");
 	char *q = savedir_path("SaveData1.asd"), *q_want = mj_join(mj_dir, "SaveData1.asd");
 	MJ_CHECK(!strcmp(q, q_want), "ASCII name changed: '%s'", q);
-	printf("  MJ3 %s -> %s\n", legacy_rel, p + strlen(mj_dir) + 1);
+	printf("  MJ3 %s -> %s\n", MJ_DUMP_UTF8, p + strlen(mj_dir) + 1);
 	free(p); free(q); free(q_want); free(legacy_rel); free(legacy); free(want);
 	free(config.save_dir);
 	config.save_dir = saved;
@@ -244,6 +248,12 @@ static void mj4_migrate_files(void)
 	char *p_near = mj_join(mj_dir, near_rel);
 	char *sep_legacy = sjis2utf(MJ_SEP, 0);
 	char *p_sep = mj_join(mj_dir, sep_legacy);
+	/* two game strings with the same old name (ルダ / レダ: EB A5 and EC A5
+	 * both become ・) must leave the file alone */
+	char *col_a = sjis2utf(MJ_COL_A, 0), *col_b = sjis2utf(MJ_COL_B, 0);
+	MJ_CHECK(!strcmp(col_a, col_b), "precondition: ルダ and レダ share an old name");
+	char *p_col = mj_join(mj_dir, col_a);
+	mj_touch(p_col);
 	mj_touch(p_mem);
 	mj_touch(p_dump);
 	mj_touch(p_user);
@@ -251,18 +261,21 @@ static void mj4_migrate_files(void)
 	mj_touch(p_near);
 	mj_touch(p_sep);
 	struct string *strs[] = { make_string("AFConfig.asd", 12), make_string(MJ_MEM, strlen(MJ_MEM)),
-				  make_string(MJ_DUMP, strlen(MJ_DUMP)), make_string(MJ_SEP_PATH, strlen(MJ_SEP_PATH)) };
-	f(strs, 4);
+				  make_string(MJ_DUMP, strlen(MJ_DUMP)), make_string(MJ_SEP_PATH, strlen(MJ_SEP_PATH)),
+				  make_string(MJ_COL_A, strlen(MJ_COL_A)), make_string(MJ_COL_B, strlen(MJ_COL_B)) };
+	f(strs, 6);
 	char *w_mem = mj_join(mj_dir, MJ_MEM_UTF8), *w_dump = mj_join(mj_dir, MJ_DUMP_UTF8);
 	MJ_CHECK(mj_exists(w_mem) && !mj_exists(p_mem), "<memory> dump not renamed");
 	MJ_CHECK(mj_exists(w_dump) && !mj_exists(p_dump), "storage dump not renamed");
 	MJ_CHECK(mj_exists(p_user) && mj_exists(p_ascii), "unrelated file renamed");
 	MJ_CHECK(mj_exists(p_near), "old name + suffix renamed");
 	MJ_CHECK(mj_exists(p_sep), "name of a string with a path separator renamed");
+	MJ_CHECK(mj_exists(p_col), "old name shared by two game strings renamed");
 	printf("  MJ4 renamed %s, %s\n", MJ_MEM_UTF8, MJ_DUMP_UTF8);
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 6; i++)
 		free_string(strs[i]);
 	free(near_rel); free(p_near); free(sep_legacy); free(p_sep);
+	free(col_a); free(col_b); free(p_col);
 	free(mem_legacy); free(dump_legacy); free(p_mem); free(p_dump); free(p_user); free(p_ascii);
 	free(w_mem); free(w_dump);
 	free(config.save_dir);

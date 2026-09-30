@@ -366,24 +366,16 @@ static const char *move_legacy(const char *old, const char *new, bool dir, const
 
 char *savedir_path(const char *path)
 {
-	char *resolved = resolve_path(config.save_dir, path);
-	if (MIGRATE_LEGACY_NAMES && game_charset_is_gbk() && has_high_bytes(path)
-			&& !is_absolute_path(path) && path[0] != '\\') {
-		char *legacy = join_path(config.save_dir, legacy_unix_path(path));
-		if (move_legacy(legacy, resolved, false, "save file") == legacy) {
-			free(resolved);
-			return legacy;
-		}
-		free(legacy);
-	}
-	return resolved;
+	return resolve_path(config.save_dir, path);
 }
 
 /*
- * The same for files the game never opens again by itself (for example the
- * dump files of debug::detail::UpdateDumpData): rename a file in the save
- * folder whose name is the sjis2utf form of a game string to the decoded name.
- * Only exact matches are renamed, and never over an existing file.
+ * Save files created before GBK names were decoded keep their sjis2utf names.
+ * The Chinese game builds its non-ASCII file names only from AIN strings (the
+ * dump files of debug::detail::UpdateDumpData), so at startup rename a file in
+ * the save folder whose name is the old form of exactly one game string.
+ * savedir_path does not rename on access: with both names present, a delete
+ * of the new file would bring the old one back.
  */
 void migrate_legacy_save_files(struct string **strings, int nr_strings)
 {
@@ -403,30 +395,45 @@ void migrate_legacy_save_files(struct string **strings, int nr_strings)
 	}
 	closedir(dir);
 
+	// sjis2utf is many-to-one, so two game strings can share an old name:
+	// collect the decoded name of every match and rename only when there is
+	// exactly one.
+	char **targets = xcalloc(nr_names ? nr_names : 1, sizeof(char*));
+	bool *ambiguous = xcalloc(nr_names ? nr_names : 1, sizeof(bool));
 	for (int i = 0; nr_names && i < nr_strings; i++) {
 		const char *str = strings[i]->text;
 		if (!has_high_bytes(str) || strchr(str, '/') || strchr(str, '\\'))
 			continue;
 		char *legacy = sjis2utf(str, strings[i]->size);
 		for (int j = 0; j < nr_names; j++) {
-			if (!names[j] || strcmp(names[j], legacy))
+			if (strcmp(names[j], legacy))
 				continue;
 			char *name = game_to_utf8(str, strings[i]->size);
-			if (strcmp(name, legacy)) {
-				char *from = path_join(config.save_dir, legacy);
-				char *to = path_join(config.save_dir, name);
-				move_legacy(from, to, false, "save file");
-				free(from);
-				free(to);
+			if (!targets[j]) {
+				targets[j] = name;
+			} else {
+				if (strcmp(targets[j], name))
+					ambiguous[j] = true;
+				free(name);
 			}
-			free(name);
-			free(names[j]);
-			names[j] = NULL;
 		}
 		free(legacy);
 	}
-	for (int j = 0; j < nr_names; j++)
+	for (int j = 0; j < nr_names; j++) {
+		if (targets[j] && ambiguous[j]) {
+			WARNING("Save file \"%s\" matches more than one game string; not renamed", names[j]);
+		} else if (targets[j] && strcmp(targets[j], names[j])) {
+			char *from = path_join(config.save_dir, names[j]);
+			char *to = path_join(config.save_dir, targets[j]);
+			move_legacy(from, to, false, "save file");
+			free(from);
+			free(to);
+		}
+		free(targets[j]);
 		free(names[j]);
+	}
+	free(targets);
+	free(ambiguous);
 	free(names);
 }
 

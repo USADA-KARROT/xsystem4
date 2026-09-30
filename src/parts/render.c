@@ -22,6 +22,7 @@
 #include "system4.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
+#include "system4/ain.h"
 #include "system4/flat.h"
 
 #include "gfx/gfx.h"
@@ -29,6 +30,7 @@
 #include "scene.h"
 #include "sprite.h"
 #include "xsystem4.h"
+#include "vm.h"
 
 #include "parts_internal.h"
 
@@ -194,8 +196,8 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 }
 
 /*
- * 描畫フィルタ covers the subtree: a parts without its own filter is drawn
- * with the nearest ancestor's. SceneLogo's Light has 描畫フィルタ 3 (screen)
+ * 描畫フィルタ covers the subtree (v14): a parts without its own filter is
+ * drawn with the nearest ancestor's. SceneLogo's Light has 描畫フィルタ 3 (screen)
  * and its two pale yellow panels have 0; the original screens the panels, so
  * the gloss shows only on the dark parts of the logo and nothing is left on
  * the white background when it stops at X 904. Drawn with the normal blend,
@@ -204,6 +206,10 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
  */
 static int parts_effective_draw_filter(struct parts *parts)
 {
+	// Seen only on v14 (both DohnaDohna releases); older engines keep
+	// drawing each parts with its own filter.
+	if (ain->version < 14)
+		return parts->draw_filter;
 	for (struct parts *p = parts; p; p = p->parent) {
 		if (p->draw_filter != PARTS_DRAW_FILTER_NORMAL)
 			return p->draw_filter;
