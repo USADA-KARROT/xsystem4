@@ -28,6 +28,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 #define NR_CACHES 64
 #define CACHE_SIZE 256
@@ -526,7 +527,7 @@ int alloc_struct(int no)
 		if (as_warn++ < 5)
 			WARNING("alloc_struct: depth %d for struct %d '%s'",
 				alloc_struct_depth, no,
-				(no >= 0 && no < ain->nr_structures) ? ain->structures[no].name : "?");
+				(no >= 0 && no < ain->nr_structures) ? display_game0(ain->structures[no].name) : "?");
 		// Return a minimal empty struct to avoid crash
 		int slot = heap_alloc_slot(VM_PAGE);
 		heap_set_page(slot, alloc_page(STRUCT_PAGE, no, 0));
@@ -652,7 +653,7 @@ void delete_struct(int no, int slot)
 			static int depth_warn = 0;
 			if (depth_warn++ < 5)
 				WARNING("delete_struct: destructor '%s' skipped at depth %d",
-					ain->functions[s->destructor].name, destructor_depth);
+					display_game0(ain->functions[s->destructor].name), destructor_depth);
 			return;
 		}
 		// Check blacklist

@@ -30,6 +30,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "xsystem4.h"
 
 /* ============================================================
  * Plugin management
@@ -296,7 +297,7 @@ static bool SealEngine_LoadInstance(int plugin, int instance, struct string *nam
 	struct RE_instance *ri = se_get_instance(plugin, instance);
 	if (!ri) {
 		WARNING("SealEngine.LoadInstance: plugin=%d inst=%d name='%s' -> NO INSTANCE",
-			plugin, instance, name ? name->text : "null");
+			plugin, instance, name ? display_game0(name->text) : "null");
 		return false;
 	}
 	bool result = RE_instance_load(ri, name->text);
@@ -309,7 +310,7 @@ static bool SealEngine_LoadInstance(int plugin, int instance, struct string *nam
 static bool SealEngine_SaveInstance(int plugin, int instance, struct string *filename)
 {
 	NOTICE("SealEngine.SaveInstance: plugin=%d inst=%d file='%s' (no-op)",
-		plugin, instance, filename ? filename->text : "(null)");
+		plugin, instance, filename ? display_game0(filename->text) : "(null)");
 	return true;
 }
 
@@ -1709,7 +1710,7 @@ static bool SealEngine_Tool_ReloadPolyDataEXFile(struct string *name, struct str
 		return true;
 
 	NOTICE("SealEngine.Tool_ReloadPolyDataEXFile: name='%s' text_len=%d",
-		name->text, (int)text->size);
+		display_game0(name->text), (int)text->size);
 
 	/* Find instances with matching model path and apply properties */
 	se_ensure_init();
@@ -1785,7 +1786,7 @@ static bool SealEngine_Tool_ReloadMotionDataEXFile(struct string *obj, struct st
 		return true;
 
 	NOTICE("SealEngine.Tool_ReloadMotionDataEXFile: obj='%s' mot='%s' text_len=%d",
-		obj->text, mot->text, (int)text->size);
+		display_game0(obj->text), display_game1(mot->text), (int)text->size);
 
 	/* Find matching instances and apply motion properties */
 	se_ensure_init();

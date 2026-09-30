@@ -822,10 +822,10 @@ struct page *heap_get_page(int index)
 			if ((size_t)index < heap_size)
 				WARNING("heap_get_page: invalid page index %d (ref=%d type=%d) ip=0x%lX fno=%d '%s'",
 					index, HEAP_REF(index), heap[index].type,
-					(unsigned long)instr_ptr, fno, fname);
+					(unsigned long)instr_ptr, fno, display_game0(fname));
 			else {
 				WARNING("heap_get_page: invalid page index %d (out of range, heap_size=%zu) ip=0x%lX fno=%d '%s'",
-					index, heap_size, (unsigned long)instr_ptr, fno, fname);
+					index, heap_size, (unsigned long)instr_ptr, fno, display_game0(fname));
 			}
 		}
 		return NULL;

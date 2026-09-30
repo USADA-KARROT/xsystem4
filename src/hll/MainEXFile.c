@@ -216,7 +216,7 @@ static bool MainEXFile_ReloadDebugEXFile(void)
  */
 static int MainEXFile_AddEXReader(struct string *path)
 {
-	WARNING("MainEXFile.AddEXReader('%s') — attempting to load", display_utf0(path->text));
+	WARNING("MainEXFile.AddEXReader('%s') — attempting to load", display_game0(path->text));
 	struct ex *extra = load_ex_file(path->text);
 	if (!extra) {
 		char *full = path_join(config.game_dir, path->text);
@@ -228,7 +228,7 @@ static int MainEXFile_AddEXReader(struct string *path)
 		WARNING("MainEXFile.AddEXReader: loaded %u blocks", extra->nr_blocks);
 		return 1;  // Return non-zero ID
 	}
-	WARNING("MainEXFile.AddEXReader('%s'): file not found", display_utf0(path->text));
+	WARNING("MainEXFile.AddEXReader('%s'): file not found", display_game0(path->text));
 	return 0;
 }
 
@@ -244,7 +244,7 @@ static void MainEXFile_EraseEXReader(int id)
  */
 static bool MainEXFile_AddEX(struct string *path)
 {
-	WARNING("MainEXFile.AddEX('%s') — attempting to load", display_utf0(path->text));
+	WARNING("MainEXFile.AddEX('%s') — attempting to load", display_game0(path->text));
 	struct ex *extra = load_ex_file(path->text);
 	if (extra) {
 		ex_append(ex, extra);
@@ -256,11 +256,12 @@ static bool MainEXFile_AddEX(struct string *path)
 	extra = load_ex_file(full);
 	if (extra) {
 		ex_append(ex, extra);
-		WARNING("MainEXFile.AddEX('%s'): loaded %u blocks", full, extra->nr_blocks);
+		WARNING("MainEXFile.AddEX('%s'): loaded %u blocks",
+			game_charset_is_gbk() ? display_game0(path->text) : full, extra->nr_blocks);
 		free(full);
 		return true;
 	}
-	WARNING("MainEXFile.AddEX('%s'): file not found", display_utf0(path->text));
+	WARNING("MainEXFile.AddEX('%s'): file not found", display_game0(path->text));
 	free(full);
 	return false;
 }
@@ -270,7 +271,7 @@ static bool MainEXFile_AddEX(struct string *path)
  */
 static bool MainEXFile_AddEXText(struct string *path)
 {
-	WARNING("MainEXFile.AddEXText('%s') stub", display_utf0(path->text));
+	WARNING("MainEXFile.AddEXText('%s') stub", display_game0(path->text));
 	return false;
 }
 

@@ -47,7 +47,8 @@ int save_json(const char *filename, cJSON *json)
 	char *path = savedir_path(filename);
 	FILE *f = file_open_utf8(path, "w");
 	if (!f) {
-		WARNING("Failed to open save file: %s: %s", display_utf0(filename), strerror(errno));
+		int err = errno;
+		WARNING("Failed to open save file: %s: %s", display_game0(filename), strerror(err));
 		free(path);
 		return 0;
 	}
@@ -61,7 +62,8 @@ int save_json(const char *filename, cJSON *json)
 		return 0;
 	}
 	if (fclose(f)) {
-		WARNING("Error writing save to file: %s: %s", display_utf0(filename), strerror(errno));
+		int err = errno;
+		WARNING("Error writing save to file: %s: %s", display_game0(filename), strerror(err));
 		free(str);
 		return 0;
 	}
@@ -179,7 +181,7 @@ int32_t add_value_to_gsave(enum ain_data_type type, union vm_value val, struct g
 	case AIN_REF_TYPE:
 		return -1;
 	default:
-		WARNING("Unhandled type: %s", ain_strtype(ain, type, -1));
+		WARNING("Unhandled type: %s", display_game0(ain_strtype(ain, type, -1)));
 		return -1;
 	}
 }
@@ -337,7 +339,7 @@ static union vm_value json_to_vm_value(enum ain_data_type type, enum ain_data_ty
 	case AIN_REF_TYPE:
 		return vm_int(-1);
 	default:
-		WARNING("Unhandled data type: %s", ain_strtype(ain, type, -1));
+		WARNING("Unhandled data type: %s", display_game0(ain_strtype(ain, type, -1)));
 		return vm_int(-1);
 	}
 }
@@ -530,7 +532,7 @@ union vm_value gsave_to_vm_value(struct gsave *save, enum ain_data_type type, in
 	case AIN_REF_TYPE:
 		return vm_int(-1);
 	default:
-		WARNING("Unhandled data type: %s", ain_strtype(ain, type, -1));
+		WARNING("Unhandled data type: %s", display_game0(ain_strtype(ain, type, -1)));
 		return vm_int(-1);
 	}
 }

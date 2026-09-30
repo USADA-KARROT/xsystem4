@@ -129,6 +129,11 @@ static void read_mixer_channels(struct ini_entry *entry)
 static bool view_width_from_ini;
 static bool view_height_from_ini;
 
+// The AliceStart.ini SaveFolder before config_init turned it into a path, and
+// whether .xsys4rc or --save-folder replaced that path (then it is kept as is).
+static char *save_folder_name = NULL;
+static bool save_dir_from_user = false;
+
 static bool read_config(const char *path)
 {
 	int ini_size;
@@ -211,6 +216,7 @@ static void read_user_config_file(const char *path, const char *basedir)
 		} else if (!strcmp(ini[i].name->text, "save-folder")) {
 			free(config.save_dir);
 			config.save_dir = user_config_path(&ini[i], basedir);
+			save_dir_from_user = true;
 		} else if (!strcmp(ini[i].name->text, "save-format")) {
 			if (!strcmp(ini_string(&ini[i])->text, "json")) {
 				config.save_format = SAVE_FORMAT_JSON;
@@ -296,6 +302,8 @@ static void config_init(void)
 	if (!config.game_name)
 		config.game_name = strdup(config.ain_filename);
 
+	free(save_folder_name);
+	save_folder_name = config.save_dir ? strdup(config.save_dir) : NULL;
 	char *new_save_dir = get_save_path(config.save_dir);
 	free(config.save_dir);
 	config.save_dir = new_save_dir;
@@ -639,6 +647,7 @@ int main(int argc, char *argv[])
 	if (savedir) {
 		free(config.save_dir);
 		config.save_dir = strdup(savedir);
+		save_dir_from_user = true;
 	}
 
 	if (!(ain = ain_open(ainfile, &err))) {
@@ -662,7 +671,8 @@ int main(int argc, char *argv[])
 	// character rule of the String library and CharRef/CharAssign also needs
 	// the strict check, because the legacy score fires on real SJIS tables too
 	// (see gb18030_detect_strings). XSYS4_STRING_CHARSET=sjis|gbk overrides
-	// the character rule, and with it how video.c decodes the window title.
+	// the character rule, and with it how game strings are decoded for the
+	// window title, file names, the save folder and logs (game_charset_is_gbk).
 	if (ain->nr_strings > 0) {
 		struct gb18030_scores sc;
 		bool strict = gb18030_detect_strings(ain->strings, ain->nr_strings, &sc);
@@ -699,7 +709,15 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	// get_save_path ran before the AIN told us the game is GBK.
+	if (!save_dir_from_user && game_charset_is_gbk()) {
+		char *save_dir = save_dir_for_game_charset(config.home_dir, config.game_name,
+				save_folder_name, config.save_dir);
+		free(config.save_dir);
+		config.save_dir = save_dir;
+	}
 	mkdir_p(config.save_dir);
+	migrate_legacy_save_files(ain->strings, ain->nr_strings);
 	apply_game_specific_hacks(ain);
 	if (config.msgskip_delay)
 		set_msgskip_delay(ain, config.msgskip_delay);

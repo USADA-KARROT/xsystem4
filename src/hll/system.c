@@ -192,7 +192,7 @@ static bool system_SerializeStruct(struct string *fileName, struct page *structP
 	struct page *struct_page = heap_get_page(struct_slot);
 	if (!struct_page || struct_page->type != STRUCT_PAGE) {
 		WARNING("system.SerializeStruct('%s'): first element is not a struct",
-			fileName->text);
+			display_game0(fileName->text));
 		return true;
 	}
 
@@ -209,7 +209,7 @@ static bool system_SerializeStruct(struct string *fileName, struct page *structP
 	char *path = savedir_path(fileName->text);
 	FILE *fp = file_open_utf8(path, "wb");
 	if (!fp) {
-		WARNING("system.SerializeStruct('%s'): cannot open file", fileName->text);
+		WARNING("system.SerializeStruct('%s'): cannot open file", display_game0(fileName->text));
 		free(path);
 		gsave_free(save);
 		return false;
@@ -222,7 +222,7 @@ static bool system_SerializeStruct(struct string *fileName, struct page *structP
 
 	if (error != SAVEFILE_SUCCESS) {
 		WARNING("system.SerializeStruct('%s'): write failed: %s",
-			fileName->text, savefile_strerror(error));
+			display_game0(fileName->text), savefile_strerror(error));
 		return false;
 	}
 	return true;
@@ -246,7 +246,7 @@ static bool system_DeserializeStruct(struct string *fileName, struct page *struc
 
 	if (!save) {
 		WARNING("system.DeserializeStruct('%s'): read failed: %s",
-			fileName->text, savefile_strerror(error));
+			display_game0(fileName->text), savefile_strerror(error));
 		return false;
 	}
 
@@ -260,7 +260,7 @@ static bool system_DeserializeStruct(struct string *fileName, struct page *struc
 	}
 
 	if (root_record < 0) {
-		WARNING("system.DeserializeStruct('%s'): no struct record", fileName->text);
+		WARNING("system.DeserializeStruct('%s'): no struct record", display_game0(fileName->text));
 		gsave_free(save);
 		return false;
 	}
@@ -288,7 +288,7 @@ static bool system_DeserializeStruct(struct string *fileName, struct page *struc
 
 	if (struct_type < 0) {
 		WARNING("system.DeserializeStruct('%s'): unknown struct '%s'",
-			fileName->text, struct_name ? struct_name : "(null)");
+			display_game0(fileName->text), struct_name ? display_game1(struct_name) : "(null)");
 		gsave_free(save);
 		return false;
 	}
@@ -391,7 +391,7 @@ static char *system_struct_save_path(struct string *fileName, bool saveFolder, c
 	if (!config.save_dir) {
 		static int warned;
 		if (warned++ < 8)
-			WARNING("system.%s('%s'): no save folder configured", what, fileName->text);
+			WARNING("system.%s('%s'): no save folder configured", what, display_game0(fileName->text));
 		return NULL;
 	}
 	const char *name = fileName->text;
@@ -406,7 +406,7 @@ static char *system_struct_save_path(struct string *fileName, bool saveFolder, c
 	if (bad) {
 		static int warned;
 		if (warned++ < 8)
-			WARNING("system.%s('%s'): file name outside the save folder refused", what, name);
+			WARNING("system.%s('%s'): file name outside the save folder refused", what, display_game0(name));
 		return NULL;
 	}
 	if (!saveFolder) {
@@ -414,7 +414,7 @@ static char *system_struct_save_path(struct string *fileName, bool saveFolder, c
 		 * directory (0x666410); no CN call site uses it */
 		static int warned;
 		if (warned++ < 1)
-			WARNING("system.%s('%s'): saveFolder=false uses the save folder", what, name);
+			WARNING("system.%s('%s'): saveFolder=false uses the save folder", what, display_game0(name));
 	}
 	return savedir_path(name);
 }
@@ -433,7 +433,7 @@ static int *system_struct_roots(struct page *list, int *n, const char *what, con
 			static int warned;
 			if (warned++ < 8)
 				WARNING("system.%s('%s'): list element %d (slot %d) is not a struct",
-					what, file, i, list->values[i].i);
+					what, display_game0(file), i, list->values[i].i);
 			free(roots);
 			return NULL;
 		}
@@ -482,7 +482,7 @@ bool system_WriteSerializeStructComment_v14(struct string *fileName, struct stri
 	if (!comment || comment->size <= 0) {
 		static int warned;
 		if (warned++ < 8)
-			WARNING("system.WriteSerializeStructComment('%s'): empty comment", label);
+			WARNING("system.WriteSerializeStructComment('%s'): empty comment", display_game0(label));
 		return false;
 	}
 	char *path = system_struct_save_path(fileName, saveFolder, "WriteSerializeStructComment");
@@ -560,12 +560,14 @@ static bool system_CopySaveFile(struct string *dest, struct string *src)
 
 	FILE *fin = fopen(src_path, "rb");
 	if (!fin) {
-		WARNING("system.CopySaveFile: cannot open source '%s': %s", src->text, strerror(errno));
+		int err = errno;
+		WARNING("system.CopySaveFile: cannot open source '%s': %s", display_game0(src->text), strerror(err));
 		goto cleanup;
 	}
 	FILE *fout = fopen(dest_path, "wb");
 	if (!fout) {
-		WARNING("system.CopySaveFile: cannot open dest '%s': %s", dest->text, strerror(errno));
+		int err = errno;
+		WARNING("system.CopySaveFile: cannot open dest '%s': %s", display_game0(dest->text), strerror(err));
 		fclose(fin);
 		goto cleanup;
 	}
@@ -622,14 +624,14 @@ static struct string *system_MsgBox(struct string *text)
 {
 	static int mb_warn = 0;
 	if (mb_warn++ < 2)
-		WARNING("system.MsgBox: %s", text->text);
+		WARNING("system.MsgBox: %s", display_game0(text->text));
 	return string_ref(text);
 }
 
 // [25] MsgBoxOkCancel(text) -> int
 static int system_MsgBoxOkCancel(struct string *text)
 {
-	WARNING("system.MsgBoxOkCancel: %s", text->text);
+	WARNING("system.MsgBoxOkCancel: %s", display_game0(text->text));
 	return 1; // OK
 }
 
@@ -639,7 +641,7 @@ static struct string *system_Error(struct string *text)
 	static int error_count = 0;
 	error_count++;
 	if (error_count <= 10)
-		WARNING("system.Error: %s", text->text);
+		WARNING("system.Error: %s", display_game0(text->text));
 	else if (error_count == 11)
 		WARNING("system.Error: (suppressing further errors, count=%d)", error_count);
 	else if (error_count == 1000 || error_count == 10000)

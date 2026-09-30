@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "system4/file.h"
+#include "xsystem4.h"
 #include "hll.h"
 
 #define MAX_TEXT_FILES 32
@@ -37,11 +39,23 @@ static bool TextFile_Close(int handle)
 	return true;
 }
 
+// GBK games pass GBK file names (for example under GetGameFolderPath); decode
+// them like every other game path. SJIS games keep the raw fopen.
+static FILE *text_file_open(struct string *fileName, const char *mode)
+{
+	if (!game_charset_is_gbk())
+		return fopen(fileName->text, mode);
+	char *path = unix_path(fileName->text);
+	FILE *fp = file_open_utf8(path, mode);
+	free(path);
+	return fp;
+}
+
 // [1] bool WriteAll(string fileName, string text)
 static bool TextFile_WriteAll(struct string *fileName, struct string *text)
 {
 	if (!fileName || !text) return false;
-	FILE *fp = fopen(fileName->text, "wb");
+	FILE *fp = text_file_open(fileName, "wb");
 	if (!fp) return false;
 	fwrite(text->text, 1, text->size, fp);
 	fclose(fp);
@@ -54,7 +68,7 @@ static int TextFile_CreateWriter(struct string *fileName)
 	if (!fileName) return -1;
 	int h = alloc_handle();
 	if (h < 0) return -1;
-	text_files[h].fp = fopen(fileName->text, "wb");
+	text_files[h].fp = text_file_open(fileName, "wb");
 	if (!text_files[h].fp) return -1;
 	text_files[h].is_writer = true;
 	text_files[h].active = true;
@@ -86,7 +100,7 @@ static bool TextFile_ReadAll(struct string *fileName, int text_slot)
 {
 	if (!fileName) return false;
 
-	FILE *fp = fopen(fileName->text, "rb");
+	FILE *fp = text_file_open(fileName, "rb");
 	if (!fp)
 		return false;
 
@@ -113,9 +127,9 @@ static int TextFile_OpenReader(struct string *fileName)
 	if (!fileName) return -1;
 	int h = alloc_handle();
 	if (h < 0) return -1;
-	text_files[h].fp = fopen(fileName->text, "rb");
+	text_files[h].fp = text_file_open(fileName, "rb");
 	if (!text_files[h].fp) {
-		WARNING("TextFile.OpenReader: cannot open '%s'", fileName->text);
+		WARNING("TextFile.OpenReader: cannot open '%s'", display_game0(fileName->text));
 		return -1;
 	}
 	text_files[h].is_writer = false;

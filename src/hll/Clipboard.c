@@ -16,16 +16,32 @@
 
 #include <SDL.h>
 #include "system4/string.h"
+#include "xsystem4.h"
 #include "hll.h"
 
+// GBK games convert to and from the UTF-8 clipboard; SJIS games keep the raw
+// bytes as before.
 static void Clipboard_SetText(struct string *text)
 {
-	SDL_SetClipboardText(text->text);
+	if (!game_charset_is_gbk()) {
+		SDL_SetClipboardText(text->text);
+		return;
+	}
+	char *utf = game_to_utf8(text->text, text->size);
+	SDL_SetClipboardText(utf);
+	free(utf);
 }
 
 static struct string *Clipboard_GetText(void)
 {
 	char *text = SDL_GetClipboardText();
+	if (game_charset_is_gbk() && text && *text) {
+		char *gbk = utf8_to_game(text, 0);
+		SDL_free(text);
+		struct string *s = make_string(gbk, strlen(gbk));
+		free(gbk);
+		return s;
+	}
 	struct string *s = make_string(text ? text : "", text ? strlen(text) : 0);
 	SDL_free(text);
 	return s;

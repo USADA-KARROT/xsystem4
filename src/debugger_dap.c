@@ -72,7 +72,7 @@ static struct msgq *queue;
 
 static void json_add_sjis_to_object(cJSON *obj, const char *name, const char *sjis)
 {
-	char *utf = sjis2utf(sjis, 0);
+	char *utf = game_to_utf8(sjis, 0);
 	cJSON_AddStringToObject(obj, name, utf);
 	free(utf);
 }
@@ -646,7 +646,7 @@ static void cmd_evaluate(cJSON *args, cJSON *resp)
 	}
 
 	struct ain_type type;
-	char *sjis_expr = utf2sjis(j_expr->valuestring, 0);
+	char *sjis_expr = utf8_to_game(j_expr->valuestring, 0);
 	union vm_value val = dbg_eval_string(sjis_expr, &type);
 	free(sjis_expr);
 

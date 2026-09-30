@@ -29,7 +29,7 @@
 static void cJSON_AddSjisToObject(cJSON *obj, const char *name, const char *sjis)
 {
 	// TODO: can avoid copy by implementing this as part of cJSON proper
-	char *utf = sjis2utf(sjis, 0);
+	char *utf = game_to_utf8(sjis, 0);
 	cJSON_AddStringToObject(obj, name, utf);
 	free(utf);
 }

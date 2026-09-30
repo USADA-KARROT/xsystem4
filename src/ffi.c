@@ -111,7 +111,7 @@ static bool gui_engine_should_trace(struct ain_hll_function *f, union vm_value *
 	if (!strcmp(f->name, "Parts_SetPartsCG")) {
 		static char *u = NULL;
 		if (!u)
-			u = utf2sjis("システム／ボタン／メニュー／通常", 0);
+			u = utf8_to_game("システム／ボタン／メニュー／通常", 0);
 		struct string ***strs = (void*)args;
 		struct string *s = *strs[1];
 		return strcmp(s->text, u);

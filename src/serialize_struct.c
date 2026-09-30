@@ -697,7 +697,7 @@ bool ss_serialize_file(const char *path, const char *label, const int *roots, in
 		if (!ok)
 			snprintf(W.why, sizeof W.why, "write failed");
 	} else {
-		SS_WARN("system.SerializeStruct('%s'): %s; nothing written", label, W.why);
+		SS_WARN("system.SerializeStruct('%s'): %s; nothing written", display_game0(label), display_game1(W.why));
 	}
 	ss_trace("ser %s roots=%d recs=%d strs=%d arrs=%d bytes=%zu %s%s%s", label, n, W.nrec, W.nstr, W.narr,
 		 b.n, ok ? "ok" : "fail(", ok ? "" : W.why, ok ? "" : ")");
@@ -1169,7 +1169,7 @@ static bool l_fields(struct ss_loader *L, int slot, struct ss_rec *rec, struct s
 			/* The file cannot carry reference payloads (written as -1). Setting
 			 * "some" here would leave some(-1); keep the destination instead. */
 			SS_WARN("system.DeserializeStruct('%s'): %s.%s keeps its value (reference option)",
-				L->label, st->name, fd->name);
+				display_game0(L->label), display_game1(st->name), display_game2(fd->name));
 			continue;
 		}
 		heap[slot].page->values[m + 1].i = flag;
@@ -1207,7 +1207,7 @@ static bool l_struct(struct ss_loader *L, struct ss_loc loc, int32_t value, int 
 			return l_fail(L, "unknown struct '%s'", sd->name);
 		if (decl_struct >= 0 && no != decl_struct)
 			SS_WARN("system.DeserializeStruct('%s'): file struct '%s' for a '%s' member",
-				L->label, sd->name, ss_struct_name(decl_struct));
+				display_game0(L->label), display_game1(sd->name), display_game2(ss_struct_name(decl_struct)));
 		int s = vm_construct_struct(no);
 		if (s <= 0)
 			return l_fail(L, "cannot construct '%s'", sd->name);
@@ -1403,7 +1403,7 @@ bool ss_deserialize_file(const char *path, const char *label, const int *roots, 
 	}
 	heap_gc_allow();
 	if (!ok)
-		SS_WARN("system.DeserializeStruct('%s'): %s; partially loaded", label, L.why);
+		SS_WARN("system.DeserializeStruct('%s'): %s; partially loaded", display_game0(label), display_game1(L.why));
 	ss_trace("des %s roots=%d ver=%d %s%s%s new_structs=%d new_strings=%d arrays=%d kept2=%d shared_str=%d",
 		 label, n, f.ver, ok ? "ok" : "fail(", ok ? "" : L.why, ok ? "" : ")", L.new_structs,
 		 L.new_strings, L.arrays, L.kept_arrays, L.shared_strings);

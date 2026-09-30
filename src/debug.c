@@ -198,7 +198,7 @@ void dbg_foreach_breakpoint(void (*fun)(int addr, struct breakpoint*, void *data
 
 bool dbg_set_function_breakpoint(const char *_name, void(*cb)(struct breakpoint*), void *data)
 {
-	char *name = utf2sjis(_name, 0);
+	char *name = utf8_to_game(_name, 0);
 	int fno = ain_get_function(ain, name);
 	free(name);
 

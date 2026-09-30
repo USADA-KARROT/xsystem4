@@ -26,6 +26,7 @@
 #include "gfx/gfx.h"
 #include "hll.h"
 #include "input.h"
+#include "xsystem4.h"
 
 static int font_size;
 static int font_weight;
@@ -81,7 +82,7 @@ static void InputString_End(void)
 
 static void handle_input(const char *text)
 {
-	char *u = utf2sjis(text, 0);
+	char *u = utf8_to_game(text, 0);
 	string_append_cstr(&result, u, strlen(u));
 	free(u);
 	has_editing_text = false;
@@ -98,7 +99,8 @@ static void handle_editing(const char *text, int start, int length)
 static void handle_key(int code)
 {
 	if (code == VK_BACK && !has_editing_text && result && result->size > 0)
-		string_pop_back_sjis(&result); // result holds utf2sjis() output
+		// result holds utf8_to_game() output
+		game_charset_is_gbk() ? string_pop_back(&result) : string_pop_back_sjis(&result);
 }
 
 static void InputString_OpenIME(void)

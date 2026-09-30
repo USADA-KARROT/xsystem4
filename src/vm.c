@@ -839,7 +839,7 @@ union vm_value stack_pop(void)
 				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1,
 				(call_stack_ptr > 0 && call_stack[call_stack_ptr-1].fno >= 0
 				 && call_stack[call_stack_ptr-1].fno < ain->nr_functions)
-				 ? ain->functions[call_stack[call_stack_ptr-1].fno].name : "?");
+				 ? display_game0(ain->functions[call_stack[call_stack_ptr-1].fno].name) : "?");
 		}
 		stack_ptr = 0;
 		return (union vm_value){.i = 0};
@@ -1143,6 +1143,7 @@ static int _function_call(int fno, int return_address)
 			if (cstack_warn++ < 5) {
 				WARNING("_function_call: C stack nearly full! used=%zu/%zu fno=%d '%s' csp=%d ved=%d",
 					stack_used, stack_limit, fno,
+					// raw name: no iconv this close to the end of the C stack
 					(fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?",
 					call_stack_ptr, 0);
 			}
@@ -1157,14 +1158,14 @@ static int _function_call(int fno, int return_address)
 		static int cso_warn = 0;
 		if (cso_warn++ < 3) {
 			WARNING("_function_call: call stack overflow (csp=%d) fno=%d '%s'",
-				call_stack_ptr, fno, ain->functions[fno].name);
+				call_stack_ptr, fno, display_game0(ain->functions[fno].name));
 			// Dump bottom 10 + top 30 frames with struct pages
 			WARNING("=== Call stack (bottom 10 + top 30) ===");
 			for (int ci = 0; ci < 10 && ci < call_stack_ptr; ci++) {
 				int cfno = call_stack[ci].fno;
 				WARNING("  [%d] fno=%d page=%d '%s'", ci, cfno,
 					call_stack[ci].struct_page,
-					(cfno >= 0 && cfno < ain->nr_functions) ? ain->functions[cfno].name : "?");
+					(cfno >= 0 && cfno < ain->nr_functions) ? display_game0(ain->functions[cfno].name) : "?");
 			}
 			if (call_stack_ptr > 40)
 				WARNING("  ... (%d frames omitted) ...", call_stack_ptr - 40);
@@ -1174,7 +1175,7 @@ static int _function_call(int fno, int return_address)
 				int cfno = call_stack[ci].fno;
 				WARNING("  [%d] fno=%d page=%d '%s'", ci, cfno,
 					call_stack[ci].struct_page,
-					(cfno >= 0 && cfno < ain->nr_functions) ? ain->functions[cfno].name : "?");
+					(cfno >= 0 && cfno < ain->nr_functions) ? display_game0(ain->functions[cfno].name) : "?");
 			}
 		}
 		return -1;
@@ -1188,10 +1189,10 @@ static int _function_call(int fno, int return_address)
 			int caller_fno = (call_stack_ptr > 0) ? call_stack[call_stack_ptr-1].fno : -1;
 			WARNING("_function_call: invalid address 0x%lX for fno=%d '%s' (code_size=0x%lX)"
 				" caller=%d '%s' ip=0x%lX",
-				(unsigned long)f->address, fno, f->name, (unsigned long)ain->code_size,
+				(unsigned long)f->address, fno, display_game0(f->name), (unsigned long)ain->code_size,
 				caller_fno,
 				(caller_fno >= 0 && caller_fno < ain->nr_functions) ?
-					ain->functions[caller_fno].name : "?",
+					display_game1(ain->functions[caller_fno].name) : "?",
 				(unsigned long)instr_ptr);
 		}
 		return -1;
@@ -1200,7 +1201,7 @@ static int _function_call(int fno, int return_address)
 	// Validate nr_vars
 	if (unlikely(f->nr_vars < 0 || f->nr_vars > 100000)) {
 		WARNING("_function_call: suspicious nr_vars=%d for fno=%d '%s'",
-			f->nr_vars, fno, f->name);
+			f->nr_vars, fno, display_game0(f->name));
 		return -1;
 	}
 
@@ -1208,7 +1209,7 @@ static int _function_call(int fno, int return_address)
 	struct page *new_page = alloc_page(LOCAL_PAGE, fno, f->nr_vars);
 	if (!new_page) {
 		WARNING("_function_call: alloc_page returned NULL for fno=%d '%s' nr_vars=%d",
-			fno, f->name, f->nr_vars);
+			fno, display_game0(f->name), f->nr_vars);
 		return -1;
 	}
 	heap_set_page(slot, new_page);
@@ -1229,7 +1230,7 @@ static int _function_call(int fno, int return_address)
 	for (int i = f->nr_args; i < f->nr_vars; i++) {
 		if (unlikely(f->vars[i].type.data < 0 || f->vars[i].type.data > 120)) {
 			WARNING("_function_call: bad var type data=%d for fno=%d '%s' var[%d]",
-				f->vars[i].type.data, fno, f->name, i);
+				f->vars[i].type.data, fno, display_game0(f->name), i);
 			break;
 		}
 		// A value option (option<int> etc.) is a plain value; allocating a slot
@@ -1967,7 +1968,7 @@ int vm_construct_struct(int struct_type)
 			static int warned;
 			if (warned++ < 8)
 				WARNING("vm_construct_struct: constructor of '%s' takes %d arguments; not called",
-					s->name, ain->functions[ctor].nr_args);
+					display_game0(s->name), ain->functions[ctor].nr_args);
 		}
 	}
 	return heap_index_valid(v.i) ? v.i : -1;
@@ -2208,7 +2209,7 @@ static void system_call(enum syscall_code code)
 				(call_stack_ptr > 0 && call_stack[call_stack_ptr-1].fno >= 0
 				 && call_stack[call_stack_ptr-1].fno < ain->nr_functions
 				 && ain->functions[call_stack[call_stack_ptr-1].fno].name)
-				? ain->functions[call_stack[call_stack_ptr-1].fno].name : "?");
+				? display_game0(ain->functions[call_stack[call_stack_ptr-1].fno].name) : "?");
 		// Don't actually exit — game may recover from assertion failures
 		break;
 	}
@@ -2245,7 +2246,7 @@ static void system_call(enum syscall_code code)
 	}
 	case SYS_MSGBOX: {
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
+		char *utf = game_to_utf8(str->text, str->size);
 		SDL_ShowSimpleMessageBox(0, "xsystem4", utf, NULL);
 		free(utf);
 		// XXX: caller S_POPs
@@ -2254,7 +2255,7 @@ static void system_call(enum syscall_code code)
 	case SYS_MSGBOX_OK_CANCEL: {
 		int result = 0;
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
+		char *utf = game_to_utf8(str->text, str->size);
 
 		const SDL_MessageBoxData mbox = {
 			SDL_MESSAGEBOX_INFORMATION,
@@ -2318,7 +2319,7 @@ static void system_call(enum syscall_code code)
 	};
 	case SYS_GET_SAVE_FOLDER_NAME: {// system.GetSaveFolderName(void)
 		if (config.save_dir) {
-			char *sjis = utf2sjis(config.save_dir, strlen(config.save_dir));
+			char *sjis = utf8_to_game(config.save_dir, strlen(config.save_dir));
 			stack_push_string(make_string(sjis, strlen(sjis)));
 			free(sjis);
 		} else {
@@ -2337,7 +2338,7 @@ static void system_call(enum syscall_code code)
 	case SYS_ERROR: {// system.Error(string szText)
 		int result = 0;
 		struct string *str = stack_peek_string(0);
-		char *utf = sjis2utf(str->text, str->size);
+		char *utf = game_to_utf8(str->text, str->size);
 		sys_warning("*GAME ERROR*: %s\n", utf);
 		const SDL_MessageBoxData mbox = {
 			SDL_MESSAGEBOX_ERROR,
@@ -3012,7 +3013,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				if (config.skip_title && (func_flags[funcno] & FUNC_FLAG_SKIP_TITLE)) {
 					const char *fn = ain->functions[funcno].name;
 					if (strstr(fn, "RunResult<SceneTitle")) {
-						NOTICE("--skip-title: CALLMETHOD skipping %s (NewGame)", fn);
+						NOTICE("--skip-title: CALLMETHOD skipping %s (NewGame)", display_game0(fn));
 						if (saved_args != small_args) free(saved_args);
 						stack_pop(); // struct_page
 						instr_ptr += instruction_width(CALLMETHOD);
@@ -3022,7 +3023,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 					// Must be Run<SceneLogo>
 					{
 						// Void function — do NOT push a return value.
-						NOTICE("--skip-title: CALLMETHOD skipping %s (void)", fn);
+						NOTICE("--skip-title: CALLMETHOD skipping %s (void)", display_game0(fn));
 						if (saved_args != small_args) free(saved_args);
 						stack_pop(); // struct_page
 						instr_ptr += instruction_width(CALLMETHOD);
@@ -3287,8 +3288,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			struct string *expr_s = heap_get_string(expr);
 			if (assert_count++ < 3) {
 				WARNING("ASSERT FAILED: %s:%d: %s",
-					file_s ? file_s->text : "?", line,
-					expr_s ? expr_s->text : "?");
+					display_game0(file_s ? file_s->text : "?"), line,
+					display_game1(expr_s ? expr_s->text : "?"));
 				sys_message("Assertion failed at %s:%d: %s\n",
 						display_sjis0(file_s ? file_s->text : "?"),
 						line,
@@ -5399,14 +5400,14 @@ static void vm_execute(void)
 				for (int _h = call_stack_ptr-1; _h >= 0 && _h >= call_stack_ptr-dump_n; _h--) {
 					int _hfno = call_stack[_h].fno;
 					WARNING("  stack[%d]: fno=%d '%s'", _h, _hfno,
-						(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? ain->functions[_hfno].name : "?");
+						(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? display_game0(ain->functions[_hfno].name) : "?");
 				}
 				// Show bottom frames (game scene context)
 				if (call_stack_ptr > 6) {
 					for (int _h = 0; _h < 6; _h++) {
 						int _hfno = call_stack[_h].fno;
 						WARNING("  base[%d]: fno=%d '%s'", _h, _hfno,
-							(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? ain->functions[_hfno].name : "?");
+							(_hfno >= 0 && _hfno < ain->nr_functions && ain->functions[_hfno].name) ? display_game0(ain->functions[_hfno].name) : "?");
 					}
 				}
 			}
@@ -5445,7 +5446,7 @@ static void vm_execute(void)
 						int fno_t = call_stack[vm_ret_frame].fno;
 						WARNING("VM_CALL_TIMEOUT: %llu insns in vm_call fno=%d '%s', unwinding %d frames",
 							insn_count - (vm_call_insn_limit - 500000), fno_t,
-							(fno_t >= 0 && fno_t < ain->nr_functions) ? ain->functions[fno_t].name : "?",
+							(fno_t >= 0 && fno_t < ain->nr_functions) ? display_game0(ain->functions[fno_t].name) : "?",
 							call_stack_ptr - vm_ret_frame);
 					}
 					int target_sp = call_stack[vm_ret_frame].base_sp;
@@ -5544,6 +5545,7 @@ static void sigabrt_handler(int sig)
 	if (call_stack_ptr > 0) {
 		int fno = call_stack[call_stack_ptr-1].fno;
 		WARNING("Current function: fno=%d '%s' ip=0x%lX sp=%d",
+			// raw names in the signal handler: no iconv or shared buffers here
 			fno, (fno >= 0 && fno < ain->nr_functions) ? ain->functions[fno].name : "?",
 			(unsigned long)instr_ptr, stack_ptr);
 		WARNING("=== VM call stack (%d frames) ===", call_stack_ptr);
@@ -5682,7 +5684,7 @@ int vm_execute_ain(struct ain *program)
 				|| heap[slot].page->type != STRUCT_PAGE;
 			if (need_repair) {
 				WARNING("v14: repairing global[%d] '%s' struct=%d (slot %d had page_type=%d)",
-					i, ain->globals[i].name, ain->globals[i].type.struc,
+					i, display_game0(ain->globals[i].name), ain->globals[i].type.struc,
 					slot, (heap_index_valid(slot) && heap[slot].page) ? heap[slot].page->type : -1);
 				int new_slot = alloc_struct(ain->globals[i].type.struc);
 				heap[global_page_slot].page->values[i].i = new_slot;
@@ -5702,7 +5704,7 @@ int vm_execute_ain(struct ain *program)
 				ptype = heap[slot].page->type;
 			if (ptype != STRUCT_PAGE)
 				WARNING("v14: global[%d] '%s' slot=%d page_type=%d (expected 2)",
-					i, ain->globals[i].name, slot, ptype);
+					i, display_game0(ain->globals[i].name), slot, ptype);
 		}
 	}
 
@@ -5816,8 +5818,8 @@ int vm_execute_ain(struct ain *program)
 					int mstruc = ain->structures[struc].members[m].type.struc;
 					if (deep_repaired < 50)
 						WARNING("v14: deep repair struct[%d].member[%d] '%s.%s' slot=%d (was page_type=%d) depth=%d",
-							struc, m, ain->structures[struc].name,
-							ain->structures[struc].members[m].name,
+							struc, m, display_game0(ain->structures[struc].name),
+							display_game1(ain->structures[struc].members[m].name),
 							mslot,
 							(heap_index_valid(mslot) && heap[mslot].type == VM_PAGE && heap[mslot].page)
 								? heap[mslot].page->type : -1,

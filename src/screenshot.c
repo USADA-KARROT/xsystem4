@@ -117,6 +117,17 @@ static char *default_filename(void)
 	// FIXME: Earlier games use "[gamedir]/Snapshot/", but later games save under
 	//        "Documents/AliceSoft/[gamename]/Screenshot/"
 	char name[PATH_MAX];
+	if (game_charset_is_gbk()) {
+		// Decode the GBK GameName first; gamedir_path would read its last
+		// byte and the '_' after it as one SJIS character.
+		char *game_name = game_to_utf8(config.game_name, 0);
+		snprintf(name, sizeof(name), "%s_%s.png", game_name, datetime);
+		free(game_name);
+		char *dir = path_join(config.game_dir, "Snapshot");
+		char *path = path_join(dir, name);
+		free(dir);
+		return path;
+	}
 	snprintf(name, sizeof(name), "Snapshot/%s_%s.png", config.game_name, datetime);
 	return gamedir_path(name);
 }

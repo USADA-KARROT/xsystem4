@@ -349,7 +349,7 @@ bool parts_flat_load(struct parts *parts, struct parts_flat *f, struct string *f
 			continue;
 		struct cg *cg = cg_load_buffer((uint8_t *)lib->cg.data, lib->cg.size);
 		if (!cg) {
-			WARNING("flat: failed to load CG for library '%s'", lib->name->text);
+			WARNING("flat: failed to load CG for library '%s'", display_game0(lib->name->text));
 			continue;
 		}
 		gfx_init_texture_with_cg(&f->textures[i], cg);

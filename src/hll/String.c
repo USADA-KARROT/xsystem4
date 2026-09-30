@@ -1450,7 +1450,7 @@ static bool string_regex_bool(struct string **self, struct string *regex, bool f
 	int r = string_regex(s, regex, full);
 	if (r < 0) {
 		WARNING("String.%s: unsupported or invalid regex \"%s\"",
-			full ? "Match" : "Search", regex ? regex->text : "");
+			full ? "Match" : "Search", regex ? display_game0(regex->text) : "");
 		return false;
 	}
 	return r;

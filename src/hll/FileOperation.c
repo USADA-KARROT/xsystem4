@@ -180,7 +180,7 @@ static bool get_file_list(struct string *folder_name, struct page **out, bool fo
 				goto loop_next;
 		}
 
-		char *sjis_name = utf2sjis(d_name, 0);
+		char *sjis_name = utf8_to_game(d_name, 0);
 		names = xrealloc_array(names, nr_names, nr_names+1, sizeof(struct string*));
 		names[nr_names++] = cstr_to_string(sjis_name);
 		free(sjis_name);

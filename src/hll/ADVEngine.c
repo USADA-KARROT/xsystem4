@@ -359,18 +359,18 @@ static int ADVEngine_Load(struct string *function_name)
 
 	int func_no = find_function_by_name(function_name->text);
 	if (func_no < 0) {
-		WARNING("ADVEngine.Load: function '%s' not found", function_name->text);
+		WARNING("ADVEngine.Load: function '%s' not found", display_game0(function_name->text));
 		return 0;
 	}
 
 	if (!adv_parse_function(func_no)) {
-		WARNING("ADVEngine.Load: failed to parse function '%s'", function_name->text);
+		WARNING("ADVEngine.Load: failed to parse function '%s'", display_game0(function_name->text));
 		adv_clear();
 		return 0;
 	}
 
 	NOTICE("ADVEngine.Load('%s'): %d steps parsed from func#%d",
-		function_name->text, adv_state.nr_steps, func_no);
+		display_game0(function_name->text), adv_state.nr_steps, func_no);
 	return 1;
 }
 

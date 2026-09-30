@@ -341,6 +341,14 @@ static struct string *SystemService_GetGameFolderPath(void)
 		return cstr_to_string(".");
 	// Return UTF-8 path directly — macOS filesystem uses UTF-8.
 	// Do NOT convert to SJIS: CJK chars in path may not exist in SJIS.
+	// GBK games get it in GB18030, which every UTF-8 path round-trips through
+	// (unix_path and TextFile decode it back).
+	if (game_charset_is_gbk()) {
+		char *gbk = utf8_to_game(config.game_dir, 0);
+		struct string *s = cstr_to_string(gbk);
+		free(gbk);
+		return s;
+	}
 	return cstr_to_string(config.game_dir);
 }
 

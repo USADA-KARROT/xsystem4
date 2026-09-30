@@ -65,6 +65,19 @@ const char *display_sjis2(const char *sjis);
 const char *display_utf0(const char *utf);
 const char *display_utf1(const char *utf);
 const char *display_utf2(const char *utf);
+// Raw game strings (see game_charset_is_gbk): UTF-8 in GBK mode, unchanged otherwise.
+const char *display_game0(const char *s);
+const char *display_game1(const char *s);
+const char *display_game2(const char *s);
+
+bool game_charset_is_gbk(void);
+char *game_to_utf8(const char *s, size_t len);
+char *utf8_to_game(const char *s, size_t len);
+int rename_noreplace(const char *from, const char *to);
+char *save_dir_for_game_charset(const char *home, const char *game_name,
+		const char *save_folder, const char *legacy_save_dir);
+struct string;
+void migrate_legacy_save_files(struct string **strings, int nr_strings);
 
 void indent_message(int indent, const char *fmt, ...);
 

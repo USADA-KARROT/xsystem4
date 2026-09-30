@@ -359,7 +359,7 @@ static void afa_init(enum asset_type type, char *file)
 
 static char *get_base_name(const char *ain_filename)
 {
-	char *path = sjis2utf(ain_filename, 0);
+	char *path = game_to_utf8(ain_filename, 0);
 	char *dot = strrchr(path, '.');
 	if (dot)
 		*dot = '\0';

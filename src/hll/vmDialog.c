@@ -20,14 +20,15 @@
 #include "system4/utfsjis.h"
 
 #include "hll.h"
+#include "xsystem4.h"
 
 HLL_QUIET_UNIMPLEMENTED( , void, vmDialog, Init, void *imainsystem);
 
 static int vmDialog_MsgBox(struct string *t_string, struct string *string, int type, possibly_unused int default_button)
 {
 	uint32_t flags = (type == 4) ? SDL_MESSAGEBOX_ERROR : 0;
-	char *title = sjis2utf(t_string->text, 0);
-	char *message = sjis2utf(string->text, 0);
+	char *title = game_to_utf8(t_string->text, 0);
+	char *message = game_to_utf8(string->text, 0);
 	SDL_ShowSimpleMessageBox(flags, title, message, NULL);
 	free(message);
 	free(title);
