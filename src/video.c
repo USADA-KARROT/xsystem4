@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <iconv.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -178,10 +179,40 @@ static int gl_initialize(void)
 	return 0;
 }
 
+/*
+ * Chinese releases keep GameName in AliceStart.ini in GBK ("多娜多娜繁中版" is
+ * B6 E0 C4 C8 ...), which sjis2utf turns into half-width katakana. Decode it
+ * as GB18030 only when ain_is_gb18030 is set and the String character rule is
+ * GBK (the strict check passed, or XSYS4_STRING_CHARSET=gbk forced it), so
+ * SJIS games keep the old path. Falling back to SJIS on a failed conversion
+ * only catches invalid GBK: most SJIS byte pairs are also valid GBK.
+ */
+static char *game_name_to_utf8(const char *name)
+{
+	if (ain_is_gb18030 && sys4_get_string_charset() == SYS4_CHARSET_GBK) {
+		iconv_t cd = iconv_open("UTF-8", "GB18030");
+		if (cd != (iconv_t)-1) {
+			size_t inleft = strlen(name);
+			size_t outleft = inleft * 4;
+			char *out = xmalloc(outleft + 1);
+			char *inp = (char *)name;
+			char *outp = out;
+			size_t r = iconv(cd, &inp, &inleft, &outp, &outleft);
+			iconv_close(cd);
+			if (r != (size_t)-1 && inleft == 0) {
+				*outp = '\0';
+				return out;
+			}
+			free(out);
+		}
+	}
+	return sjis2utf(name, 0);
+}
+
 static void set_window_title(void)
 {
 	char title[1024] = { [1023] = 0 };
-	char *game_name = sjis2utf(config.game_name, 0);
+	char *game_name = game_name_to_utf8(config.game_name);
 	snprintf(title, 1023, "%s - XSystem4", game_name);
 	free(game_name);
 

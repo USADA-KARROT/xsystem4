@@ -662,7 +662,7 @@ int main(int argc, char *argv[])
 	// character rule of the String library and CharRef/CharAssign also needs
 	// the strict check, because the legacy score fires on real SJIS tables too
 	// (see gb18030_detect_strings). XSYS4_STRING_CHARSET=sjis|gbk overrides
-	// the character rule only.
+	// the character rule, and with it how video.c decodes the window title.
 	if (ain->nr_strings > 0) {
 		struct gb18030_scores sc;
 		bool strict = gb18030_detect_strings(ain->strings, ain->nr_strings, &sc);
