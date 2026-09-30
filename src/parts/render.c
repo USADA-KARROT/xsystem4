@@ -133,6 +133,11 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
 	if (clipper) {
 		struct parts_common *c_common = &clipper->states[clipper->state].common;
+		// A clipper with no area (e.g. SceneLogo's badge while it is scaled
+		// to 0) masks everything; its inverse transform would be singular.
+		if (c_common->w <= 0 || c_common->h <= 0 || !c_common->texture.handle
+				|| clipper->global.scale.x == 0.0f || clipper->global.scale.y == 0.0f)
+			return;
 
 		// Calculate the inverse of the clipper's world matrix.
 		mat4 clip_mw;

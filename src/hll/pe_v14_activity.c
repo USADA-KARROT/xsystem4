@@ -121,7 +121,8 @@ static const char SJIS_DRAW_FILTER[]  = "\x95\x60\x89\xe6\x83\x74\x83\x42\x83\x8
 static const char SJIS_ADD_COLOR[]    = "\x89\xc1\x8e\x5a\x90\x46"; /* 加算色 (add color) */
 static const char SJIS_MUL_COLOR[]    = "\x8f\xe6\x8e\x5a\x90\x46"; /* 乗算色 (multiply color) */
 /* static const char SJIS_CG_PARTS[]    = "\x82\x62\x82\x66\x83\x70\x81\x5b\x83\x63"; */ /* ＣＧパーツ — unused */
-/* static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; */ /* アルファクリッパー — unused */
+static const char SJIS_ALPHA_CLIPPER[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4e\x83\x8a\x83\x62\x83\x70\x81\x5b"; /* アルファクリッパー */
+static const char GBK_ALPHA_CLIPPER[]  = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1\xa5\xaf\xa5\xea\xa5\xc3\xa5\xd1\xa9\x60"; /* アルファクリッパー (GBK) */
 /* static const char SJIS_NORMAL_STATE[]= "\x92\xca\x8f\xed\x8f\xf3\x91\xd4"; */ /* 通常状態 — unused, kept for reference */
 
 /* GBK property names (legacy fallback). */
@@ -723,6 +724,28 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 /* Apply pactex properties (position, show, alpha, CG) to a parts entry.
  * Extracts standard properties from leaf children, and CG names from
  * the type-specific info branch (種類別情報). */
+/* Alpha clippers seen while loading one activity, resolved by name at the end
+ * of pactex_load. */
+#define PACTEX_MAX_CLIPPERS 64
+static struct { int parts_no; char name[256]; } pactex_clippers[PACTEX_MAX_CLIPPERS];
+static int pactex_nr_clippers;
+
+static void pactex_resolve_clippers(struct activity *act)
+{
+	for (int i = 0; i < pactex_nr_clippers; i++) {
+		int no = -1;
+		for (int j = 0; j < act->nr_parts && no < 0; j++) {
+			if (act->parts[j].name[0] && !strcmp(act->parts[j].name, pactex_clippers[i].name))
+				no = act->parts[j].number;
+		}
+		if (no > 0)
+			PE_SetPartsAlphaClipperPartsNumber(pactex_clippers[i].parts_no, no);
+		else
+			WARNING("pactex: alpha clipper '%s' not found", display_game0(pactex_clippers[i].name));
+	}
+	pactex_nr_clippers = 0;
+}
+
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
 	pactex_apply_pixel_decide(node, parts_no);
@@ -760,7 +783,19 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	if (alpha < 0) alpha = pactex_get_int(node, GBK_ALPHA, 255);
 	PE_SetAlpha(parts_no, alpha);
 
-	/* Alpha clipper (not yet implemented) — ignored */
+	/* アルファクリッパー names another parts of the same activity whose alpha
+	 * masks this one (SceneLogo's gloss panels use the badge and the
+	 * ALICESOFT text, so the gloss shows only inside the logo and not at all
+	 * while the badge is scaled to 0). The name is resolved once the whole
+	 * activity exists, at the end of pactex_load. */
+	const char *clipper = pactex_get_string(node, SJIS_ALPHA_CLIPPER);
+	if (!clipper) clipper = pactex_get_string(node, GBK_ALPHA_CLIPPER);
+	if (clipper && clipper[0] && pactex_nr_clippers < PACTEX_MAX_CLIPPERS) {
+		pactex_clippers[pactex_nr_clippers].parts_no = parts_no;
+		snprintf(pactex_clippers[pactex_nr_clippers].name,
+			sizeof(pactex_clippers[0].name), "%s", clipper);
+		pactex_nr_clippers++;
+	}
 
 	/* Extract origin mode: 原点座標モード = int */
 	int origin_mode = pactex_get_int(node, SJIS_ORIGIN_MODE, -1);
@@ -1092,6 +1127,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		return false;
 	}
 
+	pactex_nr_clippers = 0;
 	int root_no = alloc_activity_parts_no();
 	struct parts *root = parts_get(root_no);
 
@@ -1152,6 +1188,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	/* Apply properties to root component too */
 	pactex_apply_properties(root_branch, root_no);
 
+	pactex_resolve_clippers(act);
 	return true;
 }
 

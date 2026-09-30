@@ -1459,14 +1459,25 @@ static int PE_stub_GetPartsMovieCurrentTime(int number, possibly_unused int stat
  * can shadow an upstream implementation.
  * ====================================================================== */
 
-/* Component color/clip accessors — stubs with fork-verified defaults
- * (add color reads back 0, mul color reads back 255 = white). */
-static int PE_v14_GetComponentAddColorR(int n) { (void)n; return 0; }
-static int PE_v14_GetComponentAddColorG(int n) { (void)n; return 0; }
-static int PE_v14_GetComponentAddColorB(int n) { (void)n; return 0; }
-static int PE_v14_GetComponentMulColorR(int n) { (void)n; return 255; }
-static int PE_v14_GetComponentMulColorG(int n) { (void)n; return 255; }
-static int PE_v14_GetComponentMulColorB(int n) { (void)n; return 255; }
+/* Component color accessors read the parts' own colours. Motion sets one
+ * channel at a time with SetComponentMulColor(n, r, g, b), reading the other
+ * two back first; with constant 255/0 stubs every channel but the last was
+ * reset, and the warning screen's fade to black (MulColorR/G/B -> 0) turned
+ * the white text yellow. Unknown parts read the defaults. */
+static int pe_v14_color(int n, bool mul, int channel)
+{
+	struct parts *parts = parts_try_get(n);
+	if (!parts)
+		return mul ? 255 : 0;
+	SDL_Color c = mul ? parts->local.multiply_color : parts->local.add_color;
+	return channel == 0 ? c.r : channel == 1 ? c.g : c.b;
+}
+static int PE_v14_GetComponentAddColorR(int n) { return pe_v14_color(n, false, 0); }
+static int PE_v14_GetComponentAddColorG(int n) { return pe_v14_color(n, false, 1); }
+static int PE_v14_GetComponentAddColorB(int n) { return pe_v14_color(n, false, 2); }
+static int PE_v14_GetComponentMulColorR(int n) { return pe_v14_color(n, true, 0); }
+static int PE_v14_GetComponentMulColorG(int n) { return pe_v14_color(n, true, 1); }
+static int PE_v14_GetComponentMulColorB(int n) { return pe_v14_color(n, true, 2); }
 static void PE_v14_SetComponentEnableClipArea(int n, bool enable) { (void)n; (void)enable; }
 static void PE_v14_SetComponentClipArea(int n, int x, int y, int w, int h)
 { (void)n; (void)x; (void)y; (void)w; (void)h; }
