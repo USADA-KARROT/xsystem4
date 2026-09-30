@@ -6,7 +6,7 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 54 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 56 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
@@ -117,6 +117,7 @@
      - **`點擊許可` 沒有讀**：原版同一層也把它讀到 +0x1a4。pactex 中為 1 的約 50 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange 等）目前要等 AIN 設 Clickable，否則只擋游標（全畫面點擊）；讀入的影響要另外評估。
      - **懸停訊息**：v14 的 `parts_msg_push` 直接返回，MouseEnter／Leave／On 從未送進 AIN；原版懸停人材卡時卡片變黃（Wine `deep/d024`），xsystem4 不變。
      - 擋游標的元件收到按下時原版送出什麼仍未追到（沿用「全畫面點擊」的推定）；判斷式的滑動條件沒有實作。
+   - **已完成：開場 LOGO 的光澤變成黃色光條**（2026-09-30，研究見 `research/gui-visual/logo-gloss.md`）：中文版 pactex 的 `描畫フィルタ`／`加算色` 是 GBK 鍵，loader 只認 SJIS；濾鏡也不傳給子元件。loader 加 GBK 鍵，CG 路徑沿用最近祖先的濾鏡。LOGO 與 Wine 原版逐幀一致（光澤只在深色部分、白底不留光條）；標題背景三層的濾鏡同時讀入，配色與原版一致。新模式 `logo-gloss`。未處理：原版光澤邊緣的柔和漸層、回合結束／戰鬥背景／`加算色` 6 個元件未逐畫面比對。
    - 其餘下一步依序：訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
    - **已完成：流暢度**（`44964f9`，研究見 `research/gui-visual/pacing.md`）。原因三個：沒有限速（邏輯迴圈 460–480 Hz、每幀最多呈現三次）、`SystemService.UpdateView` 用自己的時鐘再推進一次元件時間（1.67–1.81 倍）、測試模式截圖在主執行緒壓 PNG。修正照原版：`0x4676f0` 的限速算式（毫秒計時、16.666666 ms、保留截斷的小數）與 `0x4c5450` 的 Sleep(50)／限速／Sleep(1)／呈現，Sleep 做成「到期後的第一個 1 ms 刻度醒來」（原版 `timeBeginPeriod(1)`，macOS 的 sleep 常晚醒數 ms），`OverFrameRateSleep`、`SleepByInactiveWindow`、略過已讀時十幀畫一幀都跟遊戲設定；元件時間只在 `UpdateComponent` 推進；`ChipmunkSpriteEngine.Update`／`TRANS_Update` 畫、`UpdateView` 呈現，`system.Peek` 不再呈現；截圖讀回後在背景執行緒寫檔；訊息視窗文字在繪製時才排版。新模式 `frame-pacing` 在 `f489d23` 上 5/5 失敗、修正後全過；51 模式兩種組態通過；同條件前後各兩輪 150 秒 GUI：一般遊玩 321–324 次／秒（浮動）→ 58.7，AIN 時間倍率 0.74→0.97，元件時間倍率 1.67–1.70→0.97；測試模式 >50 ms 間隔 40–42→2–3、最長 241–253→72–75 ms；MSG 88、assertion 0、堆疊溢位 0，約 80 秒進入據點並顯示底列。後續：
      - **fps 是 58.7 不是 60**：原版算式在 1 ms 刻度的 Sleep 下每幀固定 17 個刻度（保留的小數是加到下一幀，精確 Sleep 反而是 16 ms）。原版在 Windows 上的實際 fps 沒有量過；若要剛好 60，只能偏離原版算式（例如期限式排程），需要使用者決定。
@@ -133,12 +134,17 @@
    - 名牌殘影：已由 `9e30c0f` 解決（名牌 root 被提早釋放，`Hide` 落空）。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000、字串寫 `Time:150` 的差異，推定就是兩槽 `Array.First(pred)` 的堆疊錯位：`Motion::PartsParamCollection@0` 找不到 TimeParam，Time 停在預設 1000。`fb28975` 修正後 fixture BR4 以真 bytecode 得到 150，GUI 追蹤中有 150 ms 的 motion（名牌淡出本身的時間與原版未逐格對照）。
    - 舊 GB18030 偵測會誤判 SJIS 遊戲（`ain_is_gb18030` 仍依舊判準），修正會改變 SJIS 遊戲行為，需使用者決定。
    - `utf2sjis`／`sjis2utf` 轉碼路徑、`Int.ToCharacter`、ReplaceRegex（CN 3 處，仍是 stub）。
-   - **已完成：視窗標題亂碼**（2026-09-30，`src/video.c`）：`AliceStart.ini` 的 GameName 是 GBK（`B6 E0 C4 C8 …`），`sjis2utf` 解成「ｶ狷ﾈｶ狷ﾈｷｱﾖﾐｰ?」。改為 `ain_is_gb18030` 且字元規則為 GBK 時以 GB18030 解碼，標題為「多娜多娜繁中版 - XSystem4」；`XSYS4_STRING_CHARSET=sjis` 時照舊。54 模式兩種組態通過、150 秒 GUI MSG 88，兩位審查者 ship。同類問題的掃描結果（都未修）：
-     - 存檔根目錄：`get_save_path` 仍用 `sjis2utf(GameName)`，目錄名是上面的亂碼。它在 AIN 偵測之前計算，改名會遺棄既有存檔，要搬遷或回退讀舊目錄，需使用者決定。
-     - Option+S 截圖：`default_filename` 把 GBK 名稱放進路徑再經 `gamedir_path` 的 `sjis2utf`，檔名亂碼且 `_` 被吃掉，成功訊息框也顯示亂碼。修正時先轉 UTF-8 再用 `path_join`，不要再經 `gamedir_path`。
-     - `FileOperation.GetFileList`／`GetFolderList` 以 `utf2sjis` 回傳檔名，遊戲以 GBK 解讀；自訂人材（`SaveData/User/*.txt`）的中文檔名來回轉換後對不上（推論，未實機驗證）。`GetSaveFolderName` 固定回傳相對路徑 `SaveData`，以 CWD 為基準。
-     - `unix_path`／`savedir_path` 對 GBK 存檔名做 `sjis2utf`（dump 檔名亂碼、不是一對一，但讀寫一致，改了會讀不到舊檔）；`system.MsgBox`／`Error` 只寫 log 且是原始 GBK；`display_sjis*`（`--echo-message`、VM_ERROR 的函式名）是亂碼。
-   - 推送後，本機另一個 libsys4 worktree 的 `cn-on-upstream` 分支要 fast-forward 到 `247f544`。
+   - **已完成：視窗標題亂碼**（2026-09-30，`8502bf5`）：`AliceStart.ini` 的 GameName 是 GBK（`B6 E0 C4 C8 …`），`sjis2utf` 解成「ｶ狷ﾈｶ狷ﾈｷｱﾖﾐｰ?」；改以 GB18030 解碼，標題為「多娜多娜繁中版 - XSystem4」。
+   - **已完成：其餘亂碼**（2026-09-30，研究見 `$PORT/reports/mojibake-20260930/`（repo 外）的三份調查）。`src/util.c` 新增 `game_charset_is_gbk()`（`ain_is_gb18030` 且字元規則為 GBK，與字元規則同一個條件）、`game_to_utf8`／`utf8_to_game`（GBK 模式用 GB18030，轉不過或 SJIS 遊戲照舊 `sjis2utf`／`utf2sjis`）、`display_game0/1`（原本直接印原始位元組的地方：GBK 模式轉碼，SJIS 不變）。SJIS 遊戲逐位元組不變，AIN 偵測之前也一律走 SJIS。
+     - 存檔根目錄：`config_init` 在 AIN 偵測前算出亂碼名；偵測後（`mkdir_p` 之前）由 `save_dir_for_game_charset` 改為 `<home>/多娜多娜繁中版/SaveData`（與原版 `Documents/AliceSoft/多娜多娜繁中版` 同名）。只有舊目錄時整個改名（`renamex_np` RENAME_EXCL，不覆蓋）；兩者都在時用新的、舊的不動並警告；改名失敗沿用舊目錄；`--save-folder` 與 `.xsys4rc` 的 `save-folder` 不動。
+     - 檔名：`unix_path` 在 GBK 模式先解碼再換分隔字元（GBK 尾位元組可以是 0x5C，例如「運」`DF 5C`）；`savedir_path` 遇到只有舊（`sjis2utf`）名的檔案時改名；啟動時 `migrate_legacy_save_files` 把存檔資料夾裡檔名等於某個 AIN 字串舊名的檔案改名（`debug::detail::UpdateDumpData` 的兩個傾印檔）。`sjis2utf` 有損，所以都是「重算舊名、看是否存在」，不反推。
+     - `FileOperation.GetFileList`／`GetFolderList` 回傳 GB18030 名稱；`TextFile` 在 GBK 模式經 `unix_path` 開檔；`SystemService.GetGameFolderPath` 回傳 GB18030；Option+S 截圖檔名先轉 UTF-8 再 `path_join`；剪貼簿、`InputString`、CALLSYS 的 MsgBox／Error／GetSaveFolderName、除錯器、`vmDialog`、`Gpx2Plus`、hacks 的名稱比對一併改用同一組函式（CN 版多數跑不到，SJIS 不變）。
+     - 記錄檔：`display_sjis*`（`--echo-message` 的 MSG、VM_ERROR、stack trace、斷言）改用 `game_to_utf8`；`system.MsgBox`／`Error`、SerializeStruct 系列、`savedata.c`／`MainEXFile` 誤用 `display_utf0` 之處、vm.c 的 v14 診斷（C 堆疊將滿那一則除外）改用 `display_game0/1`。
+     - 搬遷規則（`move_legacy`，根目錄、SaveFolder 子資料夾、單一檔案共用）：只有舊的時改名、不覆蓋；改名失敗後重新檢查兩邊（另一個行程可能已搬走，`renamex_np` 回 ENOENT），不會回傳已不存在的舊路徑；兩邊都在時用新的並警告；Windows 跳過（窄字元 API 對不上 `mkdir_p` 建的資料夾）。
+     - 審查（兩位，fix-first 高 1）：兩個實例同時啟動時第二個會沿用已被搬走的舊路徑（已修，同上）；「兩邊都在用新的」是刻意取捨（對抗驗證駁回中項）；訊號處理函式裡改回印原始名稱；`MainEXFile.AddEX` 的 SJIS 記錄照舊印完整路徑；其餘記錄（SerializeStruct 的 why、page／heap 診斷、pactex、ADVEngine、SealEngine、String regex、savedata 型別名）補上 `display_game0/1/2`。Windows 上 SJIS 遊戲的 `savedata.c`／`MainEXFile` 記錄改成原始 SJIS（原本誤用 `display_utf0`）。
+     - 新模式 `mojibake`（MJ1–MJ5）：轉碼三種組態、根目錄四種情境、舊檔名改名、啟動改名（含近似名稱與含路徑分隔字元的反例）、GetFileList＋TextFile；在 `36cb68b` 上失敗、修正後全過。
+     - 仍未處理：自訂人材（`SaveData/User/*.txt`）本身不能用，不是亂碼問題：`system.GetSaveFolderName` 回傳相對的 `SaveData`（原版推定為存檔資料夾的絕對路徑），CGManager 不認 `<save>`，`parts.c` 的 `savedir_path("/User/…")` 被當絕對路徑。`<memory>` 開頭的傾印應是記憶體存檔，xsystem4 寫成實體檔。`HTTPDownloader.SJISToUTF8`／`UTF8ToSJIS` 未實作。`display_utf*`（Windows 路徑）未動。
+
 7. 其他延後項目：
    - `Array.First` 的 predicate 版逐實體 slot 走訪：兩槽元素已由 `fb28975` 改為逐元素；單槽且 predicate 形狀特殊的路徑仍是舊迴圈。
    - 兩槽介面陣列的 `Insert`：已由 `fb28975` 修正。
