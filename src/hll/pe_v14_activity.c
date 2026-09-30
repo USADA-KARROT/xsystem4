@@ -232,6 +232,21 @@ static void pactex_apply_pixel_decide(struct ex_tree *node, int parts_no)
 	PE_SetPartsPixelDecide(parts_no, enabled != 0);
 }
 
+/* オン指針透過 (on-cursor pass-through), a field of the component like the
+ * pixel decision above: the native parser (0x553650, called with the block
+ * at parts +0x84) reads it at 0x5547f4 as "== 1" into block +0x121, i.e.
+ * parts +0x1a5, the flag SetPassCursor (0x58f700) writes and the input
+ * target predicate (0x546e20) reads. A decoration marked 1 (407 components,
+ * e.g. the title characters and every text and number of WorkerParamView)
+ * blocks neither the hover nor the click of the parts behind it. Only the CN
+ * spelling is known; a missing key is 0, as the parser's default. */
+static const char GBK_CN_PASS_CURSOR[] = "\xa5\xaa\xa5\xf3\xd6\xb8\xe1\x98\xcd\xb8\xdf\x5e"; /* オン指針透過 */
+
+static void pactex_apply_pass_cursor(struct ex_tree *node, int parts_no)
+{
+	PE_SetPassCursor(parts_no, pactex_get_int(node, GBK_CN_PASS_CURSOR, 0) == 1);
+}
+
 /* Extract a list leaf property by exact name match. Returns NULL if not found. */
 static struct ex_list *pactex_get_list(struct ex_tree *node, const char *name)
 {
@@ -710,6 +725,7 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
 	pactex_apply_pixel_decide(node, parts_no);
+	pactex_apply_pass_cursor(node, parts_no);
 
 	/* Extract position: 座標 = list[3] = (x, y, z) */
 	struct ex_list *pos = pactex_get_list(node, SJIS_POSITION);

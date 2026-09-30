@@ -605,7 +605,16 @@ static int destructor_depth = 0;
 // C++); this only guards against runaway recursion.
 #define MAX_DESTRUCTOR_DEPTH 64
 
-// Blacklist for struct types whose destructors loop/timeout
+// Struct types whose destructors are never run. Only known-bad ones are
+// listed; a destructor is not blacklisted for being long. (The v14 fork used
+// to blacklist any destructor that took more than 400K instructions, as a
+// "likely timed out" guard for a vm_call instruction limit that is never set.
+// Since a destructor's frees are nested (heap_set_defer_frees), the count
+// included every destructor it set off: the first long scene teardown
+// blacklisted activity::detail::CActivityWrap@1 for good, and later scenes
+// kept their activities and user components, e.g. SceneHome's Footer stayed
+// in CUserComponentManager and its Observer lambda updated released parts.
+// The original runs every destructor.)
 static bool *dtor_blacklist = NULL;
 static bool dtor_blacklist_inited = false;
 
@@ -652,8 +661,6 @@ void delete_struct(int no, int slot)
 			return;
 		}
 		destructor_depth++;
-		extern unsigned long long vm_call_get_insn_count(void);
-		unsigned long long before = vm_call_get_insn_count();
 		// v14: what the destructor lets go of is destroyed before its
 		// next instruction, as in the original, not after this object:
 		// CActivityWrap@1 removes the user components and then
@@ -663,14 +670,7 @@ void delete_struct(int no, int slot)
 		vm_call(s->destructor, slot);
 		if (ain->version >= 14)
 			heap_set_defer_frees(deferred);
-		unsigned long long after = vm_call_get_insn_count();
 		destructor_depth--;
-		// If destructor consumed >400K instructions, it likely timed out — blacklist it
-		if (after - before > 400000) {
-			dtor_blacklist[no] = true;
-			WARNING("delete_struct: blacklisting destructor '%s' (struct #%d) — took %llu insns",
-				ain->functions[s->destructor].name, no, after - before);
-		}
 	}
 }
 

@@ -165,15 +165,48 @@ static bool parts_takes_input(struct parts *parts)
 	return parts->global.show && parts->global.alpha != 0;
 }
 
+/*
+ * v14: the one parts under the cursor that takes the mouse, for the hover
+ * and the click alike. The original's input update (0x546890) finds it with
+ * 0x545e10 and the predicate 0x546e20 and keeps it both as the hovered
+ * element (on a change the old one and the new one get the events 0x80f5a4
+ * and 0x80f580, presumably MouseLeave and MouseEnter) and as the pressed
+ * one: walking the list from its end (presumably front to back), the first
+ * parts that is clickable (+0x1a4) or does not pass the cursor (+0x1a5,
+ * オン指針透過 0), is shown and not fully transparent (+0x2f0 and +0x2ec,
+ * presumably) and whose area contains the point (vtable +0x4c). A parts
+ * that passes the cursor and is not clickable is skipped, so the pactex
+ * decorations marked オン指針透過 1 (the title characters, the worker
+ * card's texts and numbers, the portraits on the choice cards) block
+ * neither the hover nor the click of the button behind them. (0x546e20 also
+ * takes an element whose +0x1dc is not negative, presumably one in the
+ * middle of a swipe; swipes are not implemented.) The area is always the
+ * default state's: at a press the parts has already switched to its down
+ * state, and a ＣＧ判定部件 detector (FooterButton) defines its area only in
+ * the normal state (on-cursor and down are CG parts without a CG).
+ */
+static struct parts *v14_input_target(Point pos)
+{
+	struct parts *parts;
+	PARTS_LIST_FOREACH_REVERSE(parts) {
+		if (!parts->clickable && parts->pass_cursor)
+			continue;
+		if (!parts_takes_input(parts))
+			continue;
+		if (parts_hittest(parts, PARTS_STATE_DEFAULT, pos))
+			return parts;
+	}
+	return NULL;
+}
+
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
-		int passed_time, bool *hover_consumed, bool *click_consumed)
+		int passed_time, struct parts *v14_target, bool *hover_consumed,
+		bool *click_consumed)
 {
 	// Always use DEFAULT state hitbox regardless of the current display state.
-	// v14: a hidden or fully transparent parts takes no input, as in the
-	// click dispatch below.
-	bool is_hovered = (ain->version < 14 || parts_takes_input(parts))
-		&& parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos)
-		&& !*hover_consumed;
+	// v14: only the input target is hovered (see v14_input_target).
+	bool is_hovered = ain->version >= 14 ? parts == v14_target
+		: parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos) && !*hover_consumed;
 
 	bool was_hovered = parts->is_hovered;
 	parts->is_hovered = is_hovered;
@@ -274,10 +307,11 @@ void PE_UpdateInputState(int passed_time)
 	bool hover_consumed = false;
 	bool click_consumed = false;
 	struct parts *parts;
+	struct parts *v14_target = ain->version >= 14 ? v14_input_target(cur_pos) : NULL;
 	// Iterate front-to-back (highest z first) for proper cursor consumption
 	PARTS_LIST_FOREACH_REVERSE(parts) {
 		parts_update_mouse(parts, cur_pos, cur_clicking, passed_time,
-				&hover_consumed, &click_consumed);
+				v14_target, &hover_consumed, &click_consumed);
 	}
 
 	// Drag movement processing
@@ -352,11 +386,6 @@ void PE_UpdateInputState(int passed_time)
 	// click message (parts_no=0) which drives scene navigation
 	// (WholeMouseLClickEvent), plus the g_EndPartsBusyLoop global.
 	//
-	// The hit test uses the default state's area, as the hover above does:
-	// the press has already switched the parts to its down state, and a
-	// ＣＧ判定部件 detector (FooterButton) defines its area only in the
-	// normal state (on-cursor and down are CG parts without a CG).
-	//
 	// A disabled button (SetButtonEnable false) takes the click and sends
 	// nothing, neither its MouseClick nor the whole-screen click: the
 	// original does not react to its greyed buttons (成员/商店 on the base
@@ -366,17 +395,17 @@ void PE_UpdateInputState(int passed_time)
 	// per-frame sound reset (0x5285b0), a CG size lookup (0x529490), save
 	// (0x526ab0) and the HLL getter/setter (0x590b70/0x590ba0).
 	//
-	// The target is chosen as the hover above chooses the parts under the
-	// cursor: front to back, the first shown parts hit that is clickable or
-	// does not pass the cursor (オン指針透過 0). A clickable one gets the
-	// MouseClick; one that only blocks the cursor (a CG image, a panel)
-	// keeps the click from the parts behind it and the click becomes the
-	// whole-screen click. System parts (1000001000 and up) are not skipped:
-	// InputDisabler's and the dialogs' full-screen blockers are clickable
-	// rects that must stop a click reaching the buttons behind them. (They
-	// used to be skipped because a leaked InputDisabler, kept alive by a
-	// delegate, covered the screen for good; delegates no longer own their
-	// objects, see delegate_page_register.)
+	// The target is the hover's (v14_input_target). A clickable one gets the
+	// MouseClick; one that only blocks the cursor (a CG image, a panel,
+	// オン指針透過 0) keeps the click from the parts behind it and the click
+	// becomes the whole-screen click (presumed: what the original sends for
+	// a pressed element that is not clickable was not traced). System parts
+	// (1000001000 and up) are not skipped: InputDisabler's and the dialogs'
+	// full-screen blockers are clickable rects that must stop a click
+	// reaching the buttons behind them. (They used to be skipped because a
+	// leaked InputDisabler, kept alive by a delegate, covered the screen for
+	// good; delegates no longer own their objects, see
+	// delegate_page_register.)
 	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
 		struct parts *click_target = NULL;
 		if (getenv("XSYS4_STAGE2_TRACE")) {
@@ -393,21 +422,13 @@ void PE_UpdateInputState(int passed_time)
 					parts->global.scale.x, parts->global.scale.y, parts->parent ? parts->parent->no : 0);
 			}
 		}
-		PARTS_LIST_FOREACH_REVERSE(parts) {
-			if (!parts_takes_input(parts))
-				continue;
-			if (!parts->clickable && parts->pass_cursor)
-				continue;
-			if (!parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos))
-				continue;
-			if (parts->clickable)
-				click_target = parts;
-			break;
-		}
+		if (v14_target && v14_target->clickable)
+			click_target = v14_target;
 		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
 		if (getenv("XSYS4_STAGE2_TRACE"))
-			NOTICE("S2 click target=%d%s", click_target ? click_target->no : 0,
-				click_target && click_target->button_disabled ? " (disabled)" : "");
+			NOTICE("S2 click target=%d%s blocked_by=%d", click_target ? click_target->no : 0,
+				click_target && click_target->button_disabled ? " (disabled)" : "",
+				v14_target && !click_target ? v14_target->no : 0);
 		if (click_target && click_target->button_disabled) {
 			// swallowed (see above)
 		} else if (click_target) {
