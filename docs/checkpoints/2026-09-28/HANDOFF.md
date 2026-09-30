@@ -2,21 +2,29 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
+## 2026-09-30 ClipArea 完成後接續
+
+- 最新修正 `190c1c8` 已推送，libsys4 維持 `247f544`。推送後本機、ls-remote、GitHub branches API 三方一致。
+- **任務 1 ClipArea 已完成**：開場與標題擦入、七個 HLL、pactex 載入、v14 子樹矩形裁切與 XPE v4 存讀。原版證據推翻最初的最近祖先／box-origin 建議，實作為錨點、本地倍率、螢幕軸對齊整數矩形與祖先交集。詳見 [研究與驗證](research/gui-visual/clip-area.md)。
+- 57 模式 default／GBK 均 PASS；before-check 基準 `4168ff8` 新模式 4/4 失敗；正式 GUI 150.267 秒 MSG 88、assertion 0、overflow 0。獨立審查已通過。
+- **下一組先做任務 2：子畫面關閉後輸入不再派送**（系統選單、成就／讀取返回標題）。再做任務 3 春銷 Start 的 GetHGauge 斷言，之後訊息視窗系統 UI。
+- 剩餘 ClipArea 限制：ComboBox 內部子元件清除繼承裁切、額外 pivot／3D／非標準畫面比例未驗證；負尺寸繪製視為空。原版標題粉金閃光仍未相同。不要把方向與逐列擦入通過解讀為全部影格逐像素一致。
+
 ## 現在的位置
 
-- 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`，推送前只存在本機）。
+- 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 56 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 57 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
-- delegate 呼叫的參數複製修正（`2005274`，本機 commit，尚未推送）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
-- 翻轉旗標作用在整棵元件樹（`0ab8476`，本機 commit，尚未推送；側審查 D5–D7）：沿父元件鏈 XOR、以錨點為軸鏡像方框與子元件位置（原版 `0x535260` → `0x4e6d80`，見 `research/gui-visual/reverse-inherit.md`）。
+- delegate 呼叫的參數複製修正（`2005274`，已在遠端）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。
+- 翻轉旗標作用在整棵元件樹（`0ab8476`，已在遠端；側審查 D5–D7）：沿父元件鏈 XOR、以錨點為軸鏡像方框與子元件位置（原版 `0x535260` → `0x4e6d80`，見 `research/gui-visual/reverse-inherit.md`）。
 - String 字元規則已改照原版的 GBK 規則（`6400e3c`，第 5 項）。
-- 據點畫面缺件與 SetButtonEnable（`6d39915`，本機 commit，尚未推送；第 4 項）：父元件立即掛上、pactex 依原版 `部件タイプ` 表設型別等九項（見 `research/gui-visual/base-ui.md`）。底列與「下一步」出現，按下後進入階段選擇；階段選擇之後因教學圖層沒有釋放而停在 `PE_AddController`（根因是場景物件不釋放，已由 `6582e38` 修正）。獨立審查 fix-first，審查項目由 `fb28975` 修正（見下一條）。
-- 流暢度（`44964f9`，本機 commit，尚未推送；第 4 項）：照原版 `0x4676f0`／`0x4c5450` 限速並每幀呈現一次，元件時間只推進一次，截圖改在背景執行緒寫檔，訊息視窗文字在繪製時才排版（見 `research/gui-visual/pacing.md`）。一般遊玩固定 58.7 fps，AIN 時間倍率 0.74→0.97。獨立審查 ship（低：結束時沒有等待截圖寫完，`fb28975` 修正）。
-- 據點審查的修正（`fb28975`，本機 commit，尚未推送；第 4 項）：停用按鈕不送點擊、偵測元件的點擊判定改用預設狀態、兩槽 Array 元素（`At`／`First`／`Last` 推兩槽，`First(pred)`／`EraseAll`／`Concat`／`Reverse`／`Insert` 以元素為單位）、pactex 的 矩形部件／構築部件型別、結束時等待截圖（見 `research/gui-visual/base-ui.md` §10）。兩槽 `First(pred)` 修正後 `Motion::PartsParamCollection@0` 才找得到 TimeParam，所有 motion 不再一律 1000 ms，開場到據點約提早 11 秒。52 模式兩種組態通過。第二輪獨立審查 fix-first，審查項目由 `6582e38` 修正（見下一條）。
-- 第二輪審查的修正（`6582e38`，本機 commit，尚未推送；第 4 項）：v14 delegate 照原版不持有目標物件（`0x652210`／`0x681f70`），場景物件終於會釋放，按下新遊戲後標題按鈕隨圖層消失、教學關閉後據點背景出現、鑑賞模式返回不再 VM_ERROR、階段選擇可以進入春銷；連帶照原版補上解構子內的立即解構、`RemoveController`／`ReleaseActivity` 回傳 delegate index、空的懸停狀態，並刪除錯讀 `<vtable>` 的 CParts 釋放特例；`A_REF` 對陣列照原版複製（數字、字串、通用元素陣列），標題構圖不再被 `GetReverse` 就地反轉；點擊派送與懸停規則一致（見 `research/gui-visual/base-ui.md` §11）。53 模式兩種組態通過。第三輪獨立審查 fix-first，審查項目由 `80db27d` 修正（見下一條）。
-- 第三輪審查的修正（`80db27d`，本機 commit，尚未推送；第 4 項）：v14 pactex loader 照原版讀 `オン指針透過`（`0x5547f4` → 元件 +0x1a5），懸停與點擊共用原版的輸入目標（`0x546890`／`0x545e10`／`0x546e20`：可點擊或不穿透游標的第一個命中元件，懸停只有一個目標），標題角色、人材卡的文字、環節卡的角色小圖不再擋住後方按鈕；刪除 v14 fork 依指令數把解構子列入黑名單的邏輯（巢狀解構讓 `CActivityWrap@1` 在第一次長拆除後被永久略過，這也是人材 → 返回 → 下一步後 `Executer.jaf:55` 的根因）。新模式 `third-review` 在 `7cb6ba3` 上 5/5 失敗、修正後全過；54 模式兩種組態通過（見 `research/gui-visual/base-ui.md` §12）。尚未經獨立審查。
+- 據點畫面缺件與 SetButtonEnable（`6d39915`，已在遠端；第 4 項）：父元件立即掛上、pactex 依原版 `部件タイプ` 表設型別等九項（見 `research/gui-visual/base-ui.md`）。底列與「下一步」出現，按下後進入階段選擇；階段選擇之後因教學圖層沒有釋放而停在 `PE_AddController`（根因是場景物件不釋放，已由 `6582e38` 修正）。獨立審查 fix-first，審查項目由 `fb28975` 修正（見下一條）。
+- 流暢度（`44964f9`，已在遠端；第 4 項）：照原版 `0x4676f0`／`0x4c5450` 限速並每幀呈現一次，元件時間只推進一次，截圖改在背景執行緒寫檔，訊息視窗文字在繪製時才排版（見 `research/gui-visual/pacing.md`）。一般遊玩固定 58.7 fps，AIN 時間倍率 0.74→0.97。獨立審查 ship（低：結束時沒有等待截圖寫完，`fb28975` 修正）。
+- 據點審查的修正（`fb28975`，已在遠端；第 4 項）：停用按鈕不送點擊、偵測元件的點擊判定改用預設狀態、兩槽 Array 元素（`At`／`First`／`Last` 推兩槽，`First(pred)`／`EraseAll`／`Concat`／`Reverse`／`Insert` 以元素為單位）、pactex 的 矩形部件／構築部件型別、結束時等待截圖（見 `research/gui-visual/base-ui.md` §10）。兩槽 `First(pred)` 修正後 `Motion::PartsParamCollection@0` 才找得到 TimeParam，所有 motion 不再一律 1000 ms，開場到據點約提早 11 秒。52 模式兩種組態通過。第二輪獨立審查 fix-first，審查項目由 `6582e38` 修正（見下一條）。
+- 第二輪審查的修正（`6582e38`，已在遠端；第 4 項）：v14 delegate 照原版不持有目標物件（`0x652210`／`0x681f70`），場景物件終於會釋放，按下新遊戲後標題按鈕隨圖層消失、教學關閉後據點背景出現、鑑賞模式返回不再 VM_ERROR、階段選擇可以進入春銷；連帶照原版補上解構子內的立即解構、`RemoveController`／`ReleaseActivity` 回傳 delegate index、空的懸停狀態，並刪除錯讀 `<vtable>` 的 CParts 釋放特例；`A_REF` 對陣列照原版複製（數字、字串、通用元素陣列），標題構圖不再被 `GetReverse` 就地反轉；點擊派送與懸停規則一致（見 `research/gui-visual/base-ui.md` §11）。53 模式兩種組態通過。第三輪獨立審查 fix-first，審查項目由 `80db27d` 修正（見下一條）。
+- 第三輪審查的修正（`80db27d`，已在遠端；第 4 項）：v14 pactex loader 照原版讀 `オン指針透過`（`0x5547f4` → 元件 +0x1a5），懸停與點擊共用原版的輸入目標（`0x546890`／`0x545e10`／`0x546e20`：可點擊或不穿透游標的第一個命中元件，懸停只有一個目標），標題角色、人材卡的文字、環節卡的角色小圖不再擋住後方按鈕；刪除 v14 fork 依指令數把解構子列入黑名單的邏輯（巢狀解構讓 `CActivityWrap@1` 在第一次長拆除後被永久略過，這也是人材 → 返回 → 下一步後 `Executer.jaf:55` 的根因）。新模式 `third-review` 在 `7cb6ba3` 上 5/5 失敗、修正後全過；54 模式兩種組態通過（見 `research/gui-visual/base-ui.md` §12）。尚未經獨立審查。
 - 尚非穩定可玩版：從讀檔畫面讀一般存檔需要 `system.Reset`（stub）、記憶體持續成長，長時間穩定性與完整遊戲流程未驗證。
 
 ## 硬規則
@@ -117,7 +125,7 @@
      - **`點擊許可` 沒有讀**：原版同一層也把它讀到 +0x1a4。pactex 中為 1 的約 50 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange 等）目前要等 AIN 設 Clickable，否則只擋游標（全畫面點擊）；讀入的影響要另外評估。
      - **懸停訊息**：v14 的 `parts_msg_push` 直接返回，MouseEnter／Leave／On 從未送進 AIN；原版懸停人材卡時卡片變黃（Wine `deep/d024`），xsystem4 不變。
      - 擋游標的元件收到按下時原版送出什麼仍未追到（沿用「全畫面點擊」的推定）；判斷式的滑動條件沒有實作。
-   - **已完成：開場 LOGO 的光澤變成黃色光條**（2026-09-30，研究見 `research/gui-visual/logo-gloss.md`）：中文版 pactex 的 `描畫フィルタ`／`加算色` 是 GBK 鍵，loader 只認 SJIS；濾鏡也不傳給子元件。loader 加 GBK 鍵，CG 路徑沿用最近祖先的濾鏡（只在 v14；證據只有 v14 的原版畫面，舊引擎維持各自的濾鏡，第四輪審查）。LOGO 與 Wine 原版逐幀一致（光澤只在深色部分、白底不留光條）；標題背景三層的濾鏡同時讀入，配色與原版一致。新模式 `logo-gloss`。第二輪（使用者回報淡入時黑底有光條、警告頁淡出白字變黃）：loader 讀 `アルファクリッパー`（光條以徽章與文字為遮罩），v14 `GetComponentMulColor*`／`AddColor*` 改讀真實顏色（原為固定 255／0，逐通道淡出只剩 B 生效）。未處理：**ALICESOFT 擦入與標題按鈕擦入需要 v14 ClipArea（整組空殼，見 `logo-gloss.md`）**、回合結束／戰鬥背景／`加算色` 6 個元件未逐畫面比對。
+   - **已完成：開場 LOGO 的光澤變成黃色光條**（2026-09-30，研究見 `research/gui-visual/logo-gloss.md`）：中文版 pactex 的 `描畫フィルタ`／`加算色` 是 GBK 鍵，loader 只認 SJIS；濾鏡也不傳給子元件。loader 加 GBK 鍵，CG 路徑沿用最近祖先的濾鏡（只在 v14；證據只有 v14 的原版畫面，舊引擎維持各自的濾鏡，第四輪審查）。LOGO 與 Wine 原版逐幀一致（光澤只在深色部分、白底不留光條）；標題背景三層的濾鏡同時讀入，配色與原版一致。新模式 `logo-gloss`。第二輪（使用者回報淡入時黑底有光條、警告頁淡出白字變黃）：loader 讀 `アルファクリッパー`（光條以徽章與文字為遮罩），v14 `GetComponentMulColor*`／`AddColor*` 改讀真實顏色（原為固定 255／0，逐通道淡出只剩 B 生效）。**ALICESOFT 與標題按鈕擦入已由 `190c1c8` 完成（見 `clip-area.md`）**；回合結束／戰鬥背景／`加算色` 6 個元件仍未逐畫面比對。
    - 其餘下一步依序：訊息視窗系統 UI（NEXT 指示、AUTO／回看鈕、左下鈕位置、逐字顯示）→ 據點轉場與背景 blur → 已讀字色（需有已讀紀錄的存檔）→ 字距 1 px／行距 1.5 px（以實機截圖為準）。
    - **已完成：流暢度**（`44964f9`，研究見 `research/gui-visual/pacing.md`）。原因三個：沒有限速（邏輯迴圈 460–480 Hz、每幀最多呈現三次）、`SystemService.UpdateView` 用自己的時鐘再推進一次元件時間（1.67–1.81 倍）、測試模式截圖在主執行緒壓 PNG。修正照原版：`0x4676f0` 的限速算式（毫秒計時、16.666666 ms、保留截斷的小數）與 `0x4c5450` 的 Sleep(50)／限速／Sleep(1)／呈現，Sleep 做成「到期後的第一個 1 ms 刻度醒來」（原版 `timeBeginPeriod(1)`，macOS 的 sleep 常晚醒數 ms），`OverFrameRateSleep`、`SleepByInactiveWindow`、略過已讀時十幀畫一幀都跟遊戲設定；元件時間只在 `UpdateComponent` 推進；`ChipmunkSpriteEngine.Update`／`TRANS_Update` 畫、`UpdateView` 呈現，`system.Peek` 不再呈現；截圖讀回後在背景執行緒寫檔；訊息視窗文字在繪製時才排版。新模式 `frame-pacing` 在 `f489d23` 上 5/5 失敗、修正後全過；51 模式兩種組態通過；同條件前後各兩輪 150 秒 GUI：一般遊玩 321–324 次／秒（浮動）→ 58.7，AIN 時間倍率 0.74→0.97，元件時間倍率 1.67–1.70→0.97；測試模式 >50 ms 間隔 40–42→2–3、最長 241–253→72–75 ms；MSG 88、assertion 0、堆疊溢位 0，約 80 秒進入據點並顯示底列。後續：
      - **fps 是 58.7 不是 60**：原版算式在 1 ms 刻度的 Sleep 下每幀固定 17 個刻度（保留的小數是加到下一幀，精確 Sleep 反而是 16 ms）。原版在 Windows 上的實際 fps 沒有量過；若要剛好 60，只能偏離原版算式（例如期限式排程），需要使用者決定。

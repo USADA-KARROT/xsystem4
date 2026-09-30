@@ -1,0 +1,14 @@
+  FAIL: set/readback: rect (0,0,0,0), want (-20,30,400,70)
+CA1 FAIL
+  FAIL: GbkOff: rect (0,0,0,0), want (-8,9,180,45)
+  FAIL: SjisOff: rect (0,0,0,0), want (11,-12,40,50)
+  FAIL: GbkOn: rect (0,0,0,0), want (4,0,414,108)
+  FAIL: SjisOn: rect (0,0,0,0), want (320,0,320,180)
+  FAIL: Partial: rect (0,0,0,0), want (0,0,100,0)
+CA2 FAIL
+  FAIL: parts_clip_area_transform symbol is absent
+CA3 FAIL
+  FAIL: v14 save does not have version 4
+  FAIL: loaded enabled: rect (0,0,0,0), want (-4,3,120,80)
+CA4 FAIL
+CLIP-AREA FAIL: 4 of 4 cases failed

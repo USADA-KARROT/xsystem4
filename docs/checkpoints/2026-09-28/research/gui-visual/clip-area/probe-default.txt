@@ -1,0 +1,14 @@
+  CA1 true HLL readback, enable transitions and unknown no-create checked
+CA1 ok
+  CA2 GbkOff: enabled 0 rect (-8,9,180,45)
+  CA2 SjisOff: enabled 0 rect (11,-12,40,50)
+  CA2 GbkOn: enabled 1 rect (4,0,414,108)
+  CA2 SjisOn: enabled 2 rect (320,0,320,180)
+  CA2 Plain: enabled 0 rect (0,0,0,0)
+  CA2 Partial: enabled 1 rect (0,0,100,0)
+CA2 ok
+  CA3 anchor rectangles, ancestor intersections, local-scale truncation and empty clips checked
+CA3 ok
+  CA4 in-memory v14 roundtrip, unchanged v3 layout and old-page defaults checked
+CA4 ok
+CLIP-AREA PASS: 0 of 4 cases failed

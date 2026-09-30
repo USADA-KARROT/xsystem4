@@ -47,7 +47,7 @@ Wine 原版 0.1 秒逐幀（`wine-reference-shots/intro/`，不進 repo）：淡
 
 ## 未處理
 
-- **ALICESOFT 沒有由左往右擦入**：`ClipWidth` motion 經 `SetComponentClipArea`／`GetComponentClipAreaPos*`，v14 這組全是空殼（`IsComponentEnableClipArea` 沒註冊），pactex 的 `クリップ領域` 也沒讀。裁切是部件 box 座標、作用在整棵子樹；標題按鈕的 `ClipX` 擦入、StaffListView 也用到（調查見 `$PORT/reports` 外的工作流紀錄，要點已寫在本節）。建議以 shader 依最近開啟裁切的祖先做反矩陣判斷，並存進 parts 存檔。
+- **已完成：ALICESOFT 與標題按鈕擦入**（`190c1c8`）：v14 ClipArea 的 HLL、pactex、子樹裁切及存讀已實作。原版反組譯推翻原先最近祖先／box 反矩陣的建議：應以錨點與本地倍率建立螢幕矩形，沿祖先取交集。[證據與限制](clip-area.md)。
 - 光澤邊緣：有了遮罩後大致相同，原版仍略柔和。
 - 文字與 flat 元件的根不套用祖先的濾鏡（與修正前相同）。
 - 回合結束、戰鬥背景、`加算色` 的 6 個元件沒有逐畫面與原版比對。

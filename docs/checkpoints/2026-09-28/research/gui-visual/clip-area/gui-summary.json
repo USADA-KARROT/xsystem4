@@ -1,0 +1,41 @@
+[
+  {
+    "elapsed_seconds": 150.403,
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "peak_rss_bytes": 500924416,
+    "binary_sha256": "5b0daf81c6208eabd1af72cde61cd2790030e4474899a0913c648a76929468d3",
+    "run": "codex-cliparea-before-g150",
+    "msg": 88,
+    "assertions": 0,
+    "stack_overflows": 0,
+    "msg_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+    "framebuffer_pngs": 40
+  },
+  {
+    "elapsed_seconds": 150.242,
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "peak_rss_bytes": 499859456,
+    "binary_sha256": "fad9122fd98126f22a8ffb4a649103da412c035bb29d64888bdd4c87896a7f58",
+    "run": "codex-cliparea-after-g150",
+    "msg": 88,
+    "assertions": 0,
+    "stack_overflows": 0,
+    "msg_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+    "framebuffer_pngs": 40
+  },
+  {
+    "elapsed_seconds": 150.267,
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "peak_rss_bytes": 514015232,
+    "binary_sha256": "aad6736ceea425b024ae8c0716fb5475d2c7be5e60b18d7021eec45645a37e3a",
+    "run": "codex-cliparea-final-g150",
+    "msg": 88,
+    "assertions": 0,
+    "stack_overflows": 0,
+    "msg_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+    "framebuffer_pngs": 40
+  }
+]
