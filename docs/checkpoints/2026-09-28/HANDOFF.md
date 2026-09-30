@@ -133,6 +133,11 @@
    - 名牌殘影：已由 `9e30c0f` 解決（名牌 root 被提早釋放，`Hide` 落空）。`Motion::GetCompiled` 解析名牌字串得到的 `<Time>` 是 1000、字串寫 `Time:150` 的差異，推定就是兩槽 `Array.First(pred)` 的堆疊錯位：`Motion::PartsParamCollection@0` 找不到 TimeParam，Time 停在預設 1000。`fb28975` 修正後 fixture BR4 以真 bytecode 得到 150，GUI 追蹤中有 150 ms 的 motion（名牌淡出本身的時間與原版未逐格對照）。
    - 舊 GB18030 偵測會誤判 SJIS 遊戲（`ain_is_gb18030` 仍依舊判準），修正會改變 SJIS 遊戲行為，需使用者決定。
    - `utf2sjis`／`sjis2utf` 轉碼路徑、`Int.ToCharacter`、ReplaceRegex（CN 3 處，仍是 stub）。
+   - **已完成：視窗標題亂碼**（2026-09-30，`src/video.c`）：`AliceStart.ini` 的 GameName 是 GBK（`B6 E0 C4 C8 …`），`sjis2utf` 解成「ｶ狷ﾈｶ狷ﾈｷｱﾖﾐｰ?」。改為 `ain_is_gb18030` 且字元規則為 GBK 時以 GB18030 解碼，標題為「多娜多娜繁中版 - XSystem4」；`XSYS4_STRING_CHARSET=sjis` 時照舊。54 模式兩種組態通過、150 秒 GUI MSG 88，兩位審查者 ship。同類問題的掃描結果（都未修）：
+     - 存檔根目錄：`get_save_path` 仍用 `sjis2utf(GameName)`，目錄名是上面的亂碼。它在 AIN 偵測之前計算，改名會遺棄既有存檔，要搬遷或回退讀舊目錄，需使用者決定。
+     - Option+S 截圖：`default_filename` 把 GBK 名稱放進路徑再經 `gamedir_path` 的 `sjis2utf`，檔名亂碼且 `_` 被吃掉，成功訊息框也顯示亂碼。修正時先轉 UTF-8 再用 `path_join`，不要再經 `gamedir_path`。
+     - `FileOperation.GetFileList`／`GetFolderList` 以 `utf2sjis` 回傳檔名，遊戲以 GBK 解讀；自訂人材（`SaveData/User/*.txt`）的中文檔名來回轉換後對不上（推論，未實機驗證）。`GetSaveFolderName` 固定回傳相對路徑 `SaveData`，以 CWD 為基準。
+     - `unix_path`／`savedir_path` 對 GBK 存檔名做 `sjis2utf`（dump 檔名亂碼、不是一對一，但讀寫一致，改了會讀不到舊檔）；`system.MsgBox`／`Error` 只寫 log 且是原始 GBK；`display_sjis*`（`--echo-message`、VM_ERROR 的函式名）是亂碼。
    - 推送後，本機另一個 libsys4 worktree 的 `cn-on-upstream` 分支要 fast-forward 到 `247f544`。
 7. 其他延後項目：
    - `Array.First` 的 predicate 版逐實體 slot 走訪：兩槽元素已由 `fb28975` 改為逐元素；單槽且 predicate 形狀特殊的路徑仍是舊迴圈。
