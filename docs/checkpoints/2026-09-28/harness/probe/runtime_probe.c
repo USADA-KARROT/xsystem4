@@ -107,6 +107,8 @@ static void init_probe(const char *path) {
 #include "frame_pacing_fixture.inc"
 #include "title_review_fixture.inc"
 #include "third_review_fixture.inc"
+#include "mojibake_fixture.inc"
+#include "logo_gloss_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -149,6 +151,8 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"frame-pacing"))return test_frame_pacing();
     if(!strcmp(argv[2],"title-review"))return test_title_review();
     if(!strcmp(argv[2],"third-review"))return test_third_review();
+    if(!strcmp(argv[2],"mojibake"))return test_mojibake();
+    if(!strcmp(argv[2],"logo-gloss"))return test_logo_gloss();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
