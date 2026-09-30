@@ -45,6 +45,8 @@ static struct {
 	GLint use_clipper;
 	GLint clipper_tex;
 	GLint inv_clipper_transform;
+	GLint use_clip_area;
+	GLint inv_clip_area_transform;
 } parts_shader;
 
 static void set_draw_filter_blend_func(int draw_filter)
@@ -109,8 +111,58 @@ void parts_box_transform(struct parts *parts, struct parts_common *common, mat4 
 	glm_translate(out, (vec3){ common->origin_offset.x, common->origin_offset.y, 0 });
 }
 
-static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color, int draw_filter, int alpha_clipper)
+/* v14 ClipArea is an integer, screen-aligned rectangle. Native 0x535a27
+ * projects the origin, then adds local-scale offsets; 0x579ec0 intersects
+ * the inherited rectangle. It does not rotate the rectangle's four corners.
+ * Return 0 for no clip, -1 for an empty clip, 1 with screen-to-unit-clip. */
+int parts_clip_area_transform(struct parts *parts, mat4 out)
 {
+	if (ain->version < 14)
+		return 0;
+	bool enabled = false;
+	double left = 0, top = 0, right = 0, bottom = 0;
+	for (struct parts *p = parts; p; p = p->parent) {
+		if (!p->clip_enabled)
+			continue;
+		mat4 box;
+		parts_anchor_transform(p, glm_rad(p->local.rotation.z), true, box);
+		float x = box[3][0] + p->clip_area.x * p->local.scale.x;
+		float y = box[3][1] + p->clip_area.y * p->local.scale.y;
+		float w = p->clip_area.w * p->local.scale.x;
+		float h = p->clip_area.h * p->local.scale.y;
+		// Avoid undefined float-to-int conversions and singular matrices.
+		if (!isfinite(x) || !isfinite(y) || !isfinite(w) || !isfinite(h)
+				|| x < INT_MIN || (double)x > INT_MAX
+				|| y < INT_MIN || (double)y > INT_MAX
+				|| w < 1 || (double)w > INT_MAX || h < 1 || (double)h > INT_MAX)
+			return -1;
+		double l = (int)x, t = (int)y, r = l + (int)w, b = t + (int)h;
+		if (!enabled) {
+			left = l; top = t; right = r; bottom = b;
+			enabled = true;
+		} else {
+			left = fmax(left, l); top = fmax(top, t);
+			right = fmin(right, r); bottom = fmin(bottom, b);
+		}
+		if (right <= left || bottom <= top)
+			return -1;
+	}
+	if (!enabled)
+		return 0;
+	glm_mat4_identity(out);
+	out[0][0] = 1.0 / (right - left);
+	out[1][1] = 1.0 / (bottom - top);
+	out[3][0] = -left / (right - left);
+	out[3][1] = -top / (bottom - top);
+	return 1;
+}
+
+static void parts_render_texture(struct parts *parts, struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color, int draw_filter, int alpha_clipper)
+{
+	mat4 clip_area_inverse;
+	int clip_area = parts_clip_area_transform(parts, clip_area_inverse);
+	if (clip_area < 0)
+		return;
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 
 	struct gfx_render_job job = {
@@ -129,6 +181,9 @@ static void parts_render_texture(struct texture *texture, mat4 mw_transform, Rec
 	glUniform3fv(parts_shader.add_color, 1, add_color);
 	glUniform3fv(parts_shader.multiply_color, 1, multiply_color);
 	glUniform1i(parts_shader.draw_filter, draw_filter);
+	glUniform1i(parts_shader.use_clip_area, clip_area);
+	if (clip_area)
+		glUniformMatrix4fv(parts_shader.inv_clip_area_transform, 1, GL_FALSE, clip_area_inverse[0]);
 
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
 	// A clipper without a texture has no alpha to sample (SceneWorkResult's
@@ -197,7 +252,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 			glm_translate(mw_transform, (vec3){ x - parts->global.pos.x, y - parts->global.pos.y, 0 });
 			glm_scale(mw_transform, (vec3){ ch->t.w, ch->t.h, 1.0f });
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
-			parts_render_texture(&ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+			parts_render_texture(parts, &ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
 			x += ch->advance;
 		}
 		x = position.x;
@@ -271,12 +326,13 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(&common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, draw_filter, parts->alpha_clipper_parts_no);
+	parts_render_texture(parts, &common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, draw_filter, parts->alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
 struct emitter_render_ud {
+	struct parts *parts;
 	struct parts_flat *f;
 	mat4 transform;       // root * base * layer for this emitter+birth_frame
 	float parent_alpha;
@@ -319,7 +375,7 @@ static void render_emitter_particle_cb(const struct flat_emitter_particle *p,
 
 	float blend_rate = d->parent_alpha * p->fade_alpha;
 	Rectangle rect = { 0, 0, tex->w, tex->h };
-	parts_render_texture(tex, m, &rect, blend_rate,
+	parts_render_texture(d->parts, tex, m, &rect, blend_rate,
 			d->add_color, d->mul_color, d->draw_filter, d->alpha_clipper);
 
 	if (d->draw_filter != PARTS_DRAW_FILTER_NORMAL)
@@ -372,6 +428,7 @@ static void render_flat_emitter(struct parts *parts, struct parts_flat *f,
 				layer_m);
 
 		struct emitter_render_ud ud = {
+			.parts = parts,
 			.f = f,
 			.parent_alpha = eff.alpha,
 			.alpha_clipper = parts->alpha_clipper_parts_no,
@@ -428,7 +485,7 @@ static void render_flat_cg(struct parts *parts, Texture *tex,
 		rect = (Rectangle){ 0, 0, tex->w, tex->h };
 	}
 
-	parts_render_texture(tex, render_m, &rect, ctx->alpha, ctx->add_color, ctx->mul_color,
+	parts_render_texture(parts, tex, render_m, &rect, ctx->alpha, ctx->add_color, ctx->mul_color,
 			ctx->draw_filter, parts->alpha_clipper_parts_no);
 
 	if (ctx->draw_filter != PARTS_DRAW_FILTER_NORMAL)
@@ -595,7 +652,7 @@ static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f,
 		(parts->global.multiply_color.g / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[1]),
 		(parts->global.multiply_color.b / 255.0f) * fixed16_to_float(obj->color_transform.mult_terms[2])
 	};
-	parts_render_texture(src, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+	parts_render_texture(parts, src, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
 }
 
 static void parts_render_flash_sprite(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_sprite *tag)
@@ -779,4 +836,6 @@ void parts_render_init(void)
 	parts_shader.use_clipper = glGetUniformLocation(parts_shader.shader.program, "use_clipper");
 	parts_shader.clipper_tex = glGetUniformLocation(parts_shader.shader.program, "clipper_tex");
 	parts_shader.inv_clipper_transform = glGetUniformLocation(parts_shader.shader.program, "inv_clipper_transform");
+	parts_shader.use_clip_area = glGetUniformLocation(parts_shader.shader.program, "use_clip_area");
+	parts_shader.inv_clip_area_transform = glGetUniformLocation(parts_shader.shader.program, "inv_clip_area_transform");
 }

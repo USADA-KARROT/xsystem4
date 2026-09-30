@@ -751,6 +751,22 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	pactex_apply_pixel_decide(node, parts_no);
 	pactex_apply_pass_cursor(node, parts_no);
 
+	/* ClipArea is stored even when disabled. The pactex loader writes the
+	 * fields directly; unlike SetComponentClipArea it does not auto-enable. */
+	struct ex_list *clip = pactex_get_list(node, "\x83\x4e\x83\x8a\x83\x62\x83\x76\x97\xcc\x88\xe6");
+	if (!clip) clip = pactex_get_list(node, "\xa5\xaf\xa5\xea\xa5\xc3\xa5\xd7\xee\x49\xd3\xf2");
+	if (clip) {
+		int v[5] = {0};
+		for (unsigned i = 0; i < 5 && i < clip->nr_items; i++) {
+			if (clip->items[i].value.type == EX_INT)
+				v[i] = clip->items[i].value.i;
+		}
+		struct parts *parts = parts_get(parts_no);
+		parts->clip_enabled = v[0] != 0;
+		parts->clip_area = (Rectangle){ v[1], v[2], v[3], v[4] };
+	}
+
+
 	/* Extract position: 座標 = list[3] = (x, y, z) */
 	struct ex_list *pos = pactex_get_list(node, SJIS_POSITION);
 	if (!pos) pos = pactex_get_list(node, GBK_POSITION);

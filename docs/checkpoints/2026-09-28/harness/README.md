@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 56 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 57 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -67,6 +67,7 @@ RUN_FROM_TITLE=1 RUN_AUTO_CLICK_SEQ="4000,640,700;8000,640,700;14000,152,130" RU
 - `probe/third_review_fixture.inc`：`third-review`（2026-09-30），第三輪審查的修正（`research/gui-visual/base-ui.md` §12）。RV1 合成 GBK pactex 經正式 loader 建立 `オン指針透過` 為 1／0／缺少／2 的元件，以真 AIN 宣告 `Parts_GetPartsPassCursor` 查詢（原版 `0x5547f4` 以 `== 1` 讀入元件 +0x1a5），setter 仍可覆寫；RV2 標為 1 的裝飾擋在按鈕前時點擊與懸停都到按鈕，標為 0 的仍擋住（全畫面點擊）且自己是懸停目標；RV3 懸停只有一個目標（原版 `0x546890`）：可點擊但穿透游標的元件在前面時只有它懸停並收到點擊；RV4 以真 `CBackLogUnit@1` 做巢狀解構並在內層把指令計數推進 450,000（模擬長拆除），之後同型別仍執行解構子、`CParts3DLayerManager` 仍不執行；RV5 真 `activity::detail::CActivityWrap`：一個 wrap 的 `Release` 很長之後，下一個 wrap 的解構子仍呼叫 `Release`。步進鉤子 `third_review_probe_step` 在指定的框架開始時放掉物件或推進 `insn_count`。5 個案例各自 fork；只用修正前就存在的函式，`before-check.sh` 可直接建置。
 - `probe/mojibake_fixture.inc`：`mojibake`（2026-09-30），GBK 版的遊戲字串以 GB18030 解碼（視窗標題、檔名、存檔資料夾、記錄檔）。MJ1 `game_to_utf8`／`utf8_to_game`／`display_sjis0`／`unix_path` 在 SJIS（預設、只設 `ain_is_gb18030`）逐位元組同 `sjis2utf`／`utf2sjis`，GBK 下 GameName 為「多娜多娜繁中版」、尾位元組 0x5C 不當分隔字元、非 SJIS 字的檔名可來回轉換、不合法的 GBK 退回 SJIS；MJ2 `save_dir_for_game_charset` 的四種情境（只有舊目錄、兩者都有、都沒有、新名稱是檔案）；MJ3 `savedir_path` 解碼且不在存取時改名；MJ4 `migrate_legacy_save_files` 只改名與恰好一個 AIN 字串舊名完全相同的檔案（近似名稱、含路徑分隔字元的字串、兩個字串共用的舊名都不改）；MJ5 `FileOperation.GetFileList` 回傳 GB18030 名稱、`TextFile.OpenReader` 開得了由它組出的路徑。檔案都在 `$TMPDIR` 的 mkdtemp 資料夾（位於 `XS4_SRC`／`XS4_MASTER_GAME` 內時拒絕），結束即刪除。5 個案例各自 fork；新函式只用 dlsym，`before-check.sh` 可直接建置。
 - `probe/logo_gloss_fixture.inc`：`logo-gloss`（2026-09-30），v14 pactex loader 讀中文版的 `描畫フィルタ` 與 `加算色`（`research/gui-visual/logo-gloss.md`）。LG1 以合成 GBK activity 經正式 loader 建元件，以 `PE_GetPartsDrawFilter`／`PE_GetAddColor` 查 GBK 鍵、SJIS 鍵、沒有這兩個鍵的元件；LG2 `アルファクリッパー`（GBK、SJIS 鍵，被遮部件排在遮罩之前）在整個 activity 建完後依名稱解析，未知名稱留 0；LG3 v14 `GetComponentMulColor*`／`AddColor*` 讀回設定值、照 Motion 逐通道淡出後為 (0,0,0)、未知元件回 255／0 且不建立元件。子元件繼承濾鏡的繪製規則需要 GL，由 GUI 逐幀比對涵蓋。只用修正前就存在的函式，`before-check.sh` 可直接建置。
+- `probe/clip_area_fixture.inc`：`clip-area`（2026-09-30）。CA1 經真 AIN 宣告檢查 ClipArea 的四值讀回、停用保留矩形、相同矩形不重新啟用、改值自動啟用，以及未知元件不被建立；CA2 以合成 GBK／SJIS pactex 檢查 enable=0 仍保留矩形、非零 enable 為真、缺少屬性時關閉；CA3 以 dlsym 取得 `parts_clip_area_transform`，檢查不繪圖父元件也裁切子樹、所有啟用祖先的螢幕矩形取交集、anchor 不含 box origin offset、local scale 與整數截斷、翻轉旗標不改矩形寬高、不相交／退化時跳過繪製、v13 不作用；CA4 在記憶體中經 `PE_Save`／`PE_Load` 驗證 v14 格式保留啟用與停用的矩形、v13 整頁資料不受 ClipArea 變動影響，以及 v14 讀取舊 v3 時預設關閉。4 個案例各自 fork；不使用 GL、不建立存檔，新函式只用 dlsym，`before-check.sh` 可建置。
 - `observer`、`reentrancy` 兩個模式在 2026-09-30 改為原版的 delegate 所有權：delegate 持有 lambda 的環境、不持有目標物件（`observer` 的 smoke 案例與 `reentrancy` 的參照數斷言；`reentrancy` 由 harness 保留目標物件的根參照）。在 `ce5c75a` 之前的版本上這兩個模式會失敗，是預期結果。
 - `deleted_event_fixture.inc` 放在上一層，因為 `runtime_probe.c` 以 `../deleted_event_fixture.inc` 引用它。
 

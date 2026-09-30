@@ -17,15 +17,18 @@
 uniform mat4 world_transform;
 uniform mat4 view_transform;
 uniform mat4 inv_clipper_transform;
+uniform mat4 inv_clip_area_transform;
 
 in vec4 vertex_pos;
 in vec2 vertex_uv;
 out vec2 tex_coord;
 out vec2 clip_coord;
+out vec2 clip_area_coord;
 
 void main() {
 	vec4 world_pos = world_transform * vertex_pos;
 	gl_Position = view_transform * world_pos;
 	tex_coord = vertex_uv;
 	clip_coord = (inv_clipper_transform * world_pos).xy;
+	clip_area_coord = (inv_clip_area_transform * world_pos).xy;
 }

@@ -19,10 +19,12 @@
 
 #include "vm/page.h"
 #include "parts.h"
+#include "system4/ain.h"
+#include "vm.h"
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 3
+#define CURRENT_SAVE_VERSION 4
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -539,7 +541,7 @@ static struct parts_motion *load_parts_motion(struct iarray_reader *r)
 	return motion;
 }
 
-static void save_parts(struct iarray_writer *w, struct parts *parts)
+static void save_parts(struct iarray_writer *w, struct parts *parts, int version)
 {
 	iarray_write(w, parts->no);
 	iarray_write(w, parts->state);
@@ -562,6 +564,10 @@ static void save_parts(struct iarray_writer *w, struct parts *parts)
 	iarray_write(w, parts->draw_filter);
 	iarray_write(w, parts->message_window);
 	iarray_write(w, parts->alpha_clipper_parts_no);
+	if (version >= 4) {
+		iarray_write(w, parts->clip_enabled);
+		iarray_write_rectangle(w, &parts->clip_area);
+	}
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and save unconditionally
 	if (parts_multi_controller) {
@@ -613,6 +619,10 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->message_window = iarray_read(r);
 	if (version > 2)
 		parts->alpha_clipper_parts_no = iarray_read(r);
+	if (version >= 4) {
+		parts->clip_enabled = !!iarray_read(r);
+		iarray_read_rectangle(r, &parts->clip_area);
+	}
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check
 	if (parts_multi_controller) {
@@ -672,7 +682,9 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 
 	struct iarray_writer w;
 	iarray_init_writer(&w, "XPE");
-	iarray_write(&w, CURRENT_SAVE_VERSION);
+	// Older engines retain their byte-for-byte v3 layout.
+	int version = ain->version >= 14 ? CURRENT_SAVE_VERSION : 3;
+	iarray_write(&w, version);
 	if (CURRENT_SAVE_VERSION > 1)
 		save_numeral_fonts(&w);
 
@@ -693,7 +705,7 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 			continue;
 		if (!parts->want_save)
 			continue;
-		save_parts(&w, parts);
+		save_parts(&w, parts, version);
 		count++;
 	}
 

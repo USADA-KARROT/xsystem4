@@ -454,6 +454,8 @@ struct parts {
 	bool message_window;
 	struct parts_message_window *message;
 	int alpha_clipper_parts_no;
+	bool clip_enabled;
+	Rectangle clip_area;
 	int margin_top;
 	int margin_bottom;
 	int margin_left;
@@ -574,6 +576,7 @@ struct string *parts_text_line_get(struct parts_text_line *line);
 struct string *parts_text_get(struct parts_text *t);
 
 // render.c
+int parts_clip_area_transform(struct parts *parts, mat4 out);
 void parts_render_init(void);
 void parts_render_update(void);
 void parts_engine_dirty(void);

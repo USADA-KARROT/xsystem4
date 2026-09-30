@@ -1478,13 +1478,53 @@ static int PE_v14_GetComponentAddColorB(int n) { return pe_v14_color(n, false, 2
 static int PE_v14_GetComponentMulColorR(int n) { return pe_v14_color(n, true, 0); }
 static int PE_v14_GetComponentMulColorG(int n) { return pe_v14_color(n, true, 1); }
 static int PE_v14_GetComponentMulColorB(int n) { return pe_v14_color(n, true, 2); }
-static void PE_v14_SetComponentEnableClipArea(int n, bool enable) { (void)n; (void)enable; }
+/* Native 0x58dc90: changing the rectangle also enables clipping; setting
+ * the same rectangle preserves the enable flag. Unknown parts are ignored. */
+static void PE_v14_SetComponentEnableClipArea(int n, bool enable)
+{
+	struct parts *parts = parts_try_get(n);
+	if (parts && parts->clip_enabled != enable) {
+		parts->clip_enabled = enable;
+		parts_dirty(parts);
+	}
+}
+static bool PE_v14_IsComponentEnableClipArea(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts && parts->clip_enabled;
+}
 static void PE_v14_SetComponentClipArea(int n, int x, int y, int w, int h)
-{ (void)n; (void)x; (void)y; (void)w; (void)h; }
-static int PE_v14_GetComponentClipAreaPosX(int n) { (void)n; return 0; }
-static int PE_v14_GetComponentClipAreaPosY(int n) { (void)n; return 0; }
-static int PE_v14_GetComponentClipAreaPosWidth(int n) { (void)n; return 0; }
-static int PE_v14_GetComponentClipAreaPosHeight(int n) { (void)n; return 0; }
+{
+	struct parts *parts = parts_try_get(n);
+	if (!parts)
+		return;
+	Rectangle *r = &parts->clip_area;
+	if (r->x == x && r->y == y && r->w == w && r->h == h)
+		return;
+	*r = (Rectangle){ x, y, w, h };
+	parts->clip_enabled = true;
+	parts_dirty(parts);
+}
+static int PE_v14_GetComponentClipAreaPosX(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts ? parts->clip_area.x : 0;
+}
+static int PE_v14_GetComponentClipAreaPosY(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts ? parts->clip_area.y : 0;
+}
+static int PE_v14_GetComponentClipAreaPosWidth(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts ? parts->clip_area.w : 0;
+}
+static int PE_v14_GetComponentClipAreaPosHeight(int n)
+{
+	struct parts *parts = parts_try_get(n);
+	return parts ? parts->clip_area.h : 0;
+}
 /* SetComponentReverseLR/TB: the native setter only stores a flag on an
  * existing parts (0x58e070 writes +0xaa) and ignores an unknown number; the
  * getter returns that parts' own flag, false for an unknown number. AdvStand
@@ -1720,6 +1760,7 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "GetComponentMagX", PE_v14_GetComponentMagX);
 	static_library_register(lib, "GetComponentMagY", PE_v14_GetComponentMagY);
 	static_library_register(lib, "SetComponentEnableClipArea", PE_v14_SetComponentEnableClipArea);
+	static_library_register(lib, "IsComponentEnableClipArea", PE_v14_IsComponentEnableClipArea);
 	static_library_register(lib, "SetComponentClipArea", PE_v14_SetComponentClipArea);
 	static_library_register(lib, "GetComponentClipAreaPosX", PE_v14_GetComponentClipAreaPosX);
 	static_library_register(lib, "GetComponentClipAreaPosY", PE_v14_GetComponentClipAreaPosY);
