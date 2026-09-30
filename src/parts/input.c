@@ -29,6 +29,8 @@
 
 // true between calls to BeginClick and EndClick
 bool parts_began_click = false;
+// v14 BeginInput/EndInput scopes can nest inside synchronous scene callbacks.
+static unsigned v14_input_depth;
 
 // the mouse position at last update
 static Point parts_prev_pos = {0};
@@ -531,13 +533,58 @@ bool PE_SetClickMissSoundNumber(possibly_unused int sound_no)
 	return true;
 }
 
+static void v14_reset_input_session(bool begin)
+{
+	// Native 0x53e830/0x53e8b0 reset the input targets, not the message
+	// queue. Beginning (0x546030) samples held buttons so returning from a
+	// child scene cannot turn its closing press into another DOWN.
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (parts->is_hovered || parts->no == click_down_parts) {
+			parts->is_hovered = false;
+			parts_dirty(parts);
+			parts_set_state(parts, PARTS_STATE_DEFAULT);
+		}
+		parts->hover_time = 0;
+	}
+	clicked_parts = 0;
+	click_down_parts = 0;
+	v14_background_click_pending = false;
+	drag_state_reset();
+	parts_prev_pos = (Point){0};
+	prev_clicking = begin && key_is_down(VK_LBUTTON);
+	parts_began_click = begin;
+}
+
+void parts_reset_input(void)
+{
+	if (ain->version >= 14) {
+		v14_input_depth = 0;
+		v14_reset_input_session(false);
+	}
+}
+
 void PE_BeginInput(void)
 {
+	if (ain->version >= 14) {
+		// Native 0x58a720: reset/restart the session, then increment depth.
+		v14_reset_input_session(true);
+		v14_input_depth++;
+		return;
+	}
 	parts_began_click = true;
 }
 
 void PE_EndInput(void)
 {
+	if (ain->version >= 14) {
+		// Native 0x58a750: end the child, resume a remaining outer scope,
+		// and clamp an unmatched EndInput at zero.
+		if (v14_input_depth)
+			v14_input_depth--;
+		v14_reset_input_session(v14_input_depth > 0);
+		return;
+	}
 	parts_began_click = false;
 	v14_background_click_pending = false;
 	clicked_parts = 0;

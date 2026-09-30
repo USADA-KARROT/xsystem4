@@ -1261,12 +1261,14 @@ bool PE_Init(void)
 	parts_render_init();
 	parts_debug_init();
 	ctrl_stack_init();
+	parts_reset_input();
 	parts_engine_initialized = true;
 	return true;
 }
 
 void PE_Reset(void)
 {
+	parts_reset_input();
 	PE_ReleaseAllParts();
 	PE_ReleaseMessage();
 	ctrl_stack_init();

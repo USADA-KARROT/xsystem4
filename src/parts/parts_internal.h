@@ -594,6 +594,7 @@ void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 
 // input.c
 extern bool parts_began_click;
+void parts_reset_input(void);
 void parts_input_reset_drag(struct parts *parts);
 bool parts_screen_to_box(struct parts *parts, struct parts_common *common, float sx, float sy,
 		float *bx, float *by);
