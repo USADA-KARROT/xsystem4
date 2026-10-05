@@ -584,6 +584,7 @@ struct string *parts_text_get(struct parts_text *t);
 
 // render.c
 int parts_clip_area_transform(struct parts *parts, mat4 out);
+int parts_effective_alpha_clipper(struct parts *parts);
 void parts_render_init(void);
 void parts_render_update(void);
 void parts_engine_dirty(void);

@@ -157,6 +157,24 @@ int parts_clip_area_transform(struct parts *parts, mat4 out)
 	return 1;
 }
 
+/* Native 0x53546f -> 0x537900 resolves a local mask; 0x579ceb keeps the
+ * inherited mask unless that resolution succeeded. The accumulated state
+ * is passed to children at 0x535b57. Dynamic Show does not disable a mask,
+ * but its editor visibility (+0xac) does. Texture support is checked later:
+ * a valid untextured mask still replaces the inherited one. */
+int parts_effective_alpha_clipper(struct parts *parts)
+{
+	if (ain->version < 14)
+		return parts->alpha_clipper_parts_no;
+	for (struct parts *p = parts; p; p = p->parent) {
+		struct parts *mask = p->alpha_clipper_parts_no
+			? parts_try_get(p->alpha_clipper_parts_no) : NULL;
+		if (mask && !mask->edit_hidden)
+			return mask->no;
+	}
+	return 0;
+}
+
 static void parts_render_texture(struct parts *parts, struct texture *texture, mat4 mw_transform, Rectangle *rect, float blend_rate, vec3 add_color, vec3 multiply_color, int draw_filter, int alpha_clipper)
 {
 	mat4 clip_area_inverse;
@@ -185,6 +203,8 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 	if (clip_area)
 		glUniformMatrix4fv(parts_shader.inv_clip_area_transform, 1, GL_FALSE, clip_area_inverse[0]);
 
+	if (ain->version >= 14)
+		alpha_clipper = parts_effective_alpha_clipper(parts);
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
 	// A clipper without a texture has no alpha to sample (SceneWorkResult's
 	// IncomeBase/InfoBase are constructions the loader does not build yet):

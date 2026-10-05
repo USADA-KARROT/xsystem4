@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 60 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 61 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -93,3 +93,5 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 2. 把模式名稱加到 `env.sh` 的 `XS4_MODES`；若預期 exit code 不是 0，更新 `xs4_expected_rc`。
 3. 要引用只在新版才存在的 C 函式時，用 `dlsym(RTLD_DEFAULT, "名稱")` 取得位址（參考 `cif_fixture.inc`），否則 `before-check.sh` 在舊版會編譯失敗。
 4. 先用 `before-check.sh <修正前的 commit> xxx` 確認失敗，再用 `verify-step.sh` 確認全部通過。
+
+- `probe/alpha_inherit_fixture.inc`：`alpha-inherit`（2026-10-05），v14 alpha遮罩沿父元件繼承，最近可解析且非editor-hidden的本地遮罩覆蓋祖先。AC1真HLL setter、三層繼承、覆蓋、清除、未知號碼、Show=false與編輯隱藏；AC2重新掛父、脫離、遮罩釋放／重建、無貼圖與自身遮罩；AC3 v13保留本地行為。使用正式resolver，舊版以原本只讀本地欄位的路徑對照；無GL／素材，實際像素另由GUI核對。
