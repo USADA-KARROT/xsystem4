@@ -2,7 +2,16 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-05 量表修正後接續
+## 2026-10-05 春銷卡片修正後接續（最新）
+
+- **程式 `8b71b7d` 已推送**，本機、ls-remote、GitHub branches API 都是 `8b71b7d0df6c7377dd12924efc4937623fcad379`；文件另隨本節所在 commit。libsys4 維持 `247f544`。
+- 根因：X_A_INIT 非零旗標誤當元素寬度，兩個 WorkerCollection 未建構；delegate 把物件 WRAP 錯補成兩槽，Customer GetOrdered 回傳空陣列。原版位址、全宣告統計、限制見[卡片研究](research/gui-visual/working-cards.md)。
+- 預設／GBK 各 60 模式 PASS、sanitizer 0。before-check `057153b working-cards` 為 4/6 失敗；還原修正後 6/6 PASS。正常 GUI 150.390 秒、MSG 88、assert／overflow 0；目標 GUI 92.239 秒、112 PNG、MSG 88。
+- 對手卡與顧客卡可見、對手人數 4/4 與 5/5。取樣比對既有 Wine 218 張原版序列，三張最終影格的四個固定外框皆吻合；沒有重跑 Wine，也沒有宣稱隨機立繪、動畫時序或完整畫面等價。
+- **下一組建議**：春銷字幕退場與卡片點擊阻擋。64.016 秒點擊 (166,400) 日誌 target=0、blocked_by=900914；是否與字幕相關未驗證。計數標籤、灰底、剩餘時間文字仍缺；完整春銷／結算、訊息視窗 UI 與 system.Reset 尚未完成。每組完成後回報，等使用者 GO。
+- generic array 既有 fallback、CASMatrix 巢狀宣告缺口、共用函式回傳 helper 均未擴修；空 Select 也會留下的兩個 placeholder 未修。本組 WC3 只容許這兩種各一，其餘資料須釋放。
+
+## 2026-10-05 量表修正後接續（歷史，卡片已由上節接續）
 
 - **任務3的量表修正 `2105640` 已推送**，本機、ls-remote與GitHub branches API皆確認 `210564013bb0728ecbb72d83fca86d62f4ca8fa4`；libsys4維持247f544。
 - GetHGauge斷言已排除；真H/VGauge state、raw分子／分母、reverse、surface與v5存讀已實作。原版語義、18宣告42呼叫統計及限制見[量表研究](research/gui-visual/gauge.md)。
@@ -24,7 +33,7 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 59 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 60 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，已在遠端）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。

@@ -1,0 +1,17 @@
+before 057153b, rc=1 san=0
+WC1 FAIL
+WC2 FAIL
+WC3 FAIL
+WC4 FAIL
+WC5 ok
+WC6 ok
+WORKING-CARDS FAIL: 4 of 6 cases failed
+
+restored 8b71b7d, rc=0 san=0
+WC1 ok
+WC2 ok
+WC3 ok
+WC4 ok
+WC5 ok
+WC6 ok
+WORKING-CARDS PASS: 0 of 6 cases failed

@@ -1,0 +1,80 @@
+{
+  "code_commit": "8b71b7d0df6c7377dd12924efc4937623fcad379",
+  "libsys4": "247f54434ddf73ba6cd33b2ed0fd557675012ef7",
+  "runs": [
+    {
+      "tag": "codex-working-cards-normal150",
+      "binary_sha256": "0411c0abaedc296afdb5ea1396635e2982e40b20850122ef9b436512f60a2b4e",
+      "duration_limit_seconds": 150,
+      "elapsed_seconds": 150.39,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 367230976,
+      "msg_lines": 88,
+      "msg_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+      "framebuffer_pngs": 40,
+      "matched_errors": []
+    },
+    {
+      "tag": "codex-working-cards-final-target",
+      "binary_sha256": "0411c0abaedc296afdb5ea1396635e2982e40b20850122ef9b436512f60a2b4e",
+      "duration_limit_seconds": 92,
+      "elapsed_seconds": 92.239,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 327696384,
+      "msg_lines": 88,
+      "msg_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+      "framebuffer_pngs": 112,
+      "matched_errors": []
+    }
+  ],
+  "normal_msg_comparison": "88 MSG lines byte-identical to codex-hgauge-normal150-20261005",
+  "target_click": {
+    "time_ms": 64016,
+    "point": [
+      166,
+      400
+    ],
+    "target": 0,
+    "blocked_by": 900914,
+    "conclusion": "Click was blocked; successful card interaction is not verified."
+  },
+  "visual": {
+    "reference": "Existing original Wine working-countdown-20261005 sequence (218 frames); not rerun in this group.",
+    "sample": "f0040, top 52 pixels excluded from coordinates only",
+    "final_samples": [
+      "xsys4_t48",
+      "xsys4_t50",
+      "xsys4_t55"
+    ],
+    "bounds_format": "[x0,y0,x1,y1), 1280x720 game coordinates",
+    "matched_card_bounds": {
+      "rival1": [
+        413,
+        227,
+        525,
+        560
+      ],
+      "rival2": [
+        573,
+        227,
+        685,
+        560
+      ],
+      "customer1": [
+        844,
+        118,
+        1028,
+        525
+      ],
+      "customer2": [
+        1044,
+        118,
+        1228,
+        525
+      ]
+    },
+    "limit": "Fixed frame geometry and card presence only; random portraits, animation timing, FPS and full scene completion are not equivalent or verified."
+  }
+}

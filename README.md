@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **2026-10-05 macOS／多娜多娜 CN：`2105640` 已修正春銷 Start 的 GetHGauge 斷言，補齊 v14 量表型別、原始分子／分母、反轉、裁切及 XPE v5 保存。59 模式在預設與 GBK 均 PASS，sanitizer 0；新探針修正前6/6失敗，修正後6/6通過。正常 GUI 150.396秒、MSG88、斷言與堆疊溢位皆0。Wine 採樣確認彩色條位置、高度、裁切與約15秒倒數相符；灰底、文字、對手／顧客卡片等仍有差異，尚非穩定可玩版。程式已經獨立審查及推送雙源驗證，libsys4維持247f544。**
-> [量表研究與畫面差異](docs/checkpoints/2026-09-28/research/gui-visual/gauge.md)。一般讀檔仍受 system.Reset 未實作阻擋；完整春銷與長時間穩定性未驗證。下一組先由使用者決定優先處理春銷缺件或原訂訊息視窗UI。
+> **最新狀態（2026-10-05）：`8b71b7d` 已恢復春銷兩隊對手與顧客卡片：修正 v14 X_A_INIT 的型別初始化、值物件建構子及 delegate 物件回傳槽數。預設／GBK 各 60 模式 PASS、sanitizer 0；新探針修前 4/6 失敗、修後 6/6 通過。正常 GUI 150.390 秒、MSG 88、斷言／堆疊溢位 0。目標 GUI 可見對手 4/4、5/5 與顧客卡；四個卡框和既有 Wine 影格位置尺寸一致。中央字幕仍殘留、部分標籤／灰底仍缺，卡片點擊被其他元件擋住，完整春銷尚未驗證。已獨立審查及推送雙源核對，libsys4 維持 `247f544`。**
+> [卡片研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/working-cards.md) · [上一組量表研究](docs/checkpoints/2026-09-28/research/gui-visual/gauge.md)。下一組建議定位春銷字幕退場與卡片點擊阻擋；等待使用者決定。一般讀檔仍受 system.Reset 未實作阻擋，尚非穩定可玩版。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
