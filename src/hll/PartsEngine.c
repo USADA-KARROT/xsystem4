@@ -1728,12 +1728,13 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 	PE_SetPartsCG(number, cgname, 0, state);
 	return true;
 }
+#include "pe_v14_gauge.h"
 #include "pe_v14_stubs.h"
 
 /* Fill the v14-only names into the runtime library table. Called from
  * PartsEngine_PostLink, gated on the v14 declaration set; register only
  * fills entries that are still NULL after link_libraries(). */
-static void pe_v14_register_batch(void)
+static void pe_v14_register_batch(int libno)
 {
 	struct static_library *lib = &lib_PartsEngine;
 	static_library_register(lib, "AddPartsConstructionProcess", PartsEngine_AddPartsConstructionProcess);
@@ -1776,6 +1777,7 @@ static void pe_v14_register_batch(void)
 	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
 	static_library_register(lib, "SetButtonEnable", PE_SetButtonEnable);
 	static_library_register(lib, "IsButtonEnable", PE_IsButtonEnable);
+	pe_v14_register_gauges(libno);
 #include "pe_v14_prelink.h"
 }
 
@@ -1853,6 +1855,6 @@ static void PartsEngine_PostLink(void)
 	if (get_fun(libno, "GetMessageUniqueID")) {
 		extern void pe_v14_message_register(void);
 		pe_v14_message_register();
-		pe_v14_register_batch();
+		pe_v14_register_batch(libno);
 	}
 }

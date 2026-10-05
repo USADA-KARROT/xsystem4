@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 58 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 59 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -82,6 +82,7 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 - `probe/logo_gloss_fixture.inc`：`logo-gloss`（2026-09-30），v14 pactex loader 讀中文版的 `描畫フィルタ` 與 `加算色`（`research/gui-visual/logo-gloss.md`）。LG1 以合成 GBK activity 經正式 loader 建元件，以 `PE_GetPartsDrawFilter`／`PE_GetAddColor` 查 GBK 鍵、SJIS 鍵、沒有這兩個鍵的元件；LG2 `アルファクリッパー`（GBK、SJIS 鍵，被遮部件排在遮罩之前）在整個 activity 建完後依名稱解析，未知名稱留 0；LG3 v14 `GetComponentMulColor*`／`AddColor*` 讀回設定值、照 Motion 逐通道淡出後為 (0,0,0)、未知元件回 255／0 且不建立元件。子元件繼承濾鏡的繪製規則需要 GL，由 GUI 逐幀比對涵蓋。只用修正前就存在的函式，`before-check.sh` 可直接建置。
 - `probe/clip_area_fixture.inc`：`clip-area`（2026-09-30）。CA1 經真 AIN 宣告檢查 ClipArea 的四值讀回、停用保留矩形、相同矩形不重新啟用、改值自動啟用，以及未知元件不被建立；CA2 以合成 GBK／SJIS pactex 檢查 enable=0 仍保留矩形、非零 enable 為真、缺少屬性時關閉；CA3 以 dlsym 取得 `parts_clip_area_transform`，檢查不繪圖父元件也裁切子樹、所有啟用祖先的螢幕矩形取交集、anchor 不含 box origin offset、local scale 與整數截斷、翻轉旗標不改矩形寬高、不相交／退化時跳過繪製、v13 不作用；CA4 在記憶體中經 `PE_Save`／`PE_Load` 驗證 v14 格式保留啟用與停用的矩形、v13 整頁資料不受 ClipArea 變動影響，以及 v14 讀取舊 v3 時預設關閉。4 個案例各自 fork；不使用 GL、不建立存檔，新函式只用 dlsym，`before-check.sh` 可建置。
 - `probe/input_nesting_fixture.inc`：`input-nesting`（2026-09-30），v14 `BeginInput`／`EndInput` 的巢狀作用域（原版 `0x58a720`／`0x58a750`）。IN1 經真 AIN HLL 宣告檢查兩層返回後外層仍能點擊、最外層結束後不派送；IN2 三層返回、額外 `EndInput` 不破壞下次開始；IN3 開始時取目前按鈕狀態，已按住的左鍵不憑空變成 DOWN；IN4 內層結束時同樣取狀態，並恢復外層的新點擊；IN5 開始／結束清掉先前點擊編號但保留已排入訊息，按住移動不把內層點擊帶到外層；IN6 執行未改動的真 AIN `parts::detail::BeginInput`／`EndInput` wrapper，反覆進出八次；IN7 v13 保留 `Begin, Begin, End` 就關閉的原有行為；IN8 用 dlsym 取得 manager reset 入口，檢查重設會丟棄舊巢狀作用域、新的 Begin／End 獨立，同時保留訊息佇列及非懸停元件由腳本指定的狀態。八個案例各自 fork，以合成判定方框、正式 `PE_UpdateInputState` 與 v14 訊息佇列驗證；不使用 GL 或遊戲資產，新符號僅以 dlsym 取得，`before-check.sh` 可建置。
+- `probe/gauge_fixture.inc`：`gauge`（2026-09-30），v14 橫／豎計量條。HG1 以合成 GBK pactex 的亂序命名狀態、無關 surface 分支驗證型別 22／23 及實際 `PARTS_HGAUGE`／`PARTS_VGAUGE`，保留各 state 的原始分子／分母、反轉與 surface；HG2 真 HLL 型別建立、100／100 建構預設、無貼圖時的浮點數值、反轉、負 surface 及四個 `wrap<int>` 輸出、同名 CG 設定保值、既存錯型別轉換與未知元件不建立；HG3 以 dlsym 取得正式幾何 helper，檢查有效 surface、橫／豎方向與反轉、比例截斷、超額／負分子、零／負分母，並把 source crop 四角的完整 CG UV 乘上正式 render matrix，驗證非零 surface、H/V 正反向半滿在原點與世界縮放下不被二次裁成四分之一；HG4 執行真 `CHGaugeParts@Numerator::set`／`Denominator::set` 的虛擬方法，另一個值必須保留；HG5 記憶體 XPE v5 保存／重讀兩個狀態的原始數值、surface、反轉與空 CG 名稱；HG6 保留 v13 型別與無貼圖 setter 行為，另驗證 v14 讀舊 v3／v4 的 ratio 遷移及後續 ClipArea 對齊，且在任何 gauge getter 可能轉換型別前先確認 22／23 已由載入還原。六個案例各自 fork；無 GL、遊戲素材或存檔檔案，新函式僅以 dlsym 取得，修正前可建置。實際 CG 載入與像素由 GUI 比對涵蓋。
 - `observer`、`reentrancy` 兩個模式在 2026-09-30 改為原版的 delegate 所有權：delegate 持有 lambda 的環境、不持有目標物件（`observer` 的 smoke 案例與 `reentrancy` 的參照數斷言；`reentrancy` 由 harness 保留目標物件的根參照）。在 `ce5c75a` 之前的版本上這兩個模式會失敗，是預期結果。
 - `deleted_event_fixture.inc` 放在上一層，因為 `runtime_probe.c` 以 `../deleted_event_fixture.inc` 引用它。
 

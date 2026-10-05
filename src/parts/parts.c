@@ -200,6 +200,7 @@ static void parts_state_free(struct parts_state *state)
 	case PARTS_VGAUGE:
 		gfx_delete_texture(&state->common.texture);
 		gfx_delete_texture(&state->gauge.cg);
+		if (state->gauge.cg_name) free_string(state->gauge.cg_name);
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		gfx_delete_texture(&state->common.texture);
@@ -266,6 +267,10 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 	case PARTS_VGAUGE:
 		state->gauge.cg_no = -1;
 		state->gauge.rate = 0.0f;
+		if (ain->version >= 14) {
+			state->gauge.numerator = state->gauge.denominator = 100.0f;
+			state->gauge.rate = 1.0f;
+		}
 		break;
 	case PARTS_3DLAYER:
 		state->layer3d.plugin = -1;
@@ -325,6 +330,8 @@ struct parts_gauge *parts_get_hgauge(struct parts *parts, int state)
 	if (parts->states[state].type != PARTS_HGAUGE) {
 		parts_state_reset(&parts->states[state], PARTS_HGAUGE);
 	}
+	if (ain->version >= 14 && parts->component_type == 18)
+		parts->component_state_type[state] = 22;
 	return &parts->states[state].gauge;
 }
 
@@ -333,6 +340,8 @@ struct parts_gauge *parts_get_vgauge(struct parts *parts, int state)
 	if (parts->states[state].type != PARTS_VGAUGE) {
 		parts_state_reset(&parts->states[state], PARTS_VGAUGE);
 	}
+	if (ain->version >= 14 && parts->component_type == 18)
+		parts->component_state_type[state] = 23;
 	return &parts->states[state].gauge;
 }
 
@@ -408,6 +417,20 @@ static Point calculate_offset(int mode, int w, int h)
  */
 static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_common *common)
 {
+	if (ain->version >= 14) {
+		for (int i = 0; i < PARTS_NR_STATES; i++) {
+			struct parts_state *s = &parts->states[i];
+			if (&s->common != common || (s->type != PARTS_HGAUGE && s->type != PARTS_VGAUGE))
+				continue;
+			Rectangle area;
+			parts_v14_gauge_surface(&s->gauge, &area);
+			common->w = area.w; common->h = area.h;
+			common->origin_offset = calculate_offset(parts->origin_mode, area.w, area.h);
+			common->hitbox = (Rectangle) { parts->local.pos.x + common->origin_offset.x,
+				parts->local.pos.y + common->origin_offset.y, area.w, area.h };
+			return;
+		}
+	}
 
 	if (common->surface_area.w || common->surface_area.h) {
 		common->origin_offset = calculate_offset(parts->origin_mode,
@@ -1634,8 +1657,61 @@ bool PE_SetLoopCGSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	return true;
 }
 
+/* Native 0x59b760 normalizes only for drawing; getters retain the raw
+ * surface rectangle. A nonpositive width AND height means the whole CG. */
+void parts_v14_gauge_surface(struct parts_gauge *g, Rectangle *out)
+{
+	Rectangle r = g->common.surface_area;
+	if (r.w <= 0 && r.h <= 0) {
+		r = (Rectangle) {0, 0, g->cg.w, g->cg.h};
+	} else {
+		r.x = max(0, r.x); r.y = max(0, r.y);
+		r.w = max(0, min(r.w, g->cg.w - r.x));
+		r.h = max(0, min(r.h, g->cg.h - r.y));
+	}
+	*out = r;
+}
+
+/* Native H 0x5a7d90 / V 0x5c4020. Return a rectangle relative to the
+ * effective surface, used for BOTH geometry and source cropping. */
+void parts_v14_gauge_fill_rect(struct parts_gauge *g, bool vertical, Rectangle *out)
+{
+	Rectangle area;
+	parts_v14_gauge_surface(g, &area);
+	Rectangle r = {0, 0, area.w, area.h};
+	int extent = vertical ? area.h : area.w;
+	int pixels = extent;
+	if (g->denominator > 0 && g->numerator != g->denominator) {
+		float n = fminf(fmaxf(g->numerator, 0), g->denominator);
+		float value = extent * n / g->denominator;
+		// Keep malformed/non-finite data away from float-to-int UB.
+		pixels = !isfinite(value) || value >= extent ? extent : value <= 0 ? 0 : (int)value;
+		pixels = max(0, min(pixels, extent));
+	}
+	if (vertical) {
+		r.h = pixels;
+		r.y = g->reverse ? 0 : extent - pixels;
+	} else {
+		r.w = pixels;
+		r.x = g->reverse ? extent - pixels : 0;
+	}
+	*out = r;
+}
+
 static void _parts_set_gauge_cg(struct parts *parts, struct parts_gauge *g, struct cg *cg)
 {
+	if (ain->version >= 14) {
+		gfx_delete_texture(&g->cg);
+		gfx_delete_texture(&g->common.texture);
+		gfx_init_texture_with_cg(&g->common.texture, cg);
+		// v14 draws a cropped quad from the original image; no per-frame
+		// render-to-texture copy. cg keeps source dimensions, not an alias.
+		g->cg.w = cg->metrics.w; g->cg.h = cg->metrics.h;
+		parts_set_dims(parts, &g->common, g->cg.w, g->cg.h);
+		parts_dirty(parts);
+		return;
+	}
+
 	gfx_init_texture_with_cg(&g->cg, cg);
 	gfx_init_texture_with_cg(&g->common.texture, cg);
 
@@ -1649,12 +1725,20 @@ static void _parts_set_gauge_cg(struct parts *parts, struct parts_gauge *g, stru
 
 bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct string *cg_name)
 {
+	if (ain->version >= 14 && !strcmp(g->cg_name ? g->cg_name->text : "", cg_name->text))
+		return true;
+
 	int cg_no;
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, &cg_no);
 	if (!cg)
 		return false;
 	_parts_set_gauge_cg(parts, g, cg);
+	if (ain->version >= 14) cg_free(cg);
 	g->cg_no = cg_no;
+	if (ain->version >= 14) {
+		if (g->cg_name) free_string(g->cg_name);
+		g->cg_name = string_ref(cg_name);
+	}
 	return true;
 }
 
@@ -1664,6 +1748,7 @@ bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int
 	if (!cg)
 		return false;
 	_parts_set_gauge_cg(parts, g, cg);
+	if (ain->version >= 14) cg_free(cg);
 	g->cg_no = cg_no;
 	return true;
 }
@@ -1710,6 +1795,12 @@ bool PE_SetVGaugeCG_by_index(int parts_no, int cg_no, int state)
 
 void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate)
 {
+	if (ain->version >= 14) {
+		g->numerator = rate; g->denominator = 1; g->rate = rate;
+		parts_dirty(parts);
+		return;
+	}
+
 	if (!g->common.texture.handle) {
 		WARNING("HGauge texture uninitialized");
 		return;
@@ -1723,6 +1814,12 @@ void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rat
 
 void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate)
 {
+	if (ain->version >= 14) {
+		g->numerator = rate; g->denominator = 1; g->rate = rate;
+		parts_dirty(parts);
+		return;
+	}
+
 	if (!g->common.texture.handle) {
 		WARNING("VGauge texture uninitialized");
 		return;
@@ -1741,7 +1838,13 @@ bool PE_SetHGaugeRate(int parts_no, float numerator, float denominator, int stat
 
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = parts_get_hgauge(parts, state);
+	if (ain->version >= 14) {
+		g->numerator = numerator; g->denominator = denominator;
+		g->rate = denominator > 0 ? numerator / denominator : 1;
+		parts_dirty(parts);
+	} else {
 	parts_hgauge_set_rate(parts, g, numerator/denominator);
+	}
 	return true;
 }
 
@@ -1757,7 +1860,13 @@ bool PE_SetVGaugeRate(int parts_no, float numerator, float denominator, int stat
 
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = parts_get_vgauge(parts, state);
+	if (ain->version >= 14) {
+		g->numerator = numerator; g->denominator = denominator;
+		g->rate = denominator > 0 ? numerator / denominator : 1;
+		parts_dirty(parts);
+	} else {
 	parts_vgauge_set_rate(parts, g, (float)numerator/(float)denominator);
+	}
 	return true;
 }
 
@@ -1773,7 +1882,13 @@ bool PE_SetHGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = parts_get_hgauge(parts, state);
-	parts_set_surface_area(parts, &g->common, x, y, w, h);
+	if (ain->version >= 14) {
+		g->common.surface_area = (Rectangle) {x, y, w, h};
+		parts_common_recalculate_hitbox(parts, &g->common);
+		parts_dirty(parts);
+	} else {
+		parts_set_surface_area(parts, &g->common, x, y, w, h);
+	}
 	return true;
 }
 
@@ -1784,7 +1899,13 @@ bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 
 	struct parts *parts = parts_get(parts_no);
 	struct parts_gauge *g = parts_get_vgauge(parts, state);
-	parts_set_surface_area(parts, &g->common, x, y, w, h);
+	if (ain->version >= 14) {
+		g->common.surface_area = (Rectangle) {x, y, w, h};
+		parts_common_recalculate_hitbox(parts, &g->common);
+		parts_dirty(parts);
+	} else {
+		parts_set_surface_area(parts, &g->common, x, y, w, h);
+	}
 	return true;
 }
 
@@ -2317,6 +2438,8 @@ void PE_SetComponentType(int parts_no, int type, int state)
 			switch (type) {
 			case 19: case 27: parts_get_cg(parts, state - 1); break;
 			case 21: parts_get_text(parts, state - 1); break;
+			case 22: parts_get_hgauge(parts, state - 1); break;
+			case 23: parts_get_vgauge(parts, state - 1); break;
 			case 24: parts_get_numeral(parts, state - 1); break;
 			case 25:
 				if (parts->states[state - 1].type != PARTS_RECT_DETECTION)
@@ -2374,8 +2497,10 @@ int PE_GetComponentType(int parts_no, int state)
 				// A recognized state follows a later CG/text transition.
 				switch (parts->states[state - 1].type) {
 				case PARTS_TEXT: return 21;
-				case PARTS_CG: return native == 21 ? 19 : native;
+				case PARTS_CG: return native == 21 || native == 22 || native == 23 ? 19 : native;
 				case PARTS_NUMERAL: return 24;
+				case PARTS_HGAUGE: return 22;
+				case PARTS_VGAUGE: return 23;
 				default: return native;
 				}
 			}

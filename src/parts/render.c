@@ -718,6 +718,40 @@ static void parts_render_flash(struct parts *parts, struct parts_flash *f)
 	}
 }
 
+/* Gauge reversal crops the far end; it does not mirror the pixels.
+ * Keep the full effective box for origin/children, offset only this quad. */
+void parts_v14_gauge_render_geometry(struct parts *parts, struct parts_gauge *g,
+		bool vertical, mat4 transform, Rectangle *source)
+{
+	Rectangle surface, fill;
+	parts_v14_gauge_surface(g, &surface);
+	parts_v14_gauge_fill_rect(g, vertical, &fill);
+	parts_box_transform(parts, &g->common, transform);
+	// parts.f.glsl discards pixels outside source; its UVs still span the
+	// WHOLE image. Keep that full-size quad, offset by the surface origin.
+	glm_translate(transform, (vec3){-surface.x, -surface.y, 0});
+	glm_scale(transform, (vec3){g->cg.w, g->cg.h, 1});
+	*source = (Rectangle){surface.x + fill.x, surface.y + fill.y, fill.w, fill.h};
+}
+
+static void parts_render_v14_gauge(struct parts *parts, struct parts_gauge *g, bool vertical)
+{
+	Rectangle source;
+	mat4 transform;
+	parts_v14_gauge_render_geometry(parts, g, vertical, transform, &source);
+	if (!g->common.texture.handle || source.w <= 0 || source.h <= 0)
+		return;
+	vec3 add = {parts->global.add_color.r / 255.f, parts->global.add_color.g / 255.f,
+		parts->global.add_color.b / 255.f};
+	vec3 mul = {parts->global.multiply_color.r / 255.f, parts->global.multiply_color.g / 255.f,
+		parts->global.multiply_color.b / 255.f};
+	int filter = parts_effective_draw_filter(parts);
+	set_draw_filter_blend_func(filter);
+	parts_render_texture(parts, &g->common.texture, transform, &source,
+		parts->global.alpha / 255.f, add, mul, filter, parts->alpha_clipper_parts_no);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+}
+
 void parts_render(struct parts *parts)
 {
 	if (!parts->global.show)
@@ -743,11 +777,16 @@ void parts_render(struct parts *parts)
 	case PARTS_CG:
 	case PARTS_ANIMATION:
 	case PARTS_NUMERAL:
-	case PARTS_HGAUGE:
-	case PARTS_VGAUGE:
 	case PARTS_CONSTRUCTION_PROCESS:
 	case PARTS_MOVIE:
 		if (state->common.texture.handle)
+			parts_render_cg(parts, &state->common);
+		break;
+	case PARTS_HGAUGE:
+	case PARTS_VGAUGE:
+		if (ain->version >= 14)
+			parts_render_v14_gauge(parts, &state->gauge, state->type == PARTS_VGAUGE);
+		else if (state->common.texture.handle)
 			parts_render_cg(parts, &state->common);
 		break;
 	case PARTS_TEXT:

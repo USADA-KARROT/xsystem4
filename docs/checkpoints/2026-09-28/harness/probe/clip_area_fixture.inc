@@ -287,7 +287,7 @@ static void ca_persistence(void)
 	CA_CHECK(PE_Save(&v4), "v14 PE_Save failed");
 	if (!v4)
 		return;
-	CA_CHECK(ca_save_version(v4) == 4, "v14 save does not have version 4");
+	CA_CHECK(ca_save_version(v4) >= 4, "v14 save predates ClipArea support");
 	ca_area(a, 0, 0, 9, 9);
 	ca_area(b, 0, 0, 8, 8);
 	CA_CHECK(PE_Load(&v4), "v14 PE_Load failed");

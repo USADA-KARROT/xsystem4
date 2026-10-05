@@ -24,7 +24,7 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 4
+#define CURRENT_SAVE_VERSION 5
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -158,24 +158,39 @@ static void load_parts_numeral(struct iarray_reader *r, struct parts *parts,
 		parts_numeral_set_number(parts, num, num->num);
 }
 
-static void save_parts_gauge(struct iarray_writer *w, struct parts_gauge *gauge)
+static void save_parts_gauge(struct iarray_writer *w, struct parts_gauge *gauge, int version)
 {
 	iarray_write(w, gauge->cg_no);
 	iarray_write_float(w, gauge->rate);
+	if (version >= 5) {
+		iarray_write_float(w, gauge->numerator);
+		iarray_write_float(w, gauge->denominator);
+		iarray_write(w, gauge->reverse);
+		iarray_write_string_or_null(w, gauge->cg_name);
+	}
 }
 
 static void load_parts_gauge(struct iarray_reader *r, struct parts *parts,
-		struct parts_gauge *gauge, bool vert)
+		struct parts_gauge *gauge, bool vert, int version)
 {
 	gauge->cg_no = iarray_read(r);
 	gauge->rate = iarray_read_float(r);
-
+	if (version >= 5) {
+		gauge->numerator = iarray_read_float(r);
+		gauge->denominator = iarray_read_float(r);
+		gauge->reverse = !!iarray_read(r);
+		gauge->cg_name = iarray_read_string_or_null(r);
+	} else {
+		// Older XPE records retained only a quotient.
+		gauge->numerator = gauge->rate;
+		gauge->denominator = 1;
+	}
 	if (gauge->cg_no >= 0)
 		parts_gauge_set_cg_by_index(parts, gauge, gauge->cg_no);
-	if (vert)
-		parts_vgauge_set_rate(parts, gauge, gauge->rate);
-	else
-		parts_hgauge_set_rate(parts, gauge, gauge->rate);
+	if (ain->version < 14) {
+		if (vert) parts_vgauge_set_rate(parts, gauge, gauge->rate);
+		else parts_hgauge_set_rate(parts, gauge, gauge->rate);
+	}
 }
 
 static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
@@ -376,7 +391,7 @@ static void load_parts_layout_box(struct iarray_reader *r, struct parts_layout_b
 	lb->padding_right = iarray_read(r);
 }
 
-static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
+static void save_parts_state(struct iarray_writer *w, struct parts_state *state, int version)
 {
 	iarray_write(w, state->type);
 	iarray_write(w, state->common.w);
@@ -404,7 +419,7 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 		break;
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
-		save_parts_gauge(w, &state->gauge);
+		save_parts_gauge(w, &state->gauge, version);
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		save_parts_construction_process(w, &state->cproc);
@@ -422,7 +437,7 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state)
 }
 
 static void load_parts_state(struct iarray_reader *r, struct parts *parts,
-		struct parts_state *state)
+		struct parts_state *state, int version)
 {
 	parts_state_reset(state, iarray_read(r));
 	state->common.w = iarray_read(r);
@@ -449,10 +464,10 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 		load_parts_numeral(r, parts, &state->num);
 		break;
 	case PARTS_HGAUGE:
-		load_parts_gauge(r, parts, &state->gauge, false);
+		load_parts_gauge(r, parts, &state->gauge, false, version);
 		break;
 	case PARTS_VGAUGE:
-		load_parts_gauge(r, parts, &state->gauge, true);
+		load_parts_gauge(r, parts, &state->gauge, true, version);
 		break;
 	case PARTS_CONSTRUCTION_PROCESS:
 		load_parts_construction_process(r, parts, &state->cproc);
@@ -546,7 +561,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts, int version
 	iarray_write(w, parts->no);
 	iarray_write(w, parts->state);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		save_parts_state(w, &parts->states[i]);
+		save_parts_state(w, &parts->states[i], version);
 	}
 
 	save_parts_params(w, &parts->local);
@@ -567,6 +582,11 @@ static void save_parts(struct iarray_writer *w, struct parts *parts, int version
 	if (version >= 4) {
 		iarray_write(w, parts->clip_enabled);
 		iarray_write_rectangle(w, &parts->clip_area);
+	}
+	if (version >= 5) {
+		iarray_write(w, parts->component_type);
+		for (int i = 0; i < PARTS_NR_STATES; i++)
+			iarray_write(w, parts->component_state_type[i]);
 	}
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and save unconditionally
@@ -600,7 +620,7 @@ static void load_parts(struct iarray_reader *r, int version)
 	struct parts *parts = parts_get(no);
 	parts->state = iarray_read(r);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
-		load_parts_state(r, parts, &parts->states[i]);
+		load_parts_state(r, parts, &parts->states[i], version);
 	}
 
 	load_parts_params(r, &parts->local);
@@ -622,6 +642,20 @@ static void load_parts(struct iarray_reader *r, int version)
 	if (version >= 4) {
 		parts->clip_enabled = !!iarray_read(r);
 		iarray_read_rectangle(r, &parts->clip_area);
+	}
+	if (version >= 5) {
+		parts->component_type = iarray_read(r);
+		for (int i = 0; i < PARTS_NR_STATES; i++)
+			parts->component_state_type[i] = iarray_read(r);
+	} else if (ain->version >= 14) {
+		// Old records have no widget metadata. Recover gauge types before
+		// AIN CompParts queries them (a getter must not be needed first).
+		for (int i = 0; i < PARTS_NR_STATES; i++) {
+			if (parts->states[i].type == PARTS_HGAUGE || parts->states[i].type == PARTS_VGAUGE) {
+				parts->component_type = 18;
+				parts->component_state_type[i] = parts->states[i].type == PARTS_HGAUGE ? 22 : 23;
+			}
+		}
 	}
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check

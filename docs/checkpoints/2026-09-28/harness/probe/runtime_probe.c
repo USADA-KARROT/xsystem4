@@ -111,6 +111,7 @@ static void init_probe(const char *path) {
 #include "logo_gloss_fixture.inc"
 #include "clip_area_fixture.inc"
 #include "input_nesting_fixture.inc"
+#include "gauge_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -157,6 +158,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"logo-gloss"))return test_logo_gloss();
     if(!strcmp(argv[2],"clip-area"))return test_clip_area();
     if(!strcmp(argv[2],"input-nesting"))return test_input_nesting();
+    if(!strcmp(argv[2],"gauge"))return test_gauge();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

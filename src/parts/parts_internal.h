@@ -195,6 +195,10 @@ struct parts_gauge {
 	Texture cg;
 	int cg_no;
 	float rate;
+	// v14 keeps the operands, not just their quotient (0x566b40).
+	float numerator, denominator;
+	bool reverse;
+	struct string *cg_name;
 };
 
 // Serialized in save data. Do not reorder.
@@ -567,6 +571,9 @@ void parts_numeral_font_init(struct parts_numeral_font *font);
 bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, int n);
 bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct string *cg_name);
 bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int cg_no);
+void parts_v14_gauge_render_geometry(struct parts *parts, struct parts_gauge *g, bool vertical, mat4 transform, Rectangle *source);
+void parts_v14_gauge_surface(struct parts_gauge *g, Rectangle *out);
+void parts_v14_gauge_fill_rect(struct parts_gauge *g, bool vertical, Rectangle *out);
 void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 

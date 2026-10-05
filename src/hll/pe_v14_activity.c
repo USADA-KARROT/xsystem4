@@ -493,6 +493,8 @@ enum {
 	PACTEX_EPT_LOW_LEVEL = 18,
 	PACTEX_EPT_CG = 19,
 	PACTEX_EPT_TEXT = 21,
+	PACTEX_EPT_HGAUGE = 22,
+	PACTEX_EPT_VGAUGE = 23,
 	PACTEX_EPT_NUMERAL = 24,
 	PACTEX_EPT_RECT = 25,
 	PACTEX_EPT_CONSTRUCTION = 26,
@@ -563,6 +565,8 @@ static int pactex_low_level_type(struct ex_tree *state)
 	switch (pactex_native_type(type)) {
 	case PACTEX_EPT_CG: return PACTEX_EPT_CG;
 	case PACTEX_EPT_TEXT: return PACTEX_EPT_TEXT;
+	case PACTEX_EPT_HGAUGE: return PACTEX_EPT_HGAUGE;
+	case PACTEX_EPT_VGAUGE: return PACTEX_EPT_VGAUGE;
 	case PACTEX_EPT_NUMERAL: return PACTEX_EPT_NUMERAL;
 	case PACTEX_EPT_RECT: return PACTEX_EPT_RECT;
 	case PACTEX_EPT_CONSTRUCTION: return PACTEX_EPT_CONSTRUCTION;
@@ -660,6 +664,40 @@ static void pactex_apply_numeral_state(struct ex_tree *state, int parts_no, int 
 	PE_SetNumeralSpace(parts_no, space, pe_state);
 }
 
+static const char *pactex_get_exact_string(struct ex_tree *node, const char *name);
+
+static float pactex_gauge_number(struct ex_tree *node, const char *sjis, const char *gbk)
+{
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (c->is_leaf && pactex_name_is(c, sjis, gbk) && c->leaf.value.type == EX_FLOAT)
+			return c->leaf.value.f;
+	}
+	return 0;
+}
+
+/* Native loaders 0x5a8660 / 0x5c4500: gauge-specific leaves belong to
+ * this named state. CG fallback would both lose type and reset the gauge. */
+static void pactex_apply_gauge_state(struct ex_tree *state, int parts_no, int pe_state, bool vertical)
+{
+	struct parts *p = parts_get(parts_no);
+	struct parts_gauge *g = vertical ? parts_get_vgauge(p, pe_state - 1)
+		: parts_get_hgauge(p, pe_state - 1);
+	const char *name = pactex_get_exact_string(state, "\x82\x62\x82\x66\x96\xbc");
+	if (!name) name = pactex_get_exact_string(state, "\xa3\xc3\xa3\xc7\xc3\xfb");
+	if (name && *name) {
+		struct string *cg = cstr_to_string(name);
+		parts_gauge_set_cg(p, g, cg);
+		free_string(cg);
+	}
+	float n = pactex_gauge_number(state, "\x95\xaa\x8e\x71", "\xb7\xd6\xd7\xd3");
+	float d = pactex_gauge_number(state, "\x95\xaa\x95\xea", "\xb7\xd6\xc4\xb8");
+	if (vertical) PE_SetVGaugeRate(parts_no, n, d, pe_state);
+	else PE_SetHGaugeRate(parts_no, n, d, pe_state);
+	g->reverse = pactex_get_int(state, "\x94\xbd\x93\x5d",
+		pactex_get_int(state, "\xb7\xb4\xde\x44", 0)) != 0;
+}
+
 static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, int pe_state)
 {
 	if (!pe_state) return false;
@@ -684,12 +722,15 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 	}
 	bool text = type == PACTEX_EPT_TEXT;
 	bool numeral = type == PACTEX_EPT_NUMERAL;
+	bool gauge = type == PACTEX_EPT_HGAUGE || type == PACTEX_EPT_VGAUGE;
 	struct parts *parts = parts_get(parts_no);
 	if (text) {
 		parts_get_text(parts, pe_state - 1);
 		pactex_apply_text_style(state, parts_no, pe_state);
 	} else if (numeral) {
 		pactex_apply_numeral_state(state, parts_no, pe_state);
+	} else if (gauge) {
+		pactex_apply_gauge_state(state, parts_no, pe_state, type == PACTEX_EPT_VGAUGE);
 	} else {
 		// ＣＧ部件, or ＣＧ判定部件: a CG kept for hit testing, not drawn.
 		parts_get_cg(parts, pe_state - 1);
@@ -712,11 +753,13 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 			area->items[2].value.type == EX_INT && area->items[3].value.type == EX_INT) {
 		x = area->items[0].value.i; y = area->items[1].value.i;
 		w = area->items[2].value.i; h = area->items[3].value.i;
-	} else if (text || numeral || !pactex_get_surface_area(state, &x, &y, &w, &h, 0)) {
+	} else if (text || numeral || gauge || !pactex_get_surface_area(state, &x, &y, &w, &h, 0)) {
 		return true;
 	}
 	if (text) PE_SetPartsTextSurfaceArea(parts_no, x, y, w, h, pe_state);
 	else if (numeral) PE_SetNumeralSurfaceArea(parts_no, x, y, w, h, pe_state);
+	else if (type == PACTEX_EPT_HGAUGE) PE_SetHGaugeSurfaceArea(parts_no, x, y, w, h, pe_state);
+	else if (type == PACTEX_EPT_VGAUGE) PE_SetVGaugeSurfaceArea(parts_no, x, y, w, h, pe_state);
 	else PE_SetPartsCGSurfaceArea(parts_no, x, y, w, h, pe_state);
 	return true;
 }
