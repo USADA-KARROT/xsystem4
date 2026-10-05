@@ -1,0 +1,57 @@
+{
+  "code": "ec00a160d3c504ba690ff92f49a519fc2adff305",
+  "runs": [
+    {
+      "tag": "claude-labels-normal150",
+      "binary_sha256": "265e89564810601633537fe32eb59464e46b61fd119f7b9ec1df6fbadcf0176a",
+      "elapsed_seconds": 150.233,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 379387904,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-labels-target",
+      "binary_sha256": "265e89564810601633537fe32eb59464e46b61fd119f7b9ec1df6fbadcf0176a",
+      "elapsed_seconds": 85.368,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 377831424,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 112,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-labels-sysmenu",
+      "binary_sha256": "265e89564810601633537fe32eb59464e46b61fd119f7b9ec1df6fbadcf0176a",
+      "elapsed_seconds": 30.391,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 441434112,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 10,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-labels-dialogs2",
+      "binary_sha256": "265e89564810601633537fe32eb59464e46b61fd119f7b9ec1df6fbadcf0176a",
+      "elapsed_seconds": 38.299,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 451133440,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 18,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    }
+  ]
+}

@@ -2,7 +2,15 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-05 春銷字幕修正後接續（最新）
+## 2026-10-05 文本預設文字修正後接續（最新）
+
+- **程式 `ec00a16` 已推送**；本機／ls-remote／GitHub branches API 均 `ec00a160d3c504ba690ff92f49a519fc2adff305`。文件另隨本節所在 commit，libsys4 固定 247f544。
+- 根因：v14 pactex loader 的文本部件分支只建 text state、套 `文本裝飾`，從不讀 `[文本]`；AIN 從不設定固定標籤，只以 `Parts_SetText` 覆蓋佔位文字。依原版 `0x5c2d20`（`0x5c2fac` 讀 `文本`，預設空字串，存到 `+0xd4`）在 style 之後以精確鍵名讀入並 `PE_SetText`。詳見[本組研究](research/gui-visual/text-default.md)。
+- 預設／GBK 各62模式 PASS、sanitizer0；before-check `5a82575 text-default` 4/5 失敗、`ec00a16` 5/5 通過。正常GUI150.233秒MSG88（逐位元組同前組）；春銷目標GUI、系統選單、據點存檔YesNo 抽查皆無佔位字；春銷 12 次點擊命中目標與前組相同。沿用既有 Wine 影格，未重跑 Wine。
+- **同一畫面的另外兩個根因（未修）**：(1) 灰底：有 `手順リスト` 的構築部件 loader 不執行，命令 122 等 v14 命令未支援（168 狀態、105 pactex、26 種命令）；(2) 緊密排版：`CountBase` 等レイアウトボックス的型別／配置／折り返し／パディング未載入，子元件停在 pactex 初始座標，影響全部 layout box。建議下一組先做其一並取得原版語義，等使用者 GO。
+- 審查 Low 未修：`GetTextPartsText` 固定回空字串；空的文字狀態在懸停時可能讓文字消失；存檔讀回不補換行。另觀察到據點「存檔」在 xsystem4 會先問 YesNo，原版一鍵存檔，待另行比對。
+
+## 2026-10-05 春銷字幕修正後接續（歷史，標籤文字已由上節接續）
 
 - **程式137cbd7已推送**；本機／ls-remote／GitHub branches API均 `137cbd72e49f227015a19818a12bed49ce9714aa`。文件另隨本節所在commit，libsys4固定247f544。
 - PhaseBar依賴Base的AlphaClipper遮罩子文字；依原版0x537900／0x579ceb補上v14最近有效祖先遮罩解析。動態Show不影響、edit_hidden候選無效、有效無texture仍覆蓋祖先，v13保留原樣。詳見[字幕研究](research/gui-visual/alpha-inherit.md)。

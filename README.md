@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-05）：`137cbd7` 已修正春銷中央字幕殘留，v14 子元件依原版繼承最近有效 AlphaClipper。預設／GBK 各61模式 PASS、sanitizer0；新探針修前2/3失敗、修後3/3通過。正常GUI150.285秒、MSG88、assert／overflow0。畫面確認字幕進場後正常退場，與既有Wine參考的配對階段一致。左右箭頭可切換人材；正文原本沒有左鍵事件，前次疑似點擊阻擋已釐清。程式已獨立審查及推送雙源核對，libsys4維持247f544。**
-> [字幕研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/alpha-inherit.md) · [前組卡片修正](docs/checkpoints/2026-09-28/research/gui-visual/working-cards.md)。計數標籤、灰底與剩餘時間文字仍缺；完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。下一組待使用者決定。
+> **最新狀態（2026-10-05）：`ec00a16` 已讓 v14 pactex 文本部件載入預設 `[文本]`（原版 `0x5c2d20`／`0x5c2fac`）：春銷配對頁的「人材」「顧客」「／」與「剩餘時間」、系統選單的項目名稱都出現，文字與原版一致。預設／GBK 各62模式 PASS、sanitizer0；新探針修前4/5失敗、修後5/5通過。正常GUI150.233秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/text-default.md) · [前組字幕修正](docs/checkpoints/2026-09-28/research/gui-visual/alpha-inherit.md)。計數標籤的灰底（構築部件手順）與緊密排版（レイアウトボックス屬性）是另外兩個根因，尚未修；完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。下一組待使用者決定。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
