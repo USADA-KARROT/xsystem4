@@ -10,6 +10,7 @@ static void personality_probe_step(void);
 static void iface_arg_probe_step(void);
 static void title_review_probe_step(void);
 static void third_review_probe_step(void);
+static void working_cards_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -37,6 +38,7 @@ static void probe_step(unsigned op) {
     iface_arg_probe_step();
     title_review_probe_step();
     third_review_probe_step();
+    working_cards_probe_step();
 
 }
 static size_t live_slots(void) {
@@ -112,6 +114,7 @@ static void init_probe(const char *path) {
 #include "clip_area_fixture.inc"
 #include "input_nesting_fixture.inc"
 #include "gauge_fixture.inc"
+#include "working_cards_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -159,6 +162,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"clip-area"))return test_clip_area();
     if(!strcmp(argv[2],"input-nesting"))return test_input_nesting();
     if(!strcmp(argv[2],"gauge"))return test_gauge();
+    if(!strcmp(argv[2],"working-cards"))return test_working_cards();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

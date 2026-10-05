@@ -1333,14 +1333,23 @@ static int delegate_param_slots(struct ain_function_type *dg)
 	return slots;
 }
 
-// Return slot count for delegate return types.
-// Unlike ain_return_slots_type, WRAP is always 2 here because delegate
-// bytecode (DG_CALLBEGIN/DG_CALL) and the caller (e.g. X_ASSIGN 2)
-// always handle WRAP as a 2-slot [value, has_value] pair.
+// DG_CALLBEGIN (native 0x66db38 -> 0x671e90) and DG_CALL (0x66dd7c ->
+// 0x672150) use the declared return type. A wrap of an object is one slot;
+// scalar references and interface wraps are two (0x6537e0). Keep unknown
+// wrap shapes on the previous path rather than guessing their ABI.
 static int delegate_return_slots(struct ain_type *type)
 {
-	if (type->data == AIN_WRAP)
+	if (type->data == AIN_WRAP) {
+		if (ain->version >= 14 && type->array_type) {
+			switch (type->array_type->data) {
+			case AIN_STRUCT: case AIN_STRING: case AIN_DELEGATE: case AIN_ARRAY:
+				return 1;
+			default:
+				break;
+			}
+		}
 		return 2;
+	}
 	return ain_return_slots_type(type);
 }
 
@@ -1837,9 +1846,9 @@ void vm_call(int fno, int struct_page)
  * constructor (vm.c NEW, orig_ctor == -1, outside the allocation phase):
  * create_struct, the no-argument constructors of flagged member structs, then
  * the struct's own no-argument STRT constructor (skipped for CDebug structs).
- * Used by system.DeserializeStruct for members and elements the save file
- * provides but the destination does not have yet; the native loader
- * (0x679d60 -> 0x679b30(index, 1)) constructs such objects as well.
+ * Used by initialized X_A_INIT value arrays and by system.DeserializeStruct
+ * for members and elements the destination does not have yet; the native
+ * loader (0x679d60 -> 0x679b30(index, 1)) constructs such objects as well.
  * A struct without a STRT constructor is default-initialized the native way
  * (construct_default_members). NEW itself is unchanged; it still leaves such
  * members null. Returns a slot with one reference, or -1.
@@ -5215,14 +5224,15 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		} else if (heap_index_valid(heap_idx) && heap[heap_idx].page) {
 			data_type = variable_type(heap[heap_idx].page, var_idx, &struct_type, NULL);
 		}
-		// AIN v14 preserves the element declaration in array_type. Keep it
-		// for single-slot arrays; multi-slot interface/wrap arrays stay generic.
+		// X_A_INIT's immediate controls default initialization, not element
+		// width (native 0x66e697 -> 0x67f4a0 / 0x67fee0). Width and type come
+		// from the declaration (0x679432 -> 0x653420).
 		const struct ain_type *decl = NULL;
 		if (heap_idx == 0 && var_idx >= 0 && var_idx < ain->nr_globals)
 			decl = &ain->globals[var_idx].type;
 		else if (heap_index_valid(heap_idx) && heap[heap_idx].page)
 			decl = variable_decltype(heap[heap_idx].page, var_idx);
-		if (arg == 0 && decl && decl->array_type &&
+		if ((arg == 0 || ain->version >= 14) && decl && decl->array_type &&
 		    (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)) {
 			const struct ain_type *elem = decl->array_type;
 			switch (elem->data) {
@@ -5235,19 +5245,16 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			default: break;
 			}
 		}
-		// arg encodes element slot count: 0 = 1-slot, 1 = 2-slot, etc.
-		// For generic arrays (AIN_ARRAY), multiply physical size by (arg+1)
-		// to accommodate multi-slot element types (e.g. wrap, interface).
+		// The concrete cases above have one slot per element. Keep the
+		// generic representation unchanged here: correcting its stride and
+		// defaults also requires typed companion-slot teardown. Those shapes
+		// are outside this change (the old immediate-based fallback remains).
 		int elem_slots = arg + 1;
 		// Allocate array slot and page
 		int slot = heap_alloc_slot(VM_PAGE);
 		if (size > 0) {
 			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) {
 				// Generic array (v14 type erasure) — create flat value array.
-				// Initialize to -1 (null ref) rather than 0: game code checks
-				// for -1 to detect empty slots, and 0 = guard page would
-				// cause garbage reads. Value types (int/float) are always
-				// written before being read, so -1 is safe.
 				int phys_size = size * elem_slots;
 				struct page *page = alloc_page(ARRAY_PAGE, data_type, phys_size);
 				for (int i = 0; i < phys_size; i++)
@@ -5258,6 +5265,16 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			} else {
 				union vm_value dim = { .i = size };
 				heap_set_page(slot, alloc_array(1, &dim, data_type, struct_type, false));
+				if (ain->version >= 14 && arg && data_type == AIN_ARRAY_STRUCT
+				    && struct_type >= 0 && struct_type < ain->nr_structures) {
+					// 0x67fe20 -> 0x656a12 -> 0x679b30(type, 1) constructs
+					// every value object, including its no-argument ctor.
+					// Reacquire the heap page after each reentrant VM call.
+					for (int i = 0; i < size; i++) {
+						int value = vm_construct_struct(struct_type);
+						heap[slot].page->values[i].i = value;
+					}
+				}
 			}
 		} else {
 			// size=0: create an empty array page to preserve type metadata
