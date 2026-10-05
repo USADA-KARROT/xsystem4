@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 61 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 62 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -95,3 +95,4 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 4. 先用 `before-check.sh <修正前的 commit> xxx` 確認失敗，再用 `verify-step.sh` 確認全部通過。
 
 - `probe/alpha_inherit_fixture.inc`：`alpha-inherit`（2026-10-05），v14 alpha遮罩沿父元件繼承，最近可解析且非editor-hidden的本地遮罩覆蓋祖先。AC1真HLL setter、三層繼承、覆蓋、清除、未知號碼、Show=false與編輯隱藏；AC2重新掛父、脫離、遮罩釋放／重建、無貼圖與自身遮罩；AC3 v13保留本地行為。使用正式resolver，舊版以原本只讀本地欄位的路徑對照；無GL／素材，實際像素另由GUI核對。
+- `probe/text_default_fixture.inc`：`text-default`（2026-10-05），v14 pactex 文本部件狀態的預設 `[文本]`（原版文字狀態 loader `0x5c2d20` 在 `0x5c2fac` 讀入）。TD1 三個狀態各自的文字與空 `[文本]`；TD2 `文本位置` 排在 `文本` 之前仍讀到正確文字、只有 `文本位置`／`文本裝飾` 時保持空（精確鍵名）；TD3 SJIS 鍵 `テキスト`、文字狀態帶有 `文本裝飾` 的字級並已排版（style 與文字的先後在最終狀態不可觀察）；TD4 真 AIN 宣告 `Parts_SetText` 覆蓋佔位文字、`Parts_AddPartsText` 接續；TD5 沒有 `[文本]` 時為空。排版會建立字元貼圖，每個案例在 fork 中建立無視窗 CGL context 並換上字形永遠載入失敗的字型（不繪製、照常排版）。只用修正前就存在的函式，`before-check.sh` 可直接建置。

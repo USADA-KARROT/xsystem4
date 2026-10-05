@@ -482,6 +482,24 @@ static void pactex_apply_text_style(struct ex_tree *state, int parts_no, int pe_
 	}
 }
 
+/* 文本: the text a text state starts with. The native state loader
+ * (0x5c2d20) reads it at 0x5c2fac, default "", into the state's text
+ * (+0xd4). Fixed labels such as the 春銷 counts' 人材／顧客 and ／, or 剩餘時間,
+ * are never set by the AIN; it replaces placeholders through Parts_SetText.
+ * Exact key match: 文本位置 and 文本裝飾 start with 文本. */
+static void pactex_apply_default_text(struct ex_tree *state, int parts_no, int pe_state)
+{
+	for (unsigned i = 0; i < state->nr_children; i++) {
+		struct ex_tree *c = &state->children[i];
+		if (!c->is_leaf || !pactex_name_is(c, "\x83\x65\x83\x4c\x83\x58\x83\x67", "\xce\xc4\xb1\xbe"))
+			continue;
+		if (c->leaf.value.type != EX_STRING || !c->leaf.value.s || !c->leaf.value.s->text[0])
+			return;
+		PE_SetText(parts_no, c->leaf.value.s, pe_state);
+		return;
+	}
+}
+
 /* 部件タイプ names in EPartsType order: native 0x4eda70 builds this table
  * and 0x5b8f90 uses a name's index as the widget type (CN/GBK spellings from
  * the table's string literals). A name outside the table keeps the loader's
@@ -727,6 +745,8 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 	if (text) {
 		parts_get_text(parts, pe_state - 1);
 		pactex_apply_text_style(state, parts_no, pe_state);
+		// After the style, so the text is laid out with it.
+		pactex_apply_default_text(state, parts_no, pe_state);
 	} else if (numeral) {
 		pactex_apply_numeral_state(state, parts_no, pe_state);
 	} else if (gauge) {
