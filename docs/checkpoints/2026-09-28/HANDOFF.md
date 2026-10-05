@@ -2,7 +2,15 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-05 春銷卡片修正後接續（最新）
+## 2026-10-05 春銷字幕修正後接續（最新）
+
+- **程式137cbd7已推送**；本機／ls-remote／GitHub branches API均 `137cbd72e49f227015a19818a12bed49ce9714aa`。文件另隨本節所在commit，libsys4固定247f544。
+- PhaseBar依賴Base的AlphaClipper遮罩子文字；依原版0x537900／0x579ceb補上v14最近有效祖先遮罩解析。動態Show不影響、edit_hidden候選無效、有效無texture仍覆蓋祖先，v13保留原樣。詳見[字幕研究](research/gui-visual/alpha-inherit.md)。
+- 預設／GBK各61模式PASS、sanitizer0；before-check d306cd8 alpha-inherit為2/3失敗，還原後3/3PASS。正常GUI150.285秒MSG88，目標85.333秒MSG88，均無assert／overflow。字幕在進場可見，配對時已消失；沿用Wine原版影格核對結果，未重跑Wine、未證明動畫時序等價。
+- **更正前組待查點**：人材正文沒有左鍵事件，900914屬WorkerViewShort，與PhaseBar無關。真正入口左右箭頭在GUI可切換並切回；本組不改輸入／穿透規則。滾輪未實機測。
+- **下一組建議**：春銷人材／顧客計數標籤與灰底、剩餘時間文字與量表灰底。完整春銷結算、訊息視窗UI、system.Reset和長期穩定性仍未完成。本組完成後停，等使用者GO並留意額度。
+
+## 2026-10-05 春銷卡片修正後接續（歷史，字幕已由上節接續）
 
 - **程式 `8b71b7d` 已推送**，本機、ls-remote、GitHub branches API 都是 `8b71b7d0df6c7377dd12924efc4937623fcad379`；文件另隨本節所在 commit。libsys4 維持 `247f544`。
 - 根因：X_A_INIT 非零旗標誤當元素寬度，兩個 WorkerCollection 未建構；delegate 把物件 WRAP 錯補成兩槽，Customer GetOrdered 回傳空陣列。原版位址、全宣告統計、限制見[卡片研究](research/gui-visual/working-cards.md)。
@@ -33,7 +41,7 @@
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 60 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 61 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，已在遠端）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。

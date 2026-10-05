@@ -1,0 +1,11 @@
+before d306cd8, mode rc=1 san=0
+AC1 FAIL
+AC2 FAIL
+AC3 ok
+ALPHA-INHERIT FAIL: 2 of 3 cases failed
+
+restored 137cbd7, mode rc=0 san=0
+AC1 ok
+AC2 ok
+AC3 ok
+ALPHA-INHERIT PASS: 0 of 3 cases failed

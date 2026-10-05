@@ -1,0 +1,29 @@
+{
+  "code": "137cbd72e49f227015a19818a12bed49ce9714aa",
+  "runs": [
+    {
+      "tag": "codex-working-overlay-normal150",
+      "binary_sha256": "ec5183c80c8891bd59174e094d5a4b983347896c058499954b1dbb719acd60ab",
+      "elapsed_seconds": 150.285,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 345620480,
+      "matched": [],
+      "MSG_lines": 88,
+      "MSG_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+      "PNG_count": 40
+    },
+    {
+      "tag": "codex-working-overlay-final-target",
+      "binary_sha256": "ec5183c80c8891bd59174e094d5a4b983347896c058499954b1dbb719acd60ab",
+      "elapsed_seconds": 85.333,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 440549376,
+      "matched": [],
+      "MSG_lines": 88,
+      "MSG_sha256": "94815c53e0e06c171b181160e4f634683309b1558fb4cdc4f3d5c61496ca50bc",
+      "PNG_count": 112
+    }
+  ]
+}

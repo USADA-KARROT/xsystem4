@@ -1,0 +1,66 @@
+{
+  "coordinate_note": "1280x720 game coordinates; original Wine y offset 52 only for reads",
+  "rois": [
+    [
+      540,
+      344,
+      577,
+      387
+    ],
+    [
+      686,
+      343,
+      743,
+      391
+    ]
+  ],
+  "criterion": "R,G,B >= 220",
+  "samples": [
+    {
+      "kind": "before",
+      "frame": "xsys4_t52.png",
+      "sha256": "994bff631384d9530edd5989d42db035bce608e1a4a7294ffea93a9d747382cc",
+      "white_pixel_counts": [
+        549,
+        829
+      ]
+    },
+    {
+      "kind": "after",
+      "frame": "xsys4_t60.png",
+      "sha256": "80180101c351f6e7a257b093d7f2ca489e79f1be50da0eafecec243e8a7ab396",
+      "white_pixel_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "kind": "after",
+      "frame": "xsys4_t64.png",
+      "sha256": "1922618c1868e977a350ca298e32072e8dddef4570ff3ee527b7ffc311ad8a0d",
+      "white_pixel_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "kind": "after",
+      "frame": "xsys4_t68.png",
+      "sha256": "da173a22e394706783b5c7d0096d34656d9345f8f60d3cf9b735c9c3ee520d46",
+      "white_pixel_counts": [
+        0,
+        0
+      ]
+    },
+    {
+      "kind": "wine",
+      "frame": "f0040.png",
+      "sha256": "39653867dc873a01f7e06f5256dc7c56fb7824a85e34f0634f1d920a9312747f",
+      "white_pixel_counts": [
+        0,
+        0
+      ]
+    }
+  ],
+  "limit": "Measures two exposed caption fragments; not full-frame, random content or animation timing equality. Existing Wine reference capture reused; no new Wine run."
+}
