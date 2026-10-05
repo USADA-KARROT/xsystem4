@@ -2,20 +2,29 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
+## 2026-10-05 量表修正後接續
+
+- **任務3的量表修正 `2105640` 已推送**，本機、ls-remote與GitHub branches API皆確認 `210564013bb0728ecbb72d83fca86d62f4ca8fa4`；libsys4維持247f544。
+- GetHGauge斷言已排除；真H/VGauge state、raw分子／分母、reverse、surface與v5存讀已實作。原版語義、18宣告42呼叫統計及限制見[量表研究](research/gui-visual/gauge.md)。
+- 預設／GBK各59模式PASS，sanitizer0。before-check1350e04 gauge為6/6失敗；還原2105640後6/6通過。SJIS既有輸出逐位元組相同。
+- 正常GUI150.396秒、MSG88、assertion0、overflow0；最深目標GUI越過春銷教學、倒數結束後進入劇情。Wine採樣確認彩色條位置、高度、等寬像素及約15秒時序；沒有宣稱整個畫面一致。
+- **待辦**：量表灰底／剩餘時間文字缺漏、春銷中央字幕不退場、對手／顧客卡片缺漏；因基準在這之前已斷言，是否本次引入尚未做因果定位。完整春銷流程仍未驗證。
+- 下一組原訂任務4訊息視窗UI；建議由使用者決定是否先定位春銷卡片與數值建立。不要自動擴大範圍。先前一般GUI34.489秒exit0的原因仍未確認，本次重跑150秒沒有重現。
+
 ## 2026-09-30 子畫面輸入修正後接續
 
 - **本組修正 `a870409` 已推送**；libsys4 維持 `247f544`。推送後本機、ls-remote 與 GitHub branches API 三方確認 `a87040975b2f29f45920931a7128ea9151eb60f4`。
 - **任務 2 已修正並完成 xsystem4 驗證**：原版 `0x58a720`／`0x58a750` 是巢狀輸入計數，內層 End 後恢復外層；`0x546030` 重新採樣當下按鍵，避免返回鍵重複觸發。成就／讀取各往返兩次後可開新遊戲；據點選單往返兩次後可進出庫房。Wine 同操作與採樣影格對照已完成，詳見 [本組研究與驗證](research/gui-visual/input-nesting.md)。
 - 58 模式 default／GBK 的 `final-v3` 均 PASS、sanitizer 0；before-check `a6a8f5b input-nesting` 7/8 失敗（v13 案例通過），修後 8/8 PASS。`third-review` 保留原 assertions、改在 EndInput 前觀察 hover，基準仍 5/5 PASS。
 - 正式 GUI 150.323 秒，MSG 88、assertion 0、overflow 0，峰值 RSS 507,871,232 bytes。另以 Control（`RUN_HOLD_KEYS=13,17`）快進診斷約 7 秒到據點教學，50 秒 run 的 88 MSG 雜湊相同、無斷言或溢位；快進不取代正式 150 秒驗證，操作方法見 [harness](harness/README.md#control-快進診斷)。
-- **下一組做任務 3：春銷 Start 的 `GetHGauge` 斷言**，之後是訊息視窗系統 UI。一般讀檔的 `system.Reset`、ResumeLoad 輸入深度恢復、controller ID／作用中輸入限制尚未修；系統選單缺標籤與左半黑底仍是既有外觀問題。人材狀態頁／YesNo 返回未在本組重新驗證。
+- **當時的下一組任務 3 已由 `2105640` 完成量表修正**，最新待辦見上節；訊息視窗系統 UI 仍未處理。一般讀檔的 `system.Reset`、ResumeLoad 輸入深度恢復、controller ID／作用中輸入限制尚未修；系統選單缺標籤與左半黑底仍是既有外觀問題。人材狀態頁／YesNo 返回未在本組重新驗證。
 - 任務 1 ClipArea 先前已由 `190c1c8` 完成並推送；原版證據推翻最初的最近祖先／box-origin 建議，實作為錨點、本地倍率、螢幕軸對齊整數矩形與祖先交集。[研究與驗證](research/gui-visual/clip-area.md)。剩餘 ComboBox 內部子元件裁切重設、額外 pivot／3D／非標準比例未涵蓋；標題粉金閃光仍有差異。
 
 ## 現在的位置
 
 - 分支 `wip/post-checkpoint-2026-07-06`，以 `origin` 最新 commit 為準。libsys4 指標為 `247f544`（使用者已同意由 `8c93946` 更新；本機分支 `gbk-rules-20260929`）。
 - 成就通知斷言（`2914b40`）、角色對話正文（`1540b85`）與存讀檔持久化（`173ff1d`）已修正。兩次 150 秒 GUI（新存檔、重用存檔）MSG 88、assertion 0、堆疊溢位 0，framebuffer 已確認正文可見；第二次確認設定與 Collection 從檔案讀回。
-- Headless 驗證 58 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
+- Headless 驗證 59 個模式全部符合預期（另以 `XS4_PROBE_GBK=1` 在 GBK 規則下全部重跑通過），0 個 sanitizer 診斷。
 - 立繪與名牌不退場的 use-after-free 已修正（`9e30c0f`）：介面參數與參照型 option 參數在呼叫時補上參照，照原版 `0x657430`。到 `6421e6e` 為止已在遠端。
 - 字距依原版 GDI 字格修正（`9f81bd9`，已在遠端；側審查 D1–D4，見 `research/gui-visual/spacing-fix.md`）。
 - delegate 呼叫的參數複製修正（`2005274`，已在遠端）：一格堆疊對一個參數變數，不再把兩槽參數的 void 伴隨變數當成下一個參數（原版 `0x66dce0`／`0x657430`，見 `research/gui-visual/delegate-args.md`）。

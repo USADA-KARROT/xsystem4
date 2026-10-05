@@ -1,0 +1,11 @@
+{
+  "elapsed_seconds": 150.396,
+  "stop_reason": "duration",
+  "exit_code": 0,
+  "peak_rss_bytes": 357187584,
+  "binary_sha256": "6037602dfc11a3765bf9e77169497102d856cf0ccf89197d79b47669fbc48a1c",
+  "MSG": 88,
+  "same_MSG_as_previous_group": true,
+  "assertion": 0,
+  "overflow": 0
+}

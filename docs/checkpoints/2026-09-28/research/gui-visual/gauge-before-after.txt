@@ -1,0 +1,66 @@
+before=1350e04 mode=gauge rc=1 sanitizer=0
+  FAIL: mixed state 1: public/internal type 18/0, want 22/5
+  FAIL: mixed state 2: public/internal type 18/0, want 23/6
+  FAIL: typed loader failed to retain each gauge's surface
+  FAIL: loaded horizontal raw values=(0,0), want (37.5,150)
+  FAIL: loaded vertical raw values=(0,0), want (12.5,50)
+  FAIL: loaded reverse flags differ
+  FAIL: loaded H surface=(-987654,-987654,-987654,-987654), want (7,9,60,40)
+  FAIL: loaded V surface=(-987654,-987654,-987654,-987654), want (3,5,30,70)
+HG1 FAIL
+  FAIL: SetComponentType(22) only changed a label
+  FAIL: native constructor raw values=(0,0), want (100,100)
+  FAIL: texture-free SetRate raw values=(0,0), want (37.5,150)
+  FAIL: SetReverse(true) was not retained
+  FAIL: raw negative surface surface=(-987654,-987654,-987654,-987654), want (-7,9,-13,40)
+  FAIL: setting the already-empty CG name must succeed without loading an asset
+  FAIL: same CG preserves raw values raw values=(0,0), want (37.5,150)
+  FAIL: same CG setter lost the reverse flag
+  FAIL: same CG preserves surface surface=(-987654,-987654,-987654,-987654), want (-7,9,-13,40)
+  FAIL: unclamped numerator and zero denominator raw values=(0,0), want (-3.25,0)
+  FAIL: SetComponentType(23) only changed a label
+  FAIL: native constructor raw values=(0,0), want (100,100)
+  FAIL: texture-free SetRate raw values=(0,0), want (38.5,151)
+  FAIL: SetReverse(true) was not retained
+  FAIL: raw negative surface surface=(-987654,-987654,-987654,-987654), want (-7,9,-13,40)
+  FAIL: setting the already-empty CG name must succeed without loading an asset
+  FAIL: same CG preserves raw values raw values=(0,0), want (38.5,151)
+  FAIL: same CG setter lost the reverse flag
+  FAIL: same CG preserves surface surface=(-987654,-987654,-987654,-987654), want (-7,9,-13,40)
+  FAIL: unclamped numerator and zero denominator raw values=(0,0), want (-3.25,0)
+  FAIL: H unaffected by V setters raw values=(0,0), want (-3.25,0)
+  FAIL: H getter coerces an existing CG state raw values=(0,0), want (100,100)
+  FAIL: H getter did not create the proper low-level state
+  FAIL: V getter coerces an existing H state raw values=(0,0), want (100,100)
+  FAIL: V getter did not create the proper low-level state
+  FAIL: coercion leaves another state unchanged raw values=(0,0), want (-3.25,0)
+HG2 FAIL
+  FAIL: v14 gauge geometry helpers unavailable
+HG3 FAIL
+  FAIL: true Numerator::set virtual dispatch raw values=(0,0), want (0.375,1)
+  FAIL: true Denominator::set virtual dispatch raw values=(0,0), want (0.375,4)
+HG4 FAIL
+  FAIL: v14 gauge save is not XPE v5
+  FAIL: v5 reloaded H raw values=(0,0), want (37.5,150)
+  FAIL: v5 reloaded V raw values=(0,0), want (12.5,50)
+  FAIL: v5 reloaded H surface=(-987654,-987654,-987654,-987654), want (7,9,60,40)
+  FAIL: v5 reloaded V surface=(-987654,-987654,-987654,-987654), want (3,5,30,70)
+  FAIL: v5 reverse flags not retained
+HG5 FAIL
+  FAIL: v3 load did not restore H/V component types before gauge getters
+  FAIL: v3 H ratio migration raw values=(0,0), want (0.25,1)
+  FAIL: v3 V ratio migration raw values=(0,0), want (0.75,1)
+  FAIL: v4 load did not restore H/V component types before gauge getters
+  FAIL: v4 H ratio migration raw values=(0,0), want (0.25,1)
+  FAIL: v4 V ratio migration raw values=(0,0), want (0.75,1)
+HG6 FAIL
+GAUGE FAIL: 6 of 6 cases failed
+
+after=2105640 mode=gauge rc=0 sanitizer=0
+HG1 ok
+HG2 ok
+HG3 ok
+HG4 ok
+HG5 ok
+HG6 ok
+GAUGE PASS: 0 of 6 cases failed
