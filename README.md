@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-05）：`ec00a16` 已讓 v14 pactex 文本部件載入預設 `[文本]`（原版 `0x5c2d20`／`0x5c2fac`）：春銷配對頁的「人材」「顧客」「／」與「剩餘時間」、系統選單的項目名稱都出現，文字與原版一致。預設／GBK 各62模式 PASS、sanitizer0；新探針修前4/5失敗、修後5/5通過。正常GUI150.233秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/text-default.md) · [前組字幕修正](docs/checkpoints/2026-09-28/research/gui-visual/alpha-inherit.md)。計數標籤的灰底（構築部件手順）與緊密排版（レイアウトボックス屬性）是另外兩個根因，尚未修；完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。下一組待使用者決定。
+> **最新狀態（2026-10-07）：`8a1dcdc` 讓 v14 的レイアウトボックス照原版排版（loader `0x5493a0`、垂直 `0x549bd0`／水平 `0x54a200`）：春銷配對頁的計數標籤緊密排列（「人材」到數字 30px、兩個數字相距 23px，與原版相同），ADV 訊息視窗的四顆系統鈕回到原版位置，據點金額右緣由 516 回到原版的 521。預設／GBK 各63模式 PASS、sanitizer0；新探針修前10/12失敗、修後12/12通過。正常GUI150.216秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/layout-box.md) · [前組文字修正](docs/checkpoints/2026-09-28/research/gui-visual/text-default.md)。計數標籤的灰底（構築部件手順）尚未修；庫房資訊面板落在畫面外（自由盒原點偏移與 user component 原點傳遞未實作，修正前就有）、計數標籤比原版高 2–3px（行高）是本組查到而未修的差異。完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

@@ -1,0 +1,213 @@
+before 278b18c (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: root: type 0 return 0 size 0 align 0, want 0 0 200 1
+  FAIL: BoxG (GBK keys): type 0 return 0 size 0 align 0, want 2 1 150 9
+  FAIL: BoxS (SJIS keys, int size): type 0 return 0 size 0 align 0, want 1 1 200 3
+  FAIL: BoxG GetLayoutBoxPaddingTop = 0, want 1
+  FAIL: BoxS (SJIS key) GetLayoutBoxPaddingTop = 0, want 11
+  FAIL: BoxG GetLayoutBoxPaddingBottom = 0, want 2
+  FAIL: BoxS (SJIS key) GetLayoutBoxPaddingBottom = 0, want 12
+  FAIL: BoxG GetLayoutBoxPaddingLeft = 0, want 3
+  FAIL: BoxS (SJIS key) GetLayoutBoxPaddingLeft = 0, want 13
+  FAIL: BoxG GetLayoutBoxPaddingRight = 0, want 4
+  FAIL: BoxS (SJIS key) GetLayoutBoxPaddingRight = 0, want 14
+  FAIL: BoxS GetLayoutBoxPaddingTop after SetLayoutBoxPadding = 0, want 21
+  FAIL: BoxS GetLayoutBoxPaddingBottom after SetLayoutBoxPadding = 0, want 22
+  FAIL: BoxS GetLayoutBoxPaddingLeft after SetLayoutBoxPadding = 0, want 23
+  FAIL: BoxS GetLayoutBoxPaddingRight after SetLayoutBoxPadding = 0, want 24
+  FAIL: GetComponentMarginTop: GBK child 0 (want 5), SJIS child 0 (want 9)
+  FAIL: GetComponentMarginBottom: GBK child 0 (want 6), SJIS child 0 (want 10)
+  FAIL: GetComponentMarginLeft: GBK child 0 (want 7), SJIS child 0 (want 11)
+  FAIL: GetComponentMarginRight: GBK child 0 (want 8), SJIS child 0 (want 12)
+LB1 box keys and margins: FAIL
+LB1 FAILED (exit 1)
+  FAIL: R1 at (-59,12) origin 7, want (-19,5) origin 7
+  FAIL: R2 at (-5,14) origin 7, want (-1,7) origin 7
+  FAIL: R3 at (19,12) origin 7, want (6,5) origin 7
+  FAIL: R4 at (31,14) origin 7, want (8,7) origin 7
+  FAIL: CountBox size 0x0, want 39x14
+  FAIL: R1 laid out again at (-59,12) origin 7, want (-19,5) origin 7
+  FAIL: R2 laid out again at (-5,14) origin 7, want (-1,7) origin 7
+  FAIL: R3 laid out again at (19,12) origin 7, want (6,5) origin 7
+  FAIL: R4 laid out again at (31,14) origin 7, want (8,7) origin 7
+  FAIL: CountBox laid out again size 0x0, want 39x14
+LB2 horizontal 配置 7: FAIL
+LB2 FAILED (exit 1)
+  FAIL: BoxR RA at (50,50) origin 1, want (19,0) origin 3
+  FAIL: BoxR RB at (60,60) origin 1, want (8,0) origin 3
+  FAIL: BoxR size 0x0, want 25x6
+  FAIL: BoxC CA at (50,50) origin 1, want (17,6) origin 2
+  FAIL: BoxC CB at (60,60) origin 1, want (17,14) origin 2
+  FAIL: BoxC size 0x0, want 35x24
+  FAIL: BoxV5 VA at (60,60) origin 1, want (0,0) origin 1
+  FAIL: BoxV5 VB at (60,60) origin 1, want (0,6) origin 1
+  FAIL: BoxH5 HA at (60,60) origin 1, want (0,0) origin 1
+  FAIL: BoxH5 HB at (60,60) origin 1, want (10,0) origin 1
+  FAIL: BoxO9 OA at (60,60) origin 1, want (-18,0) origin 7
+  FAIL: BoxO9 OB at (60,60) origin 1, want (-8,0) origin 7
+  FAIL: BoxO9 size 0x0, want 18x6
+  FAIL: BoxV3 WA at (50,50) origin 1, want (18,0) origin 3
+  FAIL: BoxV3 WB at (60,60) origin 1, want (20,7) origin 3
+  FAIL: BoxV3 size 0x0, want 20x11
+  FAIL: BoxC's child CB is not under the cursor at (10,15)
+LB3 alignments: FAIL
+LB3 FAILED (exit 1)
+  FAIL: R3 before at (19,12) origin 7, want (6,5) origin 7
+  FAIL: R1 after R2 grows at (-59,12) origin 7, want (-33,5) origin 7
+  FAIL: R2 after R2 grows at (-5,14) origin 7, want (-15,7) origin 7
+  FAIL: R3 after R2 grows at (19,12) origin 7, want (20,5) origin 7
+  FAIL: R4 after R2 grows at (31,14) origin 7, want (22,7) origin 7
+  FAIL: CountBox after R2 grows size 0x0, want 67x14
+  FAIL: hovered R2 at (-5,14) origin 7, want (-16,7) origin 7
+  FAIL: R3 with R2 hovered at (19,12) origin 7, want (19,5) origin 7
+  FAIL: CountBox with R2 hovered size 0x0, want 68x14
+  FAIL: R1 after its margin changes at (-59,12) origin 7, want (-32,5) origin 7
+  FAIL: R2 after R1's margin changes at (-5,14) origin 7, want (-14,7) origin 7
+  FAIL: CountBox after R1's margin changes size 0x0, want 71x14
+  FAIL: R3 after R1's margin changes at (19,12) origin 7, want (21,5) origin 7
+  FAIL: R3 after SetComponentPos(99, 99) at (99,99) origin 7, want (21,5) origin 7
+  FAIL: R1 after R4 is emptied at (-59,12) origin 7, want (-26,5) origin 7
+  FAIL: R2 after R4 is emptied at (-5,14) origin 7, want (-8,7) origin 7
+  FAIL: R3 after R4 is emptied at (99,99) origin 7, want (27,5) origin 7
+  FAIL: emptied R4 at (31,14) origin 7, want (29,7) origin 7
+  FAIL: CountBox after R4 is emptied size 0x0, want 58x14
+  FAIL: R1 with box origin 1 at (-59,12) origin 7, want (3,12) origin 7
+  FAIL: R2 with box origin 1 at (-5,14) origin 7, want (21,14) origin 7
+  FAIL: R3 with box origin 1 at (99,99) origin 7, want (56,12) origin 7
+  FAIL: R2 after SetComponentOriginPosMode(1) at (-5,14) origin 1, want (21,14) origin 7
+LB4 relayout: FAIL
+LB4 FAILED (exit 1)
+  FAIL: R1 with R2 hidden at (-59,12) origin 7, want (-13,5) origin 7
+  FAIL: hidden R2 at (-5,14) origin 7, want (5,7) origin 7
+  FAIL: R3 with R2 hidden at (19,12) origin 7, want (0,5) origin 7
+  FAIL: R4 with R2 hidden at (31,14) origin 7, want (2,7) origin 7
+  FAIL: CountBox with R2 hidden size 0x0, want 27x14
+  FAIL: R3 with R2 hidden in the editor at (19,12) origin 7, want (0,5) origin 7
+  FAIL: R3 with R2 shown again at (19,12) origin 7, want (6,5) origin 7
+  FAIL: R1 after R2 is released at (-59,12) origin 7, want (-13,5) origin 7
+  FAIL: R3 after R2 is released at (19,12) origin 7, want (0,5) origin 7
+  FAIL: CountBox after R2 is released size 0x0, want 27x14
+LB5 hidden children: FAIL
+LB5 FAILED (exit 1)
+  FAIL: Inner1 size 0x0, want 16x8
+  FAIL: Inner2 size 0x0, want 7x3
+  FAIL: Outer size 0x0, want 29x8
+  FAIL: Inner1 at (30,30) origin 1, want (0,0) origin 1
+  FAIL: Inner2 at (30,30) origin 1, want (18,0) origin 1
+  FAIL: d at (30,30) origin 1, want (25,0) origin 1
+  FAIL: a at (30,30) origin 1, want (0,0) origin 1
+  FAIL: b at (30,30) origin 1, want (10,0) origin 1
+  FAIL: c at (30,30) origin 1, want (0,0) origin 1
+  FAIL: Inner3 size 0x0, want 5x10
+  FAIL: Inner3 at (30,30) origin 1, want (0,12) origin 7
+  FAIL: g at (30,30) origin 1, want (5,12) origin 7
+  FAIL: e at (30,30) origin 1, want (0,-10) origin 1
+  FAIL: f at (30,30) origin 1, want (0,-6) origin 1
+  FAIL: Inner2 after c grows size 0x0, want 17x3
+  FAIL: d after c grows at (30,30) origin 1, want (35,0) origin 1
+LB6 nested boxes: FAIL
+LB6 FAILED (exit 1)
+LB7 free boxes keep positions: ok
+LB8 v13 layout unchanged: ok
+  FAIL: U1 at (33,44) origin 1, want (0,0) origin 1
+  FAIL: K1 at (33,44) origin 1, want (0,200) origin 1
+  FAIL: U2 at (33,44) origin 1, want (0,212) origin 1
+  FAIL: R before U2 has content at (33,44) origin 1, want (0,412) origin 1
+  FAIL: R after U2's content (55x25) at (33,44) origin 1, want (0,237) origin 1
+  FAIL: VBox size 0x0, want 200x241
+LB9 unbuilt sizes: FAIL
+LB9 FAILED (exit 1)
+  FAIL: after "ABC": x 77, want 3 cells = 231
+  FAIL: after "ABC" with 字間隔 -4: x 77, want 69 (two spacings)
+  FAIL: box widths 0 and 0, want 82 and 74
+  FAIL: under a 14 px text with 縁取り 2: y 88 box height 0, want 18 and 23
+  (cell widths and the CountBase texts need the GBK grid: XS4_PROBE_GBK=1)
+  FAIL: after an empty text: x 77 box width 0, want 0 and 5
+  FAIL: with a 10 px wide surface area: x 77, want 10
+LB10 text children: FAIL
+LB10 FAILED (exit 1)
+  FAIL: WrapV 1 at (9,9) origin 1, want (-412,-50) origin 1
+  FAIL: WrapV 2 (ends at 100: same column) at (9,9) origin 1, want (-412,6) origin 1
+  FAIL: WrapV 3 at (9,9) origin 1, want (10,-50) origin 1
+  FAIL: WrapV 4 at (9,9) origin 1, want (10,6) origin 1
+  FAIL: WrapV size 0x0, want 824x100
+  FAIL: WrapX 1 at (9,9) origin 1, want (-613,-50) origin 1
+  FAIL: WrapX 2 (ends at 101: next column) at (9,9) origin 1, want (-211,-38) origin 1
+  FAIL: WrapX 3 at (9,9) origin 1, want (211,-50) origin 1
+  FAIL: WrapX 4 at (9,9) origin 1, want (211,6) origin 1
+  FAIL: WrapX size 0x0, want 1226x100
+  FAIL: WrapH 1 at (9,9) origin 1, want (0,0) origin 1
+  FAIL: WrapH 2 at (9,9) origin 1, want (12,0) origin 1
+  FAIL: WrapH 3 (36 > 30: next row) at (9,9) origin 1, want (0,10) origin 1
+  FAIL: WrapH size 0x0, want 24x20
+LB11 wrapping: FAIL
+LB11 FAILED (exit 1)
+  FAIL: SR under the 30x12 canvas at (33,44) origin 1, want (0,12) origin 1
+  FAIL: SBox size 0x0, want 30x16
+  FAIL: the save is XPE v5: no canvas size before v6
+  FAIL: SK after loading at (33,44) origin 1, want (0,0) origin 1
+  FAIL: SR after loading at (33,44) origin 1, want (0,12) origin 1
+  FAIL: SBox after loading size 0x0, want 30x16
+LB12 save and load: FAIL
+LB12 FAILED (exit 1)
+LAYOUT-BOX FAIL: 10 of 12 cases failed
+
+before 278b18c (XS4_PROBE_GBK=1): LB10 and LB12, the cases with assertions of their own under the GBK grid
+  FAIL: after "ABC": x 77, want 3 cells = 231
+  FAIL: after "ABC" with 字間隔 -4: x 77, want 69 (two spacings)
+  FAIL: box widths 0 and 0, want 82 and 74
+  FAIL: under a 14 px text with 縁取り 2: y 88 box height 0, want 18 and 23
+  FAIL: GBK grid: "A" 77 (want 7), "AB" 縁 2 字間隔 -4 77 (want 18)
+  FAIL: Caption at (-59,12) origin 7, want (-33,10) origin 7
+  FAIL: Digit1 at (-5,14) origin 7, want (-3,12) origin 7
+  FAIL: Slash at (19,12) origin 7, want (6,10) origin 7
+  FAIL: Digit2 at (31,14) origin 7, want (20,12) origin 7
+  FAIL: CountText width 0, want 67
+  FAIL: after an empty text: x 77 box width 0, want 0 and 5
+  FAIL: with a 10 px wide surface area: x 77, want 10
+LB10 text children: FAIL
+LB10 FAILED (exit 1)
+  FAIL: SR under the 30x12 canvas at (33,44) origin 1, want (0,12) origin 1
+  FAIL: SBox size 0x0, want 30x16
+  FAIL: GBK grid: "AB" with 太さ 0.4 is 77 wide, want 2 * (7 + 2) = 18
+  FAIL: the save is XPE v5: no canvas size before v6
+  FAIL: SK after loading at (33,44) origin 1, want (0,0) origin 1
+  FAIL: SR after loading at (33,44) origin 1, want (0,12) origin 1
+  FAIL: SBox after loading size 0x0, want 30x16
+LB12 save and load: FAIL
+LB12 FAILED (exit 1)
+LAYOUT-BOX FAIL: 10 of 12 cases failed
+
+after 8a1dcdc (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+LB1 box keys and margins: ok
+LB2 horizontal 配置 7: ok
+LB3 alignments: ok
+LB4 relayout: ok
+LB5 hidden children: ok
+LB6 nested boxes: ok
+LB7 free boxes keep positions: ok
+LB8 v13 layout unchanged: ok
+LB9 unbuilt sizes: ok
+  (cell widths and the CountBase texts need the GBK grid: XS4_PROBE_GBK=1)
+LB10 text children: ok
+LB11 wrapping: ok
+LB12 save and load: ok
+LAYOUT-BOX PASS: 0 of 12 cases failed
+
+after 8a1dcdc (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+LB1 box keys and margins: ok
+LB2 horizontal 配置 7: ok
+LB3 alignments: ok
+LB4 relayout: ok
+LB5 hidden children: ok
+LB6 nested boxes: ok
+LB7 free boxes keep positions: ok
+LB8 v13 layout unchanged: ok
+LB9 unbuilt sizes: ok
+LB10 text children: ok
+LB11 wrapping: ok
+LB12 save and load: ok
+LAYOUT-BOX PASS: 0 of 12 cases failed
