@@ -478,6 +478,11 @@ struct parts {
 	int margin_bottom;
 	int margin_left;
 	int margin_right;
+	// v14: the offset a free layout box gives each of its children, by its
+	// own origin mode and size (native +0x238/+0x23c, written by 0x5499e0).
+	// It is added to the position wherever the parts is placed (0x53567a,
+	// 0x537b2f). Not saved: the box lays out again after loading.
+	Point layout_offset;
 	struct parts_motion_list motion;
 	int controller_no;
 	int component_type;   // v14 component widget type (EPartsType)

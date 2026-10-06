@@ -419,6 +419,8 @@ cJSON *parts_to_json(struct parts *parts, bool recursive, bool verbose)
 	if (parts->on_click_sound >= 0)
 		cJSON_AddNumberToObject(obj, "on_click_sound", parts->on_click_sound);
 	cJSON_AddNumberToObject(obj, "origin_mode", parts->origin_mode);
+	if (parts->layout_offset.x || parts->layout_offset.y)
+		cJSON_AddItemToObjectCS(obj, "layout_offset", point_to_json(&parts->layout_offset, verbose));
 	cJSON_AddNumberToObject(obj, "parent", parts->parent ? parts->parent->no : -1);
 	if (parts->linked_to >= 0)
 		cJSON_AddNumberToObject(obj, "linked_to", parts->linked_to);

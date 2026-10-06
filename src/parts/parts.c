@@ -95,6 +95,17 @@ static void dirty_list_remove(struct parts *parts)
 		TAILQ_REMOVE(&dirty_list, parts, dirty_list_entry);
 }
 
+/*
+ * v14: a user component hands its origin mode to its first child when it is
+ * updated (parts_do_layout; the original on every frame, 0x4e57d0). Called
+ * when the component's mode, its first child or that child's mode changed.
+ */
+static void parts_user_component_dirty(struct parts *parts)
+{
+	if (ain->version >= 14 && parts->component_type == 17)
+		parts_component_dirty(parts);
+}
+
 static int parts_get_sprite_z(struct parts *parts)
 {
 	if (!parts_multi_controller)
@@ -477,16 +488,29 @@ static Point parts_child_pos(const struct parts_params *parent, Point local)
 	};
 }
 
+/*
+ * Where a parts is placed in its parent: its position and, for a child of a
+ * v14 free layout box, the box's offset (layoutbox.c). The original adds the
+ * two in both places that read the position, the per-frame update (0x53567a,
+ * 0x535659) and the transform records (0x537b2f, 0x537b4f), so the offset
+ * moves the parts' subtree, its hit box and its upper-left position with it.
+ */
+static Point parts_placed_pos(const struct parts *parts)
+{
+	return (Point) {
+		parts->local.pos.x + parts->layout_offset.x,
+		parts->local.pos.y + parts->layout_offset.y
+	};
+}
+
 // parent == NULL: a top-level parts, relative to root_pos and never mirrored.
 static void parts_update_global_pos(struct parts *parts, const struct parts_params *parent)
 {
+	Point pos = parts_placed_pos(parts);
 	if (parent) {
-		parts->global.pos = parts_child_pos(parent, parts->local.pos);
+		parts->global.pos = parts_child_pos(parent, pos);
 	} else {
-		parts->global.pos = (Point) {
-			root_pos.x + parts->local.pos.x,
-			root_pos.y + parts->local.pos.y
-		};
+		parts->global.pos = (Point) { root_pos.x + pos.x, root_pos.y + pos.y };
 	}
 
 	struct parts *child;
@@ -530,8 +554,9 @@ void parts_set_global_pos(Point pos)
 Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
 {
 	Rectangle box = common->hitbox;
-	Point anchor = parts->parent ? parts_child_pos(&parts->parent->global, parts->local.pos)
-		: parts->local.pos;
+	Point anchor = parts_placed_pos(parts);
+	if (parts->parent)
+		anchor = parts_child_pos(&parts->parent->global, anchor);
 	int rx = box.x - parts->local.pos.x, ry = box.y - parts->local.pos.y;
 	if (parts->global.reverse_lr)
 		rx = -rx - box.w;
@@ -550,8 +575,9 @@ Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
  */
 Point parts_screen_upper_left(struct parts *parts, struct parts_common *common)
 {
-	Point anchor = parts->parent ? parts_child_pos(&parts->parent->global, parts->local.pos)
-		: parts->local.pos;
+	Point anchor = parts_placed_pos(parts);
+	if (parts->parent)
+		anchor = parts_child_pos(&parts->parent->global, anchor);
 	int rx = common->hitbox.x - parts->local.pos.x, ry = common->hitbox.y - parts->local.pos.y;
 	return (Point) {
 		anchor.x + (parts->global.reverse_lr ? -rx : rx),
@@ -716,11 +742,16 @@ void parts_set_origin_mode(struct parts *parts, int origin_mode)
 	parts_recalculate_hitbox(parts);
 	parts_dirty(parts);
 	// v14: a vertical/horizontal box starts from its own origin mode and
-	// sets its children's back to its alignment.
+	// sets its children's back to its alignment; a free box moves its
+	// children by its own; a user component writes its own to its first
+	// child.
 	if (changed && ain->version >= 14) {
 		if (parts->states[0].type == PARTS_LAYOUT_BOX)
 			parts_component_dirty(parts);
 		parts_layout_size_changed(parts);
+		parts_user_component_dirty(parts);
+		if (parts->parent && TAILQ_FIRST(&parts->parent->children) == parts)
+			parts_user_component_dirty(parts->parent);
 	}
 }
 
@@ -1260,6 +1291,7 @@ void parts_release(int parts_no)
 		// v14: a layout box above closes the gap.
 		parts_layout_size_changed(parts);
 		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
+		parts_user_component_dirty(parts->parent);
 		parts->parent = NULL;
 	}
 
@@ -1338,11 +1370,12 @@ static bool parts_has_dirty_parent(struct parts *parts)
 	return false;
 }
 
+// pos: where the child is placed in the parent (parts_placed_pos).
 static void parts_combine_params(struct parts_params *parent, struct parts_params *child,
-		struct parts_params *out)
+		Point pos, struct parts_params *out)
 {
 	out->z = parent->z + child->z;
-	out->pos = parts_child_pos(parent, child->pos);
+	out->pos = parts_child_pos(parent, pos);
 	out->show = parent->show && child->show;
 	out->alpha = parent->alpha * (child->alpha / 255.0f);
 	out->scale.x = parent->scale.x * child->scale.x;
@@ -1363,7 +1396,8 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 static void parts_update_component(struct parts *parts)
 {
 	if (parts->parent) {
-		parts_combine_params(&parts->parent->global, &parts->local, &parts->global);
+		parts_combine_params(&parts->parent->global, &parts->local,
+				parts_placed_pos(parts), &parts->global);
 		if (parts->edit_hidden)
 			parts->global.show = false;
 	}
@@ -1410,6 +1444,7 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 			// if parent is layout box, mark it dirty so that it can re-layout its children
 			if (parent->states[0].type == PARTS_LAYOUT_BOX)
 				parts_component_dirty(parent);
+			parts_user_component_dirty(parent);
 			// v14: also a box above a free box or a user component
 			parts_layout_size_changed(parts);
 		}
@@ -2299,12 +2334,14 @@ static void parts_set_parent_now(struct parts *parts, int parent_parts_no)
 		TAILQ_REMOVE(&old->children, parts, child_list_entry);
 		if (old->states[0].type == PARTS_LAYOUT_BOX)
 			parts_component_dirty(old);
+		parts_user_component_dirty(old);
 	}
 	parts->parent = parent;
 	if (parent) {
 		TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
 		if (parent->states[0].type == PARTS_LAYOUT_BOX)
 			parts_component_dirty(parent);
+		parts_user_component_dirty(parent);
 		// E.g. a user component's content root (the component's size).
 		parts_layout_size_changed(parts);
 	}
@@ -2505,6 +2542,7 @@ void PE_SetComponentType(int parts_no, int type, int state)
 		parts->component_type = type;
 		// Preserve explicit raw setters over the loader's inferred state types.
 		memset(parts->component_state_type, 0, sizeof(parts->component_state_type));
+		parts_user_component_dirty(parts);
 		return;
 	}
 	if (!parts_state_valid(--state))

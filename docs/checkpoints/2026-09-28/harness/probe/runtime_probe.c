@@ -119,6 +119,7 @@ static void init_probe(const char *path) {
 #include "text_default_fixture.inc"
 #include "layout_box_fixture.inc"
 #include "construction_fixture.inc"
+#include "free_box_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -171,6 +172,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"text-default"))return test_text_default();
     if(!strcmp(argv[2],"layout-box"))return test_layout_box();
     if(!strcmp(argv[2],"construction"))return test_construction();
+    if(!strcmp(argv[2],"free-box"))return test_free_box();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

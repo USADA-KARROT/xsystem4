@@ -67,6 +67,8 @@ void PE_SetLayoutBoxLayoutType(int parts_no, int type)
 	if (lb->layout_type != type) {
 		lb->layout_type = type;
 		parts_component_dirty(parts);
+		// v14: the box above sizes this one by its type.
+		parts_layout_size_changed(parts);
 	}
 }
 
@@ -344,6 +346,15 @@ static void parts_layout_calc_size_vertical(struct parts_layout_box *lb, struct 
  *     GetPartsWidth/Height and for the box around it;
  *   - a row/column wraps without waiting for a non-empty one (the same
  *     result unless it starts with zero-size children).
+ * A free box (0x5499e0) keeps its children's positions and gives each of
+ * them an offset by its own origin mode and size instead, see
+ * lb_v14_free_layout. Every free box in the game's pactex has origin mode 1,
+ * but a user component writes its own origin mode to its first child, the
+ * content's root (lb_v14_user_component), and 30 user components have
+ * another one (e.g. the garage's information panel, origin mode 3, which
+ * extends to the left of its position). A script sets a content root's
+ * origin mode directly as well (the customer views of the 春銷 result,
+ * mode 4).
  * The original calls the box every frame (0x535adc -> 0x5498e0) and lays
  * it out whenever the box is shown (its accumulated show flag, 0x549970;
  * set at 0x579c81), or, while hidden, when a parts of its subtree is another
@@ -351,14 +362,14 @@ static void parts_layout_calc_size_vertical(struct parts_layout_box *lb, struct 
  * a change of something the layout reads marks the box dirty instead
  * (parts_layout_size_changed): a child's normal state size, text, shown
  * flags, margins, parent, position or origin mode, and the box's own
- * properties and origin mode. A hidden box is laid out as well.
+ * properties and origin mode. A hidden box is laid out as well, and so is a
+ * subtree locked with Parts_SetLockUpdate, which the original stops updating
+ * (0x535295; a stub here). During its main update the original takes a
+ * box's size from a cache (0x54a9f0; the flag is set by 0x54b510, called at
+ * 0x53c3ff for a parts that is shown itself and not fully transparent),
+ * which for a box that is visible itself amounts to computing it on every
+ * frame; here it is computed on every layout.
  * Not implemented:
- *   - a free box's offset of its children by its own origin (+0x238/+0x23c,
- *     0x5499e0). Every free box in the game's pactex has origin mode 1, but
- *     a user component writes its own origin mode to its first child, the
- *     content's root, on every frame (0x4e57d0), and 30 user components have
- *     another one (e.g. the garage's information panel, origin mode 3, which
- *     therefore extends to the right of its position instead of the left);
  *   - a child's message-window link (+0xad; 0 for every component in the
  *     game) and link condition (0x537f10; no child of a vertical/horizontal
  *     box in the game has one, only children of free boxes on the settings
@@ -586,6 +597,9 @@ static void lb_v14_box_size(struct parts *box, int *w, int *h)
  * state's size, its shown flags, its margins, its parent) changed: the
  * nearest vertical/horizontal box above lays out again. A free box or a user
  * component in between passes it on, as their size follows their children.
+ * A free box with an origin mode other than 1 lays out again as well: its
+ * children's offset follows its size, which also reads their positions and
+ * origin modes.
  * A box whose own size changes this way reports it from parts_do_layout.
  */
 void parts_layout_size_changed(struct parts *parts)
@@ -597,19 +611,69 @@ void parts_layout_size_changed(struct parts *parts)
 			parts_component_dirty(a);
 			return;
 		}
-		if (lb_v14_is_box(a))
+		if (lb_v14_is_box(a)) {
+			if (a->origin_mode != 1)
+				parts_component_dirty(a);
 			continue;
+		}
 		if (a->component_type == 17 && TAILQ_FIRST(&a->children) == p)
 			continue;
 		return;
 	}
 }
 
-// 0x549bd0 (vertical) / 0x54a200 (horizontal)
-static void parts_do_layout_v14(struct parts *box)
+/*
+ * 0x4e57d0, the per-frame update of the user component widget (vtable
+ * 0x80f0b4 +0x14): the first child (0x4e5780), the content's root, takes the
+ * component's origin mode (0x4e5815). A free root then moves the content by
+ * it, a vertical/horizontal one starts from it, any other parts draws its
+ * own box by it. The widget does nothing else to its children. Here the
+ * component is marked when the mode or the child changes (parts.c).
+ */
+static void lb_v14_user_component(struct parts *uc)
 {
-	if (!lb_v14_lays_out(box))
+	struct parts *first = TAILQ_FIRST(&uc->children);
+	if (!first || first->origin_mode == uc->origin_mode)
 		return;
+	first->origin_mode = uc->origin_mode;
+	parts_recalculate_hitbox(first);
+	parts_dirty(first);
+}
+
+/*
+ * 0x5499e0: a free box gives each of its children, shown or not, an offset
+ * by its own origin mode and size: 0, -W/2 or -W and 0, -H/2 or -H (jump
+ * tables 0x549ba4 and 0x549bbc; 0 for a mode outside 1..9), written to the
+ * child's +0x238/+0x23c (0x549b28, 0x549b37) and added to its position where
+ * the child is placed (parts_placed_pos). The size is GetSize(1) (0x54a9f0),
+ * 0x0 unless both are positive; it does not read the offset (0x54aaf0), so
+ * one pass settles. The original's only other writer of the offset is the
+ * フォーム widget (type 15, 0x4da23f), which the game's pactex does not have,
+ * and nothing clears it when a child leaves the box or gets another parent:
+ * the child keeps its last one. Origin mode 1, every free box's own in the
+ * pactex, needs no size.
+ */
+static void lb_v14_free_layout(struct parts *box)
+{
+	Point offset = { 0, 0 };
+	if (box->origin_mode != 1) {
+		int w, h;
+		lb_v14_box_size(box, &w, &h);
+		offset.x = align_offset_x(box->origin_mode, w);
+		offset.y = align_offset_y(box->origin_mode, h);
+	}
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, box) {
+		if (child->layout_offset.x == offset.x && child->layout_offset.y == offset.y)
+			continue;
+		child->layout_offset = offset;
+		parts_dirty(child);
+	}
+}
+
+// 0x549bd0 (vertical) / 0x54a200 (horizontal)
+static void lb_v14_flow_layout(struct parts *box)
+{
 	struct parts_layout_box *lb = &box->states[0].layout_box;
 	int total_w, total_h;
 	lb_v14_box_size(box, &total_w, &total_h);
@@ -677,6 +741,22 @@ static void parts_do_layout_v14(struct parts *box)
 				max_cross = cw;
 		}
 	}
+}
+
+// What a v14 widget does to its children when it is updated (vtable +0x14):
+// 0x4e57d0 for a user component, 0x5498e0 -> 0x549960 for a box. A parts made
+// a user component while its state is still a box (SetComponentType 17 keeps
+// the states; the original replaces the whole widget, 0x5372c0) is a user
+// component here, while lb_v14_child_size, parts_layout_size_changed and the
+// hit test still see the box. The game's pactex has no such component.
+static void parts_do_layout_v14(struct parts *parts)
+{
+	if (parts->component_type == 17)
+		lb_v14_user_component(parts);
+	else if (lb_v14_lays_out(parts))
+		lb_v14_flow_layout(parts);
+	else if (lb_v14_is_box(parts) && parts->states[0].layout_box.layout_type == PARTS_LAYOUT_FREE)
+		lb_v14_free_layout(parts);
 }
 
 void parts_do_layout(struct parts *parts)
