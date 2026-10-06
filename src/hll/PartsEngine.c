@@ -1777,6 +1777,14 @@ static void pe_v14_register_batch(int libno)
 	static_library_register(lib, "SaveBackScene", PE_v14_SaveBackScene);
 	static_library_register(lib, "SetButtonEnable", PE_SetButtonEnable);
 	static_library_register(lib, "IsButtonEnable", PE_IsButtonEnable);
+	// void SetLayoutBoxPadding(int Number, int Top, int Bottom, int Left,
+	// int Right) and int GetLayoutBoxPadding*(int Number): native cases 488
+	// to 492 (0x594ec0, 0x594f10..) on +0x50..+0x5c, top, bottom, left, right.
+	static_library_register(lib, "SetLayoutBoxPadding", PE_v14_SetLayoutBoxPadding);
+	static_library_register(lib, "GetLayoutBoxPaddingTop", PE_get_layoutbox_padding_top);
+	static_library_register(lib, "GetLayoutBoxPaddingBottom", PE_get_layoutbox_padding_bottom);
+	static_library_register(lib, "GetLayoutBoxPaddingLeft", PE_get_layoutbox_padding_left);
+	static_library_register(lib, "GetLayoutBoxPaddingRight", PE_get_layoutbox_padding_right);
 	pe_v14_register_gauges(libno);
 #include "pe_v14_prelink.h"
 }

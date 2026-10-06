@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 62 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 63 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 XS4_PROBE_GBK=1 bash $H/verify-step.sh <tag>-gbk   # 同上，但每個模式啟動時先開 GBK 字元規則（CN 實際組態）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -96,3 +96,4 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 
 - `probe/alpha_inherit_fixture.inc`：`alpha-inherit`（2026-10-05），v14 alpha遮罩沿父元件繼承，最近可解析且非editor-hidden的本地遮罩覆蓋祖先。AC1真HLL setter、三層繼承、覆蓋、清除、未知號碼、Show=false與編輯隱藏；AC2重新掛父、脫離、遮罩釋放／重建、無貼圖與自身遮罩；AC3 v13保留本地行為。使用正式resolver，舊版以原本只讀本地欄位的路徑對照；無GL／素材，實際像素另由GUI核對。
 - `probe/text_default_fixture.inc`：`text-default`（2026-10-05），v14 pactex 文本部件狀態的預設 `[文本]`（原版文字狀態 loader `0x5c2d20` 在 `0x5c2fac` 讀入）。TD1 三個狀態各自的文字與空 `[文本]`；TD2 `文本位置` 排在 `文本` 之前仍讀到正確文字、只有 `文本位置`／`文本裝飾` 時保持空（精確鍵名）；TD3 SJIS 鍵 `テキスト`、文字狀態帶有 `文本裝飾` 的字級並已排版（style 與文字的先後在最終狀態不可觀察）；TD4 真 AIN 宣告 `Parts_SetText` 覆蓋佔位文字、`Parts_AddPartsText` 接續；TD5 沒有 `[文本]` 時為空。排版會建立字元貼圖，每個案例在 fork 中建立無視窗 CGL context 並換上字形永遠載入失敗的字型（不繪製、照常排版）。只用修正前就存在的函式，`before-check.sh` 可直接建置。
+- `probe/layout_box_fixture.inc`：`layout-box`（2026-10-07），v14 レイアウトボックス（元件類型 8）依原版排版：loader `0x5493a0`、有效對齊 `0x54b4c0`、垂直 `0x549bd0`／水平 `0x54a200`、尺寸 `0x54a9f0`、盒不在游標下 `0x49c5b0`。LB1 盒屬性（GBK／SJIS 鍵、缺鍵為 0）、v14 padding getter／setter（未知編號不建立部件）、子元件 `マージン`；LB2 春銷 CountBase 的形狀（水平、配置 7、盒原點 5、含負 margin）；LB3 配置 3、置中直欄加 padding、配置 5 的有效對齊、資料中最常見的兩種形狀（水平配置 7 盒原點 9、垂直配置 3）、盒不命中而子元件命中；LB4 子元件尺寸或 margin 改變後重排、懸停仍取普通狀態尺寸、腳本改掉子元件座標或原點模式後復位、空 CG 名把普通狀態清成 0x0、盒自身原點模式；LB5 隱藏（表示／編輯上表示）不佔位但仍定位、釋放後離開；LB6 巢狀盒；LB7 自由盒不動；LB8 v13 維持舊排版；LB9 user component（無內容 200x200、有內容取內容根）與未建構構築部件（第一步畫布）；LB10 文字子元件：n 個字只有 n−1 個字間隔（`0x5bee50`／`0x5bcd20`，以差分斷言，與格寬無關）、行高、`Parts_SetText`／空字串／surface area 後重排，GBK 格線下另驗格寬與 CountBase 真文字（人材到數字 30px，與原版量測相同）；LB11 折返（遊戲唯一折返盒的形狀，402x44 由快照反推；剛好 100 不折返、多 1px 折返；水平折返時配置 4 當 1）；LB12 存讀檔後排版不變（畫布尺寸與文字 `太さ`，XPE v6）。位置與尺寸由原版規則手算；「一次 update 之後」同時檢查 xsystem4 的重排標記（原版是盒顯示時每幀重排）。LB10、LB12 借用 `text-default` 的無視窗 GL context；其餘不需 GL。**數字子元件的寬度（`0x5b4df0`）沒有案例**：繪製數字要 shader，這個探針的 context 沒有；該修正以據點金額右緣與原版的畫面比對為證。只用修正前就存在的函式，`before-check.sh` 可直接建置。

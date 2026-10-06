@@ -117,6 +117,7 @@ static void init_probe(const char *path) {
 #include "working_cards_fixture.inc"
 #include "alpha_inherit_fixture.inc"
 #include "text_default_fixture.inc"
+#include "layout_box_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -167,6 +168,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"working-cards"))return test_working_cards();
     if(!strcmp(argv[2],"alpha-inherit"))return test_alpha_inherit();
     if(!strcmp(argv[2],"text-default"))return test_text_default();
+    if(!strcmp(argv[2],"layout-box"))return test_layout_box();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

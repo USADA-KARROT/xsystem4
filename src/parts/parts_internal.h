@@ -485,6 +485,11 @@ struct parts {
 	// (folded into global.show). The native parts keeps it at +0xac beside
 	// 表示 (+0xab) and skips a parts unless both are set (e.g. 0x53c3c5).
 	bool edit_hidden;
+	// v14 pactex 構築部件 normal state whose steps the loader does not run:
+	// the canvas its first step creates (コマンド 0/1, 先矩形 W,H). The
+	// original builds it while loading, so a layout box sizes the parts by
+	// it; only used while the state has no size of its own (layoutbox.c).
+	int pactex_canvas_w, pactex_canvas_h;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -701,6 +706,7 @@ void parts_flat_emitter_resolve_layer(
 
 // layoutbox.c
 void parts_do_layout(struct parts *parts);
+void parts_layout_size_changed(struct parts *parts);
 
 // debug.c
 struct sprite;

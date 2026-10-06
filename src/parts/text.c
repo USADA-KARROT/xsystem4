@@ -135,6 +135,12 @@ void parts_text_append(struct parts *parts, struct parts_text *t, struct string 
 			height += t->line_space;
 		height += t->lines[i].height;
 	}
+	// A layout box sizes a text by its lines: an empty text keeps its
+	// texture size below, and a text set back to that size is no change for
+	// parts_set_dims.
+	if (t == &parts->states[0].text)
+		parts_layout_size_changed(parts);
+
 	int width = ceilf(f_width);
 	if (!width || !height)
 		return;

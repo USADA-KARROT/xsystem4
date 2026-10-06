@@ -88,6 +88,11 @@ bool parts_screen_to_box(struct parts *parts, struct parts_common *c, float sx, 
 
 static bool parts_hittest(struct parts *parts, int state, Point pos)
 {
+	// v14: a layout box is never under the cursor (its widget's hit test,
+	// vtable +0x4c = 0x49c5b0, returns false); its state now has the box's
+	// size (layoutbox.c).
+	if (ain->version >= 14 && parts->states[0].type == PARTS_LAYOUT_BOX)
+		return false;
 	struct parts_common *c = &parts->states[state].common;
 	Rectangle hitbox = parts_screen_hitbox(parts, c);
 	if (!parts->pixel_hittest || !c->texture.handle || c->texture.w <= 0

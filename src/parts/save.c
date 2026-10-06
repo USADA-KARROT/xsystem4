@@ -24,7 +24,7 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 5
+#define CURRENT_SAVE_VERSION 6
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -73,10 +73,14 @@ static void load_parts_cg(struct iarray_reader *r, struct parts *parts, struct p
 	}
 }
 
-static void save_parts_text(struct iarray_writer *w, struct parts_text *text)
+static void save_parts_text(struct iarray_writer *w, struct parts_text *text, int version)
 {
 	iarray_write(w, text->line_space);
 	iarray_write_text_style(w, &text->ts);
+	// 太さ as PE_SetFont keeps it: it widens the glyph cells of the GBK
+	// grid (gfx_text_cn_style_edge), so a layout box needs it back.
+	if (version >= 6)
+		iarray_write_float(w, text->ts.bold_weight);
 	iarray_write(w, text->nr_lines);
 	for (unsigned i = 0; i < text->nr_lines; i++) {
 		struct string *s = parts_text_line_get(&text->lines[i]);
@@ -86,12 +90,14 @@ static void save_parts_text(struct iarray_writer *w, struct parts_text *text)
 }
 
 static void load_parts_text(struct iarray_reader *r, struct parts *parts,
-		struct parts_text *text)
+		struct parts_text *text, int version)
 {
 	// FIXME: this won't accurately restore the text state if the text style
 	//        varies per-character
 	text->line_space = iarray_read(r);
 	iarray_read_text_style(r, &text->ts);
+	if (version >= 6)
+		text->ts.bold_weight = iarray_read_float(r);
 
 	text->nr_lines = 0;
 	text->lines = NULL;
@@ -409,7 +415,7 @@ static void save_parts_state(struct iarray_writer *w, struct parts_state *state,
 		save_parts_cg(w, &state->cg);
 		break;
 	case PARTS_TEXT:
-		save_parts_text(w, &state->text);
+		save_parts_text(w, &state->text, version);
 		break;
 	case PARTS_ANIMATION:
 		save_parts_animation(w, &state->anim);
@@ -455,7 +461,7 @@ static void load_parts_state(struct iarray_reader *r, struct parts *parts,
 		load_parts_cg(r, parts, &state->cg);
 		break;
 	case PARTS_TEXT:
-		load_parts_text(r, parts, &state->text);
+		load_parts_text(r, parts, &state->text, version);
 		break;
 	case PARTS_ANIMATION:
 		load_parts_animation(r, parts, &state->anim);
@@ -588,6 +594,11 @@ static void save_parts(struct iarray_writer *w, struct parts *parts, int version
 		for (int i = 0; i < PARTS_NR_STATES; i++)
 			iarray_write(w, parts->component_state_type[i]);
 	}
+	if (version >= 6) {
+		// Loading does not run the pactex loader again.
+		iarray_write(w, parts->pactex_canvas_w);
+		iarray_write(w, parts->pactex_canvas_h);
+	}
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and save unconditionally
 	if (parts_multi_controller) {
@@ -656,6 +667,10 @@ static void load_parts(struct iarray_reader *r, int version)
 				parts->component_state_type[i] = parts->states[i].type == PARTS_HGAUGE ? 22 : 23;
 			}
 		}
+	}
+	if (version >= 6) {
+		parts->pactex_canvas_w = iarray_read(r);
+		parts->pactex_canvas_h = iarray_read(r);
 	}
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check

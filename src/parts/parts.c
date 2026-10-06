@@ -497,11 +497,16 @@ static void parts_update_global_pos(struct parts *parts, const struct parts_para
 
 void parts_set_pos(struct parts *parts, Point pos)
 {
+	bool moved = parts->local.pos.x != pos.x || parts->local.pos.y != pos.y;
 	parts->local.pos.x = pos.x;
 	parts->local.pos.y = pos.y;
 	parts_recalculate_hitbox(parts);
 	parts_update_global_pos(parts, parts->parent ? &parts->parent->global : NULL);
 	parts_dirty(parts);
+	// v14: a vertical/horizontal box puts its child back, as the original
+	// does on every frame the box is shown.
+	if (moved)
+		parts_layout_size_changed(parts);
 }
 
 void parts_set_global_pos(Point pos)
@@ -593,6 +598,8 @@ void parts_set_edit_hidden(struct parts *parts, bool hidden)
 	parts->edit_hidden = hidden;
 	parts_update_global_show(parts, parts->parent ? parts->parent->global.show : true);
 	parts_dirty(parts);
+	// A layout box skips children hidden this way.
+	parts_layout_size_changed(parts);
 }
 
 void parts_set_show(struct parts *parts, bool show)
@@ -603,6 +610,7 @@ void parts_set_show(struct parts *parts, bool show)
 	parts->local.show = show;
 	parts_update_global_show(parts, parts->parent ? parts->parent->global.show : true);
 	parts_dirty(parts);
+	parts_layout_size_changed(parts);
 }
 
 static void parts_update_global_alpha(struct parts *parts, int parent_alpha)
@@ -703,9 +711,17 @@ void parts_set_multiply_color(struct parts *parts, SDL_Color color)
 
 void parts_set_origin_mode(struct parts *parts, int origin_mode)
 {
+	bool changed = parts->origin_mode != origin_mode;
 	parts->origin_mode = origin_mode;
 	parts_recalculate_hitbox(parts);
 	parts_dirty(parts);
+	// v14: a vertical/horizontal box starts from its own origin mode and
+	// sets its children's back to its alignment.
+	if (changed && ain->version >= 14) {
+		if (parts->states[0].type == PARTS_LAYOUT_BOX)
+			parts_component_dirty(parts);
+		parts_layout_size_changed(parts);
+	}
 }
 
 static void parts_update_global_scale_x(struct parts *parts, float parent_scale_x)
@@ -813,10 +829,14 @@ void parts_clear_hit_mask(struct parts_common *common)
 
 void parts_set_dims(struct parts *parts, struct parts_common *common, int w, int h)
 {
+	bool changed = common->w != w || common->h != h;
 	parts_clear_hit_mask(common);
 	common->w = w;
 	common->h = h;
 	parts_common_recalculate_hitbox(parts, common);
+	// A layout box sizes its children by their normal state.
+	if (changed && common == &parts->states[0].common)
+		parts_layout_size_changed(parts);
 }
 
 bool _parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct cg *cg, int cg_no,
@@ -1031,7 +1051,13 @@ static bool parts_numeral_update_font(struct parts *parts, struct parts_numeral 
 
 	struct text_style ts = num->font;
 	ts.font_spacing = num->space;
-	int w = (int)ceilf(gfx_size_text(&ts, buf));
+	// The width is the digit cells and the spacing between them (0x5b4df0:
+	// 0x5b50d3 adds a cell, 0x5b5164..0x5b5182 (cells - 1) * 字間隔), which
+	// is where the last glyph drawn below ends; gfx_size_text is the cells.
+	// Without ゼロパディング the original still counts 桁數 cells and only
+	// hides the leading ones (0x5b5230); every numeral in the game pads.
+	int nr_chars = full ? len / 2 : len;
+	int w = (int)ceilf(gfx_size_text(&ts, buf)) + (nr_chars - 1) * num->space;
 	int h = (int)ceilf(ts.size + ts.edge_up + ts.edge_down);
 	if (w <= 0 || h <= 0)
 		return true;
@@ -1157,6 +1183,9 @@ void parts_set_surface_area(struct parts *parts, struct parts_common *common, in
 		return;
 	common->surface_area = (Rectangle) { x, y, w, h };
 	parts_common_recalculate_hitbox(parts, common);
+	// A layout box limits a text's size to its surface area.
+	if (common == &parts->states[0].common)
+		parts_layout_size_changed(parts);
 }
 
 static bool parts_animation_update(struct parts_animation *anim, int passed_time)
@@ -1228,6 +1257,8 @@ void parts_release(int parts_no)
 		child->parent = NULL;
 	}
 	if (parts->parent) {
+		// v14: a layout box above closes the gap.
+		parts_layout_size_changed(parts);
 		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
 		parts->parent = NULL;
 	}
@@ -1379,6 +1410,8 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 			// if parent is layout box, mark it dirty so that it can re-layout its children
 			if (parent->states[0].type == PARTS_LAYOUT_BOX)
 				parts_component_dirty(parent);
+			// v14: also a box above a free box or a user component
+			parts_layout_size_changed(parts);
 		}
 		// TODO: should the child be orphaned if it already has a parent and an invalid
 		//       parent no is given?
@@ -1451,6 +1484,9 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int 
 	if (!cg_name || *(cg_name->text) == '\0') {
 		parts_state_reset(&parts->states[state], PARTS_CG);
 		parts_dirty(parts);
+		// A layout box sizes the parts by its normal state, now 0x0.
+		if (!state)
+			parts_layout_size_changed(parts);
 		return true;
 	}
 
@@ -1468,6 +1504,8 @@ bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int stat
 	if (!cg_no) {
 		parts_state_reset(&parts->states[state], PARTS_CG);
 		parts_dirty(parts);
+		if (!state)
+			parts_layout_size_changed(parts);
 		return true;
 	}
 
@@ -1487,6 +1525,8 @@ bool PE_SetPartsCG_by_string_index(int parts_no, struct string *cg_name,
 	if (!cg_name) {
 		parts_state_reset(&parts->states[state], PARTS_CG);
 		parts_dirty(parts);
+		if (!state)
+			parts_layout_size_changed(parts);
 		return true;
 	}
 
@@ -1886,6 +1926,9 @@ bool PE_SetHGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 		g->common.surface_area = (Rectangle) {x, y, w, h};
 		parts_common_recalculate_hitbox(parts, &g->common);
 		parts_dirty(parts);
+		// The gauge's size is now the area's.
+		if (!state)
+			parts_layout_size_changed(parts);
 	} else {
 		parts_set_surface_area(parts, &g->common, x, y, w, h);
 	}
@@ -1903,6 +1946,9 @@ bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 		g->common.surface_area = (Rectangle) {x, y, w, h};
 		parts_common_recalculate_hitbox(parts, &g->common);
 		parts_dirty(parts);
+		// The gauge's size is now the area's.
+		if (!state)
+			parts_layout_size_changed(parts);
 	} else {
 		parts_set_surface_area(parts, &g->common, x, y, w, h);
 	}
@@ -2248,6 +2294,8 @@ static void parts_set_parent_now(struct parts *parts, int parent_parts_no)
 		return;
 	if (parts->parent) {
 		struct parts *old = parts->parent;
+		// Before leaving: the boxes above the old parent lose its size.
+		parts_layout_size_changed(parts);
 		TAILQ_REMOVE(&old->children, parts, child_list_entry);
 		if (old->states[0].type == PARTS_LAYOUT_BOX)
 			parts_component_dirty(old);
@@ -2257,6 +2305,8 @@ static void parts_set_parent_now(struct parts *parts, int parent_parts_no)
 		TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
 		if (parent->states[0].type == PARTS_LAYOUT_BOX)
 			parts_component_dirty(parent);
+		// E.g. a user component's content root (the component's size).
+		parts_layout_size_changed(parts);
 	}
 	parts_component_dirty(parts);
 }

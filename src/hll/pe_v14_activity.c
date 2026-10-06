@@ -439,6 +439,25 @@ static bool pactex_name_is(struct ex_tree *node, const char *sjis, const char *g
 	return node->name && (!strcmp(node->name->text, sjis) || !strcmp(node->name->text, gbk));
 }
 
+/* The value of the leaf named sjis or gbk among node's children. */
+static struct ex_value *pactex_leaf_value(struct ex_tree *node, const char *sjis, const char *gbk)
+{
+	if (!node || node->is_leaf) return NULL;
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (c->is_leaf && pactex_name_is(c, sjis, gbk))
+			return &c->leaf.value;
+	}
+	return NULL;
+}
+
+static float pactex_value_number(const struct ex_value *v, float fallback)
+{
+	if (v && v->type == EX_FLOAT) return v->f;
+	if (v && v->type == EX_INT) return v->i;
+	return fallback;
+}
+
 static int pactex_named_state(struct ex_tree *node)
 {
 	static const struct { const char *sjis, *gbk; } names[] = {
@@ -614,6 +633,41 @@ static bool pactex_low_level_keeps_legacy_cg(struct ex_tree *state)
 		&& pactex_construction_has_steps(state);
 }
 
+/* The canvas such a state's steps start with: the first step creates it
+ * (コマンド 0, or 1 without pixels; a missing key is 0) with 先矩形's W,H
+ * (items 4 and 5). The original builds the steps while loading; the loader
+ * here does not, so a layout box sizes the parts by this canvas
+ * (layoutbox.c), e.g. RivalShopView's three 20x20 personality marks. */
+static void pactex_construction_canvas(struct ex_tree *state, struct parts *parts)
+{
+	for (unsigned i = 0; i < state->nr_children; i++) {
+		struct ex_tree *list = &state->children[i];
+		if (list->is_leaf || !pactex_name_is(list, "\x8e\xe8\x8f\x87\x83\x8a\x83\x58\x83\x67",
+				"\xca\xd6\xed\x98\xa5\xea\xa5\xb9\xa5\xc8")) /* 手順リスト */
+			continue;
+		for (unsigned j = 0; j < list->nr_children; j++) {
+			struct ex_tree *step = &list->children[j];
+			if (step->is_leaf)
+				continue;
+			int command = pactex_value_number(pactex_leaf_value(step,
+				"\x83\x52\x83\x7d\x83\x93\x83\x68", "\xa5\xb3\xa5\xde\xa5\xf3\xa5\xc9"), 0); /* コマンド */
+			struct ex_value *dest = pactex_leaf_value(step,
+				"\x90\xe6\x8b\xe9\x8c\x60", "\xcf\xc8\xbe\xd8\xd0\xce"); /* 先矩形 */
+			if ((command == 0 || command == 1) && dest && dest->type == EX_LIST
+					&& dest->list && dest->list->nr_items >= 6) {
+				int w = pactex_value_number(&dest->list->items[4].value, 0);
+				int h = pactex_value_number(&dest->list->items[5].value, 0);
+				if (w > 0 && h > 0) {
+					parts->pactex_canvas_w = w;
+					parts->pactex_canvas_h = h;
+				}
+			}
+			return;
+		}
+		return;
+	}
+}
+
 /* 矩形部件: the bounding box of the four corners 左上/右上/左下/右下 (矩形模式 1,
  * the only mode in the game's pactex; all have 左上 = (0, 0)). */
 static void pactex_rect_size(struct ex_tree *state, int *w, int *h)
@@ -734,6 +788,8 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 			PE_SetPartsRectangleDetectionSize(parts_no, w, h, pe_state);
 		} else if (!pactex_construction_has_steps(state)) {
 			parts_get_construction_process(parts, pe_state - 1);
+		} else if (pe_state == 1) {
+			pactex_construction_canvas(state, parts);
 		}
 		parts->component_state_type[pe_state - 1] = type;
 		return true;
@@ -827,6 +883,19 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		struct parts *parts = parts_get(parts_no);
 		parts->clip_enabled = v[0] != 0;
 		parts->clip_area = (Rectangle){ v[1], v[2], v[3], v[4] };
+	}
+
+	/* マージン = (top, bottom, left, right): the component parser (0x553650)
+	 * reads the list's items 0-3 into +0x110..+0x11c (0x5542f9..0x55434e),
+	 * the fields SetComponentMargin (0x58e240) writes; a missing list is 0,
+	 * as for a new parts. A layout box adds them around the parts. */
+	struct ex_list *margin = pactex_get_list(node, "\x83\x7d\x81\x5b\x83\x57\x83\x93");
+	if (!margin) margin = pactex_get_list(node, "\xa5\xde\xa9\x60\xa5\xb8\xa5\xf3");
+	if (margin) {
+		int v[4] = {0};
+		for (unsigned i = 0; i < 4 && i < margin->nr_items; i++)
+			v[i] = pactex_value_number(&margin->items[i].value, 0);
+		PE_SetComponentMargin(parts_no, v[0], v[1], v[2], v[3]);
 	}
 
 
@@ -1070,6 +1139,50 @@ static const char *pactex_get_exact_string(struct ex_tree *node, const char *nam
 	return NULL;
 }
 
+/* レイアウトボックス: the native loader (0x5493a0, called from 0x5393ef)
+ * reads レイアウトタイプ, 折り返し許可 (== 1), 折り返しサイズ (a float),
+ * 配置 and パディング (top, bottom, left, right) into the widget
+ * (+0x44..+0x5c) and marks it for layout (+0x60). A missing key is the
+ * getter's default 0, not the constructor's (vertical, 200, 配置 1), which
+ * only a box created by the AIN keeps. 折り返しサイズをレートとして認識する
+ * (read for pactex versions above 4) is not supported; every box in the
+ * game has 0. The box lays out its children in layoutbox.c. */
+static void pactex_apply_layout_box(struct ex_tree *type_info, struct parts *p)
+{
+	static const char *const keys[][2] = {
+		{ "\x83\x8c\x83\x43\x83\x41\x83\x45\x83\x67\x83\x5e\x83\x43\x83\x76",
+		  "\xa5\xec\xa5\xa4\xa5\xa2\xa5\xa6\xa5\xc8\xa5\xbf\xa5\xa4\xa5\xd7" }, /* レイアウトタイプ */
+		{ "\x90\xdc\x82\xe8\x95\xd4\x82\xb5\x8b\x96\x89\xc2",
+		  "\xd5\xdb\xa4\xea\xb7\xb5\xa4\xb7\xd4\x53\xbf\xc9" }, /* 折り返し許可 */
+		{ "\x90\xdc\x82\xe8\x95\xd4\x82\xb5\x83\x54\x83\x43\x83\x59",
+		  "\xd5\xdb\xa4\xea\xb7\xb5\xa4\xb7\xa5\xb5\xa5\xa4\xa5\xba" }, /* 折り返しサイズ */
+		{ "\x90\xdc\x82\xe8\x95\xd4\x82\xb5\x83\x54\x83\x43\x83\x59\x82\xf0\x83\x8c\x81\x5b\x83\x67"
+		  "\x82\xc6\x82\xb5\x82\xc4\x94\x46\x8e\xaf\x82\xb7\x82\xe9",
+		  "\xd5\xdb\xa4\xea\xb7\xb5\xa4\xb7\xa5\xb5\xa5\xa4\xa5\xba\xa4\xf2\xa5\xec\xa9\x60\xa5\xc8"
+		  "\xa4\xc8\xa4\xb7\xa4\xc6\xd5\x4a\xd7\x52\xa4\xb9\xa4\xeb" }, /* 折り返しサイズをレートとして認識する */
+		{ "\x94\x7a\x92\x75", "\xc5\xe4\xd6\xc3" }, /* 配置 */
+		{ "\x83\x70\x83\x66\x83\x42\x83\x93\x83\x4f", "\xa5\xd1\xa5\xc7\xa5\xa3\xa5\xf3\xa5\xb0" }, /* パディング */
+	};
+	struct ex_value *v[6];
+	for (int i = 0; i < 6; i++)
+		v[i] = pactex_leaf_value(type_info, keys[i][0], keys[i][1]);
+	struct parts_layout_box *lb = parts_get_layout_box(p);
+	lb->layout_type = (int)pactex_value_number(v[0], 0);
+	PE_SetLayoutBoxReturnF(p->no, (int)pactex_value_number(v[1], 0) == 1, pactex_value_number(v[2], 0));
+	if ((int)pactex_value_number(v[3], 0) == 1)
+		WARNING("pactex: layout box wrap size as a rate is not supported");
+	lb->align = (int)pactex_value_number(v[4], 0);
+	int pad[4] = {0};
+	struct ex_list *l = v[5] && v[5]->type == EX_LIST ? v[5]->list : NULL;
+	for (unsigned i = 0; l && i < 4 && i < l->nr_items; i++)
+		pad[i] = pactex_value_number(&l->items[i].value, 0);
+	lb->padding_top = pad[0];
+	lb->padding_bottom = pad[1];
+	lb->padding_left = pad[2];
+	lb->padding_right = pad[3];
+	parts_component_dirty(p);
+}
+
 /* Widget type and user component name of a pactex component. The native
  * loader (0x5b8f90) indexes 部件タイプ in the EPartsType name table and a
  * user component reads ユーザコンポーネント名 (0x4e50c0); GetUserComponentName
@@ -1082,6 +1195,8 @@ static bool pactex_apply_native_type(struct ex_tree *node, struct parts *p)
 	if (type < 0)
 		return false;
 	p->component_type = type;
+	if (type == PACTEX_EPT_LAYOUT_BOX)
+		pactex_apply_layout_box(type_info, p);
 	free(p->user_component_name);
 	p->user_component_name = NULL;
 	if (type == PACTEX_EPT_USER_COMPONENT) {

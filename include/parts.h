@@ -327,6 +327,7 @@ int PE_GetComponentMarginBottom(int parts_no);
 int PE_GetComponentMarginLeft(int parts_no);
 int PE_GetComponentMarginRight(int parts_no);
 void PE_set_layoutbox_padding(int parts_no, int top, int bottom, int left, int right);
+void PE_v14_SetLayoutBoxPadding(int parts_no, int top, int bottom, int left, int right);
 int PE_get_layoutbox_padding_top(int parts_no);
 int PE_get_layoutbox_padding_bottom(int parts_no);
 int PE_get_layoutbox_padding_left(int parts_no);
