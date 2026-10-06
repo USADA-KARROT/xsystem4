@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-07）：`7e0b781` 讓 v14 pactex 的構築部件在載入時依原版建構（loader `0x5a64e0`、執行器 `0x4fa1d0`、扇形命令 122 `0x5093d0`）：春銷配對頁計數標籤的灰色圓角底、「剩餘時間」量表的灰底、準備頁 ToDo 標籤的底都出現，位置、顏色與圓角和原版影格相同。有手順的 168 個狀態建構 101 個，其餘維持原樣。XPE 存檔版本 6→7。預設／GBK 各64模式 PASS、sanitizer0；新探針修前6/8失敗、修後8/8通過。正常GUI150.386秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/construction.md) · [前組排版修正](docs/checkpoints/2026-09-28/research/gui-visual/layout-box.md)。計數標籤的三個根因（文字、排版、灰底）都已修。還沒建構的：背景模糊、配對頁的「Ready」、對手卡的性格標記。庫房資訊面板落在畫面外（自由盒原點偏移與 user component 原點傳遞未實作）、計數標籤比原版高 2–3px（行高）仍未修。完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。
+> **最新狀態（2026-10-07）：`b05ff2d` 讓 v14 的自由排版盒依原點模式位移子元件、user component 把原點模式傳給內容（原版 `0x5499e0`、`0x4e57d0`）：庫房右上角的資訊面板不再落在畫面外，位置與原版截圖相同。同日稍早的兩組：`7e0b781` 讓構築部件在載入時建構（春銷計數標籤與量表的灰底），`8a1dcdc` 讓版面盒照原版排版。預設／GBK 各65模式 PASS、sanitizer0；新探針修前11/12失敗、修後12/12通過。正常GUI150.394秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/free-box.md) · [灰底](docs/checkpoints/2026-09-28/research/gui-visual/construction.md) · [排版](docs/checkpoints/2026-09-28/research/gui-visual/layout-box.md)。這次受影響的 30 個 user component 與春銷結算的客人檢視，只有庫房實測過。未修：其餘 67 個構築狀態（背景模糊、配對頁的「Ready」、對手卡的性格標記等）、計數標籤比原版高 2–3px（文字行高）。完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

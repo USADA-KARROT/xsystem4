@@ -1,0 +1,324 @@
+before 2c1aa44 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: origin 3: content root: own position (0,0) origin 1, want (0,0) origin 3
+  FAIL: origin 3: Base: drawn from (1258,19), want (1057,19)
+  FAIL: origin 3: Base: top-left corner at (1258,19), want (1057,19)
+  FAIL: origin 3: Mark: drawn from (1408,39), want (1207,39)
+  FAIL: origin 3: Mark: top-left corner at (1408,39), want (1207,39)
+  FAIL: origin 5: content root: own position (0,0) origin 1, want (0,0) origin 5
+  FAIL: origin 5: Base: drawn from (210,135), want (110,115)
+  FAIL: origin 5: Base: top-left corner at (210,135), want (110,115)
+  FAIL: origin 5: Mark: drawn from (360,155), want (260,135)
+  FAIL: origin 5: Mark: top-left corner at (360,155), want (260,135)
+  FAIL: origin 8: content root: own position (0,0) origin 1, want (0,0) origin 8
+  FAIL: origin 8: Base: drawn from (876,329), want (776,288)
+  FAIL: origin 8: Base: top-left corner at (876,329), want (776,288)
+  FAIL: origin 8: Mark: drawn from (1026,349), want (926,308)
+  FAIL: origin 8: Mark: top-left corner at (1026,349), want (926,308)
+  FAIL: origin 9: content root: own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: origin 9: Base: drawn from (1144,508), want (943,467)
+  FAIL: origin 9: Base: top-left corner at (1144,508), want (943,467)
+  FAIL: origin 9: Mark: drawn from (1294,528), want (1093,487)
+  FAIL: origin 9: Mark: top-left corner at (1294,528), want (1093,487)
+  FAIL: origin 3: Base laid out again: drawn from (1258,19), want (1057,19)
+  FAIL: origin 3: Base laid out again: top-left corner at (1258,19), want (1057,19)
+  FAIL: origin 8: Mark laid out again: drawn from (1026,349), want (926,308)
+  FAIL: origin 8: Mark laid out again: top-left corner at (1026,349), want (926,308)
+FB1 user components: FAIL
+FB1 FAILED (exit 1)
+  FAIL: content root: own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: Group: drawn from (510,405), want (385,350)
+  FAIL: Group: top-left corner at (510,405), want (385,350)
+  FAIL: Group's child Leaf (moved once, with Group): drawn from (513,409), want (388,354)
+  FAIL: Group's child Leaf (moved once, with Group): top-left corner at (513,409), want (388,354)
+  FAIL: nested free box: drawn from (600,400), want (475,345)
+  FAIL: the nested box's child (no offset of its own): drawn from (605,406), want (480,351)
+  FAIL: the nested box's child (no offset of its own): top-left corner at (605,406), want (480,351)
+  FAIL: Group after the nested box's child grows: drawn from (510,405), want (345,350)
+  FAIL: Group after the nested box's child grows: top-left corner at (510,405), want (345,350)
+  FAIL: Leaf after the nested box's child grows: drawn from (513,409), want (348,354)
+  FAIL: Leaf after the nested box's child grows: top-left corner at (513,409), want (348,354)
+  FAIL: nested free box after its child grows: drawn from (600,400), want (435,345)
+  FAIL: the nested box's child after it grows: drawn from (605,406), want (440,351)
+  FAIL: the nested box's child after it grows: top-left corner at (605,406), want (440,351)
+FB2 direct children only: FAIL
+FB2 FAILED (exit 1)
+  FAIL: A9 (box origin 9 from the pactex): drawn from (700,500), want (599,420)
+  FAIL: A9 (box origin 9 from the pactex): top-left corner at (700,500), want (599,420)
+  FAIL: B9 (box origin 9 from the pactex): drawn from (720,570), want (619,490)
+  FAIL: B9 (box origin 9 from the pactex): top-left corner at (720,570), want (619,490)
+  FAIL: A with box origin 2: drawn from (300,200), want (250,200)
+  FAIL: A with box origin 2: top-left corner at (300,200), want (250,200)
+  FAIL: B with box origin 2: drawn from (320,270), want (270,270)
+  FAIL: B with box origin 2: top-left corner at (320,270), want (270,270)
+  FAIL: A with box origin 3: drawn from (300,200), want (199,200)
+  FAIL: A with box origin 3: top-left corner at (300,200), want (199,200)
+  FAIL: B with box origin 3: drawn from (320,270), want (219,270)
+  FAIL: B with box origin 3: top-left corner at (320,270), want (219,270)
+  FAIL: A with box origin 4: drawn from (300,200), want (300,160)
+  FAIL: A with box origin 4: top-left corner at (300,200), want (300,160)
+  FAIL: B with box origin 4: drawn from (320,270), want (320,230)
+  FAIL: B with box origin 4: top-left corner at (320,270), want (320,230)
+  FAIL: A with box origin 5: drawn from (300,200), want (250,160)
+  FAIL: A with box origin 5: top-left corner at (300,200), want (250,160)
+  FAIL: B with box origin 5: drawn from (320,270), want (270,230)
+  FAIL: B with box origin 5: top-left corner at (320,270), want (270,230)
+  FAIL: A with box origin 6: drawn from (300,200), want (199,160)
+  FAIL: A with box origin 6: top-left corner at (300,200), want (199,160)
+  FAIL: B with box origin 6: drawn from (320,270), want (219,230)
+  FAIL: B with box origin 6: top-left corner at (320,270), want (219,230)
+  FAIL: A with box origin 7: drawn from (300,200), want (300,120)
+  FAIL: A with box origin 7: top-left corner at (300,200), want (300,120)
+  FAIL: B with box origin 7: drawn from (320,270), want (320,190)
+  FAIL: B with box origin 7: top-left corner at (320,270), want (320,190)
+  FAIL: A with box origin 8: drawn from (300,200), want (250,120)
+  FAIL: A with box origin 8: top-left corner at (300,200), want (250,120)
+  FAIL: B with box origin 8: drawn from (320,270), want (270,190)
+  FAIL: B with box origin 8: top-left corner at (320,270), want (270,190)
+  FAIL: A with box origin 9: drawn from (300,200), want (199,120)
+  FAIL: A with box origin 9: top-left corner at (300,200), want (199,120)
+  FAIL: B with box origin 9: drawn from (320,270), want (219,190)
+  FAIL: B with box origin 9: top-left corner at (320,270), want (219,190)
+  FAIL: A with box origin 6: drawn from (300,200), want (199,160)
+  FAIL: A with box origin 6: top-left corner at (300,200), want (199,160)
+  FAIL: B with box origin 6: drawn from (320,270), want (219,230)
+  FAIL: B with box origin 6: top-left corner at (320,270), want (219,230)
+  FAIL: A with box origin 9: drawn from (300,200), want (199,120)
+  FAIL: A with box origin 9: top-left corner at (300,200), want (199,120)
+  FAIL: B with box origin 9: drawn from (320,270), want (219,190)
+  FAIL: B with box origin 9: top-left corner at (320,270), want (219,190)
+FB3 a free box's own origin mode: FAIL
+FB3 FAILED (exit 1)
+  FAIL: Base: drawn from (1258,19), want (1057,19)
+  FAIL: Base: top-left corner at (1258,19), want (1057,19)
+  FAIL: Base after Mark grows: drawn from (1258,19), want (1008,19)
+  FAIL: Base after Mark grows: top-left corner at (1258,19), want (1008,19)
+  FAIL: Mark after it grows: drawn from (1408,39), want (1158,39)
+  FAIL: Mark after it grows: top-left corner at (1408,39), want (1158,39)
+  FAIL: Base with Mark hidden: drawn from (1258,19), want (1057,19)
+  FAIL: Base with Mark hidden: top-left corner at (1258,19), want (1057,19)
+  FAIL: hidden Mark: drawn from (1408,39), want (1207,39)
+  FAIL: Base with Mark shown again: drawn from (1258,19), want (1008,19)
+  FAIL: Base with Mark shown again: top-left corner at (1258,19), want (1008,19)
+  FAIL: Base after Mark moves: drawn from (1258,19), want (858,19)
+  FAIL: Base after Mark moves: top-left corner at (1258,19), want (858,19)
+  FAIL: Mark after it moves: drawn from (1558,39), want (1158,39)
+  FAIL: Mark after it moves: top-left corner at (1558,39), want (1158,39)
+  FAIL: Base after Mark gets origin 3: drawn from (1258,19), want (958,19)
+  FAIL: Base after Mark gets origin 3: top-left corner at (1258,19), want (958,19)
+  FAIL: Mark with origin 3: drawn from (1558,39), want (1258,39)
+  FAIL: Mark with origin 3: top-left corner at (1458,39), want (1158,39)
+  FAIL: Base restored: drawn from (1258,19), want (958,19)
+  FAIL: Base restored: top-left corner at (1258,19), want (958,19)
+  FAIL: Base after Mark is released: drawn from (1258,19), want (1057,19)
+  FAIL: Base after Mark is released: top-left corner at (1258,19), want (1057,19)
+  FAIL: Base after a rect joins: drawn from (1258,19), want (808,19)
+  FAIL: Base after a rect joins: top-left corner at (1258,19), want (808,19)
+  FAIL: the rect that joined: drawn from (1658,19), want (1208,19)
+  FAIL: the rect that joined: top-left corner at (1658,19), want (1208,19)
+  FAIL: Base after the rect leaves: drawn from (1258,19), want (1057,19)
+  FAIL: Base after the rect leaves: top-left corner at (1258,19), want (1057,19)
+  FAIL: the rect that left (keeps its last offset): drawn from (401,7), want (-49,7)
+  FAIL: the rect that left (keeps its last offset): top-left corner at (401,7), want (-49,7)
+FB4 the offset follows the size: FAIL
+FB4 FAILED (exit 1)
+  FAIL: Base with A, B and C: drawn from (1258,19), want (596,19)
+  FAIL: A: drawn from (1258,19), want (596,19)
+  FAIL: A: top-left corner at (1258,19), want (596,19)
+  FAIL: B: drawn from (1341,19), want (679,19)
+  FAIL: B: top-left corner at (1341,19), want (679,19)
+  FAIL: C: drawn from (1620,19), want (958,19)
+  FAIL: C: top-left corner at (1620,19), want (958,19)
+  FAIL: Base with C hidden: drawn from (1258,19), want (896,19)
+  FAIL: A with C hidden: drawn from (1258,19), want (896,19)
+  FAIL: A with C hidden: top-left corner at (1258,19), want (896,19)
+  FAIL: B with C hidden: drawn from (1341,19), want (979,19)
+  FAIL: B with C hidden: top-left corner at (1341,19), want (979,19)
+  FAIL: Base with only B: drawn from (1258,19), want (979,19)
+  FAIL: B alone: drawn from (1258,19), want (979,19)
+  FAIL: B alone: top-left corner at (1258,19), want (979,19)
+  FAIL: B with all three again: drawn from (1341,19), want (679,19)
+  FAIL: B with all three again: top-left corner at (1341,19), want (679,19)
+  FAIL: Base after B grows: drawn from (1258,19), want (575,19)
+  FAIL: C after B grows: drawn from (1641,19), want (958,19)
+  FAIL: C after B grows: top-left corner at (1641,19), want (958,19)
+FB5 a box below sets the size: FAIL
+FB5 FAILED (exit 1)
+  FAIL: UH's content root: own position (0,0) origin 1, want (0,0) origin 3
+  FAIL: UH's content (ends at the component): drawn from (550,100), want (500,100)
+  FAIL: UH's content (ends at the component): top-left corner at (550,100), want (500,100)
+FB6 user components in boxes: FAIL
+FB6 FAILED (exit 1)
+FB7 v13 unchanged: ok
+  FAIL: A before saving: drawn from (1258,19), want (896,19)
+  FAIL: A before saving: top-left corner at (1258,19), want (896,19)
+  FAIL: Base before saving: drawn from (876,329), want (776,288)
+  FAIL: Base before saving: top-left corner at (876,329), want (776,288)
+  FAIL: Q before saving: top-left corner at (100,100), want (60,90)
+  FAIL: the garage root after loading: own position (0,0) origin 1, want (0,0) origin 3
+  FAIL: the horizontal box after loading: drawn from (1258,19), want (896,19)
+  FAIL: A after loading: drawn from (1258,19), want (896,19)
+  FAIL: A after loading: top-left corner at (1258,19), want (896,19)
+  FAIL: B after loading: drawn from (1341,19), want (979,19)
+  FAIL: B after loading: top-left corner at (1341,19), want (979,19)
+  FAIL: the panel root after loading: own position (0,0) origin 1, want (0,0) origin 8
+  FAIL: Base after loading: drawn from (876,329), want (776,288)
+  FAIL: Base after loading: top-left corner at (876,329), want (776,288)
+  FAIL: Mark after loading: drawn from (1026,349), want (926,308)
+  FAIL: Mark after loading: top-left corner at (1026,349), want (926,308)
+  FAIL: A after loading and B growing: drawn from (1258,19), want (875,19)
+  FAIL: A after loading and B growing: top-left corner at (1258,19), want (875,19)
+  FAIL: Base after loading and growing: drawn from (876,329), want (726,288)
+  FAIL: Base after loading and growing: top-left corner at (876,329), want (726,288)
+  FAIL: the garage root loaded with origin 1: own position (0,0) origin 1, want (0,0) origin 3
+  FAIL: A loaded under a root with origin 1: drawn from (1258,19), want (875,19)
+  FAIL: A loaded under a root with origin 1: top-left corner at (1258,19), want (875,19)
+  FAIL: the panel root loaded with origin 1: own position (0,0) origin 1, want (0,0) origin 8
+  FAIL: Base loaded under a root with origin 1: drawn from (876,329), want (726,288)
+  FAIL: Base loaded under a root with origin 1: top-left corner at (876,329), want (726,288)
+  FAIL: Q loaded with origin 1: own position (0,0) origin 1, want (0,0) origin 6
+  FAIL: Q loaded with origin 1: top-left corner at (100,100), want (60,90)
+FB8 save and load: FAIL
+FB8 FAILED (exit 1)
+  FAIL: Parts_IsCursorIn(Base, 1057, 19) = 0, want 1
+  FAIL: Parts_IsCursorIn(Base, 1257, 59) = 0, want 1
+  FAIL: Parts_IsCursorIn(Base, 1258, 30) = 1, want 0
+  FAIL: Parts_IsCursorIn(Base, 1270, 30) = 1, want 0
+  FAIL: click at (1100,40): 1 messages, first type 4 parts 0; want 1, 4, 900003
+  FAIL: click at (1270,40) reached Base (1 messages)
+FB9 the cursor follows: FAIL
+FB9 FAILED (exit 1)
+  FAIL: root: own position (0,0) origin 1, want (0,0) origin 3
+  FAIL: Base: drawn from (600,300), want (420,300)
+  FAIL: Base: top-left corner at (600,300), want (420,300)
+  FAIL: root after the component gets origin 9: own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: Base after the component gets origin 9: drawn from (600,300), want (420,270)
+  FAIL: Base after the component gets origin 9: top-left corner at (600,300), want (420,270)
+  FAIL: root after SetComponentOriginPosMode(root, 1): own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: Base after SetComponentOriginPosMode(root, 1): drawn from (600,300), want (420,270)
+  FAIL: Base after SetComponentOriginPosMode(root, 1): top-left corner at (600,300), want (420,270)
+  FAIL: S as the first child: own position (7,8) origin 1, want (7,8) origin 9
+  FAIL: S as the first child: top-left corner at (607,308), want (567,268)
+  FAIL: the root that left: own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: Base of the root that left: drawn from (0,0), want (-180,-30)
+  FAIL: Base of the root that left: top-left corner at (0,0), want (-180,-30)
+  FAIL: S2 after S is released: own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: S2 after S is released: top-left corner at (600,300), want (590,290)
+  FAIL: the horizontal box as the first child: own position (0,0) origin 1, want (0,0) origin 9
+  FAIL: X in the horizontal box: drawn from (600,300), want (540,290)
+  FAIL: X in the horizontal box: top-left corner at (600,300), want (540,290)
+  FAIL: Y in the horizontal box: drawn from (640,300), want (580,290)
+  FAIL: Y in the horizontal box: top-left corner at (640,300), want (580,290)
+  FAIL: Q once P is a user component: own position (0,0) origin 1, want (0,0) origin 6
+  FAIL: Q once P is a user component: top-left corner at (100,100), want (60,90)
+FB10 when the mode is passed on: FAIL
+FB10 FAILED (exit 1)
+  FAIL: Base: drawn from (600,300), want (400,300)
+  FAIL: Base: top-left corner at (600,300), want (400,300)
+  FAIL: Mark: drawn from (750,320), want (550,320)
+  FAIL: Mark: top-left corner at (750,320), want (550,320)
+  FAIL: Base under a half-size component: drawn from (600,300), want (500,300)
+  FAIL: Mark under a half-size component: drawn from (675,310), want (575,310)
+  FAIL: Base under a mirrored component: drawn from (600,300), want (800,300)
+  FAIL: Mark under a mirrored component: drawn from (450,320), want (650,320)
+  FAIL: mirrored Base under the cursor at (700,310) 0, (850,310) 0; want 1, 0
+  FAIL: Base restored: drawn from (600,300), want (400,300)
+  FAIL: Base restored: top-left corner at (600,300), want (400,300)
+  FAIL: Base with origin 9: drawn from (600,300), want (400,260)
+  FAIL: Base with origin 9: top-left corner at (600,300), want (400,260)
+  FAIL: Mark with origin 9: drawn from (750,320), want (550,280)
+  FAIL: Mark with origin 9: top-left corner at (750,320), want (550,280)
+  FAIL: Base (origin 9) under a half-size component: drawn from (600,300), want (500,280)
+  FAIL: Mark (origin 9) under a half-size component: drawn from (675,310), want (575,290)
+  FAIL: Base under a component turned upside down: drawn from (600,300), want (400,340)
+  FAIL: Mark under a component turned upside down: drawn from (750,280), want (550,320)
+  FAIL: Base in a box at twice its size: drawn from (600,300), want (200,220)
+  FAIL: Mark in a box at twice its size: drawn from (900,340), want (500,260)
+  FAIL: Base restored with origin 9: drawn from (600,300), want (400,260)
+  FAIL: Base restored with origin 9: top-left corner at (600,300), want (400,260)
+FB11 scaled and mirrored: FAIL
+FB11 FAILED (exit 1)
+  FAIL: Fix: drawn from (500,400), want (390,326)
+  FAIL: Fix: top-left corner at (500,400), want (390,326)
+  FAIL: K in the inner component: drawn from (560,410), want (450,336)
+  FAIL: K in the inner component: top-left corner at (560,410), want (450,336)
+  FAIL: VIn: drawn from (500,450), want (390,376)
+  FAIL: a in VIn: drawn from (507,455), want (397,381)
+  FAIL: a in VIn: top-left corner at (507,455), want (397,381)
+  FAIL: Fix after the inner component's content grows: drawn from (500,400), want (290,326)
+  FAIL: Fix after the inner component's content grows: top-left corner at (500,400), want (290,326)
+  FAIL: K after it grows: drawn from (560,410), want (350,336)
+  FAIL: K after it grows: top-left corner at (560,410), want (350,336)
+  FAIL: Fix after VIn becomes a free box: drawn from (500,400), want (290,332)
+  FAIL: Fix after VIn becomes a free box: top-left corner at (500,400), want (290,332)
+  FAIL: VIn as a free box: drawn from (500,450), want (290,382)
+  FAIL: a in VIn as a free box: drawn from (507,455), want (297,387)
+  FAIL: a in VIn as a free box: top-left corner at (507,455), want (297,387)
+  FAIL: Fix after VIn is vertical again: drawn from (500,400), want (290,326)
+  FAIL: Fix after VIn is vertical again: top-left corner at (500,400), want (290,326)
+  FAIL: a after VIn is vertical again: drawn from (507,455), want (297,381)
+  FAIL: a after VIn is vertical again: top-left corner at (507,455), want (297,381)
+FB12 sizes through other layers: FAIL
+FB12 FAILED (exit 1)
+FREE-BOX FAIL: 11 of 12 cases failed
+
+before 2c1aa44 (XS4_PROBE_GBK=1), results only
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FB1 user components: FAIL
+FB1 FAILED (exit 1)
+FB2 direct children only: FAIL
+FB2 FAILED (exit 1)
+FB3 a free box's own origin mode: FAIL
+FB3 FAILED (exit 1)
+FB4 the offset follows the size: FAIL
+FB4 FAILED (exit 1)
+FB5 a box below sets the size: FAIL
+FB5 FAILED (exit 1)
+FB6 user components in boxes: FAIL
+FB6 FAILED (exit 1)
+FB7 v13 unchanged: ok
+FB8 save and load: FAIL
+FB8 FAILED (exit 1)
+FB9 the cursor follows: FAIL
+FB9 FAILED (exit 1)
+FB10 when the mode is passed on: FAIL
+FB10 FAILED (exit 1)
+FB11 scaled and mirrored: FAIL
+FB11 FAILED (exit 1)
+FB12 sizes through other layers: FAIL
+FB12 FAILED (exit 1)
+FREE-BOX FAIL: 11 of 12 cases failed
+
+after b05ff2d (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FB1 user components: ok
+FB2 direct children only: ok
+FB3 a free box's own origin mode: ok
+FB4 the offset follows the size: ok
+FB5 a box below sets the size: ok
+FB6 user components in boxes: ok
+FB7 v13 unchanged: ok
+FB8 save and load: ok
+FB9 the cursor follows: ok
+FB10 when the mode is passed on: ok
+FB11 scaled and mirrored: ok
+FB12 sizes through other layers: ok
+FREE-BOX PASS: 0 of 12 cases failed
+
+after b05ff2d (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FB1 user components: ok
+FB2 direct children only: ok
+FB3 a free box's own origin mode: ok
+FB4 the offset follows the size: ok
+FB5 a box below sets the size: ok
+FB6 user components in boxes: ok
+FB7 v13 unchanged: ok
+FB8 save and load: ok
+FB9 the cursor follows: ok
+FB10 when the mode is passed on: ok
+FB11 scaled and mirrored: ok
+FB12 sizes through other layers: ok
+FREE-BOX PASS: 0 of 12 cases failed
