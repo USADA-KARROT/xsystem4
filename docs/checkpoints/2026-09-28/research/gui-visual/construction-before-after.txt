@@ -1,0 +1,135 @@
+construction: before 1afda2f (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: CN1 Round: state type 0, texture missing 0x0, size 0x0; want a built 128x40 construction
+  FAIL: CN1 SJIS keys: state type 0, texture missing 0x0, size 0x0; want a built 128x40 construction
+CN1 count label base: FAIL
+CN1 FAILED (exit 1)
+  FAIL: CN2 r 12: state type 0, texture missing 0x0, size 0x0; want a built 92x24 construction
+  FAIL: CN2 r 9: state type 0, texture missing 0x0, size 0x0; want a built 41x18 construction
+  FAIL: CN2 ellipse: state type 0, texture missing 0x0, size 0x0; want a built 40x30 construction
+  FAIL: CN2 cut by the edge: state type 0, texture missing 0x0, size 0x0; want a built 24x24 construction
+  FAIL: CN2 alpha 128: state type 0, texture missing 0x0, size 0x0; want a built 32x32 construction
+  FAIL: CN2 sweeps 180 and 270: state type 0, texture missing 0x0, size 0x0; want a built 48x48 construction
+  FAIL: CN2 sweeps 360 and 0: state type 0, texture missing 0x0, size 0x0; want a built 32x32 construction
+  FAIL: CN2 radius 0 and negative angles: state type 0, texture missing 0x0, size 0x0; want a built 16x16 construction
+  FAIL: CN2 r 10 (reciprocal): state type 0, texture missing 0x0, size 0x0; want a built 20x20 construction
+  FAIL: CN2 r 13 (separate rounding): state type 0, texture missing 0x0, size 0x0; want a built 26x26 construction
+  FAIL: CN2 left of the surface: state type 0, texture missing 0x0, size 0x0; want a built 16x16 construction
+  FAIL: CN2 a sector alone: state type 0, texture missing 0x0, size 0x0; want a built 40x40 construction
+CN2 sectors: FAIL
+CN2 FAILED (exit 1)
+  FAIL: CN3 timer base: state type 0, texture missing 0x0, size 0x0; want a built 262x22 construction
+  FAIL: CN3 clipped fill: state type 0, texture missing 0x0, size 0x0; want a built 256x40 construction
+  FAIL: CN3 negative sizes: state type 0, texture missing 0x0, size 0x0; want a built 40x20 construction
+  FAIL: CN3 RGB fill: state type 0, texture missing 0x0, size 0x0; want a built 99x18 construction
+  FAIL: CN3 alpha hole: state type 0, texture missing 0x0, size 0x0; want a built 60x40 construction
+  FAIL: CN3 全體 2: state type 0, texture missing 0x0, size 0x0; want a built 20x20 construction
+  FAIL: CN3 command 3 with A 999: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CN3 command 5 with RGB 999: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CN3 a fill alone: state type 0, texture missing 0x0, size 0x0; want a built 20x20 construction
+  FAIL: CN3 command 0 alone: state type 0, texture missing 0x0, size 0x0; want a built 12x7 construction
+CN3 fills: FAIL
+CN3 FAILED (exit 1)
+CN4 unbuilt states: ok
+CN5 sector guards: skipped (function not present)
+CN5 empty step list: ok
+  FAIL: CN6 a version 6 page: state type 0, texture missing 0x0, size 0x0; want a built 262x22 construction
+  FAIL: a save with a sector operation is XPE v6, want 7 or later
+  FAIL: CN6 Round after loading: state type 0, texture missing 0x0, size 0x0; want a built 128x40 construction
+  FAIL: CN6 Timer after loading: state type 0, texture missing 0x0, size 0x0; want a built 262x22 construction
+CN6 save and load: FAIL
+CN6 FAILED (exit 1)
+  FAIL: CN7 the built state under the cursor at (227,89) 0, (228,89) 0, (227,90) 0; want 1, 0, 0
+CN7 layout and cursor: FAIL
+CN7 FAILED (exit 1)
+  FAIL: CN8 Mask: state type 0, texture missing, size 0x0; want a built 1480x920 construction
+  FAIL: CN8 GuideMask: state type 0, texture missing, size 0x0; want a built 1480x920 construction
+  FAIL: CN8 Mask after loading: state type 0, texture missing, size 0x0; want a built 1480x920 construction
+  FAIL: CN8 GuideMask after loading: state type 0, texture missing, size 0x0; want a built 1480x920 construction
+  FAIL: CN8 Mask after loading: hidden in the editor 0, want 1
+  FAIL: CN8 Mask after loading is shown
+  FAIL: CN8 Guide after loading: hidden in the editor 0, want 1
+  FAIL: CN8 Guide after loading is shown
+  FAIL: CN8 GuideMask after loading is shown
+CN8 hidden in the editor: FAIL
+CN8 FAILED (exit 1)
+CONSTRUCTION FAIL: 6 of 8 cases failed
+
+construction: before 1afda2f (XS4_PROBE_GBK=1), results only
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CN1 count label base: FAIL
+CN1 FAILED (exit 1)
+CN2 sectors: FAIL
+CN2 FAILED (exit 1)
+CN3 fills: FAIL
+CN3 FAILED (exit 1)
+CN4 unbuilt states: ok
+CN5 sector guards: skipped (function not present)
+CN5 empty step list: ok
+CN6 save and load: FAIL
+CN6 FAILED (exit 1)
+CN7 layout and cursor: FAIL
+CN7 FAILED (exit 1)
+CN8 hidden in the editor: FAIL
+CN8 FAILED (exit 1)
+CONSTRUCTION FAIL: 6 of 8 cases failed
+
+construction: after 7e0b781 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CN1 count label base: ok
+CN2 sectors: ok
+CN3 fills: ok
+CN4 unbuilt states: ok
+CN5 empty step list: ok
+CN6 save and load: ok
+CN7 layout and cursor: ok
+CN8 hidden in the editor: ok
+CONSTRUCTION PASS: 0 of 8 cases failed
+
+construction: after 7e0b781 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CN1 count label base: ok
+CN2 sectors: ok
+CN3 fills: ok
+CN4 unbuilt states: ok
+CN5 empty step list: ok
+CN6 save and load: ok
+CN7 layout and cursor: ok
+CN8 hidden in the editor: ok
+CONSTRUCTION PASS: 0 of 8 cases failed
+
+layout-box: before 1afda2f (default rule), results only. LB13 is a regression guard: the numeral width fix is in 8a1dcdc.
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+LB1 box keys and margins: ok
+LB2 horizontal 配置 7: ok
+LB3 alignments: ok
+LB4 relayout: ok
+LB5 hidden children: ok
+LB6 nested boxes: ok
+LB7 free boxes keep positions: ok
+LB8 v13 layout unchanged: ok
+LB9 unbuilt sizes: ok
+LB10 text children: ok
+LB11 wrapping: ok
+LB12 save and load: ok
+LB13 numeral children: ok
+LAYOUT-BOX PASS: 0 of 13 cases failed
+
+layout-box: after 7e0b781 (default rule), results only
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+LB1 box keys and margins: ok
+LB2 horizontal 配置 7: ok
+LB3 alignments: ok
+LB4 relayout: ok
+LB5 hidden children: ok
+LB6 nested boxes: ok
+LB7 free boxes keep positions: ok
+LB8 v13 layout unchanged: ok
+LB9 unbuilt sizes: ok
+LB10 text children: ok
+LB11 wrapping: ok
+LB12 save and load: ok
+LB13 numeral children: ok
+LAYOUT-BOX PASS: 0 of 13 cases failed

@@ -1,0 +1,44 @@
+{
+  "code": "7e0b7811f995329581aeb2634ab5cfeff1c50eb6",
+  "runs": [
+    {
+      "tag": "claude-construction-final2-normal150",
+      "binary_sha256": "db6cb87b1aa141bebd731ee955a3b17657a7c8d7e83dce01fb92d6ecf81fbdc5",
+      "elapsed_seconds": 150.386,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 544047104,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-construction-final2-target",
+      "binary_sha256": "db6cb87b1aa141bebd731ee955a3b17657a7c8d7e83dce01fb92d6ecf81fbdc5",
+      "elapsed_seconds": 85.262,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 528400384,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 112,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-construction-final2-sysmenu",
+      "binary_sha256": "db6cb87b1aa141bebd731ee955a3b17657a7c8d7e83dce01fb92d6ecf81fbdc5",
+      "elapsed_seconds": 30.216,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 494551040,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 10,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    }
+  ]
+}
