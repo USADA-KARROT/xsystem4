@@ -60,6 +60,13 @@ else:
 ft_shadow=here/'probe-font-freetype.c'; ft_shadow.write_text(ft_text)
 ftobj=here/('font-freetype-'+a.variant+'.o')
 compiled += [compile_as('src/font_freetype.c', ft_shadow, ftobj)]
+# construction_fixture.inc builds parts textures in a windowless GL context. gl_initialize is static:
+# it loads the default shader, creates the quad buffers and reads the maximum texture size (0 until
+# then, which makes every new texture 0x0).
+video_shadow=here/'probe-video.c'
+video_shadow.write_text((source/'src/video.c').read_text()+"\nvoid probe_gl_initialize(void) { gl_initialize(); }\n")
+videoobj=here/('video-'+a.variant+'.o')
+compiled += [compile_as('src/video.c', video_shadow, videoobj)]
 link=shlex.split(subprocess.check_output(['ninja','-t','commands','src/xsystem4'],cwd=build,text=True).splitlines()[-1])
 link.remove('src/xsystem4.p/ffi.c.o')
 binary=here/('runtime-probe-'+a.variant)
@@ -73,11 +80,12 @@ for i,arg in enumerate(link):
     elif arg=='src/xsystem4.p/parts_text.c.o':link[i]=str(ptextobj)
     elif arg=='src/xsystem4.p/font_freetype.c.o':link[i]=str(ftobj)
     elif arg=='src/xsystem4.p/hll_MainEXFile.c.o':link[i]=str(mainexobj)
+    elif arg=='src/xsystem4.p/video.c.o':link[i]=str(videoobj)
 run=subprocess.run(link,cwd=build,capture_output=True,text=True)
 (here/('link-'+a.variant+'.log')).write_text(run.stdout+run.stderr)
 if run.returncode:raise SystemExit(run.stderr)
 result={'variant':a.variant,'vm_sha256':hashlib.sha256((source/'src/vm.c').read_bytes()).hexdigest(),'probe_sha256':hashlib.sha256((here/'runtime_probe.c').read_bytes()).hexdigest(),'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'compile_commands':compiled,'link_command':link,'scope':'Real-AIN VM/HLL harness; no GUI. Production parts/activity source copies append probe-only static-entry wrappers; no behavior replacement. Other engine objects link from the current build; original main renamed.'}
-result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h',source/'src/parts/parts.c',source/'src/hll/pe_v14_activity.c',source/'src/parts/parts_internal.h',source/'src/text.c',source/'src/parts/text.c',source/'src/font_freetype.c',source/'src/hll/MainEXFile.c']}
+result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h',source/'src/parts/parts.c',source/'src/hll/pe_v14_activity.c',source/'src/parts/parts_internal.h',source/'src/text.c',source/'src/parts/text.c',source/'src/font_freetype.c',source/'src/hll/MainEXFile.c',source/'src/video.c']}
 result['fixture_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in here.iterdir() if p.is_file() and p.suffix in ['.c','.inc','.py'] and p.name!='instrumented-vm.inc'}
 result['source_sha256']['include/vm.h']=hashlib.sha256((source/'include/vm.h').read_bytes()).hexdigest()
 (here/('build-'+a.variant+'.json')).write_text(json.dumps(result,indent=2)+'\n')

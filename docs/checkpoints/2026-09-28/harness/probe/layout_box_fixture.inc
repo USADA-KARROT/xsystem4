@@ -52,7 +52,8 @@
  *       advances, no box size), with ain->version set to 13 in the fork.
  *   LB9 sizes the loader does not build: a user component without and with
  *       content (its first child, a free root), and a 構築部件 whose steps
- *       are not run (its first step's canvas, 先矩形 W,H).
+ *       are not run (its first step's canvas, 先矩形 W,H; the steps include a
+ *       command the loader does not support, see the construction mode).
  *   LB10 text children: n characters have n - 1 spacings (differences
  *       between boxes that differ in 字間隔 or length, so the cell width does
  *       not matter); a 14 px line with 縁取り 2 is 18 high; relayout after
@@ -67,19 +68,30 @@
  *   LB12 a box is laid out the same after PE_Save / PE_Load: with an
  *       unbuilt 構築部件 (its canvas) and with a text whose 太さ widens the
  *       cells (both saved since XPE v6).
- * Not covered: a numeral child's width (its digit cells plus the 字間隔
- * between them, 0x5b4df0: 0x5b5164). Drawing the digits needs the shaders,
- * which this probe's contexts do not set up. Also without a case: the
- * marking after a gauge child's surface area changes (no box in the game
- * has a gauge child), after a CG is emptied by number, and for a parent
- * attached while loading a save.
+ *   LB13 numeral children drawn with a font (表示タイプ 2, 19 px, 縁取り 2):
+ *       the width is the digit cells plus the 字間隔 between them (0x5b4df0:
+ *       0x5b50d3, 0x5b5164..0x5b5182), so one digit is as wide with 字間隔 -5
+ *       as with 0, and three digits are three cells and three cells less 10;
+ *       the box follows Parts_SetNumeralNumber. Under the GBK grid a cell is
+ *       10 + 2 * 2. A regression guard added after the fix: 8a1dcdc already
+ *       has it, so this case passes on the commits that follow it and was
+ *       never run on the tree before that fix.
+ * Not covered: the marking after a gauge child's surface area changes (no
+ * box in the game has a gauge child), after a CG is emptied by number, and
+ * for a parent attached while loading a save.
  * The children need no GL (矩形部件 sized by their corners, boxes, user
  * components, unbuilt 構築部件), except the texts of LB10 and LB12 (the
  * windowless context and glyphless font of text-default; its setup reports
- * a failure under that mode's name). Each case runs in a fork. Only functions that exist before the fix are
+ * a failure under that mode's name) and the numerals of LB13, whose digits
+ * are drawn into a texture (the shader context of the construction mode).
+ * Each case runs in a fork; LB13's is the construction mode's, which tells
+ * a failure of the GL environment from a failed case and runs the case once
+ * more. Only functions that exist before the fix are
  * used (the padding getters are reached through their HLL declarations), so
  * before-check builds the old tree.
  */
+static void cn_gl_setup(void);
+static int cn_fork_case(const char *name, void (*fn)(void), int *failures);
 
 static int lb_failures;
 #define LB_CHECK(c, ...) do { if (!(c)) { printf("  FAIL: "); printf(__VA_ARGS__); printf("\n"); lb_failures++; } } while (0)
@@ -212,7 +224,8 @@ static struct ex_tree lb_text(const char *name, const struct lb_place *pl, const
 {
 	return lb_text_w(name, pl, text, size, 0, edge, space);
 }
-/* A 構築部件 whose 手順リスト creates a w x h canvas (コマンド 0). */
+/* A 構築部件 the loader leaves unbuilt: its 手順リスト creates a w x h canvas
+ * (コマンド 0) and goes on with a command the loader does not support (102). */
 static struct ex_tree lb_construction(const char *name, const struct lb_place *pl, int w, int h)
 {
 	struct ex_tree info = bu_branch(BU_INFO, 2);
@@ -220,11 +233,37 @@ static struct ex_tree lb_construction(const char *name, const struct lb_place *p
 	info.children[1] = bu_branch(BU_NORMAL, 2);
 	struct ex_tree *st = &info.children[1];
 	st->children[0] = bu_sleaf(BU_TYPE, BR_CONS);
-	st->children[1] = bu_branch(BR_STEPS, 1);
+	st->children[1] = bu_branch(BR_STEPS, 2);
 	struct ex_tree *step = &st->children[1].children[0];
 	*step = bu_branch(BR_STEP1, 2);
 	step->children[0] = bu_ileaf(BR_COMMAND, 0);
 	step->children[1] = lb_ilist(LB_DEST, 6, (int[]){ 0, 0, 0, 0, w, h });
+	step[1] = bu_branch("Step2", 2);
+	step[1].children[0] = bu_ileaf(BR_COMMAND, 102);
+	step[1].children[1] = lb_ilist(LB_DEST, 6, (int[]){ 0, 0, 0, 0, 0, 0 });
+	return lb_node(name, pl, info, 0);
+}
+/* The cases with lb_construction measure the canvas path and LB9 has no GL
+ * context: say so when the loader starts to build that shape. */
+static void lb_expect_unbuilt(int no, const char *what)
+{
+	struct parts *p = parts_try_get(no);
+	LB_CHECK(p && p->states[0].type != PARTS_CONSTRUCTION_PROCESS && !p->states[0].common.texture.handle,
+		 "%s: the fixture's unbuilt 構築部件 is built now (command 102?); it needs another shape", what);
+}
+#define LB_SHOW_TYPE "\xb1\xed\xca\xbe\xa5\xbf\xa5\xa4\xa5\xd7"				/* 表示タイプ */
+/* A 數字部件 drawn with a font: 表示タイプ 2, フォントサイズ, フォント縁取り, 字間隔. */
+static struct ex_tree lb_numeral(const char *name, const struct lb_place *pl, int size, float edge, int space)
+{
+	struct ex_tree info = bu_branch(BU_INFO, 2);
+	info.children[0] = bu_sleaf(BU_TYPE, BU_LOW);
+	info.children[1] = bu_branch(BU_NORMAL, 5);
+	struct ex_tree *st = &info.children[1];
+	st->children[0] = bu_sleaf(BU_TYPE, BU_NUMERAL);
+	st->children[1] = bu_ileaf(LB_SHOW_TYPE, 2);
+	st->children[2] = bu_ileaf(TD_SIZE, size);
+	st->children[3] = lb_fleaf(LB_EDGE, edge);
+	st->children[4] = bu_ileaf(LB_SPACE, space);
 	return lb_node(name, pl, info, 0);
 }
 static struct ex_tree lb_uc(const char *name, const struct lb_place *pl)
@@ -700,6 +739,7 @@ static void lb_unbuilt_sizes(void)
 	int vbox = lb_no(act, "VBox"), u1 = lb_no(act, "U1"), k1 = lb_no(act, "K1");
 	int u2 = lb_no(act, "U2"), r = lb_no(act, "R");
 	heap_unref(act);
+	lb_expect_unbuilt(k1, "LB9 K1");
 	/* U2's content: a free root with a 50x20 rect at (5,5) and a hidden one. */
 	struct ex *c = lb_activity("LayoutBoxUcContent", 2, &kids);
 	struct lb_place pc = { 5, 5, 1 }, ph = { 0, 0, 1, .hidden = true };
@@ -886,6 +926,7 @@ static void lb_save_load(void)
 	int act = lb_load("LayoutBoxSave", e);
 	int box = lb_no(act, "SBox"), k = lb_no(act, "SK"), r = lb_no(act, "SR"), rt = lb_no(act, "srt");
 	heap_unref(act);
+	lb_expect_unbuilt(k, "LB12 SK");
 	PE_UpdateComponent(0);
 	lb_expect_pos(r, 0, 12, 1, "SR under the 30x12 canvas");
 	lb_expect_size(box, 30, 16, "SBox");
@@ -906,6 +947,43 @@ static void lb_save_load(void)
 	LB_CHECK(lb_x(rt) == xt, "the rect after the 太さ 0.4 text is at x %d after loading, want %d", lb_x(rt), xt);
 	ca_free_buffer(saved);
 	printf("LB12 save and load: %s\n", lb_failures ? "FAIL" : "ok");
+}
+
+/* --- LB13 --- */
+static void lb_numeral_children(void)
+{
+	cn_gl_setup();
+	bool grid = gfx_text_cn_gdi();
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("LayoutBoxNumeral", 2, &kids);
+	struct lb_place pn = { 33, 44, 1 };
+	lb_pair(&kids->children[0], "NA", lb_numeral("na", &pn, 19, 2, 0), "rna");
+	lb_pair(&kids->children[1], "NB", lb_numeral("nb", &pn, 19, 2, -5), "rnb");
+	int act = lb_load("LayoutBoxNumeral", e);
+	int box_a = lb_no(act, "NA"), box_b = lb_no(act, "NB"), na = lb_no(act, "na"), nb = lb_no(act, "nb");
+	int ra = lb_no(act, "rna"), rb = lb_no(act, "rnb");
+	heap_unref(act);
+	BU_PE("Parts_SetNumeralNumber", BU_I(na), BU_I(3), BU_I(1));
+	BU_PE("Parts_SetNumeralNumber", BU_I(nb), BU_I(3), BU_I(1));
+	PE_UpdateComponent(0);
+	/* One digit has no spacing: the same cell with 字間隔 0 and -5. */
+	int cell = lb_x(ra);
+	LB_CHECK(cell > 0 && lb_x(rb) == cell, "after \"3\": rects at x %d (字間隔 0) and %d (-5), want the same cell",
+		 cell, lb_x(rb));
+	if (grid)
+		LB_CHECK(cell == 14, "GBK grid: a 19 px digit with 縁取り 2 is %d wide, want 10 + 2 * 2 = 14", cell);
+	LB_CHECK(lb_width(box_a) == cell + 5 && lb_width(box_b) == cell + 5, "after \"3\": boxes %d and %d wide, want %d",
+		 lb_width(box_a), lb_width(box_b), cell + 5);
+	BU_PE("Parts_SetNumeralNumber", BU_I(na), BU_I(100), BU_I(1));
+	BU_PE("Parts_SetNumeralNumber", BU_I(nb), BU_I(100), BU_I(1));
+	PE_UpdateComponent(0);
+	/* Three cells, and two spacings of -5 between them. */
+	LB_CHECK(lb_x(ra) == 3 * cell, "after \"100\" (字間隔 0): rect at x %d, want 3 * %d", lb_x(ra), cell);
+	LB_CHECK(lb_x(rb) == 3 * cell - 10, "after \"100\" (字間隔 -5): rect at x %d, want 3 * %d - 10", lb_x(rb), cell);
+	LB_CHECK(lb_width(box_a) == lb_x(ra) + 5 && lb_width(box_b) == lb_x(rb) + 5,
+		 "after \"100\": boxes %d and %d wide, want %d and %d", lb_width(box_a), lb_width(box_b),
+		 lb_x(ra) + 5, lb_x(rb) + 5);
+	printf("LB13 numeral children: %s\n", lb_failures ? "FAIL" : "ok");
 }
 
 static int lb_fork(const char *name, void (*fn)(void))
@@ -937,6 +1015,13 @@ static int test_layout_box(void)
 	int failed = 0;
 	for (int i = 0; i < 12; i++)
 		failed += lb_fork(names[i], cases[i]);
-	printf("LAYOUT-BOX %s: %d of 12 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	/* LB13 draws: the construction mode's GL setup and its environment check. */
+	int r = cn_fork_case("LB13", lb_numeral_children, &lb_failures);
+	failed += r == 1;
+	if (r == 2) {
+		printf("LAYOUT-BOX ENVIRONMENT FAILURE: LB13 could not run, %d of 13 cases failed\n", failed);
+		return 2;
+	}
+	printf("LAYOUT-BOX %s: %d of 13 cases failed\n", failed ? "FAIL" : "PASS", failed);
 	return failed ? 1 : 0;
 }

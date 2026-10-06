@@ -206,9 +206,9 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 	if (ain->version >= 14)
 		alpha_clipper = parts_effective_alpha_clipper(parts);
 	struct parts *clipper = alpha_clipper ? parts_try_get(alpha_clipper) : NULL;
-	// A clipper without a texture has no alpha to sample (SceneWorkResult's
-	// IncomeBase/InfoBase are constructions the loader does not build yet):
-	// draw unmasked, as before the clippers were read.
+	// A clipper without a texture has no alpha to sample (e.g. a
+	// construction state the pactex loader does not build): draw unmasked,
+	// as before the clippers were read.
 	if (clipper && !clipper->states[clipper->state].common.texture.handle)
 		clipper = NULL;
 	if (clipper) {

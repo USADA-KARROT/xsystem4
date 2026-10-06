@@ -612,32 +612,270 @@ static int pactex_low_level_type(struct ex_tree *state)
 	}
 }
 
-/* 構築部件 with a non-empty 手順リスト: the loader does not run construction
- * steps (e.g. SceneAzito's Bg: load 背景／那由多, then blur), so such a state
- * keeps the legacy CG fallback (the first step's ＣＧ名) and only reports
- * type 26. An empty list (StandView's PlayerC) is filled by the game. */
-static bool pactex_construction_has_steps(struct ex_tree *state)
+/* 構築部件 with a non-empty 手順リスト. The native state loader (0x5a64e0)
+ * reads the list (0x5a6569) and runs its steps at once (0x5a66ed -> 0x5a73c0
+ * -> 0x4fa1d0), so the state has its surface before the AIN sees it. The
+ * loader here builds the states pactex_construction_plan accepts; the others
+ * (e.g. SceneAzito's Bg: load 背景／那由多, then blur) keep the legacy CG
+ * fallback (the first step's ＣＧ名) and only report type 26. An empty list
+ * (StandView's PlayerC) is filled by the game. */
+static struct ex_tree *pactex_construction_steps(struct ex_tree *state)
 {
 	for (unsigned i = 0; i < state->nr_children; i++) {
 		struct ex_tree *c = &state->children[i];
 		if (!c->is_leaf && pactex_name_is(c, "\x8e\xe8\x8f\x87\x83\x8a\x83\x58\x83\x67",
 				"\xca\xd6\xed\x98\xa5\xea\xa5\xb9\xa5\xc8")) /* 手順リスト */
-			return c->nr_children > 0;
+			return c;
 	}
-	return false;
+	return NULL;
+}
+
+static bool pactex_construction_has_steps(struct ex_tree *state)
+{
+	struct ex_tree *list = pactex_construction_steps(state);
+	return list && list->nr_children > 0;
+}
+
+/* One 手順, as far as the commands built here read it. The native step
+ * parser (0x4f82a0) stores コマンド at +4, 先矩形 X,Y,X2,Y2,W,H at
+ * +0x1c..+0x30, 色１ at +0x34..+0x40, 全體 at +0xc4, 半徑 at +0xc8/+0xcc,
+ * 旋轉角度 at +0xd8 and 円弧角度 (start, sweep) at +0xdc/+0xe0. */
+struct pactex_cp_step {
+	int command;
+	int x, y, w, h;
+	int color[4];
+	bool full;
+	int rx, ry;
+	int rotate;
+	int start, sweep;
+};
+
+enum {
+	PACTEX_CP_CREATE = 0,
+	PACTEX_CP_FILL = 3,
+	PACTEX_CP_FILL_AMAP = 5,
+	PACTEX_CP_FILL_WITH_ALPHA = 6,
+	PACTEX_CP_FILL_PIE_AMAP = 122,
+};
+// Limit of what is built (xsystem4's; the original has none). The game's
+// largest surface is 2048x1024. PARTS_CP_PIE_MAX_RADIUS limits the sectors.
+#define PACTEX_CP_MAX_SIZE 8192
+
+/* [pos, pos + size) as 0x5abed0 clips it: a negative size extends the other
+ * way, then both ends are clamped to [0, limit]. The original adds in 32
+ * bits (0x5abef3) and wraps around; a sum outside that range is not
+ * reproduced here and fails the check, so the state is not built. */
+static bool pactex_clip_span(int *pos, int *size, int limit)
+{
+	int64_t a = *pos, b = a + *size;
+	if (b < INT32_MIN || b > INT32_MAX)
+		return false;
+	if (a > b) {
+		int64_t t = a;
+		a = b;
+		b = t;
+	}
+	a = min(max(a, 0), limit);
+	b = min(max(b, 0), limit);
+	*pos = a;
+	*size = b - a;
+	return true;
+}
+
+static bool pactex_step_int(struct ex_tree *step, const char *sjis, const char *gbk, int *out)
+{
+	struct ex_value *v = pactex_leaf_value(step, sjis, gbk);
+	if (!v || v->type != EX_INT)
+		return false;
+	*out = v->i;
+	return true;
+}
+
+static bool pactex_step_item(struct ex_tree *step, const char *sjis, const char *gbk,
+		unsigned index, int *out)
+{
+	struct ex_value *v = pactex_leaf_value(step, sjis, gbk);
+	if (!v || v->type != EX_LIST || !v->list || index >= v->list->nr_items
+			|| v->list->items[index].value.type != EX_INT)
+		return false;
+	*out = v->list->items[index].value.i;
+	return true;
+}
+
+static bool pactex_byte(int v)
+{
+	return v >= 0 && v <= 255;
+}
+
+/* Reads one step and checks it against the surface (w x h) the steps before
+ * it leave. False for anything the build below would not reproduce. */
+static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step *s,
+		bool first, int surface_w, int surface_h)
+{
+	static const char dest_sjis[] = "\x90\xe6\x8b\xe9\x8c\x60";	/* 先矩形 */
+	static const char dest_gbk[] = "\xcf\xc8\xbe\xd8\xd0\xce";
+	static const char color_sjis[] = "\x90\x46\x82\x50";		/* 色１ */
+	static const char color_gbk[] = "\xc9\xab\xa3\xb1";
+	int full;
+
+	if (node->is_leaf || !pactex_step_int(node, "\x83\x52\x83\x7d\x83\x93\x83\x68",
+			"\xa5\xb3\xa5\xde\xa5\xf3\xa5\xc9", &s->command)) /* コマンド */
+		return false;
+	// A step that creates no surface leaves none for the rest; one that
+	// replaces the surface does not occur in the game.
+	if (first != (s->command == PACTEX_CP_CREATE))
+		return false;
+	if (!pactex_step_item(node, dest_sjis, dest_gbk, 0, &s->x)
+			|| !pactex_step_item(node, dest_sjis, dest_gbk, 1, &s->y)
+			|| !pactex_step_item(node, dest_sjis, dest_gbk, 4, &s->w)
+			|| !pactex_step_item(node, dest_sjis, dest_gbk, 5, &s->h))
+		return false;
+
+	switch (s->command) {
+	case PACTEX_CP_CREATE:
+		// 0x4fbd30 -> 0x5a94d0 fails unless both are positive.
+		return s->w > 0 && s->h > 0 && s->w <= PACTEX_CP_MAX_SIZE && s->h <= PACTEX_CP_MAX_SIZE;
+	case PACTEX_CP_FILL:
+	case PACTEX_CP_FILL_AMAP:
+	case PACTEX_CP_FILL_WITH_ALPHA: {
+		for (int i = 0; i < 4; i++) {
+			if (!pactex_step_item(node, color_sjis, color_gbk, i, &s->color[i]))
+				return false;
+		}
+		if (!pactex_step_int(node, "\x91\x53\x91\xcc", "\xc8\xab\xf3\x77", &full)) /* 全体 / 全體 */
+			return false;
+		// The original clamps what commands 3 and 6 write to 0..255
+		// (0x5ac2a4, 0x5ac764) and stores the low byte for command 5
+		// (0x492286); a state with a value outside 0..255 (none in the
+		// game) is not built.
+		if (s->command != PACTEX_CP_FILL_AMAP && !(pactex_byte(s->color[0])
+				&& pactex_byte(s->color[1]) && pactex_byte(s->color[2])))
+			return false;
+		if (s->command != PACTEX_CP_FILL && !pactex_byte(s->color[3]))
+			return false;
+		// 0x4fc040, 0x4fc2f0, 0x4fc490: 全體 == 1 (0x4f8f76) selects
+		// the whole surface.
+		// 0x5abed0 normalizes the rectangle (a negative size extends the
+		// other way) and clips it to the surface; 0x5abde0 fails the step,
+		// and with it every later one (0x4fb675), when nothing is left.
+		s->full = full == 1;
+		if (s->full) {
+			s->x = 0;
+			s->y = 0;
+			s->w = surface_w;
+			s->h = surface_h;
+		}
+		return pactex_clip_span(&s->x, &s->w, surface_w)
+			&& pactex_clip_span(&s->y, &s->h, surface_h)
+			&& s->w > 0 && s->h > 0;
+	}
+	case PACTEX_CP_FILL_PIE_AMAP:
+		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
+				|| !pactex_step_item(node, "\x94\xbc\x8c\x61", "\xb0\xeb\x8f\xbd", 0, &s->rx) /* 半径 / 半徑 */
+				|| !pactex_step_item(node, "\x94\xbc\x8c\x61", "\xb0\xeb\x8f\xbd", 1, &s->ry)
+				|| !pactex_step_item(node, "\x89\x7e\x8c\xca\x8a\x70\x93\x78",
+					"\x83\xd2\xbb\xa1\xbd\xc7\xb6\xc8", 0, &s->start) /* 円弧角度 */
+				|| !pactex_step_item(node, "\x89\x7e\x8c\xca\x8a\x70\x93\x78",
+					"\x83\xd2\xbb\xa1\xbd\xc7\xb6\xc8", 1, &s->sweep)
+				|| !pactex_step_int(node, "\x89\xf1\x93\x5d\x8a\x70\x93\x78",
+					"\xd0\xfd\xde\x44\xbd\xc7\xb6\xc8", &s->rotate)) /* 回転角度 / 旋轉角度 */
+			return false;
+		// Only what parts_build_construction_process reproduces: no
+		// rotation, and sector edges on the axes (within one turn), where
+		// the truncated angle of a pixel does not depend on the last bit
+		// of atan2.
+		return !s->rotate && s->rx <= PARTS_CP_PIE_MAX_RADIUS && s->ry <= PARTS_CP_PIE_MAX_RADIUS
+			&& s->start >= -360 && s->start <= 360 && s->sweep >= -360 && s->sweep <= 360
+			&& s->start % 90 == 0 && s->sweep % 90 == 0 && pactex_byte(s->color[3]);
+	default:
+		return false;
+	}
+}
+
+/* The steps of a construction state, when the loader can run them as the
+ * original does: every command is one of 0 (create), 3, 5, 6 (fills) and 122
+ * (sector alpha), the first step creates the surface and none would fail.
+ * The original also builds the other states and keeps what the steps before
+ * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
+ * original reads after building, is (0, 0, 0, 0) in every state of the game;
+ * a state with another one stays unbuilt as well.
+ * The caller frees the result; NULL when the state is not built. */
+static struct pactex_cp_step *pactex_construction_plan(struct ex_tree *state, int *nr_steps)
+{
+	struct ex_tree *list = pactex_construction_steps(state);
+	if (!list || !list->nr_children)
+		return NULL;
+	struct ex_list *area = pactex_get_list(state, SJIS_SURFACE_AREA);
+	if (!area) area = pactex_get_list(state, "\xa5\xb5\xa9\x60\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2");
+	for (unsigned i = 0; area && i < area->nr_items; i++) {
+		if (area->items[i].value.type != EX_INT || area->items[i].value.i)
+			return NULL;
+	}
+
+	struct pactex_cp_step *steps = xcalloc(list->nr_children, sizeof(struct pactex_cp_step));
+	for (unsigned i = 0; i < list->nr_children; i++) {
+		if (!pactex_construction_step(&list->children[i], &steps[i], i == 0, steps[0].w, steps[0].h)) {
+			free(steps);
+			return NULL;
+		}
+	}
+	*nr_steps = list->nr_children;
+	return steps;
+}
+
+static bool pactex_construction_build(struct ex_tree *state, int parts_no, int pe_state)
+{
+	int nr_steps;
+	struct pactex_cp_step *steps = pactex_construction_plan(state, &nr_steps);
+	if (!steps)
+		return false;
+
+	PE_ClearPartsConstructionProcess(parts_no, pe_state);
+	for (int i = 0; i < nr_steps; i++) {
+		struct pactex_cp_step *s = &steps[i];
+		switch (s->command) {
+		case PACTEX_CP_CREATE:
+			PE_AddCreateToPartsConstructionProcess(parts_no, s->w, s->h, pe_state);
+			break;
+		case PACTEX_CP_FILL:
+			PE_AddFillToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h,
+				s->color[0], s->color[1], s->color[2], pe_state);
+			break;
+		case PACTEX_CP_FILL_AMAP:
+			PE_AddFillAMapToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h,
+				s->color[3], pe_state);
+			break;
+		case PACTEX_CP_FILL_WITH_ALPHA:
+			PE_AddFillWithAlphaToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h,
+				s->color[0], s->color[1], s->color[2], s->color[3], pe_state);
+			break;
+		case PACTEX_CP_FILL_PIE_AMAP:
+			PE_AddFillPieAMapToPartsConstructionProcess(parts_no, s->x, s->y, s->rx, s->ry,
+				s->start, s->sweep, s->color[3], s->rotate, pe_state);
+			break;
+		}
+	}
+	free(steps);
+	return PE_BuildPartsConstructionProcess(parts_no, pe_state);
 }
 
 static bool pactex_low_level_keeps_legacy_cg(struct ex_tree *state)
 {
-	return pactex_low_level_type(state) == PACTEX_EPT_CONSTRUCTION
-		&& pactex_construction_has_steps(state);
+	if (pactex_low_level_type(state) != PACTEX_EPT_CONSTRUCTION
+			|| !pactex_construction_has_steps(state))
+		return false;
+	int nr_steps;
+	struct pactex_cp_step *steps = pactex_construction_plan(state, &nr_steps);
+	bool built = steps != NULL;
+	free(steps);
+	return !built;
 }
 
-/* The canvas such a state's steps start with: the first step creates it
- * (コマンド 0, or 1 without pixels; a missing key is 0) with 先矩形's W,H
- * (items 4 and 5). The original builds the steps while loading; the loader
- * here does not, so a layout box sizes the parts by this canvas
- * (layoutbox.c), e.g. RivalShopView's three 20x20 personality marks. */
+/* The canvas the steps of a state the loader does not build start with: the
+ * first step creates it (コマンド 0, or 1 without pixels; a missing key is
+ * 0) with 先矩形's W,H (items 4 and 5). The original has built the surface
+ * by then, so a layout box sizes the parts by this canvas (layoutbox.c),
+ * e.g. RivalShopView's three 20x20 personality marks. */
 static void pactex_construction_canvas(struct ex_tree *state, struct parts *parts)
 {
 	for (unsigned i = 0; i < state->nr_children; i++) {
@@ -788,7 +1026,7 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 			PE_SetPartsRectangleDetectionSize(parts_no, w, h, pe_state);
 		} else if (!pactex_construction_has_steps(state)) {
 			parts_get_construction_process(parts, pe_state - 1);
-		} else if (pe_state == 1) {
+		} else if (!pactex_construction_build(state, parts_no, pe_state) && pe_state == 1) {
 			pactex_construction_canvas(state, parts);
 		}
 		parts->component_state_type[pe_state - 1] = type;

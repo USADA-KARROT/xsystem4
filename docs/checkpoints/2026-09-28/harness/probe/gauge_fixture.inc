@@ -367,7 +367,7 @@ static void hg_persistence(void)
 	HG_CHECK(PE_Save(&saved), "v14 PE_Save failed");
 	if (!saved)
 		return;
-	HG_CHECK(ca_save_version(saved) == 6, "v14 gauge save is not XPE v6");
+	HG_CHECK(ca_save_version(saved) == 7, "v14 gauge save is not XPE v7");
 	hg_rate(n, 1, false, 9, 8);
 	hg_reverse(n, 1, false, false);
 	HG_CHECK(PE_Load(&saved), "v14 PE_Load failed");

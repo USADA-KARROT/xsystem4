@@ -216,7 +216,8 @@ enum parts_cp_op_type {
 	PARTS_CP_COPY_TEXT,
 	PARTS_CP_GRAY_FILTER,
 	PARTS_CP_FILL_WITH_ALPHA,
-#define PARTS_NR_CP_TYPES (PARTS_CP_FILL_WITH_ALPHA+1)
+	PARTS_CP_FILL_PIE_AMAP,
+#define PARTS_NR_CP_TYPES (PARTS_CP_FILL_PIE_AMAP+1)
 };
 
 struct parts_cp_create {
@@ -252,6 +253,18 @@ struct parts_cp_filter {
 	bool full_size;
 };
 
+// A sector of the ellipse with radii (rx, ry) around (x, y), from `start`
+// over `sweep` degrees; `angle` rotates it. Larger radii are not built
+// (xsystem4's limit; the largest in a known game is 16).
+#define PARTS_CP_PIE_MAX_RADIUS 1024
+struct parts_cp_pie {
+	int x, y;
+	int rx, ry;
+	int start, sweep;
+	int a;
+	int angle;
+};
+
 struct parts_cp_op {
 	TAILQ_ENTRY(parts_cp_op) entry;
 	enum parts_cp_op_type type;
@@ -262,6 +275,7 @@ struct parts_cp_op {
 		struct parts_cp_cut_cg cut_cg;
 		struct parts_cp_text text;
 		struct parts_cp_filter filter;
+		struct parts_cp_pie pie;
 	};
 };
 

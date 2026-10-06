@@ -117,6 +117,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_DRAW_TEXT] = "draw_text",
 		[PARTS_CP_COPY_TEXT] = "copy_text",
 		[PARTS_CP_GRAY_FILTER] = "gray_filter",
+		[PARTS_CP_FILL_PIE_AMAP] = "fill_pie_amap",
 	};
 
 	cJSON *ops, *tmp;
@@ -188,6 +189,18 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			cJSON_AddNumberToObject(obj, "w", op->filter.w);
 			cJSON_AddNumberToObject(obj, "h", op->filter.h);
 			cJSON_AddBoolToObject(obj, "full_size", op->filter.full_size);
+			break;
+		case PARTS_CP_FILL_PIE_AMAP:
+			cJSON_AddItemToObjectCS(obj, "center", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->pie.x);
+			cJSON_AddNumberToObject(tmp, "y", op->pie.y);
+			cJSON_AddItemToObjectCS(obj, "radius", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->pie.rx);
+			cJSON_AddNumberToObject(tmp, "y", op->pie.ry);
+			cJSON_AddNumberToObject(obj, "start_angle", op->pie.start);
+			cJSON_AddNumberToObject(obj, "sweep_angle", op->pie.sweep);
+			cJSON_AddNumberToObject(obj, "a", op->pie.a);
+			cJSON_AddNumberToObject(obj, "angle", op->pie.angle);
 			break;
 		}
 	}
@@ -558,6 +571,9 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_GRAY_FILTER:
 				sys_message(" gray-filter");
+				break;
+			case PARTS_CP_FILL_PIE_AMAP:
+				sys_message(" fill-pie-amap");
 				break;
 			}
 		}

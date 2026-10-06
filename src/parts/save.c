@@ -24,7 +24,7 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 6
+#define CURRENT_SAVE_VERSION 7
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
@@ -253,6 +253,18 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		iarray_write(w, op->filter.h);
 		iarray_write(w, op->filter.full_size);
 		break;
+	case PARTS_CP_FILL_PIE_AMAP:
+		// Since version 7: older readers read no fields for a type they
+		// do not know, and would misread the rest of the save.
+		iarray_write(w, op->pie.x);
+		iarray_write(w, op->pie.y);
+		iarray_write(w, op->pie.rx);
+		iarray_write(w, op->pie.ry);
+		iarray_write(w, op->pie.start);
+		iarray_write(w, op->pie.sweep);
+		iarray_write(w, op->pie.a);
+		iarray_write(w, op->pie.angle);
+		break;
 	}
 }
 
@@ -310,6 +322,16 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		op->filter.w = iarray_read(r);
 		op->filter.h = iarray_read(r);
 		op->filter.full_size = !!iarray_read(r);
+		break;
+	case PARTS_CP_FILL_PIE_AMAP:
+		op->pie.x = iarray_read(r);
+		op->pie.y = iarray_read(r);
+		op->pie.rx = iarray_read(r);
+		op->pie.ry = iarray_read(r);
+		op->pie.start = iarray_read(r);
+		op->pie.sweep = iarray_read(r);
+		op->pie.a = iarray_read(r);
+		op->pie.angle = iarray_read(r);
 		break;
 	}
 	return op;
@@ -760,6 +782,29 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 
 	iarray_write_at(&w, count_pos, count);
 
+	if (version >= 7) {
+		// 編輯上表示 = 0 is set by the pactex loader, which loading does
+		// not run again; without it a parts hidden in the editor would
+		// show (and take the cursor) after loading. The original keeps
+		// the flag in each component's own parameter block (written at
+		// 0x5510ad, read at 0x551955); here the numbers follow the parts
+		// list, so every parts record keeps its layout. Saving a single
+		// parts (SaveParts／LoadParts), once implemented, has to carry
+		// the flag as well.
+		unsigned hidden_pos = iarray_writer_pos(&w);
+		iarray_write(&w, 0); // size of the list
+		unsigned hidden = 0;
+		PARTS_LIST_FOREACH(parts) {
+			if (!save_hidden && !parts->global.show)
+				continue;
+			if (!parts->want_save || !parts->edit_hidden)
+				continue;
+			iarray_write(&w, parts->no);
+			hidden++;
+		}
+		iarray_write_at(&w, hidden_pos, hidden);
+	}
+
 	if (*buffer) {
 		delete_page_vars(*buffer);
 		free_page(*buffer);
@@ -818,6 +863,19 @@ bool PE_Load(struct page **buffer)
 
 	for (int i = 0; i < nr_parts; i++) {
 		load_parts(&r, version);
+	}
+
+	if (version >= 7) {
+		// Applied once the parents are attached (parts_update_component).
+		int nr_hidden = iarray_read(&r);
+		for (int i = 0; i < nr_hidden; i++) {
+			int no = iarray_read(&r);
+			if (r.error)
+				break;
+			struct parts *parts = parts_try_get(no);
+			if (parts)
+				parts_set_edit_hidden(parts, true);
+		}
 	}
 
 	parts_engine_clean();
