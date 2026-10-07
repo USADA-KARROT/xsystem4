@@ -1,0 +1,67 @@
+before edddee9 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: Rect1: Parts_GetPartsClickable = 0, want 1
+  FAIL: Cons1: Parts_GetPartsClickable = 0, want 1
+  FAIL: Cg1: Parts_GetPartsClickable = 0, want 1
+  FAIL: Text1: Parts_GetPartsClickable = 0, want 1
+  FAIL: Panel1: Parts_GetPartsClickable = 0, want 1
+  FAIL: PassAndClick: clickable 0, pass cursor 1; want 1, 1
+  FAIL: ClickOnly: clickable 0, pass cursor 0; want 1, 0
+  FAIL: NestedLeft (below UiBase): Parts_GetPartsClickable = 0, want 1
+  FAIL: HiddenTarget (表示 0): Parts_GetPartsClickable = 0, want 1
+CP1 pactex 點擊許可: FAIL
+CP1 FAILED (exit 1)
+  FAIL: ClickGuard: Parts_GetPartsClickable = 0, want 1
+  FAIL: ClickTarget: Parts_GetPartsClickable = 0, want 1
+  FAIL: ClickTarget: 1 messages, first type 4 parts 0 delegate -1 unique -1 (600,340,1), g_EndPartsBusyLoop 1; want 1, 4, 900002 (600,340,1), 0
+  FAIL: the press on ClickTarget carries delegate -1 unique -1, want 7, 70
+CP2 ClickTarget over ClickGuard: FAIL
+CP2 FAILED (exit 1)
+  FAIL: Area: Parts_GetPartsClickable = 0, want 1
+  FAIL: Left: Parts_GetPartsClickable = 0, want 1
+  FAIL: Area, alpha 1 in the box: 1 messages, first type 4 parts 0 delegate -1 unique -1 (878,300,1), g_EndPartsBusyLoop 1; want 1, 4, 900001 (878,300,1), 0
+  FAIL: Area, alpha 1 in the name's box: 1 messages, first type 4 parts 0 delegate -1 unique -1 (840,270,1), g_EndPartsBusyLoop 1; want 1, 4, 900001 (840,270,1), 0
+  FAIL: the Left panel: 1 messages, first type 4 parts 0 delegate -1 unique -1 (40,360,1), g_EndPartsBusyLoop 1; want 1, 4, 900003 (40,360,1), 0
+CP3 Area and side panel: FAIL
+CP3 FAILED (exit 1)
+CP4 guards: ok
+  FAIL: Target before saving: Parts_GetPartsClickable = 0, want 1
+  FAIL: SwitchedOff as loaded: Parts_GetPartsClickable = 0, want 1
+  FAIL: Target after loading: Parts_GetPartsClickable = 0, want 1
+  FAIL: Target after loading: 1 messages, first type 4 parts 0 delegate -1 unique -1 (250,200,1), g_EndPartsBusyLoop 1; want 1, 4, 900001 (250,200,1), 0
+  FAIL: the press on Target after loading carries delegate -1, want 7
+CP5 save and load: FAIL
+CP5 FAILED (exit 1)
+  FAIL: Button: Parts_GetPartsClickable = 0, want 1
+  FAIL: a marked parts with an event: 1 messages, first type 4 parts 0 delegate -1 unique -1 (200,290,1), g_EndPartsBusyLoop 1; want 1, 4, 900003 (200,290,1), 0
+  FAIL: its press carries delegate -1 unique -1, want 5, 50
+  FAIL: ButtonDisabled: Parts_GetPartsClickable = 0, want 1
+  FAIL: a marked parts disabled as a button: 1 messages (first type 4 parts 0), g_EndPartsBusyLoop 1; want none and 0
+CP6 closing on the whole-screen click: FAIL
+CP6 FAILED (exit 1)
+CLICK-PERMISSION FAIL: 5 of 6 cases failed
+
+before edddee9 (XS4_PROBE_GBK=1)
+the FAIL lines and case results are identical to the default rule: True
+CLICK-PERMISSION FAIL: 5 of 6 cases failed
+
+after 3eb1b36 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CP1 pactex 點擊許可: ok
+CP2 ClickTarget over ClickGuard: ok
+CP3 Area and side panel: ok
+CP4 guards: ok
+CP5 save and load: ok
+CP6 closing on the whole-screen click: ok
+CLICK-PERMISSION PASS: 0 of 6 cases failed
+
+after 3eb1b36 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CP1 pactex 點擊許可: ok
+CP2 ClickTarget over ClickGuard: ok
+CP3 Area and side panel: ok
+CP4 guards: ok
+CP5 save and load: ok
+CP6 closing on the whole-screen click: ok
+CLICK-PERMISSION PASS: 0 of 6 cases failed

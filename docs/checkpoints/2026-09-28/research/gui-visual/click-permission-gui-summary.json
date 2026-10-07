@@ -1,0 +1,70 @@
+{
+  "code": "3eb1b36a8a538f66c835d81d7737eb9f73482447",
+  "runs": [
+    {
+      "tag": "claude-clickperm-final-normal150",
+      "binary_sha256": "3008a6bf640c89a5aebdafe48403226e1f31b526f3f2812489b18d05b274915b",
+      "elapsed_seconds": 150.273,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 520994816,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-clickperm-final-target",
+      "binary_sha256": "3008a6bf640c89a5aebdafe48403226e1f31b526f3f2812489b18d05b274915b",
+      "elapsed_seconds": 85.268,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 507297792,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 112,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-clickperm-final-sysmenu",
+      "binary_sha256": "3008a6bf640c89a5aebdafe48403226e1f31b526f3f2812489b18d05b274915b",
+      "elapsed_seconds": 30.225,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 494469120,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 10,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-clickperm-final-garage",
+      "binary_sha256": "3008a6bf640c89a5aebdafe48403226e1f31b526f3f2812489b18d05b274915b",
+      "elapsed_seconds": 35.223,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 494944256,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 14,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-clickperm-final-dungeon",
+      "binary_sha256": "3008a6bf640c89a5aebdafe48403226e1f31b526f3f2812489b18d05b274915b",
+      "elapsed_seconds": 182.315,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 617168896,
+      "MSG_lines": 629,
+      "MSG_sha256": "dd66ad5329c8ef886fe905f4ed78470ed48a3868ae268b622948d213dc4ba2a0",
+      "PNG_count": 58,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    }
+  ]
+}

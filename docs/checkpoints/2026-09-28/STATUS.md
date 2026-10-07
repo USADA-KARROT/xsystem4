@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-07）：`6687656` 讓 v14 且 CN 字格（GBK、沒有 .fnl）的文本部件與字型式數字依原版排版：glyph 的格是（格寬 + 2e）x（字級 + 2e），字形畫在 (e, e)（`0x69c290`、`0x69c3d0`）；行高是偶數化的字級 + 2e，glyph 貼在行的底（`0x5bce00`、`0x5bcf60`）；範圍的寬是各 glyph 寬加（字數 − 1）個字間隔，空文字 0x0，原點偏移與命中方框取這個範圍（`0x5bee50`、`0x5bf2c0`）；字型數字的高是字級 + 2e（`0x5b4df0`）。春銷計數標籤的數字底緣、系統選單白底的四個項目、兩種名牌、對手卡與顧客卡名稱的右緣，與 Wine 原版截圖在同一列或同一欄（修正前高 2–4px、偏右約 5px）。有一處不是原版語義：字元貼圖在格的下方多 e 列，讓預設字型的下降字母保有下緣的描邊。訊息視窗、v13、SJIS 規則或有 .fnl 的 v14 不變；存檔格式不變。預設／GBK 各66模式 PASS、sanitizer0；新探針修前7/12失敗（其餘五案是守衛）、修後12/12通過。正常GUI150.242秒、MSG88（與前組逐位元組相同）、assert／overflow0；春銷路線 12 次點擊命中不變。兩輪獨立審查：第一輪兩個 Medium 已修正，第二輪只有 Low。程式已推送雙源核對，libsys4維持247f544。**
+**最新狀態（2026-10-07）：`3eb1b36` 讓 v14 的 pactex loader 讀入元件屬性 `點擊許可`：原版解析器在 `0x5547be` 把「等於 1」寫進元件 +0x1a4，也就是 `Parts_SetClickable` 的欄位。資料中 38 個元件標 1，修正前只有 9 個（按鈕與ＣＧ判定部件）可點，其餘 29 個掛得上事件卻收不到點擊；地城選擇的地點標記是其中之一，現在點它會開出確認框（修正前日誌是 `target=0 blocked_by=<Area>`）。可點擊只來自這個標記、而且腳本沒有為它建立任何事件的元件（ClickGuard、InputGuard、技能列底圖）照舊把按下當成全畫面點擊：原版每次放開左鍵都送全畫面點擊（`0x548064`），這裡的輸入模型不同，這次只補這一種情形。預設／GBK 各67模式 PASS、sanitizer0；新探針修前5/6失敗（另一案是守衛）、修後6/6通過。正常GUI150.273秒、MSG88（與前組逐位元組相同）、assert／overflow0。兩輪獨立審查：第一輪的 Medium 已修正，第二輪只有 Low。程式已推送雙源核對，libsys4維持247f544。**
 
-[本組研究與驗證](research/gui-visual/text-size.md)。同日稍早：[自由盒的原點偏移](research/gui-visual/free-box.md)（`b05ff2d`，庫房資訊面板）、[構築部件載入時建構](research/gui-visual/construction.md)（`7e0b781`，XPE 存檔 v7）、[版面盒排版](research/gui-visual/layout-box.md)（`8a1dcdc`）。本組影響全部 v14 文字（552 個文本部件中 374 個回報的尺寸改變），四條 GUI 路線只看得到一小部分；回想、戰鬥、結算、製作人員名單等畫面只有規則與探針。**可玩程度**：實機走到的最遠處是春銷的配對頁（先前記載的「倒數結束後進入劇情」是顧客為空時跳過結算的捷徑，卡片修好後沒有再走到）；讀檔、設定與劇情回顧、結算與地城的點擊都有已知卡點，根因與下一步見 [HANDOFF](HANDOFF.md) 最上節。畫面未修：`文本位置` 的多行對齊、訊息視窗行距、其餘 67 個構築狀態（背景模糊的命令 2／27／28、配對頁「Ready」的 26、對手卡性格標記的 102 等）。
+[本組研究與驗證](research/gui-visual/click-permission.md)。同日稍早：[文字與字型數字的尺寸](research/gui-visual/text-size.md)（`6687656`）、[自由盒的原點偏移](research/gui-visual/free-box.md)（`b05ff2d`）、[構築部件載入時建構](research/gui-visual/construction.md)（`7e0b781`）、[版面盒排版](research/gui-visual/layout-box.md)（`8a1dcdc`）。**可玩程度**：今天第一次以自動路線實機走到第 2 天——春銷四位顧客、春銷後的劇情（對白由 88 行到 629 行）、日期轉場、回合結束時的自動存檔、第 2 天的據點、階段選擇、地城選擇與確認框。但有兩個擋住遊玩的問題出自同一個 VM 缺陷（元素是 option 的陣列）：春銷的四位顧客都沒有成交，所以沒有結算、金額不變；按「前往」進地城時在 `MapView@LoadNodes` 當機。其他卡點：面板的半透明色（對話框與系統選單背景全黑）、controller 的 ID（設定與劇情回顧）、`system.Reset`（讀檔）。根因與下一步見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
@@ -265,7 +265,7 @@ visual-compare 的 D1–D5、D7：據點畫面沒有底列（含「下一步」�
 | 春銷 Start 與關閉春銷教學 | 黑名單、`Executer.jaf:55` 兩次、對元件 0 的 `PE_SetPartsRotateY` 28,720 次 | 都沒有；只剩已知的 `DecisionTimerView.jaf:19` |
 | 150 秒 GUI MSG／assertion／峰值 RSS | 88／0／506 MB（`6582e38`） | 88／0／537 MB，對白雜湊不變 |
 
-仍未修：系統選單關閉後、成就返回標題後輸入不再派送，春銷 Start 的 `DecisionTimerView.jaf:19` 斷言（HANDOFF 第 4 項）；`點擊許可` 沒有讀；v14 不送 MouseEnter／Leave（人材卡懸停不變黃）；擋游標的元件收到按下時原版送什麼沒有追到。詳見 [base-ui.md](research/gui-visual/base-ui.md) §12。
+仍未修：系統選單關閉後、成就返回標題後輸入不再派送，春銷 Start 的 `DecisionTimerView.jaf:19` 斷言（HANDOFF 第 4 項）；`點擊許可` 沒有讀（已由 `3eb1b36` 讀入）；v14 不送 MouseEnter／Leave（人材卡懸停不變黃）；擋游標的元件收到按下時原版送什麼沒有追到。詳見 [base-ui.md](research/gui-visual/base-ui.md) §12。
 
 ## v14 ClipArea（`190c1c8`）
 

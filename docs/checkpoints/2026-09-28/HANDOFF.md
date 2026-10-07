@@ -2,7 +2,38 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-07 文字尺寸後接續（最新）
+## 2026-10-07 點擊許可後接續（最新）
+
+- **程式 `3eb1b36` 已推送**；本機／ls-remote／GitHub branches API 均 `3eb1b36a8a538f66c835d81d7737eb9f73482447`。文件另隨本節所在 commit，libsys4 固定 247f544。
+- 根因：v14 的 pactex loader 沒有讀元件屬性 `點擊許可`，38 個標 1 的元件只有 9 個可點。依原版 `0x5547be`（寫進 `Parts_SetClickable` 的欄位 +0x1a4）讀入；可點擊只來自這個標記而且腳本沒有為它建立任何事件的元件，照舊把按下當成全畫面點擊。詳見[本組研究](research/gui-visual/click-permission.md)。
+- 預設／GBK 各67模式 PASS、sanitizer0；before-check `edddee9 click-permission` 5/6 失敗（另一案是守衛）、`3eb1b36` 6/6 通過。正常GUI150.273秒MSG88（逐位元組同前組）；春銷目標、系統選單、庫房各一次，加上走到地城選擇的路線，都無斷言或溢位。
+- **輸入模型仍與原版不同**（這次查到、沒有改）：原版每次放開左鍵都送一筆全畫面的 MouseClick（`0x548064`），目標可點擊時另外收到自己的（`0x5788d0`），引擎不寫腳本的等待旗標；xsystem4 在按下時送、目標可點擊時只送給它、並直接寫等待旗標。`click-permission` 等探針有 34 處斷言綁在現行模型上，日後改 `src/parts/input.c` 時要一起改（harness README 有清單）。
+- 這個標記不存檔：`PE_Load` 之後，標 1 而沒有事件的元件會吞掉按下，直到所在畫面重新載入。
+
+### 今天實機走到的地方
+
+第一次以自動路線走到第 2 天。`gui-run.sh` 的參數是 `RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_CLICK_TRACE=1`，點擊序列（毫秒,x,y）：
+
+```
+12000,230,675;16000,1180,678;20000,1180,678;26000,350,420;35000,1180,675;45000,230,675;48000,230,675;51000,230,675;55000,1180,678;62000,95,677;68000,95,677;74000,95,677;80000,95,677;112000,1180,678;118000,770,400;127000,875,292;135000,640,507
+```
+
+前 9 步到關閉春銷教學；62–80 秒四次是配對頁的「快進」鈕（把倒數歸零，和等它自然歸零走同一條配對邏輯）；83 秒春銷結束，接春銷後的劇情（對白由 88 行到 629 行）、DAY 1 → DAY 2 的轉場、回合結束時的自動存檔（`SaveData5000.asd`，第一次有 GUI 執行寫出一般存檔）；105 秒第 2 天的據點；112 秒「下一步」；118 秒階段選擇的「擄人環節」；121 秒起地城選擇；127 秒地點標記；135 秒確認框的「前往」。之後是進地城前的劇情（對白到 682 行），然後當機。第 2 天據點左下的「存檔」鈕在 (95,677)，按下會出現確認框。
+
+### 擋住遊玩的問題（依優先序）
+
+1. **元素是 option 的陣列**——春銷不成交與進地城當機是同一個原因。腳本以 `CALLHLL Array <方法> <型別參數>` 操作泛型陣列；型別參數的高 16 位帶旗標（歸納：bit0 是 wrap、bit1 是 option），`0x20002`／`0x30002` 的元素佔兩槽。`src/ffi.c` 與 `src/hll/Array.c` 只看低 16 位，把它當一槽：
+   - 春銷：`ArrayExtensions::Select`（收集三家店的展示人材）以 `PushBack 0x30002` 推入兩槽的 option，少取一槽，結果陣列永遠是空的，配對函式回傳 -1，沒有任何一家店成交。四位顧客配對後三家店的人數都不變（原版同樣情況下玩家由 3/3 變 2/3），`SceneWorkResult@Run` 在成交數為 0 時直接返回，所以沒有結算畫面、金額不入帳。這與按不按「快進」無關。根因是靜態推出的，還沒有執行期的追蹤。
+   - 地城：`MapView` 的建構子以 `Alloc 0x30002` 配置節點陣列，`MapView@LoadNodes` 對元素做 `X_OP_SET` 時記憶體存取錯誤（ip `0x707e74`）。
+   - 腳本中 `0x20002` 有 2 個呼叫點、`0x30002` 有 24 個、`0x30003`（三槽）1 個。日誌裡大量的 `X_ASSIGN n past end of page` 與「三槽 option 回傳被截成兩槽」是相鄰的問題。
+2. **面板的半透明色與腳本的構築命令 6**——對話框與系統選單的背景全黑不是背景模糊造成的。pactex 的「パネル」（例如 YesNo 對話框的 Dimmer，色 (0,0,0,128)）在 loader 被建成「命令 0 加命令 4 混色」，alpha 永遠是 255；原版面板重建（`0x4dcc10`）用的是命令 6，取代 RGBA（`0x4fc490`）。腳本直接呼叫的構築命令 6 也被當成混色（`PartsEngine.AddPartsConstructionProcess`），所以地城選擇的地點標記現在是一整塊不透明黑、整塊可點，原版只有地名區與中間的小方塊可點。背景模糊（命令 2 是以 CG 建立 surface，27／28 是橫、縱向的 box blur）另案；它的現況是顯示未模糊的 CG，不是黑。
+3. **設定與劇情回顧**（controller 的 ID）、**讀檔與返回標題**（`system.Reset`）：同上一節第 3、4 項。
+4. **輸入模型**：見上。另外 v14 只送左鍵點擊，沒有 Enter／Leave／Wheel／KeyDown／KeyUp／右鍵／Drag；pactex 的 `ドラッグ` 也沒有讀。
+5. `Array.Shuffle` 以傳入的 -1 當固定種子，對手每輪展示的人材都相同；原版對 -1 的語義還沒有查。
+
+對上一節的更正：春銷「什麼都不做也會跑完全部顧客再進結算」只對了一半，顧客會跑完，但因為都不成交，結算被跳過；「結算頁尾的快進鈕」的位置仍是推定，因為結算從未出現。
+
+## 2026-10-07 文字尺寸後接續（歷史，點擊許可已由上節接續）
 
 - **程式 `6687656` 已推送**；本機／ls-remote／GitHub branches API 均 `668765647957daba2b7bf35ee6e79b769553a9f2`。文件另隨本節所在 commit，libsys4 固定 247f544。
 - 根因：v14 且 CN 字格的文字，字形在格內沒有下移 e、行高沒有偶數化也沒有算進太さ、寬多算一個字間隔。依原版 `0x69c290`／`0x69c3d0`（格與字形位置）、`0x5bce00`（行高）、`0x5bcf60`（glyph 貼行底）、`0x5bee50`（範圍）、`0x5b4df0`（字型數字）實作。詳見[本組研究](research/gui-visual/text-size.md)。
@@ -20,9 +51,9 @@
 - 配對不是拖放：左右箭頭（或滾輪）切換展示的人材，倒數歸零自動配對，「快進」鈕立即結束本輪；什麼都不做也會跑完全部顧客再進結算。春銷之後的順序是：結算 → 很長的劇情 → 回合結束 → 第 2 天的據點；在據點選人狩才會進地城。
 
 1. **先取基準（不改程式）**：`gui-run.sh` 跑 300 秒的春銷路線。沿用既有 9 步點擊到關閉教學，之後從 62 秒起每 8–10 秒點一次 (95,677)（配對頁的快進鈕；結算頁尾的快進鈕推定在同一位置）。看它自己能走到哪裡。
-2. **pactex 的 `點擊許可` 沒有讀**：v14 loader 只把按鈕與ＣＧ判定部件設成可點擊。資料中 38 個元件標 1，其中 25 個不是這兩種：春銷結算與派遣結果的 ClickTarget、地城選擇的 `DungeonSelector.Area`、地圖節點的 `MapNodeView.ClickTarget` 等，事件掛得上卻收不到點擊。原版在 `0x5547be`–`0x5547e9` 把它寫進 `Parts_SetClickable` 用的同一個欄位。讀入之後，原本「只擋游標、點擊變成全畫面點擊」的 ClickGuard／InputGuard 會改成吃掉點擊，顧客預覽、人材 STATUS、教學、YesNo 對話框要重測。
+2. **pactex 的 `點擊許可` 沒有讀**：v14 loader 只把按鈕與ＣＧ判定部件設成可點擊。資料中 38 個元件標 1，其中 29 個不是這兩種（已由 `3eb1b36` 讀入，見最上節）：春銷結算與派遣結果的 ClickTarget、地城選擇的 `DungeonSelector.Area`、地圖節點的 `MapNodeView.ClickTarget` 等，事件掛得上卻收不到點擊。原版在 `0x5547be`–`0x5547e9` 把它寫進 `Parts_SetClickable` 用的同一個欄位。讀入之後，原本「只擋游標、點擊變成全畫面點擊」的 ClickGuard／InputGuard 會改成吃掉點擊，顧客預覽、人材 STATUS、教學、YesNo 對話框要重測。
 3. **設定與劇情回顧開不起來**：兩者都結束在 `PE_AddController: index != -1 not supported`。`CASPartsLayer` 的建構子以「最上層 controller 的 ID」呼叫 `AddController`；原版的參數是「插在這個 ID 的 controller 之後」（`0x58a6b0`、`0x53d480`），xsystem4 沿用上游的簡化版，只接受 -1，而且把 controller 的 ID 與堆疊位置當成同一個數字。同一行還擋住標題的配置、情節回顧、片頭影片、問卷與選項類的畫面。建議分兩個提交：先把 ID 與位置分開並照原版實作 Add／Remove／SetActive／GetID／GetIndex；再做「輸入只給作用中的 controller」（回顧畫面是半透明蓋在據點上，下層的按鈕看得到）。
-4. **讀檔與返回標題**：v14 的 `system.Reset` 經 CALLHLL 進到 `src/hll/system.c`，只印警告，從沒有接到既有的 `vm_reset()`。原版（handler `0x693e80`）讓 VM 不再執行位元組碼（`0x667ef0`），由 `App::Run`（`0x4b5a60`）釋放並新建 VM。腳本用 `SystemService.GameVariable_Set`（鍵 `ResetLoadTargetIndex`、`ResetLoadType`）把要讀的存檔帶過重啟，重啟後 `DohnaDohna@Run` 開頭讀回；一般讀檔不經過 `PE_Load`。接上時要一併歸零 v14 才有的靜態狀態：`vm_execute_depth`（不歸零的話十次重啟後不再執行）、heap 的延後釋放佇列、PartsEngine v14 的訊息佇列與 activity 表、HashMap 與 CASTimer 的 handle。現況下「返回標題」會卡在 Reset 之後沒有離開條件的 Peek 迴圈。**沒有任何一次 GUI 執行寫出過一般存檔**，有存檔時的讀檔清單與確認對話框也沒有走過。
+4. **讀檔與返回標題**：v14 的 `system.Reset` 經 CALLHLL 進到 `src/hll/system.c`，只印警告，從沒有接到既有的 `vm_reset()`。原版（handler `0x693e80`）讓 VM 不再執行位元組碼（`0x667ef0`），由 `App::Run`（`0x4b5a60`）釋放並新建 VM。腳本用 `SystemService.GameVariable_Set`（鍵 `ResetLoadTargetIndex`、`ResetLoadType`）把要讀的存檔帶過重啟，重啟後 `DohnaDohna@Run` 開頭讀回（更正：存檔時腳本會先呼叫 parts 的 Save，讀檔後的復歸函式會呼叫 Load，所以讀檔仍會經過 `PE_Load`）。接上時要一併歸零 v14 才有的靜態狀態：`vm_execute_depth`（不歸零的話十次重啟後不再執行）、heap 的延後釋放佇列、PartsEngine v14 的訊息佇列與 activity 表、HashMap 與 CASTimer 的 handle。現況下「返回標題」會卡在 Reset 之後沒有離開條件的 Peek 迴圈。**沒有任何一次 GUI 執行寫出過一般存檔**，有存檔時的讀檔清單與確認對話框也沒有走過。
 5. 再往後：v14 的輸入只送左鍵點擊（沒有 Enter／Leave／Wheel／KeyDown／KeyUp／右鍵／Drag）；VM 的多槽元素陣列字面值配頁不足（春銷畫面已有 `X_ASSIGN past end of page`）與三槽 option 回傳被截成兩槽，進戰鬥前要處理。
 
 ## 2026-10-07 自由盒原點偏移後接續（歷史，文字尺寸已由上節接續）
@@ -215,7 +246,7 @@
        3. 春銷：進入春銷後按 Start (1180,675)，每次都出現 `DecisionTimerView.jaf:19: (nonnull) m_act . GetHGauge("Gauge")` 斷言，`gui-run.sh` 就此停止；推定是 §10.4 第 7 項沒有建立的橫ゲージ部件型別（未驗證）。
        4. 審查者另記（兩版相同，本組未重跑）：標題 → 配置在 `PE_AddController` 出錯；標題 → 讀取 → 返回之後輸入失效；系統選單 → 劇情回顧在 `PE_AddController` 出錯。
        - **本組後續 `a870409` 已修正第 1、2 條**：AIN 保留外層 WaitForClick，原版以 Begin／End 巢狀深度恢復外層輸入；不應要求腳本再次 Begin。成就／讀取／系統選單各兩次往返已驗證。「人材一覽的返回」「YesNo 對話框取消後的返回」尚未重測，不推定通過。
-     - **`點擊許可` 沒有讀**：原版同一層也把它讀到 +0x1a4。pactex 中為 1 的約 50 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange 等）目前要等 AIN 設 Clickable，否則只擋游標（全畫面點擊）；讀入的影響要另外評估。
+     - **`點擊許可` 沒有讀**：原版同一層也把它讀到 +0x1a4。pactex 中為 1 的 38 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange 等）目前要等 AIN 設 Clickable，否則只擋游標（全畫面點擊）；讀入的影響要另外評估。
      - **懸停訊息**：v14 的 `parts_msg_push` 直接返回，MouseEnter／Leave／On 從未送進 AIN；原版懸停人材卡時卡片變黃（Wine `deep/d024`），xsystem4 不變。
      - 擋游標的元件收到按下時原版送出什麼仍未追到（沿用「全畫面點擊」的推定）；判斷式的滑動條件沒有實作。
    - **已完成：開場 LOGO 的光澤變成黃色光條**（2026-09-30，研究見 `research/gui-visual/logo-gloss.md`）：中文版 pactex 的 `描畫フィルタ`／`加算色` 是 GBK 鍵，loader 只認 SJIS；濾鏡也不傳給子元件。loader 加 GBK 鍵，CG 路徑沿用最近祖先的濾鏡（只在 v14；證據只有 v14 的原版畫面，舊引擎維持各自的濾鏡，第四輪審查）。LOGO 與 Wine 原版逐幀一致（光澤只在深色部分、白底不留光條）；標題背景三層的濾鏡同時讀入，配色與原版一致。新模式 `logo-gloss`。第二輪（使用者回報淡入時黑底有光條、警告頁淡出白字變黃）：loader 讀 `アルファクリッパー`（光條以徽章與文字為遮罩），v14 `GetComponentMulColor*`／`AddColor*` 改讀真實顏色（原為固定 255／0，逐通道淡出只剩 B 生效）。**ALICESOFT 與標題按鈕擦入已由 `190c1c8` 完成（見 `clip-area.md`）**；回合結束／戰鬥背景／`加算色` 6 個元件仍未逐畫面比對。

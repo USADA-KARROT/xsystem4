@@ -468,7 +468,7 @@ visual-compare D4 提到的上方中央頁籤點，所有 pactex 都沒有對應
 
 ### 12.6 沒有修的部分與新發現
 
-1. **`點擊許可` 沒有讀**：原版同一層也讀 `點擊許可`（元件 +0x1a4）。pactex 中為 1 的約 50 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange、WorkerParamViewBig 的 Personality1–3、BackLog 的 `SYS_語音あり文本` 等）在 xsystem4 要等 AIN 自己設定 Clickable，否則只擋游標（全畫面點擊）。本組的情境都沒有因此失敗（人材卡的 ClickTarget 由 AIN 設成可點擊），但沒有逐一檢查；讀入後這些元件會收到自己的點擊而不再產生全畫面點擊，影響要另外評估（未驗證）。
+1. **`點擊許可` 沒有讀**：原版同一層也讀 `點擊許可`（元件 +0x1a4）。pactex 中為 1 的 38 個元件（ClickTarget、InputGuard、ClickGuard、縮圖的 Target、Left／Right、DragRange、WorkerParamViewBig 的 Personality1–3、BackLog 的 `SYS_語音あり文本` 等）在 xsystem4 要等 AIN 自己設定 Clickable，否則只擋游標（全畫面點擊）。本組的情境都沒有因此失敗（人材卡的 ClickTarget 由 AIN 設成可點擊），但沒有逐一檢查；讀入後這些元件會收到自己的點擊而不再產生全畫面點擊，影響要另外評估（未驗證）。
 2. **懸停訊息**：v14 的 `parts_msg_push` 直接返回，MouseEnter／Leave／On 從未送進 AIN。原版懸停第 2 張人材卡時卡片底色變黃（Wine `deep/d024`），xsystem4 以除錯副本移動游標到同一點（沒有點擊），卡片不變色；「人材」按鈕的懸停外觀（CG 狀態）則與 `d010` 相同。推定黃底由 AIN 的懸停事件設定（未驗證）。
 3. **擋游標的元件收到按下時送什麼**：仍沿用「變成全畫面點擊」的推定（§11.4）；原版對不可點擊的按下元素送出什麼，沒有追到訊息佇列（manager +0x110）。
 4. **滑動**：判斷式的「滑動進行中」條件與 +0x1a7 的滑動模式沒有實作。
