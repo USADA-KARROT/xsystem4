@@ -1,0 +1,767 @@
+ex-name-list: before 27726d9 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+EL1 leaves whose EX name differs from their node name: 0 of 521927
+EL1 EXHelper::GetNodes(missing motion): 0 name(s), want 0
+EL1 EXHelper::GetParams(missing motion): 0 name(s), want 0
+EL1 a call that stores nothing leaves 1 (GetNodes) and 1 (GetParams) slot(s)
+EL1 EXHelper::GetNodes(motion tree): 0 name(s), want 70
+  FAIL: EXHelper::GetNodes(motion tree): 1 result slot(s), 0 name(s), want one array of 70
+    result: slot 5 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetNodes(motion tree): 142 live slot(s) left over, want the 1 of a missing path
+    left: slot 11 ref 1 page type=2 index=-1 n=1
+    left: slot 13 ref 1 string ""
+    left: slot 14 ref 1 string ""
+    left: slot 15 ref 1 string ""
+    left: slot 16 ref 1 string ""
+    left: slot 17 ref 1 string ""
+    left: slot 18 ref 1 string ""
+    left: slot 19 ref 1 string ""
+EL1 EXHelper::GetNodes(character): 0 name(s), want 20
+  FAIL: EXHelper::GetNodes(character): 1 result slot(s), 0 name(s), want one array of 20
+    result: slot 3 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetNodes(character): 42 live slot(s) left over, want the 1 of a missing path
+    left: slot 154 ref 1 page type=2 index=-1 n=1
+    left: slot 156 ref 1 string ""
+    left: slot 157 ref 1 string ""
+    left: slot 158 ref 1 string ""
+    left: slot 159 ref 1 string ""
+    left: slot 160 ref 1 string ""
+    left: slot 161 ref 1 string ""
+    left: slot 162 ref 1 string ""
+EL1 EXHelper::GetNodes(motion): 0 name(s), want 14
+  FAIL: EXHelper::GetNodes(motion): 1 result slot(s), 0 name(s), want one array of 14
+    result: slot 5 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetNodes(motion): 30 live slot(s) left over, want the 1 of a missing path
+    left: slot 197 ref 1 page type=2 index=-1 n=1
+    left: slot 199 ref 1 string ""
+    left: slot 200 ref 1 string ""
+    left: slot 201 ref 1 string ""
+    left: slot 202 ref 1 string ""
+    left: slot 203 ref 1 string ""
+    left: slot 204 ref 1 string ""
+    left: slot 205 ref 1 string ""
+EL1 EXHelper::GetParams(motion): 0 name(s), want 4
+  FAIL: EXHelper::GetParams(motion): 1 result slot(s), 0 name(s), want one array of 4
+    result: slot 3 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetParams(motion): 10 live slot(s) left over, want the 1 of a missing path
+    left: slot 228 ref 1 page type=2 index=-1 n=1
+    left: slot 230 ref 1 string ""
+    left: slot 231 ref 1 string ""
+    left: slot 232 ref 1 string ""
+    left: slot 233 ref 1 string ""
+    left: slot 234 ref 1 string "Range"
+    left: slot 235 ref 1 string "RangeType"
+    left: slot 236 ref 1 string "TargetDelay"
+EL1 EXHelper::GetNodes(frame): 0 name(s), want 1
+  FAIL: EXHelper::GetNodes(frame): 1 result slot(s), 0 name(s), want one array of 1
+    result: slot 5 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetNodes(frame): 4 live slot(s) left over, want the 1 of a missing path
+    left: slot 239 ref 1 page type=2 index=-1 n=1
+    left: slot 241 ref 1 string ""
+    left: slot 242 ref 1 string "CgLayers"
+    left: slot 243 ref 1 page type=3 index=16 n=1
+EL1 EXHelper::GetParams(frame): 0 name(s), want 5
+  FAIL: EXHelper::GetParams(frame): 1 result slot(s), 0 name(s), want one array of 5
+    result: slot 3 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetParams(frame): 12 live slot(s) left over, want the 1 of a missing path
+    left: slot 244 ref 1 page type=2 index=-1 n=1
+    left: slot 246 ref 1 string ""
+    left: slot 247 ref 1 string ""
+    left: slot 248 ref 1 string ""
+    left: slot 249 ref 1 string ""
+    left: slot 250 ref 1 string ""
+    left: slot 251 ref 1 string "Frame"
+    left: slot 252 ref 1 string "OffsetX"
+EL1 EXHelper::GetNodes(node without nodes): 0 name(s), want 0
+    result: slot 5 page type=3 a_type=16 rank=1 n=0 []
+EL1 EXHelper::GetParams(node without nodes): 0 name(s), want 2
+  FAIL: EXHelper::GetParams(node without nodes): 1 result slot(s), 0 name(s), want one array of 2
+    result: slot 3 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: EXHelper::GetParams(node without nodes): 6 live slot(s) left over, want the 1 of a missing path
+    left: slot 259 ref 1 page type=2 index=-1 n=1
+    left: slot 261 ref 1 string ""
+    left: slot 262 ref 1 string ""
+    left: slot 263 ref 1 string "AddColor"
+    left: slot 264 ref 1 string "MulColor"
+    left: slot 265 ref 1 page type=3 index=16 n=2
+EL1 FAIL (exit 1)
+EL2 GetNodeNameList(X_A_INIT 0): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetNodeNameList(X_A_INIT 0): want 3 element(s), names at 0..2
+    array: slot 5 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetNodeNameList(X_A_INIT 0): +7 live slot(s), want +3 (the names)
+  FAIL: GetNodeNameList(X_A_INIT 0): 7 slot(s) left after the array was released
+EL2 GetNodeNameList(Array.Free): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetNodeNameList(Array.Free): want 3 element(s), names at 0..2
+    array: slot 11 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetNodeNameList(Array.Free): +7 live slot(s), want +3 (the names)
+  FAIL: GetNodeNameList(Array.Free): 7 slot(s) left after the array was released
+EL2 GetNodeNameList(no page): result 1, -1 element(s), +7 live slot(s)
+  FAIL: GetNodeNameList(no page): want 3 element(s), names at 0..2
+    array: slot 11 (no page)
+  FAIL: GetNodeNameList(no page): +7 live slot(s), want +3 (the names)
+  FAIL: GetNodeNameList(no page): 7 slot(s) left after the array was released
+EL2 GetNodeNameList(untyped empty page): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetNodeNameList(untyped empty page): want 3 element(s), names at 0..2
+    array: slot 11 page type=3 a_type=79 rank=1 n=0 []
+  FAIL: GetNodeNameList(untyped empty page): +7 live slot(s), want +3 (the names)
+  FAIL: GetNodeNameList(untyped empty page): 7 slot(s) left after the array was released
+EL2 GetEXNameList(X_A_INIT 0): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetEXNameList(X_A_INIT 0): want 3 element(s), names at 0..2
+    array: slot 33 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetEXNameList(X_A_INIT 0): +7 live slot(s), want +3 (the names)
+  FAIL: GetEXNameList(X_A_INIT 0): 7 slot(s) left after the array was released
+EL2 GetEXNameList(Array.Free): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetEXNameList(Array.Free): want 3 element(s), names at 0..2
+    array: slot 39 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetEXNameList(Array.Free): +7 live slot(s), want +3 (the names)
+  FAIL: GetEXNameList(Array.Free): 7 slot(s) left after the array was released
+EL2 GetEXNameList(no page): result 1, -1 element(s), +7 live slot(s)
+  FAIL: GetEXNameList(no page): want 3 element(s), names at 0..2
+    array: slot 39 (no page)
+  FAIL: GetEXNameList(no page): +7 live slot(s), want +3 (the names)
+  FAIL: GetEXNameList(no page): 7 slot(s) left after the array was released
+EL2 GetEXNameList(untyped empty page): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetEXNameList(untyped empty page): want 3 element(s), names at 0..2
+    array: slot 39 page type=3 a_type=79 rank=1 n=0 []
+  FAIL: GetEXNameList(untyped empty page): +7 live slot(s), want +3 (the names)
+  FAIL: GetEXNameList(untyped empty page): 7 slot(s) left after the array was released
+EL2 GetFormatNameList(X_A_INIT 0): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetFormatNameList(X_A_INIT 0): want 3 element(s), names at 0..2
+    array: slot 61 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetFormatNameList(X_A_INIT 0): +7 live slot(s), want +3 (the names)
+  FAIL: GetFormatNameList(X_A_INIT 0): 7 slot(s) left after the array was released
+EL2 GetFormatNameList(Array.Free): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetFormatNameList(Array.Free): want 3 element(s), names at 0..2
+    array: slot 67 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetFormatNameList(Array.Free): +7 live slot(s), want +3 (the names)
+  FAIL: GetFormatNameList(Array.Free): 7 slot(s) left after the array was released
+EL2 GetFormatNameList(no page): result 1, -1 element(s), +7 live slot(s)
+  FAIL: GetFormatNameList(no page): want 3 element(s), names at 0..2
+    array: slot 67 (no page)
+  FAIL: GetFormatNameList(no page): +7 live slot(s), want +3 (the names)
+  FAIL: GetFormatNameList(no page): 7 slot(s) left after the array was released
+EL2 GetFormatNameList(untyped empty page): result 1, 0 element(s), +7 live slot(s)
+  FAIL: GetFormatNameList(untyped empty page): want 3 element(s), names at 0..2
+    array: slot 67 page type=3 a_type=79 rank=1 n=0 []
+  FAIL: GetFormatNameList(untyped empty page): +7 live slot(s), want +3 (the names)
+  FAIL: GetFormatNameList(untyped empty page): 7 slot(s) left after the array was released
+EL2 FAIL (exit 1)
+EL3 GetNodeNameList on two strings: result 1, 2 element(s)
+  FAIL: GetNodeNameList: the two old elements did not keep their slots and references
+  FAIL: GetNodeNameList: want 5 element(s), names at 2..4
+    array: slot 4 page type=3 a_type=16 rank=1 n=2 [12 "keep1"]
+  FAIL: GetNodeNameList: +6 live slot(s), want +3
+    array: slot 4 page type=3 a_type=16 rank=1 n=2 [12 "keep1"]
+EL3 GetNodeNameList again: result 1, 2 element(s)
+  FAIL: GetNodeNameList again: want 8 elements behind the same two
+  FAIL: GetNodeNameList: want 8 element(s), names at 2..4
+    array: slot 4 page type=3 a_type=16 rank=1 n=2 [18 "keep1"]
+  FAIL: GetNodeNameList: want 8 element(s), names at 5..7
+    array: slot 4 page type=3 a_type=16 rank=1 n=2 [18 "keep1"]
+  FAIL: GetNodeNameList again: +13 live slot(s), want +6
+  FAIL: Array.Free: element references 1 and 1, want 0 and 1
+EL3 GetNodeNameList after Array.Free: result 1, 0 element(s)
+  FAIL: GetNodeNameList: want 3 element(s), names at 0..2
+    array: slot 4 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetNodeNameList: 21 slot(s) left over
+EL3 GetEXNameList on two strings: result 1, 2 element(s)
+  FAIL: GetEXNameList: the two old elements did not keep their slots and references
+  FAIL: GetEXNameList: want 5 element(s), names at 2..4
+    array: slot 5 page type=3 a_type=16 rank=1 n=2 [33 "keep1"]
+  FAIL: GetEXNameList: +6 live slot(s), want +3
+    array: slot 5 page type=3 a_type=16 rank=1 n=2 [33 "keep1"]
+EL3 GetEXNameList again: result 1, 2 element(s)
+  FAIL: GetEXNameList again: want 8 elements behind the same two
+  FAIL: GetEXNameList: want 8 element(s), names at 2..4
+    array: slot 5 page type=3 a_type=16 rank=1 n=2 [39 "keep1"]
+  FAIL: GetEXNameList: want 8 element(s), names at 5..7
+    array: slot 5 page type=3 a_type=16 rank=1 n=2 [39 "keep1"]
+  FAIL: GetEXNameList again: +13 live slot(s), want +6
+  FAIL: Array.Free: element references 1 and 1, want 0 and 1
+EL3 GetEXNameList after Array.Free: result 1, 0 element(s)
+  FAIL: GetEXNameList: want 3 element(s), names at 0..2
+    array: slot 5 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: GetEXNameList: 21 slot(s) left over
+EL3 GetFormatNameList on two strings: result 1, 2 element(s), old references 0 and 2
+  FAIL: GetFormatNameList: want 3 element(s), names at 0..2
+    array: slot 26 page type=3 a_type=16 rank=1 n=2 [54 "keep1"]
+  FAIL: GetFormatNameList: the old element held elsewhere has 2 reference(s), want 1
+  FAIL: GetFormatNameList: +6 live slot(s), want +2 (three names, one release)
+  FAIL: GetFormatNameList(list) over three names: want 2 element(s), names at 0..1
+    array: slot 26 page type=3 a_type=16 rank=1 n=2 [58 "keep1"]
+  FAIL: GetFormatNameList again: result 1, +11 live slot(s), want +1
+  FAIL: GetFormatNameList: 12 slot(s) left over
+EL3 FAIL (exit 1)
+EL4 GetNodeNameList(slot -1): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetNodeNameList(slot -1) returned 1, want 0
+  FAIL: GetNodeNameList(slot -1): +7 live slot(s), want 0
+EL4 GetNodeNameList(the guard slot): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetNodeNameList(the guard slot) returned 1, want 0
+  FAIL: GetNodeNameList(the guard slot) changed its target
+  FAIL: GetNodeNameList(the guard slot): +7 live slot(s), want 0
+    target: slot 0 (no page)
+EL4 GetNodeNameList(a slot past the heap): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetNodeNameList(a slot past the heap) returned 1, want 0
+  FAIL: GetNodeNameList(a slot past the heap): +7 live slot(s), want 0
+EL4 GetNodeNameList(a released slot): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetNodeNameList(a released slot) returned 1, want 0
+  FAIL: GetNodeNameList(a released slot) changed its target
+  FAIL: GetNodeNameList(a released slot): the target was not a released slot during the call (references 1, pad 0)
+  FAIL: GetNodeNameList(a released slot): +7 live slot(s), want 0
+    target: slot 2 (no page)
+EL4 GetNodeNameList(a string): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetNodeNameList(a string) returned 1, want 0
+  FAIL: GetNodeNameList(a string): +7 live slot(s), want 0
+EL4 GetNodeNameList(a struct): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetNodeNameList(a struct) returned 1, want 0
+  FAIL: GetNodeNameList(a struct) changed its target
+  FAIL: GetNodeNameList(a struct): +7 live slot(s), want 0
+    target: slot 31 page type=2 a_type=511 rank=0 n=4 [46 0 0 0]
+EL4 GetNodeNameList(a wrap box around an array): result 1, target CHANGED, +5 live slot(s)
+  FAIL: GetNodeNameList(a wrap box around an array) returned 1, want 0
+  FAIL: GetNodeNameList(a wrap box around an array) changed its target
+  FAIL: GetNodeNameList(a wrap box around an array): +5 live slot(s), want 0
+    target: slot 48 page type=2 a_type=-1 rank=0 n=1 [56]
+EL4 GetNodeNameList(an int array): result 1, target CHANGED, +6 live slot(s)
+  FAIL: GetNodeNameList(an int array) returned 1, want 0
+  FAIL: GetNodeNameList(an int array) changed its target
+  FAIL: GetNodeNameList(an int array): +6 live slot(s), want 0
+    target: slot 49 page type=3 a_type=14 rank=1 n=2 [62 "NodeC"]
+EL4 GetNodeNameList(a two-dimensional array): result 1, target CHANGED, +5 live slot(s)
+  FAIL: GetNodeNameList(a two-dimensional array) returned 1, want 0
+  FAIL: GetNodeNameList(a two-dimensional array) changed its target
+  FAIL: GetNodeNameList(a two-dimensional array): +5 live slot(s), want 0
+    target: slot 63 page type=3 a_type=16 rank=2 n=1 [71]
+EL4 GetNodeNameList(a generic page with elements): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetNodeNameList(a generic page with elements) returned 1, want 0
+  FAIL: GetNodeNameList(a generic page with elements) changed its target
+  FAIL: GetNodeNameList(a generic page with elements): +7 live slot(s), want 0
+    target: slot 64 page type=3 a_type=79 rank=1 n=4 [77 1 -1 1]
+EL4 GetNodeNameList(a delegate page): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetNodeNameList(a delegate page) returned 1, want 0
+  FAIL: GetNodeNameList(a delegate page): +7 live slot(s), want 0
+EL4 GetEXNameList(slot -1): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetEXNameList(slot -1) returned 1, want 0
+  FAIL: GetEXNameList(slot -1): +7 live slot(s), want 0
+EL4 GetEXNameList(the guard slot): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetEXNameList(the guard slot) returned 1, want 0
+  FAIL: GetEXNameList(the guard slot) changed its target
+  FAIL: GetEXNameList(the guard slot): +7 live slot(s), want 0
+    target: slot 0 (no page)
+EL4 GetEXNameList(a slot past the heap): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetEXNameList(a slot past the heap) returned 1, want 0
+  FAIL: GetEXNameList(a slot past the heap): +7 live slot(s), want 0
+EL4 GetEXNameList(a released slot): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetEXNameList(a released slot) returned 1, want 0
+  FAIL: GetEXNameList(a released slot) changed its target
+  FAIL: GetEXNameList(a released slot): the target was not a released slot during the call (references 1, pad 0)
+  FAIL: GetEXNameList(a released slot): +7 live slot(s), want 0
+    target: slot 78 (no page)
+EL4 GetEXNameList(a string): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetEXNameList(a string) returned 1, want 0
+  FAIL: GetEXNameList(a string): +7 live slot(s), want 0
+EL4 GetEXNameList(a struct): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetEXNameList(a struct) returned 1, want 0
+  FAIL: GetEXNameList(a struct) changed its target
+  FAIL: GetEXNameList(a struct): +7 live slot(s), want 0
+    target: slot 114 page type=2 a_type=511 rank=0 n=4 [129 0 0 0]
+EL4 GetEXNameList(a wrap box around an array): result 1, target CHANGED, +5 live slot(s)
+  FAIL: GetEXNameList(a wrap box around an array) returned 1, want 0
+  FAIL: GetEXNameList(a wrap box around an array) changed its target
+  FAIL: GetEXNameList(a wrap box around an array): +5 live slot(s), want 0
+    target: slot 131 page type=2 a_type=-1 rank=0 n=1 [139]
+EL4 GetEXNameList(an int array): result 1, target CHANGED, +6 live slot(s)
+  FAIL: GetEXNameList(an int array) returned 1, want 0
+  FAIL: GetEXNameList(an int array) changed its target
+  FAIL: GetEXNameList(an int array): +6 live slot(s), want 0
+    target: slot 132 page type=3 a_type=14 rank=1 n=2 [145 "NodeC"]
+EL4 GetEXNameList(a two-dimensional array): result 1, target CHANGED, +5 live slot(s)
+  FAIL: GetEXNameList(a two-dimensional array) returned 1, want 0
+  FAIL: GetEXNameList(a two-dimensional array) changed its target
+  FAIL: GetEXNameList(a two-dimensional array): +5 live slot(s), want 0
+    target: slot 146 page type=3 a_type=16 rank=2 n=1 [154]
+EL4 GetEXNameList(a generic page with elements): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetEXNameList(a generic page with elements) returned 1, want 0
+  FAIL: GetEXNameList(a generic page with elements) changed its target
+  FAIL: GetEXNameList(a generic page with elements): +7 live slot(s), want 0
+    target: slot 147 page type=3 a_type=79 rank=1 n=4 [160 1 -1 1]
+EL4 GetEXNameList(a delegate page): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetEXNameList(a delegate page) returned 1, want 0
+  FAIL: GetEXNameList(a delegate page): +7 live slot(s), want 0
+EL4 GetFormatNameList(slot -1): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetFormatNameList(slot -1) returned 1, want 0
+  FAIL: GetFormatNameList(slot -1): +7 live slot(s), want 0
+EL4 GetFormatNameList(the guard slot): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetFormatNameList(the guard slot) returned 1, want 0
+  FAIL: GetFormatNameList(the guard slot) changed its target
+  FAIL: GetFormatNameList(the guard slot): +7 live slot(s), want 0
+    target: slot 0 (no page)
+EL4 GetFormatNameList(a slot past the heap): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetFormatNameList(a slot past the heap) returned 1, want 0
+  FAIL: GetFormatNameList(a slot past the heap): +7 live slot(s), want 0
+EL4 GetFormatNameList(a released slot): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetFormatNameList(a released slot) returned 1, want 0
+  FAIL: GetFormatNameList(a released slot) changed its target
+  FAIL: GetFormatNameList(a released slot): the target was not a released slot during the call (references 1, pad 0)
+  FAIL: GetFormatNameList(a released slot): +7 live slot(s), want 0
+    target: slot 161 (no page)
+EL4 GetFormatNameList(a string): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetFormatNameList(a string) returned 1, want 0
+  FAIL: GetFormatNameList(a string): +7 live slot(s), want 0
+EL4 GetFormatNameList(a struct): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetFormatNameList(a struct) returned 1, want 0
+  FAIL: GetFormatNameList(a struct) changed its target
+  FAIL: GetFormatNameList(a struct): +7 live slot(s), want 0
+    target: slot 197 page type=2 a_type=511 rank=0 n=4 [212 0 0 0]
+EL4 GetFormatNameList(a wrap box around an array): result 1, target CHANGED, +5 live slot(s)
+  FAIL: GetFormatNameList(a wrap box around an array) returned 1, want 0
+  FAIL: GetFormatNameList(a wrap box around an array) changed its target
+  FAIL: GetFormatNameList(a wrap box around an array): +5 live slot(s), want 0
+    target: slot 214 page type=2 a_type=-1 rank=0 n=1 [222]
+EL4 GetFormatNameList(an int array): result 1, target CHANGED, +6 live slot(s)
+  FAIL: GetFormatNameList(an int array) returned 1, want 0
+  FAIL: GetFormatNameList(an int array) changed its target
+  FAIL: GetFormatNameList(an int array): +6 live slot(s), want 0
+    target: slot 215 page type=3 a_type=14 rank=1 n=2 [228 "NodeC"]
+EL4 GetFormatNameList(a two-dimensional array): result 1, target CHANGED, +5 live slot(s)
+  FAIL: GetFormatNameList(a two-dimensional array) returned 1, want 0
+  FAIL: GetFormatNameList(a two-dimensional array) changed its target
+  FAIL: GetFormatNameList(a two-dimensional array): +5 live slot(s), want 0
+    target: slot 229 page type=3 a_type=16 rank=2 n=1 [237]
+EL4 GetFormatNameList(a generic page with elements): result 1, target CHANGED, +7 live slot(s)
+  FAIL: GetFormatNameList(a generic page with elements) returned 1, want 0
+  FAIL: GetFormatNameList(a generic page with elements) changed its target
+  FAIL: GetFormatNameList(a generic page with elements): +7 live slot(s), want 0
+    target: slot 230 page type=3 a_type=79 rank=1 n=4 [243 1 -1 1]
+EL4 GetFormatNameList(a delegate page): result 1, target unchanged, +7 live slot(s)
+  FAIL: GetFormatNameList(a delegate page) returned 1, want 0
+  FAIL: GetFormatNameList(a delegate page): +7 live slot(s), want 0
+EL4 FAIL (exit 1)
+  FAIL: round 0 GetNodeNameList: result 1, 0 live slot(s) over the first round
+EL5 300 calls and 600 failures: +9 live slot(s) over the first round
+  FAIL: 7 slot(s) left after the array was released
+EL5 FAIL (exit 1)
+EL6 GetNodeNameList("XlTree", id 0): result 1, 0 name(s)
+  FAIL: GetNodeNameList("XlTree", id 0): want result 1 and 3 name(s)
+  FAIL: GetNodeNameList("XlTree"): +7 live slot(s), want +3
+EL6 GetNodeNameList("XlTree.NodeC", id 0): result 1, 0 name(s)
+  FAIL: GetNodeNameList("XlTree.NodeC", id 0): want result 1 and 1 name(s)
+  FAIL: GetNodeNameList("XlTree.NodeC"): +3 live slot(s), want +1
+EL6 GetNodeNameList("XlTree.NodeC.Deep", id 0): result 0, 0 name(s)
+  FAIL: GetNodeNameList("XlTree.NodeC.Deep", id 0): want result 1 and 0 name(s)
+EL6 GetNodeNameList("XlTree.NodeB", id 0): result 0, 0 name(s)
+  FAIL: GetNodeNameList("XlTree.NodeB", id 0): want result 1 and 0 name(s)
+EL6 GetNodeNameList("XlLeaves", id 0): result 0, 0 name(s)
+  FAIL: GetNodeNameList("XlLeaves", id 0): want result 1 and 0 name(s)
+EL6 GetNodeNameList("XlTree.Missing", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("Missing", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlInt", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTable", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTree.leafA", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTree", id 5): result 1, 0 name(s)
+  FAIL: GetNodeNameList("XlTree", id 5): want result 1 and 3 name(s)
+  FAIL: GetNodeNameList("XlTree"): +7 live slot(s), want +3
+EL6 GetEXNameList("XlTree", id 0): result 1, 0 name(s)
+  FAIL: GetEXNameList("XlTree", id 0): want result 1 and 3 name(s)
+  FAIL: GetEXNameList("XlTree"): +7 live slot(s), want +3
+EL6 GetEXNameList("XlTree.NodeC", id 0): result 1, 0 name(s)
+  FAIL: GetEXNameList("XlTree.NodeC", id 0): want result 1 and 1 name(s)
+  FAIL: GetEXNameList("XlTree.NodeC"): +3 live slot(s), want +1
+EL6 GetEXNameList("XlTree.NodeB", id 0): result 1, 0 name(s)
+  FAIL: GetEXNameList("XlTree.NodeB"): +1 live slot(s), want +0
+EL6 GetEXNameList("XlTree.Missing", id 0): result 0, 0 name(s)
+EL6 GetFormatNameList("XlTable", id 0): result 1, 0 name(s)
+  FAIL: GetFormatNameList("XlTable", id 0): want result 1 and 3 name(s)
+  FAIL: GetFormatNameList("XlTable"): +7 live slot(s), want +3
+EL6 GetFormatNameList("XlList", id 0): result 1, 0 name(s)
+  FAIL: GetFormatNameList("XlList", id 0): want result 1 and 2 name(s)
+  FAIL: GetFormatNameList("XlList"): +5 live slot(s), want +2
+EL6 GetFormatNameList("XlTree", id 0): result 0, 0 name(s)
+EL6 FAIL (exit 1)
+EL7 EX_GetFormatNameList(table): 1 result slot(s), 0 name(s), references 1
+  FAIL: EX_GetFormatNameList: want 3 element(s), names at 0..2
+    array: slot 4 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: 7 slot(s) left over
+    left: slot 6 ref 1 string ""
+    left: slot 7 ref 1 string ""
+    left: slot 8 ref 1 string ""
+    left: slot 9 ref 1 string "FieldA"
+    left: slot 10 ref 1 string "FieldB"
+    left: slot 11 ref 1 string "FieldC"
+    left: slot 12 ref 1 page type=3 index=16 n=3
+EL7 FAIL (exit 1)
+G1 Row(XlTable)=1
+G1 Row(XlList)=1
+G1 Col(XlTable)=3
+G1 Col(XlList)=1
+G1 Type(XlTree)=6
+G1 Type(XlTree.NodeA)=6
+G1 Type(XlTree.leafA)=1
+G1 Exists(XlTree.NodeC.Deep)=1
+G1 Exists(XlTree.Missing)=0
+G1 Int(XlInt)=7
+G1 Int(Missing)=-5
+G1 Int(XlTree.NodeC.deepLeaf)=3
+G1 String(XlTree.leafB)=s
+G1 GetNodeNameCount(XlTree)=3
+G1 GetEXNameCount(XlTree)=3
+G1 GetColAtFormatName(XlTable,FieldB)=1
+G1 ok
+G2 version 13 GetNodeNameList: result 1, 0 element(s)
+  FAIL: version 13 GetNodeNameList: result 1, +7 live slot(s)
+  FAIL: GetNodeNameList: want 3 element(s), names at 0..2
+    array: slot 2 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: version 13 GetNodeNameList(a string) returned 1
+G2 version 13 GetEXNameList: result 1, 0 element(s)
+  FAIL: version 13 GetEXNameList: result 1, +7 live slot(s)
+  FAIL: GetEXNameList: want 3 element(s), names at 0..2
+    array: slot 2 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: version 13 GetEXNameList(a string) returned 1
+G2 version 13 GetFormatNameList: result 1, 0 element(s)
+  FAIL: version 13 GetFormatNameList: result 1, +7 live slot(s)
+  FAIL: GetFormatNameList: want 3 element(s), names at 0..2
+    array: slot 2 page type=3 a_type=16 rank=1 n=0 []
+  FAIL: version 13 GetFormatNameList(a string) returned 1
+G2 FAIL (exit 1)
+EX-NAME-LIST FAIL: 8 of 9 cases failed, 0 environment error(s)
+
+ex-name-list: before 27726d9 (XS4_PROBE_GBK=1)
+EX-NAME-LIST FAIL: 8 of 9 cases failed, 0 environment error(s)
+
+ex-name-list: after 3b92ad1 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+EL1 leaves whose EX name differs from their node name: 0 of 521927
+EL1 EXHelper::GetNodes(missing motion): 0 name(s), want 0
+EL1 EXHelper::GetParams(missing motion): 0 name(s), want 0
+EL1 a call that stores nothing leaves 1 (GetNodes) and 1 (GetParams) slot(s)
+EL1 EXHelper::GetNodes(motion tree): 70 name(s), want 70
+EL1 EXHelper::GetNodes(character): 20 name(s), want 20
+EL1 EXHelper::GetNodes(motion): 14 name(s), want 14
+EL1 EXHelper::GetParams(motion): 4 name(s), want 4
+EL1 EXHelper::GetNodes(frame): 1 name(s), want 1
+EL1 EXHelper::GetParams(frame): 5 name(s), want 5
+EL1 EXHelper::GetNodes(node without nodes): 0 name(s), want 0
+EL1 EXHelper::GetParams(node without nodes): 2 name(s), want 2
+EL1 ok
+EL2 GetNodeNameList(X_A_INIT 0): result 1, 3 element(s), +3 live slot(s)
+EL2 GetNodeNameList(Array.Free): result 1, 3 element(s), +3 live slot(s)
+EL2 GetNodeNameList(no page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetNodeNameList(untyped empty page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(X_A_INIT 0): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(Array.Free): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(no page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(untyped empty page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(X_A_INIT 0): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(Array.Free): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(no page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(untyped empty page): result 1, 3 element(s), +3 live slot(s)
+EL2 ok
+EL3 GetNodeNameList on two strings: result 1, 5 element(s)
+EL3 GetNodeNameList again: result 1, 8 element(s)
+EL3 GetNodeNameList after Array.Free: result 1, 3 element(s)
+EL3 GetEXNameList on two strings: result 1, 5 element(s)
+EL3 GetEXNameList again: result 1, 8 element(s)
+EL3 GetEXNameList after Array.Free: result 1, 3 element(s)
+EL3 GetFormatNameList on two strings: result 1, 3 element(s), old references 0 and 1
+EL3 ok
+EL4 GetNodeNameList(slot -1): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(the guard slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a slot past the heap): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a released slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a string): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a struct): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a wrap box around an array): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(an int array): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a two-dimensional array): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a generic page with elements): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a delegate page): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(slot -1): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(the guard slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a slot past the heap): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a released slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a string): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a struct): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a wrap box around an array): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(an int array): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a two-dimensional array): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a generic page with elements): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a delegate page): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(slot -1): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(the guard slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a slot past the heap): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a released slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a string): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a struct): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a wrap box around an array): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(an int array): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a two-dimensional array): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a generic page with elements): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a delegate page): result 0, target unchanged, +0 live slot(s)
+EL4 ok
+EL5 300 calls and 600 failures: +0 live slot(s) over the first round
+EL5 ok
+EL6 GetNodeNameList("XlTree", id 0): result 1, 3 name(s), first NodeA
+EL6 GetNodeNameList("XlTree.NodeC", id 0): result 1, 1 name(s), first Deep
+EL6 GetNodeNameList("XlTree.NodeC.Deep", id 0): result 1, 0 name(s)
+EL6 GetNodeNameList("XlTree.NodeB", id 0): result 1, 0 name(s)
+EL6 GetNodeNameList("XlLeaves", id 0): result 1, 0 name(s)
+EL6 GetNodeNameList("XlTree.Missing", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("Missing", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlInt", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTable", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTree.leafA", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTree", id 5): result 1, 3 name(s), first NodeA
+EL6 GetEXNameList("XlTree", id 0): result 1, 3 name(s), first leafA
+EL6 GetEXNameList("XlTree.NodeC", id 0): result 1, 1 name(s), first deepLeaf
+EL6 GetEXNameList("XlTree.NodeB", id 0): result 1, 0 name(s)
+EL6 GetEXNameList("XlTree.Missing", id 0): result 0, 0 name(s)
+EL6 GetFormatNameList("XlTable", id 0): result 1, 3 name(s), first FieldA
+EL6 GetFormatNameList("XlList", id 0): result 1, 2 name(s), first ColX
+EL6 GetFormatNameList("XlTree", id 0): result 0, 0 name(s)
+EL6 ok
+EL7 EX_GetFormatNameList(table): 1 result slot(s), 3 name(s), references 1
+EL7 ok
+G1 Row(XlTable)=1
+G1 Row(XlList)=1
+G1 Col(XlTable)=3
+G1 Col(XlList)=1
+G1 Type(XlTree)=6
+G1 Type(XlTree.NodeA)=6
+G1 Type(XlTree.leafA)=1
+G1 Exists(XlTree.NodeC.Deep)=1
+G1 Exists(XlTree.Missing)=0
+G1 Int(XlInt)=7
+G1 Int(Missing)=-5
+G1 Int(XlTree.NodeC.deepLeaf)=3
+G1 String(XlTree.leafB)=s
+G1 GetNodeNameCount(XlTree)=3
+G1 GetEXNameCount(XlTree)=3
+G1 GetColAtFormatName(XlTable,FieldB)=1
+G1 ok
+G2 version 13 GetNodeNameList: result 1, 3 element(s)
+G2 version 13 GetEXNameList: result 1, 3 element(s)
+G2 version 13 GetFormatNameList: result 1, 3 element(s)
+G2 ok
+EX-NAME-LIST PASS: 0 of 9 cases failed, 0 environment error(s)
+
+ex-name-list: after 3b92ad1 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+EL1 leaves whose EX name differs from their node name: 0 of 521927
+EL1 EXHelper::GetNodes(missing motion): 0 name(s), want 0
+EL1 EXHelper::GetParams(missing motion): 0 name(s), want 0
+EL1 a call that stores nothing leaves 1 (GetNodes) and 1 (GetParams) slot(s)
+EL1 EXHelper::GetNodes(motion tree): 70 name(s), want 70
+EL1 EXHelper::GetNodes(character): 20 name(s), want 20
+EL1 EXHelper::GetNodes(motion): 14 name(s), want 14
+EL1 EXHelper::GetParams(motion): 4 name(s), want 4
+EL1 EXHelper::GetNodes(frame): 1 name(s), want 1
+EL1 EXHelper::GetParams(frame): 5 name(s), want 5
+EL1 EXHelper::GetNodes(node without nodes): 0 name(s), want 0
+EL1 EXHelper::GetParams(node without nodes): 2 name(s), want 2
+EL1 ok
+EL2 GetNodeNameList(X_A_INIT 0): result 1, 3 element(s), +3 live slot(s)
+EL2 GetNodeNameList(Array.Free): result 1, 3 element(s), +3 live slot(s)
+EL2 GetNodeNameList(no page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetNodeNameList(untyped empty page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(X_A_INIT 0): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(Array.Free): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(no page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetEXNameList(untyped empty page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(X_A_INIT 0): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(Array.Free): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(no page): result 1, 3 element(s), +3 live slot(s)
+EL2 GetFormatNameList(untyped empty page): result 1, 3 element(s), +3 live slot(s)
+EL2 ok
+EL3 GetNodeNameList on two strings: result 1, 5 element(s)
+EL3 GetNodeNameList again: result 1, 8 element(s)
+EL3 GetNodeNameList after Array.Free: result 1, 3 element(s)
+EL3 GetEXNameList on two strings: result 1, 5 element(s)
+EL3 GetEXNameList again: result 1, 8 element(s)
+EL3 GetEXNameList after Array.Free: result 1, 3 element(s)
+EL3 GetFormatNameList on two strings: result 1, 3 element(s), old references 0 and 1
+EL3 ok
+EL4 GetNodeNameList(slot -1): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(the guard slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a slot past the heap): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a released slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a string): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a struct): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a wrap box around an array): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(an int array): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a two-dimensional array): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a generic page with elements): result 0, target unchanged, +0 live slot(s)
+EL4 GetNodeNameList(a delegate page): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(slot -1): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(the guard slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a slot past the heap): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a released slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a string): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a struct): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a wrap box around an array): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(an int array): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a two-dimensional array): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a generic page with elements): result 0, target unchanged, +0 live slot(s)
+EL4 GetEXNameList(a delegate page): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(slot -1): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(the guard slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a slot past the heap): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a released slot): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a string): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a struct): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a wrap box around an array): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(an int array): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a two-dimensional array): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a generic page with elements): result 0, target unchanged, +0 live slot(s)
+EL4 GetFormatNameList(a delegate page): result 0, target unchanged, +0 live slot(s)
+EL4 ok
+EL5 300 calls and 600 failures: +0 live slot(s) over the first round
+EL5 ok
+EL6 GetNodeNameList("XlTree", id 0): result 1, 3 name(s), first NodeA
+EL6 GetNodeNameList("XlTree.NodeC", id 0): result 1, 1 name(s), first Deep
+EL6 GetNodeNameList("XlTree.NodeC.Deep", id 0): result 1, 0 name(s)
+EL6 GetNodeNameList("XlTree.NodeB", id 0): result 1, 0 name(s)
+EL6 GetNodeNameList("XlLeaves", id 0): result 1, 0 name(s)
+EL6 GetNodeNameList("XlTree.Missing", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("Missing", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlInt", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTable", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTree.leafA", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("", id 0): result 0, 0 name(s)
+EL6 GetNodeNameList("XlTree", id 5): result 1, 3 name(s), first NodeA
+EL6 GetEXNameList("XlTree", id 0): result 1, 3 name(s), first leafA
+EL6 GetEXNameList("XlTree.NodeC", id 0): result 1, 1 name(s), first deepLeaf
+EL6 GetEXNameList("XlTree.NodeB", id 0): result 1, 0 name(s)
+EL6 GetEXNameList("XlTree.Missing", id 0): result 0, 0 name(s)
+EL6 GetFormatNameList("XlTable", id 0): result 1, 3 name(s), first FieldA
+EL6 GetFormatNameList("XlList", id 0): result 1, 2 name(s), first ColX
+EL6 GetFormatNameList("XlTree", id 0): result 0, 0 name(s)
+EL6 ok
+EL7 EX_GetFormatNameList(table): 1 result slot(s), 3 name(s), references 1
+EL7 ok
+G1 Row(XlTable)=1
+G1 Row(XlList)=1
+G1 Col(XlTable)=3
+G1 Col(XlList)=1
+G1 Type(XlTree)=6
+G1 Type(XlTree.NodeA)=6
+G1 Type(XlTree.leafA)=1
+G1 Exists(XlTree.NodeC.Deep)=1
+G1 Exists(XlTree.Missing)=0
+G1 Int(XlInt)=7
+G1 Int(Missing)=-5
+G1 Int(XlTree.NodeC.deepLeaf)=3
+G1 String(XlTree.leafB)=s
+G1 GetNodeNameCount(XlTree)=3
+G1 GetEXNameCount(XlTree)=3
+G1 GetColAtFormatName(XlTable,FieldB)=1
+G1 ok
+G2 version 13 GetNodeNameList: result 1, 3 element(s)
+G2 version 13 GetEXNameList: result 1, 3 element(s)
+G2 version 13 GetFormatNameList: result 1, 3 element(s)
+G2 ok
+EX-NAME-LIST PASS: 0 of 9 cases failed, 0 environment error(s)
+
+option-return: before 27726d9 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+OR1 65 node(s) in the EX tree, 0 element(s) in the collection (0 slot(s)), 0 achievement object(s)
+  FAIL: want 65 two-slot element(s)
+  FAIL: 0 of 65 element(s) are achievement objects with one reference
+OR1 FAIL (exit 1)
+  FAIL: Create(first achievement): 2 result slot(s), want 3
+OR2 Create(first achievement) = (not an achievement, 0, -999), references -1
+  FAIL: want (achievement object, 0, 0)
+  FAIL: the object is not the caller's alone
+  FAIL: Create(missing): 2 result slot(s), want 3
+OR2 Create(missing) = (-1, 1, -999)
+  FAIL: want none (-1, -1, 1)
+OR2 FAIL (exit 1)
+  FAIL: InnerAction::get (none): 2 result slot(s), want 3
+OR3 InnerAction::get on none = (-1, 1, -999)
+  FAIL: want none (-1, -1, 1)
+  FAIL: InnerAction::get: 2 result slot(s), want 3
+OR3 InnerAction::get = (something else, 0, -999), object references 2
+  FAIL: want (the object, 7, 0), got (7, 0, -999)
+OR3 FAIL (exit 1)
+  FAIL: InnerAction::get on a released object: 2 result slot(s), want 3
+OR4 a call on a released object left 2 slot(s)
+OR4 FAIL (exit 1)
+  f1812 is counted as 2 slot(s)
+  f5752 is counted as 2 slot(s)
+  f8989 is counted as 2 slot(s)
+OR5 13 function(s) return an option of an interface wrap; 13 not counted as three slots
+  FAIL: 13 of them are not three slots
+OR5 FAIL (exit 1)
+  FAIL: InnerAction::get with a stray value: 2 result slot(s), want 3
+OR6 with a stray value under the result = (something else, 0, -999)
+  FAIL: want (the object, 7, 0), got (7, 0, -999)
+OR6 FAIL (exit 1)
+G1 other functions by result slots: 0: 18898, 1: 17555, 2: 1276, other: 0; options of a one-slot payload: 810
+G1 delegates returning an option: 64; of an interface wrap: 0; not counted as two slots: 0
+G1 ok
+G2 version 13: 0 function(s) not counted as void 0, anything else 1
+G2 ok
+G3 GetShowCaseWorker with a showcase = (the worker, 0)
+G3 GetShowCaseWorker without one = (-1, 1)
+G3 ok
+OPTION-RETURN FAIL: 6 of 9 cases failed, 0 environment error(s)
+
+option-return: before 27726d9 (XS4_PROBE_GBK=1)
+OPTION-RETURN FAIL: 6 of 9 cases failed, 0 environment error(s)
+
+option-return: after 3b92ad1 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+OR1 65 node(s) in the EX tree, 65 element(s) in the collection (130 slot(s)), 65 achievement object(s)
+OR1 first element: struct AchievementClearTurn, vtable offset 0
+OR1 ok
+OR2 Create(first achievement) = (AchievementClearTurn, 0, 0), references 1
+OR2 Create(missing) = (-1, -1, 1)
+OR2 ok
+OR3 InnerAction::get on none = (-1, -1, 1)
+OR3 InnerAction::get = (the object, 7, 0), object references 2
+OR3 ok
+OR4 a call on a released object left 3 slot(s)
+OR4 ok
+OR5 13 function(s) return an option of an interface wrap; 0 not counted as three slots
+OR5 ok
+OR6 with a stray value under the result = (the object, 7, 0)
+OR6 ok
+G1 other functions by result slots: 0: 18898, 1: 17555, 2: 1276, other: 0; options of a one-slot payload: 810
+G1 delegates returning an option: 64; of an interface wrap: 0; not counted as two slots: 0
+G1 ok
+G2 version 13: 0 function(s) not counted as void 0, anything else 1
+G2 ok
+G3 GetShowCaseWorker with a showcase = (the worker, 0)
+G3 GetShowCaseWorker without one = (-1, 1)
+G3 ok
+OPTION-RETURN PASS: 0 of 9 cases failed, 0 environment error(s)
+
+option-return: after 3b92ad1 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+OR1 65 node(s) in the EX tree, 65 element(s) in the collection (130 slot(s)), 65 achievement object(s)
+OR1 first element: struct AchievementClearTurn, vtable offset 0
+OR1 ok
+OR2 Create(first achievement) = (AchievementClearTurn, 0, 0), references 1
+OR2 Create(missing) = (-1, -1, 1)
+OR2 ok
+OR3 InnerAction::get on none = (-1, -1, 1)
+OR3 InnerAction::get = (the object, 7, 0), object references 2
+OR3 ok
+OR4 a call on a released object left 3 slot(s)
+OR4 ok
+OR5 13 function(s) return an option of an interface wrap; 0 not counted as three slots
+OR5 ok
+OR6 with a stray value under the result = (the object, 7, 0)
+OR6 ok
+G1 other functions by result slots: 0: 18898, 1: 17555, 2: 1276, other: 0; options of a one-slot payload: 810
+G1 delegates returning an option: 64; of an interface wrap: 0; not counted as two slots: 0
+G1 ok
+G2 version 13: 0 function(s) not counted as void 0, anything else 1
+G2 ok
+G3 GetShowCaseWorker with a showcase = (the worker, 0)
+G3 GetShowCaseWorker without one = (-1, 1)
+G3 ok
+OPTION-RETURN PASS: 0 of 9 cases failed, 0 environment error(s)

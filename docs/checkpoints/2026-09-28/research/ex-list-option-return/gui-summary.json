@@ -1,0 +1,109 @@
+{
+  "code": "3b92ad18d7782482fdf0127d7bc58663427cab8a",
+  "runs": [
+    {
+      "tag": "claude-g7-final-normal150",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 150.239,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 542588928,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-target",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 85.211,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 527581184,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 112,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-sysmenu",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 30.235,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 494895104,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 10,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-garage",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 35.393,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 495206400,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 14,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-haruuri",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 182.262,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 626065408,
+      "MSG_lines": 629,
+      "MSG_sha256": "dd66ad5329c8ef886fe905f4ed78470ed48a3868ae268b622948d213dc4ba2a0",
+      "PNG_count": 120,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-battle",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 282.323,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 1081147392,
+      "MSG_lines": 681,
+      "MSG_sha256": "3525dc699b4d6f6f4dc4068faeb2a108f12539a63026fb0f20307b7da761e748",
+      "PNG_count": 130,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-savedialog",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 148.379,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 586481664,
+      "MSG_lines": 629,
+      "MSG_sha256": "dd66ad5329c8ef886fe905f4ed78470ed48a3868ae268b622948d213dc4ba2a0",
+      "PNG_count": 16,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-g7-final-fight",
+      "binary_sha256": "9ba83cb6f54542af9679d9df77da021611f1b08762ec1d5851daa5aa6b3298ae",
+      "elapsed_seconds": 282.374,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 980107264,
+      "MSG_lines": 681,
+      "MSG_sha256": "3525dc699b4d6f6f4dc4068faeb2a108f12539a63026fb0f20307b7da761e748",
+      "PNG_count": 94,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    }
+  ]
+}
