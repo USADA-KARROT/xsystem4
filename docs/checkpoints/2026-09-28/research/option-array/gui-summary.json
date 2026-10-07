@@ -1,0 +1,83 @@
+{
+  "code": "884b6387162bed759c23e4f4545a2f60ff0b264a",
+  "runs": [
+    {
+      "tag": "claude-optarray-final-normal150",
+      "binary_sha256": "f43ea4b6d59cb0be55ebdaf2a24385333acd693d80b8fa0b72c2215da07d62fd",
+      "elapsed_seconds": 150.361,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 541097984,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-optarray-final-target",
+      "binary_sha256": "f43ea4b6d59cb0be55ebdaf2a24385333acd693d80b8fa0b72c2215da07d62fd",
+      "elapsed_seconds": 85.278,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 506560512,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 112,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-optarray-final-sysmenu",
+      "binary_sha256": "f43ea4b6d59cb0be55ebdaf2a24385333acd693d80b8fa0b72c2215da07d62fd",
+      "elapsed_seconds": 30.337,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 493518848,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 10,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-optarray-final-garage",
+      "binary_sha256": "f43ea4b6d59cb0be55ebdaf2a24385333acd693d80b8fa0b72c2215da07d62fd",
+      "elapsed_seconds": 35.295,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 493486080,
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 14,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-optarray-final-haruuri",
+      "binary_sha256": "f43ea4b6d59cb0be55ebdaf2a24385333acd693d80b8fa0b72c2215da07d62fd",
+      "elapsed_seconds": 182.375,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 601751552,
+      "MSG_lines": 629,
+      "MSG_sha256": "dd66ad5329c8ef886fe905f4ed78470ed48a3868ae268b622948d213dc4ba2a0",
+      "PNG_count": 120,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    },
+    {
+      "tag": "claude-optarray-final-battle",
+      "binary_sha256": "f43ea4b6d59cb0be55ebdaf2a24385333acd693d80b8fa0b72c2215da07d62fd",
+      "elapsed_seconds": 282.262,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 964460544,
+      "MSG_lines": 681,
+      "MSG_sha256": "3525dc699b4d6f6f4dc4068faeb2a108f12539a63026fb0f20307b7da761e748",
+      "PNG_count": 100,
+      "assert_or_vm_error_lines": 0,
+      "stack_overflow_lines": 0
+    }
+  ]
+}

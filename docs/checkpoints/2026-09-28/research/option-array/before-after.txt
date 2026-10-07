@@ -1,0 +1,361 @@
+before 57e98af (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: PushBack(value, 0) left 1 slot(s): it must take [array, value, flag]
+  FAIL: after one PushBack: want 1 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: the element is not (value, 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: Count/Numof/Empty do not see one element
+  FAIL: the pushed object has 1 reference(s), want 2 (its own and the array's)
+  FAIL: second PushBack left 1 slot(s)
+  FAIL: after two PushBack: want 2 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: elements are not (a, 0) (b, 0)
+    array: a_type=79 stride=1 slots=0 []
+  OA1 PushBack 0x30002 keeps (value, flag) and one reference per element
+OA1 FAIL (exit 1)
+  FAIL: PushBack(none) left 1 slot(s)
+  FAIL: after PushBack(none): want 1 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: none is not stored as (-1, 1)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: second PushBack(none) left 1 slot(s)
+  FAIL: two none elements are not (-1, 1) (-1, 1)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: two none elements are not counted
+  FAIL: live slots 1, want 0
+  OA2 PushBack 0x30002 of none stores (-1, 1) and touches nothing else
+OA2 FAIL (exit 1)
+    Select returned 1 slot(s); result has 0 physical slot(s), X_A_SIZE 0; selector entered 3 time(s); 3 PushBack call(s), 2 with a stack other than [result, value, flag]
+    result: a_type=79 stride=1 slots=0 []
+  FAIL: 2 PushBack call(s) found leftovers of an earlier one on the stack
+  FAIL: Select result: want 3 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: result is not (worker_a, 0) (worker_b, 0) (-1, 1)
+    array: a_type=79 stride=1 slots=0 []
+  OA3 real Select<Worker&?, WorkerCollection&>: three shops, the third without a showcase
+OA3 FAIL (exit 1)
+  FAIL: the predicate was entered 6 time(s) with [2,0] [0,0] [-1,0]; want each element once, whole
+  FAIL: Where result: want 2 element(s) of 2 slot(s) on a generic page (X_A_SIZE 2)
+    array: a_type=79 stride=2 slots=5 [2 0 1 3 0]
+  FAIL: Where did not keep (a, 0) (b, 0)
+    array: a_type=79 stride=2 slots=5 [2 0 1 3 0]
+  FAIL: Select<Item&, Item&?> did not unwrap to [a, b]
+    array: a_type=79 stride=1 slots=2 [2 1]
+  OA4 Where 0x30002 passes whole elements; the real Select<Item&, Item&?> unwraps the result
+OA4 FAIL (exit 1)
+  FAIL: Add 0x20002 left 1/1/1 slot(s)
+  FAIL: after three Add: want 3 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: elements are not (alpha, 0) (-1, 1) (beta, 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: string references 1/1 differ from a plain string PushBack's 2
+  OA5 Add 0x20002: three elements, HasValue<string> at 0 and 4, references as for a string array (2)
+OA5 FAIL (exit 1)
+  FAIL: after Alloc(3): want 3 element(s) of 2 slot(s) on a generic page (X_A_SIZE 3)
+    array: a_type=79 stride=1 slots=3 [4 3 2]
+  FAIL: Alloc did not make three none elements
+    array: a_type=79 stride=1 slots=3 [4 3 2]
+  FAIL: Alloc created 3 heap object(s)
+  OA6 Alloc 0x30002 makes none elements and starts over; Count, X_OP_SET and Erase work on elements
+OA6 FAIL (exit 1)
+    5 nodes: Alloc left 0 slot(s); page has 5 slot(s), stride 1, X_A_SIZE 5
+  FAIL: m_uiNode after Alloc: want 5 element(s) of 2 slot(s) on a generic page (X_A_SIZE 5)
+=================================================================
+  (sanitizer report omitted)
+OA7 FAIL (terminated by signal 6)
+  FAIL: First(pred) returned 1 slot(s) [1, -999], want the position [array, 2]
+  FAIL: the predicate was entered 2 time(s) with [-1,0] [1,0]
+  FAIL: At(2) returned 1 slot(s) [2, -999], want [array, 4]
+  FAIL: At(5) returned 1 slot(s) [-1, -999], want [-1, 0]
+  FAIL: Last() returned 1 slot(s) [-1, -999], want [array, 4]
+  FAIL: First() returned 1 slot(s) [-1, -999], want [array, 0]
+  FAIL: First(pred) without a match returned 1 slot(s) [1, -999], want [-1, 0]
+  FAIL: First(pred) on a one-slot page returned 1 slot(s) [2, -999] after 1 predicate call(s), want [-1, 0] and none
+  FAIL: values have 3/1 reference(s) at the end
+  OA8 First(pred), At, Last and First return an uncounted position into an option array
+OA8 FAIL (exit 1)
+  FAIL: after Realloc(3): want 3 element(s) of 2 slot(s) on a generic page (X_A_SIZE 3)
+    array: a_type=79 stride=1 slots=3 [4 3 2]
+  FAIL: Realloc(3) is not (a, 0) (-1, 1) (-1, 1)
+    array: a_type=79 stride=1 slots=3 [4 3 2]
+  OA9 Realloc 0x30002 keeps elements, adds none elements and releases the removed tail
+OA9 FAIL (exit 1)
+  FAIL: Insert left 1 slot(s), ref 1
+  FAIL: Insert(1, c) is not a c b
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: Insert of none left 1 slot(s), ref 1
+  FAIL: Insert(0, none) is not none a c b
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: after two Insert: want 4 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: PopBack is not none a c
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: PushBack after Clear: want 1 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: PushBack after Free: want 1 element(s) of 2 slot(s) on a generic page (X_A_SIZE 0)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: PushBack(none) after Free is not (-1, 1)
+    array: a_type=79 stride=1 slots=0 []
+  FAIL: after Concat: want 2 element(s) of 2 slot(s) on a generic page (X_A_SIZE 4)
+    array: a_type=79 stride=1 slots=4 [6 0 -1 1]
+  OA10 Insert, PopBack, Clear, Free and Concat 0x30002 work on whole elements
+OA10 FAIL (exit 1)
+  FAIL: Alloc 0x30002 (4) did not make four two-slot elements
+    m_uiNode: a_type=79 stride=1 slots=4 [11 12 13 14]
+OA11 FAIL (exit 1)
+  FAIL: Alloc ran the old element's destructor 0 time(s), want 1
+  FAIL: Alloc(3) is not three none elements
+    array: a_type=79 stride=1 slots=3 [4 0 3]
+  FAIL: Realloc ran the removed element's destructor 0 time(s), want 1
+  OA12 Alloc and Realloc install the new page before a removed element's destructor (backlog::detail::CBackLogUnit@1) runs
+OA12 FAIL (exit 1)
+G1 int PushBack#0 left=0 type=14 meta=-1 n=1 [5]
+G1 int Add#0 left=0 type=14 meta=-1 n=2 [5 7]
+G1 int Insert#0 left=0 type=14 meta=-1 n=3 [9 5 7]
+G1 int Count#0 left=1 3 type=14 meta=-1 n=3 [9 5 7]
+G1 int At#1 left=2 self 1 type=14 meta=-1 n=3 [9 5 7]
+G1 int First#1 left=2 self 0 type=14 meta=-1 n=3 [9 5 7]
+G1 int Last#1 left=2 self 2 type=14 meta=-1 n=3 [9 5 7]
+G1 int Erase#0 left=1 1 type=14 meta=-1 n=2 [9 7]
+G1 int PopBack#0 left=0 type=14 meta=-1 n=1 [9]
+G1 int Realloc#0 left=0 type=14 meta=-1 n=3 [9 0 0]
+G1 int Alloc#0 left=0 type=14 meta=-1 n=2 [9 0]
+G1 int Free#0 left=0 type=14 meta=-1 n=0 []
+G1 string PushBack#0 left=0 type=16 meta=-1 n=1 [A] A:2 B:1
+G1 string Add#0 left=0 type=16 meta=-1 n=2 [A B] A:2 B:2
+G1 string Count#0 left=1 2 type=16 meta=-1 n=2 [A B] A:2 B:2
+G1 string At#1 left=1 A type=16 meta=-1 n=2 [A B] A:3 B:2
+G1 string Erase#0 left=1 1 type=16 meta=-1 n=1 [B] A:1 B:2
+G1 string PopBack#0 left=0 type=16 meta=-1 n=0 [] A:1 B:1
+G1 wrap PushBack#0 left=0 type=79 meta=1 n=1 [A] A:2 B:1 C:1
+G1 wrap Add#0 left=0 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap Count#0 left=1 2 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap At#1 left=1 B type=79 meta=1 n=2 [A B] A:2 B:3 C:1
+G1 wrap At#1 left=1 -1 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap First#1 left=1 A type=79 meta=1 n=2 [A B] A:3 B:2 C:1
+G1 wrap Last#1 left=1 B type=79 meta=1 n=2 [A B] A:2 B:3 C:1
+G1 wrap Insert#0 left=0 type=79 meta=1 n=3 [C A B] A:2 B:2 C:2
+G1 wrap Erase#0 left=1 1 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap PopBack#0 left=0 type=79 meta=1 n=1 [A] A:2 B:1 C:1
+G1 wrap Alloc#0 left=0 type=79 meta=1 n=2 [A obj] A:2 B:1 C:1
+G1 wrap Free#0 left=0 type=79 meta=1 n=0 [] A:1 B:1 C:1
+G1 iface PushBack#0 left=0 type=79 meta=2 n=2 [A 1] A:2 B:1 C:1
+G1 iface Add#0 left=0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface Count#0 left=1 2 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface At#1 left=2 B 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:3 C:1
+G1 iface At#1 left=2 -1 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface First#1 left=2 A 1 type=79 meta=2 n=4 [A 1 B 0] A:3 B:2 C:1
+G1 iface Last#1 left=2 B 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:3 C:1
+G1 iface Insert#0 left=0 type=79 meta=2 n=6 [A 1 C 0 B 0] A:2 B:2 C:2
+G1 iface Erase#0 left=1 1 type=79 meta=2 n=4 [C 0 B 0] A:1 B:2 C:2
+G1 iface PopBack#0 left=0 type=79 meta=2 n=2 [C 0] A:1 B:1 C:2
+G1 iface Free#0 left=0 type=79 meta=2 n=0 [] A:1 B:1 C:1
+  G1 operands 1, 2, 0x10002 and 0x10003: 41 steps match the lines recorded before the change
+G1 ok
+G2 operand -1 PushBack left=0 type=14 meta=-1 n=1 [5]
+G2 operand -1 Alloc left=0 type=14 meta=-1 n=2 [5 0]
+G2 operand 0 PushBack left=0 type=14 meta=-1 n=1 [5]
+G2 operand 0 Alloc left=0 type=14 meta=-1 n=2 [5 0]
+G2 v13 PushBack 0x30002 left=1
+G2 v13 Alloc 0x30001 left=0 slots=2
+  G2 operands -1 and 0 and an AIN before version 14 do not read the option bit
+G2 ok
+  FAIL: after Alloc 0x30003 (2): want 2 element(s) of 3 slot(s) on a generic page (X_A_SIZE 2)
+    array: a_type=79 stride=1 slots=2 [4 3]
+  FAIL: none is not (-1, -1, 1)
+    array: a_type=79 stride=1 slots=2 [4 3]
+  FAIL: Alloc 0x30003 created 2 heap object(s)
+  G3 0x30003 elements are three slots and none is (-1, -1, 1)
+G3 FAIL (exit 1)
+  FAIL: an unimplemented PushBack 0x20002 left 1 of its 3 slot(s)
+  FAIL: an unimplemented PushBack 0x30002 left 1 of its 3 slot(s)
+  FAIL: an unimplemented PushBack 0x30003 left 1 of its 4 slot(s)
+  G4 a declaration without an implementation discards the element's slots; 14 hll_param arguments, all last
+G4 FAIL (exit 1)
+  G5 A_REF of an option array shares its values
+G5 ok
+OPTION-ARRAY FAIL: 14 of 17 cases failed, 0 environment error(s)
+
+before 57e98af (XS4_PROBE_GBK=1)
+the case results are identical to the default rule: True
+OPTION-ARRAY FAIL: 14 of 17 cases failed, 0 environment error(s)
+
+after 884b638 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  OA1 PushBack 0x30002 keeps (value, flag) and one reference per element
+OA1 ok
+  OA2 PushBack 0x30002 of none stores (-1, 1) and touches nothing else
+OA2 ok
+    Select returned 1 slot(s); result has 6 physical slot(s), X_A_SIZE 3; selector entered 3 time(s); 3 PushBack call(s), 0 with a stack other than [result, value, flag]
+    result: a_type=79 stride=2 slots=6 [3 0 9 0 -1 1]
+  OA3 real Select<Worker&?, WorkerCollection&>: three shops, the third without a showcase
+OA3 ok
+  OA4 Where 0x30002 passes whole elements; the real Select<Item&, Item&?> unwraps the result
+OA4 ok
+  OA5 Add 0x20002: three elements, HasValue<string> at 0 and 4, references as for a string array (2)
+OA5 ok
+  OA6 Alloc 0x30002 makes none elements and starts over; Count, X_OP_SET and Erase work on elements
+OA6 ok
+    5 nodes: Alloc left 0 slot(s); page has 10 slot(s), stride 2, X_A_SIZE 5
+    6 nodes: Alloc left 0 slot(s); page has 12 slot(s), stride 2, X_A_SIZE 6
+  OA7 the accesses of MapView@LoadNodes stay inside the array MapView@0 allocates
+OA7 ok
+  OA8 First(pred), At, Last and First return an uncounted position into an option array
+OA8 ok
+  OA9 Realloc 0x30002 keeps elements, adds none elements and releases the removed tail
+OA9 ok
+  OA10 Insert, PopBack, Clear, Free and Concat 0x30002 work on whole elements
+OA10 ok
+  OA11 the real MapView@GetNode finds its nodes and leaves the node array's references alone
+OA11 ok
+  OA12 Alloc and Realloc install the new page before a removed element's destructor (backlog::detail::CBackLogUnit@1) runs
+OA12 ok
+G1 int PushBack#0 left=0 type=14 meta=-1 n=1 [5]
+G1 int Add#0 left=0 type=14 meta=-1 n=2 [5 7]
+G1 int Insert#0 left=0 type=14 meta=-1 n=3 [9 5 7]
+G1 int Count#0 left=1 3 type=14 meta=-1 n=3 [9 5 7]
+G1 int At#1 left=2 self 1 type=14 meta=-1 n=3 [9 5 7]
+G1 int First#1 left=2 self 0 type=14 meta=-1 n=3 [9 5 7]
+G1 int Last#1 left=2 self 2 type=14 meta=-1 n=3 [9 5 7]
+G1 int Erase#0 left=1 1 type=14 meta=-1 n=2 [9 7]
+G1 int PopBack#0 left=0 type=14 meta=-1 n=1 [9]
+G1 int Realloc#0 left=0 type=14 meta=-1 n=3 [9 0 0]
+G1 int Alloc#0 left=0 type=14 meta=-1 n=2 [9 0]
+G1 int Free#0 left=0 type=14 meta=-1 n=0 []
+G1 string PushBack#0 left=0 type=16 meta=-1 n=1 [A] A:2 B:1
+G1 string Add#0 left=0 type=16 meta=-1 n=2 [A B] A:2 B:2
+G1 string Count#0 left=1 2 type=16 meta=-1 n=2 [A B] A:2 B:2
+G1 string At#1 left=1 A type=16 meta=-1 n=2 [A B] A:3 B:2
+G1 string Erase#0 left=1 1 type=16 meta=-1 n=1 [B] A:1 B:2
+G1 string PopBack#0 left=0 type=16 meta=-1 n=0 [] A:1 B:1
+G1 wrap PushBack#0 left=0 type=79 meta=1 n=1 [A] A:2 B:1 C:1
+G1 wrap Add#0 left=0 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap Count#0 left=1 2 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap At#1 left=1 B type=79 meta=1 n=2 [A B] A:2 B:3 C:1
+G1 wrap At#1 left=1 -1 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap First#1 left=1 A type=79 meta=1 n=2 [A B] A:3 B:2 C:1
+G1 wrap Last#1 left=1 B type=79 meta=1 n=2 [A B] A:2 B:3 C:1
+G1 wrap Insert#0 left=0 type=79 meta=1 n=3 [C A B] A:2 B:2 C:2
+G1 wrap Erase#0 left=1 1 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap PopBack#0 left=0 type=79 meta=1 n=1 [A] A:2 B:1 C:1
+G1 wrap Alloc#0 left=0 type=79 meta=1 n=2 [A obj] A:2 B:1 C:1
+G1 wrap Free#0 left=0 type=79 meta=1 n=0 [] A:1 B:1 C:1
+G1 iface PushBack#0 left=0 type=79 meta=2 n=2 [A 1] A:2 B:1 C:1
+G1 iface Add#0 left=0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface Count#0 left=1 2 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface At#1 left=2 B 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:3 C:1
+G1 iface At#1 left=2 -1 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface First#1 left=2 A 1 type=79 meta=2 n=4 [A 1 B 0] A:3 B:2 C:1
+G1 iface Last#1 left=2 B 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:3 C:1
+G1 iface Insert#0 left=0 type=79 meta=2 n=6 [A 1 C 0 B 0] A:2 B:2 C:2
+G1 iface Erase#0 left=1 1 type=79 meta=2 n=4 [C 0 B 0] A:1 B:2 C:2
+G1 iface PopBack#0 left=0 type=79 meta=2 n=2 [C 0] A:1 B:1 C:2
+G1 iface Free#0 left=0 type=79 meta=2 n=0 [] A:1 B:1 C:1
+  G1 operands 1, 2, 0x10002 and 0x10003: 41 steps match the lines recorded before the change
+G1 ok
+G2 operand -1 PushBack left=0 type=14 meta=-1 n=1 [5]
+G2 operand -1 Alloc left=0 type=14 meta=-1 n=2 [5 0]
+G2 operand 0 PushBack left=0 type=14 meta=-1 n=1 [5]
+G2 operand 0 Alloc left=0 type=14 meta=-1 n=2 [5 0]
+G2 v13 PushBack 0x30002 left=1
+G2 v13 Alloc 0x30001 left=0 slots=2
+  G2 operands -1 and 0 and an AIN before version 14 do not read the option bit
+G2 ok
+  G3 0x30003 elements are three slots and none is (-1, -1, 1)
+G3 ok
+  G4 a declaration without an implementation discards the element's slots; 14 hll_param arguments, all last
+G4 ok
+  G5 A_REF of an option array shares its values
+G5 ok
+OPTION-ARRAY PASS: 0 of 17 cases failed, 0 environment error(s)
+
+after 884b638 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  OA1 PushBack 0x30002 keeps (value, flag) and one reference per element
+OA1 ok
+  OA2 PushBack 0x30002 of none stores (-1, 1) and touches nothing else
+OA2 ok
+    Select returned 1 slot(s); result has 6 physical slot(s), X_A_SIZE 3; selector entered 3 time(s); 3 PushBack call(s), 0 with a stack other than [result, value, flag]
+    result: a_type=79 stride=2 slots=6 [3 0 9 0 -1 1]
+  OA3 real Select<Worker&?, WorkerCollection&>: three shops, the third without a showcase
+OA3 ok
+  OA4 Where 0x30002 passes whole elements; the real Select<Item&, Item&?> unwraps the result
+OA4 ok
+  OA5 Add 0x20002: three elements, HasValue<string> at 0 and 4, references as for a string array (2)
+OA5 ok
+  OA6 Alloc 0x30002 makes none elements and starts over; Count, X_OP_SET and Erase work on elements
+OA6 ok
+    5 nodes: Alloc left 0 slot(s); page has 10 slot(s), stride 2, X_A_SIZE 5
+    6 nodes: Alloc left 0 slot(s); page has 12 slot(s), stride 2, X_A_SIZE 6
+  OA7 the accesses of MapView@LoadNodes stay inside the array MapView@0 allocates
+OA7 ok
+  OA8 First(pred), At, Last and First return an uncounted position into an option array
+OA8 ok
+  OA9 Realloc 0x30002 keeps elements, adds none elements and releases the removed tail
+OA9 ok
+  OA10 Insert, PopBack, Clear, Free and Concat 0x30002 work on whole elements
+OA10 ok
+  OA11 the real MapView@GetNode finds its nodes and leaves the node array's references alone
+OA11 ok
+  OA12 Alloc and Realloc install the new page before a removed element's destructor (backlog::detail::CBackLogUnit@1) runs
+OA12 ok
+G1 int PushBack#0 left=0 type=14 meta=-1 n=1 [5]
+G1 int Add#0 left=0 type=14 meta=-1 n=2 [5 7]
+G1 int Insert#0 left=0 type=14 meta=-1 n=3 [9 5 7]
+G1 int Count#0 left=1 3 type=14 meta=-1 n=3 [9 5 7]
+G1 int At#1 left=2 self 1 type=14 meta=-1 n=3 [9 5 7]
+G1 int First#1 left=2 self 0 type=14 meta=-1 n=3 [9 5 7]
+G1 int Last#1 left=2 self 2 type=14 meta=-1 n=3 [9 5 7]
+G1 int Erase#0 left=1 1 type=14 meta=-1 n=2 [9 7]
+G1 int PopBack#0 left=0 type=14 meta=-1 n=1 [9]
+G1 int Realloc#0 left=0 type=14 meta=-1 n=3 [9 0 0]
+G1 int Alloc#0 left=0 type=14 meta=-1 n=2 [9 0]
+G1 int Free#0 left=0 type=14 meta=-1 n=0 []
+G1 string PushBack#0 left=0 type=16 meta=-1 n=1 [A] A:2 B:1
+G1 string Add#0 left=0 type=16 meta=-1 n=2 [A B] A:2 B:2
+G1 string Count#0 left=1 2 type=16 meta=-1 n=2 [A B] A:2 B:2
+G1 string At#1 left=1 A type=16 meta=-1 n=2 [A B] A:3 B:2
+G1 string Erase#0 left=1 1 type=16 meta=-1 n=1 [B] A:1 B:2
+G1 string PopBack#0 left=0 type=16 meta=-1 n=0 [] A:1 B:1
+G1 wrap PushBack#0 left=0 type=79 meta=1 n=1 [A] A:2 B:1 C:1
+G1 wrap Add#0 left=0 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap Count#0 left=1 2 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap At#1 left=1 B type=79 meta=1 n=2 [A B] A:2 B:3 C:1
+G1 wrap At#1 left=1 -1 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap First#1 left=1 A type=79 meta=1 n=2 [A B] A:3 B:2 C:1
+G1 wrap Last#1 left=1 B type=79 meta=1 n=2 [A B] A:2 B:3 C:1
+G1 wrap Insert#0 left=0 type=79 meta=1 n=3 [C A B] A:2 B:2 C:2
+G1 wrap Erase#0 left=1 1 type=79 meta=1 n=2 [A B] A:2 B:2 C:1
+G1 wrap PopBack#0 left=0 type=79 meta=1 n=1 [A] A:2 B:1 C:1
+G1 wrap Alloc#0 left=0 type=79 meta=1 n=2 [A obj] A:2 B:1 C:1
+G1 wrap Free#0 left=0 type=79 meta=1 n=0 [] A:1 B:1 C:1
+G1 iface PushBack#0 left=0 type=79 meta=2 n=2 [A 1] A:2 B:1 C:1
+G1 iface Add#0 left=0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface Count#0 left=1 2 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface At#1 left=2 B 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:3 C:1
+G1 iface At#1 left=2 -1 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:2 C:1
+G1 iface First#1 left=2 A 1 type=79 meta=2 n=4 [A 1 B 0] A:3 B:2 C:1
+G1 iface Last#1 left=2 B 0 type=79 meta=2 n=4 [A 1 B 0] A:2 B:3 C:1
+G1 iface Insert#0 left=0 type=79 meta=2 n=6 [A 1 C 0 B 0] A:2 B:2 C:2
+G1 iface Erase#0 left=1 1 type=79 meta=2 n=4 [C 0 B 0] A:1 B:2 C:2
+G1 iface PopBack#0 left=0 type=79 meta=2 n=2 [C 0] A:1 B:1 C:2
+G1 iface Free#0 left=0 type=79 meta=2 n=0 [] A:1 B:1 C:1
+  G1 operands 1, 2, 0x10002 and 0x10003: 41 steps match the lines recorded before the change
+G1 ok
+G2 operand -1 PushBack left=0 type=14 meta=-1 n=1 [5]
+G2 operand -1 Alloc left=0 type=14 meta=-1 n=2 [5 0]
+G2 operand 0 PushBack left=0 type=14 meta=-1 n=1 [5]
+G2 operand 0 Alloc left=0 type=14 meta=-1 n=2 [5 0]
+G2 v13 PushBack 0x30002 left=1
+G2 v13 Alloc 0x30001 left=0 slots=2
+  G2 operands -1 and 0 and an AIN before version 14 do not read the option bit
+G2 ok
+  G3 0x30003 elements are three slots and none is (-1, -1, 1)
+G3 ok
+  G4 a declaration without an implementation discards the element's slots; 14 hll_param arguments, all last
+G4 ok
+  G5 A_REF of an option array shares its values
+G5 ok
+OPTION-ARRAY PASS: 0 of 17 cases failed, 0 environment error(s)
