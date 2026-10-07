@@ -640,6 +640,142 @@ bool PE_ClearPartsConstructionProcess(int parts_no, int state)
 	return parts_clear_construction_process(cproc);
 }
 
+/*
+ * v14 パネル (component type 14). The native widget rebuilds its surface
+ * when its size or colour changed (0x4dcc10, from the update 0x4dc940). A
+ * width or height that is not positive ends the rebuild at once (0x4dcc69:
+ * the steps and the surface stay as they were). Otherwise the steps of its
+ * inner construction state are cleared (0x568f40), command 0 creates the
+ * surface (0x568fa0 -> 0x5a6980) and command 6 fills all of it with the
+ * colour (0x569200 -> 0x5a6df0), alpha included: a dialogue's dimmer is
+ * (0,0,0,128) and shows the scene behind it.
+ *
+ * What the original does and this does not:
+ *   - the alpha gradation of the four edges, added after the fill (commands
+ *     25 and 26, 0x569600 / 0x569670);
+ *   - the rebuild waits for the next update; here it is done at the call;
+ *   - the widget reports its width and height fields as the size of the
+ *     parts (vtable 0x80eea4 +0x20 = 0x4dce10); here the size is the
+ *     surface's. A parts that was only made a panel (SetComponentType 14)
+ *     has no size, not 200x200, so CPanelParts@PanelWidth::set, which reads
+ *     the height back from the parts, asks for a height of 0 and builds
+ *     nothing; and a size that is not positive leaves the old surface's;
+ *   - the update adds a growth to the size (0x4dc94d), the anchors' by its
+ *     caller (0x53538c); anchors do not resize a parts here. Every panel of
+ *     the game's pactex has none;
+ *   - turning a parts into a panel replaces the whole widget (0x536ff0);
+ *     here the other states, and the normal state while the size is not
+ *     positive, keep what they had;
+ *   - `valid` outlives a change of type: a panel that became something else
+ *     and then a panel again keeps its values, where the original's are the
+ *     constructor's again.
+ *
+ * The values of a parts that has none yet are the constructor's, or, for a
+ * parts that is a panel already, those of its operations. That is a loaded
+ * panel, but also a construction parts that SetComponentType made a panel
+ * before the first panel call (the original's has the constructor's).
+ */
+struct parts_panel *parts_get_panel(struct parts *parts)
+{
+	struct parts_panel *panel = &parts->panel;
+	if (panel->valid)
+		return panel;
+	*panel = (struct parts_panel) { .valid = true, .w = 200, .h = 200, .r = 220, .g = 220, .b = 220, .a = 255 };
+	if (parts->component_type != 14 || parts->states[0].type != PARTS_CONSTRUCTION_PROCESS)
+		return panel;
+	struct parts_cp_op *op = TAILQ_FIRST(&parts->states[0].cproc.ops);
+	if (!op || op->type != PARTS_CP_CREATE)
+		return panel;
+	panel->w = op->create.w;
+	panel->h = op->create.h;
+	op = TAILQ_NEXT(op, entry);
+	if (op && op->type == PARTS_CP_FILL_WITH_ALPHA) {
+		panel->r = op->fill.r;
+		panel->g = op->fill.g;
+		panel->b = op->fill.b;
+		panel->a = op->fill.a;
+	}
+	return panel;
+}
+
+static void panel_rebuild(struct parts *parts)
+{
+	struct parts_panel *panel = &parts->panel;
+	if (panel->w <= 0 || panel->h <= 0)
+		return;
+	struct parts_construction_process *cproc = parts_get_construction_process(parts, 0);
+	parts_clear_construction_process(cproc);
+	PE_AddCreateToPartsConstructionProcess(parts->no, panel->w, panel->h, 1);
+	PE_AddFillWithAlphaToPartsConstructionProcess(parts->no, 0, 0, panel->w, panel->h,
+			panel->r, panel->g, panel->b, panel->a, 1);
+	parts_build_construction_process(parts, cproc);
+}
+
+static bool panel_built(struct parts *parts)
+{
+	return parts->states[0].type == PARTS_CONSTRUCTION_PROCESS && parts->states[0].common.texture.handle;
+}
+
+// The pactex loader's (0x4dc440).
+void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a)
+{
+	parts->panel = (struct parts_panel) { .valid = true, .w = w, .h = h, .r = r, .g = g, .b = b, .a = a };
+	panel_rebuild(parts);
+}
+
+// Native 0x5971a0: nothing for the size it already has.
+void parts_panel_set_size(struct parts *parts, int w, int h)
+{
+	struct parts_panel *panel = parts_get_panel(parts);
+	if (panel->w == w && panel->h == h && panel_built(parts))
+		return;
+	panel->w = w;
+	panel->h = h;
+	panel_rebuild(parts);
+}
+
+// Native 0x5971f0: nothing for the colour it already has.
+void parts_panel_set_color(struct parts *parts, int r, int g, int b, int a)
+{
+	struct parts_panel *panel = parts_get_panel(parts);
+	if (panel->r == r && panel->g == g && panel->b == b && panel->a == a && panel_built(parts))
+		return;
+	panel->r = r;
+	panel->g = g;
+	panel->b = b;
+	panel->a = a;
+	panel_rebuild(parts);
+}
+
+/*
+ * A panel saved before its colour kept the alpha: Create, then the blending
+ * fill (command 4) over all of it, once for each colour SetPanelColor was
+ * given, which drew opaque. Loaded as the panel it was meant to be: one
+ * FillWithAlpha of the last colour. A construction that is not this shape
+ * is left as it was saved.
+ */
+void parts_panel_load_blended(struct parts *parts)
+{
+	if (parts->states[0].type != PARTS_CONSTRUCTION_PROCESS)
+		return;
+	struct parts_construction_process *cproc = &parts->states[0].cproc;
+	struct parts_cp_op *create = TAILQ_FIRST(&cproc->ops);
+	if (!create || create->type != PARTS_CP_CREATE || !TAILQ_NEXT(create, entry))
+		return;
+	struct parts_cp_op *op;
+	for (op = TAILQ_NEXT(create, entry); op; op = TAILQ_NEXT(op, entry)) {
+		if (op->type != PARTS_CP_FILL_ALPHA_COLOR || op->fill.x || op->fill.y
+				|| op->fill.w != create->create.w || op->fill.h != create->create.h)
+			return;
+	}
+	while ((op = TAILQ_NEXT(create, entry)) && TAILQ_NEXT(op, entry)) {
+		TAILQ_REMOVE(&cproc->ops, op, entry);
+		parts_cp_op_free(op);
+	}
+	op->type = PARTS_CP_FILL_WITH_ALPHA;
+	parts_build_construction_process(parts, cproc);
+}
+
 bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state)
 {
 	if (!parts_state_valid(--state))

@@ -466,11 +466,11 @@ static void cp_result(void)
  * replaces RGBA (0x4fc490, as in a pactex 手順リスト): where the place can be
  * clicked the alpha is 1, not 255, and 0 everywhere else.
  *
- * This is not what the GUI has today: PartsEngine.AddPartsConstructionProcess
- * hands the script's command 6 to the blending fill (FillAlphaColor), which
- * with an alpha of 0 or 1 leaves Create's opaque black, so the whole 160x80
- * takes the click there. The case draws the original's surface and pins the
- * pixel decision at an alpha of 1. */
+ * The case draws that surface with the engine's own calls and pins the pixel
+ * decision at an alpha of 1. The script's path (the real factories and
+ * PartsEngine.AddPartsConstructionProcess, which used to hand command 6 to
+ * the blending fill and left Create's opaque black) draws the same surface
+ * since the panel fix; the panel mode's PN3 checks it. */
 static void cp_draw_area(int no)
 {
 	if (no <= 0)

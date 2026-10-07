@@ -1318,12 +1318,10 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			cb = col->items[2].value.i;
 			ca = col->items[3].value.i;
 		}
-		if (pw > 0 && ph > 0) {
-			PE_AddCreateToPartsConstructionProcess(parts_no, pw, ph, 1);
-			PE_AddFillAlphaColorToPartsConstructionProcess(
-				parts_no, 0, 0, pw, ph, cr, cg, cb, ca, 1);
-			PE_BuildPartsConstructionProcess(parts_no, 1);
-		}
+		/* The widget's surface is this colour with its alpha (see
+		 * parts_get_panel): SceneYesNoDialog's Dimmer, (0,0,0,128),
+		 * darkens the scene and does not hide it. */
+		parts_panel_init(parts_get(parts_no), pw, ph, cr, cg, cb, ca);
 		return;
 	}
 

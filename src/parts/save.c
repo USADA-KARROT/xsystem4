@@ -694,6 +694,9 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->pactex_canvas_w = iarray_read(r);
 		parts->pactex_canvas_h = iarray_read(r);
 	}
+	// A v14 panel written before its colour kept the alpha.
+	if (ain->version >= 14 && parts->component_type == 14)
+		parts_panel_load_blended(parts);
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check
 	if (parts_multi_controller) {

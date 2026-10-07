@@ -428,10 +428,6 @@
 	static_library_register(&lib_PartsEngine, "SetHSliderViewSizeLinkNumber", PE_stub_SetHSliderViewSizeLinkNumber);
 	static_library_register(&lib_PartsEngine, "GetHSliderTotalSizeLinkNumber", PE_stub_GetHSliderTotalSizeLinkNumber);
 	static_library_register(&lib_PartsEngine, "GetHSliderViewSizeLinkNumber", PE_stub_GetHSliderViewSizeLinkNumber);
-	static_library_register(&lib_PartsEngine, "GetPanelR", PE_stub_GetPanelR);
-	static_library_register(&lib_PartsEngine, "GetPanelG", PE_stub_GetPanelG);
-	static_library_register(&lib_PartsEngine, "GetPanelB", PE_stub_GetPanelB);
-	static_library_register(&lib_PartsEngine, "GetPanelA", PE_stub_GetPanelA);
 	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationTop", PE_stub_SetPanelAlphaGradationTop);
 	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationBottom", PE_stub_SetPanelAlphaGradationBottom);
 	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationLeft", PE_stub_SetPanelAlphaGradationLeft);

@@ -441,10 +441,6 @@ static void PE_stub_SetHSliderTotalSizeLinkNumber(possibly_unused int number, po
 static void PE_stub_SetHSliderViewSizeLinkNumber(possibly_unused int number, possibly_unused int linkpartsnumber) { }
 static int PE_stub_GetHSliderTotalSizeLinkNumber(possibly_unused int number) { return 0; }
 static int PE_stub_GetHSliderViewSizeLinkNumber(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelR(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelG(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelB(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelA(possibly_unused int number) { return 0; }
 static void PE_stub_SetPanelAlphaGradationTop(possibly_unused int number, possibly_unused int size) { }
 static void PE_stub_SetPanelAlphaGradationBottom(possibly_unused int number, possibly_unused int size) { }
 static void PE_stub_SetPanelAlphaGradationLeft(possibly_unused int number, possibly_unused int size) { }

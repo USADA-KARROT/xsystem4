@@ -1114,6 +1114,68 @@ static struct page *wrap_get_backing_array(int slot)
 	return NULL;
 }
 
+/* The rectangle of the fills (commands 3 to 6): the whole surface with 全體,
+ * which the native HLL stores as ArrayInt[30] != 0 (0x59aab4), and 先矩形
+ * X,Y,W,H otherwise, where a negative size extends the other way (0x5abed0).
+ * The whole surface is a rectangle no surface is larger than; drawing clips
+ * it. The original fails a step whose rectangle is empty (0x5abde0) and skips
+ * the steps after it; here such a fill draws nothing and the rest are run. */
+#define V14_CP_WHOLE 16384
+static void v14_cp_fill_rect(struct page *ints, int *x, int *y, int *w, int *h)
+{
+	if (ints->nr_vars > 30 && ints->values[30].i) {
+		*x = 0;
+		*y = 0;
+		*w = V14_CP_WHOLE;
+		*h = V14_CP_WHOLE;
+		return;
+	}
+	if (*w < 0) {
+		*x += *w;
+		*w = -*w;
+	}
+	if (*h < 0) {
+		*y += *h;
+		*h = -*h;
+	}
+}
+
+/* The font of the text commands (7, 8, 23, 24), as the native HLL reads it
+ * (0x59a92b..0x59a9c9): ArrayInt[22] the type, [23] the size, [24..26] the
+ * colour, [27..29] the edge colour, [20] and [21] the character and line
+ * spacing; ArrayFloat[0] the weight, [1] the edge. */
+static void v14_cp_add_text(int parts_no, bool copy, struct page *ints, int wf_slot,
+		int x, int y, struct string *text, int state)
+{
+#define V14_CP_INT(n, def) (ints->nr_vars > (n) ? ints->values[n].i : (def))
+	struct page *floats = wrap_get_backing_array(wf_slot);
+	float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
+	float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
+	(copy ? PE_AddCopyTextToPartsConstructionProcess : PE_AddDrawTextToPartsConstructionProcess)(
+		parts_no, x, y, text, V14_CP_INT(22, 0), V14_CP_INT(23, 16),
+		V14_CP_INT(24, 0), V14_CP_INT(25, 0), V14_CP_INT(26, 0), bold_weight,
+		V14_CP_INT(27, 0), V14_CP_INT(28, 0), V14_CP_INT(29, 0), edge_weight,
+		V14_CP_INT(20, 0), V14_CP_INT(21, 0), state);
+#undef V14_CP_INT
+}
+
+/* PartsEngine.AddPartsConstructionProcess (case 840 -> 0x59a730) copies
+ * ArrayInt 0..39 into a step whose command is the executor's (0x4fa1d0,
+ * table 0x4fb7d8; each handler's error message names it as
+ * CASConstructionProcess's Set method does). Of the 133 commands the ones
+ * below have an operation here, and several only an approximation: 9, 18,
+ * 25, 26, 30 and 57 fill a rectangle, 10 draws a one-pixel frame whatever
+ * the line width and rounding, 29 takes no size; the filters (15 to 17, 27,
+ * 28) and every other command add nothing.
+ * The two alpha text commands are drawn as 7 is, which is not what they do:
+ *   - 23 blends RGB by the text's alpha and raises the surface's alpha to
+ *     the text's where that is larger (0x494420). The blend here leaves the
+ *     alpha, so on a base of alpha 0, which CBackLogUnit@CreateText and
+ *     CConstructionParts@BuildText fill first, the text is drawn and cannot
+ *     be seen;
+ *   - 24 copies the text's alpha and leaves RGB (0x494270); here it writes
+ *     RGB and leaves the alpha, the opposite channels. No script of the
+ *     game calls it. */
 static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, int wf_slot, int ws_slot, int wp_slot, int state)
 {
 	struct page *ints = wrap_get_backing_array(wi_slot);
@@ -1190,63 +1252,33 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		if (cg_name)
 			PE_AddCreateCGToProcess(parts_no, cg_name, state);
 		break;
-	case V14_CP_FILL: {
-		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
-		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
-		PE_AddFillToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, state);
+	case V14_CP_FILL:
+		v14_cp_fill_rect(ints, &dx, &dy, &dw, &dh);
+		PE_AddFillToPartsConstructionProcess(parts_no, dx, dy, dw, dh, r, g, b, state);
 		break;
-	}
-	case V14_CP_FILL_ALPHA_COLOR: {
-		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
-		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
-		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+	case V14_CP_FILL_ALPHA_COLOR:
+		v14_cp_fill_rect(ints, &dx, &dy, &dw, &dh);
+		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, dw, dh, r, g, b, a, state);
 		break;
-	}
-	case V14_CP_FILL_AMAP: {
-		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
-		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
-		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
+	case V14_CP_FILL_AMAP:
+		v14_cp_fill_rect(ints, &dx, &dy, &dw, &dh);
+		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, dw, dh, a, state);
 		break;
-	}
-	case V14_CP_FILL_WITH_ALPHA: {
-		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
-		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
-		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
+	case V14_CP_FILL_WITH_ALPHA:
+		// 0x4fc490 replaces RGBA (only RGB on a surface without alpha).
+		// CASConstructionProcess::Fill(r, g, b, a) is this command: a
+		// transparent base, as DungeonSelector@BuildAreaParts starts
+		// its Area with (255, 128, 0, 0).
+		v14_cp_fill_rect(ints, &dx, &dy, &dw, &dh);
+		PE_AddFillWithAlphaToPartsConstructionProcess(parts_no, dx, dy, dw, dh, r, g, b, a, state);
 		break;
-	}
 	case V14_CP_DRAW_TEXT:
-		if (text) {
-			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
-			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
-			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
-			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
-			struct page *floats = wrap_get_backing_array(wf_slot);
-			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
-			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
-			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
-			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
-			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
-			PE_AddDrawTextToPartsConstructionProcess(parts_no, dx, dy, text,
-				font_type, font_size, r, g, b, bold_weight,
-				r2, g2, b2, edge_weight, char_space, line_space, state);
-		}
+		if (text)
+			v14_cp_add_text(parts_no, false, ints, wf_slot, dx, dy, text, state);
 		break;
 	case V14_CP_COPY_TEXT:
-		if (text) {
-			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
-			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
-			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
-			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
-			struct page *floats = wrap_get_backing_array(wf_slot);
-			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
-			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
-			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
-			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
-			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
-			PE_AddCopyTextToPartsConstructionProcess(parts_no, dx, dy, text,
-				font_type, font_size, r, g, b, bold_weight,
-				r2, g2, b2, edge_weight, char_space, line_space, state);
-		}
+		if (text)
+			v14_cp_add_text(parts_no, true, ints, wf_slot, dx, dy, text, state);
 		break;
 	case V14_CP_FILL_GRADATION_HORIZON: {
 		/* Gradient fill: use RGBA + RGBA2 for start/end colors, approximate with fill */
@@ -1303,22 +1335,10 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	}
 	case V14_CP_ALPHA_BLEND_TEXT:
 	case V14_CP_ONLY_ALPHA_TEXT:
-		/* Text with alpha blending — use DrawText as approximation */
-		if (text) {
-			int font_type = ints->nr_vars > 22 ? ints->values[22].i : 0;
-			int font_size = ints->nr_vars > 30 ? ints->values[30].i : 16;
-			int char_space = ints->nr_vars > 20 ? ints->values[20].i : 0;
-			int line_space = ints->nr_vars > 21 ? ints->values[21].i : 0;
-			struct page *floats = wrap_get_backing_array(wf_slot);
-			float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
-			float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
-			int r2 = ints->nr_vars > 16 ? ints->values[16].i : 0;
-			int g2 = ints->nr_vars > 17 ? ints->values[17].i : 0;
-			int b2 = ints->nr_vars > 18 ? ints->values[18].i : 0;
-			PE_AddDrawTextToPartsConstructionProcess(parts_no, dx, dy, text,
-				font_type, font_size, r, g, b, bold_weight,
-				r2, g2, b2, edge_weight, char_space, line_space, state);
-		}
+		/* Drawn as command 7, which neither is (see above): 23 loses
+		 * the alpha it should write, 24 writes the wrong channels. */
+		if (text)
+			v14_cp_add_text(parts_no, false, ints, wf_slot, dx, dy, text, state);
 		break;
 	case V14_CP_MUL_AMAP_GRADATION_HORIZON:
 	case V14_CP_MUL_AMAP_GRADATION_VERTICAL: {
@@ -1677,27 +1697,67 @@ static struct string *PE_v14_GetUserComponentData(int number, struct string *key
 	return value ? make_string(value, strlen(value)) : string_ref(&EMPTY_STRING);
 }
 
-/* --- Panel support (fork implementation) --- */
-static void PE_v14_SetPanelSize(int parts_no, int w, int h)
+/* v14 パネル (component type 14). Every panel function takes the widget of
+ * an existing parts (0x53e290), turning a parts of another type into a panel
+ * with the constructor's values (0x536ff0), and does nothing for an unknown
+ * number. The surface is rebuilt in parts/construction.c. */
+static struct parts *pe_v14_panel(int number)
 {
-	PE_ClearPartsConstructionProcess(parts_no, 1);
-	PE_AddCreateToPartsConstructionProcess(parts_no, w, h, 1);
-	PE_BuildPartsConstructionProcess(parts_no, 1);
+	struct parts *p = parts_try_get(number);
+	if (!p)
+		return NULL;
+	// Before the type changes: a parts that is no panel and never had
+	// panel values gets the constructor's, not those of the operations
+	// it has. One the script gave type 14 first is taken for a loaded
+	// panel (see parts_get_panel).
+	parts_get_panel(p);
+	if (p->component_type != 14)
+		PE_SetComponentType(number, 14, 1);
+	return p;
 }
 
+/* SetPanelSize (case 633 -> 0x5971a0). */
+static void PE_v14_SetPanelSize(int parts_no, int w, int h)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	if (p)
+		parts_panel_set_size(p, w, h);
+}
+
+/* SetPanelColor (case 634 -> 0x5971f0): the colour replaces the surface,
+ * alpha included. */
 static void PE_v14_SetPanelColor(int parts_no, int r, int g, int b, int a)
 {
-	struct parts *p = parts_try_get(parts_no);
-	if (!p)
-		return;
-	struct parts_construction_process *cproc =
-		parts_get_construction_process(p, 0); /* state 0 = internal index for state 1 */
-	int w = cproc->common.w;
-	int h = cproc->common.h;
-	if (w <= 0 || h <= 0)
-		return;
-	PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, 0, 0, w, h, r, g, b, a, 1);
-	PE_BuildPartsConstructionProcess(parts_no, 1);
+	struct parts *p = pe_v14_panel(parts_no);
+	if (p)
+		parts_panel_set_color(p, r, g, b, a);
+}
+
+/* GetPanelR, G, B, A (cases 635..638 -> 0x597260..): the values as they were
+ * set, 0 without a parts. CPanelParts@ColorA::set reads the other three
+ * back to change one. */
+static int PE_v14_GetPanelR(int parts_no)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	return p ? parts_get_panel(p)->r : 0;
+}
+
+static int PE_v14_GetPanelG(int parts_no)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	return p ? parts_get_panel(p)->g : 0;
+}
+
+static int PE_v14_GetPanelB(int parts_no)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	return p ? parts_get_panel(p)->b : 0;
+}
+
+static int PE_v14_GetPanelA(int parts_no)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	return p ? parts_get_panel(p)->a : 0;
 }
 
 /* Flat message-window animations are not implemented. Text and background
@@ -1740,6 +1800,10 @@ static void pe_v14_register_batch(int libno)
 	static_library_register(lib, "AddPartsConstructionProcess", PartsEngine_AddPartsConstructionProcess);
 	static_library_register(lib, "SetPanelSize", PE_v14_SetPanelSize);
 	static_library_register(lib, "SetPanelColor", PE_v14_SetPanelColor);
+	static_library_register(lib, "GetPanelR", PE_v14_GetPanelR);
+	static_library_register(lib, "GetPanelG", PE_v14_GetPanelG);
+	static_library_register(lib, "GetPanelB", PE_v14_GetPanelB);
+	static_library_register(lib, "GetPanelA", PE_v14_GetPanelA);
 	static_library_register(lib, "NumofChild", PE_v14_NumofChild);
 	static_library_register(lib, "GetChild", PE_v14_GetChild);
 	static_library_register(lib, "GetChildIndex", PE_v14_GetChildIndex);

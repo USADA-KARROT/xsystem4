@@ -284,6 +284,17 @@ struct parts_construction_process {
 	TAILQ_HEAD(, parts_cp_op) ops;
 };
 
+// v14 パネル (component type 14): the size and colour its surface is built
+// from, as the native widget keeps them (+0xa8/+0xac, +0xb0..+0xbc; 200x200
+// and (220,220,220,255) from its constructor 0x4dc6f0). The surface is the
+// normal state's construction: Create, then FillWithAlpha over all of it.
+// Not saved: after a load the values are taken from those two operations.
+struct parts_panel {
+	bool valid;
+	int w, h;
+	int r, g, b, a;
+};
+
 enum parts_flash_blend_mode {
 	PARTS_FLASH_BLEND_NORMAL0    = 0,
 	PARTS_FLASH_BLEND_NORMAL1    = 1,
@@ -514,6 +525,7 @@ struct parts {
 	// original builds it while loading, so a layout box sizes the parts by
 	// it; only used while the state has no size of its own (layoutbox.c).
 	int pactex_canvas_w, pactex_canvas_h;
+	struct parts_panel panel;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -665,6 +677,11 @@ void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_o
 bool parts_build_construction_process(struct parts *parts,
 		struct parts_construction_process *cproc);
 bool parts_clear_construction_process(struct parts_construction_process *cproc);
+struct parts_panel *parts_get_panel(struct parts *parts);
+void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a);
+void parts_panel_set_size(struct parts *parts, int w, int h);
+void parts_panel_set_color(struct parts *parts, int r, int g, int b, int a);
+void parts_panel_load_blended(struct parts *parts);
 
 // flash.c
 void parts_flash_free(struct parts_flash *f);
