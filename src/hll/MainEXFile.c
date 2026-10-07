@@ -629,90 +629,171 @@ static bool MainEXFile_GetEXName(struct string *tree_path, int index, int *name_
 }
 
 /*
+ * The "wrap<array<string>>" argument of the three list functions is the
+ * caller's array itself: native 0x65a620 -> 0x67aba0 takes the argument as
+ * a heap slot, requires a page of type 3 (an array) and hands the callee
+ * that page's IVMArray, or NULL. EX_GetNodeNameList and EX_GetEXNameList
+ * pass their "ref array<string>" after Array.Free, EX_GetFormatNameList a
+ * local that X_A_INIT 0 just made; none of them boxes it.
+ *
+ * Returns false when the slot is not a one-dimensional string array. A slot
+ * without a page is an array variable that was never initialized. An empty
+ * page without an element type is taken as a string array: the declaration
+ * says it is one, and the original array always knows its element type.
+ */
+static bool ex_list_array(int slot, struct page **array)
+{
+	if (slot <= 0 || !heap_index_valid(slot) || heap[slot].type != VM_PAGE)
+		return false;
+	struct page *page = heap[slot].page;
+	*array = page;
+	if (!page)
+		return true;
+	if (page->type != ARRAY_PAGE || page->array.rank > 1)
+		return false;
+	if (page->a_type == AIN_ARRAY_STRING || page->a_type == AIN_REF_ARRAY_STRING)
+		return true;
+	return (page->a_type == AIN_ARRAY || page->a_type == AIN_REF_ARRAY) && page->nr_vars == 0;
+}
+
+/*
+ * Stores count names in the array at slot (old is its page, from
+ * ex_list_array).
+ *
+ * keep: the names are appended. Native GetNodeNameList / GetEXNameList
+ * (CEXReader 0x488550 / 0x4886e0) take the array's size (IVMArray vt+0xc,
+ * 0x67ee60), Realloc to size + count (vt+0x50, 0x67f4d0) and store name i
+ * at size + i; with no names the array is left as it is. Otherwise the
+ * names replace the elements: GetFormatNameList (0x4b0fd0) calls Alloc
+ * (vt+0x4c, 0x67f4a0), which clears the array first.
+ *
+ * Each name gets a string slot of its own (vt+0x3c, 0x67f1e0, assigns a
+ * copy of the text to the element's string; here the string object is
+ * shared with the EX data, as MainEXFile.String does). As in Array.c the
+ * new page is in place before the old elements are released.
+ */
+static void ex_list_store(int slot, struct page *old, struct string **names, int count, bool keep)
+{
+	if (keep && count == 0)
+		return;
+	int kept = keep && old ? old->nr_vars : 0;
+	bool typed = old && (old->a_type == AIN_ARRAY_STRING || old->a_type == AIN_REF_ARRAY_STRING);
+	// The new strings are unreachable until the page is installed.
+	heap_gc_inhibit();
+	struct page *page = alloc_page(ARRAY_PAGE, typed ? old->a_type : AIN_ARRAY_STRING, kept + count);
+	page->array.struct_type = typed ? old->array.struct_type : -1;
+	page->array.rank = 1;
+	for (int i = 0; i < kept; i++)
+		page->values[i] = old->values[i];
+	for (int i = 0; i < count; i++) {
+		struct string *name = names[i] ? names[i] : &EMPTY_STRING;
+		page->values[kept + i].i = heap_alloc_string(string_ref(name));
+	}
+	heap_set_page(slot, page);
+	heap_gc_allow();
+	if (old) {
+		if (!keep)
+			delete_page_vars(old);
+		free_page(old);
+	}
+}
+
+/*
+ * Appends the names of tree's children to the array: the nodes (native
+ * 0x48dd40, the children without a value) or the EX values (0x48dde0, the
+ * children with one), in their stored order.
+ */
+static void ex_list_children(int slot, struct page *old, struct ex_tree *tree, bool leaves)
+{
+	if (!tree->nr_children || !tree->children)
+		return;
+	struct string **names = xcalloc(tree->nr_children, sizeof(struct string *));
+	int count = 0;
+	for (unsigned i = 0; i < tree->nr_children; i++) {
+		struct ex_tree *child = &tree->children[i];
+		if (child->is_leaf == leaves)
+			names[count++] = leaves ? child->leaf.name : child->name;
+	}
+	ex_list_store(slot, old, names, count, true);
+	free(names);
+}
+
+/*
  * [31] bool GetNodeNameList(string TreePath, wrap NodeNameList, int ID)
  *
- * wrap<array<string>> — write an array page of strings to the wrap value
+ * Native 0x4ae75b -> 0x4b0ef0 -> CEXReader vt+0xc (0x488550): false when
+ * the array is NULL or the path is not found (0x487990: its first part must
+ * name a tree); otherwise the node names are appended and the result is
+ * true, also when there are none.
+ *
+ * Not as the original: the empty path lists the top-level trees there
+ * (0x487d70) and is false here; a path that ends at a leaf is false here
+ * (not read natively); ID selects a reader there (0x442fc0, false when it
+ * is not registered) and is ignored here.
+ *
+ * Downstream: the battle's motion frames are found through this list
+ * (FrameInfoCollection@InnerLoad), but a frame still loads only its first 9
+ * sub-parameters. The array literal of FrameInfo@GetParams (19 two-slot
+ * elements) is cut to 19 slots by X_A_INIT's stride (vm.c), so CG layers and
+ * effects are not loaded until that is fixed, and each frame leaves the
+ * references of the elements that were cut.
  */
 static bool MainEXFile_GetNodeNameList(struct string *tree_path, int list_slot, int id)
 {
+	struct page *old;
+	if (!ex_list_array(list_slot, &old))
+		return false;
 	struct ex_tree *tree = resolve_tree(tree_path);
-	if (!tree || tree->nr_children == 0) return false;
-	if (!tree->children) return false;
-
-	int count = 0;
-	for (unsigned i = 0; i < tree->nr_children; i++) {
-		if (!tree->children[i].is_leaf)
-			count++;
-	}
-	if (count == 0) return false;
-
-	union vm_value dim = { .i = count };
-	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
-	if (!array) return false;
-	int idx = 0;
-	for (unsigned i = 0; i < tree->nr_children && idx < count; i++) {
-		struct ex_tree *child = &tree->children[i];
-		if (!child->is_leaf) {
-			struct string *child_name = child->name;
-			if (!child_name) child_name = &EMPTY_STRING;
-			array->values[idx].i = heap_alloc_string(string_ref(child_name));
-			idx++;
-		}
-	}
-
-	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
+	if (!tree)
+		return false;
+	ex_list_children(list_slot, old, tree, false);
 	return true;
 }
 
 /*
  * [32] bool GetEXNameList(string TreePath, wrap EXNameList, int ID)
+ *
+ * Native 0x4ae7b4 -> 0x4b0f60 -> CEXReader vt+0x10 (0x4886e0): as
+ * GetNodeNameList, for the children that hold a value.
  */
 static bool MainEXFile_GetEXNameList(struct string *tree_path, int list_slot, int id)
 {
+	struct page *old;
+	if (!ex_list_array(list_slot, &old))
+		return false;
 	struct ex_tree *tree = resolve_tree(tree_path);
-	if (!tree) return false;
-
-	int count = 0;
-	for (unsigned i = 0; i < tree->nr_children; i++) {
-		if (tree->children[i].is_leaf)
-			count++;
-	}
-
-	union vm_value dim = { .i = count };
-	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
-	int idx = 0;
-	for (unsigned i = 0; i < tree->nr_children; i++) {
-		if (tree->children[i].is_leaf) {
-			struct string *leaf_name = tree->children[i].leaf.name;
-			if (!leaf_name) leaf_name = &EMPTY_STRING;
-			array->values[idx].i = heap_alloc_string(string_ref(leaf_name));
-			idx++;
-		}
-	}
-
-	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
+	if (!tree)
+		return false;
+	ex_list_children(list_slot, old, tree, true);
 	return true;
 }
 
 /*
  * [33] bool GetFormatNameList(string Name, wrap FormatNameList, int ID)
  *
- * Returns column/field names for a table
+ * Returns column/field names for a table. Native 0x4ae7e8 -> 0x4b0fd0:
+ * false when the name is not a table (EX vt+0x28); otherwise the array is
+ * reallocated to the field count (Alloc) and name i is stored at i.
+ *
+ * Not as the original: 0x4b0fd0 does not test the array pointer (false
+ * here when the argument is not an array), and a list whose first item is
+ * a table answers with that table's fields here.
  */
 static bool MainEXFile_GetFormatNameList(struct string *name, int list_slot, int id)
 {
+	struct page *old;
+	if (!ex_list_array(list_slot, &old))
+		return false;
 	struct ex_table *t = resolve_table(name);
 	if (!t) t = list_item_table(resolve_list(name), 0);
 	if (!t)
 		return false;
 
-	union vm_value dim = { .i = t->nr_fields };
-	struct page *array = alloc_array(1, &dim, AIN_ARRAY_STRING, 0, false);
-	for (unsigned i = 0; i < t->nr_fields; i++) {
-		array->values[i].i = heap_alloc_string(string_ref(t->fields[i].name));
-	}
-
-	wrap_set_slot(list_slot, 0, heap_alloc_page(array));
+	struct string **names = xcalloc(t->nr_fields ? t->nr_fields : 1, sizeof(struct string *));
+	for (unsigned i = 0; i < t->nr_fields; i++)
+		names[i] = t->fields[i].name;
+	ex_list_store(list_slot, old, names, t->nr_fields, false);
+	free(names);
 	return true;
 }
 

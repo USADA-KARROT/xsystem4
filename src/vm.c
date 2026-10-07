@@ -1249,6 +1249,10 @@ static int _function_call(int fno, int return_address)
 	return slot;
 }
 
+// Upper bound on the slots of a function result. The largest is three: an
+// option of an interface wrap, [object, vtable offset, flag].
+#define RETURN_SLOTS_MAX 4
+
 static int ain_return_slots_type(struct ain_type *type)
 {
 	if (ain->version < 14) {
@@ -1260,8 +1264,25 @@ static int ain_return_slots_type(struct ain_type *type)
 	// v14 2-slot types (return):
 	case AIN_IFACE:      // [struct_page, vtable_offset]
 	case AIN_IFACE_WRAP: // "2-value representation" per ain.h comment
-	case AIN_OPTION:     // [value, discriminant] — v14 tagged union
 		return 2;
+	// An option returns the slots of its payload and then the flag:
+	// [value, flag], or [object, vtable offset, flag] when the payload is
+	// an interface wrap (native 0x653420, which ss_type_slot_count
+	// follows). The 13 functions of the second kind push three slots
+	// before RETURN (PlayerAction@InnerAction::get, AchievementCollection
+	// @Create) and their callers take three (X_ASSIGN 3). Native RETURN
+	// (0x66cb20) does not look at the result at all; this count only
+	// serves the balance check in function_return and the default results
+	// of a call that cannot be made.
+	// Not as the original: ss_type_slot_count strips type 87 as an option
+	// layer too, where 0x653452 strips only type 86 (an option of an 87 is
+	// three slots natively and two here); no function of this AIN returns
+	// one. And the default result of a call that cannot be made has 0 in
+	// its last slot, the flag, which a caller reads as "has a value" (none
+	// is 1). The two-slot options were answered that way before; neither
+	// is changed here.
+	case AIN_OPTION:
+		return ss_type_slot_count(type);
 	// AIN_REF_TYPE as RETURN type = 1-slot (heap reference/struct page).
 	// As a PARAMETER, REF_TYPE is 2-slot (page+slot), but return values
 	// only carry the object reference, not a variable binding.
@@ -1801,8 +1822,8 @@ static void delegate_call(int dg_no, int return_address)
 			}
 		}
 	} else {
-		// Save return value(s) — may be 2 slots for v14 2-slot types
-		union vm_value r[2] = {{0}, {0}};
+		// Save return value(s) — 2 or 3 slots for v14 multi-slot types
+		union vm_value r[RETURN_SLOTS_MAX] = {{0}};
 		for (int i = return_values - 1; i >= 0; i--)
 			r[i] = stack_pop();
 		stack_pop(); // dg_index
@@ -2099,11 +2120,11 @@ static void function_return(void)
 	if (is_dg && delta != expected_return && delta >= 0) {
 		if (delta > expected_return) {
 			// Too many values: keep only the return value(s) at the top
-			union vm_value retvals[2] = {{0}, {0}};
-			for (int i = 0; i < expected_return && i < 2; i++)
+			union vm_value retvals[RETURN_SLOTS_MAX] = {{0}};
+			for (int i = 0; i < expected_return && i < RETURN_SLOTS_MAX; i++)
 				retvals[i] = stack[stack_ptr - expected_return + i];
 			stack_ptr = base_sp + expected_return;
-			for (int i = 0; i < expected_return && i < 2; i++)
+			for (int i = 0; i < expected_return && i < RETURN_SLOTS_MAX; i++)
 				stack[base_sp + i] = retvals[i];
 		} else {
 			// Too few values: push defaults
@@ -2121,11 +2142,11 @@ static void function_return(void)
 
 	if (!is_dg && !skip_enforce && delta > expected_return) {
 		// Too many values: save return value(s) and pop extras.
-		union vm_value retvals[2] = {{0}, {0}};
-		for (int i = 0; i < expected_return && i < 2; i++)
+		union vm_value retvals[RETURN_SLOTS_MAX] = {{0}};
+		for (int i = 0; i < expected_return && i < RETURN_SLOTS_MAX; i++)
 			retvals[i] = stack[stack_ptr - expected_return + i];
 		stack_ptr = base_sp + expected_return;
-		for (int i = 0; i < expected_return && i < 2; i++)
+		for (int i = 0; i < expected_return && i < RETURN_SLOTS_MAX; i++)
 			stack[base_sp + i] = retvals[i];
 	} else if (!is_dg && !skip_enforce && delta < expected_return) {
 		// Too few values: push default return values to fill the gap.
@@ -5249,6 +5270,14 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		// generic representation unchanged here: correcting its stride and
 		// defaults also requires typed companion-slot teardown. Those shapes
 		// are outside this change (the old immediate-based fallback remains).
+		// Known consequence: a literal of multi-slot elements is cut by the
+		// X_ASSIGN that fills it. FrameInfo@GetParams makes 19 two-slot
+		// elements (size 19, then X_ASSIGN 38) and gets 19 slots, so
+		// FrameInfo@LoadSubParams loads only the first 9 sub-parameters of a
+		// battle frame (BgLighting to EnemyPosition); the other 10, among
+		// them CgLayers and Effects, read past the page and are skipped. The
+		// 9 objects behind the cut keep the reference the literal took
+		// (SP_INC), once per frame.
 		int elem_slots = arg + 1;
 		// Allocate array slot and page
 		int slot = heap_alloc_slot(VM_PAGE);

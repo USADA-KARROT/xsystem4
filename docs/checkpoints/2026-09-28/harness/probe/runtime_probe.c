@@ -126,6 +126,8 @@ static void init_probe(const char *path) {
 #include "click_permission_fixture.inc"
 #include "panel_fixture.inc"
 #include "option_array_fixture.inc"
+#include "ex_name_list_fixture.inc"
+#include "option_return_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -183,6 +185,8 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"click-permission"))return test_click_permission();
     if(!strcmp(argv[2],"panel"))return test_panel();
     if(!strcmp(argv[2],"option-array"))return test_option_array();
+    if(!strcmp(argv[2],"ex-name-list"))return test_ex_name_list();
+    if(!strcmp(argv[2],"option-return"))return test_option_return();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

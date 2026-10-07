@@ -319,9 +319,8 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
  * (wrap<int>) is two slots natively and one here, and 0x30001
  * (option<wrap<int>>) three natively (0x659774: a wrapped low word 1 has a
  * second slot) and two here.
- * This covers arguments and the array layout only: a function returning a
- * three-slot option is still cut to two slots by ain_return_slots_type
- * (vm.c).
+ * This covers arguments and the array layout; the slots of a function's
+ * result are ain_return_slots_type's (vm.c).
  */
 bool hll_generic_is_option(int hll_arg3)
 {

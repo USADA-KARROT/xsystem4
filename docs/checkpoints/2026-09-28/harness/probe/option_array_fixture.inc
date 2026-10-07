@@ -61,7 +61,7 @@
  *   G3   0x30003 (option<wrap<iwrap<T>>>, ShopButtonCollection@0): three
  *        slots, none is (-1, -1, 1), for Alloc, X_OP_SET 65539, PushBack,
  *        Insert, At, Erase and Realloc. Only the page layout is covered
- *        here; functions that return such an option still lose a slot.
+ *        here; functions that return such an option are option-return's.
  *   G4   A declaration without an implementation discards the same slots,
  *        and no declaration has an argument after an hll_param.
  *   G5   A_REF of an option array (what MatchingInfo's constructor does)
