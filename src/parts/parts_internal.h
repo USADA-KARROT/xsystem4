@@ -455,6 +455,11 @@ struct parts {
 	int delegate_index;
 	int sprite_deform;
 	bool clickable;
+	// v14: clickable only because its pactex says 點擊許可 1. The loader sets
+	// it after PE_SetClickable, which clears it: the script, a button or a
+	// ＣＧ判定部件 then owns the flag. Without an event such a parts leaves a
+	// press as the whole-screen click (v14_click_unclaimed). Not saved.
+	bool click_permission_only;
 	bool pass_cursor;
 	bool pixel_hittest;
 	bool lock_input_state;

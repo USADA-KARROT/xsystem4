@@ -176,8 +176,9 @@ static bool parts_takes_input(struct parts *parts)
  * v14: the one parts under the cursor that takes the mouse, for the hover
  * and the click alike. The original's input update (0x546890) finds it with
  * 0x545e10 and the predicate 0x546e20 and keeps it both as the hovered
- * element (on a change the old one and the new one get the events 0x80f5a4
- * and 0x80f580, presumably MouseLeave and MouseEnter) and as the pressed
+ * element (on a change the old one gets LostFocus and the new one Focus,
+ * the events 0x80f5a4 and 0x80f580 of message types 20 and 19; they are
+ * not MouseLeave and MouseEnter) and as the pressed
  * one: walking the list from its end (presumably front to back), the first
  * parts that is clickable (+0x1a4) or does not pass the cursor (+0x1a5,
  * オン指針透過 0), is shown and not fully transparent (+0x2f0 and +0x2ec,
@@ -204,6 +205,36 @@ static struct parts *v14_input_target(Point pos)
 			return parts;
 	}
 	return NULL;
+}
+
+/*
+ * v14: a clickable target without any event, so that the
+ * press stays the whole-screen click (see the dispatch in
+ * PE_UpdateInputState): clickable through the pactex 點擊許可 alone, and
+ * without an event. The script's first XxxEvent::add for a parts allocates
+ * its index (CPartsMessageManager@GetFunctionSet, the only caller of
+ * SetEventID); getting the parts or setting its properties does not, so
+ * delegate_index stays -1 for ClickGuard, InputGuard and PartySkillView's
+ * Button, which the script never gives an event. In the original such a
+ * parts gets its MouseClick, which the AIN drops (CallDelegate), and the
+ * whole-screen click is sent as for every release (0x548064).
+ *
+ * Only the pactex mark is treated this way. A parts made clickable by the
+ * script, a button or a ＣＧ判定部件 keeps taking the click as before, with
+ * or without an event: whether a flow relies on that was not established.
+ * A disabled button swallows the click whatever made it clickable. The mark
+ * is not saved, so after PE_Load such a parts takes the click again until
+ * its activity is loaded anew.
+ *
+ * A parts with an event of another kind is not covered: the engine cannot
+ * see which delegates its function set holds. BattleActionPanel's DragRange
+ * has drag events and no click handler, so a press on it is neither handled
+ * nor the whole-screen click (no scene there closes on one).
+ */
+static bool v14_click_unclaimed(struct parts *parts)
+{
+	return parts->click_permission_only && parts->delegate_index < 0
+		&& !parts->button_disabled;
 }
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
@@ -405,8 +436,27 @@ void PE_UpdateInputState(int passed_time)
 	// The target is the hover's (v14_input_target). A clickable one gets the
 	// MouseClick; one that only blocks the cursor (a CG image, a panel,
 	// オン指針透過 0) keeps the click from the parts behind it and the click
-	// becomes the whole-screen click (presumed: what the original sends for
-	// a pressed element that is not clickable was not traced). System parts
+	// becomes the whole-screen click.
+	//
+	// The original sends more than this. On every release of the left
+	// button, whatever is under the cursor, 0x547c90 sends a MouseClick
+	// (x, y, 1) through the manager's own emitter (0x548064: its source is
+	// null, so the message's parts number is 0, and its mask, 0x54562a,
+	// does not include type 4): the whole-screen click. Separately the
+	// target element gets its own MouseClick, only when it is clickable
+	// (0x5788d0; one that is not gets KeyUp alone, 0x578917). So "a blocker
+	// makes it the whole-screen click" is what the original does, while "a
+	// clickable target gets no whole-screen click" is this port's model, as
+	// are sending on the press and setting g_EndPartsBusyLoop (in the
+	// original only the script writes it: WaitForClick clears it and
+	// EndWaitForClick sets it). Sending both
+	// messages is left for the input model.
+	//
+	// One case of that difference is closed here: a clickable target that
+	// has no event and is clickable only through its pactex 點擊許可
+	// (v14_click_unclaimed) is handled as a blocker. It would otherwise
+	// swallow the click of a scene that closes on the whole-screen click
+	// (SceneFeelEventResultDialog over PartySkillView's Button). System parts
 	// (1000001000 and up) are not skipped: InputDisabler's and the dialogs'
 	// full-screen blockers are clickable rects that must stop a click
 	// reaching the buttons behind them. (They used to be skipped because a
@@ -429,7 +479,7 @@ void PE_UpdateInputState(int passed_time)
 					parts->global.scale.x, parts->global.scale.y, parts->parent ? parts->parent->no : 0);
 			}
 		}
-		if (v14_target && v14_target->clickable)
+		if (v14_target && v14_target->clickable && !v14_click_unclaimed(v14_target))
 			click_target = v14_target;
 		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
 		if (getenv("XSYS4_STAGE2_TRACE"))
@@ -477,7 +527,10 @@ bool PE_GetPartsPassCursor(int parts_no)
 
 void PE_SetClickable(int parts_no, bool clickable)
 {
-	parts_get(parts_no)->clickable = !!clickable;
+	struct parts *parts = parts_get(parts_no);
+	parts->clickable = !!clickable;
+	// The caller owns the flag from here on (see click_permission_only).
+	parts->click_permission_only = false;
 }
 
 bool PE_GetPartsClickable(int parts_no)

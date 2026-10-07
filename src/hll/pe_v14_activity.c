@@ -249,6 +249,42 @@ static void pactex_apply_pass_cursor(struct ex_tree *node, int parts_no)
 	PE_SetPassCursor(parts_no, pactex_get_int(node, GBK_CN_PASS_CURSOR, 0) == 1);
 }
 
+/* 點擊許可 (click permission), the field the same parser reads just before
+ * オン指針透過: 0x5547be gets it with the default 0 and stores "== 1" at block
+ * +0x120 (0x5547e9), i.e. parts +0x1a4, the flag Parts_SetClickable
+ * (0x58f830) writes and both the input target predicate (0x546e20) and the
+ * release handler (0x5788d0: only a clickable element gets the MouseClick)
+ * read. Every component of the game has the key and 38 are 1. The 29 of
+ * them that are neither buttons nor ＣＧ判定部件 (the ClickTarget, ClickGuard
+ * and InputGuard rects, DungeonSelector's Area, the CG mode's side panels)
+ * never got a click: the script registers its events on them, or nothing
+ * for the guards, and relies on this flag.
+ *
+ * The native store is unconditional and the field starts as 0 (0x550a2f).
+ * Here only a 1 is applied. A parts the loader has just allocated is not
+ * clickable either, so the result is the same (numbers are not reused
+ * within a process; after loading a save made by another process the loader
+ * can be handed a restored parts, which is not handled here). And this flag
+ * also stands in for the inner parts of a button widget, which the widget
+ * makes clickable itself (0x528690) whatever its component says (190 of the
+ * 192 buttons are 0). Only the CN spelling is known, not the key's SJIS
+ * name.
+ *
+ * click_permission_only marks the parts as clickable through this key
+ * alone; the button and ＣＧ判定部件 code further down clears it again
+ * (PE_SetClickable). Until the script registers an event for a marked
+ * parts, a press on it stays the whole-screen click (v14_click_unclaimed in
+ * parts/input.c). */
+static const char GBK_CN_CLICK_PERMISSION[] = "\xfc\x63\x93\xf4\xd4\x53\xbf\xc9"; /* 點擊許可 */
+
+static void pactex_apply_click_permission(struct ex_tree *node, int parts_no)
+{
+	if (pactex_get_int(node, GBK_CN_CLICK_PERMISSION, 0) == 1) {
+		PE_SetClickable(parts_no, true);
+		parts_get(parts_no)->click_permission_only = true;
+	}
+}
+
 /* Extract a list leaf property by exact name match. Returns NULL if not found. */
 static struct ex_list *pactex_get_list(struct ex_tree *node, const char *name)
 {
@@ -1106,6 +1142,7 @@ static void pactex_resolve_clippers(struct activity *act)
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
 	pactex_apply_pixel_decide(node, parts_no);
+	pactex_apply_click_permission(node, parts_no);
 	pactex_apply_pass_cursor(node, parts_no);
 
 	/* ClipArea is stored even when disabled. The pactex loader writes the
