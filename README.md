@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-07）：`b05ff2d` 讓 v14 的自由排版盒依原點模式位移子元件、user component 把原點模式傳給內容（原版 `0x5499e0`、`0x4e57d0`）：庫房右上角的資訊面板不再落在畫面外，位置與原版截圖相同。同日稍早的兩組：`7e0b781` 讓構築部件在載入時建構（春銷計數標籤與量表的灰底），`8a1dcdc` 讓版面盒照原版排版。預設／GBK 各65模式 PASS、sanitizer0；新探針修前11/12失敗、修後12/12通過。正常GUI150.394秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/free-box.md) · [灰底](docs/checkpoints/2026-09-28/research/gui-visual/construction.md) · [排版](docs/checkpoints/2026-09-28/research/gui-visual/layout-box.md)。這次受影響的 30 個 user component 與春銷結算的客人檢視，只有庫房實測過。未修：其餘 67 個構築狀態（背景模糊、配對頁的「Ready」、對手卡的性格標記等）、計數標籤比原版高 2–3px（文字行高）。完整春銷、一般讀檔system.Reset與長時間穩定性尚未完成，仍非穩定可玩版。
+> **最新狀態（2026-10-07）：`6687656` 讓 v14 的文字與字型式數字依原版排版（glyph 的格是字級加兩倍的邊、字形在格內下移一個邊、行高取偶數、寬只算字與字之間的字間隔；原版 `0x69c290`、`0x5bce00`、`0x5bee50`、`0x5b4df0`）：春銷計數標籤、系統選單項目、對話名牌不再比原版高 2–4px，靠右的名稱不再偏右。同日稍早的三組：`b05ff2d` 自由盒依原點位移（庫房面板）、`7e0b781` 構築部件載入時建構（灰底）、`8a1dcdc` 版面盒排版。預設／GBK 各66模式 PASS、sanitizer0；新探針修前7/12失敗、修後12/12通過。正常GUI150.242秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/gui-visual/text-size.md) · [自由盒](docs/checkpoints/2026-09-28/research/gui-visual/free-box.md) · [灰底](docs/checkpoints/2026-09-28/research/gui-visual/construction.md) · [排版](docs/checkpoints/2026-09-28/research/gui-visual/layout-box.md)。**還不能當成遊戲來玩**：實機走到的最遠處是春銷的配對頁，結算、地城與戰鬥都沒有在畫面上驗證過；讀檔（`system.Reset` 是空殼）、設定與劇情回顧畫面（controller 只接受 -1）、結算與地城的點擊（pactex 的 `點擊許可` 沒有讀）是已知的卡點，接下來先處理（見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節）。畫面未修：多行文字的置中與靠右、訊息視窗行距、其餘 67 個構築狀態（背景模糊等）。長時間穩定性尚未驗證。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

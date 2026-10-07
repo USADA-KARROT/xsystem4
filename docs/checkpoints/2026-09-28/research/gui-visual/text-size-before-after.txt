@@ -1,0 +1,268 @@
+before b241db0 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: TS1 b (size 19 太さ 0 縁取り 0 字間隔 0): size 20x19, want 20x20
+  FAIL: TS1 b (size 19 太さ 0 縁取り 0 字間隔 0): line 0 is 19 high, want 20
+  FAIL: TS1 b (size 19 太さ 0 縁取り 0 字間隔 0): glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 b (size 19 太さ 0 縁取り 0 字間隔 0): glyph 0,1 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 c (size 19 太さ 0.3 縁取り 0 字間隔 0): size 24x19, want 24x22
+  FAIL: TS1 c (size 19 太さ 0.3 縁取り 0 字間隔 0): line 0 is 19 high, want 22
+  FAIL: TS1 c (size 19 太さ 0.3 縁取り 0 字間隔 0): glyph 0,0 texture is 19 high, want 22
+  FAIL: TS1 c (size 19 太さ 0.3 縁取り 0 字間隔 0): glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 c (size 19 太さ 0.3 縁取り 0 字間隔 0): glyph 0,1 texture is 19 high, want 22
+  FAIL: TS1 c (size 19 太さ 0.3 縁取り 0 字間隔 0): glyph 0,1 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 d (size 16 太さ 0 縁取り 1.5 字間隔 0): size 24x19, want 24x20
+  FAIL: TS1 d (size 16 太さ 0 縁取り 1.5 字間隔 0): line 0 is 19 high, want 20
+  FAIL: TS1 d (size 16 太さ 0 縁取り 1.5 字間隔 0): glyph 0,0 texture is 19 high, want 22
+  FAIL: TS1 d (size 16 太さ 0 縁取り 1.5 字間隔 0): glyph 0,0 is drawn (1,1) from its place in the line, want (0,0)
+  FAIL: TS1 d (size 16 太さ 0 縁取り 1.5 字間隔 0): glyph 0,1 texture is 19 high, want 22
+  FAIL: TS1 d (size 16 太さ 0 縁取り 1.5 字間隔 0): glyph 0,1 is drawn (1,1) from its place in the line, want (0,0)
+  FAIL: TS1 e (size 20 太さ 0 縁取り 2.2 字間隔 0): size 32x24, want 32x26
+  FAIL: TS1 e (size 20 太さ 0 縁取り 2.2 字間隔 0): line 0 is 24 high, want 26
+  FAIL: TS1 e (size 20 太さ 0 縁取り 2.2 字間隔 0): glyph 0,0 texture is 24 high, want 29
+  FAIL: TS1 e (size 20 太さ 0 縁取り 2.2 字間隔 0): glyph 0,0 is drawn (2,2) from its place in the line, want (0,0)
+  FAIL: TS1 e (size 20 太さ 0 縁取り 2.2 字間隔 0): glyph 0,1 texture is 24 high, want 29
+  FAIL: TS1 e (size 20 太さ 0 縁取り 2.2 字間隔 0): glyph 0,1 is drawn (2,2) from its place in the line, want (0,0)
+  FAIL: TS1 f (size 14 太さ 0 縁取り 2 字間隔 -4): size 28x18, want 32x18
+  FAIL: TS1 f (size 14 太さ 0 縁取り 2 字間隔 -4): glyph 0,0 texture is 18 high, want 20
+  FAIL: TS1 f (size 14 太さ 0 縁取り 2 字間隔 -4): glyph 0,0 is drawn (2,2) from its place in the line, want (0,0)
+  FAIL: TS1 f (size 14 太さ 0 縁取り 2 字間隔 -4): glyph 0,1 texture is 18 high, want 20
+  FAIL: TS1 f (size 14 太さ 0 縁取り 2 字間隔 -4): glyph 0,1 is drawn (2,2) from its place in the line, want (0,0)
+  FAIL: TS1 g (size 11 太さ 1 縁取り 0 字間隔 -4): size 9x11, want 13x14
+  FAIL: TS1 g (size 11 太さ 1 縁取り 0 字間隔 -4): line 0 is 11 high, want 14
+  FAIL: TS1 g (size 11 太さ 1 縁取り 0 字間隔 -4): glyph 0,0 texture is 11 high, want 14
+  FAIL: TS1 g (size 11 太さ 1 縁取り 0 字間隔 -4): glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): size 36x25, want 39x28
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): line 0 is 25 high, want 28
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): glyph 0,0 texture is 25 high, want 28
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): glyph 0,1 texture is 25 high, want 28
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): glyph 0,1 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): glyph 0,2 texture is 25 high, want 28
+  FAIL: TS1 h (size 25 太さ 0.8 縁取り 0 字間隔 -3): glyph 0,2 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): size 42x23, want 45x24
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): line 0 is 23 high, want 24
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): glyph 0,0 texture is 23 high, want 25
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): glyph 0,0 is drawn (2,2) from its place in the line, want (0,1)
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): glyph 0,1 texture is 23 high, want 25
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): glyph 0,1 is drawn (2,2) from its place in the line, want (0,1)
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): glyph 0,2 texture is 23 high, want 25
+  FAIL: TS1 i (size 19 太さ 0 縁取り 2 字間隔 -3): glyph 0,2 is drawn (2,2) from its place in the line, want (0,1)
+  FAIL: TS1 j on-cursor state: size 30x19, want 32x22
+  FAIL: TS1 j on-cursor state: line 0 is 19 high, want 22
+  FAIL: TS1 j on-cursor state: glyph 0,0 texture is 19 high, want 22
+  FAIL: TS1 j on-cursor state: glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 j on-cursor state: glyph 0,1 texture is 19 high, want 22
+  FAIL: TS1 j on-cursor state: glyph 0,1 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 j on-cursor state: glyph 0,2 texture is 19 high, want 22
+  FAIL: TS1 j on-cursor state: glyph 0,2 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS1 j key-down state: size 19x31, want 19x32
+  FAIL: TS1 j key-down state: line 0 is 31 high, want 32
+  FAIL: TS1 j key-down state: glyph 0,0 texture is 31 high, want 34
+  FAIL: TS1 j key-down state: glyph 0,0 is drawn (3,3) from its place in the line, want (0,1)
+TS1 line height and width: FAIL
+TS1 FAILED (exit 1)
+  FAIL: TS2 "AB": size 20x19, want 22x22
+  FAIL: TS2 "AB\nC" (22 + 7 + 22): size 20x45, want 22x51
+  FAIL: TS2 "AB\nC": line 0 is 19 high, want 22
+  FAIL: TS2 "AB\nC": line 1 is 19 high, want 22
+  FAIL: TS2 "AB\nC": glyph 0,0 texture is 19 high, want 22
+  FAIL: TS2 "AB\nC": glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 "AB\nC": glyph 0,1 texture is 19 high, want 22
+  FAIL: TS2 "AB\nC": glyph 0,1 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 "AB\nC": glyph 1,0 texture is 19 high, want 22
+  FAIL: TS2 "AB\nC": glyph 1,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 Parts_AddPartsText "AB": size 20x19, want 22x22
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": size 20x45, want 22x51
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": line 0 is 19 high, want 22
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": line 1 is 19 high, want 22
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": glyph 0,0 texture is 19 high, want 22
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": glyph 0,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": glyph 0,1 texture is 19 high, want 22
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": glyph 0,1 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": glyph 1,0 texture is 19 high, want 22
+  FAIL: TS2 Parts_AddPartsText "AB" then "\nC": glyph 1,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 three lines (3 * 12 - 2 * 2 wide, 3 * 22 + 2 * 7 high): size 30x71, want 32x80
+  FAIL: TS2 "A\n" (an empty last line): size 10x45, want 12x51
+  FAIL: TS2 "\nA" (an empty first line): size 10x26, want 12x51
+  FAIL: TS2 "\nA": line 0 is 0 high, want 22
+  FAIL: TS2 "\nA": line 1 is 19 high, want 22
+  FAIL: TS2 "\nA": glyph 1,0 texture is 19 high, want 22
+  FAIL: TS2 "\nA": glyph 1,0 is drawn (0,0) from its place in the line, want (0,1)
+  FAIL: TS2 "\n" (two empty lines): size 10x26, want 0x51
+  FAIL: TS2 "\n\n": size 10x26, want 0x80
+  FAIL: TS2 "ABC": size 30x19, want 32x22
+  FAIL: TS2 emptied: size 30x19, want 0x0
+  FAIL: TS2 the emptied text is still under the cursor
+  FAIL: TS2 origin 9: size 30x71, want 32x80
+  FAIL: TS2 origin 9: upper left (270,129), want (268,120)
+  FAIL: TS2 origin 5: size 30x71, want 32x80
+  FAIL: TS2 origin 5: upper left (285,165), want (284,160)
+  FAIL: TS2 origin 5, two lines: size 20x45, want 22x51
+  FAIL: TS2 origin 5, two lines: upper left (290,178), want (289,175)
+  FAIL: TS2 emptied with a surface area: size 30x19, want 0x0
+  FAIL: TS2 the emptied text with a surface area is under the cursor
+  FAIL: TS2 m emptied with the surface area (5,5,10,10): size 30x19, want 0x0
+  FAIL: TS2 m9 emptied with the surface area (4,6,100,30): size 30x19, want 0x0
+TS2 several lines: FAIL
+TS2 FAILED (exit 1)
+  FAIL: TS3 r3 (origin 3): size 44x24, want 49x26
+  FAIL: TS3 r3 (origin 3): upper left (256,100), want (251,100)
+  FAIL: TS3 r3 (origin 3): corners (251,100) and (299,125) are not under the cursor
+  FAIL: TS3 c5 (origin 5): size 30x19, want 32x22
+  FAIL: TS3 c5 (origin 5): upper left (285,91), want (284,89)
+  FAIL: TS3 c5 (origin 5): corners (284,89) and (315,110) are not under the cursor
+  FAIL: TS3 b7 (origin 7): size 10x19, want 10x20
+  FAIL: TS3 b7 (origin 7): upper left (300,81), want (300,80)
+  FAIL: TS3 b7 (origin 7): corners (300,80) and (309,99) are not under the cursor
+  FAIL: TS3 r9 (origin 9): size 84x54, want 83x54
+  FAIL: TS3 r9 (origin 9): upper left (216,46), want (217,46)
+  FAIL: TS3 r9 (origin 9): a point just outside (217,46)-(299,99) is under the cursor
+  FAIL: TS3 c2 (origin 2): size 14x18, want 18x18
+  FAIL: TS3 c2 (origin 2): upper left (293,100), want (291,100)
+  FAIL: TS3 c2 (origin 2): corners (291,100) and (308,117) are not under the cursor
+  FAIL: TS3 m6 (origin 6): size 39x28, want 43x30
+  FAIL: TS3 m6 (origin 6): upper left (261,86), want (257,85)
+  FAIL: TS3 m6 (origin 6): corners (257,85) and (299,114) are not under the cursor
+  FAIL: TS3 c8 (origin 8): size 10x11, want 13x14
+  FAIL: TS3 c8 (origin 8): upper left (295,89), want (294,86)
+  FAIL: TS3 c8 (origin 8): corners (294,86) and (306,99) are not under the cursor
+  FAIL: TS3 r3 after Parts_SetText "AB" (2 * 16 - 5): size 22x24, want 27x26
+  FAIL: TS3 r3 after Parts_SetText "AB": upper left (278,100), want (273,100)
+  FAIL: TS3 c5 "A": size 10x19, want 12x22
+  FAIL: TS3 c5 "A": upper left (295,91), want (294,89)
+  FAIL: TS3 r3 (origin 3) after PE_Save / PE_Load: size 44x24, want 49x26
+  FAIL: TS3 r3 (origin 3) after PE_Save / PE_Load: upper left (256,100), want (251,100)
+  FAIL: TS3 r3 (origin 3) after PE_Save / PE_Load: corners (251,100) and (299,125) are not under the cursor
+  FAIL: TS3 c5 (origin 5) after PE_Save / PE_Load: size 30x19, want 32x22
+  FAIL: TS3 c5 (origin 5) after PE_Save / PE_Load: upper left (285,91), want (284,89)
+  FAIL: TS3 c5 (origin 5) after PE_Save / PE_Load: corners (284,89) and (315,110) are not under the cursor
+  FAIL: TS3 b7 (origin 7) after PE_Save / PE_Load: size 10x19, want 10x20
+  FAIL: TS3 b7 (origin 7) after PE_Save / PE_Load: upper left (300,81), want (300,80)
+  FAIL: TS3 b7 (origin 7) after PE_Save / PE_Load: corners (300,80) and (309,99) are not under the cursor
+  FAIL: TS3 r9 (origin 9) after PE_Save / PE_Load: size 84x54, want 83x54
+  FAIL: TS3 r9 (origin 9) after PE_Save / PE_Load: upper left (216,46), want (217,46)
+  FAIL: TS3 r9 (origin 9) after PE_Save / PE_Load: a point just outside (217,46)-(299,99) is under the cursor
+  FAIL: TS3 c2 (origin 2) after PE_Save / PE_Load: size 14x18, want 18x18
+  FAIL: TS3 c2 (origin 2) after PE_Save / PE_Load: upper left (293,100), want (291,100)
+  FAIL: TS3 c2 (origin 2) after PE_Save / PE_Load: corners (291,100) and (308,117) are not under the cursor
+  FAIL: TS3 m6 (origin 6) after PE_Save / PE_Load: size 39x28, want 43x30
+  FAIL: TS3 m6 (origin 6) after PE_Save / PE_Load: upper left (261,86), want (257,85)
+  FAIL: TS3 m6 (origin 6) after PE_Save / PE_Load: corners (257,85) and (299,114) are not under the cursor
+  FAIL: TS3 c8 (origin 8) after PE_Save / PE_Load: size 10x11, want 13x14
+  FAIL: TS3 c8 (origin 8) after PE_Save / PE_Load: upper left (295,89), want (294,86)
+  FAIL: TS3 c8 (origin 8) after PE_Save / PE_Load: corners (294,86) and (306,99) are not under the cursor
+  FAIL: TS3 r3 (origin 3) loaded from a save with the size 44x24: size 44x24, want 49x26
+  FAIL: TS3 r3 (origin 3) loaded from a save with the size 44x24: upper left (256,100), want (251,100)
+  FAIL: TS3 r3 (origin 3) loaded from a save with the size 44x24: corners (251,100) and (299,125) are not under the cursor
+  FAIL: TS3 c5 (origin 5) loaded from a save with the size 30x19: size 30x19, want 32x22
+  FAIL: TS3 c5 (origin 5) loaded from a save with the size 30x19: upper left (285,91), want (284,89)
+  FAIL: TS3 c5 (origin 5) loaded from a save with the size 30x19: corners (284,89) and (315,110) are not under the cursor
+  FAIL: TS3 b7 (origin 7) loaded from a save with the size 10x19: size 10x19, want 10x20
+  FAIL: TS3 b7 (origin 7) loaded from a save with the size 10x19: upper left (300,81), want (300,80)
+  FAIL: TS3 b7 (origin 7) loaded from a save with the size 10x19: corners (300,80) and (309,99) are not under the cursor
+  FAIL: TS3 r9 (origin 9) loaded from a save with the size 84x54: size 84x54, want 83x54
+  FAIL: TS3 r9 (origin 9) loaded from a save with the size 84x54: upper left (216,46), want (217,46)
+  FAIL: TS3 r9 (origin 9) loaded from a save with the size 84x54: a point just outside (217,46)-(299,99) is under the cursor
+  FAIL: TS3 c2 (origin 2) loaded from a save with the size 14x18: size 14x18, want 18x18
+  FAIL: TS3 c2 (origin 2) loaded from a save with the size 14x18: upper left (293,100), want (291,100)
+  FAIL: TS3 c2 (origin 2) loaded from a save with the size 14x18: corners (291,100) and (308,117) are not under the cursor
+  FAIL: TS3 m6 (origin 6) loaded from a save with the size 39x28: size 39x28, want 43x30
+  FAIL: TS3 m6 (origin 6) loaded from a save with the size 39x28: upper left (261,86), want (257,85)
+  FAIL: TS3 m6 (origin 6) loaded from a save with the size 39x28: corners (257,85) and (299,114) are not under the cursor
+  FAIL: TS3 c8 (origin 8) loaded from a save with the size 10x11: size 10x11, want 13x14
+  FAIL: TS3 c8 (origin 8) loaded from a save with the size 10x11: upper left (295,89), want (294,86)
+  FAIL: TS3 c8 (origin 8) loaded from a save with the size 10x11: corners (294,86) and (306,99) are not under the cursor
+TS3 origins and hit boxes: FAIL
+TS3 FAILED (exit 1)
+  FAIL: TS4 n2 (size 16 縁取り 1.5: 16 + 2 * 2): size 24x19, want 24x20
+  FAIL: TS4 n2 (origin 9): upper left (176,81), want (176,80)
+  FAIL: TS4 n3 (size 19 太さ 0.3: 19 + 2 * 1): size 12x19, want 12x21
+  FAIL: TS4 n3 (origin 7): upper left (50,81), want (50,79)
+  FAIL: TS4 n5 (as n2): size 24x19, want 24x20
+  FAIL: TS4 n5 (origin 4: -20 / 2): upper left (400,291), want (400,290)
+  FAIL: TS4 n6 (as n3): size 12x19, want 12x21
+  FAIL: TS4 n6 (origin 4, an odd height: -21 / 2 is -10): upper left (500,291), want (500,290)
+TS4 font numerals: FAIL
+TS4 FAILED (exit 1)
+  FAIL: TS5 Caption: size 28x18, want 32x18
+  FAIL: TS5 Slash: size 16x19, want 20x20
+  FAIL: TS5 Slash: upper left (70,11), want (70,10)
+  FAIL: TS5 Info: size 48x38, want 48x40
+  FAIL: TS5 Name at (1,-25) origin 3, want (1,-26) origin 3
+  FAIL: TS5 Row at (0,-1) origin 3, want (0,0) origin 3
+  FAIL: TS5 Name: upper left (457,275), want (452,274)
+  FAIL: TS5 Row: upper left (470,299), want (470,300)
+TS5 texts and numerals in boxes: FAIL
+TS5 FAILED (exit 1)
+  FAIL: TS6 "H" with e 3: body 0 px lower than without (top 2, 2), want 3
+  FAIL: TS6 "H" with e 2: body 0 px lower than without (top 2, 2), want 2
+  FAIL: TS6 "H" with e 1: body 0 px lower than without (top 2, 2), want 1
+  FAIL: TS6 digit with 縁取り 2: body (2,0) px from where it is without, want (2,2)
+  (TS6 "y" 20/0/2: body rows 6-21, opaque to row 23, texture 24 high)
+TS6 glyph inside its texture: FAIL
+TS6 FAILED (exit 1)
+TS7 v13 and the message window unchanged: ok
+TS8 v14 under the SJIS rule unchanged: ok
+TS9 v14 under the SJIS rule, real font, unchanged: ok
+  FAIL: TS10 "A" 19/0/0: drawn in columns 10-19, rows 20-38; want columns 10-19, rows 21-39
+  FAIL: TS10 "A" 19/0/0: the textures' first row is drawn in rows 20-20, want row 21 (1 row(s))
+  FAIL: TS10 "AB" 19/0.3/0/-2: drawn in columns 10-31, rows 20-38; want columns 10-31, rows 21-42
+  FAIL: TS10 "AB" 19/0.3/0/-2: the textures' first row is drawn in rows 20-20, want row 21 (1 row(s))
+  FAIL: TS10 "A\nB" first line: drawn in columns 10-19, rows 20-38; want columns 10-19, rows 21-39
+  FAIL: TS10 "A\nB" first line: the textures' first row is drawn in rows 20-20, want row 21 (1 row(s))
+  FAIL: TS10 "A\nB" second line: drawn in columns 10-19, rows 46-64; want columns 10-19, rows 48-66
+  FAIL: TS10 "A\nB" second line: the textures' first row is drawn in rows 46-46, want row 48 (1 row(s))
+  FAIL: TS10 "A" 25/0/3: drawn in columns 10-28, rows 20-50; want columns 10-28, rows 21-54
+  FAIL: TS10 "A" 25/0/3: the textures' first row is drawn in rows 20-20, want row 21 (1 row(s))
+  FAIL: TS10 "AB" 19/0.3/0/-2 origin 9: drawn in columns 40-61, rows 81-99; want columns 38-59, rows 79-100
+  FAIL: TS10 "AB" 19/0.3/0/-2 origin 9: the textures' first row is drawn in rows 81-81, want row 79 (1 row(s))
+  FAIL: TS10 "A\nB" 25/0/3 first line: drawn in columns 10-28, rows 20-50; want columns 10-28, rows 21-54
+  FAIL: TS10 "A\nB" 25/0/3 first line: the textures' first row is drawn in rows 20-20, want row 21 (1 row(s))
+  FAIL: TS10 "A\nB" 25/0/3 second line: drawn in columns 10-28, rows 58-88; want columns 10-28, rows 60-93
+  FAIL: TS10 "A\nB" 25/0/3 second line: the textures' first row is drawn in rows 58-58, want row 60 (1 row(s))
+  FAIL: TS10 "A" 19/0/0 scaled by 2: drawn in columns 10-29, rows 20-57; want columns 10-29, rows 22-59
+  FAIL: TS10 "A" 19/0/0 scaled by 2: the textures' first row is drawn in rows 20-20, want row 22 (2 row(s))
+TS10 glyphs where they are drawn: FAIL
+TS10 FAILED (exit 1)
+TS11 v13 and the message window drawn where they were: ok
+TS12 the GBK rule with an .fnl unchanged: ok
+TEXT-SIZE FAIL: 7 of 12 cases failed
+
+before b241db0 (XS4_PROBE_GBK=1)
+the FAIL lines and case results are identical to the default rule: True
+TEXT-SIZE FAIL: 7 of 12 cases failed
+
+after 6687656 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+TS1 line height and width: ok
+TS2 several lines: ok
+TS3 origins and hit boxes: ok
+TS4 font numerals: ok
+TS5 texts and numerals in boxes: ok
+  (TS6 "y" 20/0/2: body rows 8-23, opaque to row 25, texture 26 high)
+TS6 glyph inside its texture: ok
+TS7 v13 and the message window unchanged: ok
+TS8 v14 under the SJIS rule unchanged: ok
+TS9 v14 under the SJIS rule, real font, unchanged: ok
+TS10 glyphs where they are drawn: ok
+TS11 v13 and the message window drawn where they were: ok
+TS12 the GBK rule with an .fnl unchanged: ok
+TEXT-SIZE PASS: 0 of 12 cases failed
+
+after 6687656 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+TS1 line height and width: ok
+TS2 several lines: ok
+TS3 origins and hit boxes: ok
+TS4 font numerals: ok
+TS5 texts and numerals in boxes: ok
+  (TS6 "y" 20/0/2: body rows 8-23, opaque to row 25, texture 26 high)
+TS6 glyph inside its texture: ok
+TS7 v13 and the message window unchanged: ok
+TS8 v14 under the SJIS rule unchanged: ok
+TS9 v14 under the SJIS rule, real font, unchanged: ok
+TS10 glyphs where they are drawn: ok
+TS11 v13 and the message window drawn where they were: ok
+TS12 the GBK rule with an .fnl unchanged: ok
+TEXT-SIZE PASS: 0 of 12 cases failed
