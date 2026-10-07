@@ -1,0 +1,149 @@
+before eb4b81c (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: PN1 Opaque: GetPanelR/G/B/A (0,0,0,0), want (220,220,220,255)
+  FAIL: PN1 OpaqueColor: GetPanelR/G/B/A (0,0,0,0), want (255,255,128,255)
+  FAIL: PN1 Dimmer: 2048 of 2048 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN1 Dimmer: GetPanelR/G/B/A (0,0,0,0), want (0,0,0,128)
+  FAIL: PN1 Base: 768 of 768 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,160)
+  FAIL: PN1 Base: GetPanelR/G/B/A (0,0,0,0), want (0,0,0,160)
+  FAIL: PN1 Clear: 21 of 21 pixels differ, (0,0) = (0,0,0,255), want (10,20,30,0)
+  FAIL: PN1 Clear: GetPanelR/G/B/A (0,0,0,0), want (10,20,30,0)
+  FAIL: PN1 Web: 287 of 287 pixels differ, (0,0) = (200,200,102,255), want (255,255,130,200)
+  FAIL: PN1 Web: GetPanelR/G/B/A (0,0,0,0), want (255,255,130,200)
+  FAIL: PN1 Yakata: 16 of 16 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN1 Yakata: GetPanelR/G/B/A (0,0,0,0), want (0,0,0,128)
+  FAIL: PN1 Clamped: GetPanelR/G/B/A (0,0,0,0), want (300,-5,128,400)
+  FAIL: PN1 DimmerSjis: 2048 of 2048 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN1 DimmerSjis: GetPanelR/G/B/A (0,0,0,0), want (0,0,0,128)
+  FAIL: PN1 OpaqueSjis: GetPanelR/G/B/A (0,0,0,0), want (255,255,128,255)
+PN1 panels from a pactex: FAIL
+PN1 FAILED (exit 1)
+  FAIL: PN2 SetPanelColor: 2048 of 2048 pixels differ, (0,0) = (6,13,19,255), want (10,20,30,160)
+  FAIL: PN2 SetPanelColor: GetPanelR/G/B/A (0,0,0,0), want (10,20,30,160)
+  FAIL: PN2 SetPanelColor: 3 operations, want 2
+  FAIL: PN2 SetPanelColor four times: 2048 of 2048 pixels differ, (0,0) = (9,17,26,255), want (1,2,3,4)
+  FAIL: PN2 SetPanelColor four times: 6 operations, want 2
+  FAIL: PN2 SetPanelColor with alpha 0: 2048 of 2048 pixels differ, (0,0) = (9,17,26,255), want (1,2,3,0)
+  FAIL: PN2 SetPanelColor with alpha 0: GetPanelR/G/B/A (0,0,0,0), want (1,2,3,0)
+  FAIL: PN2 SetPanelColor with alpha 0: 7 operations, want 2
+  FAIL: PN2 SetPanelSize: 200 of 200 pixels differ, (0,0) = (0,0,0,255), want (1,2,3,4)
+  FAIL: PN2 SetPanelSize: GetPanelR/G/B/A (0,0,0,0), want (1,2,3,4)
+  FAIL: PN2 SetPanelSize: 1 operations, want 2
+  FAIL: PN2 SetPanelSize(0, 5): state type 7, texture present 0x5, size 0x5; want a built 20x10 surface
+  FAIL: PN2 SetPanelSize(0, 5): GetPanelR/G/B/A (0,0,0,0), want (1,2,3,4)
+  FAIL: PN2 SetPanelColor on a panel without width: state type 7, texture present 0x5, size 0x5; want a built 20x10 surface
+  FAIL: PN2 SetPanelColor on a panel without width: GetPanelR/G/B/A (0,0,0,0), want (9,8,7,6)
+  FAIL: PN2 SetPanelSize(5, -1): state type 7, texture present 5x-1, size 5x-1; want a built 20x10 surface
+  FAIL: PN2 SetPanelSize after an empty size: 24 of 24 pixels differ, (0,0) = (0,0,0,255), want (9,8,7,6)
+  FAIL: PN2 after an empty size: 1 operations, want 2
+  FAIL: PN2 a new panel: GetPanelR/G/B/A (0,0,0,0), want (220,220,220,255)
+  FAIL: PN2 colour before size: state type 7, texture missing 0x0, size 0x0; want a built 200x200 surface
+  FAIL: PN2 size after colour: 48 of 48 pixels differ, (0,0) = (0,0,0,255), want (50,60,70,80)
+  FAIL: PN2 size before colour: 48 of 48 pixels differ, (0,0) = (0,0,0,255), want (220,220,220,255)
+  FAIL: PN2 colour after size: 48 of 48 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN2 SetPanelSize on a plain parts: 6 of 6 pixels differ, (0,0) = (0,0,0,255), want (220,220,220,255)
+  FAIL: PN2 a plain parts after SetPanelSize: GetComponentType 0, want 14
+  FAIL: PN2 GetPanelR on a plain parts: 0, then GetComponentType 0; want 220, 14
+  FAIL: PN2 SetPanelSize on a construction parts: 6 of 6 pixels differ, (0,0) = (0,0,0,255), want (220,220,220,255)
+  FAIL: PN2 SetPanelColor on a construction parts: state type 7, texture present 5x5, size 5x5; want a built 200x200 surface
+  FAIL: PN2 a panel call created parts 9974: 0, 9975: 1
+  FAIL: PN2 CPanelParts@ColorA::set: state type 7, texture missing 0x0, size 0x0; want a built 200x200 surface
+  FAIL: PN2 CPanelParts@ColorA::set after a colour: state type 7, texture missing 0x0, size 0x0; want a built 200x200 surface
+  FAIL: PN2 CPanelParts@ColorA::set(0): state type 7, texture missing 0x0, size 0x0; want a built 200x200 surface
+  FAIL: PN2 the real panel: 0 operations, want 2
+PN2 panel calls: FAIL
+PN2 FAILED (exit 1)
+  FAIL: PN3 Area: (0,0) = (0,0,0,255), want (255,128,0,0)
+  FAIL: PN3 Area: 12800 pixels differ
+  FAIL: PN3 Area alpha 0: 0, 1: 0, other: 12800; want 9328, 3472, 0
+  FAIL: PN3 the button behind Area, through alpha 0: 1 messages, first type 4 parts 900001 delegate 7 unique 70 (810,320,1), g_EndPartsBusyLoop 0; want 1, 4, 9961 (810,320,1), 0
+  FAIL: PN3 the button behind Area, through its corner: 1 messages, first type 4 parts 900001 delegate 7 unique 70 (950,255,1), g_EndPartsBusyLoop 0; want 1, 4, 9961 (950,255,1), 0
+PN3 the script's command 6: FAIL
+PN3 FAILED (exit 1)
+FALLBACK (log once): Fallback to SW vertex processing because buildPipelineState failed
+FALLBACK (log once): Fallback to SW fragment processing because buildPipelineState failed
+UNSUPPORTED (log once): UNEXPECTED/FATAL?: buildPipelineState failed to build fragment-fallback PSO, m_disable_code: 1001000
+FALLBACK (log once): Fallback to SW vertex processing, m_disable_code: 1000
+FALLBACK (log once): Fallback to SW fragment processing, m_disable_code: 1000000
+  FAIL: PN4 command 6 with [30] 1 and a rectangle: 768 of 768 pixels differ, (0,0) = (0,0,0,255), want (10,20,30,40)
+  FAIL: PN4 command 6 with [30] 2: 768 of 768 pixels differ, (0,0) = (0,0,0,255), want (10,20,30,40)
+  FAIL: PN4 fills without width or height: 336 of 768 pixels differ, (5,6) = (10,20,30,40), want (0,0,0,255)
+  FAIL: PN4 command 6 with a negative size: (8,2) = (0,0,0,255), want (10,20,30,40)
+  FAIL: PN4 command 6 with a negative size: 264 pixels differ
+  FAIL: PN4 a negative size is kept as (20,6,16384,16384), want (8,2,12,4)
+  FAIL: PN4 commands 3, 5 and 4 with a negative size: (8,2) = (0,0,0,255), want (10,20,30,255)
+  FAIL: PN4 commands 3, 5 and 4 with a negative size: 328 pixels differ
+  FAIL: PN4 command 3: a negative size is kept as (20,6,16384,16384), want (8,2,12,4)
+  FAIL: PN4 command 5: a negative size is kept as (30,20,16384,16384), want (24,16,6,4)
+  FAIL: PN4 command 4: a negative size is kept as (10,20,16384,16384), want (4,16,6,4)
+  FAIL: PN4 command 6 past the surface: (0,0) = (0,0,0,255), want (1,2,3,4)
+  FAIL: PN4 command 6 past the surface: 20 pixels differ
+  FAIL: PN4 commands 3 and 5 with [30] 1 and a rectangle: 744 of 768 pixels differ, (0,0) = (0,0,0,255), want (10,20,30,40)
+  FAIL: PN4 command 4 with [30] 1 and a rectangle: 744 of 768 pixels differ, (0,0) = (0,0,0,255), want (50,25,100,255)
+  FAIL: PN4 command 6 on a surface without alpha: 768 of 768 pixels differ, (0,0) = (0,0,0,255), want (10,20,30,255)
+PN4 the rectangle of the script's fills: FAIL
+PN4 FAILED (exit 1)
+  FAIL: PN5 command 7: font size 0, want 24 ([23])
+  FAIL: PN5 command 7: colour (10,20,30), want (11,12,13) ([24..26])
+  FAIL: PN5 command 7: edge colour (50,60,70), want (14,15,16) ([27..29])
+  FAIL: PN5 command 8: font size 0, want 24 ([23])
+  FAIL: PN5 command 8: colour (10,20,30), want (11,12,13) ([24..26])
+  FAIL: PN5 command 8: edge colour (50,60,70), want (14,15,16) ([27..29])
+  FAIL: PN5 command 23: font size 0, want 24 ([23])
+  FAIL: PN5 command 23: colour (10,20,30), want (11,12,13) ([24..26])
+  FAIL: PN5 command 23: edge colour (50,60,70), want (14,15,16) ([27..29])
+  FAIL: PN5 command 24: font size 0, want 24 ([23])
+  FAIL: PN5 command 24: colour (10,20,30), want (11,12,13) ([24..26])
+  FAIL: PN5 command 24: edge colour (50,60,70), want (14,15,16) ([27..29])
+PN5 the font of the text commands: FAIL
+PN5 FAILED (exit 1)
+PN6 the other commands: ok
+  FAIL: PN7 Dimmer after loading: 2048 of 2048 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN7 Web after loading: 287 of 287 pixels differ, (0,0) = (222,222,113,255), want (255,255,130,100)
+  FAIL: PN7 Web after loading: GetPanelR/G/B/A (0,0,0,0), want (255,255,130,100)
+  FAIL: PN7 Area after loading: (0,0) = (0,0,0,255), want (255,128,0,0)
+  FAIL: PN7 Area after loading: 12800 pixels differ
+  FAIL: PN7 2 and 3 operations after loading, want 2 and 2
+  FAIL: PN7 Web resized after loading: 30 of 30 pixels differ, (0,0) = (0,0,0,255), want (255,255,130,100)
+  FAIL: PN7 Dimmer recoloured after loading: 2048 of 2048 pixels differ, (0,0) = (0,0,0,255), want (1,2,3,4)
+  FAIL: saving the loaded parts gave another page (604 and 604 values)
+  FAIL: PN7 an old Dimmer: 2048 of 2048 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN7 an old Web: 287 of 287 pixels differ, (0,0) = (200,200,102,255), want (255,255,130,200)
+  FAIL: PN7 an old panel with three colours: 100 of 100 pixels differ, (0,0) = (24,14,9,255), want (9,8,7,160)
+  FAIL: PN7 old panels: 2, 4 and 1 operations, want 2, 2 and 1
+  FAIL: PN7 an old panel with three colours: GetPanelR/G/B/A (0,0,0,0), want (9,8,7,160)
+  FAIL: PN7 an old Dimmer resized: 64 of 64 pixels differ, (0,0) = (0,0,0,255), want (0,0,0,128)
+  FAIL: PN7 an old Web recoloured: 287 of 287 pixels differ, (0,0) = (194,194,99,255), want (5,6,7,8)
+PN7 save and load: FAIL
+PN7 FAILED (exit 1)
+PN8 guards: ok
+PANEL FAIL: 6 of 8 cases failed
+
+before eb4b81c (XS4_PROBE_GBK=1)
+the FAIL lines and case results are identical to the default rule: True
+PANEL FAIL: 6 of 8 cases failed
+
+after 3010a63 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+PANEL PASS: 0 of 8 cases failed
+
+after 3010a63 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+PANEL PASS: 0 of 8 cases failed
