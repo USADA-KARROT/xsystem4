@@ -75,6 +75,18 @@ struct page {
 		struct {
 			int struct_type;
 			int rank;
+			// v14: slots per element of a generic page whose elements
+			// are known to take more than one slot (2 or 3: an
+			// interface or a wrap of one, an option). The first slot of
+			// an element is its value, a reference; the others are plain
+			// values (vtable offset, option flag) and are not counted as
+			// references (variable_type). 0 for every other page, also
+			// for a generic page whose layout nobody declared: such a
+			// page keeps the older rule, every slot a reference.
+			// struct_type cannot say this by itself: on a generic page
+			// it is the stride, but it is a struct index elsewhere and
+			// can be left over from a cached page.
+			int elem_slots;
 		} array;
 	};
 	int nr_vars;

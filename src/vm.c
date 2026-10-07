@@ -981,8 +981,11 @@ static int v14_array_value_copy(struct page *p)
 		for (int i = 0; i < p->nr_vars; i++) {
 			dst->values[i] = p->values[i];
 			// delete_page_vars releases every value of a generic
-			// array (variable_type: AIN_STRUCT)
-			if (p->values[i].i > 1 && heap_index_valid(p->values[i].i))
+			// array that variable_type calls a reference (AIN_STRUCT):
+			// all of them, or only the first slot of each element when
+			// the page has a multi-slot layout.
+			if (variable_type(p, i, NULL, NULL) != AIN_VOID
+			    && p->values[i].i > 1 && heap_index_valid(p->values[i].i))
 				heap_ref(p->values[i].i);
 		}
 		return heap_alloc_page(dst);
@@ -5266,30 +5269,82 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			default: break;
 			}
 		}
-		// The concrete cases above have one slot per element. Keep the
-		// generic representation unchanged here: correcting its stride and
-		// defaults also requires typed companion-slot teardown. Those shapes
-		// are outside this change (the old immediate-based fallback remains).
-		// Known consequence: a literal of multi-slot elements is cut by the
-		// X_ASSIGN that fills it. FrameInfo@GetParams makes 19 two-slot
-		// elements (size 19, then X_ASSIGN 38) and gets 19 slots, so
-		// FrameInfo@LoadSubParams loads only the first 9 sub-parameters of a
-		// battle frame (BgLighting to EnemyPosition); the other 10, among
-		// them CgLayers and Effects, read past the page and are skipped. The
-		// 9 objects behind the cut keep the reference the literal took
-		// (SP_INC), once per frame.
+		// The concrete cases above have one slot per element. An element
+		// that stays generic takes the slots of its declared type: an
+		// interface or a wrap of one is (object, vtable offset), an option
+		// its payload and a flag. Native 0x679432 -> 0x653420 stores that
+		// count in the page (+0x48) from the declaration; the immediate
+		// only chooses whether the elements are default-initialized
+		// (0x66e697). A literal is "PUSH size; X_A_INIT 0; ...; X_ASSIGN
+		// size * slots", so a sized page needs size * slots slots
+		// (0x67fee0): FrameInfo@GetParams stores 19 two-slot elements with
+		// X_ASSIGN 38. Such a page also records its layout (elem_slots), so
+		// that only the first slot of an element is counted as a reference.
+		// Not as the original:
+		//  - An empty page keeps the immediate + 1 it always had. Nothing
+		//    can be read from it, and the Array library gives it its stride
+		//    and layout with the first multi-slot element it stores.
+		//  - The immediate + 1 also remains for a sized page whose
+		//    declaration cannot be resolved; that page keeps the older rule,
+		//    every slot a reference.
+		//  - The elements of a sized page start as -1 in every slot. Natively
+		//    immediate 0 leaves them unset (a literal: the X_ASSIGN after it
+		//    stores every slot) and a non-zero one default-initializes them
+		//    (0x67f4a0 -> 0x67fe20 -> 0x656970). Of those defaults only the
+		//    option's is made here (none, below). An interface element
+		//    natively starts as (-1, 0) (0x6569b8) and is (-1, -1) here; a
+		//    string, delegate or nested array element that stays generic
+		//    natively gets its object (0x6569fc, 0x656a2e, 0x6569dd) and is
+		//    -1 here.
+		// This AIN has 32 sized multi-slot X_A_INIT with immediate 0, all
+		// literals, and three with immediate 1 that no X_ASSIGN follows:
+		// MatchingInfo@2 (FrontWorker, 3 option<wrap<Worker>>) and
+		// AdvTransition@2 (m_partsBg and m_partsMask, 2 ICGParts each). For
+		// these the declared count equals immediate + 1, so their pages have
+		// the slots they always had and gain the layout. MatchingInfo's page
+		// is replaced at once by the only constructor in use (MatchingInfo@0
+		// with two arguments); AdvTransition@0 reads the first slot of each
+		// element, whose -1 makes its DELETE do nothing, and then stores both
+		// slots.
+		// A one-slot element that stays generic (a ref struct, a nested
+		// array, a delegate, a wrap of a struct) takes its declared count
+		// too: size slots whatever the immediate is, where immediate 1 gave
+		// size * 2 before. elkeditor::detail::CEmitterTimeLine@2 (11 ref
+		// structs) is the one such place in this AIN.
 		int elem_slots = arg + 1;
+		int sized_slots = elem_slots, multi_slots = 0;
+		if (ain->version >= 14 && decl && decl->array_type
+		    && (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)) {
+			sized_slots = ss_type_slot_count(decl->array_type);
+			if (sized_slots > 1)
+				multi_slots = sized_slots;
+		}
 		// Allocate array slot and page
 		int slot = heap_alloc_slot(VM_PAGE);
 		if (size > 0) {
 			if (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY) {
 				// Generic array (v14 type erasure) — create flat value array.
-				int phys_size = size * elem_slots;
+				int phys_size = size * sized_slots;
 				struct page *page = alloc_page(ARRAY_PAGE, data_type, phys_size);
 				for (int i = 0; i < phys_size; i++)
 					page->values[i].i = -1;
-				// Store elem_slots in struct_type for X_A_SIZE to use
-				page->array.struct_type = elem_slots;
+				// A non-zero immediate: an option element starts as none,
+				// its value slots -1 and its last slot the number of option
+				// layers (0x656a44: 0x653610 + 1), 1 for option<T>, which
+				// is what Array.Alloc gives it (array_option_resize).
+				if (arg && multi_slots && decl->array_type->data == AIN_OPTION) {
+					int none = 0;
+					for (const struct ain_type *t = decl->array_type;
+					     t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87);
+					     t = t->array_type)
+						none++;
+					for (int i = sized_slots - 1; i < phys_size; i += sized_slots)
+						page->values[i].i = none;
+				}
+				// Store the stride in struct_type for X_A_SIZE to use
+				page->array.struct_type = sized_slots;
+				page->array.rank = 1;
+				page->array.elem_slots = multi_slots;
 				heap_set_page(slot, page);
 			} else {
 				union vm_value dim = { .i = size };

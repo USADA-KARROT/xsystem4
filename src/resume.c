@@ -77,6 +77,8 @@ static cJSON *resume_page_to_json(struct page *page)
 	if (page->type == ARRAY_PAGE) {
 		cJSON_AddNumberToObject(json, "struct-type", page->array.struct_type);
 		cJSON_AddNumberToObject(json, "rank", page->array.rank);
+		if (page->array.elem_slots > 1)
+			cJSON_AddNumberToObject(json, "elem-slots", page->array.elem_slots);
 	}
 
 	cJSON *values = cJSON_CreateIntArray_cb(page->nr_vars, get_number, page->values);
@@ -231,6 +233,8 @@ static struct rsave_heap_struct *struct_page_to_rsave(struct page *page, int slo
 	return o;
 }
 
+#define RSAVE_ELEM_SLOTS_SHIFT 16
+
 static struct rsave_heap_array *array_page_to_rsave(struct page *page, int slot)
 {
 	struct rsave_heap_array *o = xcalloc(1, sizeof(struct rsave_heap_array) + page->nr_vars * sizeof(int32_t));
@@ -244,6 +248,15 @@ static struct rsave_heap_array *array_page_to_rsave(struct page *page, int slot)
 	else
 		o->struct_type.name = strdup("");
 	o->root_rank = page->array.rank;  // FIXME: this is incorrect for subarrays
+	// The format has no field for a v14 page's multi-slot layout, and
+	// struct_type (written as a struct name) cannot carry it: 2 and 3 are
+	// also struct indices. The reference counts in the image were taken
+	// under that layout, so it must come back exactly. root_rank is not
+	// read back by this engine (rank_minus_1 is); its upper half carries
+	// elem_slots. It is 0 in every image written before, and those pages
+	// come back under the older rule their counts were taken with.
+	if (page->array.elem_slots > 1)
+		o->root_rank |= page->array.elem_slots << RSAVE_ELEM_SLOTS_SHIFT;
 	o->is_not_empty = page->nr_vars ? 1 : 0;
 	o->nr_slots = page->nr_vars;
 	for (int i = 0; i < o->nr_slots; i++)
@@ -514,6 +527,12 @@ static void load_json_page(int slot, cJSON *json)
 	struct page *page = alloc_page(page_type, subtype->valueint, cJSON_GetArraySize(values));
 	page->array.struct_type = struct_type;
 	page->array.rank = rank;
+	if (page_type == ARRAY_PAGE) {
+		cJSON *slots = cJSON_GetObjectItem(json, "elem-slots");
+		if (cJSON_IsNumber(slots) && (slots->valueint == 2 || slots->valueint == 3)
+		    && page->nr_vars % slots->valueint == 0)
+			page->array.elem_slots = slots->valueint;
+	}
 
 	// init page variables
 	int i = 0;
@@ -699,6 +718,11 @@ static void load_rsave_array(int slot, struct rsave_heap_array *a)
 	struct page *page = alloc_page(ARRAY_PAGE, a->data_type, a->nr_slots);
 	page->array.struct_type = resolve_struct_symbol(&a->struct_type);
 	page->array.rank = a->rank_minus_1 + 1;
+	// see array_page_to_rsave
+	int elem_slots = a->root_rank > 0 ? (a->root_rank >> RSAVE_ELEM_SLOTS_SHIFT) & 0xff : 0;
+	if ((elem_slots == 2 || elem_slots == 3) && a->nr_slots % elem_slots == 0
+	    && (a->data_type == AIN_ARRAY || a->data_type == AIN_REF_ARRAY))
+		page->array.elem_slots = elem_slots;
 	for (int i = 0; i < a->nr_slots; i++)
 		page->values[i].i = a->slots[i];
 

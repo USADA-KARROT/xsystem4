@@ -1242,10 +1242,16 @@ static void l_new_array_meta(const struct ain_type *elem, struct page *np)
 		np->a_type = AIN_ARRAY_STRUCT;
 		np->array.struct_type = elem->struc;
 		break;
-	default:
+	default: {
+		/* element slot count, as X_A_INIT stores it; l_array keeps the
+		 * destination of a multi-slot element array and never comes here
+		 * with one, so this is 1 */
+		int slots = ss_slot_count(elem);
 		np->a_type = AIN_ARRAY;
-		np->array.struct_type = 1; /* element slot count, as X_A_INIT stores it */
+		np->array.struct_type = slots;
+		np->array.elem_slots = slots > 1 ? slots : 0;
 		break;
+	}
 	}
 }
 

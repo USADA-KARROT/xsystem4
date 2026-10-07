@@ -110,17 +110,29 @@ static void array_elem_extra(int *value, int extra[2])
  * Array_Alloc and Array_Realloc, where the original clears the array
  * (0x67f4a0 clears before it looks at the count, 0x67f4d0 for n <= 0).
  *
- * Only the first slot of an element is counted on the HLL side (PushBack,
- * Insert, Erase, PopBack, AddRange and here). The VM counts every slot of
- * a generic page that is above 1: X_OP_SET, the A_REF copy and the page's
- * teardown (delete_page_vars). A two-slot option has only its flag there,
- * 0 or 1, so both agree. In a three-slot element the second slot is a
- * vtable offset. The shop's list, the one user, stays within the VM's rule
- * (Alloc, X_OP_SET 65539, teardown) and is balanced; mixing the two (an
- * element X_OP_SET wrote and Erase, PopBack, Alloc or Realloc removes, or
- * one PushBack stored and the page releases) is off by one reference on
- * heap[offset] for an offset above 1. That is left to the change that
- * gives the companion slots their types. */
+ * Only the first slot of an element is counted: on the HLL side (PushBack,
+ * Insert, Erase, PopBack, AddRange and here), and by the VM for a page
+ * that records its layout (page->array.elem_slots, set by X_A_INIT from
+ * the declaration and by the calls here that give a generic page its
+ * stride). X_OP_SET, the A_REF copy and the page's teardown go through
+ * variable_type, which calls the other slots of an element plain values,
+ * so a vtable offset above 1 is never taken for a heap slot. A generic
+ * page without that record (a declaration X_A_INIT could not resolve, a
+ * page from an older resume image) keeps the older rule, every slot above
+ * 1 a reference; such a page turns to the new rule when one of the calls
+ * here gives it its stride, which can leave one reference too many on
+ * heap[offset] for an offset X_OP_SET stored before, never one too few.
+ *
+ * These do not follow that layout and still treat a multi-slot page slot by
+ * slot: Array_Alloc for a non-option element (shrinking releases every slot
+ * above 0, and it reads the page's struct_type, a stride there, as a struct
+ * index), Array_Realloc for a non-option element (shrinking releases
+ * nothing), Array_ShallowCopy (no reference for a generic page, though the
+ * copy's teardown releases the first slots), Array_Duplicate and
+ * Array_Remain (a reference for every slot above 0, where the copy's
+ * teardown gives back only the first ones). This AIN calls none of them
+ * with a multi-slot operand, except Realloc 0x10003 once, in the editor
+ * (elkeditor::detail::CKeyDataList). */
 static void array_option_resize(struct page **array, int numof, bool keep)
 {
 	if (*array && (*array)->type != ARRAY_PAGE)
@@ -136,6 +148,7 @@ static void array_option_resize(struct page **array, int numof, bool keep)
 	struct page *new_a = alloc_page(ARRAY_PAGE, generic ? old->a_type : AIN_ARRAY, numof * stride);
 	new_a->array.rank = 1;
 	new_a->array.struct_type = stride;
+	new_a->array.elem_slots = stride;
 	for (int i = 0; i < kept * stride; i++)
 		new_a->values[i] = old->values[i];
 	for (int i = kept * stride; i < numof * stride; i++)
@@ -234,8 +247,10 @@ static void Array_PushBack(struct page **array, int value)
 	// its element stride from the first multi-slot element, so Numof/At and
 	// X_A_SIZE count elements, not slots.
 	if (a && is_2slot && old_size == 0
-	    && (a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY))
+	    && (a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)) {
 		a->array.struct_type = slots;
+		a->array.elem_slots = slots;
+	}
 
 	if (a) {
 		// Try to grow in-place if malloc has extra room
@@ -271,8 +286,13 @@ static void Array_PushBack(struct page **array, int value)
 		// to get logical element count.
 		int a_type = is_2slot ? AIN_ARRAY : AIN_ARRAY_INT;
 		struct page *new_a = alloc_page(ARRAY_PAGE, a_type, new_size);
-		if (is_2slot)
+		// alloc_page keeps a cached page's rank: a rank of 0 is written to
+		// a resume image as no array at all (rank_minus_1 -1).
+		new_a->array.rank = 1;
+		if (is_2slot) {
 			new_a->array.struct_type = slots;
+			new_a->array.elem_slots = slots;
+		}
 		new_a->values[0].i = value;
 		for (int k = 1; k < slots; k++)
 			new_a->values[k].i = extra[k - 1];
@@ -434,6 +454,7 @@ static int Array_Where(struct page **array, int func)
 	struct page *result_page = alloc_page(ARRAY_PAGE, result_a_type, result_slots);
 	result_page->array.rank = 1;
 	result_page->array.struct_type = is_2slot ? stride : src->array.struct_type;
+	result_page->array.elem_slots = is_2slot ? stride : 0;
 	for (int i = 0; i < match_count; i++) {
 		for (int k = 0; k < stride; k++)
 			result_page->values[i * stride + k] = matches[i * stride + k];
@@ -758,6 +779,7 @@ static void Array_Pushback(struct page **array, int value)
 		*array = a;
 	} else {
 		struct page *new_a = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
+		new_a->array.rank = 1;
 		new_a->values[0].i = value;
 		*array = new_a;
 	}
@@ -958,15 +980,17 @@ static void Array_Insert(struct page **array, int index, int value)
 			new_a->values[i + stride] = a->values[i];
 		new_a->array = a->array;
 		free_page(a);
-	} else if (stride > 1) {
+	} else {
 		new_a->array.rank = 1;
 	}
 	new_a->values[at].i = value;
 	if (stride > 1) {
 		for (int k = 1; k < stride; k++)
 			new_a->values[at + k].i = extra[k - 1];
-		if (old_size == 0 && (a_type == AIN_ARRAY || a_type == AIN_REF_ARRAY))
+		if (old_size == 0 && (a_type == AIN_ARRAY || a_type == AIN_REF_ARRAY)) {
 			new_a->array.struct_type = stride;
+			new_a->array.elem_slots = stride;
+		}
 	}
 	*array = new_a;
 }
@@ -1291,6 +1315,7 @@ static void filter_write(bool *flags, int n, struct page **dst) {
 	for (int i = 0; i < n; i++) if (flags[i]) c++;
 	if (*dst) free_page(*dst);
 	*dst = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, c);
+	(*dst)->array.rank = 1;
 	c = 0;
 	for (int i = 0; i < n; i++)
 		if (flags[i]) (*dst)->values[c++].i = i;
@@ -1307,6 +1332,7 @@ static void filter_and(bool *flags, int n, struct page **dst) {
 	}
 	if (c < d->nr_vars) {
 		struct page *nd = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, c);
+		nd->array.rank = 1;
 		for (int i = 0; i < c; i++) nd->values[i] = d->values[i];
 		free_page(d);
 		*dst = nd;
@@ -1326,6 +1352,7 @@ static void filter_or(bool *flags, int n, struct page **dst) {
 	for (int i = 0; i < n; i++)
 		if (flags[i] && !exists[i]) add++;
 	struct page *nd = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, d_size + add);
+	nd->array.rank = 1;
 	for (int i = 0; i < d_size; i++) nd->values[i] = d->values[i];
 	int c = d_size;
 	for (int i = 0; i < n; i++)
@@ -1944,6 +1971,8 @@ static int Array_EmplaceBack(struct page **array)
 			new_a->values[i] = a->values[i];
 		new_a->array = a->array;
 		free_page(a);
+	} else {
+		new_a->array.rank = 1;
 	}
 	int new_val = 0;
 	// For struct/wrap elements, construct a new struct object.
@@ -2029,8 +2058,10 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 			heap_ref(src_vals[i].i);
 	}
 	if (stride > 1 && old_size == 0
-	    && (new_a->a_type == AIN_ARRAY || new_a->a_type == AIN_REF_ARRAY))
+	    && (new_a->a_type == AIN_ARRAY || new_a->a_type == AIN_REF_ARRAY)) {
 		new_a->array.struct_type = stride;
+		new_a->array.elem_slots = stride;
+	}
 	free(src_vals);
 	*dst = new_a;
 }

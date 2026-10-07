@@ -212,9 +212,10 @@ static uint32_t oa_find_any(enum opcode want, int argument)
 	exit(2);
 }
 
-/* X_A_INIT 0 of size 0 on an array<option<wrap<Worker>>> member, the way a
- * constructor initializes one. The owner is dropped; the caller holds the
- * only reference to the empty array. */
+/* X_A_INIT 0 of size 0 on an array<option<wrap<Worker>>> member: the empty
+ * page a constructor gives such a member. (MatchingInfo's own @2 is "PUSH 3;
+ * X_A_INIT 1", three none elements; array-literal AL7 runs that.) The owner
+ * is dropped; the caller holds the only reference to the empty array. */
 static int oa_new_array(void)
 {
 	int st = sp_sno("MatchingInfo"), owner = alloc_struct(st);
@@ -1296,9 +1297,11 @@ static void oa_guard_three(void)
 	OA_CHECK(oa_hll1("Count", 0, OA_IFACE, arr) == 2, "Count 0x30003 is not 2");
 	int ref = HEAP_REF(arr);
 	if (oa_page(arr) && oa_page(arr)->nr_vars == 6) {
-		/* vtable offsets 0 and 1 only: a generic page counts every slot
-		 * above 1 as a reference in X_OP_SET and when it is torn down,
-		 * while the HLL side counts the first slot of an element. */
+		/* vtable offsets 0 and 1 only. Alloc 0x30003 gives the page its
+		 * layout, so X_OP_SET and the teardown count the first slot of
+		 * an element alone, as the HLL side does (before the
+		 * array-literal change the VM counted every slot above 1 of a
+		 * generic page); offsets above 1 are array-literal AL4 and AL8. */
 		int v[] = { a, 1, 0 };
 		oa_op_set(set, arr, 3, 3, v);
 		OA_IS(arr, "X_OP_SET 65539 did not write element 1", -1, -1, 1, a, 1, 0);

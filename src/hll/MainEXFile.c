@@ -732,11 +732,9 @@ static void ex_list_children(int slot, struct page *old, struct ex_tree *tree, b
  * is not registered) and is ignored here.
  *
  * Downstream: the battle's motion frames are found through this list
- * (FrameInfoCollection@InnerLoad), but a frame still loads only its first 9
- * sub-parameters. The array literal of FrameInfo@GetParams (19 two-slot
- * elements) is cut to 19 slots by X_A_INIT's stride (vm.c), so CG layers and
- * effects are not loaded until that is fixed, and each frame leaves the
- * references of the elements that were cut.
+ * (FrameInfoCollection@InnerLoad). A frame loads all 19 sub-parameters
+ * since X_A_INIT sizes the array literal of FrameInfo@GetParams by its
+ * declared two-slot elements (vm.c).
  */
 static bool MainEXFile_GetNodeNameList(struct string *tree_path, int list_slot, int id)
 {

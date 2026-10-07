@@ -333,14 +333,29 @@ static void wc_generic_unchanged(void)
 	int slot = wc_init_member(owner, member, 1,
 		wc_init_instruction("activityeditor::detail::CGridView@0", 0));
 	struct page *p = wc_page(slot);
-	/* Deliberately preserve the existing generic layout. This group does
-	 * not claim to repair positive-size interface-array initialization. */
-	WC_CHECK(p && p->a_type == AIN_ARRAY && p->array.struct_type == 1
-		&& p->nr_vars == 1 && p->values[0].i == -1,
-		"generic interface X_A_INIT 0 fallback changed");
+	/* m_vLine is array<wrap<iwrap<IParts>>>: an element is (object, vtable
+	 * offset), two slots. The original gives the page its element width
+	 * from the declaration (0x679432 -> 0x653420, page +0x48) and sizes a
+	 * sized array as elements * width (0x67fee0); the immediate 0 only
+	 * says "do not default-initialize". So one element is two slots and
+	 * X_A_SIZE is 1. (Until the array-literal change this page had one
+	 * slot, immediate + 1, and this check pinned that.) The -1 in both
+	 * slots is xsystem4's: natively the elements are left unset. The size
+	 * 1 is this case's: the script has size 0 there (CGridView@0 pushes
+	 * 0), and an empty page keeps immediate + 1 (see array-literal). */
+	WC_CHECK(p && p->a_type == AIN_ARRAY && p->array.struct_type == 2
+		&& p->nr_vars == 2 && wc_size(slot) == 1
+		&& p->values[0].i == -1 && p->values[1].i == -1,
+		"X_A_INIT 0 of one interface element is not one two-slot element");
 	/* No nested-option array is initialized by this AIN. Supply a synthetic
-	 * declaration only, keep the real opcode and production allocator, and
-	 * verify the unrecognized shape remains on the old two-slot fallback. */
+	 * declaration only, keep the real opcode and production allocator. The
+	 * page is two slots as before, now because the declaration says so:
+	 * every option layer together adds one slot to the one-slot payload
+	 * (0x653452). The immediate is 1, so the element is default-initialized
+	 * (0x67f4a0 -> 0x67fe20 -> 0x656970) to none: its value slot -1 and its
+	 * last slot the number of option layers (0x656a44: 0x653610 + 1), 2
+	 * here. (Until the array-literal change the element started as
+	 * (-1, -1) and this check pinned that.) */
 	struct ain_type original = ain->structures[st].members[member].type;
 	struct ain_type payload = { .data = AIN_STRUCT, .struc = sp_sno("CASColor") };
 	struct ain_type wrap = { .data = AIN_WRAP, .struc = payload.struc, .array_type = &payload };
@@ -351,14 +366,14 @@ static void wc_generic_unchanged(void)
 	ain->structures[st].members[member].type = original;
 	p = wc_page(slot);
 	WC_CHECK(p && p->a_type == AIN_ARRAY && p->array.struct_type == 2 && p->nr_vars == 2
-		&& p->values[0].i == -1 && p->values[1].i == -1,
-		"unrecognized nested-option fallback changed");
+		&& p->values[0].i == -1 && p->values[1].i == 2,
+		"X_A_INIT 1 of one nested-option element is not one two-slot none, (-1, 2)");
 	heap_unref(owner);
 	WC_CHECK(da_live_page(sentinel) && heap[sentinel].seq == seq && HEAP_REF(sentinel) == 1,
 		"generic initialization/teardown changed the unrelated sentinel");
 	heap_unref(sentinel);
 	WC_CHECK(live_slots() == baseline, "generic control teardown leaked slots");
-	printf("  WC6 generic interface and synthetic nested-option fallbacks unchanged; sentinel retained\n");
+	printf("  WC6 a sized interface array has two slots per element; the synthetic nested-option element is none in two slots; sentinel retained\n");
 }
 
 static int test_working_cards(void)

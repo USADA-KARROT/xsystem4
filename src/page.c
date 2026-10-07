@@ -82,6 +82,9 @@ struct page *alloc_page(enum page_type type, int type_index, int nr_vars)
 	page->type = type;
 	page->index = type_index;
 	page->nr_vars = nr_vars;
+	// A cached page keeps its old metadata; a multi-slot layout must be
+	// set by whoever knows it (X_A_INIT, the Array library), never found.
+	page->array.elem_slots = 0;
 	return page;
 }
 
@@ -288,6 +291,16 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 		return m->type.data;
 	}
 	case ARRAY_PAGE:
+		// The slots after the first of a multi-slot element (a vtable
+		// offset, an option flag) are values, not references. The
+		// original array knows its element type (page +0x48, from
+		// 0x653420) and releases an element through it (0x680270); the
+		// bytecode retains only the object (SP_INC) and so does the
+		// Array library. An offset above 1 must not be taken for a heap
+		// slot by the page's teardown, its copy or X_OP_SET.
+		if (page->array.elem_slots > 1 && page->array.rank <= 1
+		    && varno % page->array.elem_slots != 0)
+			return AIN_VOID;
 		if (struct_type)
 			*struct_type = page->array.struct_type;
 		if (array_rank)

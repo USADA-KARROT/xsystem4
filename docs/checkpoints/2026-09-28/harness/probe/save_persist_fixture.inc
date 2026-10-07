@@ -516,13 +516,13 @@ static int sp_l1_binding(void)
 	return 0;
 }
 
-static int sp_l2_real_shape(void)
+static int sp_l2_one_slot(void)
 {
 	sp_gspl_init();
 	size_t base = live_slots();
 	int obj = sp_new("CASCommonData");
 	int ref0 = HEAP_REF(obj);
-	int list = sp_generic_list(&obj, 1, 1); /* X_A_INIT 0 layout: one slot */
+	int list = sp_generic_list(&obj, 1, 1); /* one slot per element: the list's layout before X_A_INIT sized it by its declaration (L3 is the two-slot one) */
 	int r = sp_gspl(list, 0x10003);
 	SP_CHECK(sp_valid_list(r, 1), "result %d is not a one-element array", r);
 	struct page *p = heap[r].page;
@@ -635,7 +635,7 @@ static int test_save_list(void)
 {
 	sp_setup_dir();
 	sp_run("L1 binding and consumer check", sp_l1_binding);
-	sp_run("L2 X_A_INIT list", sp_l2_real_shape);
+	sp_run("L2 one-slot list", sp_l2_one_slot);
 	sp_run("L3 two-slot list", sp_l3_stride2);
 	sp_run("L4 invalid elements", sp_l4_invalid);
 	sp_run("L5 one invalid element empties", sp_l5_partial);
