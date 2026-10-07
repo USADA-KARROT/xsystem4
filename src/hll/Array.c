@@ -37,6 +37,8 @@
 int hll_current_arg3 = -1;
 // Set by ffi.c for 2-slot HLL_PARAM: stores the second slot value.
 int hll_param_slot2 = 0;
+// Third slot of a 3-slot HLL_PARAM (the flag of an option of an interface).
+int hll_param_slot3 = 0;
 
 // v14: heap slot of the first AIN_REF_ARRAY argument (typically 'self').
 // Set by ffi.c during argument processing so HLL functions can construct
@@ -56,12 +58,107 @@ static inline bool array_elem_is_struct(void) {
 	return hll_current_arg3 == 2 || hll_current_arg3 >= 0x10000;
 }
 
-// Check if current Array HLL call operates on 2-slot elements (iface, option, etc.)
-// v14: hll_arg3 low bits encode element category.
-// etype==3 and etype==5 are v14 encodings for interface/option types.
+// Slots per element of the current Array HLL call (hll_generic_slots, ffi.c):
+// 2 for an interface (object, vtable offset) or an option of a one-slot
+// payload (value, flag), 3 for an option of an interface.
+static inline int array_elem_slots(void) {
+	return hll_generic_slots(hll_current_arg3);
+}
+
+// Check if current Array HLL call operates on multi-slot elements (iface,
+// option, etc.). The name predates the 3-slot option.
 static inline bool array_elem_is_2slot(void) {
-	int etype = hll_current_arg3 & 0xFFFF;
-	return etype == 3 || etype == 5 || etype == AIN_IFACE || etype == AIN_OPTION || etype == AIN_IFACE_WRAP;
+	return array_elem_slots() > 1;
+}
+
+// Option elements (bit 17 of the type operand) keep their value slots first
+// and the flag last. Flag 0 is "has a value"; none is -1 in every value slot
+// and flag 1 (native 0x656a44).
+static inline bool array_elem_is_option(void) {
+	return hll_generic_is_option(hll_current_arg3);
+}
+
+// The slots after the first of the element a call stores (PushBack, Insert).
+// An option that is none stores no value: native 0x646d70 (at 0x646e7b)
+// writes only the flag and leaves the value slots at their default, -1.
+static void array_elem_extra(int *value, int extra[2])
+{
+	extra[0] = hll_param_slot2;
+	extra[1] = hll_param_slot3;
+	if (!array_elem_is_option())
+		return;
+	int slots = array_elem_slots();
+	if (extra[slots - 2] != 0) {
+		*value = -1;
+		if (slots > 2)
+			extra[0] = -1;
+	}
+}
+
+/* Option elements: native Alloc (0x647470 -> 0x67f4a0) clears the array and
+ * default-initializes every element (0x67fe20 -> 0x656970); Realloc
+ * (0x67f4d0) keeps the leading elements, default-initializes the new tail
+ * (0x680170) and releases the removed one (0x680270). The default is none.
+ * The new page is in place before the old elements go, because releasing
+ * an element can run a destructor.
+ *
+ * Not as the original: a removed element releases its first slot whatever
+ * its flag is, front to back (natively a none element releases nothing,
+ * 0x656c10 at 0x656c36, and the array is emptied from the back, 0x67ec50
+ * and 0x67f554; the two differ only for a none whose value slot is not -1,
+ * which nothing here stores). And a negative count returns at once in
+ * Array_Alloc and Array_Realloc, where the original clears the array
+ * (0x67f4a0 clears before it looks at the count, 0x67f4d0 for n <= 0).
+ *
+ * Only the first slot of an element is counted on the HLL side (PushBack,
+ * Insert, Erase, PopBack, AddRange and here). The VM counts every slot of
+ * a generic page that is above 1: X_OP_SET, the A_REF copy and the page's
+ * teardown (delete_page_vars). A two-slot option has only its flag there,
+ * 0 or 1, so both agree. In a three-slot element the second slot is a
+ * vtable offset. The shop's list, the one user, stays within the VM's rule
+ * (Alloc, X_OP_SET 65539, teardown) and is balanced; mixing the two (an
+ * element X_OP_SET wrote and Erase, PopBack, Alloc or Realloc removes, or
+ * one PushBack stored and the page releases) is off by one reference on
+ * heap[offset] for an offset above 1. That is left to the change that
+ * gives the companion slots their types. */
+static void array_option_resize(struct page **array, int numof, bool keep)
+{
+	if (*array && (*array)->type != ARRAY_PAGE)
+		return;
+	int stride = array_elem_slots();
+	struct page *old = *array;
+	bool generic = old && (old->a_type == AIN_ARRAY || old->a_type == AIN_REF_ARRAY);
+	bool packed = generic && old->array.struct_type == stride;
+	int old_n = packed ? old->nr_vars / stride : 0;
+	int kept = 0;
+	if (keep)
+		kept = old_n < numof ? old_n : numof;
+	struct page *new_a = alloc_page(ARRAY_PAGE, generic ? old->a_type : AIN_ARRAY, numof * stride);
+	new_a->array.rank = 1;
+	new_a->array.struct_type = stride;
+	for (int i = 0; i < kept * stride; i++)
+		new_a->values[i] = old->values[i];
+	for (int i = kept * stride; i < numof * stride; i++)
+		new_a->values[i].i = (i % stride == stride - 1) ? 1 : -1;
+	int nr_gone = packed ? old_n - kept : 0;
+	int *gone = nr_gone > 0 ? xmalloc(nr_gone * sizeof(int)) : NULL;
+	for (int i = 0; i < nr_gone; i++)
+		gone[i] = old->values[(kept + i) * stride].i;
+	if (hll_self_slot > 0 && (size_t)hll_self_slot < heap_size
+	    && heap[hll_self_slot].type == VM_PAGE && heap[hll_self_slot].page == *array)
+		heap[hll_self_slot].page = new_a;
+	*array = new_a;
+	if (old) {
+		// a page of another layout is torn down as what it is
+		if (!packed)
+			delete_page_vars(old);
+		free_page(old);
+	}
+	for (int i = 0; i < nr_gone; i++) {
+		if (gone[i] > 0)
+			heap_unref(gone[i]);
+	}
+	free(gone);
 }
 
 // Alloc: allocate/resize an array.
@@ -73,6 +170,10 @@ static void Array_Alloc(struct page **array, int numof)
 {
 	if (!array || numof < 0)
 		return;
+	if (array_elem_is_option()) {
+		array_option_resize(array, numof, false);
+		return;
+	}
 	struct page *old = *array;
 	int old_size = (old && old->type == ARRAY_PAGE) ? old->nr_vars : 0;
 	int struct_type = (old && old->type == ARRAY_PAGE) ? old->array.struct_type : -1;
@@ -123,16 +224,18 @@ static void Array_PushBack(struct page **array, int value)
 		return;
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
-	bool is_2slot = array_elem_is_2slot();
-	int slots = is_2slot ? 2 : 1;
+	int slots = array_elem_slots();
+	bool is_2slot = slots > 1;
 	int new_size = old_size + slots;
+	int extra[2];
+	array_elem_extra(&value, extra);
 
 	// An empty generic array (X_A_INIT 0 of e.g. array<wrap<iwrap<T>>>) gets
-	// its element stride from the first two-slot element, so Numof/At and
+	// its element stride from the first multi-slot element, so Numof/At and
 	// X_A_SIZE count elements, not slots.
 	if (a && is_2slot && old_size == 0
 	    && (a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY))
-		a->array.struct_type = 2;
+		a->array.struct_type = slots;
 
 	if (a) {
 		// Try to grow in-place if malloc has extra room
@@ -145,8 +248,8 @@ static void Array_PushBack(struct page **array, int value)
 		if (needed <= actual) {
 			a->nr_vars = new_size;
 			a->values[old_size].i = value;
-			if (is_2slot)
-				a->values[old_size + 1].i = hll_param_slot2;
+			for (int k = 1; k < slots; k++)
+				a->values[old_size + k].i = extra[k - 1];
 			if (array_elem_is_ref() && value > 0)
 				heap_ref(value);
 			return;
@@ -157,21 +260,22 @@ static void Array_PushBack(struct page **array, int value)
 		a = xrealloc(a, sizeof(struct page) + sizeof(union vm_value) * grow_to);
 		a->nr_vars = new_size;
 		a->values[old_size].i = value;
-		if (is_2slot)
-			a->values[old_size + 1].i = hll_param_slot2;
+		for (int k = 1; k < slots; k++)
+			a->values[old_size + k].i = extra[k - 1];
 		if (array_elem_is_ref() && value > 0)
 			heap_ref(value);
 		*array = a;
 	} else {
-		// For 2-slot interface/option elements, set AIN_ARRAY type and struct_type=2
-		// so X_A_SIZE correctly divides nr_vars by stride to get logical element count.
+		// For multi-slot interface/option elements, set AIN_ARRAY type and
+		// struct_type=stride so X_A_SIZE correctly divides nr_vars by stride
+		// to get logical element count.
 		int a_type = is_2slot ? AIN_ARRAY : AIN_ARRAY_INT;
 		struct page *new_a = alloc_page(ARRAY_PAGE, a_type, new_size);
 		if (is_2slot)
-			new_a->array.struct_type = 2;
+			new_a->array.struct_type = slots;
 		new_a->values[0].i = value;
-		if (is_2slot)
-			new_a->values[1].i = hll_param_slot2;
+		for (int k = 1; k < slots; k++)
+			new_a->values[k].i = extra[k - 1];
 		if (array_elem_is_ref() && value > 0)
 			heap_ref(value);
 		*array = new_a;
@@ -286,21 +390,23 @@ static int Array_Where(struct page **array, int func)
 	}
 
 	struct ain_function *cb = &ain->functions[func];
-	bool is_2slot = array_elem_is_2slot();
-	int stride = is_2slot ? 2 : 1;
+	int stride = array_elem_slots();
+	bool is_2slot = stride > 1;
 
 	// Collect matching elements by calling the predicate function for each.
-	// For 2-slot elements (interface/option), matches stores interleaved [page_idx, vtoff] pairs.
+	// For multi-slot elements (interface/option), matches stores the slots
+	// of each element in order ([page_idx, vtoff], [value, flag]).
 	union vm_value *matches = malloc(src->nr_vars * sizeof(union vm_value));
 	int match_count = 0;  // number of matched elements (not slots)
 
-	for (int i = 0; i < src->nr_vars; i += stride) {
+	for (int i = 0; i + stride <= src->nr_vars; i += stride) {
 		int saved_sp = stack_ptr;
 
 		if (is_2slot) {
-			// 2-slot interface element: push [page_idx, vtoff]
-			stack_push(src->values[i]);
-			stack_push(src->values[i + 1]);
+			// multi-slot element: push it whole ([page_idx, vtoff], or an
+			// option's [value, flag], native 0x6455d0)
+			for (int k = 0; k < stride; k++)
+				stack_push(src->values[i + k]);
 		} else if (cb->nr_args >= 2) {
 			// Ref/struct parameter: push element value and 0
 			stack_push(src->values[i]);
@@ -314,15 +420,14 @@ static int Array_Where(struct page **array, int func)
 		int result = stack_pop().i;
 		stack_ptr = saved_sp;
 		if (result) {
-			matches[match_count * stride] = src->values[i];
-			if (is_2slot)
-				matches[match_count * stride + 1] = src->values[i + 1];
+			for (int k = 0; k < stride; k++)
+				matches[match_count * stride + k] = src->values[i + k];
 			match_count++;
 		}
 	}
 
 	// Build result array: preserve a_type and struct_type for X_A_SIZE correctness.
-	// For 2-slot elements, force AIN_ARRAY type and struct_type=stride so X_A_SIZE
+	// For multi-slot elements, force AIN_ARRAY type and struct_type=stride so X_A_SIZE
 	// returns the logical element count (nr_vars / stride) not the raw slot count.
 	int result_slots = match_count * stride;
 	int result_a_type = is_2slot ? AIN_ARRAY : src->a_type;
@@ -330,9 +435,8 @@ static int Array_Where(struct page **array, int func)
 	result_page->array.rank = 1;
 	result_page->array.struct_type = is_2slot ? stride : src->array.struct_type;
 	for (int i = 0; i < match_count; i++) {
-		result_page->values[i * stride] = matches[i * stride];
-		if (is_2slot)
-			result_page->values[i * stride + 1] = matches[i * stride + 1];
+		for (int k = 0; k < stride; k++)
+			result_page->values[i * stride + k] = matches[i * stride + k];
 		if (array_elem_is_ref() && matches[i * stride].i > 0)
 			heap_ref(matches[i * stride].i);
 	}
@@ -373,6 +477,18 @@ static int Array_First(struct page **array, int func)
 		static int warned;
 		if (warned++ < 8)
 			WARNING("Array.First: %s (fno %d); returning none", why, func);
+		return Array_At(array, -1);
+	}
+	// An option element never takes the slot loop below: it would feed the
+	// predicate single slots and return one slot where the bytecode takes a
+	// position (native First is At of the index found, 0x649e50). Stride 1
+	// means the page does not have the option layout, e.g. an array literal,
+	// which is still allocated one slot per element.
+	if (array_elem_is_option()) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("Array.First: option array page has no element stride (arg3 %#x, %d slots); returning none",
+				hll_current_arg3, src->nr_vars);
 		return Array_At(array, -1);
 	}
 
@@ -483,6 +599,33 @@ static int Array_Empty(struct page **self)
 static int Array_At(struct page **self, int index)
 {
 	struct page *array = (self && *self) ? *self : NULL;
+	// An option element is returned as its position, (array page, physical
+	// slot index): the bytecode reads the value and the flag through it with
+	// X_REF (native 0x6499e0 at 0x649b0d). Without an element the position
+	// is (-1, 0) (0x649c25).
+	// The position is not counted here. Natively it holds a reference to
+	// its page (0x658390 -> 0x679f10), which the function page that keeps
+	// it gives back when it releases the type 0x57 variable (0x6570f0 ->
+	// 0x656cf0 -> 0x656c10 at 0x656c58). This VM has neither half for type
+	// 87: variable_fini does not release it, and function_call,
+	// vm_call_nopop and delegate calls do not retain such an argument.
+	// Retaining here alone leaks the array on every call (MapView@GetNode,
+	// the one caller, keeps the position in a type 87 local and has no
+	// .LOCALDELETE); releasing type 87 without the argument retains would
+	// release too much. So the position is borrowed and must not outlive
+	// the array. GetNode reads the element through it at once, while its
+	// object owns the array.
+	if (array_elem_is_option()) {
+		int stride = array ? array_erase_stride(array) : 1;
+		if (!array || index < 0 || index >= array->nr_vars / stride || hll_self_slot <= 0) {
+			stack_push(-1);
+			stack_push(0);
+			return 0;
+		}
+		stack_push(hll_self_slot);
+		stack_push(index * stride);
+		return 0;
+	}
 	// v14: convert logical index to physical for multi-slot arrays
 	// (2-slot value elements only — see Array_Numof).
 	if (array && (array->a_type == AIN_ARRAY || array->a_type == AIN_REF_ARRAY)
@@ -542,9 +685,9 @@ static void Array_PopBack(struct page **array)
 	if (!array || !*array || (*array)->nr_vars <= 0)
 		return;
 	struct page *a = *array;
-	int slots = array_elem_is_2slot() && a->nr_vars >= 2
-		&& (a->a_type == AIN_ARRAY || a->a_type == AIN_REF_ARRAY)
-		&& a->array.struct_type == 2 ? 2 : 1;
+	int slots = array_erase_stride(a);
+	if (slots > a->nr_vars)
+		slots = 1;
 	int new_size = a->nr_vars - slots;
 	// v14: unref the removed element if it's a heap object
 	if (array_elem_is_ref()) {
@@ -667,6 +810,7 @@ static bool Array_Erase(struct page **array, int index, int length)
 	length *= stride;
 	// Match PushBack: only the first slot owns a reference. The second slot
 	// of an interface/option element is metadata, even if it looks like a slot.
+	// (The VM counts differently for a three-slot element: array_option_resize.)
 	if (array_elem_is_ref()) {
 		for (int i = index; i < index + length; i += stride) {
 			int removed = a->values[i].i;
@@ -794,11 +938,13 @@ static void Array_Insert(struct page **array, int index, int value)
 {
 	if (!array)
 		return;
+	int extra[2];
+	array_elem_extra(&value, extra);
 	// heap_ref for ref-counted elements (struct/string/delegate)
 	if (array_elem_is_ref() && value > 0)
 		heap_ref(value);
 	struct page *a = *array;
-	int stride = array_elem_is_2slot() ? 2 : 1;
+	int stride = array_elem_slots();
 	int old_size = a ? a->nr_vars : 0;
 	if (index < 0) index = 0;
 	if (index > old_size / stride) index = old_size / stride;
@@ -817,9 +963,10 @@ static void Array_Insert(struct page **array, int index, int value)
 	}
 	new_a->values[at].i = value;
 	if (stride > 1) {
-		new_a->values[at + 1].i = hll_param_slot2;
+		for (int k = 1; k < stride; k++)
+			new_a->values[at + k].i = extra[k - 1];
 		if (old_size == 0 && (a_type == AIN_ARRAY || a_type == AIN_REF_ARRAY))
-			new_a->array.struct_type = 2;
+			new_a->array.struct_type = stride;
 	}
 	*array = new_a;
 }
@@ -1645,6 +1792,10 @@ static void Array_Realloc(struct page **array, int new_size)
 {
 	if (!array || new_size < 0)
 		return;
+	if (array_elem_is_option()) {
+		array_option_resize(array, new_size, true);
+		return;
+	}
 	struct page *old = *array;
 	if (!old) {
 		*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
@@ -1777,6 +1928,14 @@ void *array_isexist_function(const struct ain_hll_function *f)
 static int Array_EmplaceBack(struct page **array)
 {
 	if (!array) return 0;
+	// Nothing in the game emplaces an option element, and the struct path
+	// below would construct an object from the element stride.
+	if (array_elem_is_option()) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("Array.EmplaceBack: option elements are not supported (arg3 %#x); nothing appended", hll_current_arg3);
+		return -1;
+	}
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
 	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
@@ -1858,10 +2017,12 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 	} else {
 		new_a->array.rank = 1;
 	}
-	// Two-slot elements (0x10003): only the first slot of a pair is an
-	// object; the second is its vtable offset and gains no reference. An
-	// empty generic destination takes the stride (see Array_PushBack).
-	int stride = array_elem_is_2slot() ? 2 : 1;
+	// Multi-slot elements (0x10003, options): only the first slot of an
+	// element is an object; the others are its vtable offset or flag and gain
+	// no reference (for what the VM counts in a three-slot element see
+	// array_option_resize). An empty generic destination takes the stride
+	// (see Array_PushBack).
+	int stride = array_elem_slots();
 	for (int i = 0; i < src_count; i++) {
 		new_a->values[old_size + i] = src_vals[i];
 		if (array_elem_is_ref() && i % stride == 0 && src_vals[i].i > 0)
@@ -1963,6 +2124,11 @@ static int array_callback_kind(struct page **array, int func, int stride,
 			&& (cb->vars[0].type.array_type->data == AIN_IFACE
 			    || cb->vars[0].type.array_type->data == AIN_IFACE_WRAP);
 		if (stride == 2 && (type == AIN_IFACE || type == AIN_IFACE_WRAP || wrapped_iface))
+			return 0;
+		// A two-slot option element is passed whole, by value: (value,
+		// flag) into the option argument and its void companion (native
+		// 0x6455d0 at 0x645829), e.g. MapView@GetNode's First.
+		if (stride == 2 && type == AIN_OPTION && array_elem_is_option())
 			return 0;
 		if (stride == 1 && (type == AIN_REF_INT || type == AIN_REF_FLOAT
 		    || type == AIN_REF_BOOL || type == AIN_REF_LONG_INT)) {
@@ -2942,7 +3108,7 @@ static bool Array_AnyIf(struct page **array, int func)
 // VM slots per logical element for the current call (2 for iface/option).
 static int array_call_stride(void)
 {
-	return array_elem_is_2slot() ? 2 : 1;
+	return array_elem_slots();
 }
 
 static int array_call_numof(const struct page *a)
@@ -3106,6 +3272,16 @@ static void Array_Realloc_Fill(struct page **array, int numof, int value)
 {
 	if (!array)
 		return;
+	// Nothing in the game fills an option array. Resize it as Realloc does
+	// (new elements are none) rather than through the slot arithmetic below.
+	if (array_elem_is_option()) {
+		static int warned;
+		if (warned++ < 8)
+			WARNING("Array.Realloc: filling option elements is not supported (arg3 %#x); new elements are none", hll_current_arg3);
+		if (numof >= 0)
+			array_option_resize(array, numof, true);
+		return;
+	}
 	int old = array_call_numof(*array);
 	Array_Realloc(array, numof * array_call_stride());
 	if (numof > old)

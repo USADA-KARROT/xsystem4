@@ -11,6 +11,7 @@ static void iface_arg_probe_step(void);
 static void title_review_probe_step(void);
 static void third_review_probe_step(void);
 static void working_cards_probe_step(void);
+static void option_array_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -39,6 +40,7 @@ static void probe_step(unsigned op) {
     title_review_probe_step();
     third_review_probe_step();
     working_cards_probe_step();
+    option_array_probe_step();
 
 }
 static size_t live_slots(void) {
@@ -122,6 +124,7 @@ static void init_probe(const char *path) {
 #include "free_box_fixture.inc"
 #include "text_size_fixture.inc"
 #include "click_permission_fixture.inc"
+#include "option_array_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -177,6 +180,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"free-box"))return test_free_box();
     if(!strcmp(argv[2],"text-size"))return test_text_size();
     if(!strcmp(argv[2],"click-permission"))return test_click_permission();
+    if(!strcmp(argv[2],"option-array"))return test_option_array();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

@@ -305,6 +305,37 @@ static void trace_hll_call(struct ain_library *lib, struct ain_hll_function *f,
 }
 #endif /* TRACE_HLL */
 
+/*
+ * Slot count of a generic (hll_param) argument or element, from the CALLHLL
+ * type operand. Native 0x66a700 keeps the operand as the argument's packed
+ * type and 0x659970 pops by it: low word 1 plain value, 2 object, 3
+ * interface; bit 16 wrap; bit 17 option. An option adds its flag to the
+ * slots of its payload: 0x20002 and 0x30002 are (value, flag), 0x30003 is
+ * (object, vtable offset, flag). The operand is a packed type only in v14
+ * generic calls: every other library passes 0, and an AIN before v14 is kept
+ * out by the version test whatever its third operand is (before v11 there is
+ * none and the VM passes -1).
+ * Two operands that nothing calls with differ from the original: 0x10001
+ * (wrap<int>) is two slots natively and one here, and 0x30001
+ * (option<wrap<int>>) three natively (0x659774: a wrapped low word 1 has a
+ * second slot) and two here.
+ * This covers arguments and the array layout only: a function returning a
+ * three-slot option is still cut to two slots by ain_return_slots_type
+ * (vm.c).
+ */
+bool hll_generic_is_option(int hll_arg3)
+{
+	return ain->version >= 14 && hll_arg3 > 0 && (hll_arg3 & 0x20000);
+}
+
+int hll_generic_slots(int hll_arg3)
+{
+	int etype = hll_arg3 & 0xFFFF;
+	int slots = (etype == 3 || etype == 5 || etype == AIN_IFACE
+		     || etype == AIN_OPTION || etype == AIN_IFACE_WRAP) ? 2 : 1;
+	return slots + (hll_generic_is_option(hll_arg3) ? 1 : 0);
+}
+
 void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
@@ -358,16 +389,11 @@ void hll_call(int libno, int fno, int hll_arg3)
 				stack_ptr -= 2; break; // v14: 2-slot [page, vtable_offset]
 			case AIN_OPTION:
 				stack_ptr -= 2; break; // v14: 2-slot [value, discriminant]
-			case AIN_HLL_PARAM: {
+			case AIN_HLL_PARAM:
 				// v14: generic element parameter. Slot count depends on
 				// element type encoded in hll_arg3.
-				int etype = hll_arg3 & 0xFFFF;
-				bool is_2slot = (etype == 3 || etype == 5 ||
-					etype == AIN_IFACE || etype == AIN_OPTION ||
-					etype == AIN_IFACE_WRAP);
-				stack_ptr -= is_2slot ? 2 : 1;
+				stack_ptr -= hll_generic_slots(hll_arg3);
 				break;
-			}
 			case AIN_REF_ARRAY:
 				stack_ptr--; break; // v14: 1-slot (resolved heap slot)
 			default:
@@ -396,14 +422,17 @@ void hll_call(int libno, int fno, int hll_arg3)
 	extern int hll_current_arg3;
 	extern int hll_self_slot;
 	extern int hll_param_slot2;
+	extern int hll_param_slot3;
 	int saved_arg3 = hll_current_arg3;
 	int saved_self_slot = hll_self_slot;
 	int saved_func_obj = hll_func_obj;
 	int saved_param_slot2 = hll_param_slot2;
+	int saved_param_slot3 = hll_param_slot3;
 	hll_current_arg3 = hll_arg3;
 	hll_self_slot = -1;
 	hll_func_obj = -1;
 	hll_param_slot2 = 0;
+	hll_param_slot3 = 0;
 
 	// Reset null-array source tracker (set by X_REF in vm.c)
 	// before processing arguments — it will be set again if
@@ -658,16 +687,15 @@ void hll_call(int libno, int fno, int hll_arg3)
 		}
 		case AIN_HLL_PARAM: {
 			// v14: generic element parameter (type 74). The actual element
-			// type is encoded in hll_arg3. For 2-slot types (wrap, interface,
-			// option), bytecode pushes 2 values but AIN declares 1 param.
-			int etype = hll_current_arg3 & 0xFFFF;
-			bool is_2slot = (etype == 3 || etype == 5 ||
-				etype == AIN_IFACE || etype == AIN_OPTION ||
-				etype == AIN_IFACE_WRAP);
-			if (is_2slot) {
-				stack_ptr -= 2;
+			// type is encoded in hll_arg3. For multi-slot types (interface,
+			// option), bytecode pushes every slot but AIN declares 1 param.
+			int nslots = hll_generic_slots(hll_current_arg3);
+			if (nslots > 1) {
+				stack_ptr -= nslots;
 				heap_slots[i] = stack[stack_ptr].i;
 				hll_param_slot2 = stack[stack_ptr+1].i;
+				if (nslots > 2)
+					hll_param_slot3 = stack[stack_ptr+2].i;
 				args[i] = &heap_slots[i];
 			} else {
 				stack_ptr--;
@@ -727,14 +755,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 		case AIN_OPTION: // v14: 2-slot value types, skip extra slot
 			j++;
 			break;
-		case AIN_HLL_PARAM: {
-			// v14: generic element — skip extra slot if 2-slot type
-			int etype = hll_current_arg3 & 0xFFFF;
-			if (etype == 3 || etype == 5 || etype == AIN_IFACE ||
-			    etype == AIN_OPTION || etype == AIN_IFACE_WRAP)
-				j++;
+		case AIN_HLL_PARAM:
+			// v14: generic element — skip the extra slots of a multi-slot type
+			j += hll_generic_slots(hll_current_arg3) - 1;
 			break;
-		}
 		case AIN_REF_STRING:
 			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size
 			    && heap[heap_slots[i]].type == VM_STRING) {
@@ -817,6 +841,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 	hll_self_slot = saved_self_slot;
 	hll_func_obj = saved_func_obj;
 	hll_param_slot2 = saved_param_slot2;
+	hll_param_slot3 = saved_param_slot3;
 }
 
 extern struct static_library lib_ACXLoader;

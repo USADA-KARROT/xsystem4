@@ -116,6 +116,9 @@ int vm_time(void);
 void vm_sleep(int ms);
 
 void hll_call(int libno, int fno, int hll_arg3);
+// v14 generic (hll_param) element of a CALLHLL type operand, see ffi.c
+bool hll_generic_is_option(int hll_arg3);
+int hll_generic_slots(int hll_arg3);
 bool library_exists(int libno);
 bool library_function_exists(int libno, int fno);
 void init_libraries(void);
