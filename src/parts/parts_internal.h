@@ -95,7 +95,7 @@ struct parts_text_char {
 	Texture t;
 	char ch[5];
 	float advance;
-	Point off;
+	Point off; // of the texture from the pen position on its line
 };
 
 struct parts_text_line {
@@ -603,6 +603,7 @@ void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rat
 
 // text.c
 void parts_text_free(struct parts_text *t);
+void parts_text_extent(struct parts_text *t, int *w, int *h);
 struct string *parts_text_line_get(struct parts_text_line *line);
 struct string *parts_text_get(struct parts_text *t);
 

@@ -413,33 +413,12 @@ static bool lb_v14_counted(struct parts *child)
 
 static void lb_v14_box_size(struct parts *box, int *w, int *h);
 
-// A text's laid-out extent (0x5bee50), limited by its surface area (0x5bf8c0).
-// A line is its glyph textures' widths and the character spacing between
-// them, one less than the glyphs (0x5bcd20: 0x5bcde8; 0x5bef1b for a run that
-// does not start the line). A glyph texture is as wide as text.c makes a
-// character's. The line's own width is not used: it adds up the advances, a
-// spacing after every character. The line height is text.c's, not yet the
-// original's (0x5bce00). An emptied text has no extent (its texture size is
-// not reset).
+// A text's extent (text.c), limited by its surface area (0x5bf8c0, 0x5bf910).
+// An emptied text has none (its texture size is not reset where the text is
+// not laid out as the original's).
 static void lb_v14_text_size(struct parts_text *t, int *w, int *h)
 {
-	float width = 0;
-	int height = 0;
-	for (unsigned i = 0; i < t->nr_lines; i++) {
-		struct parts_text_line *line = &t->lines[i];
-		float line_w = 0;
-		for (int c = 0; c < line->nr_chars; c++)
-			line_w += ceilf(text_style_width(&t->ts, line->chars[c].ch));
-		if (line->nr_chars > 1)
-			line_w += (line->nr_chars - 1) * t->ts.font_spacing;
-		if (line_w > width)
-			width = line_w;
-		if (i > 0)
-			height += t->line_space;
-		height += line->height;
-	}
-	*w = ceilf(width);
-	*h = height;
+	parts_text_extent(t, w, h);
 	Rectangle *sa = &t->common.surface_area;
 	if (sa->w > 0 && sa->h > 0) {
 		if (sa->w < *w)

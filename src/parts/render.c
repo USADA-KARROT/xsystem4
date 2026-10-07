@@ -269,7 +269,8 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 			struct parts_text_char *ch = &line->chars[j];
 			mat4 mw_transform;
 			glm_mat4_copy(anchor, mw_transform);
-			glm_translate(mw_transform, (vec3){ x - parts->global.pos.x, y - parts->global.pos.y, 0 });
+			glm_translate(mw_transform, (vec3){ x + ch->off.x - parts->global.pos.x,
+				y + ch->off.y - parts->global.pos.y, 0 });
 			glm_scale(mw_transform, (vec3){ ch->t.w, ch->t.h, 1.0f });
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
 			parts_render_texture(parts, &ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);

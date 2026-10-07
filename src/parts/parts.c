@@ -446,12 +446,19 @@ static void parts_common_recalculate_hitbox(struct parts *parts, struct parts_co
 	if (common->surface_area.w || common->surface_area.h) {
 		common->origin_offset = calculate_offset(parts->origin_mode,
 				common->surface_area.w, common->surface_area.h);
+		// SDL_IntersectRect leaves x and y alone when either rectangle is
+		// empty (e.g. an emptied v14 text, 0x0). They are then the surface
+		// area's, as they are when neither is, and as 0x59b760 writes them
+		// whatever the content's size: the corner does not move when the
+		// content is emptied, nor add up from one call to the next.
 		Rectangle r = { 0, 0, common->w, common->h };
-		SDL_IntersectRect(&r, &common->surface_area, &common->hitbox);
+		Rectangle hit = { max(0, common->surface_area.x), max(0, common->surface_area.y), 0, 0 };
+		SDL_IntersectRect(&r, &common->surface_area, &hit);
 		common->origin_offset.x -= common->surface_area.x;
 		common->origin_offset.y -= common->surface_area.y;
-		common->hitbox.x += parts->local.pos.x + common->origin_offset.x;
-		common->hitbox.y += parts->local.pos.y + common->origin_offset.y;
+		hit.x += parts->local.pos.x + common->origin_offset.x;
+		hit.y += parts->local.pos.y + common->origin_offset.y;
+		common->hitbox = hit;
 	} else {
 		common->origin_offset = calculate_offset(parts->origin_mode, common->w, common->h);
 		common->hitbox = (Rectangle) {
@@ -1044,8 +1051,10 @@ static int parts_load_numeral_font_combined(struct cg *cg, int cg_no, int w[12])
 /*
  * v14 表示タイプ 2 (e.g. SceneHome's NumDay, MoneyView's Money): the number
  * is drawn as text with the numeral's font, digit spacing, comma grouping
- * and zero padding. The exact native layout was not traced; the digits use
- * the same text renderer as text parts.
+ * and zero padding, with the same text renderer as text parts. The original
+ * makes a glyph per character and sizes the numeral by them (0x5b4df0): the
+ * width and, on the CN glyph grid, the height below follow it; elsewhere the
+ * height is the font size and both edges.
  */
 static bool parts_numeral_update_font(struct parts *parts, struct parts_numeral *num)
 {
@@ -1090,6 +1099,16 @@ static bool parts_numeral_update_font(struct parts *parts, struct parts_numeral 
 	int nr_chars = full ? len / 2 : len;
 	int w = (int)ceilf(gfx_size_text(&ts, buf)) + (nr_chars - 1) * num->space;
 	int h = (int)ceilf(ts.size + ts.edge_up + ts.edge_down);
+	int y = 0;
+	if (ain->version >= 14 && gfx_text_cn_gdi()) {
+		// The height is the tallest glyph texture's (0x5b5133), size + 2e
+		// with the glyph e below its top (0x69c290, 0x69c3d0); the textures
+		// are placed from the numeral's top (0x5b4380). No rows are added
+		// below as for a text's glyphs (text.c): digits, the comma and the
+		// minus sign do not reach below the cell.
+		y = gfx_text_cn_style_edge(&ts);
+		h = (int)lroundf(ts.size) + 2 * y;
+	}
 	if (w <= 0 || h <= 0)
 		return true;
 	gfx_delete_texture(&num->common.texture);
@@ -1097,7 +1116,7 @@ static bool parts_numeral_update_font(struct parts *parts, struct parts_numeral 
 	// As a construction CopyText: transparent edge colour, then copy glyphs.
 	gfx_fill_with_alpha(&num->common.texture, 0, 0, w, h,
 			ts.edge_color.r, ts.edge_color.g, ts.edge_color.b, 0);
-	gfx_render_text(&num->common.texture, 0, 0, buf, &ts, false);
+	gfx_render_text(&num->common.texture, 0, y, buf, &ts, false);
 	parts_set_dims(parts, &num->common, w, h);
 	parts_dirty(parts);
 	return true;
