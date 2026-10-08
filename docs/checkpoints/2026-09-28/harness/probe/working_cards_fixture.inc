@@ -256,11 +256,17 @@ static void wc_customer_order(void)
 		WC_CHECK(!da_live_page(customers[i]), "source customer %d survived collection teardown", i);
 	WC_CHECK(!da_live_page(c) && !da_live_page(list) && !da_live_page(index_slot) && !da_live_page(result),
 		"collection/list/index/result survived their last owner");
-	/* A before/after empty-source GetOrdered (zero callbacks) leaves the
-	 * same two pre-existing unused local placeholders: an empty delegate
-	 * page and an anonymous empty wrap box. Do not hide extra retained
-	 * customers inside a blanket allowance, or repair that separate VM
-	 * local-initialization issue as part of this card fix. */
+	/* GetOrdered leaves one pre-existing unused local placeholder, an
+	 * anonymous empty wrap box (a separate VM local-initialization issue;
+	 * an empty-source GetOrdered with zero callbacks leaves it too). Do not
+	 * hide extra retained customers inside a blanket allowance. Until the
+	 * arg-ownership change an empty delegate page was left as well and this
+	 * check pinned both: GetOrdered hands its lambda (DG_NEW_FROM_METHOD)
+	 * to ArrayExtensions::Select as a delegate argument, which
+	 * function_call retained again, so the delegate page stayed, emptied
+	 * when its target, the collection, was released. Natively a delegate
+	 * argument is stored without a retain (0x657430, table 0x657508) and
+	 * released with the callee's page (0x656c10, table 0x656c88). */
 	int delegate_placeholders = 0, wrap_placeholders = 0;
 	for (size_t i = 2; i < heap_size; i++) if (HEAP_REF(i) > 0) {
 		struct page *p = heap[i].type == VM_PAGE ? heap[i].page : NULL;
@@ -270,9 +276,9 @@ static void wc_customer_order(void)
 		    && p->nr_vars == 1 && p->values[0].i == -1)
 			wrap_placeholders++;
 	}
-	WC_CHECK(live_slots() == baseline + 2 && delegate_placeholders == 1 && wrap_placeholders == 1,
-		"teardown leaves %zu live slots (%d empty delegate/%d empty wrap), want only the two baseline placeholders",
-		live_slots(), delegate_placeholders, wrap_placeholders);
+	WC_CHECK(live_slots() == baseline + 1 && delegate_placeholders == 0 && wrap_placeholders == 1,
+		"teardown leaves %zu live slots (%d empty delegate/%d empty wrap), want only the baseline wrap placeholder",
+		live_slots() - baseline, delegate_placeholders, wrap_placeholders);
 }
 
 static void wc_delegate_shapes(void)

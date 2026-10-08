@@ -131,6 +131,7 @@ static void init_probe(const char *path) {
 #include "ex_name_list_fixture.inc"
 #include "option_return_fixture.inc"
 #include "array_literal_fixture.inc"
+#include "arg_ownership_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -191,6 +192,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"ex-name-list"))return test_ex_name_list();
     if(!strcmp(argv[2],"option-return"))return test_option_return();
     if(!strcmp(argv[2],"array-literal"))return test_array_literal();
+    if(!strcmp(argv[2],"arg-ownership"))return test_arg_ownership();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

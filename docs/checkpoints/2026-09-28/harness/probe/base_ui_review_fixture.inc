@@ -84,6 +84,7 @@ static int br_pairs(int n, const int *pairs)
 	struct page *a = alloc_page(ARRAY_PAGE, AIN_ARRAY, 2 * n);
 	a->array.rank = 1;
 	a->array.struct_type = 2;
+	a->array.elem_slots = 2; /* the second slot is a vtable offset, not a reference */
 	for (int i = 0; i < 2 * n; i++) {
 		a->values[i].i = pairs[i];
 		if (!(i & 1) && pairs[i] > 0)
@@ -268,7 +269,8 @@ static void br_two_slot_calls(void)
 	int n = br_call("Array", "First", 2, 0x10003, 3, (union vm_value[]){ BR_I(arr), BR_I(coll), BR_I(is_time) }, r, 4);
 	BR_CHECK(n == 2 && r[0].i == T1 && r[1].i == tv, "First(is TimeParam): %d slots [%d %d]; want 2 [%d %d]",
 		 n, r[0].i, n > 1 ? r[1].i : 0, T1, tv);
-	/* Real bytecode: the collection takes Time/Delay from its TimeParam. */
+	/* Real bytecode: the collection takes Time/Delay from its TimeParam.
+	 * The array argument is handed over: the constructor's page frees it. */
 	int params = br_pairs(3, (int[]){ S1, sv, S2, sv, T1, tv });
 	{
 		int sp = stack_ptr, csp = call_stack_ptr; size_t ip = instr_ptr;

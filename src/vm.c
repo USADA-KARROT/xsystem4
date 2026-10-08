@@ -1385,13 +1385,44 @@ static int delegate_return_slots(struct ain_type *type)
  * The original copies the arguments into the new page with 0x657430 (called
  * at 0x66a082, 0x66a166 and 0x66a45b), whose type table (0x657508 ->
  * 0x6574fc) retains the value with 0x679f10 for REF 18-21/51/67/80,
- * WRAP 82, 87, IFACE 89 and REF_ENUM 93, and stores string, struct,
- * delegate and array values without a retain (the caller hands those over
- * with A_REF). An option (86) whose last slot is 0 holds a value and is
- * dispatched on its payload type (0x6535e0 strips every option layer and maps
- * wrap<T> to the matching reference type, all of which are retained); an
- * empty option is stored as is.
+ * WRAP 82, 87, IFACE 89 and REF_ENUM 93, and stores string (12), struct
+ * (13), delegate (63) and array (79) values without a retain. An option (86)
+ * whose last slot is 0 holds a value and is dispatched on its payload type
+ * (0x6535e0 strips every option layer and maps wrap<T> to the matching
+ * reference type, all of which are retained); an empty option is stored as
+ * is. The page then releases every variable of those types alike when the
+ * function returns (0x6570f0 -> 0x656cf0 -> 0x656c10, table 0x656c88).
+ *
+ * So a string, struct, delegate or array argument is handed over: the value
+ * on the stack carries a reference of its own and the callee's page gives it
+ * back. The bytecode always produces such a value: A_REF, NEW, DG_NEW,
+ * DG_NEW_FROM_METHOD, the result of a script or library function, a string
+ * expression, or an array literal whose local it sets to -1 before the call.
+ * A_REF here gives a struct one more reference (natively a copy of the page,
+ * 0x66b790 -> 0x6794d0), an array a copy and a delegate a copy (one more
+ * reference when its page is null), so function_call must not retain these
+ * again: it did, and every such call left one reference behind. A delegate that is a lambda owns the local page
+ * it was made in (its third slot), so the locals of a function that passed a
+ * lambda were never destroyed (FrameImageCache@Join's SceneContext kept its
+ * layer for good).
+ *
+ * A string argument is told apart by the temporary flag instead, as before.
+ * Type 87 is neither retained nor released here (natively both). Arguments
+ * pushed by C code through vm_call stay borrowed: the caller keeps them, so
+ * the page takes its own reference (function_call_args_borrowed; natively
+ * the C entry 0x66a1a0 goes through 0x657430 as well and hands them over).
+ * The flag is read by the next function_call, so nothing between vm_call
+ * setting it and that call may enter the VM. _MSG pushes its arguments and
+ * calls function_call itself, so those are handed over.
+ *
+ * DG_CALL moves its arguments itself and is not changed. Natively (0x66dce0)
+ * it copies an argument of these types before each entry (0x6722e0) and
+ * releases the one left when there is no further entry (0x672490). Here
+ * neither happens: one entry balances, none leaves the value behind and each
+ * further entry releases it once too often.
  */
+static bool function_call_args_borrowed;
+
 static bool v14_option_payload_retained(const struct ain_type *t)
 {
 	while (t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87))
@@ -1429,6 +1460,10 @@ static void v14_retain_arg(int value)
 
 static void function_call(int fno, int return_address)
 {
+	// v14: a struct, delegate or array argument comes with its own
+	// reference (see above), unless C code pushed it for vm_call.
+	bool handed_over = ain->version >= 14 && !function_call_args_borrowed;
+	function_call_args_borrowed = false;
 	int slot = _function_call(fno, return_address);
 	if (unlikely(slot < 0))
 		return;
@@ -1439,11 +1474,14 @@ static void function_call(int fno, int return_address)
 	for (int i = f->nr_args - 1; i >= 0; i--) {
 		heap[slot].page->values[i] = stack_pop();
 		switch (f->vars[i].type.data) {
-		case AIN_REF_TYPE:
 		case AIN_STRUCT:
 		case AIN_DELEGATE:
-		case AIN_ARRAY_TYPE:
 		case AIN_ARRAY:
+			if (!handed_over && heap[slot].page->values[i].i != -1)
+				heap_ref(heap[slot].page->values[i].i);
+			break;
+		case AIN_REF_TYPE:
+		case AIN_ARRAY_TYPE:
 		case AIN_WRAP:
 			if (heap[slot].page->values[i].i != -1)
 				heap_ref(heap[slot].page->values[i].i);
@@ -1854,12 +1892,15 @@ void vm_call(int fno, int struct_page)
 	size_t saved_ip = instr_ptr;
 	unsigned long long saved_limit = vm_call_insn_limit;
 	vm_call_insn_limit = 0;
+	// The caller keeps the arguments it pushed (see function_call).
+	function_call_args_borrowed = true;
 	if (struct_page < 0) {
 		function_call(fno, VM_RETURN);
 	} else {
 		stack_push(struct_page);
 		method_call(fno, VM_RETURN);
 	}
+	function_call_args_borrowed = false;
 	vm_execute();
 	vm_call_insn_limit = saved_limit;
 	instr_ptr = saved_ip;
