@@ -1,0 +1,250 @@
+before 634e6d7 global-init (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  Size=(0, 0) BaseY=921 CameraCenter=(0, 0) PlayerSpan=100 ScreenCenter=(0, 0)
+  FAIL: Size is (0, 0), want (2560, 1024)
+  FAIL: CameraCenter is (0, 0), want (1280, 701)
+  FAIL: ScreenCenter is (0, 0), want (640, 360)
+GI1 FAIL (exit 1)
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: CASColor::BLACK: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::BLACK = CASColor@0(0, 0, 0, 255)
+  FAIL: CASColor::GRAY: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::GRAY = CASColor@0(128, 128, 128, 255)
+  FAIL: CASColor::SILVER: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::SILVER = CASColor@0(192, 192, 192, 255)
+  FAIL: CASColor::LIGHTGRAY: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::LIGHTGRAY = CASColor@0(211, 211, 211, 255)
+  FAIL: CASColor::WHITE: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::WHITE = CASColor@0(255, 255, 255, 255)
+  FAIL: CASColor::NAVY: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::NAVY = CASColor@0(0, 0, 128, 255)
+  FAIL: CASColor::BLUE: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::BLUE = CASColor@0(0, 0, 255, 255)
+  FAIL: CASColor::TEAL: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::TEAL = CASColor@0(0, 128, 128, 255)
+  FAIL: CASColor::CYAN: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::CYAN = CASColor@0(0, 255, 255, 255)
+  FAIL: CASColor::PURPLE: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::PURPLE = CASColor@0(128, 0, 128, 255)
+  FAIL: CASColor::MAGENTA: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::MAGENTA = CASColor@0(255, 0, 255, 255)
+  FAIL: CASColor::OLIVE: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::OLIVE = CASColor@0(128, 128, 0, 255)
+  FAIL: CASColor::GREEN: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::GREEN = CASColor@0(0, 128, 0, 255)
+  FAIL: CASColor::LIME: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::LIME = CASColor@0(0, 255, 0, 255)
+  FAIL: CASColor::YELLOW: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::YELLOW = CASColor@0(255, 255, 0, 255)
+  FAIL: CASColor::ORANGE: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::ORANGE = CASColor@0(255, 165, 0, 255)
+  FAIL: CASColor::RED: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::RED = CASColor@0(255, 0, 0, 255)
+  FAIL: CASColor::MAROON: the STRT constructor CASColor@0 ran on it 1 time(s) (1 outside "0")
+  CASColor::MAROON = CASColor@0(128, 0, 0, 255)
+  FAIL: CASVector3D::ZERO: the STRT constructor CASVector3D@0 ran on it 1 time(s) (1 outside "0")
+  CASVector3D::ZERO = CASVector3D@0(0, 0, 0)
+  FAIL: CASVector3D::ONE: the STRT constructor CASVector3D@0 ran on it 1 time(s) (1 outside "0")
+  CASVector3D::ONE = CASVector3D@0(1, 1, 1)
+  FAIL: CASVector3D::X_AXIS: the STRT constructor CASVector3D@0 ran on it 1 time(s) (1 outside "0")
+  CASVector3D::X_AXIS = CASVector3D@0(1, 0, 0)
+  FAIL: CASVector3D::Y_AXIS: the STRT constructor CASVector3D@0 ran on it 1 time(s) (1 outside "0")
+  CASVector3D::Y_AXIS = CASVector3D@0(0, 1, 0)
+  FAIL: CASVector3D::Z_AXIS: the STRT constructor CASVector3D@0 ran on it 1 time(s) (1 outside "0")
+  CASVector3D::Z_AXIS = CASVector3D@0(0, 0, 1)
+  FAIL: ������������::params: CustomerCreatorParams@0 entered 1 time(s) inside "0" and 1 outside, want 1 and 0
+  ������������::params = CustomerCreatorParams@0() once inside "0"
+  FAIL: ο��Ʒ::params: SpecialCustomerCreatorParam@0 entered 1 time(s) inside "0" and 1 outside, want 1 and 0
+  ο��Ʒ::params = SpecialCustomerCreatorParam@0() once inside "0"
+  FAIL: �˲�����::params: WorkerCreatorParams@0 entered 1 time(s) inside "0" and 1 outside, want 1 and 0
+  �˲�����::params = WorkerCreatorParams@0() once inside "0"
+  FAIL: BattleBackground::Size: the STRT constructor CASSize@0 ran on it 1 time(s) (1 outside "0")
+  BattleBackground::Size = CASSize@0(2560[has 0], 1024[has 0])  <- MISMATCH
+  FAIL: BattleBackground::Size does not hold the arguments the alloc function passed
+  FAIL: BattleBackground::CameraCenter: the STRT constructor CASPosF@0 ran on it 1 time(s) (1 outside "0")
+  BattleBackground::CameraCenter = CASPosF@0(computed arguments, checked by GI1)
+  FAIL: BattleBackground::ScreenCenter: the STRT constructor CASPosF@0 ran on it 1 time(s) (1 outside "0")
+  BattleBackground::ScreenCenter = CASPosF@0(640[has 0], 360[has 0])  <- MISMATCH
+  FAIL: BattleBackground::ScreenCenter does not hold the arguments the alloc function passed
+  BuffIconCollection::m_stTimer = CycleTimer@0(1500)
+  30 NEW x, ctor globals: 26 with literal arguments, 3 with none
+GI2 FAIL (exit 1)
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: DamageNumber::m_font: CASFont@0 ran on the returned object 1 time(s) after "0"
+  DamageNumber::m_font = DamageNumber::CreateFont(): CASFont Type=0 Size=16
+  FAIL: DamageNumber::m_font: CASFont is Type 0 Size 16, want 257 and 56 (CASFont@0 resets it to 0, 16)
+  FAIL: DamageNumber::m_motionSet: Motion::MotionSet@0 ran on the returned object 1 time(s) after "0"
+  DamageNumber::m_motionSet = Motion::GetCompiled(): MotionSet sections=0 (array slot 201) param slot 237
+  FAIL: DamageNumber::m_motionSet: the compiled MotionSet has 0 section(s), want some (MotionSet@0 empties it)
+  FAIL: FrameLayerImages::m_motionSet: Motion::MotionSet@0 ran on the returned object 1 time(s) after "0"
+  FrameLayerImages::m_motionSet = Motion::GetCompiled(): MotionSet sections=0 (array slot 199) param slot 360
+  FAIL: FrameLayerImages::m_motionSet: the compiled MotionSet has 0 section(s), want some (MotionSet@0 empties it)
+  3 globals filled from function results
+GI3 FAIL (exit 1)
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: parts::detail::g_AddConstructionProcessData: CASConstructionProcess@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: parts::detail::g_PartsMessageManager: parts::detail::CPartsMessageManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: parts::detail::g_System3DLayerManager: parts::detail::CParts3DLayerManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: time::detail::g_ASTimerManager: CASTimerManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: advengine::detail::g_DelayCG: CASMap<int, string>@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: advengine::detail::g_DelayText: CASMap<int, string>@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: advengine::detail::g_DelayFlat: CASMap<int, string>@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: backlog::detail::g_Timer: CASTimer@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: config::detail::g_ConfigView: config::detail::CConfigView@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: config::detail::g_ConfigSampleTextTimer: CASTimer@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: config::detail::g_Config3DSetting: config::detail::CAS3DSetting@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: input::detail::g_Timer: CASTimer@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: menu::detail::g_MenuViewManager: menu::detail::CMenuViewManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_MessageWindowStatusManager: message::detail::CMessageWindowStatusManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_MessageWindowManager: message::detail::CMessageWindowManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_MessageTextModel: message::detail::CMessageTextModel@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_MessageTextView: message::detail::CMessageTextView@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_SkipMark: CModeMark@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_�����^�����ީ`: CASTimer@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_AutoMark: CModeMark@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: message::detail::g_���Ԅӥ����ީ`: CASTimer@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: sound::detail::g_BGM: sound::detail::CASBGM@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: sound::detail::g_SE: sound::detail::CASSE@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: sound::detail::g_BGMVolumeCapManager: sound::detail::CBGMVolumeCapManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: sound::detail::g_SoundVolumeCapManager: sound::detail::CSoundVolumeCapManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: sound::detail::_g_SystemSound: sound::detail::_CSystemSound@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: sound::detail::g_MusicPosition: sound::detail::CMusicPositionManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: g_GlobalObject: CGlobalObject@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: g_AFCommon: CASCommonData@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: g_AFInfo: _system::detail::CAFInfo@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: g_AFConfig: CASConfigData@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: task::detail::g_Observer: task::detail::CObserverManager@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: task::detail::g_FrameTaskMap: task::detail::CFrameTaskMap@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: view::detail::g_FrameTimer: CASTimer@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: Motion::Instances::executer: Motion::ExecuterCollection@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: SharedTimer::m_timers: IdArray<string, VariableTimer>@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: FrameInfoCache::m_frames: LruCache<string, FrameInfoCollection>@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  FAIL: CgThumbnailButton::m_loadQueue: PartsAsyncLoadQueue@0 entered 0 time(s) inside "0" and 1 outside, want 1 and 0
+  46 NEW x, -1 globals: 38 constructed once inside "0", 8 CDebug skipped
+GI4 FAIL (exit 1)
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: parts::detail::g_PartsMessageManager.m_wholeFunctionSet: parts::detail::CPartsFunctionSet@0 ran on it after "0"
+  FAIL: parts::detail::g_PartsMessageManager.m_errorFunctionSet: parts::detail::CPartsFunctionSet@0 ran on it after "0"
+  FAIL: message::detail::g_MessageTextModel.m_readMessageTextManager: message::detail::CReadMessageTextManager@0 ran on it after "0"
+  FAIL: message::detail::g_MessageTextView.m_AutoModeTimer: message::detail::CAutoModeTimer@0 ran on it after "0"
+  FAIL: message::detail::g_MessageTextView.m_MessageKeyControl: message::detail::CMessageKeyControl@0 ran on it after "0"
+  FAIL: sound::detail::g_BGMVolumeCapManager.m_currentBGMVolumeCap: sound::detail::CVolumeCap@0 ran on it after "0"
+  FAIL: sound::detail::g_BGMVolumeCapManager.m_waitingBGMFadeByVoiceTimer: CASTimer@0 ran on it after "0"
+  FAIL: sound::detail::g_SoundVolumeCapManager.m_currentSoundVolumeCap: sound::detail::CVolumeCap@0 ran on it after "0"
+  FAIL: sound::detail::g_SoundVolumeCapManager.m_waitingSoundFadeByVoiceTimer: CASTimer@0 ran on it after "0"
+  FAIL: g_AFConfig.m_gameConfig: GameConfig@0 ran on it after "0"
+  FAIL: task::detail::g_FrameTaskMap.m_map: CASMap<string, array<task::detail::SFrameTask>&?>@0 ran on it after "0"
+  FAIL: CgThumbnailButton::m_loadQueue.m_queue: IdArray<int, CgPartsQueue>@0 ran on it after "0"
+  12 value-struct members of NEW x, -1 globals: 12 live, 0 left -1, 0 constructed twice
+  CASFont.Color = (255, 255, 255, 255)
+  CASFont.EdgeColor = (0, 0, 0, 255)
+GI5 FAIL (exit 1)
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  global 141 CGlobalObject::m_Created: 0 when "0" returned, 1 now
+  parts::detail::CPartsMessageManager member 0 (m_wholeFunctionSet): -1 when "0" returned, 246 now
+  parts::detail::CPartsMessageManager member 3 (m_uniqueID): 0 when "0" returned, 2 now
+  parts::detail::CPartsMessageManager member 4 (m_errorFunctionSet): -1 when "0" returned, 297 now
+  CASTimerManager member 4 (<Rate>): 0 when "0" returned, 1065353216 now
+  CASTimer member 0 (handle): 0 when "0" returned, 28 now
+  config::detail::CConfigView member 2 (m_nextActivity): -1 when "0" returned, 574 now
+  config::detail::CConfigView member 3 (<BeginEvent>): -1 when "0" returned, 575 now
+  config::detail::CConfigView member 4 (<EndEvent>): -1 when "0" returned, 578 now
+  config::detail::CConfigView member 5 (<LoadedEvent>): -1 when "0" returned, 582 now
+  config::detail::CConfigView member 6 (<ReleasingEvent>): -1 when "0" returned, 583 now
+  78 struct globals compared: 1 global slots changed, 98 member values changed after "0"
+  FAIL: 1 global(s) changed between "0" returning and main
+  FAIL: 98 member value(s) of struct globals changed between "0" returning and main
+GI6 FAIL (exit 1)
+  v13 alloc-phase NEW CASConstructionProcess, -1: constructor entered 1 time(s)
+G1 ok
+  alloc-phase NEW advengine::detail::CSplash, -1 (no constructor) at 0x13e9da: slot 2, 0 constructor entries
+G2 ok
+  startup: pre-change sequence, 319 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  time::detail::g_ASTimerManager member 0: slot 20
+  time::detail::g_ASTimerManager member 1: slot 21
+  time::detail::g_ASTimerManager member 2: slot 22
+  time::detail::g_ASTimerManager member 3: slot 23
+  FAIL: time::detail::g_ASTimerManager: CASTimerManager@0 entered 0 inside "0", 1 outside
+G3 FAIL (exit 1)
+GLOBAL-INIT FAIL: 7 of 9 cases failed, 0 environment error(s)
+
+before 634e6d7 global-init (XS4_PROBE_GBK=1)
+GLOBAL-INIT FAIL: 7 of 9 cases failed, 0 environment error(s)
+
+after 5846210 global-init (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  Size=(2560, 1024) BaseY=921 CameraCenter=(1280, 701) PlayerSpan=100 ScreenCenter=(640, 360)
+GI1 ok
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  CASColor::BLACK = CASColor@0(0, 0, 0, 255)
+  CASColor::GRAY = CASColor@0(128, 128, 128, 255)
+  CASColor::SILVER = CASColor@0(192, 192, 192, 255)
+  CASColor::LIGHTGRAY = CASColor@0(211, 211, 211, 255)
+  CASColor::WHITE = CASColor@0(255, 255, 255, 255)
+  CASColor::NAVY = CASColor@0(0, 0, 128, 255)
+  CASColor::BLUE = CASColor@0(0, 0, 255, 255)
+  CASColor::TEAL = CASColor@0(0, 128, 128, 255)
+  CASColor::CYAN = CASColor@0(0, 255, 255, 255)
+  CASColor::PURPLE = CASColor@0(128, 0, 128, 255)
+  CASColor::MAGENTA = CASColor@0(255, 0, 255, 255)
+  CASColor::OLIVE = CASColor@0(128, 128, 0, 255)
+  CASColor::GREEN = CASColor@0(0, 128, 0, 255)
+  CASColor::LIME = CASColor@0(0, 255, 0, 255)
+  CASColor::YELLOW = CASColor@0(255, 255, 0, 255)
+  CASColor::ORANGE = CASColor@0(255, 165, 0, 255)
+  CASColor::RED = CASColor@0(255, 0, 0, 255)
+  CASColor::MAROON = CASColor@0(128, 0, 0, 255)
+  CASVector3D::ZERO = CASVector3D@0(0, 0, 0)
+  CASVector3D::ONE = CASVector3D@0(1, 1, 1)
+  CASVector3D::X_AXIS = CASVector3D@0(1, 0, 0)
+  CASVector3D::Y_AXIS = CASVector3D@0(0, 1, 0)
+  CASVector3D::Z_AXIS = CASVector3D@0(0, 0, 1)
+  ������������::params = CustomerCreatorParams@0() once inside "0"
+  ο��Ʒ::params = SpecialCustomerCreatorParam@0() once inside "0"
+  �˲�����::params = WorkerCreatorParams@0() once inside "0"
+  BattleBackground::Size = CASSize@0(2560, 1024)
+  BattleBackground::CameraCenter = CASPosF@0(computed arguments, checked by GI1)
+  BattleBackground::ScreenCenter = CASPosF@0(640, 360)
+  BuffIconCollection::m_stTimer = CycleTimer@0(1500)
+  30 NEW x, ctor globals: 26 with literal arguments, 3 with none
+GI2 ok
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  DamageNumber::m_font = DamageNumber::CreateFont(): CASFont Type=257 Size=56
+  DamageNumber::m_motionSet = Motion::GetCompiled(): MotionSet sections=2 (array slot 370) param slot 394
+  FrameLayerImages::m_motionSet = Motion::GetCompiled(): MotionSet sections=2 (array slot 367) param slot 518
+  3 globals filled from function results
+GI3 ok
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  46 NEW x, -1 globals: 38 constructed once inside "0", 8 CDebug skipped
+GI4 ok
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  12 value-struct members of NEW x, -1 globals: 12 live, 0 left -1, 0 constructed twice
+  CASFont.Color = (255, 255, 255, 255)
+  CASFont.EdgeColor = (0, 0, 0, 255)
+GI5 ok
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  78 struct globals compared: 0 global slots changed, 0 member values changed after "0"
+GI6 ok
+  v13 alloc-phase NEW CASConstructionProcess, -1: constructor entered 1 time(s)
+G1 ok
+  alloc-phase NEW advengine::detail::CSplash, -1 (no constructor) at 0x13e9da: slot 2, 0 constructor entries
+G2 ok
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  time::detail::g_ASTimerManager member 0: slot 22
+  time::detail::g_ASTimerManager member 1: slot 23
+  time::detail::g_ASTimerManager member 2: slot 24
+  time::detail::g_ASTimerManager member 3: slot 25
+G3 ok
+GLOBAL-INIT PASS: 0 of 9 cases failed, 0 environment error(s)
+
+after 5846210 global-init (XS4_PROBE_GBK=1)
+GLOBAL-INIT PASS: 0 of 9 cases failed, 0 environment error(s)
