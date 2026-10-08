@@ -5180,19 +5180,28 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		break;
 	}
 	case X_ICAST: {
-		// X_ICAST target_type: interface cast (v14).
-		// Peek at struct page on stack, look up the interface vtable offset
-		// for target_type, push [page_index, vtable_offset].
-		// On failure: set the ORIGINAL stack value to -1 (bytecode checks
-		// it after popping the two pushed values), and push [-1, 0].
-		// Stack: [..., page_idx] → [..., page_idx_or_-1, result, vtoff]
-		// Net: +2
+		// X_ICAST target_type: interface cast (v14), original 0x66c540.
+		// The object stays on the stack (TOS is read, not popped) and two
+		// slots are pushed after it:
+		//   same type (0x66c727):        [obj, 0, 0]
+		//   interface pair hit (0x66c752): [obj, vtable offset, 0]
+		//   failure (0x66c6bc..0x66c6d3): TOS itself is rewritten to -1,
+		//                                then push 0, push 1 -> [-1, 0, 1]
+		// i.e. [object or -1, vtable offset, failure flag], net +2. The
+		// bytecode either POPs the flag and stores [obj, vtoff] into an
+		// interface variable (X_MOV 4 2; X_ASSIGN 2), or tests the flag
+		// with X_MOV 2 1; POP; PUSH 1; GTE ("x as I ?? null", e.g.
+		// CSpriteParts@Get#1). A null object (-1) fails silently. A slot
+		// >= 0 that is not a struct page (0x67ac30 checks the page type 4
+		// at 0x67ac8e: a string, an array, a local or a delegate page, a
+		// freed slot) logs "構造体ページの取得に失敗" and fails; so does a
+		// struct page without type information (a wrap box here).
 		int target_type = get_argument(0);
 		int32_t page_idx = stack_peek(0).i;
 		int vtoff = 0;
 		bool found = false;
 		if (heap_index_valid(page_idx) && heap[page_idx].type == VM_PAGE
-		    && heap[page_idx].page) {
+		    && heap[page_idx].page && heap[page_idx].page->type == STRUCT_PAGE) {
 			struct page *p = heap[page_idx].page;
 			int sidx = p->index;
 			if (sidx >= 0 && sidx < ain->nr_structures) {
@@ -5213,22 +5222,34 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 					}
 				}
 			}
+		} else if (page_idx >= 0) {
+			// 0x66c5ad: "構造体ページの取得に失敗" (not fatal)
+			static int icast_warn = 0;
+			if (icast_warn++ < 5)
+				WARNING("X_ICAST: slot %d is not a struct page (heap type %d, page type %d)",
+					page_idx, heap_index_valid(page_idx) ? heap[page_idx].type : -1,
+					heap_index_valid(page_idx) && heap[page_idx].type == VM_PAGE && heap[page_idx].page
+					? heap[page_idx].page->type : -1);
 		}
-		if (!found) {
-			// Cast failed: set original stack value to -1 so the caller
-			// can detect failure after popping the two pushed values
+		if (found) {
+			stack_push((union vm_value){.i = vtoff});
+			stack_push((union vm_value){.i = 0});
+		} else {
 			stack[stack_ptr - 1].i = -1;
+			stack_push((union vm_value){.i = 0});
+			stack_push((union vm_value){.i = 1});
 		}
-		stack_push((union vm_value){.i = found ? page_idx : -1});
-		stack_push((union vm_value){.i = vtoff});
 		break;
 	}
 	case X_OP_SET: {
 		// X_OP_SET arg: assign to multi-slot variable
+		// 0x66fcb0: operands 0x10001 and 0x10003 carry three slots
+		// [object, vtable offset, flag] (0x66fd1d sets the three-slot
+		// mark for exactly those two); every other operand carries two
+		// [value, flag]. The low word of 0x10001 is 1, so masking it
+		// would read one slot. The game only emits 1, 2, 0x10002, 0x10003.
 		int arg = get_argument(0);
-		int n = arg & 0xFFFF;
-		if (n < 2) n = 2;  // v14 multi-slot types are always >= 2 slots
-		if (n > 8) n = 8;
+		int n = (arg == 0x10001 || arg == 0x10003) ? 3 : 2;
 		union vm_value vals[8];
 		for (int i = n - 1; i >= 0; i--) {
 			vals[i] = stack_pop();
@@ -5454,9 +5475,15 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		struct string *s;
 		switch (type) {
 		case AIN_INT:
-		case AIN_BOOL:
 		case AIN_LONG_INT:
 			s = integer_to_string(val.i);
+			break;
+		case AIN_BOOL:
+			// 0x66c1a6: type 47 is the literal "true" / "false"
+			// (0x7e3c28 / 0x7e3c30), not "%d". Used by the ToString
+			// methods of CASAnchor, ShopDisplayUnit, Worker, ... and
+			// by SaveObjectParam@Encode.
+			s = cstr_to_string(val.i ? "true" : "false");
 			break;
 		case AIN_FLOAT:
 			s = float_to_string(val.f, 6);
