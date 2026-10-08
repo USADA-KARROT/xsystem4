@@ -613,9 +613,18 @@ static struct string *system_Output(struct string *text)
 }
 
 // [23] OutputLine(text) -> string
+// The original writes the text to the debug output. XSYS4_TRACE_OUTPUTLINE=1
+// logs it here (e.g. the battle action order that
+// PlayerActionStreamCalculator@CalcStreams prints as "Id:Speed(boost:N)").
 static struct string *system_OutputLine(struct string *text)
 {
-	(void)text;
+	static int trace = -1;
+	if (trace < 0) {
+		const char *env = getenv("XSYS4_TRACE_OUTPUTLINE");
+		trace = env && !strcmp(env, "1") ? 1 : 0;
+	}
+	if (trace && text)
+		NOTICE("OutputLine: %s", display_game0(text->text));
 	return string_ref(text);
 }
 

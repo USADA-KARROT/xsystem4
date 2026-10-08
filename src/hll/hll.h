@@ -171,6 +171,16 @@ static inline void wrap_set_slot(int pageno, int varno, int new_inner_slot)
 void static_library_replace(struct static_library *lib, const char *name, void *fun);
 void static_library_register(struct static_library *lib, const char *name, void *fun);
 
+/* The original's 521-word random number generator (Math.c): Math.SetSeed/Rand/
+ * RandF use a global instance, Array.Shuffle a fresh one per call. */
+struct sys4_rand521 {
+	int idx;
+	uint32_t w[521];
+};
+void sys4_rand521_seed(struct sys4_rand521 *r, uint32_t seed);
+uint32_t sys4_rand521_next(struct sys4_rand521 *r);
+uint32_t sys4_rand_time_seed(void);
+
 #define HLL_WARN_UNIMPLEMENTED(rval, rtype, libname, fname, ...)	\
 	static rtype libname ## _ ## fname(__VA_ARGS__) {		\
 		WARNING("Unimplemented HLL function: " #libname "." #fname); \

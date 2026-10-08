@@ -1991,18 +1991,33 @@ static int Array_EmplaceBack(struct page **array)
 	return new_val;
 }
 
-// Shuffle: Fisher-Yates in-place shuffle
+// [60] Shuffle(self, seed): 0x644c3a -> 0x6493f0. A fresh 521-word generator
+// on the stack for this call only (never the Math one), seeded with seed when
+// seed >= 0 and with the monotonic millisecond clock otherwise (0x41b3c0,
+// timeGetTime); then for i = 1..n-1, j = word % (i + 1) and element i is
+// swapped with element j through the array's own swap (vtable +0x60), so an
+// interface/option element moves with all of its slots. The game passes -1
+// at every call site (customer faces and names, enemy skills, drops, voices).
 static void Array_Shuffle(struct page **array, int seed)
 {
 	struct page *a = (array && *array) ? *array : NULL;
-	if (!a || a->nr_vars <= 1)
+	if (!a)
 		return;
-	srand((unsigned)seed);
-	for (int i = a->nr_vars - 1; i > 0; i--) {
-		int j = rand() % (i + 1);
-		union vm_value tmp = a->values[i];
-		a->values[i] = a->values[j];
-		a->values[j] = tmp;
+	int stride = array_erase_stride(a);
+	int n = a->nr_vars / stride;
+	if (n <= 1)
+		return;
+	struct sys4_rand521 r;
+	sys4_rand521_seed(&r, seed < 0 ? sys4_rand_time_seed() : (uint32_t)seed);
+	for (int i = 1; i < n; i++) {
+		int j = (int)(sys4_rand521_next(&r) % (uint32_t)(i + 1));
+		if (j == i)
+			continue;
+		for (int k = 0; k < stride; k++) {
+			union vm_value t = a->values[i * stride + k];
+			a->values[i * stride + k] = a->values[j * stride + k];
+			a->values[j * stride + k] = t;
+		}
 	}
 }
 

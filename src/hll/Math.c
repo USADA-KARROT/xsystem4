@@ -82,9 +82,132 @@ static float Math_Tan(float x)
 	return tanf(deg2rad(x));
 }
 
+/* The original random number generator behind Math.SetSeed/SetSeedByCurrentTime/
+ * Rand/RandF and Array.Shuffle: a 521-word lagged Fibonacci generator (p=521,
+ * q=32, xor). 0x4c6e40 seeds it (17 words from a 32-step LCG x = x*0x5d588b65+1,
+ * one bit per step; w[16] = w[16]<<23 ^ w[0]>>9 ^ w[15]; w[i+17] = w[i]<<23 ^
+ * w[i+1]>>9 ^ w[i+16] for i < 504; four regenerations), 0x4c6d40 regenerates
+ * it (w[i] ^= w[i+489] for i < 32, w[i] ^= w[i-32] after), and a draw is the
+ * next word, regenerating after 521. Math keeps one global instance
+ * ([0x87f8b4]); Array.Shuffle builds one on its stack per call. The MT entries
+ * ([0x87f8b0]) are a separate generator and stay as they are below. */
+static void sys4_rand521_regen(struct sys4_rand521 *r)
+{
+	for (int i = 0; i < 32; i++)
+		r->w[i] ^= r->w[i + 489];
+	for (int i = 32; i < 521; i++)
+		r->w[i] ^= r->w[i - 32];
+}
+
+void sys4_rand521_seed(struct sys4_rand521 *r, uint32_t seed)
+{
+	uint32_t x = seed;
+	for (int i = 0; i < 17; i++) {
+		uint32_t acc = 0;
+		for (int k = 0; k < 32; k++) {
+			x = x * 0x5d588b65u + 1;
+			acc = (acc >> 1) | (x & 0x80000000u);
+		}
+		r->w[i] = acc;
+	}
+	r->w[16] = (r->w[16] << 23) ^ (r->w[0] >> 9) ^ r->w[15];
+	for (int i = 0; i < 504; i++)
+		r->w[i + 17] = (r->w[i] << 23) ^ (r->w[i + 1] >> 9) ^ r->w[i + 16];
+	for (int i = 0; i < 4; i++)
+		sys4_rand521_regen(r);
+	r->idx = -1;
+}
+
+uint32_t sys4_rand521_next(struct sys4_rand521 *r)
+{
+	if (++r->idx >= 521) {
+		sys4_rand521_regen(r);
+		r->idx = 0;
+	}
+	return r->w[r->idx];
+}
+
+/* 0x41b3c0 / 0x4c7060: timeGetTime() kept monotonic. Two calls within the same
+ * millisecond get the same seed natively (so a second Shuffle(-1) repeats the
+ * first permutation); here the value is also bumped past the previous one so
+ * that back-to-back calls, which are far closer together than in the original
+ * engine, never share a seed. XSYS4_RANDOM_SEED=<n> (testing only, unset by
+ * default) replaces the clock: the k-th call returns n + k, so every
+ * time-seeded generator gets a repeatable seed. */
+uint32_t sys4_rand_time_seed(void)
+{
+	static int fixed = -1;
+	static uint32_t fixed_seed, calls, last;
+	if (fixed < 0) {
+		const char *env = getenv("XSYS4_RANDOM_SEED");
+		fixed = env && *env ? 1 : 0;
+		if (fixed)
+			fixed_seed = (uint32_t)strtoul(env, NULL, 0);
+	}
+	if (fixed)
+		return fixed_seed + calls++;
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	uint32_t now = (uint32_t)ts.tv_sec * 1000u + (uint32_t)(ts.tv_nsec / 1000000);
+	if (now <= last)
+		now = last + 1;
+	last = now;
+	return now;
+}
+
+/* Math's global generator. The R521 generator was read out of this game's v14
+ * EXE only (0x4c673c SetSeed, 0x4c7060 SetSeedByCurrentTime, 0x4c676a Rand,
+ * 0x4c70c0 RandF); every other AIN version keeps the C library srand/rand
+ * these entries had before. */
+static struct sys4_rand521 math_rand;
+static bool math_rand_seeded;
+
+static bool math_uses_r521(void)
+{
+	return ain->version >= 14;
+}
+
+static struct sys4_rand521 *math_rand_state(void)
+{
+	if (!math_rand_seeded) {
+		sys4_rand521_seed(&math_rand, sys4_rand_time_seed());
+		math_rand_seeded = true;
+	}
+	return &math_rand;
+}
+
+// [16] 0x4c673c
+static void Math_SetSeed(int seed)
+{
+	if (!math_uses_r521()) {
+		srand(seed);
+		return;
+	}
+	sys4_rand521_seed(&math_rand, (uint32_t)seed);
+	math_rand_seeded = true;
+}
+
+// [17] 0x4c7060. The C library is seeded here as well: the engine's own
+// effects (DrawRain/DrawSnow/DrawRipple, motion jitter, particles) draw from
+// rand() and got a fresh sequence from this call before.
 static void Math_SetSeedByCurrentTime(void)
 {
-	srand(time(NULL));
+	if (!math_uses_r521()) {
+		srand(time(NULL));
+		return;
+	}
+	uint32_t seed = sys4_rand_time_seed();
+	srand(seed);
+	sys4_rand521_seed(&math_rand, seed);
+	math_rand_seeded = true;
+}
+
+// [18] 0x4c676a: the next word & 0x7fffffff
+static int Math_Rand(void)
+{
+	if (!math_uses_r521())
+		return rand();
+	return (int)(sys4_rand521_next(math_rand_state()) & 0x7fffffffu);
 }
 
 static int Math_Min(int a, int b)
@@ -297,9 +420,14 @@ static void Math_SwapF(float *a, float *b)
 
 //void Math_SetRandMode(int mode);
 
+// [19] 0x4c70c0: (double)(uint32)word * 2^-32 (0x813088), then to float. The
+// rounding to float gives 1.0f for words >= 0xFFFFFF80, so the range is
+// [0, 1] with 1.0 at probability 2^-25, as in the original.
 static float Math_RandF(void)
 {
-	return rand() * (1.0 / (RAND_MAX + 1U));
+	if (!math_uses_r521())
+		return rand() * (1.0 / (RAND_MAX + 1U));
+	return (float)((double)sys4_rand521_next(math_rand_state()) * 2.3283064365386963e-10);
 }
 
 static void shuffle_array(int *a, int len)
@@ -382,7 +510,10 @@ static uint32_t mt_generate(void)
 {
 	if (mt_index >= MT_N) {
 		if (mt_index > MT_N)
-			mt_init(5489);
+			// 0x4b516c: at engine start-up the original seeds the MT
+			// generator from the clock too (0x4c7110 -> 0x4c63b0); other
+			// AIN versions keep the fixed default seed.
+			mt_init(ain->version >= 14 ? sys4_rand_time_seed() : 5489);
 		for (int i = 0; i < MT_N; i++) {
 			uint32_t y = (mt_state[i] & 0x80000000U) | (mt_state[(i+1) % MT_N] & 0x7fffffffU);
 			mt_state[i] = mt_state[(i + MT_M) % MT_N] ^ (y >> 1);
@@ -454,10 +585,10 @@ HLL_LIBRARY(Math,
 	    HLL_EXPORT(Abs, Math_AbsI),
 	    HLL_EXPORT(AbsF, fabsf),
 	    HLL_EXPORT(Pow, powf),
-	    HLL_EXPORT(SetSeed, srand),
+	    HLL_EXPORT(SetSeed, Math_SetSeed),
 	    HLL_EXPORT(SetSeedByCurrentTime, Math_SetSeedByCurrentTime),
 	    //HLL_EXPORT(SetRandMode, Math_SetRandMode),
-	    HLL_EXPORT(Rand, rand),
+	    HLL_EXPORT(Rand, Math_Rand),
 	    HLL_EXPORT(RandF, Math_RandF),
 	    HLL_EXPORT(RandTableInit, Math_RandTableInit),
 	    HLL_EXPORT(RandTable, Math_RandTable),

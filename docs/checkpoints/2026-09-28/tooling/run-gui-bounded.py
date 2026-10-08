@@ -19,6 +19,13 @@ variables are dropped so a run is reproducible; use the RUN_* variables instead:
                             itself is never written; refused inside XS4_SRC or XS4_MASTER_GAME)
   RUN_TRACE_SAVE=1          one "SAVE ..." log line per SerializeStruct family call (XSYS4_TRACE_SAVE)
   RUN_STRING_CHARSET=sjis   force the String character rule (XSYS4_STRING_CHARSET; A/B runs)
+  RUN_RANDOM_SEED=<n>       XSYS4_RANDOM_SEED: the k-th time-seeded call (Math.SetSeedByCurrentTime,
+                            Array.Shuffle with seed < 0, the MT start-up seed) uses n + k instead of
+                            the clock. The seeds are repeatable; a route repeats only when the game
+                            makes those calls, and draws from Math.Rand/RandF, in the same order
+                            (frame timing can change that). Never set by default.
+  RUN_TRACE_OUTPUTLINE=1    log every system.OutputLine text as a NOTICE (XSYS4_TRACE_OUTPUTLINE=1;
+                            e.g. the battle action order "Id:Speed(boost:N)" lines)
 """
 import sys, os, subprocess, signal, time, json, hashlib, datetime, shutil
 from pathlib import Path
@@ -58,6 +65,10 @@ if os.environ.get('RUN_TRACE_SAVE'):
     env['XSYS4_TRACE_SAVE'] = '1'
 if os.environ.get('RUN_STRING_CHARSET'):
     env['XSYS4_STRING_CHARSET'] = os.environ['RUN_STRING_CHARSET']
+if os.environ.get('RUN_RANDOM_SEED'):
+    env['XSYS4_RANDOM_SEED'] = os.environ['RUN_RANDOM_SEED']
+if os.environ.get('RUN_TRACE_OUTPUTLINE'):
+    env['XSYS4_TRACE_OUTPUTLINE'] = '1'
 if os.environ.get('RUN_FRAMEBUFFER_SHOTS'):
     (run / 'framebuffer').mkdir()
     env['XSYS4_SCREENSHOT_DIR'] = str(run / 'framebuffer')
