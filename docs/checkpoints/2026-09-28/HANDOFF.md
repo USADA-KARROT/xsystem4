@@ -2,7 +2,18 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-08 三槽 option 回傳與清單函式後接續（最新）
+## 2026-10-08 陣列字面值後接續（最新）
+
+- **程式 `e3417c2` 已推送**；本機／ls-remote／GitHub branches API 均 `e3417c22f91945737f6f2ac36c77f8e2626f8dc1`。文件另隨本節所在 commit，libsys4 固定 247f544。
+- 根因與修正：`X_A_INIT` 以「立即數 + 1」當泛型元素的槽數；改成由宣告的元素型別決定，陣列頁記住元素的槽數（新欄位，伴隨槽不計參照，中斷恢復的映像一併保存）。詳見[本組研究](research/array-literal/README.md)。
+- 預設／GBK 各72模式 PASS、sanitizer0；before-check `c27fc93 array-literal` 9/12 失敗、`e3417c2` 全過。八條 GUI 路線無斷言、下溢或溢位，`past end of page` 警告全部是 0。
+- 實機：第一場戰鬥看得到我方與敵人；點技能「淫縛遊戲」（`214000,340,497`）後演出會播完並顯示傷害，回到技能選單時輪到下一位。自動路線同上一節。
+- **下一步**：
+  1. 戰鬥第二次點技能點不到：演出時 `FrameImageCache@Join` 以區域的 `SceneContext` 加的一層沒有被移除，它上面的射程線蓋住技能按鈕。根因在 `function_call`（`src/vm.c`）搬引數時對 delegate 引數多加一個參照（原版 `0x657430` 對 string、struct、delegate、array 引數不保留），lambda 的環境頁因此不釋放。實驗上拿掉那個參照後圖層會移除，但技能按鈕是停用的、回合仍不推進，原因還沒查。這是引數所有權的規則，要連同區域頁釋放時的處理一起看。
+  2. 戰鬥的鏡頭位置：我方在畫面最上緣、敵人在最底部，背景上方是黑的（`BattleBackground@SetPos` 的平移）。
+  3. 地城地圖的黑背景（腳本的構築命令 29）、controller 的 ID、`system.Reset`、輸入模型與先前各節列的另案不變。
+
+## 2026-10-08 三槽 option 回傳與清單函式後接續（歷史，已由上節接續）
 
 - **程式 `3b92ad1` 已推送**；本機／ls-remote／GitHub branches API 均 `3b92ad18d7782482fdf0127d7bc58663427cab8a`。文件另隨本節所在 commit，libsys4 固定 247f544。
 - 兩個必須一起的修正：MainEXFile 的清單函式就地填入腳本傳入的陣列；回傳三槽 option 的函式不再被截成兩槽。詳見[本組研究](research/ex-list-option-return/README.md)。**教訓**：讓以前走不到的腳本路徑第一次執行的修正，headless 全過也要先跑一次 GUI——只修清單時 71 個模式都過，實機卻卡在啟動。

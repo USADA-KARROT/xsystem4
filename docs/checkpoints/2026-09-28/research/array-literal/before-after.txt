@@ -1,0 +1,333 @@
+before c27fc93 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AL1 GetParams: 19 slot(s), X_A_SIZE 19, 1 X_ASSIGN past the page
+  FAIL: GetParams: 1 X_ASSIGN past the end of its page (the first stores 38 slot(s) into 19)
+  FAIL: GetParams: want 19 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    GetParams: a_type=79 struct_type=1 slots=19 X_A_SIZE=19 types: 13 13 13 13 13 13 13 13
+  FAIL: 0 of 19 elements are (the member object, 0)
+  FAIL: 0 of 19 member objects have one more reference while the array lives
+AL1 generic array pages alive: 1, with a multi-slot layout: 0, inconsistent: 0
+  FAIL: AL1: 0 multi-slot page(s), 0 inconsistent
+AL1 after release: 10 of 19 member objects have the references they had, +0 live slot(s)
+  FAIL: 9 of 19 member objects kept a reference of the array
+AL1 FAIL (exit 1)
+AL2 under LoadSubParams: 57 frame(s) entered; 9 of 19 sub-parameters entered twice, 10 never; CG layers loaded 0 time(s), effects 0; 1 X_ASSIGN past the page
+  FAIL: 9 of 19 sub-parameters were asked for their key and loaded
+  FAIL: the CG layer and effect collections were loaded 0 and 0 time(s), want 1 each
+  FAIL: the frame: 1 X_ASSIGN past the end of its page (the first stores 38 slot(s) into 19)
+AL2 after release: 10 of 19 sub-parameter objects gone; left: 9 sub-parameter object(s), 10 key string(s), 1 wrap box(es) (0 name list call(s)), 54 other slot(s) in all, +55 live
+  FAIL: 9 of 19 sub-parameter objects outlived the FrameInfo
+  FAIL: 9 object(s) of a sub-parameter's struct were left
+  FAIL: 10 key string(s) of a sub-parameter were left
+  FAIL: 1 wrap box(es) and 54 other slot(s) were left; the known ones are 11 and 9
+    left: slot 33 ref 1 struct CASPosF
+    left: slot 35 ref 1 struct FrameInfoEnemyColor
+    left: slot 37 ref 1 page type=3 index=14 n=7
+    left: slot 38 ref 1 struct FrameInfoEnemyShake
+    left: slot 39 ref 1 string of 0 byte(s)
+    left: slot 40 ref 1 page type=3 index=14 n=7
+    left: slot 41 ref 1 struct FrameInfoHideOtherPlayers
+    left: slot 42 ref 1 page type=3 index=14 n=7
+    left: slot 43 ref 1 struct FrameInfoHideTarget
+    left: slot 44 ref 1 page type=3 index=14 n=7
+    left: slot 45 ref 1 struct FrameInfoHideTargetParamView
+    left: slot 46 ref 1 page type=3 index=14 n=7
+    left: slot 47 ref 1 struct FrameInfoSound
+    left: slot 48 ref 1 page type=3 index=14 n=7
+    left: slot 49 ref 1 page type=3 index=16 n=3
+    left: slot 50 ref 1 page type=3 index=14 n=3
+    left: slot 51 ref 1 struct FrameInfoVoice
+    left: slot 52 ref 1 page type=3 index=16 n=3
+    left: slot 53 ref 1 page type=3 index=14 n=7
+    left: slot 54 ref 1 struct FrameInfoCgLayerCollection
+    left: slot 55 ref 1 page type=3 index=14 n=7
+    left: slot 56 ref 1 struct FrameInfoEffectCollection
+    left: slot 57 ref 1 page type=3 index=14 n=7
+    left: slot 58 ref 1 struct SelectableIndexArray<FrameInfoCgLayer>
+    left: slot 59 ref 1 page type=3 index=17 n=0
+    left: slot 60 ref 1 page type=4 index=0 n=0
+    left: slot 61 ref 1 page type=4 index=0 n=3
+    left: slot 62 ref 1 page type=4 index=0 n=3
+    left: slot 63 ref 1 page type=4 index=0 n=3
+    left: slot 64 ref 1 string of 0 byte(s)
+    left: slot 65 ref 1 string of 0 byte(s)
+    left: slot 66 ref 1 page type=4 index=0 n=0
+    left: slot 67 ref 1 page type=4 index=0 n=0
+    left: slot 70 ref 1 struct SelectableIndexArray<FrameInfoEffect>
+    left: slot 71 ref 1 page type=3 index=17 n=0
+    left: slot 72 ref 1 page type=4 index=0 n=0
+    left: slot 73 ref 1 page type=4 index=0 n=3
+    left: slot 74 ref 1 page type=4 index=0 n=3
+    left: slot 75 ref 1 page type=4 index=0 n=3
+    left: slot 76 ref 1 string of 0 byte(s)
+AL2 FAIL (exit 1)
+AL3 Header@2: 2 slot(s), X_A_SIZE 2, 1 X_ASSIGN past the page  FAIL: Header@2: 1 X_ASSIGN past the end of its page (the first stores 4 slot(s) into 2)
+  FAIL: Header@2: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    Header@2: a_type=79 struct_type=1 slots=2 X_A_SIZE=2 types: 13 13
+
+  FAIL: Header@2: 0 of 2 elements are a parameter object with one reference and its vtable offset
+Header@2 generic array pages alive: 5, with a multi-slot layout: 0, inconsistent: 0
+  FAIL: Header@2: 0 multi-slot page(s), 0 inconsistent
+AL3 DungeonSelector@2: 3 slot(s), X_A_SIZE 3, 1 X_ASSIGN past the page  FAIL: DungeonSelector@2: 1 X_ASSIGN past the end of its page (the first stores 6 slot(s) into 3)
+  FAIL: DungeonSelector@2: want 3 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    DungeonSelector@2: a_type=79 struct_type=1 slots=3 X_A_SIZE=3 types: 13 13 13
+
+  FAIL: DungeonSelector@2: 0 of 3 elements are a parameter object with one reference and its vtable offset
+DungeonSelector@2 generic array pages alive: 7, with a multi-slot layout: 0, inconsistent: 0
+  FAIL: DungeonSelector@2: 0 multi-slot page(s), 0 inconsistent
+AL3 Footer@2: 1 slot(s), X_A_SIZE 1, 1 X_ASSIGN past the page  FAIL: Footer@2: 1 X_ASSIGN past the end of its page (the first stores 2 slot(s) into 1)
+  FAIL: Footer@2: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    Footer@2: a_type=79 struct_type=1 slots=1 X_A_SIZE=1 types: 13
+
+  FAIL: Footer@2: 0 of 1 elements are a parameter object with one reference and its vtable offset
+Footer@2 generic array pages alive: 9, with a multi-slot layout: 0, inconsistent: 0
+  FAIL: Footer@2: 0 multi-slot page(s), 0 inconsistent
+AL3 FAIL (exit 1)
+  FAIL: RankGauge@EndCurrentMotion: the caller's stack below the call was changed (0 slot(s) above it)
+AL4 RankGauge@EndCurrentMotion without parts: X_ASSIGN 15 ran 1 time(s), 1 X_ASSIGN past the page
+  FAIL: RankGauge@EndCurrentMotion: 1 X_ASSIGN past the end of its page (the first stores 15 slot(s) into 5)
+  FAIL: X_A_INIT 0 of five option<wrap<iwrap<IParts>>>: want 5 element(s) of 3 slot(s), the first slot of each a reference and the others values
+    X_A_INIT 0 of five option<wrap<iwrap<IParts>>>: a_type=79 struct_type=1 slots=5 X_A_SIZE=5 types: 13 13 13 13 13
+  FAIL: X_ASSIGN 15 did not store the five elements
+AL4 three-slot elements: object references 3 (copy alive), the slot named by the offset 2
+  FAIL: A_REF: the objects have 3 and 2 references, want 3
+  FAIL: A_REF retained the slot a vtable offset names (2, 1)
+  FAIL: the A_REF copy: want 5 element(s) of 3 slot(s), the first slot of each a reference and the others values
+    the A_REF copy: a_type=79 struct_type=1 slots=5 X_A_SIZE=5 types: 13 13 13 13 13
+  FAIL: after both arrays went the objects have 1 and 2 references
+  FAIL: a teardown released the slot a vtable offset names (0, 1)
+AL4 FAIL (exit 1)
+  FAIL: X_A_INIT 0 of two wrap<iwrap<IUserComponentParam>>: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    X_A_INIT 0 of two wrap<iwrap<IUserComponentParam>>: a_type=79 struct_type=1 slots=2 X_A_SIZE=2 types: 13 13
+  FAIL: X_ASSIGN 4 did not store two elements
+AL5 literal of two elements: copy WRONG, both arrays released WRONG
+  FAIL: literal: objects 1 2, the slot the offset names 0
+  FAIL: PushBack 0x10003 on an empty page: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    PushBack 0x10003 on an empty page: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL5 PushBack 0x10003 on an empty page: copy WRONG, copy released ok, array released WRONG
+  FAIL: PushBack 0x10003 on an empty page: the slot the offset names has 0 reference(s) (had 0), the object 1 (had 2)
+  FAIL: PushBack 0x10003 without a page: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    PushBack 0x10003 without a page: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL5 PushBack 0x10003 without a page: copy WRONG, copy released ok, array released WRONG
+  FAIL: PushBack 0x10003 without a page: the slot the offset names has 0 reference(s) (had 0), the object 1 (had 2)
+=================================================================
+  (sanitizer report omitted)
+AL5 FAIL (terminated by signal 6)
+  FAIL: rsm: the page PushBack made has rank 0, want 1
+  FAIL: rsm: the literal did not come back
+  FAIL: the literal after the load: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+  FAIL: rsm: the array PushBack made for a variable without a page did not come back (-1 slot(s))
+AL6 rsm image: literal LOST, its release WRONG; pushed array LOST, its release WRONG; undeclared page as before, 4 of 4 objects released with it; struct array as before
+  FAIL: rsm: releasing the loaded literal left objects 2 2 and the slot its offsets name 1
+  FAIL: json: the page PushBack made has rank 0, want 1
+  FAIL: json: the literal did not come back
+  FAIL: the literal after the load: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    the literal after the load: a_type=79 struct_type=1 slots=2 X_A_SIZE=2 types: 13 13
+  FAIL: the pushed array after the load: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    the pushed array after the load: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL6 json image: literal LOST, its release WRONG; pushed array LOST, its release WRONG; undeclared page as before, 4 of 4 objects released with it; struct array as before
+  FAIL: json: releasing the loaded literal left objects 1 2 and the slot its offsets name 0
+AL6 FAIL (exit 1)
+AL7 AdvTransition.m_partsBg: 4 slot(s), X_A_SIZE 2, struct_type 2, elements (-1, -1) (-1, -1)
+  FAIL: AdvTransition.m_partsBg: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    AdvTransition.m_partsBg: a_type=79 struct_type=2 slots=4 X_A_SIZE=2 types: 13 13 13 13
+AL7 AdvTransition.m_partsMask: 4 slot(s), X_A_SIZE 2, struct_type 2, elements (-1, -1) (-1, -1)
+  FAIL: AdvTransition.m_partsMask: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    AdvTransition.m_partsMask: a_type=79 struct_type=2 slots=4 X_A_SIZE=2 types: 13 13 13 13
+AL7 MatchingInfo.FrontWorker: 6 slot(s), X_A_SIZE 3, struct_type 2, elements (-1, -1) (-1, -1) (-1, -1)
+  FAIL: MatchingInfo.FrontWorker: want 3 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    MatchingInfo.FrontWorker: a_type=79 struct_type=2 slots=6 X_A_SIZE=3 types: 13 13 13 13 13 13
+  FAIL: 0 of 3 default option elements are none, (-1, 1)
+  FAIL: +4 live slot(s) at the end
+AL7 FAIL (exit 1)
+  FAIL: Insert 0x10003 without a page: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    Insert 0x10003 without a page: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL5 Insert 0x10003 without a page: copy WRONG, copy released ok, array released WRONG
+  FAIL: Insert 0x10003 without a page: the slot the offset names has 0 reference(s) (had 1), the object 1 (had 2)
+  FAIL: Insert 0x10003 on an empty page: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    Insert 0x10003 on an empty page: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL5 Insert 0x10003 on an empty page: copy WRONG, copy released ok, array released WRONG
+  FAIL: Insert 0x10003 on an empty page: the slot the offset names has 0 reference(s) (had 0), the object 1 (had 2)
+  FAIL: Concat 0x10003 into a variable without a page: the element is not (object, offset)
+  FAIL: Alloc 0x30003: want 2 element(s) of 3 slot(s), the first slot of each a reference and the others values
+    Alloc 0x30003: a_type=79 struct_type=3 slots=6 X_A_SIZE=2 types: 13 13 13 13 13 13
+  FAIL: three PushBack 0x10003: want 3 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    three PushBack 0x10003: a_type=79 struct_type=2 slots=6 X_A_SIZE=3 types: 13 13 13 13 13 13
+  FAIL: after Erase 0x10003: want 2 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    after Erase 0x10003: a_type=79 struct_type=2 slots=4 X_A_SIZE=2 types: 13 13 13 13
+  FAIL: after PopBack 0x10003: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    after PopBack 0x10003: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL8 Erase and PopBack 0x10003: layout after Erase LOST, after PopBack LOST
+  FAIL: the element left after Erase and PopBack: want 1 element(s) of 2 slot(s), the first slot of each a reference and the others values
+    the element left after Erase and PopBack: a_type=79 struct_type=2 slots=2 X_A_SIZE=1 types: 13 13
+AL5 the element left after Erase and PopBack: copy WRONG, copy released ok, array released WRONG
+  FAIL: the element left after Erase and PopBack: the slot the offset names has 0 reference(s) (had 1), the object 1 (had 2)
+  FAIL: the string has 0 reference(s) at the end
+AL8 FAIL (exit 1)
+G1 GetNameList: 4 string(s)
+G1 Header@2 <vtable>: 2 int(s)
+G1 ok
+G2 version 13: 2 slot(s), struct_type 1
+G4 no element type: 2 slot(s), struct_type 1
+G2+G4 ok
+G3 array of struct 2: a_type 17, struct_type 2, 3 slot(s), X_A_SIZE 3
+G3 hand-made generic page with struct_type 2: every slot a reference, 6 of 6 objects released with it
+G3 hand-made generic page with struct_type 3: every slot a reference, 6 of 6 objects released with it
+G3 Array.Concat into a variable without a page: 2 slot(s), struct_type 0 (not the left-over 2: the case is weaker)
+G3 ok
+G5 X_A_INIT 1 of 11 ref structs: a_type 79, 22 slot(s), struct_type 2, X_A_SIZE 11
+  FAIL: X_A_INIT 1 of 11 one-slot generic elements is not 11 reference slots of -1
+G5 FAIL (exit 1)
+ARRAY-LITERAL FAIL: 9 of 12 cases failed, 0 environment error(s)
+
+before c27fc93 (XS4_PROBE_GBK=1)
+ARRAY-LITERAL FAIL: 9 of 12 cases failed, 0 environment error(s)
+
+after e3417c2 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AL1 GetParams: 38 slot(s), X_A_SIZE 19, 0 X_ASSIGN past the page
+AL1 generic array pages alive: 1, with a multi-slot layout: 1, inconsistent: 0
+AL1 after release: 19 of 19 member objects have the references they had, +0 live slot(s)
+AL1 ok
+AL2 under LoadSubParams: 77 frame(s) entered; 19 of 19 sub-parameters entered twice, 0 never; CG layers loaded 1 time(s), effects 1; 0 X_ASSIGN past the page
+AL2 after release: 19 of 19 sub-parameter objects gone; left: 0 sub-parameter object(s), 0 key string(s), 11 wrap box(es) (2 name list call(s)), 9 other slot(s) in all, +20 live
+    left: slot 33 ref 1 struct CASPosF
+    left: slot 82 ref 1 page type=2 index=-1 n=1
+    left: slot 83 ref 1 page type=2 index=-1 n=1
+    left: slot 114 ref 1 string of 0 byte(s)
+    left: slot 152 ref 1 page type=2 index=-1 n=1
+    left: slot 170 ref 1 page type=2 index=-1 n=1
+    left: slot 171 ref 1 struct FrameInfoCgLayer
+    left: slot 173 ref 1 page type=2 index=-1 n=1
+    left: slot 177 ref 1 string of 20 byte(s)
+    left: slot 178 ref 1 struct CASPosF
+    left: slot 179 ref 1 page type=4 index=0 n=0
+    left: slot 180 ref 1 page type=4 index=0 n=0
+    left: slot 181 ref 1 page type=4 index=0 n=0
+    left: slot 183 ref 1 string of 0 byte(s)
+    left: slot 191 ref 1 page type=2 index=-1 n=1
+    left: slot 196 ref 1 page type=2 index=-1 n=1
+    left: slot 197 ref 1 page type=2 index=-1 n=1
+    left: slot 198 ref 1 page type=2 index=-1 n=1
+    left: slot 199 ref 1 page type=2 index=-1 n=1
+    left: slot 201 ref 1 page type=2 index=-1 n=1
+AL2 ok
+AL3 Header@2: 4 slot(s), X_A_SIZE 2, 0 X_ASSIGN past the page; element 0: activity::detail::CUserComponentStringParam, offset 0; element 1: activity::detail::CUserComponentStringParam, offset 0
+Header@2 generic array pages alive: 5, with a multi-slot layout: 1, inconsistent: 0
+AL3 DungeonSelector@2: 6 slot(s), X_A_SIZE 3, 0 X_ASSIGN past the page; element 0: activity::detail::CUserComponentStringParam, offset 0; element 1: activity::detail::CUserComponentStringParam, offset 0; element 2: activity::detail::CUserComponentStringParam, offset 0
+DungeonSelector@2 generic array pages alive: 7, with a multi-slot layout: 2, inconsistent: 0
+AL3 Footer@2: 2 slot(s), X_A_SIZE 1, 0 X_ASSIGN past the page; element 0: activity::detail::CUserComponentStringParam, offset 0
+Footer@2 generic array pages alive: 9, with a multi-slot layout: 3, inconsistent: 0
+AL3 ok
+AL4 RankGauge@EndCurrentMotion without parts: X_ASSIGN 15 ran 1 time(s), 0 X_ASSIGN past the page
+AL4 three-slot elements: object references 3 (copy alive), the slot named by the offset 1
+AL4 ok
+AL5 literal of two elements: copy ok, both arrays released ok
+AL5 PushBack 0x10003 on an empty page: copy ok, copy released ok, array released ok
+AL5 PushBack 0x10003 without a page: copy ok, copy released ok, array released ok
+AL5 X_OP_SET: copy ok, copy released ok, array released ok
+AL5 ok
+AL6 rsm image: literal back, its release balanced; pushed array back, its release balanced; undeclared page as before, 4 of 4 objects released with it; struct array as before
+AL6 json image: literal back, its release balanced; pushed array back, its release balanced; undeclared page as before, 4 of 4 objects released with it; struct array as before
+AL6 ok
+AL7 AdvTransition.m_partsBg: 4 slot(s), X_A_SIZE 2, struct_type 2, elements (-1, -1) (-1, -1)
+AL7 AdvTransition.m_partsMask: 4 slot(s), X_A_SIZE 2, struct_type 2, elements (-1, -1) (-1, -1)
+AL7 AdvTransition with four elements stored: copy ok, the object released ok
+AL7 MatchingInfo.FrontWorker: 6 slot(s), X_A_SIZE 3, struct_type 2, elements (-1, 1) (-1, 1) (-1, 1)
+AL7 ok
+AL5 Insert 0x10003 without a page: copy ok, copy released ok, array released ok
+AL5 Insert 0x10003 on an empty page: copy ok, copy released ok, array released ok
+AL5 Concat 0x10003 into a variable without a page: copy ok, copy released ok, array released ok
+AL8 Alloc 0x30003 and X_OP_SET 65539: stored ok, copy ok, both arrays released ok
+AL8 Erase and PopBack 0x10003: layout after Erase kept, after PopBack kept
+AL5 the element left after Erase and PopBack: copy ok, copy released ok, array released ok
+AL8 ok
+G1 GetNameList: 4 string(s)
+G1 Header@2 <vtable>: 2 int(s)
+G1 ok
+G2 version 13: 2 slot(s), struct_type 1
+G4 no element type: 2 slot(s), struct_type 1
+G2+G4 ok
+G3 array of struct 2: a_type 17, struct_type 2, 3 slot(s), X_A_SIZE 3
+G3 hand-made generic page with struct_type 2: every slot a reference, 6 of 6 objects released with it
+G3 hand-made generic page with struct_type 3: every slot a reference, 6 of 6 objects released with it
+G3 Array.Concat into a variable without a page: 2 slot(s), struct_type 2 (left over)
+G3 ok
+G5 X_A_INIT 1 of 11 ref structs: a_type 79, 11 slot(s), struct_type 1, X_A_SIZE 11
+G5 ok
+ARRAY-LITERAL PASS: 0 of 12 cases failed, 0 environment error(s)
+
+after e3417c2 (XS4_PROBE_GBK=1)
+PROBE XS4_PROBE_GBK=1: gbk_string_rules_enable (ain_is_gb18030=1, libsys4 rule=GBK)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AL1 GetParams: 38 slot(s), X_A_SIZE 19, 0 X_ASSIGN past the page
+AL1 generic array pages alive: 1, with a multi-slot layout: 1, inconsistent: 0
+AL1 after release: 19 of 19 member objects have the references they had, +0 live slot(s)
+AL1 ok
+AL2 under LoadSubParams: 77 frame(s) entered; 19 of 19 sub-parameters entered twice, 0 never; CG layers loaded 1 time(s), effects 1; 0 X_ASSIGN past the page
+AL2 after release: 19 of 19 sub-parameter objects gone; left: 0 sub-parameter object(s), 0 key string(s), 11 wrap box(es) (2 name list call(s)), 9 other slot(s) in all, +20 live
+    left: slot 33 ref 1 struct CASPosF
+    left: slot 82 ref 1 page type=2 index=-1 n=1
+    left: slot 83 ref 1 page type=2 index=-1 n=1
+    left: slot 114 ref 1 string of 0 byte(s)
+    left: slot 152 ref 1 page type=2 index=-1 n=1
+    left: slot 170 ref 1 page type=2 index=-1 n=1
+    left: slot 171 ref 1 struct FrameInfoCgLayer
+    left: slot 173 ref 1 page type=2 index=-1 n=1
+    left: slot 177 ref 1 string of 20 byte(s)
+    left: slot 178 ref 1 struct CASPosF
+    left: slot 179 ref 1 page type=4 index=0 n=0
+    left: slot 180 ref 1 page type=4 index=0 n=0
+    left: slot 181 ref 1 page type=4 index=0 n=0
+    left: slot 183 ref 1 string of 0 byte(s)
+    left: slot 191 ref 1 page type=2 index=-1 n=1
+    left: slot 196 ref 1 page type=2 index=-1 n=1
+    left: slot 197 ref 1 page type=2 index=-1 n=1
+    left: slot 198 ref 1 page type=2 index=-1 n=1
+    left: slot 199 ref 1 page type=2 index=-1 n=1
+    left: slot 201 ref 1 page type=2 index=-1 n=1
+AL2 ok
+AL3 Header@2: 4 slot(s), X_A_SIZE 2, 0 X_ASSIGN past the page; element 0: activity::detail::CUserComponentStringParam, offset 0; element 1: activity::detail::CUserComponentStringParam, offset 0
+Header@2 generic array pages alive: 5, with a multi-slot layout: 1, inconsistent: 0
+AL3 DungeonSelector@2: 6 slot(s), X_A_SIZE 3, 0 X_ASSIGN past the page; element 0: activity::detail::CUserComponentStringParam, offset 0; element 1: activity::detail::CUserComponentStringParam, offset 0; element 2: activity::detail::CUserComponentStringParam, offset 0
+DungeonSelector@2 generic array pages alive: 7, with a multi-slot layout: 2, inconsistent: 0
+AL3 Footer@2: 2 slot(s), X_A_SIZE 1, 0 X_ASSIGN past the page; element 0: activity::detail::CUserComponentStringParam, offset 0
+Footer@2 generic array pages alive: 9, with a multi-slot layout: 3, inconsistent: 0
+AL3 ok
+AL4 RankGauge@EndCurrentMotion without parts: X_ASSIGN 15 ran 1 time(s), 0 X_ASSIGN past the page
+AL4 three-slot elements: object references 3 (copy alive), the slot named by the offset 1
+AL4 ok
+AL5 literal of two elements: copy ok, both arrays released ok
+AL5 PushBack 0x10003 on an empty page: copy ok, copy released ok, array released ok
+AL5 PushBack 0x10003 without a page: copy ok, copy released ok, array released ok
+AL5 X_OP_SET: copy ok, copy released ok, array released ok
+AL5 ok
+AL6 rsm image: literal back, its release balanced; pushed array back, its release balanced; undeclared page as before, 4 of 4 objects released with it; struct array as before
+AL6 json image: literal back, its release balanced; pushed array back, its release balanced; undeclared page as before, 4 of 4 objects released with it; struct array as before
+AL6 ok
+AL7 AdvTransition.m_partsBg: 4 slot(s), X_A_SIZE 2, struct_type 2, elements (-1, -1) (-1, -1)
+AL7 AdvTransition.m_partsMask: 4 slot(s), X_A_SIZE 2, struct_type 2, elements (-1, -1) (-1, -1)
+AL7 AdvTransition with four elements stored: copy ok, the object released ok
+AL7 MatchingInfo.FrontWorker: 6 slot(s), X_A_SIZE 3, struct_type 2, elements (-1, 1) (-1, 1) (-1, 1)
+AL7 ok
+AL5 Insert 0x10003 without a page: copy ok, copy released ok, array released ok
+AL5 Insert 0x10003 on an empty page: copy ok, copy released ok, array released ok
+AL5 Concat 0x10003 into a variable without a page: copy ok, copy released ok, array released ok
+AL8 Alloc 0x30003 and X_OP_SET 65539: stored ok, copy ok, both arrays released ok
+AL8 Erase and PopBack 0x10003: layout after Erase kept, after PopBack kept
+AL5 the element left after Erase and PopBack: copy ok, copy released ok, array released ok
+AL8 ok
+G1 GetNameList: 4 string(s)
+G1 Header@2 <vtable>: 2 int(s)
+G1 ok
+G2 version 13: 2 slot(s), struct_type 1
+G4 no element type: 2 slot(s), struct_type 1
+G2+G4 ok
+G3 array of struct 2: a_type 17, struct_type 2, 3 slot(s), X_A_SIZE 3
+G3 hand-made generic page with struct_type 2: every slot a reference, 6 of 6 objects released with it
+G3 hand-made generic page with struct_type 3: every slot a reference, 6 of 6 objects released with it
+G3 Array.Concat into a variable without a page: 2 slot(s), struct_type 2 (left over)
+G3 ok
+G5 X_A_INIT 1 of 11 ref structs: a_type 79, 11 slot(s), struct_type 1, X_A_SIZE 11
+G5 ok
+ARRAY-LITERAL PASS: 0 of 12 cases failed, 0 environment error(s)

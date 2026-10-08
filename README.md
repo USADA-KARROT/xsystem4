@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-08）：`3b92ad1` 讓回傳三槽 option 的函式不再被截成兩槽，並讓 MainEXFile 的清單函式把結果填進腳本傳入的陣列（原版 `0x66cb20`、`0x488550`）：戰鬥動作的影格、成就與各清單開始載入，第一場戰鬥的教學完整顯示、可以關閉，技能可以選取。同日稍早：`3010a63` 面板的半透明色與腳本的構築命令、`884b638` 元素是 option 的陣列。預設／GBK 各71模式 PASS、sanitizer0。正常GUI150.239秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/ex-list-option-return/README.md) · [面板](docs/checkpoints/2026-09-28/research/gui-visual/panel.md) · [option 陣列](docs/checkpoints/2026-09-28/research/option-array/README.md) · [點擊許可](docs/checkpoints/2026-09-28/research/gui-visual/click-permission.md) · [文字尺寸](docs/checkpoints/2026-09-28/research/gui-visual/text-size.md)。**還不能當成遊戲來玩**：自動路線已能實機從開場走到第一場戰鬥並選取技能，但戰鬥停在技能的演出、看不到角色與敵人（影格只載入一部分，下一組）；地城地圖的背景是黑的；設定與劇情回顧（controller 只接受 -1）、讀檔（`system.Reset` 是空殼）、滑鼠只有左鍵點擊。見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
+> **最新狀態（2026-10-08）：`e3417c2` 讓陣列字面值依宣告的元素槽數配置（原版 `0x66e420`、`0x653420`）：影格的 19 個子參數全部載入，第一場戰鬥看得到我方與敵人，技能的演出會播完並顯示傷害，行動輪到下一位；日誌的 `past end of page` 警告全部消失。同日稍早：`3b92ad1` 三槽 option 的回傳與 MainEXFile 的清單、`3010a63` 面板與構築命令、`884b638` 元素是 option 的陣列。預設／GBK 各72模式 PASS、sanitizer0。正常GUI150.254秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/array-literal/README.md) · [三槽回傳與清單](docs/checkpoints/2026-09-28/research/ex-list-option-return/README.md) · [面板](docs/checkpoints/2026-09-28/research/gui-visual/panel.md) · [option 陣列](docs/checkpoints/2026-09-28/research/option-array/README.md) · [點擊許可](docs/checkpoints/2026-09-28/research/gui-visual/click-permission.md)。**還不能當成遊戲來玩**：自動路線已能實機從開場走到第一場戰鬥並打出第一個技能，但演出後技能按鈕被殘留的畫面擋住、戰鬥的鏡頭位置不對，戰鬥還打不完；地城地圖的背景是黑的；設定與劇情回顧（controller 只接受 -1）、讀檔（`system.Reset` 是空殼）、滑鼠只有左鍵點擊。見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
