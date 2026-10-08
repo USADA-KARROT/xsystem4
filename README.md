@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-08）：`5846210` 讓 v14 的全域 struct 照原版在啟動函式裡當場建構，不再於之後重設（原版 `0x66bb90`、`0x666e00`）：戰鬥場景的位置與原版對上，**第一場戰鬥第一次打得完**（打倒四個敵人、結果畫面、回到地城地圖）。同日稍早：`dfa141b` 引數所有權、`e3417c2` 陣列字面值、`3b92ad1` 三槽 option 的回傳。預設／GBK 各74模式 PASS、sanitizer0。正常GUI150.383秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/global-init/README.md) · [引數所有權](docs/checkpoints/2026-09-28/research/arg-ownership/README.md) · [陣列字面值](docs/checkpoints/2026-09-28/research/array-literal/README.md) · [三槽回傳與清單](docs/checkpoints/2026-09-28/research/ex-list-option-return/README.md) · [面板](docs/checkpoints/2026-09-28/research/gui-visual/panel.md)。**還不能當成遊戲來玩，畫面與原版仍差很多**（每一項都和 Wine 上的原版並排比過）：春銷之後的對話在快進路線上沒有對話框、文字跑到左上角（原因判別中）；春銷的顧客重複；戰鬥的量表填色位置不對、行動順序不同；地城地圖沒有背景、連線與節點底；設定畫面的滑桿與核取方塊是空殼；劇情回顧沒有字；讀檔不能用。差異清單與下一步見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
+> **最新狀態（2026-10-09）：`6ee5521` 讓 `X_ICAST` 照原版留下三個結果槽（原版 `0x66c540`；修正前介面轉型多半被當成失敗，劇情回顧因此拿不到字型），`f2ad370` 讓亂數與 `Array.Shuffle` 照原版的產生器與種子規則（`0x6493f0`、R521）：**春銷的四位顧客不再是同一張臉**。前一天：`5846210` 全域 struct 的啟動順序（第一場戰鬥打得完）、`dfa141b` 引數所有權。預設／GBK 各76模式 PASS、sanitizer0。正常GUI150.231秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/icast-shuffle/README.md) · [全域 struct 的啟動順序](docs/checkpoints/2026-09-28/research/global-init/README.md) · [引數所有權](docs/checkpoints/2026-09-28/research/arg-ownership/README.md) · [陣列字面值](docs/checkpoints/2026-09-28/research/array-literal/README.md)。**還不能當成遊戲來玩，畫面與原版仍差很多**（每一項都和 Wine 上的原版並排比過）：春銷之後的對話沒有對話框、文字擠在左上角（圖層的根元件，修正進行中）；戰鬥的量表填色位置不對；地城地圖沒有背景、連線與節點底；設定畫面的滑桿與核取方塊是空殼；讀檔不能用。這兩天起改成照原版的結構整塊盤點再補（函式庫 1562 個被呼叫的函式裡 699 個是空殼、86 個沒有）。差異清單與下一步見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

@@ -1,0 +1,114 @@
+before 89b3d10 icast (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: IC1 CCGParts as ISprite: X_ICAST left 3 slot(s) [2, 2, 18], want [2, 18, 0]
+  FAIL: IC1 CCGParts as ISprite: PUSH 1; GTE on the flag gave 1, want 0
+IC1 CCGParts as ISprite: [2, 2, 18] flag tested
+  FAIL: IC2 CASAnchor as ISprite: X_ICAST left 3 slot(s) [-1, -1, 0], want [-1, 0, 1]
+  FAIL: IC2 CASAnchor as ISprite: PUSH 1; GTE on the flag gave 0, want 1
+IC2 CASAnchor as ISprite: [-1, -1, 0] flag tested
+  FAIL: IC3 null as ISprite: X_ICAST left 3 slot(s) [-1, -1, 0], want [-1, 0, 1]
+  FAIL: IC3 null as ISprite: PUSH 1; GTE on the flag gave 0, want 1
+IC3 null as ISprite: [-1, -1, 0] flag tested
+  FAIL: IC4 CUserComponentParts as itself: X_ICAST left 3 slot(s) [5, 5, 0], want [5, 0, 0]
+IC4 CUserComponentParts as itself: [5, 5, 0]
+  FAIL: IC7 string slot as ISprite: X_ICAST left 3 slot(s) [-1, -1, 0], want [-1, 0, 1]
+  FAIL: IC7 string slot as ISprite: PUSH 1; GTE on the flag gave 0, want 1
+IC7 string slot as ISprite: [-1, -1, 0] flag tested
+  FAIL: IC8 array page as ISprite: X_ICAST left 3 slot(s) [-1, -1, 0], want [-1, 0, 1]
+  FAIL: IC8 array page as ISprite: PUSH 1; GTE on the flag gave 0, want 1
+IC8 array page as ISprite: [-1, -1, 0] flag tested
+IC1-IC4, IC7-IC8 X_ICAST single-step on real instructions FAIL
+IC5 Get#1 return type data=82 struc=393 inner=100 -> 1 slot(s)
+Assertion failed at 03_Components\parts\detail\CParts\CSpriteParts.jaf:87: (nonnull) ( GetCG ( state ) as ISprite ?? null )
+  FAIL: IC5 CSpriteParts@Get#1(1) returned [-1, 0]: want [a CCGParts page, 18] (got null: the cast was reported as failed)
+IC5 CSpriteParts@Get#1(1) -> [-1, 0] (CCGParts no, ISprite vtoff 18)
+IC5, IC9 CSpriteParts@Get#1 end to end and an interface call through the value FAIL
+  FAIL: IC6 CASAnchor@ToString = "(1, 0, 0, 1)", want "(true, false, false, true)"
+IC6 CASAnchor@ToString -> (1, 0, 0, 1)
+IC6 X_TO_STR 47 through CASAnchor@ToString FAIL
+ICAST summary: 3/3 group(s) failed
+
+before 89b3d10 icast (XS4_PROBE_GBK=1)
+ICAST summary: 3/3 group(s) failed
+
+after 6ee5521 icast (default rule; from the final verify at f2ad370)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+IC1 CCGParts as ISprite: [2, 18, 0] flag tested
+IC2 CASAnchor as ISprite: [-1, 0, 1] flag tested
+IC3 null as ISprite: [-1, 0, 1] flag tested
+IC4 CUserComponentParts as itself: [5, 0, 0]
+IC7 string slot as ISprite: [-1, 0, 1] flag tested
+IC8 array page as ISprite: [-1, 0, 1] flag tested
+IC1-IC4, IC7-IC8 X_ICAST single-step on real instructions PASS
+IC5 Get#1 return type data=82 struc=393 inner=100 -> 1 slot(s)
+IC5 CSpriteParts@Get#1(1) -> [26, 18] (CCGParts yes, ISprite vtoff 18)
+IC9 ICGParts cast [26, 0, 0]; <vtable>[0 + 5] = CCGParts@Core::get -> [10, 0] ok
+IC5, IC9 CSpriteParts@Get#1 end to end and an interface call through the value PASS
+IC6 CASAnchor@ToString -> (true, false, false, true)
+IC6 X_TO_STR 47 through CASAnchor@ToString PASS
+ICAST summary: 0/3 group(s) failed
+
+after icast (XS4_PROBE_GBK=1)
+ICAST summary: 0/3 group(s) failed
+
+
+before 6ee5521 shuffle (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+SH1 Shuffle(-1) #1: 13 9 1 18 17 12 6 10 8 0 16 11 3 14 15 2 4 5 19 7
+SH1 Shuffle(-1) #2: 13 9 1 18 17 12 6 10 8 0 16 11 3 14 15 2 4 5 19 7
+  FAIL: SH1 Shuffle(-1) twice gave the same permutation (fixed seed)
+SH1 Shuffle(0): 7 17 1 18 3 12 11 14 19 13 16 2 0 4 6 9 8 5 15 10
+SH2 Shuffle(7): 2 16 5 17 19 3 10 18 8 6 13 15 14 0 7 1 4 12 11 9
+  FAIL: SH2 Shuffle(7) differs from the 0x4c6e40 reference
+SH1-SH2 Shuffle(-1) random, Shuffle(0/7) deterministic, empty/one untouched FAIL
+SH3 SetSeed(7); Rand: 117649 1977326743 621132276 452154665 1566311569
+  FAIL: SH3 Rand #0 = 117649, reference 543519923
+  FAIL: SH3 Rand #1 = 1977326743, reference 1037007885
+  FAIL: SH3 Rand #2 = 621132276, reference 589964693
+  FAIL: SH3 Rand #3 = 452154665, reference 660227605
+  FAIL: SH3 Rand #4 = 1566311569, reference 1797385821
+SH3 SetSeed(7); RandF: 5.47845848e-05
+  FAIL: SH3 first RandF after SetSeed(7) = 5.47845848e-05, reference 0.626548111
+  FAIL: SH4 Rand #0 after Shuffle(-1) = 143542612, want 543519923 (Shuffle reseeded the Math generator)
+  FAIL: SH4 Rand #1 after Shuffle(-1) = 896544303, want 1037007885 (Shuffle reseeded the Math generator)
+  FAIL: SH4 Rand #2 after Shuffle(-1) = 1474833169, want 589964693 (Shuffle reseeded the Math generator)
+  FAIL: SH4 Rand #3 after Shuffle(-1) = 1264817709, want 660227605 (Shuffle reseeded the Math generator)
+  FAIL: SH4 Rand #4 after Shuffle(-1) = 1998097157, want 1797385821 (Shuffle reseeded the Math generator)
+SH4 Math sequence after Shuffle(-1): disturbed
+SH3-SH4 Math.SetSeed/Rand/RandF, Shuffle leaves Math alone FAIL
+SH5 2-slot Shuffle(-1) objects: 1007 1 1002 1000 4 1001 5 2
+  FAIL: SH5 a (object, offset) pair was split
+  FAIL: SH5 elements lost or duplicated
+SH5 two-slot elements move whole FAIL
+SH6 XSYS4_RANDOM_SEED=5 Shuffle(-1) #1: 13 9 1 18 17 12 6 10 8 0 16 11 3 14 15 2 4 5 19 7
+  FAIL: SH6 with XSYS4_RANDOM_SEED=5 the two Shuffle(-1) calls should equal Shuffle(5) and Shuffle(6)
+SH6 XSYS4_RANDOM_SEED makes Shuffle(-1) repeatable FAIL
+SH7 v13: SetSeed(7); Rand = 117649 1977326743 (srand(7); rand() = 117649 1977326743), RandF = 0.289237
+  FAIL: SH7 Array.Shuffle(7) is not version-gated and must keep the reference permutation
+SH7 v13 keeps the C library Math entries FAIL
+SHUFFLE summary: 5/5 group(s) failed
+
+before 6ee5521 shuffle (XS4_PROBE_GBK=1)
+SHUFFLE summary: 5/5 group(s) failed
+
+after f2ad370 shuffle (default rule; from the final verify at f2ad370)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+SH1 Shuffle(-1) #1: 13 19 5 18 17 1 14 16 15 0 10 9 7 11 6 12 2 8 4 3
+SH1 Shuffle(-1) #2: 1 5 7 19 9 12 17 14 3 4 16 0 8 10 15 6 13 2 11 18
+SH1 Shuffle(0): 0 17 4 10 18 19 13 7 3 5 15 9 14 11 6 1 16 12 8 2
+SH2 Shuffle(7): 16 15 17 10 18 8 14 4 1 11 5 3 2 7 12 9 19 6 0 13
+SH1-SH2 Shuffle(-1) random, Shuffle(0/7) deterministic, empty/one untouched PASS
+SH3 SetSeed(7); Rand: 543519923 1037007885 589964693 660227605 1797385821
+SH3 SetSeed(7); RandF: 0.626548111
+SH4 Math sequence after Shuffle(-1): unchanged
+SH3-SH4 Math.SetSeed/Rand/RandF, Shuffle leaves Math alone PASS
+SH5 2-slot Shuffle(-1) objects: 3 7 2 6 5 0 4 1
+SH5 two-slot elements move whole PASS
+SH6 XSYS4_RANDOM_SEED=5 Shuffle(-1) #1: 14 19 3 4 6 10 17 2 9 16 15 7 5 0 12 13 11 8 18 1
+SH6 XSYS4_RANDOM_SEED makes Shuffle(-1) repeatable PASS
+SH7 v13: SetSeed(7); Rand = 117649 1977326743 (srand(7); rand() = 117649 1977326743), RandF = 0.289237
+SH7 v13 keeps the C library Math entries PASS
+SHUFFLE summary: 0/5 group(s) failed
+
+after shuffle (XS4_PROBE_GBK=1)
+SHUFFLE summary: 0/5 group(s) failed
