@@ -1,0 +1,154 @@
+before 72f3174 arg-ownership (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AO1 Join 1: SceneContext constructed 1, destructed 0; the lambda ran 1 time(s), Exit 1; EraseLayer 0; active controller 0 -> 1; +103 live
+  FAIL: Join 1 returned and its SceneContext was destructed 0 time(s), its layer erased 0 time(s); want 1 and 1
+  FAIL: Join 1 left controller 1 active, was 0
+AO1 Join 2: SceneContext constructed 1, destructed 0; the lambda ran 1 time(s), Exit 1; EraseLayer 0; active controller 1 -> 2; +91 live
+  FAIL: Join 2 returned and its SceneContext was destructed 0 time(s), its layer erased 0 time(s); want 1 and 1
+  FAIL: Join 2 left controller 2 active, was 1
+    left: slot 16 ref 2 local page of FrameImageCache@Join
+    left: slot 78 ref 1 struct RCASTimer
+    left: slot 82 ref 1 page type=4 index=0 n=3
+    left: slot 83 ref 1 page type=2 index=-1 n=1
+    left: slot 110 ref 1 page type=2 index=-1 n=1
+    left: slot 112 ref 1 page type=4 index=0 n=3
+    left: slot 113 ref 1 page type=2 index=-1 n=1
+    left: slot 117 ref 1 struct SceneContext
+    left: slot 118 ref 2 struct parts::detail::CRectParts
+    left: slot 119 ref 1 page type=4 index=0 n=0
+    left: slot 120 ref 1 struct AdvModeSetter
+    left: slot 124 ref 1 page type=4 index=0 n=0
+    left: slot 127 ref 1 page type=4 index=0 n=0
+    left: slot 128 ref 1 struct ViewModeSetter
+    left: slot 129 ref 1 page type=4 index=0 n=0
+    left: slot 136 ref 1 page type=2 index=-1 n=1
+    left: slot 139 ref 1 page type=2 index=-1 n=1
+    left: slot 142 ref 1 struct parts::detail::CSpriteParts
+    left: slot 143 ref 1 struct parts::detail::CSpriteParts
+    left: slot 144 ref 1 page type=3 index=14 n=350
+    left: slot 145 ref 1 page type=3 index=14 n=350
+    left: slot 146 ref 1 struct parts::detail::CParts
+    left: slot 147 ref 1 page type=3 index=14 n=316
+    left: slot 148 ref 1 struct parts::detail::CCGParts
+    left: slot 149 ref 1 page type=4 index=0 n=3
+    left: slot 150 ref 1 page type=4 index=0 n=3
+    left: slot 151 ref 1 page type=3 index=14 n=18
+    left: slot 152 ref 1 page type=2 index=-1 n=1
+    left: slot 153 ref 1 page type=2 index=-1 n=1
+    left: slot 154 ref 1 page type=3 index=14 n=30
+    left: slot 155 ref 1 struct parts::detail::CPanelParts
+    left: slot 156 ref 1 page type=3 index=14 n=354
+    left: slot 157 ref 1 struct parts::detail::CPanelParts
+    left: slot 158 ref 1 struct parts::detail::CParts
+    left: slot 159 ref 1 page type=3 index=14 n=316
+    left: slot 160 ref 1 page type=3 index=14 n=354
+    left: slot 161 ref 1 page type=4 index=0 n=3
+    left: slot 162 ref 1 page type=4 index=0 n=3
+    left: slot 163 ref 1 struct parts::detail::CParts
+    left: slot 164 ref 1 page type=2 index=-1 n=1
+AO1 the second Join left 24 wrap box(es), 4 update record(s), 12 empty delegate(s), 28 other
+  FAIL: the second Join left 51 slot(s) of another kind
+  FAIL: the known leaks of a Join are 25 boxes, 4 records and 1 empty delegate; got 24, 4 and 12
+AO1 FAIL (exit 1)
+AO2 struct kept by the callee: 2 reference(s) after the call
+  FAIL: MatchingInfo@0(Customer): the customer has 2 reference(s), want the member's one
+  FAIL: the customer outlived the MatchingInfo
+AO2 struct only read: ALIVE after the call
+  FAIL: MathHelper::CalcAngle(CASPosF): 1 result slot(s), the argument has 1 reference(s)
+AO2 array: ALIVE after the call; the member is a copy
+  FAIL: MatchingInfo@0(Customer, array): the array has 1 reference(s), want it released and a copy in the member
+  FAIL: +10 live slot(s) after the struct and array calls
+AO2 delegate copied down three calls: ALIVE after the call; delegate pages 1 -> 5; the list has 1
+  FAIL: AFL_Parts_AddBeginUpdateEvent: the delegate has 1 reference(s)
+  FAIL: 4 delegate page(s) more than before (the argument went and the record's came: want 0), the list has 1
+  FAIL: after the list went: 1 record(s), 4 delegate page(s) and 0 slot(s) of another kind; the known leak is 1 record with its delegate page
+AO2 Observer::Create: the argument ALIVE; the observer has 1 reference(s); delegate pages 14
+  FAIL: Observer::Create: the delegate has 1 reference(s)
+  FAIL: 14 delegate page(s) while the observer lives, want 8
+AO2 Observer@Release: the observer released; delegate pages 15; the update list has 0
+  FAIL: 15 delegate page(s) and 0 update event(s) after the Release, want 6 (the leaked record's) and 0
+AO2 FAIL (exit 1)
+AO3 wrap: 2 reference(s) after the call (the caller's and the array's)
+AO3 string: not a temporary kept; a temporary consumed, +1 live
+AO3 vm_call: the struct C code pushed has 1 reference(s) after the call
+AO3 ok
+AO4 199 more rounds of Observer::Create and Release: +2587 live slot(s): 398 wrap box(es), 199 update record(s), 1592 empty delegate(s), 0 other; the update list has 0
+  FAIL: 398 slot(s) of another kind were left by 199 rounds
+  FAIL: the known leaks of 199 rounds are 398 boxes, 199 records and 199 empty delegates; got 398, 199 and 1592
+AO4 FAIL (exit 1)
+G1 version 13: 2 reference(s) on entry, 1 after the return
+G1 ok
+ARG-OWNERSHIP FAIL: 3 of 5 cases failed, 0 environment error(s)
+
+before 72f3174 arg-ownership (XS4_PROBE_GBK=1)
+ARG-OWNERSHIP FAIL: 3 of 5 cases failed, 0 environment error(s)
+
+after dfa141b arg-ownership (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AO1 Join 1: SceneContext constructed 1, destructed 1; the lambda ran 1 time(s), Exit 1; EraseLayer 1; active controller 0 -> 0; +38 live
+AO1 Join 2: SceneContext constructed 1, destructed 1; the lambda ran 1 time(s), Exit 1; EraseLayer 1; active controller 0 -> 0; +30 live
+AO1 the second Join left 25 wrap box(es), 4 update record(s), 1 empty delegate(s), 0 other
+AO1 ok
+AO2 struct kept by the callee: 1 reference(s) after the call
+AO2 struct only read: released after the call
+AO2 array: released after the call; the member is a copy
+AO2 delegate copied down three calls: released after the call; delegate pages 1 -> 1; the list has 1
+AO2 Observer::Create: the argument released; the observer has 1 reference(s); delegate pages 4
+AO2 Observer@Release: the observer released; delegate pages 2; the update list has 0
+AO2 ok
+AO3 wrap: 2 reference(s) after the call (the caller's and the array's)
+AO3 string: not a temporary kept; a temporary consumed, +1 live
+AO3 vm_call: the struct C code pushed has 1 reference(s) after the call
+AO3 ok
+AO4 199 more rounds of Observer::Create and Release: +796 live slot(s): 398 wrap box(es), 199 update record(s), 199 empty delegate(s), 0 other; the update list has 0
+AO4 ok
+G1 version 13: 2 reference(s) on entry, 1 after the return
+G1 ok
+ARG-OWNERSHIP PASS: 0 of 5 cases failed, 0 environment error(s)
+
+after dfa141b arg-ownership (XS4_PROBE_GBK=1)
+ARG-OWNERSHIP PASS: 0 of 5 cases failed, 0 environment error(s)
+
+
+before 72f3174 working-cards (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  WC1 X_A_INIT 1 @9eba56: 2 live rival shops; reinitialize/teardown checked
+WC1 ok
+  WC2 real X_A_INIT 1 global float tables: 2048 zero floats; teardown checked
+WC2 ok
+  WC3 Shuffle [0,2,1,3] -> 4 customers, 4 selectors, 0 malformed pushes
+  FAIL: teardown leaves 2 live slots (1 empty delegate/1 empty wrap), want only the baseline wrap placeholder
+WC3 FAIL
+  WC4 26 plain-struct / 18 interface declarations; synthetic primitive and legacy controls
+WC4 ok
+DA1 lambda locals at entry: [2]=3 [3]=0 (delegate page slot 2); returned [6, 0]
+DA2 Select over 4 rects: selector entered 4 time(s); result slot 57 with 8 value(s), 4 live IParts
+  WC5 real interface delegate and four-element Select controls
+WC5 ok
+  WC6 a sized interface array has two slots per element; the synthetic nested-option element is none in two slots; sentinel retained
+WC6 ok
+WORKING-CARDS FAIL: 1 of 6 cases failed
+
+before 72f3174 working-cards (XS4_PROBE_GBK=1)
+WORKING-CARDS FAIL: 1 of 6 cases failed
+
+after dfa141b working-cards (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  WC1 X_A_INIT 1 @9eba56: 2 live rival shops; reinitialize/teardown checked
+WC1 ok
+  WC2 real X_A_INIT 1 global float tables: 2048 zero floats; teardown checked
+WC2 ok
+  WC3 Shuffle [0,2,1,3] -> 4 customers, 4 selectors, 0 malformed pushes
+WC3 ok
+  WC4 26 plain-struct / 18 interface declarations; synthetic primitive and legacy controls
+WC4 ok
+DA1 lambda locals at entry: [2]=3 [3]=0 (delegate page slot 2); returned [6, 0]
+DA2 Select over 4 rects: selector entered 4 time(s); result slot 45 with 8 value(s), 4 live IParts
+  WC5 real interface delegate and four-element Select controls
+WC5 ok
+  WC6 a sized interface array has two slots per element; the synthetic nested-option element is none in two slots; sentinel retained
+WC6 ok
+WORKING-CARDS PASS: 0 of 6 cases failed
+
+after dfa141b working-cards (XS4_PROBE_GBK=1)
+WORKING-CARDS PASS: 0 of 6 cases failed
