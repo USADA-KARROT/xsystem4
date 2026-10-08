@@ -13,10 +13,13 @@ static void third_review_probe_step(void);
 static void working_cards_probe_step(void);
 static void option_array_probe_step(void);
 static void array_literal_probe_step(void);
+static void global_init_probe_step(void);
+static void global_init_probe_return(int fno);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
 static unsigned long calls[40000], returns[40000], steps[40000], total_steps;
+static unsigned long probe_step_budget=1000000; // a mode that runs the whole alloc function raises it
 static int captured_slot=-1, observer_slot=-1;
 static int clock_ms;
 static int probe_clock(void) { return clock_ms; }
@@ -29,10 +32,11 @@ static void probe_entry(int fno) { if(fno>=0 && fno<40000)calls[fno]++; }
 static void probe_return(int fno, int page) {
     (void)page;
     if(fno>=0 && fno<40000)returns[fno]++;
+    global_init_probe_return(fno);
 }
 static void probe_step(unsigned op) {
     (void)op;
-    if(++total_steps > 1000000) { fprintf(stderr,"PROBE instruction budget exceeded\n");exit(90); }
+    if(++total_steps > probe_step_budget) { fprintf(stderr,"PROBE instruction budget exceeded\n");exit(90); }
     if(call_stack_ptr>0)steps[call_stack[call_stack_ptr-1].fno]++;
     observer_probe_step();
     delegate_reentrancy_probe_step();
@@ -43,7 +47,7 @@ static void probe_step(unsigned op) {
     working_cards_probe_step();
     option_array_probe_step();
     array_literal_probe_step();
-
+    global_init_probe_step();
 }
 static size_t live_slots(void) {
     size_t n=0;for(size_t i=2;i<heap_size;i++)if(HEAP_REF(i)>0)n++;return n;
@@ -132,6 +136,7 @@ static void init_probe(const char *path) {
 #include "option_return_fixture.inc"
 #include "array_literal_fixture.inc"
 #include "arg_ownership_fixture.inc"
+#include "global_init_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -193,6 +198,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"option-return"))return test_option_return();
     if(!strcmp(argv[2],"array-literal"))return test_array_literal();
     if(!strcmp(argv[2],"arg-ownership"))return test_arg_ownership();
+    if(!strcmp(argv[2],"global-init"))return test_global_init();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

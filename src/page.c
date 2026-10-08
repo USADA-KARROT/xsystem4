@@ -583,34 +583,6 @@ void init_struct(int no, int slot)
 	}
 }
 
-// v14: call constructors for global structs, recursing into nested members.
-// alloc_struct only allocates and zero-initializes; constructors (which set up
-// arrays, delegates, etc.) must be called separately.  This recurses depth-first
-// so child constructors run before parent constructors — matching the order in
-// which the original compiler would construct aggregates.
-void init_global_struct_v14(int no, int slot)
-{
-	if (!heap_index_valid(slot) || !heap[slot].page)
-		return;
-	struct ain_struct *s = &ain->structures[no];
-	// Recursively initialize nested struct members first
-	for (int i = 0; i < s->nr_members; i++) {
-		bool is_struct = (s->members[i].type.data == AIN_STRUCT);
-		bool is_wrap_s = (is_wrap_struct(&s->members[i]));
-		if (is_struct || is_wrap_s) {
-			int child = heap[slot].page->values[i].i;
-			int child_type = s->members[i].type.struc;
-			if (child > 0 && child_type >= 0 && child_type < ain->nr_structures)
-				init_global_struct_v14(child_type, child);
-		}
-	}
-	// Then call this struct's constructor (skip known-broken debug structs)
-	if (s->constructor > 0
-	    && !(s->name && strstr(s->name, "CDebug"))) {
-		vm_call(s->constructor, slot);
-	}
-}
-
 static int destructor_depth = 0;
 // Objects freed by a destructor's code are destroyed before that code goes on
 // (see heap_set_defer_frees), so destructors nest as deep as ownership does:

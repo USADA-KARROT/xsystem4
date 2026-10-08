@@ -109,6 +109,7 @@ int vm_copy_page(struct page *page);
 union vm_value vm_copy(union vm_value v, enum ain_data_type type);
 
 int vm_execute_ain(struct ain *program);
+void vm_init_globals(void);
 void vm_call(int fno, int struct_page);
 void vm_call_nopop(int fno, int nargs);
 int vm_construct_struct(int struct_type);

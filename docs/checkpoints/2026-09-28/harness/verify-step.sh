@@ -9,7 +9,7 @@ OUT=$XS4_WORK/logs/verify/$TAG; rm -rf "$OUT"; mkdir -p "$OUT"
 S=$OUT/summary.txt
 AIN_SHA=$(shasum -a 256 "$XS4_AIN" | cut -d' ' -f1)
 {
-	echo "tag=$TAG head=$(git -C "$XS4_SRC" rev-parse --short HEAD) diff_sha=$(git -C "$XS4_SRC" diff -- src include | shasum -a 256 | cut -c1-12) ain=$(echo $AIN_SHA | cut -c1-12) libsys4=$(git -C "$XS4_SRC/subprojects/libsys4" rev-parse --short HEAD) probe_gbk=${XS4_PROBE_GBK:-0}"
+	echo "tag=$TAG head=$(git -C "$XS4_SRC" rev-parse --short HEAD) diff_sha=$(git -C "$XS4_SRC" diff HEAD -- src include | shasum -a 256 | cut -c1-12) ain=$(echo $AIN_SHA | cut -c1-12) libsys4=$(git -C "$XS4_SRC/subprojects/libsys4" rev-parse --short HEAD) probe_gbk=${XS4_PROBE_GBK:-0}"
 	[ "$AIN_SHA" = "$XS4_AIN_SHA256_EXPECTED" ] || echo "WARNING: AIN sha256 與預期不同（預期 ${XS4_AIN_SHA256_EXPECTED:0:12}）"
 	ninja -C "$XS4_OPTIMIZED_BUILD" >"$OUT/ninja-opt.log" 2>&1; echo "ninja optimized rc=$? errors=$(grep -c 'error:' "$OUT/ninja-opt.log")"
 	xs4_build_probe >"$OUT/build-probe.txt" 2>&1; echo "asan build + probe link rc=$?"

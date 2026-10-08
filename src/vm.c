@@ -2804,29 +2804,33 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			int ctor_func = get_argument(1);
 			int orig_ctor = ctor_func;  // track original bytecode value
 			// Determine effective constructor BEFORE allocating.
-			// v14 alloc phase: NEW x, -1 means allocate only (init_global_struct_v14
-			// will call constructors later). Outside alloc phase: -1 means "no explicit
-			// ctor in bytecode" — use the STRT-defined one.
+			// v14: NEW x, -1 means "no explicit ctor in bytecode" — use the
+			// STRT-defined one, in the alloc function too. The original
+			// (0x66bb90) allocates and runs the struct's own constructor
+			// right there (0x679b30(type, 1) -> 0x669cb0) whenever the
+			// operand is negative, and the alloc function "0" is just the
+			// first function it runs: nothing constructs the globals after
+			// it. (This VM used to leave such objects unconstructed during
+			// the alloc function and run every global's no-argument
+			// constructor afterwards, which also reset the globals the
+			// alloc function had built with NEW x, ctor and the ones it
+			// had filled from function results: BattleBackground::Size
+			// became (0, 0).)
+			// Before v14 nothing changes: init_struct calls the constructor at
+			// the NEW and vm_init_globals runs init_struct on every struct
+			// global once more (upstream behaviour).
 			{
 				int strt_ctor = (struct_type >= 0 && struct_type < ain->nr_structures)
 					? ain->structures[struct_type].constructor : -99;
-				bool explicit_no_ctor = (ain->version >= 14 && ctor_func == -1
-							 && vm_in_alloc_phase);
 				bool allow = (ain->version >= 14) || !vm_in_alloc_phase;
-				if (ctor_func <= 0 && strt_ctor > 0 && allow && !explicit_no_ctor) {
+				if (ctor_func <= 0 && strt_ctor > 0 && allow) {
 					ctor_func = strt_ctor;
 				}
-				}
-			// Allocate the struct.
-			// v14 alloc phase: alloc_struct only (init_global_struct_v14 handles ctors).
-			// Otherwise: create_struct which runs init_struct for child member pages.
-			// Constructors may override members, but having them pre-initialized
-			// prevents null-page issues during construction.
-			if (ain->version >= 14 && vm_in_alloc_phase) {
-				v.i = alloc_struct(struct_type);
-			} else {
-				create_struct(struct_type, &v);
 			}
+			// Allocate the struct. In v14 create_struct equals alloc_struct:
+			// init_struct calls constructors only before v14, and a struct
+			// member stays -1 until the constructor's bytecode makes it.
+			create_struct(struct_type, &v);
 			// v14: call no-arg STRT constructors for member structs.
 			// alloc_struct creates nested struct pages but doesn't call
 			// constructors (e.g. RCASTimer@0 which registers with its
@@ -5717,76 +5721,14 @@ static void sigabrt_handler(int sig)
 	_exit(128 + sig);
 }
 
-int vm_execute_ain(struct ain *program)
+/*
+ * Initialize the globals: the AIN initvals, the alloc function "0" and
+ * the v14 repairs. The global page (heap slot global_page_slot) must exist
+ * with every v14 global at -1 (vm_execute_ain). Exposed so the headless
+ * probe can run the real startup; nothing else calls it.
+ */
+void vm_init_globals(void)
 {
-	ain = program;
-	main_thread_id = pthread_self();
-
-	// Install signal handlers to dump trace buffer and C backtrace
-	signal(SIGABRT, sigabrt_handler);
-	signal(SIGUSR1, sigabrt_handler);
-	signal(SIGSEGV, sigabrt_handler);
-
-	setjmp(reset_buf);
-
-	// initialize VM state
-	if (!stack) {
-		stack_size = INITIAL_STACK_SIZE;
-		stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
-	}
-	stack_ptr = 0;
-	call_stack_ptr = 0;
-	vm_call_depth = 0;
-
-	initialize_instructions(ain->version);
-
-	// Protect ain strings/messages from being realloc'd by cow_check.
-	// The ain table holds a reference to each string, but the string's ref
-	// count doesn't account for it. When all runtime refs are freed, ref
-	// drops to 1, and cow_check(ref=1,cow=1) allows in-place realloc,
-	// corrupting the ain table pointer. Fix: increment ref for ain's ownership.
-	for (int i = 0; i < ain->nr_strings; i++) {
-		if (ain->strings[i]) ain->strings[i]->ref++;
-	}
-	for (int i = 0; i < ain->nr_messages; i++) {
-		if (ain->messages[i]) ain->messages[i]->ref++;
-	}
-
-	heap_init();
-	init_libraries();
-	init_func_flags();
-
-	// Initialize v14 message system
-	if (ain->version >= 14 && ain->msgf < 0) {
-		vm_msg_init();
-	}
-
-	// Slot 0 = null guard page: absorbs accidental writes from null references
-	// (method_call skips, failed lookups, etc.) without crashing or corrupting globals.
-	// Use ARRAY_PAGE (not STRUCT_PAGE) so method_call validation rejects it.
-	heap[0].ref = 1;
-	heap[0].seq = heap_next_seq++;
-	heap[0].type = VM_PAGE;
-	heap[0].page = alloc_page(ARRAY_PAGE, AIN_VOID, 64);  // direct set, bypass heap_set_page guard
-
-	// Initialize globals at slot 1 (not 0, so null refs don't alias global page)
-	heap[global_page_slot].ref = 1;
-	heap[global_page_slot].seq = heap_next_seq++;
-	heap[global_page_slot].type = VM_PAGE;
-	heap_set_page(global_page_slot, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
-	for (int i = 0; i < ain->nr_globals; i++) {
-		if (ain->version >= 14) {
-			// v14: alloc function handles all global initialization
-			// Use -1 so DELETE on uninitialized globals is safely skipped
-			heap[global_page_slot].page->values[i].i = -1;
-		} else if (ain->globals[i].type.data == AIN_STRUCT) {
-			// XXX: need to allocate storage for global structs BEFORE calling
-			//      constructors.
-			heap[global_page_slot].page->values[i].i = alloc_struct(ain->globals[i].type.struc);
-		} else {
-			heap[global_page_slot].page->values[i] = variable_initval(ain->globals[i].type.data);
-		}
-	}
 	for (int i = 0; i < ain->nr_initvals; i++) {
 		int32_t index;
 		struct ain_initval *v = &ain->global_initvals[i];
@@ -5852,40 +5794,14 @@ int vm_execute_ain(struct ain *program)
 
 	// Global constructors must be called AFTER initializing non-struct variables
 	if (ain->version >= 14) {
-		// v14: Two-pass initialization to resolve cross-global dependencies.
-		// Pass 1 (forward): initialize infrastructure globals first
-		// (e.g. CASTimerManager must be ready before CASTimer ctors use it).
-		// Pass 2 (reverse): remaining globals that may depend on infrastructure.
-		// Track which globals are initialized to avoid double-init.
-		bool *ginited = xcalloc(ain->nr_globals, sizeof(bool));
-		for (int i = 0; i < ain->nr_globals; i++) {
-			if (ain->globals[i].type.data != AIN_STRUCT)
-				continue;
-			int slot = heap[global_page_slot].page->values[i].i;
-			if (slot <= 0 || !heap_index_valid(slot))
-				continue;
-			int st = ain->globals[i].type.struc;
-			if (st < 0 || st >= ain->nr_structures)
-				continue;
-			// Infrastructure types: timer managers, collections, singletons
-			const char *sn = ain->structures[st].name;
-			bool is_infra = (sn && (strstr(sn, "Manager") || strstr(sn, "Collection")
-					 || strstr(sn, "Map<") || strstr(sn, "IdArray")));
-			if (is_infra) {
-				init_global_struct_v14(st, slot);
-				ginited[i] = true;
-			}
-		}
-		for (int i = ain->nr_globals - 1; i >= 0; i--) {
-			if (ginited[i])
-				continue;
-			if (ain->globals[i].type.data == AIN_STRUCT) {
-				int slot = heap[global_page_slot].page->values[i].i;
-				if (slot > 0 && heap_index_valid(slot))
-					init_global_struct_v14(ain->globals[i].type.struc, slot);
-			}
-		}
-		free(ginited);
+		// v14: the alloc function has run every constructor itself (NEW,
+		// above): nothing is constructed here. The original engine does
+		// not touch the globals between the alloc function and main
+		// either (NEW 0x66bb90 constructs on the spot; RunMethod
+		// 0x669cb0 is only reached from there, from a delegate Invoke
+		// and from a destructor). This VM used to run the no-argument
+		// constructor of every struct global again here, resetting the
+		// ones built with arguments or filled from function results.
 		// The v14 alloc pass pre-fills every global with -1 so DELETE on
 		// uninitialized slots is safe, expecting the bytecode alloc
 		// function to initialize the rest. Globals without an explicit
@@ -5983,6 +5899,79 @@ int vm_execute_ain(struct ain *program)
 		if (deep_repaired > 0)
 			WARNING("v14: deep repaired %d struct member pages after constructors (recursive)", deep_repaired);
 	}
+}
+
+int vm_execute_ain(struct ain *program)
+{
+	ain = program;
+	main_thread_id = pthread_self();
+
+	// Install signal handlers to dump trace buffer and C backtrace
+	signal(SIGABRT, sigabrt_handler);
+	signal(SIGUSR1, sigabrt_handler);
+	signal(SIGSEGV, sigabrt_handler);
+
+	setjmp(reset_buf);
+
+	// initialize VM state
+	if (!stack) {
+		stack_size = INITIAL_STACK_SIZE;
+		stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
+	}
+	stack_ptr = 0;
+	call_stack_ptr = 0;
+	vm_call_depth = 0;
+
+	initialize_instructions(ain->version);
+
+	// Protect ain strings/messages from being realloc'd by cow_check.
+	// The ain table holds a reference to each string, but the string's ref
+	// count doesn't account for it. When all runtime refs are freed, ref
+	// drops to 1, and cow_check(ref=1,cow=1) allows in-place realloc,
+	// corrupting the ain table pointer. Fix: increment ref for ain's ownership.
+	for (int i = 0; i < ain->nr_strings; i++) {
+		if (ain->strings[i]) ain->strings[i]->ref++;
+	}
+	for (int i = 0; i < ain->nr_messages; i++) {
+		if (ain->messages[i]) ain->messages[i]->ref++;
+	}
+
+	heap_init();
+	init_libraries();
+	init_func_flags();
+
+	// Initialize v14 message system
+	if (ain->version >= 14 && ain->msgf < 0) {
+		vm_msg_init();
+	}
+
+	// Slot 0 = null guard page: absorbs accidental writes from null references
+	// (method_call skips, failed lookups, etc.) without crashing or corrupting globals.
+	// Use ARRAY_PAGE (not STRUCT_PAGE) so method_call validation rejects it.
+	heap[0].ref = 1;
+	heap[0].seq = heap_next_seq++;
+	heap[0].type = VM_PAGE;
+	heap[0].page = alloc_page(ARRAY_PAGE, AIN_VOID, 64);  // direct set, bypass heap_set_page guard
+
+	// Initialize globals at slot 1 (not 0, so null refs don't alias global page)
+	heap[global_page_slot].ref = 1;
+	heap[global_page_slot].seq = heap_next_seq++;
+	heap[global_page_slot].type = VM_PAGE;
+	heap_set_page(global_page_slot, alloc_page(GLOBAL_PAGE, 0, ain->nr_globals));
+	for (int i = 0; i < ain->nr_globals; i++) {
+		if (ain->version >= 14) {
+			// v14: alloc function handles all global initialization
+			// Use -1 so DELETE on uninitialized globals is safely skipped
+			heap[global_page_slot].page->values[i].i = -1;
+		} else if (ain->globals[i].type.data == AIN_STRUCT) {
+			// XXX: need to allocate storage for global structs BEFORE calling
+			//      constructors.
+			heap[global_page_slot].page->values[i].i = alloc_struct(ain->globals[i].type.struc);
+		} else {
+			heap[global_page_slot].page->values[i] = variable_initval(ain->globals[i].type.data);
+		}
+	}
+	vm_init_globals();
 
 	vm_call(ain->main, -1);
 	return stack_pop().i;
