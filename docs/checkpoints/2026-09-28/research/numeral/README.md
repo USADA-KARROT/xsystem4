@@ -43,7 +43,7 @@
 ## 驗證
 
 - 新模式 `numeral`（10 案）與 `option-member`（5 案；掃全部 208 個 option 成員，並以真位元組碼的 `Limit::get`、`PriceRatio::get`、`FeelEventResult@Apply` 釘住數值）。
-- 正式 before-check（[before／after](before-after.txt)）：`95e2da0` 上 `numeral` 9 案中 8 案失敗；`9fff3a1` 上 `option-member` 4 案全失敗；`4df72e1` 上兩個模式新增的案例失敗；修正後全過；兩種字元規則結果相同，還原後乾淨。
+- 正式 before-check（[before／after](before-after.txt)）：`95e2da0` 上 `numeral` 9 案中 8 案失敗；`9fff3a1` 上 `option-member` 4 案全失敗；`4df72e1` 上 `numeral` 新增的讀檔案例與一項 setter 檢查失敗（其中空指標與越界由 sanitizer 報出；`option-member` 新增的案例釘的是 `4df72e1` 已有的行為，在那裡就通過）；修正後全過；兩種字元規則結果相同，還原後乾淨。
 - 反向檢查：數字元件 39 處裡 38 處有案例失敗（另 1 處是等價寫法）；審查後的修正每一處還原都有案例失敗（其中兩處由 sanitizer 報出）。
 - 預設與 GBK 各 84 模式 VERDICT PASS、sanitizer 0（[預設](verify-default.txt)、[GBK](verify-gbk.txt)）；既有斷言只有 `text-size` 的一個數字元件補了字色的鍵（載入器把缺的鍵當 0）。
 - GUI（[摘要](gui-summary.json)，`RUN_RANDOM_SEED=20261008`）：十條路線沒有斷言、下溢或 VM 錯誤；對白的行數與雜湊和前一組相同。
