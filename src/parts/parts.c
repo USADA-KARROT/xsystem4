@@ -110,8 +110,10 @@ static int parts_get_sprite_z(struct parts *parts)
 {
 	if (!parts_multi_controller)
 		return parts->global.z;
-	// The system overlay controller sorts above any in-stack controller.
-	return parts->controller_no;
+	// Controllers are drawn in stack order. The system overlay controller
+	// is not in the stack and sorts above any in-stack controller.
+	int index = parts_controller_index(parts->controller_no);
+	return index < 0 ? parts->controller_no : index;
 }
 
 static int parts_get_sprite_z2(struct parts *parts)
@@ -171,7 +173,9 @@ struct parts *parts_get(int parts_no)
 
 	struct parts *parts = parts_alloc();
 	parts->no = parts_no;
-	parts->controller_no = ctrl_stack.active;
+	// A new parts goes to the active controller (v14: to the top one while
+	// none is designated, 0x53d1d0).
+	parts->controller_no = PE_get_active_controller();
 	slot->value = parts;
 	parts_list_insert(parts);
 	return parts;
@@ -2781,43 +2785,192 @@ void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
 
 static void ctrl_stack_init(void)
 {
+	free(ctrl_stack.ids);
 	memset(&ctrl_stack, 0, sizeof(ctrl_stack));
 	// Add initial default controller
 	PE_AddController(-1);
 }
 
-// Adds a new controller to the stack and makes it active. The `index`
-// parameter specifies the position in the stack at which to insert the new
-// controller; -1 means "insert directly after the currently active
-// controller". In practice the game only ever passes -1, and the active
-// controller is always the top of the stack at that point, so this
-// degenerates to a simple push.
+// The position in the stack of the controller with this ID, or -1 (also for
+// the system overlay controller, which is not in the stack).
+int parts_controller_index(int id)
+{
+	// Controllers pushed and popped in order have ID == position.
+	if (id >= 0 && id < ctrl_stack.nr_controllers && ctrl_stack.ids[id] == id)
+		return id;
+	for (int i = ctrl_stack.nr_controllers - 1; i >= 0; i--) {
+		if (ctrl_stack.ids[i] == id)
+			return i;
+	}
+	return -1;
+}
+
+// The active controller's position, or the top one's when the active
+// controller is not in the stack (none designated, or the system overlay
+// controller): 0x53d350.
+static int ctrl_active_index(void)
+{
+	int index = parts_controller_index(ctrl_stack.active);
+	return index >= 0 ? index : ctrl_stack.nr_controllers - 1;
+}
+
+// The smallest ID that is not in use, so that controllers pushed and popped
+// in order keep ID == position. The original takes the ID from the allocator
+// of free parts numbers, which also hands out the lowest free one (0x418650).
+static int ctrl_alloc_id(void)
+{
+	int id = 0;
+	while (parts_controller_index(id) >= 0)
+		id++;
+	return id;
+}
+
+static void ctrl_insert(int index, int id)
+{
+	if (ctrl_stack.nr_controllers >= ctrl_stack.cap) {
+		int cap = ctrl_stack.cap ? ctrl_stack.cap * 2 : 8;
+		ctrl_stack.ids = xrealloc_array(ctrl_stack.ids, ctrl_stack.cap, cap, sizeof(int));
+		ctrl_stack.cap = cap;
+	}
+	memmove(ctrl_stack.ids + index + 1, ctrl_stack.ids + index,
+			(ctrl_stack.nr_controllers - index) * sizeof(int));
+	ctrl_stack.ids[index] = id;
+	ctrl_stack.nr_controllers++;
+}
+
+static void ctrl_remove_at(int index)
+{
+	memmove(ctrl_stack.ids + index, ctrl_stack.ids + index + 1,
+			(ctrl_stack.nr_controllers - index - 1) * sizeof(int));
+	ctrl_stack.nr_controllers--;
+}
+
+// The parts list (the order parts are drawn and hit-tested in) and the
+// sprites are sorted by the position of each parts' controller. After the
+// controllers at `index` and above changed their positions, sort their parts
+// again; parts of one controller keep their order.
+static void ctrl_resort_from(int index)
+{
+	if (!parts_multi_controller || index >= ctrl_stack.nr_controllers)
+		return;
+	int nr = 0, cap = 0;
+	struct parts **moved = NULL;
+	struct parts *p;
+	PARTS_LIST_FOREACH(p) {
+		if (parts_controller_index(p->controller_no) < index)
+			continue;
+		if (nr >= cap) {
+			int new_cap = cap ? cap * 2 : 64;
+			moved = xrealloc_array(moved, cap, new_cap, sizeof(struct parts *));
+			cap = new_cap;
+		}
+		moved[nr++] = p;
+	}
+	for (int i = 0; i < nr; i++)
+		parts_list_resort(moved[i]);
+	free(moved);
+}
+
+// The stack as a save holds it: `nr` controllers with ID == position.
+void parts_controller_set_count(int nr)
+{
+	nr = max(0, min(nr, PARTS_CONTROLLER_STACK_MAX));
+	ctrl_stack.nr_controllers = 0;
+	for (int i = 0; i < nr; i++)
+		ctrl_insert(i, i);
+}
+
+// Adds a new controller to the stack, makes it active and returns its ID.
+//
+// v14 (0x58a6b0): `index` is the ID of the controller the new one is put
+// directly above (0x53d480). With any other value, -1 included, it goes
+// directly above the active controller (0x53d3a0, 0x53d350), which need not
+// be the top one. Dohna Dohna's scenes pass -1 and its CASPartsLayer passes
+// the top controller's ID (AFL_Parts_AddTopLayer).
+//
+// Older engines: the game only ever passes -1, and the active controller is
+// always the top of the stack at that point, so this degenerates to a simple
+// push; the new ID is the position.
 int PE_AddController(int index)
 {
-	if (index != -1)
-		VM_ERROR("index != -1 not supported (got %d)", index);
-	if (ctrl_stack.nr_controllers > 0 &&
-			ctrl_stack.active != ctrl_stack.nr_controllers - 1)
-		VM_ERROR("active controller is not at the top of the stack");
+	if (ain->version < 14) {
+		if (index != -1)
+			VM_ERROR("index != -1 not supported (got %d)", index);
+		if (ctrl_stack.nr_controllers > 0 &&
+				ctrl_stack.active != ctrl_stack.nr_controllers - 1)
+			VM_ERROR("active controller is not at the top of the stack");
+		if (ctrl_stack.nr_controllers >= PARTS_CONTROLLER_STACK_MAX)
+			VM_ERROR("controller stack overflow");
+
+		int no = ctrl_stack.nr_controllers;
+		ctrl_insert(no, no);
+		ctrl_stack.active = no;
+		return no;
+	}
+
+	int pos = parts_controller_index(index);
+	pos = pos >= 0 ? pos + 1 : ctrl_active_index() + 1;
+	// The original adds nothing once there are 10000 controllers and still
+	// returns a number (0x53d3bf).
 	if (ctrl_stack.nr_controllers >= PARTS_CONTROLLER_STACK_MAX)
 		VM_ERROR("controller stack overflow");
 
-	int no = ctrl_stack.nr_controllers++;
-	ctrl_stack.active = no;
-	return no;
+	int id = ctrl_alloc_id();
+	ctrl_insert(pos, id);
+	ctrl_stack.active = id;
+	ctrl_resort_from(pos + 1);
+	return id;
 }
 
-// Removes the controller at position `index` from the stack, releases all
-// parts belonging to it, and returns their parts numbers in
-// `erase_number_list`. `index == -1` means "remove the currently active
-// controller". In practice the game only ever passes -1, and the active
-// controller is always the top of the stack at that point, so this
-// degenerates to a simple pop.
+// Releases the parts of the controller `p` belongs to if that is `id`. The
+// list returns each erased parts' delegate index (SetEventID), not its
+// number: the original collects parts +0x88 (0x53d500 -> 0x5386c0), the field
+// SetEventID writes (0x56d580), and EraseLayer hands the list to
+// CPartsMessageManager@ReleaseFunctionSetList, which fires each parts'
+// DeletedEvent and frees its function set.
+static void ctrl_release_parts(struct page **erase_number_list, int id)
+{
+	struct parts *p = TAILQ_FIRST(&parts_list);
+	while (p) {
+		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
+		if (p->controller_no == id) {
+			*erase_number_list = array_pushback(*erase_number_list,
+					(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
+			parts_release(p->no);
+		}
+		p = next;
+	}
+}
+
+// Removes a controller from the stack, releases all parts belonging to it,
+// and returns their delegate indices in `erase_number_list`.
+//
+// v14 (0x53d5f0 -> 0x53d500): `index` is the controller's ID; with any other
+// value, -1 included, the active controller is removed. The last controller
+// is never removed. The other controllers keep their IDs. When the active
+// controller is the one removed, the one below it becomes active.
+//
+// Older engines: `index` is the position and -1 means the active controller.
+// In practice the game only ever passes -1, and the active controller is
+// always the top of the stack at that point, so this degenerates to a simple
+// pop.
 void PE_RemoveController(struct page **erase_number_list, int index)
 {
-	// v14 games (Dohna Dohna's EraseLayer) remove controllers by explicit
-	// stack position, not just the active top. Generalize: remove the
-	// controller at `index` (-1 = active), shift the ones above it down.
+	if (ain->version >= 14) {
+		int pos = parts_controller_index(index);
+		if (ctrl_stack.nr_controllers <= 1)
+			return;
+		if (pos < 0)
+			pos = ctrl_active_index();
+		int id = ctrl_stack.ids[pos];
+		ctrl_release_parts(erase_number_list, id);
+		ctrl_remove_at(pos);
+		if (ctrl_stack.active == id)
+			ctrl_stack.active = ctrl_stack.ids[max(pos - 1, 0)];
+		ctrl_resort_from(pos);
+		return;
+	}
+
 	if (index == -1)
 		index = ctrl_stack.active;
 	if (index < 0 || index >= ctrl_stack.nr_controllers)
@@ -2826,26 +2979,15 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 
 	// Collect and release parts belonging to this controller; renumber
 	// parts owned by controllers above it.
-	struct parts *p = TAILQ_FIRST(&parts_list);
-	while (p) {
-		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
-		if (p->controller_no == index) {
-			// The list returns each erased parts' delegate index
-			// (SetEventID), not its number: the original collects
-			// parts +0x88 (0x53d500 -> 0x5386c0), the field SetEventID
-			// writes (0x56d580), and EraseLayer hands the list to
-			// CPartsMessageManager@ReleaseFunctionSetList, which fires
-			// each parts' DeletedEvent and frees its function set.
-			*erase_number_list = array_pushback(*erase_number_list,
-					(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
-			parts_release(p->no);
-		} else if (p->controller_no > index
-				&& p->controller_no < PARTS_CONTROLLER_SYSTEM_OVERLAY) {
+	ctrl_release_parts(erase_number_list, index);
+	struct parts *p;
+	PARTS_LIST_FOREACH(p) {
+		if (p->controller_no > index
+				&& p->controller_no < PARTS_CONTROLLER_SYSTEM_OVERLAY)
 			p->controller_no--;
-		}
-		p = next;
 	}
 
+	// ID == position: the IDs left are 0..nr_controllers-1 again.
 	ctrl_stack.nr_controllers--;
 	if (ctrl_stack.nr_controllers == 0) {
 		PE_AddController(-1);
@@ -2857,8 +2999,33 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 	}
 }
 
+// v14 MoveController (0x53d740): moves the controller with this ID to
+// position `index` (clamped to 0..length) of the stack as it is before the
+// move. The active controller stays the same one.
+void parts_controller_move(int id, int index)
+{
+	index = max(0, min(index, ctrl_stack.nr_controllers));
+	int pos = parts_controller_index(id);
+	if (pos < 0 || pos == index)
+		return;
+	if (pos < index)
+		index--;
+	ctrl_remove_at(pos);
+	ctrl_insert(index, id);
+	ctrl_resort_from(min(pos, index));
+}
+
 void PE_set_active_controller(int controller_no)
 {
+	if (ain->version >= 14) {
+		// An ID that is not there leaves no controller designated
+		// (0x53d870 returns null and the caller stores it, 0x57ba60).
+		if (controller_no != PARTS_CONTROLLER_SYSTEM_OVERLAY
+				&& parts_controller_index(controller_no) < 0)
+			controller_no = -1;
+		ctrl_stack.active = controller_no;
+		return;
+	}
 	if (controller_no == PARTS_CONTROLLER_SYSTEM_OVERLAY ||
 			(controller_no >= 0 && controller_no < ctrl_stack.nr_controllers))
 		ctrl_stack.active = controller_no;
@@ -2868,6 +3035,13 @@ void PE_set_active_controller(int controller_no)
 
 int PE_get_active_controller(void)
 {
+	if (ain->version >= 14 && ctrl_stack.active < 0) {
+		// None designated: the top controller acts, and an empty stack
+		// gets its default controller first (0x58a6f0 -> 0x53e640).
+		if (!ctrl_stack.nr_controllers)
+			return PE_AddController(-1);
+		return ctrl_stack.ids[ctrl_stack.nr_controllers - 1];
+	}
 	return ctrl_stack.active;
 }
 

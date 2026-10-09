@@ -26,6 +26,66 @@
 
 #define CURRENT_SAVE_VERSION 7
 
+/*
+ * Controllers in a save. The controller fields (the active controller, each
+ * parts' controller) hold stack positions, which is what they held while a
+ * controller's ID was its position, and loading gives every controller its
+ * position as its ID. A v14 stack whose IDs differ from the positions, or
+ * that has no controller designated, adds its IDs and its active controller
+ * in a section after everything else (version 7 and later); a save without
+ * the section, and that is every save of a stack that was only pushed and
+ * popped, reads as before.
+ */
+#define SAVE_CONTROLLER_IDS 0x44494350 /* "PCID" */
+
+static int save_controller_no(int id)
+{
+	int index = parts_controller_index(id);
+	return index < 0 ? id : index;
+}
+
+static void save_controller_ids(struct iarray_writer *w)
+{
+	bool needed = ctrl_stack.active < 0;
+	for (int i = 0; i < ctrl_stack.nr_controllers; i++)
+		needed |= ctrl_stack.ids[i] != i;
+	if (!needed)
+		return;
+	iarray_write(w, SAVE_CONTROLLER_IDS);
+	iarray_write(w, ctrl_stack.nr_controllers);
+	for (int i = 0; i < ctrl_stack.nr_controllers; i++)
+		iarray_write(w, ctrl_stack.ids[i]);
+	iarray_write(w, ctrl_stack.active);
+}
+
+static void load_controller_ids(struct iarray_reader *r)
+{
+	if (ain->version < 14 || iarray_end(r) || iarray_read(r) != SAVE_CONTROLLER_IDS)
+		return;
+	int nr = iarray_read(r);
+	if (r->error || nr != ctrl_stack.nr_controllers)
+		return;
+	int *ids = xmalloc(max(nr, 1) * sizeof(int));
+	bool valid = true;
+	for (int i = 0; i < nr; i++) {
+		ids[i] = iarray_read(r);
+		valid &= ids[i] >= 0 && ids[i] < PARTS_CONTROLLER_STACK_MAX;
+		for (int j = 0; j < i; j++)
+			valid &= ids[j] != ids[i];
+	}
+	int active = iarray_read(r);
+	if (valid && !r->error) {
+		struct parts *parts;
+		PARTS_LIST_FOREACH(parts) {
+			if (parts->controller_no >= 0 && parts->controller_no < nr)
+				parts->controller_no = ids[parts->controller_no];
+		}
+		memcpy(ctrl_stack.ids, ids, nr * sizeof(int));
+		PE_set_active_controller(active);
+	}
+	free(ids);
+}
+
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
 {
 	iarray_write(w, params->z);
@@ -624,7 +684,7 @@ static void save_parts(struct iarray_writer *w, struct parts *parts, int version
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and save unconditionally
 	if (parts_multi_controller) {
-		iarray_write(w, parts->controller_no);
+		iarray_write(w, save_controller_no(parts->controller_no));
 		iarray_write(w, parts->pass_cursor);
 		iarray_write(w, parts->lock_input_state);
 		iarray_write(w, parts->margin_top);
@@ -765,7 +825,11 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and save unconditionally
 	if (parts_multi_controller) {
-		iarray_write(&w, ctrl_stack.active);
+		// v14: the top controller acts while none is designated.
+		int active = ain->version >= 14 && ctrl_stack.active < 0
+			? ctrl_stack.nr_controllers - 1
+			: save_controller_no(ctrl_stack.active);
+		iarray_write(&w, active);
 		iarray_write(&w, ctrl_stack.nr_controllers);
 	}
 
@@ -806,6 +870,8 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 			hidden++;
 		}
 		iarray_write_at(&w, hidden_pos, hidden);
+		if (parts_multi_controller)
+			save_controller_ids(&w);
 	}
 
 	if (*buffer) {
@@ -854,8 +920,12 @@ bool PE_Load(struct page **buffer)
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check
 	if (parts_multi_controller) {
-		ctrl_stack.active = iarray_read(&r);
-		ctrl_stack.nr_controllers = iarray_read(&r);
+		int active = iarray_read(&r);
+		parts_controller_set_count(iarray_read(&r));
+		if (ain->version >= 14)
+			PE_set_active_controller(active);
+		else
+			ctrl_stack.active = active;
 	}
 
 	int nr_parts = iarray_read(&r);
@@ -879,6 +949,8 @@ bool PE_Load(struct page **buffer)
 			if (parts)
 				parts_set_edit_hidden(parts, true);
 		}
+		if (parts_multi_controller)
+			load_controller_ids(&r);
 	}
 
 	parts_engine_clean();

@@ -539,17 +539,30 @@ void parts_set_edit_hidden(struct parts *parts, bool hidden);
 void parts_uc_data_set(struct parts *parts, const char *key, const char *value);
 const char *parts_uc_data_get(struct parts *parts, const char *key);
 
-// Controllers are identified by their position in the stack (0 = bottom). The
-// system overlay controller lives outside the stack.
+// A controller is identified by its ID (parts->controller_no). Its position
+// in the stack (0 = bottom) decides the drawing order and changes when another
+// controller is inserted below it, removed or moved: the original manager
+// keeps a vector of controllers (+0x88) and finds one by the number of its
+// root parts (e.g. 0x53d480). Engines before v14 only push and pop, so there
+// the ID always equals the position. The system overlay controller lives
+// outside the stack.
 #define PARTS_CONTROLLER_STACK_MAX 10000
 #define PARTS_CONTROLLER_SYSTEM_OVERLAY PARTS_CONTROLLER_STACK_MAX
 
 struct parts_controller_stack {
 	int nr_controllers;
-	int active;  // stack index or PARTS_CONTROLLER_SYSTEM_OVERLAY
+	// The ID of the controller new parts go to,
+	// PARTS_CONTROLLER_SYSTEM_OVERLAY, or -1 when none is designated (v14:
+	// the top of the stack acts, the original's null pointer at +0x94).
+	int active;
+	int *ids;  // ids[position] is the ID of the controller there
+	int cap;
 };
 extern struct parts_controller_stack ctrl_stack;
 extern bool parts_multi_controller;
+int parts_controller_index(int id);
+void parts_controller_move(int id, int index);
+void parts_controller_set_count(int nr);
 
 struct parts *parts_try_get(int parts_no);
 struct parts *parts_get(int parts_no);

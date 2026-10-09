@@ -213,7 +213,7 @@ static int PE_v14_GetUniqueID(int number)
 
 static int PE_v14_GetActiveController(void)
 {
-	return ctrl_stack.active;
+	return PE_get_active_controller();
 }
 
 static void PE_v14_SetActiveController(int controller)
@@ -226,14 +226,31 @@ static int PE_v14_GetControllerLength(void)
 	return ctrl_stack.nr_controllers;
 }
 
+// The ID of the controller at a position of the stack (0x53d800): a negative
+// index means the active controller's position, one past the end the top
+// controller. -1 only while there is no controller at all.
 static int PE_v14_GetControllerID(int index)
 {
-	// The upstream ctrl_stack allocates controller IDs as stack indices
-	// (PE_AddController returns nr_controllers++), so a valid index IS
-	// the ID. Out of range → -1, matching the fork's semantics.
-	if (index < 0 || index >= ctrl_stack.nr_controllers)
+	if (!ctrl_stack.nr_controllers)
 		return -1;
-	return index;
+	if (index < 0) {
+		index = parts_controller_index(ctrl_stack.active);
+		if (index < 0)
+			index = ctrl_stack.nr_controllers - 1;
+	}
+	return ctrl_stack.ids[min(index, ctrl_stack.nr_controllers - 1)];
+}
+
+// The position of a controller in the stack, -1 when there is no such
+// controller (0x53fe30).
+static int PE_v14_GetControllerIndex(int controller)
+{
+	return parts_controller_index(controller);
+}
+
+static void PE_v14_MoveController(int controller, int index)
+{
+	parts_controller_move(controller, index);
 }
 
 static int PE_v14_GetSystemOverlayController(void)
@@ -385,6 +402,8 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "SetActiveController", PE_v14_SetActiveController);
 	static_library_register(lib, "GetControllerLength", PE_v14_GetControllerLength);
 	static_library_register(lib, "GetControllerID", PE_v14_GetControllerID);
+	static_library_register(lib, "GetControllerIndex", PE_v14_GetControllerIndex);
+	static_library_register(lib, "MoveController", PE_v14_MoveController);
 	static_library_register(lib, "GetSystemOverlayController", PE_v14_GetSystemOverlayController);
 	static_library_register(lib, "SetMessageWindowActive", PE_v14_SetMessageWindowActive);
 	static_library_register(lib, "SetMessageWindowText", PE_v14_SetMessageWindowText);
