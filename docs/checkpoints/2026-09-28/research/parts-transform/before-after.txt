@@ -1,0 +1,525 @@
+before 55d03e5 aref-value (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: GetAddColor returned the page of the global CASColor::BLACK (slot 290)
+  FAIL: the global has 2 reference(s) while the result lives, had 1
+  FAIL: writing to the result changed CASColor::BLACK to (219,136,0)
+  FAIL: CASColor::BLACK changed
+AV1 checked
+AV1 a getter returning CASColor::BLACK gives a copy FAIL
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: 500 result(s) of 1000 were the page of a constant or of each other
+  FAIL: reference counts BLACK 501 (was 1), WHITE 360 (was 1)
+AV2 checked
+AV2 500 rounds leave the colour constants alone FAIL
+AREF-VALUE FAIL: 2 of 2 cases failed
+
+before 55d03e5 aref-value (XS4_PROBE_GBK=1)
+AREF-VALUE FAIL: 2 of 2 cases failed
+
+before 016b996 parts-transform (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: rotated: parts 9302 global pos (402,302), want (403,300)
+  FAIL: rotated: parts 9303 global pos (410,300), want (407,293)
+  FAIL: rotated: parts 9302 box (0,0) -> (402,302), want (402.828,300)
+  FAIL: rotated: parts 9302 screen (402.828,300) -> box (0.82843,-2), want (0,0)
+  FAIL: rotated: parts 9302 box (100,0) -> (502,302), want (473.539,229.289)
+  FAIL: rotated: parts 9302 screen (473.539,229.289) -> box (71.5391,-72.7107), want (100,0)
+  FAIL: rotated: parts 9302 box (0,18) -> (402,320), want (415.556,312.728)
+  FAIL: rotated: parts 9302 screen (415.556,312.728) -> box (13.5564,10.7279), want (0,18)
+  FAIL: rotated: parts 9302 box (50,9) -> (452,311), want (444.548,271.009)
+  FAIL: rotated: parts 9302 screen (444.548,271.009) -> box (42.5477,-30.9914), want (50,9)
+  FAIL: rotated: Parts_IsCursorIn(C, 450, 301) must be 1 (box from (403,300))
+  FAIL: rotated: Parts_IsCursorIn(C, 450, 319) must be 0 (box ends at 318)
+  FAIL: rotated: Parts_GetPartsUpperLeftPos(C) = (402,302), want (403,300)
+  FAIL: rotated: Parts_GetPartsUpperLeftPosX(N) = 410, want 407
+  FAIL: scaled: parts 9302 global pos (401,301), want (401,300)
+  FAIL: scaled: parts 9302 box (100,0) -> (451,301), want (436.77,264.645)
+  FAIL: scaled: parts 9302 screen (436.77,264.645) -> box (71.5391,-72.7107), want (100,0)
+  FAIL: scaled: parts 9302 box (0,18) -> (401,310), want (407.778,306.364)
+  FAIL: scaled: parts 9302 screen (407.778,306.364) -> box (13.5563,10.7279), want (0,18)
+PT1 checked
+PT1 a rotated, scaled parent moves and turns its children FAIL
+  FAIL: text: parts 9312 global pos (500,386), want (492,389)
+  FAIL: text: glyph offset (7,3) -> (507,389), want (499.141,386.99)
+  FAIL: grandchild: parts 9313 global pos (530,391), want (519,375)
+  FAIL: grandchild: parts 9313 box (8,0) -> (545.757,393.778), want (533.222,367.926)
+  FAIL: grandchild: parts 9313 screen (533.222,367.926) -> box (-0.417064,-11.6414), want (8,0)
+PT2 checked
+PT2 TEXT under a rotated rectangle, three levels FAIL
+  FAIL: add: child of a default parent (0,0,0), want (255,0,186)
+  FAIL: add: C (0,0,0), want (110,20,30)
+  FAIL: add: G (0,0,0), want (255,255,30) clamped
+  FAIL: add: S after the parent's (0,0,0), want (255,20,216)
+  FAIL: add after update: G (0,0,0), want (255,255,30)
+PT3 checked
+PT3 the add colour adds along the chain FAIL
+  FAIL: IsComponentSubColorMode after set 1 = 0, want 1
+  FAIL: Sub (減算色模式 = 1) must have the flag
+  FAIL: XPE version 7, want 8 or later
+  FAIL: Sub lost the flag over PE_Save / PE_Load
+PT4 checked
+PT4 SetComponentSubColorMode, pactex 減算色模式, save FAIL
+  FAIL: multiply black + add (255,0,186): pixel (0,0,0,255), want (255,0,186,255)
+  FAIL: grey 100 * 128/255 + (10,20,30): pixel (50,50,50,255), want (60,70,80,255)
+  FAIL: white in the mode, (0,0,128): pixel (255,255,255,255), want (255,255,127,255)
+  FAIL: parent adding (50,0,0): pixel (100,100,100,255), want (150,100,100,255)
+  FAIL: child in the mode under it, sum (50,0,-40): pixel (100,100,100,255), want (150,100,100,255)
+  FAIL: parent in the mode, (30,30,30): pixel (100,100,100,255), want (70,70,70,255)
+  FAIL: plain child, sum (-20,-20,-20): pixel (100,100,100,255), want (80,80,80,255)
+  FAIL: plain child, sum (10,0,0): pixel (100,100,100,255), want (110,100,100,255)
+  FAIL: the parent out of the mode: pixel (100,100,100,255), want (130,130,130,255)
+  FAIL: its child then, sum (40,40,40): pixel (100,100,100,255), want (140,140,140,255)
+PT5 checked
+PT5 drawn: multiply then add, a negative sum subtracts FAIL
+  FAIL: rotated: parts 9352 global pos (310,200), want (300,210)
+  FAIL: rotated: Parts_GetPartsUpperLeftPos(9352) = (306,197), want (303,206)
+  FAIL: rotated 315: Parts_GetPartsUpperLeftPos(9352) = (306,197), want (302,194)
+  FAIL: scaled: Parts_GetPartsUpperLeftPos(9352) = (316,197), want (312,194)
+  FAIL: own scale: Parts_GetPartsUpperLeftPos(9352) = (306,197), want (298,197)
+PT6 checked
+PT6 the upper-left corner of a surface area under a rotated parent FAIL
+  FAIL: child of a rotated top-level parts: parts 19605 global pos (110,100), want (100,110)
+  FAIL: add colours under a layer root (0,0,0) (0,0,0), want (10,20,30) (11,22,33)
+  FAIL: its child after SetGlobalPos: parts 19605 global pos (17,9), want (107,119)
+  FAIL: child after the rotation is removed: parts 19605 global pos (10,0), want (110,100)
+  FAIL: SetComponentSubColorMode did not take
+  FAIL: XPE version 7, want 8
+  FAIL: the words before the ID section are 0 0 0; want 0 (no hidden parts), 1 and 19601 (one sub colour parts)
+  FAIL: the parts lost 減算色モード over PE_Save / PE_Load with layers
+PT7 checked
+PT7 a save with layers: the sub colour list and the controller ID section FAIL
+PARTS-TRANSFORM FAIL: 7 of 7 cases failed
+
+before 016b996 parts-transform (XS4_PROBE_GBK=1)
+PARTS-TRANSFORM FAIL: 7 of 7 cases failed
+
+before 016b996 controller-id (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CI1 AFL_Parts_AddTopLayer: ok
+CI2 CASPartsLayer: ok
+CI3 backlog shape: ok
+CI4 insert in the middle: ok
+CI5 erase a middle layer: ok
+CI6 erase the active layer: ok
+CI7 AddLayer(-1) above the active layer: ok
+CI8 SetActiveLayer with a missing ID: ok
+CI9 EraseLayer edges: ok
+CI10 queries and MoveLayer: ok
+  FAIL: XPE v7, want 8 (the ID section does not change the version)
+  FAIL: could not rewrite the save as version 7 (cut 0, version 7, section 7)
+CI11 save and load: FAIL
+CI11 FAILED (exit 1)
+CI12 hit order: ok
+CI13 system overlay: ok
+  FAIL: save header: version 7, active 3, layers 4, parts 3; want 8 3 4 3
+  CI14 pushed-only save (version 8): 337 words, hash 70d03dca
+  FAIL: could not rewrite the pushed-only save as version 7
+  CI14 pushed-only save: 337 words, hash 70d03dca
+CI14 push and pop as before: FAIL
+CI14 FAILED (exit 1)
+  CI15 legacy save: 303 words, hash 2a9865ba
+CI15 engines before v14: ok
+CONTROLLER-ID FAIL: 2 of 15 cases failed
+
+before 016b996 controller-id (XS4_PROBE_GBK=1)
+CONTROLLER-ID FAIL: 2 of 15 cases failed
+
+before 4046d17 construction-cmds (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: CC1 26 whole: alpha (1,2) = 255, want 224
+  FAIL: CC1 26 whole: alpha (2,2) = 255, want 192
+  FAIL: CC1 26 whole: alpha (3,2) = 255, want 160
+  FAIL: CC1 26 whole: alpha (4,2) = 255, want 128
+  FAIL: CC1 26 whole: alpha (5,2) = 255, want 96
+  FAIL: CC1 26 whole: alpha (6,2) = 255, want 64
+  FAIL: CC1 26 whole: alpha (7,2) = 255, want 32
+  FAIL: CC1 26 whole (1,0) = (255,255,255,255), want (255,255,255,224)
+  FAIL: CC1 26 whole (2,0) = (255,255,255,255), want (255,255,255,192)
+  FAIL: CC1 26 whole (3,0) = (255,255,255,255), want (255,255,255,160)
+  FAIL: CC1 26 whole (4,0) = (255,255,255,255), want (255,255,255,128)
+  FAIL: CC1 26 rectangle: alpha (3,1) = 0, want 24
+  FAIL: CC1 26 rectangle: alpha (4,1) = 0, want 49
+  FAIL: CC1 26 rectangle: alpha (5,1) = 0, want 74
+  FAIL: CC1 26 rectangle (3,1) = (40,50,60,0), want (40,50,60,24)
+  FAIL: CC1 26 rectangle (4,1) = (40,50,60,0), want (40,50,60,49)
+  FAIL: CC1 26 rectangle (5,1) = (40,50,60,0), want (40,50,60,74)
+  FAIL: CC1 26 rectangle (3,2) = (40,50,60,0), want (40,50,60,24)
+  FAIL: CC1 25: (5,1) = (1,.,.,100), want (1,.,.,125)
+  FAIL: CC1 25: (5,2) = (1,.,.,100), want (1,.,.,150)
+  FAIL: CC1 25: (5,3) = (1,.,.,100), want (1,.,.,175)
+  FAIL: CC1 pactex fades: state type 0, texture missing 0x0, size 0x0; want a built 30x4 construction
+  FAIL: CC1 pactex fades: no pixels to compare
+  FAIL: CC1 pactex rows: state type 0, texture missing 0x0, size 0x0; want a built 8x4 construction
+  FAIL: CC1 pactex rows: no pixels to compare
+CC1 checked
+CC1 FAILED (exit 1)
+  FAIL: CC2 pactex r 24: state type 0, texture missing 0x0, size 0x0; want a built 64x64 construction
+  FAIL: CC2 pactex r 24: no pixels to compare
+  FAIL: CC2 AIN r 24 (25,8) = (255,255,255,0), want (255,255,255,11)
+  FAIL: CC2 AIN r 24 (26,8) = (255,255,255,0), want (255,255,255,71)
+  FAIL: CC2 AIN r 24 (27,8) = (255,255,255,0), want (255,255,255,123)
+  FAIL: CC2 AIN r 24 (28,8) = (255,255,255,0), want (255,255,255,171)
+  FAIL: CC2 cut by the edges: state type 0, texture missing 0x0, size 0x0; want a built 16x16 construction
+  FAIL: CC2 cut by the edges, A 128: no pixels to compare
+  FAIL: CC2 r 0: state type 0, texture missing 0x0, size 0x0; want a built 8x8 construction
+  FAIL: CC2 r 0: no pixels to compare
+  FAIL: CC2 r 1: alpha (3,3) = 7, want 163
+  FAIL: CC2 r 1: alpha (4,3) = 7, want 195
+  FAIL: CC2 r 1: alpha (3,4) = 7, want 195
+  FAIL: CC2 r 1: alpha (4,4) = 7, want 223
+  FAIL: CC2 r 1: alpha (5,4) = 7, want 3
+  FAIL: CC2 r 1: alpha (4,5) = 7, want 3
+  FAIL: CC2 r 1, A 999: alpha (3,3) = 7, want 255
+  FAIL: CC2 r 1, A 999: alpha (4,3) = 7, want 255
+  FAIL: CC2 r 1, A 999: alpha (3,4) = 7, want 255
+  FAIL: CC2 r 1, A 999: alpha (4,4) = 7, want 255
+  FAIL: CC2 r 1, A 999: alpha (5,4) = 7, want 11
+  FAIL: CC2 r 1, A 999: alpha (4,5) = 7, want 11
+CC2 checked
+CC2 FAILED (exit 1)
+  FAIL: CC3 white on transparent (5,3) = (10,20,30,0), want (66,74,81,59)
+  FAIL: CC3 white on transparent (6,3) = (10,20,30,0), want (173,176,180,171)
+  FAIL: CC3 white on transparent (7,3) = (10,20,30,0), want (223,224,225,223)
+  FAIL: CC3 white on transparent (8,3) = (10,20,30,0), want (227,228,229,227)
+  FAIL: CC3 blue A 128 on opaque (5,3) = (200,100,0,255), want (177,88,28,255)
+  FAIL: CC3 blue A 128 on opaque (6,3) = (200,100,0,255), want (133,66,84,255)
+  FAIL: CC3 blue A 128 on opaque (7,3) = (200,100,0,255), want (113,56,110,255)
+  FAIL: CC3 blue A 128 on opaque (8,3) = (200,100,0,255), want (111,55,112,255)
+CC3 checked
+CC3 FAILED (exit 1)
+  FAIL: the polygon added no operation (2 operations)
+  FAIL: CC4 rectangle: alpha (2,2) = 0, want 63
+  FAIL: CC4 rectangle: alpha (3,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (4,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (5,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (6,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (7,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (8,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (9,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (10,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (11,2) = 0, want 127
+  FAIL: CC4 rectangle: alpha (12,2) = 0, want 63
+  FAIL: CC4 rectangle: alpha (2,3) = 0, want 127
+  FAIL: CC4 rectangle: alpha (3,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (4,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (5,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (6,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (7,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (8,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (9,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (10,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (11,3) = 0, want 255
+  FAIL: CC4 rectangle: alpha (12,3) = 0, want 127
+  FAIL: CC4 rectangle: alpha (2,4) = 0, want 127
+  FAIL: CC4 rectangle: alpha (3,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (4,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (5,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (6,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (7,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (8,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (9,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (10,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (11,4) = 0, want 255
+  FAIL: CC4 rectangle: alpha (12,4) = 0, want 127
+  FAIL: CC4 rectangle: alpha (2,5) = 0, want 127
+  FAIL: CC4 rectangle: alpha (3,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (4,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (5,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (6,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (7,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (8,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (9,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (10,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (11,5) = 0, want 255
+  FAIL: CC4 rectangle: alpha (12,5) = 0, want 127
+  FAIL: CC4 rectangle: alpha (2,6) = 0, want 127
+  FAIL: CC4 rectangle: alpha (3,6) = 0, want 255
+  ... (70 more lines)
+CONSTRUCTION-CMDS FAIL: 9 of 9 cases failed
+
+before 4046d17 construction-cmds (XS4_PROBE_GBK=1)
+CONSTRUCTION-CMDS FAIL: 9 of 9 cases failed
+
+before 4046d17 panel (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+  FAIL: PN6 command 25: operation type 5, want 14
+  FAIL: PN6 command 26: operation type 5, want 15
+  FAIL: PN6 command 27 added 0 operation(s), want 1
+  FAIL: PN6 command 28 added 0 operation(s), want 1
+  FAIL: PN6 command 52 added 0 operation(s), want 1
+  FAIL: PN6 command 102 added 0 operation(s), want 1
+  FAIL: PN6 command 106 added 0 operation(s), want 1
+PN6 the other commands: FAIL
+PN6 FAILED (exit 1)
+PN7 save and load: ok
+PN8 guards: ok
+PANEL FAIL: 1 of 8 cases failed
+
+before 4046d17 panel (XS4_PROBE_GBK=1)
+PANEL FAIL: 1 of 8 cases failed
+
+before 46b78f6 construction-cmds (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: CC1 pactex 26 over no column: state type 0, texture missing 0x0, size 0x0; want a built 8x4 construction
+  FAIL: CC1 pactex 26 over no column: no pixels to compare
+  FAIL: CC1 pactex 25 over no row: state type 0, texture missing 0x0, size 0x0; want a built 8x4 construction
+  FAIL: CC1 pactex 25 over no row: no pixels to compare
+CC1 checked
+CC1 FAILED (exit 1)
+CC2 checked
+=================================================================
+  (sanitizer report omitted)
+CC3 FAILED (signal 6)
+CC4 checked
+CC5 checked
+CC6 checked
+CC7 checked
+../../worktrees/xsystem4-cn-on-upstream/src/parts/construction.c:1125:31: runtime error: signed integer overflow: 2147483646 + 3 cannot be represented in type 'int'
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../../worktrees/xsystem4-cn-on-upstream/src/parts/construction.c:1125:31
+CC8 FAILED (signal 6)
+CC9 checked
+../../worktrees/xsystem4-cn-on-upstream/src/parts/construction.c:911:16: runtime error: signed integer overflow: -2 * 2147483647 cannot be represented in type 'int'
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../../worktrees/xsystem4-cn-on-upstream/src/parts/construction.c:911:16
+CC10 FAILED (signal 6)
+CONSTRUCTION-CMDS FAIL: 4 of 10 cases failed
+
+before 46b78f6 construction-cmds (XS4_PROBE_GBK=1)
+CONSTRUCTION-CMDS FAIL: 4 of 10 cases failed
+
+before 46b78f6 parts-transform (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PT1 checked
+PT1 a rotated, scaled parent moves and turns its children PASS
+PT2 checked
+PT2 TEXT under a rotated rectangle, three levels PASS
+PT3 checked
+PT3 the add colour adds along the chain PASS
+PT4 checked
+PT4 SetComponentSubColorMode, pactex 減算色模式, save PASS
+PT5 checked
+PT5 drawn: multiply then add, a negative sum subtracts PASS
+PT6 checked
+PT6 the upper-left corner of a surface area under a rotated parent PASS
+PT7 checked
+PT7 a save with layers: the sub colour list and the controller ID section PASS
+  FAIL: v13 rotated: parts 9362 global pos (403,300), want (402,302)
+  FAIL: v13 rotated: parts 9363 global pos (407,293), want (410,300)
+  FAIL: v13 rotated: parts 9362 box (0,0) -> (402.828,300), want (402,302)
+  FAIL: v13 rotated: parts 9362 screen (402,302) -> box (-2,0.828425), want (0,0)
+  FAIL: v13 rotated: parts 9362 box (100,0) -> (473.539,229.289), want (502,302)
+  FAIL: v13 rotated: parts 9362 screen (502,302) -> box (68.7107,71.5391), want (100,0)
+  FAIL: v13 rotated: parts 9362 box (0,18) -> (415.556,312.728), want (402,320)
+  FAIL: v13 rotated: parts 9362 screen (402,320) -> box (-14.7279,13.5563), want (0,18)
+  FAIL: v13 rotated: PE_GetPartsUpperLeftPos(9362) = (403,300), want (402,302)
+  FAIL: v13 rotated: PE_GetPartsUpperLeftPos(9363) = (407,293), want (410,300)
+  FAIL: v13 rotated: the child's hit box is not (402,302) 100x18
+  FAIL: v13 rotated again, no update: parts 9362 global pos (398,302), want (402,302)
+  FAIL: v13 rotated again: parts 9362 global pos (398,302), want (402,302)
+  FAIL: v13 rotated again: parts 9362 box (100,0) -> (398,402), want (502,302)
+  FAIL: v13 rotated again: parts 9362 screen (502,302) -> box (-4.54598e-06,-104), want (100,0)
+  FAIL: v13 scaled, no update: parts 9362 global pos (399,301), want (401,301)
+  FAIL: v13 scaled: parts 9362 global pos (399,301), want (401,301)
+  FAIL: v13 scaled: parts 9363 global pos (400,305), want (405,300)
+  FAIL: v13 scaled: parts 9362 box (100,0) -> (399,351), want (451,301)
+  FAIL: v13 scaled: parts 9362 screen (451,301) -> box (-4.54598e-06,-104), want (100,0)
+  FAIL: v13 scaled: parts 9362 box (0,18) -> (390,301), want (401,310)
+  FAIL: v13 scaled: parts 9362 screen (401,310) -> box (18,-4), want (0,18)
+  FAIL: v13 scaled: PE_GetPartsUpperLeftPos(9362) = (399,301), want (401,301)
+  FAIL: v13 three levels: parts 9368 global pos (103,103), want (104,104)
+  FAIL: v13 turned child: parts 9366 box (10,0) -> (100,110), want (100,120)
+  FAIL: v13 turned child: parts 9366 screen (100,120) -> box (20,-8.74228e-07), want (10,0)
+  FAIL: v13 own scale: PE_GetPartsUpperLeftPos(9364) = (200,150), want (250,175)
+  FAIL: v13 SetGlobalPos, a child after its parent in the list: parts 9362 global pos (406,310), want (9,11)
+  FAIL: v13 a new parts after SetGlobalPos: parts 9369 global pos (7,9), want (0,0)
+PT8 checked
+PT8 guard: AIN version 13 keeps the rule from before the matrix FAIL
+  FAIL: parent released: parts 9372 global pos (400,310), want (10,0)
+  FAIL: parent released: parts 9373 global pos (400,315), want (15,0)
+  FAIL: parent released: parts 9373 box (8,0) -> (400,323), want (23,0)
+  FAIL: parent released: parts 9373 screen (23,0) -> box (-315,377), want (8,0)
+  FAIL: parent released: parts 9373 box (0,8) -> (392,315), want (15,8)
+  FAIL: parent released: parts 9373 screen (15,8) -> box (-307,385), want (0,8)
+  FAIL: parent released: Parts_GetPartsUpperLeftPos(9373) = (400,315), want (15,0)
+  FAIL: parent released: G's add colour (11,22,33), want its own (1,2,3)
+PT9 checked
+PT9 a released parent's child and grandchild are placed anew FAIL
+  FAIL: the orphan does not hang under the root of its layer 1000000002
+  FAIL: parent released: parts 9381 global pos (100,110), want (10,0)
+  FAIL: parent released: parts 9382 global pos (100,115), want (15,0)
+  FAIL: parent released: parts 9382 box (8,0) -> (100,123), want (23,0)
+  FAIL: parent released: parts 9382 screen (23,0) -> box (-115,77), want (8,0)
+PT10 checked
+PT10 in a layer the orphan hangs under the root again FAIL
+  FAIL: after PE_Load, before any update: the children are not linked to their parents
+  FAIL: loaded: parts 9392 box (20,0) -> (30,0), want (400,330)
+  FAIL: loaded: parts 9392 screen (400,330) -> box (390,330), want (20,0)
+  FAIL: loaded: parts 9393 box (8,0) -> (13,2), want (398,323)
+  FAIL: loaded: parts 9393 screen (398,323) -> box (393,321), want (8,0)
+  FAIL: loaded: Parts_GetPartsUpperLeftPos(9392) = (10,0), want (400,310)
+  FAIL: loaded: G's add colour (0,0,0), want (11,22,33)
+PT11 checked
+PT11 PE_Load links and places the children itself FAIL
+PARTS-TRANSFORM FAIL: 4 of 11 cases failed
+
+before 46b78f6 parts-transform (XS4_PROBE_GBK=1)
+PARTS-TRANSFORM FAIL: 4 of 11 cases failed
+
+before 46b78f6 aref-value (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV1 checked
+AV1 a getter returning CASColor::BLACK gives a copy PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV2 checked
+AV2 500 rounds leave the colour constants alone PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  a struct with a wrap member: stageeditor::detail::SInsertParentNode
+AV3 checked
+AV3 guard: a struct with struct, string or wrap members keeps its page PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV4 checked
+AV4 a struct of an enum, and of an int and an enum, is copied PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV5 checked
+AV5 a property setter's bytecode releases the copies it is given PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  FAIL: a struct with a long int member (55): the getter returned slot 374, want the member's own page (slot 408)
+  FAIL: a struct with a member of type 91: the getter returned slot 384, want the member's own page (slot 408)
+AV6 checked
+AV6 guard: a long int or type 91 member keeps the page shared FAIL
+AREF-VALUE FAIL: 1 of 6 cases failed
+
+before 46b78f6 aref-value (XS4_PROBE_GBK=1)
+AREF-VALUE FAIL: 1 of 6 cases failed
+
+after aref-value at 8a18fc6 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV1 checked
+AV1 a getter returning CASColor::BLACK gives a copy PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV2 checked
+AV2 500 rounds leave the colour constants alone PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+  a struct with a wrap member: stageeditor::detail::SInsertParentNode
+AV3 checked
+AV3 guard: a struct with struct, string or wrap members keeps its page PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV4 checked
+AV4 a struct of an enum, and of an int and an enum, is copied PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV5 checked
+AV5 a property setter's bytecode releases the copies it is given PASS
+VM: alloc=22322, main=20590, nr_globals=263, nr_functions=37742, version=14, nr_delegates=1779
+  startup: vm_init_globals, 287 constructor entries logged, 79 initializations scanned in "0" (fno 22322)
+AV6 checked
+AV6 guard: a long int or type 91 member keeps the page shared PASS
+AREF-VALUE PASS: 0 of 6 cases failed
+
+after aref-value (XS4_PROBE_GBK=1)
+AREF-VALUE PASS: 0 of 6 cases failed
+
+after parts-transform at 8a18fc6 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PT1 checked
+PT1 a rotated, scaled parent moves and turns its children PASS
+PT2 checked
+PT2 TEXT under a rotated rectangle, three levels PASS
+PT3 checked
+PT3 the add colour adds along the chain PASS
+PT4 checked
+PT4 SetComponentSubColorMode, pactex 減算色模式, save PASS
+PT5 checked
+PT5 drawn: multiply then add, a negative sum subtracts PASS
+PT6 checked
+PT6 the upper-left corner of a surface area under a rotated parent PASS
+PT7 checked
+PT7 a save with layers: the sub colour list and the controller ID section PASS
+PT8 checked
+PT8 guard: AIN version 13 keeps the rule from before the matrix PASS
+PT9 checked
+PT9 a released parent's child and grandchild are placed anew PASS
+PT10 checked
+PT10 in a layer the orphan hangs under the root again PASS
+PT11 checked
+PT11 PE_Load links and places the children itself PASS
+PARTS-TRANSFORM PASS: 0 of 11 cases failed
+
+after parts-transform (XS4_PROBE_GBK=1)
+PARTS-TRANSFORM PASS: 0 of 11 cases failed
+
+after controller-id at 8a18fc6 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CI1 AFL_Parts_AddTopLayer: ok
+CI2 CASPartsLayer: ok
+CI3 backlog shape: ok
+CI4 insert in the middle: ok
+CI5 erase a middle layer: ok
+CI6 erase the active layer: ok
+CI7 AddLayer(-1) above the active layer: ok
+CI8 SetActiveLayer with a missing ID: ok
+CI9 EraseLayer edges: ok
+CI10 queries and MoveLayer: ok
+CI11 save and load: ok
+CI12 hit order: ok
+CI13 system overlay: ok
+  CI14 pushed-only save (version 8): 338 words, hash 69272f41
+  CI14 pushed-only save: 337 words, hash 70d03dca
+CI14 push and pop as before: ok
+  CI15 legacy save: 303 words, hash 2a9865ba
+CI15 engines before v14: ok
+CONTROLLER-ID PASS: 0 of 15 cases failed
+
+after controller-id (XS4_PROBE_GBK=1)
+CONTROLLER-ID PASS: 0 of 15 cases failed
+
+after construction-cmds at 8a18fc6 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CC1 checked
+CC2 checked
+CC3 checked
+CC4 checked
+CC5 checked
+CC6 checked
+CC7 checked
+CC8 checked
+CC9 checked
+CC10 checked
+CONSTRUCTION-CMDS PASS: 0 of 10 cases failed
+
+after construction-cmds (XS4_PROBE_GBK=1)
+CONSTRUCTION-CMDS PASS: 0 of 10 cases failed
+
+after panel at 8a18fc6 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+PANEL PASS: 0 of 8 cases failed
+
+after panel (XS4_PROBE_GBK=1)
+PANEL PASS: 0 of 8 cases failed
