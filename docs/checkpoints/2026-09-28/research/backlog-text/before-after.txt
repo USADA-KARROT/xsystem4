@@ -1,0 +1,207 @@
+before 1344250 backlog-text (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: BT1 command 23 (4,2) = (14,22,30,0), want (13,21,30,5)
+  FAIL: BT1 command 23 (5,2) = (53,38,35,0), want (53,38,34,58)
+  FAIL: BT1 command 23 (6,2) = (93,55,39,0), want (92,54,38,111)
+  FAIL: BT1 command 23 (7,2) = (150,79,45,0), want (148,78,44,164)
+  FAIL: BT1: 0 pixels can be seen, want more than 100 (the text)
+  FAIL: BT1 by hand, A (4,2) = (14,22,30,0), want (13,21,30,5)
+  FAIL: BT1 by hand, the second line (4,17) = (10,20,30,0), want (18,23,30,12)
+  FAIL: BT1 the overlap (7,2): alpha 0, want max(164, 66)
+  FAIL: BT1 an odd size (1,0) = (255,255,255,0), want (255,255,255,5)
+  FAIL: BT1 an odd size (2,0) = (255,255,255,0), want (255,255,255,58)
+  FAIL: BT1 an odd size (3,0) = (255,255,255,0), want (255,255,255,111)
+  FAIL: BT1 an odd size (4,0) = (255,255,255,0), want (255,255,255,164)
+  FAIL: BT1 an odd size: the second line's (1,0) at row 13 has alpha 0 (want 5), row 12 has 0 (want 0)
+  FAIL: BT1 an edge (4,1) = (5,5,2,0), want (0,0,0,0)
+  FAIL: BT1 an edge (5,1) = (58,58,26,0), want (0,0,0,0)
+  FAIL: BT1 an edge (6,1) = (111,111,49,0), want (0,0,0,0)
+  FAIL: BT1 an edge (7,1) = (164,163,73,0), want (0,0,0,0)
+  FAIL: BT1 an edge: the second line is not at row 26 (0 visible below, 0 between)
+BT1 command 23 on the grid: FAIL
+BT1 FAILED (exit 1)
+  (sanitizer report omitted)
+  FAIL: BT2 command 7 (4,2) = (14,22,30,77), want (13,21,30,77)
+  FAIL: BT2 command 7 (5,2) = (53,38,35,77), want (53,38,34,77)
+  FAIL: BT2 command 7 (6,2) = (93,55,39,77), want (92,54,38,77)
+  FAIL: BT2 command 7 (7,2) = (150,79,45,77), want (148,78,44,77)
+  FAIL: BT2 command 7 without alpha (4,2) = (14,22,30,255), want (13,21,30,255)
+  FAIL: BT2 command 7 without alpha (5,2) = (53,38,35,255), want (53,38,34,255)
+  FAIL: BT2 command 7 without alpha (6,2) = (93,55,39,255), want (92,54,38,255)
+  FAIL: BT2 command 7 without alpha (7,2) = (150,79,45,255), want (148,78,44,255)
+  FAIL: BT2 command 8 (7,2) = (200,100,50,164), want (200,100,50,66)
+  FAIL: BT2 command 8 (18,2) = (200,100,50,126), want (9,8,7,0)
+  FAIL: BT2 command 8 (19,2) = (200,100,50,179), want (10,20,30,77)
+  FAIL: BT2 command 8 (20,2) = (200,100,50,232), want (10,20,30,77)
+  FAIL: BT2 command 8 without alpha (18,2) = (200,100,50,255), want (9,8,7,255)
+  FAIL: BT2 command 8 without alpha (19,2) = (200,100,50,255), want (10,20,30,255)
+  FAIL: BT2 command 8 without alpha (20,2) = (200,100,50,255), want (10,20,30,255)
+  FAIL: BT2 command 8 without alpha (21,2) = (200,100,50,255), want (10,20,30,255)
+  FAIL: BT2 command 24 (3,2) = (10,20,30,77), want (10,20,30,0)
+  FAIL: BT2 command 24 (4,2) = (14,22,30,77), want (10,20,30,5)
+  FAIL: BT2 command 24 (5,2) = (53,38,35,77), want (10,20,30,58)
+  FAIL: BT2 command 24 (6,2) = (93,55,39,77), want (10,20,30,111)
+  FAIL: BT2 command 24 by hand (4,2) = (14,22,30,77), want (10,20,30,5)
+  FAIL: BT2 command 24 where the cell has no glyph (3,2) = (10,20,30,77), want (10,20,30,0)
+  FAIL: BT2 command 24 without alpha (4,2) = (14,22,30,255), want (10,20,30,255)
+  FAIL: BT2 command 24 without alpha (5,2) = (53,38,35,255), want (10,20,30,255)
+  FAIL: BT2 command 24 without alpha (6,2) = (93,55,39,255), want (10,20,30,255)
+  FAIL: BT2 command 24 without alpha (7,2) = (150,79,45,255), want (10,20,30,255)
+  FAIL: BT2 command 23 without alpha (4,2) = (14,22,30,255), want (13,21,30,255)
+  FAIL: BT2 command 23 without alpha (5,2) = (53,38,35,255), want (53,38,34,255)
+  FAIL: BT2 command 23 without alpha (6,2) = (93,55,39,255), want (92,54,38,255)
+  FAIL: BT2 command 23 without alpha (7,2) = (150,79,45,255), want (148,78,44,255)
+  FAIL: BT2 a pen at (0,0) (1,0) = (5,4,4,4), want (4,3,3,5)
+  FAIL: BT2 a pen at (0,0) (2,0) = (46,24,14,4), want (46,24,13,58)
+  FAIL: BT2 a pen at (0,0) (3,0) = (88,45,23,4), want (87,44,23,111)
+  FAIL: BT2 a pen at (0,0) (4,0) = (129,65,33,4), want (128,64,33,164)
+  FAIL: BT2 a pen at (-3,-2) (0,0) = (48,25,14,4), want (47,24,14,60)
+  FAIL: BT2 a pen at (-3,-2) (1,0) = (89,45,24,4), want (88,45,23,113)
+  FAIL: BT2 a pen at (-3,-2) (2,0) = (131,66,34,4), want (130,65,33,166)
+  FAIL: BT2 a pen at (-3,-2) (5,0) = (168,84,42,4), want (167,83,42,214)
+  FAIL: BT2 a pen at (7,9) (8,9) = (5,4,4,4), want (4,3,3,5)
+  FAIL: BT2 a pen at (7,9) (9,9) = (46,24,14,4), want (46,24,13,58)
+BT2 FAILED (signal 6)
+  FAIL: BT3 command 23, one line (4,2) = (14,22,30,0), want (13,21,30,5)
+  FAIL: BT3 command 23, one line (5,2) = (53,38,35,0), want (53,38,34,58)
+  FAIL: BT3 command 23, one line (6,2) = (93,55,39,0), want (92,54,38,111)
+  FAIL: BT3 command 23, one line (7,2) = (132,71,43,0), want (131,71,42,164)
+  FAIL: BT3: 0 pixels can be seen
+  FAIL: BT3 command 24, one line (3,2) = (10,20,30,77), want (10,20,30,0)
+  ... (66 more lines)
+BACKLOG-TEXT FAIL: 8 of 8 cases failed
+
+before 1344250 backlog-text (XS4_PROBE_GBK=1)
+BACKLOG-TEXT FAIL: 8 of 8 cases failed
+
+before bdc181c key-wait (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: a new window: GetKeyWaitCGName gives "?", -7, -7, -7; want "", 0, 0, 0
+  FAIL: after SetKeyWaitCGName: GetKeyWaitCGName gives "?", -7, -7, -7; want "mark_%02d", 1, 4, 500
+  FAIL: after SetKeyWaitPos: position (0,0,0), want (930,674,5)
+  FAIL: after SetKeyWaitFlatName: flat name "", want "flat"
+  FAIL: the time alone changed: GetKeyWaitCGName gives "?", -7, -7, -7; want "mark_%02d", 1, 4, 250
+  FAIL: a single CG: GetKeyWaitCGName gives "?", -7, -7, -7; want "markB", 0, 0, 0
+  FAIL: the position after the name changed: position (0,0,0), want (930,674,5)
+  FAIL: a setter made the parts 0
+  FAIL: number 0 shows a mark
+  FAIL: a setter made the parts -3
+  FAIL: number -3 shows a mark
+KW1 the properties: FAIL
+KW1 FAILED (exit 1)
+  FAIL: the parts engine has no key wait mark (mark 0, update 0, loader 0)
+KW2 a single CG: FAIL
+KW2 FAILED (exit 1)
+  FAIL: the parts engine has no key wait mark (mark 0, update 0, loader 0)
+KW3 a loop CG: FAIL
+KW3 FAILED (exit 1)
+  FAIL: WinA: GetKeyWaitCGName gives "?", -7, -7, -7; want "mark_%02d", 1, 4, 500
+  FAIL: WinA: position (0,0,0), want (930,674,3)
+  FAIL: WinA: flat name "", want "fl"
+  FAIL: WinB (no block): GetKeyWaitCGName gives "?", -7, -7, -7; want "", 0, 0, 0
+  FAIL: WinC (the name alone): GetKeyWaitCGName gives "?", -7, -7, -7; want "markB", 0, 0, 0
+  FAIL: WinC (a position of two items): position (0,0,0), want (755,148,0)
+KW4 the pactex block: FAIL
+KW4 FAILED (exit 1)
+  FAIL: the parts engine has no key wait mark (mark 0, update 0, loader 0)
+KW5 the engine's updates: FAIL
+KW5 FAILED (exit 1)
+KEY-WAIT FAIL: 5 of 5 cases failed
+
+before bdc181c key-wait (XS4_PROBE_GBK=1)
+KEY-WAIT FAIL: 5 of 5 cases failed
+
+before 6882bb6 backlog-text (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BT1 command 23 on the grid: ok
+BT2 commands 7, 8 and 24 on the grid: ok
+BT3 without the grid: ok
+BT4 save and load: ok
+  FAIL: EmplaceBack on no array: 1 element(s), the first 144, the page's struct 512; want one 0, -1
+BT5 Array.EmplaceBack constructs: FAIL
+BT5 FAILED (exit 1)
+  FAIL: BT6 linked to parts that show nothing: total 1935, view 720, position 271, rate 0.223045; want 0, 0, 271, 0.223045
+  FAIL: BT6 linked, before an update: total 1935, view 720, position 271, rate 0.223045; want 1000, 300, 271, 0.223045
+  FAIL: BT6 linked, updated: total 1935, view 720, position 271, rate 0.223045; want 1000, 300, 271, 0.387143
+  FAIL: BT6 linked, a smaller picture before the update: total 1935, view 720, position 271, rate 0.223045; want 400, 300, 271, 0.387143
+  FAIL: BT6 linked, a smaller picture: total 1935, view 720, position 271, rate 0.223045; want 400, 300, 100, 1
+  FAIL: BT6 linked, the message: 0, type -1, parts -1, delegate 0, (0, 0); want 1, 21, 900004, 7, (100, 100)
+  FAIL: BT6 linked, a total set by hand: the getter gives 5000, the rate is 0.0633178; want 400 (the link), 0.0212766 (of 5000 - 300)
+  FAIL: BT6 linked, after that update: total 5000, view 720, position 271, rate 0.0633178; want 400, 300, 100, 1
+  FAIL: BT6 linked: 1 message(s) for the position and rate reported before
+  FAIL: BT6 linked, a frame larger than the picture: total 5000, view 720, position 271, rate 0.0633178; want 400, 500, 0, 1
+  FAIL: BT6 linked, a larger frame: 0 message(s), (0, 0); want 1, (0, 0)
+  FAIL: BT6 linked, the picture released: total 5000, view 720, position 271, rate 0.0633178; want 400, 500, 0, 1
+BT6 the scroll bar: FAIL
+BT6 FAILED (exit 1)
+BT7 text getters, AddChild and a script's box: ok
+*ERROR*(../../worktrees/xsystem4-cn-on-upstream/src/hll/AnteaterADVEngine.c:ADVLogList_GetADVLogText:189): Invalid line number: 2
+=================================================================
+  (sanitizer report omitted)
+  FAIL: after Clear: 1 page(s), want 0 (the empty page is not one)
+  FAIL: the page turned: 2 page(s), want 1 (the new one is empty)
+  FAIL: AddNewPage twice, then a text: 3 page(s), want 2
+  FAIL: page 1 line 0 is '', want 'L1'
+  FAIL: 4 pages, want 3
+  FAIL: after AddNewLine: 2 line(s), want 1 (the new line is empty)
+  FAIL: a text on the second line: 2 line(s) on 4 pages, want 2 on 3
+  FAIL: the page turned: 5 pages, want 3
+  FAIL: two empty lines and the one being written: 5 pages, 2 lines; want 4, 2
+  FAIL: AddNewPage on a page without a byte, then a text: 6 pages, 2 lines; want 4, 3
+BT8 FAILED (signal 6)
+  (sanitizer report omitted)
+BT9 FAILED (signal 6)
+  (sanitizer report omitted)
+BT10 FAILED (signal 6)
+  (sanitizer report omitted)
+BT11 FAILED (signal 6)
+BACKLOG-TEXT FAIL: 6 of 11 cases failed
+
+before 6882bb6 backlog-text (XS4_PROBE_GBK=1)
+BACKLOG-TEXT FAIL: 6 of 11 cases failed
+
+before 6882bb6 key-wait (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+KW1 the properties: ok
+KW2 a single CG: ok
+KW3 a loop CG: ok
+KW4 the pactex block: ok
+KW5 the engine's updates: ok
+=================================================================
+  (sanitizer report omitted)
+KW6 FAILED (signal 6)
+KEY-WAIT FAIL: 1 of 6 cases failed
+
+before 6882bb6 key-wait (XS4_PROBE_GBK=1)
+KEY-WAIT FAIL: 1 of 6 cases failed
+
+after backlog-text at ea1cc9b (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BT1 command 23 on the grid: ok
+BT2 commands 7, 8 and 24 on the grid: ok
+BT3 without the grid: ok
+BT4 save and load: ok
+BT5 Array.EmplaceBack constructs: ok
+BT6 the scroll bar: ok
+BT7 text getters, AddChild and a script's box: ok
+BT8 the pages and voices of the backlog: ok
+BT9 a line wider than a texture: ok
+BT10 a negative e: ok
+BT11 a line height past an int: ok
+BACKLOG-TEXT PASS: 0 of 11 cases failed
+
+after backlog-text (XS4_PROBE_GBK=1)
+BACKLOG-TEXT PASS: 0 of 11 cases failed
+
+after key-wait at ea1cc9b (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+KW1 the properties: ok
+KW2 a single CG: ok
+KW3 a loop CG: ok
+KW4 the pactex block: ok
+KW5 the engine's updates: ok
+KW6 a wide number in the name: ok
+KEY-WAIT PASS: 0 of 6 cases failed
+
+after key-wait (XS4_PROBE_GBK=1)
+KEY-WAIT PASS: 0 of 6 cases failed
