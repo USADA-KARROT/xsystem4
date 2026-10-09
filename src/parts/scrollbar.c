@@ -94,11 +94,54 @@ void parts_scrollbar_set_view(struct parts *parts, int view)
 }
 
 /*
- * Once per update (0x573800 -> 0x5738e0, at 0x573a95): a bar whose position
- * or rate is not the one it last reported sends its observers the position
- * and the largest position, and remembers both. The scripts receive it as
- * message 21 (0x4df5b0), CPartsFunctionSet@CallFunctionScroll(scrollPos,
- * total). A bar nobody listens to remembers them all the same.
+ * 全體スクロール量サイズ連動 and 表示量サイズ連動 (0x5749d0): an amount follows
+ * the size of another parts, named in the pactex and kept as its number
+ * (+0x214, +0x218). A number of 0, or of no parts, leaves the amount as it
+ * is. Else the amount is a size of the state that parts shows (its widget's
+ * vtable +0x38): for a 豎滾動條, whose +0xc is 1 (0x572ff9), the height,
+ * through the widget's vtable +0x28 as Parts_GetPartsHeight takes it
+ * (0x58c6e0); for a 橫滾動條 (0x57363b clears +0xc; there is none here) the
+ * other one, +0x24. SceneStandViewer's bar has both links: the standing
+ * picture's height and its frame's.
+ * Read for a linked 低等級部件 only (0x564ef0 -> 0x5b7e90, 0x564dd0 ->
+ * 0x5b7d20: a state with nothing in it is 0 high). Which state another kind
+ * of widget reports was not read, and the step back of 0x5b7e90 from a state
+ * with nothing in it to an earlier one is not made.
+ */
+static int scrollbar_linked(int link, int amount)
+{
+	struct parts *linked = link ? parts_try_get(link) : NULL;
+	if (!linked)
+		return amount;
+	return linked->states[linked->state].common.h;
+}
+
+// GetVScrollbarTotalSize and GetVScrollbarViewSize (0x591b30, 0x591b60) give
+// the linked size without keeping it.
+int parts_scrollbar_total(struct parts *parts)
+{
+	return scrollbar_linked(parts->scrollbar.total_link, parts->scrollbar.total);
+}
+
+int parts_scrollbar_view(struct parts *parts)
+{
+	return scrollbar_linked(parts->scrollbar.view_link, parts->scrollbar.view);
+}
+
+/*
+ * Once per update (0x573800 -> 0x5738e0). First the linked amounts are taken
+ * (0x57390c .. 0x573964): one that differs is kept and places the position
+ * again. Then (0x573a95) a bar whose position or rate is not the one it last
+ * reported sends its observers the position and the largest position, and
+ * remembers both. The scripts receive it as message 21 (0x4df5b0),
+ * CPartsFunctionSet@CallFunctionScroll(scrollPos, total). A bar nobody
+ * listens to remembers them all the same.
+ * Not the original's: there the comparison, the message and the remembering
+ * are left out while the flag at +0xa0 of the update's context is clear
+ * (0x5739c4 .. 0x5739cf), and happen on the first update with it set. The
+ * flag is handed down the tree, the parent's and an argument of each parts
+ * (0x579c81 .. 0x579cae); the argument was not traced and is taken to be
+ * "shown". Here a bar that is not shown reports as well.
  */
 void parts_scrollbar_update(void)
 {
@@ -109,6 +152,8 @@ void parts_scrollbar_update(void)
 		if (parts->component_type != PARTS_COMPONENT_VSCROLLBAR)
 			continue;
 		struct parts_scrollbar *sb = &parts->scrollbar;
+		parts_scrollbar_set_total(parts, parts_scrollbar_total(parts));
+		parts_scrollbar_set_view(parts, parts_scrollbar_view(parts));
 		if (sb->reported_pos == sb->pos && sb->reported_rate == sb->rate)
 			continue;
 		if (parts->delegate_index >= 0) {

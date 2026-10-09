@@ -23,6 +23,12 @@
 #include "vm/heap.h"
 
 #define DIGIT_MAX 512
+/* The widest number int_to_cstr and float_to_cstr are asked for. They write
+ * buf[n] for the n characters the number takes, however many DIGIT_MAX is,
+ * so a width or a precision from the format (a script's, a pactex's CG name)
+ * must leave n below it; a zenkaku number takes two bytes a character and a
+ * float one 'F' more. A float has up to 40 characters before its point. */
+#define FMT_WIDTH_MAX (DIGIT_MAX - 2)
 
 enum fmt_type {
 	FMT_VOID,
@@ -53,8 +59,11 @@ static int read_number(const char **_fmt)
 	int n = 0;
 	const char *fmt = *_fmt;
 	while (*fmt && *fmt >= '0' && *fmt <= '9') {
-		n *= 10;
-		n += *fmt - '0';
+		// further digits are read and no longer counted
+		if (n < 100000000) {
+			n *= 10;
+			n += *fmt - '0';
+		}
 		fmt++;
 	}
 	*_fmt = fmt;
@@ -134,15 +143,18 @@ static void append_fmt(struct string **s, struct fmt_spec *spec, union vm_value 
 {
 	int len;
 	char buf[DIGIT_MAX] = { [DIGIT_MAX-1] = '\0' };
+	const int width_max = spec->zenkaku ? FMT_WIDTH_MAX / 2 : FMT_WIDTH_MAX;
 	switch (spec->type) {
 	case FMT_VOID:
 		return;
 	case FMT_INT:
-		len = int_to_cstr(buf, DIGIT_MAX, arg.i, spec->padding, spec->zero_pad, spec->zenkaku);
+		len = int_to_cstr(buf, DIGIT_MAX, arg.i, min(spec->padding, width_max),
+				spec->zero_pad, spec->zenkaku);
 		string_append_cstr(s, buf, len);
 		break;
 	case FMT_FLOAT:
-		len = float_to_cstr(buf, DIGIT_MAX, arg.f, spec->padding, spec->zero_pad, spec->precision, spec->zenkaku);
+		len = float_to_cstr(buf, DIGIT_MAX, arg.f, min(spec->padding, width_max),
+				spec->zero_pad, min(spec->precision, width_max - 48), spec->zenkaku);
 		string_append_cstr(s, buf, len);
 		break;
 	case FMT_STRING: {

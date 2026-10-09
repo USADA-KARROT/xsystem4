@@ -30,10 +30,11 @@
  *     parts' children; a box a script makes (SetComponentType 8) lays them
  *     out;
  *   - AnteaterADVLogList.AddVoice keeps a voice's name and filter name with
- *     the page being written, GetNumofADVLogVoice, GetADVLogVoice and
- *     GetADVLogVoiceFilter give them back (from the scripts' use,
- *     message::detail::VOICE and SBackLogUnitModelManager@GetVoiceNameList;
- *     that library was not disassembled).
+ *     the page being written (case 4, 0x446e59), GetNumofADVLogVoice,
+ *     GetADVLogVoice and GetADVLogVoiceFilter give them back; a page or a
+ *     page's last line that has no text is not counted (GetNumofADVLog
+ *     0x447180, GetNumofADVLogText 0x4476f0), and AddNewPage does not turn a
+ *     page without text (0x447860).
  * Before the fix command 23 was drawn as 7 (the text could not be seen on a
  * base of alpha 0), 24 wrote the colours, none of the four broke a line,
  * EmplaceBack gave an object no constructor had run on, the scroll bar's
@@ -58,6 +59,9 @@
  *   BT2 commands 7, 8 and 24 on the grid: every pixel against the model; on
  *       a surface without alpha (CreatePixelOnly) the alpha stays; a text
  *       that does not fit, a pen left of, above and far outside the surface.
+ *       The pens left of and above it are held to what xsystem4 draws, which
+ *       is not the original's: there the cell's left and top stay and its
+ *       right and bottom are cut (0x5abed0, see bt_put_rect).
  *   BT3 without the grid: 23 and 24 put the one line on the surface; 7 still
  *       leaves the alpha and 8 still writes it (guards).
  *   BT4 PE_Save / PE_Load rebuild the pixels from the two new operations
@@ -65,12 +69,24 @@
  *   BT5 Array.EmplaceBack constructs: a CASFont element has the size and
  *       colour its constructor gives it; the real CBackLogUnitList@AddLog,
  *       @AddSeparate and CBackLogUnit@CreateLog give back the lines added;
- *       an int element is 0 and v13 keeps alloc_struct (guards).
+ *       a struct without a constructor gets its members' defaults; without
+ *       an array page no struct is known; an int element is 0 and v13 keeps
+ *       alloc_struct (guards).
  *   BT6 the scroll bar: loaded from a synthetic pactex, the amounts and the
- *       position rules above, the message, and what is not a bar (guards).
+ *       position rules above, the message, the amounts that follow another
+ *       parts' height (0x5749d0), and what is not a bar or is not there
+ *       (guards; that a parts which is no bar stays what it is and gives 0
+ *       is xsystem4's choice: the original's lookup 0x53daf0 makes it one).
  *   BT7 a text state's getters; AddChild and a script's box.
- *   BT8 the voices of a backlog page: names and filters by page, none while
- *       the log is disabled or after Clear.
+ *   BT8 the pages and voices of the backlog: a page or a last line without
+ *       text is not counted and not turned (0x447180, 0x4476f0, 0x447860);
+ *       names and filters by page, none while the log is disabled or after
+ *       Clear; before v14 the older rules (guard).
+ *   BT9 without the grid, a line wider than the widest texture: the pixels
+ *       read back are as wide as the texture (xsystem4's own staging).
+ *   BT10 a font whose e is negative (no script gives one) draws nothing, and
+ *   BT11 so does one whose line height is past an int (guards of xsystem4's
+ *       own).
  * Types and functions the fix adds are reached by number, through the AIN
  * declaration or by dlsym, so the file builds before the fix.
  */
@@ -262,7 +278,11 @@ static void bt_put(uint8_t *d, const uint8_t *s, int cmd, bool has_alpha)
 	}
 }
 
-/* src (sw x sh) put at (dx, dy) of px (tw x th), cut to both. */
+/* src (sw x sh) put at (dx, dy) of px (tw x th), cut to both. For a dx or dy
+ * below 0 this is xsystem4's cut, the cell's left or top lost. The original
+ * moves the destination into the surface and reads the cell from its corner
+ * all the same (0x5abed0, 0x4fd5bb), so that the left or top stays and the
+ * right or bottom is lost; the pens below 0 of BT2 do not hold that. */
 static void bt_put_rect(uint8_t *px, int tw, int th, long dx, long dy, const uint8_t *src, int sw, int sh, int cmd, bool has_alpha)
 {
 	for (int row = 0; row < sh; row++) {
@@ -515,7 +535,9 @@ static void bt_other_commands(void)
 		"BT2 command 23 without alpha" };
 	free(bt_run(&c23, true));
 
-	/* A text that does not fit, and pens outside. */
+	/* A text that does not fit, and pens outside. The pens left of and above
+	 * the surface, (-3,-2), (-100000,0) and INT_MIN, pin xsystem4's cut and
+	 * are not the original's behaviour (bt_put_rect). */
 	static const struct { int x, y; } pens[] = { { 0, 0 }, { -3, -2 }, { 7, 9 }, { 1000, 5 }, { 5, 1000 }, { INT_MIN, INT_MIN },
 		{ INT_MAX, INT_MAX }, { INT_MAX - 3, 0 }, { -100000, 0 } };
 	for (unsigned i = 0; i < sizeof pens / sizeof pens[0]; i++) {
@@ -691,7 +713,67 @@ static void bt_emplace(void)
 			heap_unref(s);
 	}
 
-	/* Guards: an int element is 0; v13 keeps the unconstructed object. */
+	/* A struct without a constructor, what CASTimerManager@CreateHandle
+	 * emplaces: an object with its members' defaults (0x679c2c). */
+	int timer_st = bt_struct("CASTimerImp");
+	BT_CHECK(ain->structures[timer_st].constructor < 0, "CASTimerImp has a constructor (%d): this case wants a struct without one",
+		 ain->structures[timer_st].constructor);
+	int timers = bt_array_slot(alloc_array(1, &dim, AIN_ARRAY_STRUCT, timer_st, false));
+	int t1 = bt_emplace_back(timers, 2);
+	a = heap[timers].page;
+	bool timer = a && a->nr_vars == 1 && a->values[0].i == t1 && da_live_page(t1) && heap[t1].page->type == STRUCT_PAGE
+		&& heap[t1].page->index == timer_st && heap[t1].page->nr_vars == ain->structures[timer_st].nr_members;
+	BT_CHECK(timer, "EmplaceBack of a struct without a constructor: %d element(s), [0] = %d, returned %d", a ? a->nr_vars : -1,
+		 a && a->nr_vars ? a->values[0].i : -1, t1);
+	for (int i = 0; timer && i < heap[t1].page->nr_vars; i++)
+		BT_CHECK(heap[t1].page->values[i].i == 0, "the emplaced CASTimerImp's member %d is %d, want 0", i, heap[t1].page->values[i].i);
+	BT_CHECK(!timer || HEAP_REF(t1) == 2, "the emplaced CASTimerImp has %d references, want 2", timer ? HEAP_REF(t1) : -1);
+	/* One with a string member, the first such struct of the AIN that has
+	 * neither a constructor nor an interface: the string is an empty one,
+	 * not the -1 of an object nobody initialized. */
+	int str_st = -1, str_member = -1;
+	for (int i = 0; i < ain->nr_structures && str_st < 0; i++) {
+		struct ain_struct *st = &ain->structures[i];
+		if (st->constructor >= 0 || st->nr_interfaces || st->is_interface)
+			continue;
+		for (int m = 0; m < st->nr_members && str_st < 0; m++) {
+			if (st->members[m].type.data == AIN_STRING) {
+				str_st = i;
+				str_member = m;
+			}
+		}
+	}
+	BT_CHECK(str_st >= 0, "the AIN has no struct with a string member and no constructor");
+	if (str_st >= 0) {
+		int strs = bt_array_slot(alloc_array(1, &dim, AIN_ARRAY_STRUCT, str_st, false));
+		int s1 = bt_emplace_back(strs, 2);
+		int text = da_live_page(s1) ? heap[s1].page->values[str_member].i : -2;
+		BT_CHECK(text > 0 && heap_index_valid(text) && heap[text].type == VM_STRING && !strcmp(bu_str(text), ""),
+			 "struct %d without a constructor: the emplaced element's string member %d is slot %d ('%s'), want an empty string",
+			 str_st, str_member, text, bu_str(text));
+	}
+
+	/* No array page yet: no struct is known, whatever array the page the
+	 * new one is made from was before (a freed page is used again with its
+	 * metadata). Before the fix the element was an object of the struct
+	 * that page had been an array of. */
+	for (int i = 0; i < 4; i++) {
+		struct page *was = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRUCT, 1);
+		was->array.rank = 1;
+		was->array.struct_type = font_st;
+		free_page(was);
+	}
+	int none = heap_alloc_slot(VM_PAGE);
+	heap[none].page = NULL;
+	bt_emplace_back(none, 2);
+	struct page *np = heap[none].page;
+	BT_CHECK(np && np->nr_vars == 1 && np->values[0].i == 0 && np->array.struct_type == -1,
+		 "EmplaceBack on no array: %d element(s), the first %d, the page's struct %d; want one 0, -1", np ? np->nr_vars : -1,
+		 np && np->nr_vars ? np->values[0].i : -1, np ? np->array.struct_type : -99);
+
+	/* Guards: an int element is 0; v13 keeps the unconstructed object (two
+	 * tests keep it, Array.c's of the version and vm_construct_struct's
+	 * own, and this check does not tell which). */
 	int ints = bt_array_slot(alloc_array(1, &dim, AIN_ARRAY_INT, -1, false));
 	bt_emplace_back(ints, 1);
 	BT_CHECK(heap[ints].page && heap[ints].page->nr_vars == 1 && heap[ints].page->values[0].i == 0,
@@ -715,8 +797,14 @@ static void bt_emplace(void)
 #define BT_POS "\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xce\xbb\xd6\xc3"			/* スクロール位置 */
 #define BT_RATE "\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xa5\xec\xa9\x60\xa5\xc8"		/* スクロールレート */
 
+#define BT_TOTAL_LINK BT_TOTAL "\xa5\xb5\xa5\xa4\xa5\xba\xdf\x42\x84\xd3"				/* 全體スクロール量サイズ連動 */
+#define BT_VIEW_LINK BT_VIEW "\xa5\xb5\xa5\xa4\xa5\xba\xdf\x42\x84\xd3"					/* 表示量サイズ連動 */
+
 /* The probe's ReadActivityFile: a box with a scroll bar as BackLog's (500,
- * 16), one with a position and a rate, and a plain user component. */
+ * 16), one with a position and a rate, a plain user component, and for the
+ * size links two more parts and two bars: one as SceneStandViewer's (1935,
+ * 720, 271, 0.223045, linked to "Img" and "Frame"), one whose total names a
+ * parts that is not there. */
 static bool bt_read_activity_file(struct string *name, possibly_unused struct string *filename, possibly_unused bool edit)
 {
 	struct ex *e = xcalloc(1, sizeof(*e));
@@ -727,7 +815,7 @@ static bool bt_read_activity_file(struct string *name, possibly_unused struct st
 	struct ex_tree *top = xcalloc(1, sizeof(*top));
 	*top = bu_branch("BacklogTextActivity", 1);
 	e->blocks[0].val.tree = top;
-	top->children[0] = bu_comp("\xa5\xeb\xa9\x60\xa5\xc8\xb2\xbf\xbc\xfe", BU_LAYOUT, 0, 3);
+	top->children[0] = bu_comp("\xa5\xeb\xa9\x60\xa5\xc8\xb2\xbf\xbc\xfe", BU_LAYOUT, 0, 7);
 	struct ex_tree *kids = &top->children[0].children[1];
 	kids->children[0] = bu_comp("Bar", BT_VSCROLL, 4, 0);
 	struct ex_tree *info = &kids->children[0].children[0];
@@ -742,6 +830,25 @@ static bool bt_read_activity_file(struct string *name, possibly_unused struct st
 	info->children[3] = bu_ileaf(BT_POS, 7);
 	info->children[4] = bu_leaf(BT_RATE, (struct ex_value){ .type = EX_FLOAT, .f = 0.25f });
 	kids->children[2] = bu_comp("Other", BU_UC, 0, 0);
+	/* The linked bar comes before the parts it names. */
+	kids->children[3] = bu_comp("Bar3", BT_VSCROLL, 6, 0);
+	info = &kids->children[3].children[0];
+	info->children[1] = bu_ileaf(BT_TOTAL, 1935);
+	info->children[2] = bu_ileaf(BT_VIEW, 720);
+	info->children[3] = bu_ileaf(BT_POS, 271);
+	info->children[4] = bu_leaf(BT_RATE, (struct ex_value){ .type = EX_FLOAT, .f = 0.223045f });
+	info->children[5] = bu_sleaf(BT_TOTAL_LINK, "Img");
+	info->children[6] = bu_sleaf(BT_VIEW_LINK, "Frame");
+	kids->children[4] = bu_comp("Img", BU_UC, 0, 0);
+	kids->children[5] = bu_comp("Frame", BU_UC, 0, 0);
+	kids->children[6] = bu_comp("Bar4", BT_VSCROLL, 6, 0);
+	info = &kids->children[6].children[0];
+	info->children[1] = bu_ileaf(BT_TOTAL, 100);
+	info->children[2] = bu_ileaf(BT_VIEW, 10);
+	info->children[3] = bu_ileaf(BT_POS, 45);
+	info->children[4] = bu_leaf(BT_RATE, (struct ex_value){ .type = EX_FLOAT, .f = 0.5f });
+	info->children[5] = bu_sleaf(BT_TOTAL_LINK, "NoSuchParts");
+	info->children[6] = bu_sleaf(BT_VIEW_LINK, "");
 	bool ok = probe_load_activity_tree(name, e);
 	ex_free(e);
 	return ok;
@@ -802,6 +909,23 @@ static void bt_scrollbar(void)
 	/* as loaded: the four keys as they are */
 	bt_expect_bar(bar, 500, 16, 0, 0.0f, "BT6 as loaded");
 	bt_expect_bar(bar2, 40, 10, 7, 0.25f, "BT6 as loaded, a position and a rate");
+	/* The size links (0x5749d0): the getters give the height of the parts
+	 * the pactex names, 0 while that shows nothing, and keep nothing; the
+	 * position and the rate are still the loaded ones. A name that is no
+	 * parts of the activity, or "", is no link. */
+	int bar3 = BU_PE("GetActivityPartsNumber", BU_I(n), BU_I(sf_str("Bar3", -1))).i;
+	int bar4 = BU_PE("GetActivityPartsNumber", BU_I(n), BU_I(sf_str("Bar4", -1))).i;
+	int img = BU_PE("GetActivityPartsNumber", BU_I(n), BU_I(sf_str("Img", -1))).i;
+	int frame = BU_PE("GetActivityPartsNumber", BU_I(n), BU_I(sf_str("Frame", -1))).i;
+	bool linked = parts_try_get(bar3) && parts_try_get(bar4) && parts_try_get(img) && parts_try_get(frame);
+	BT_CHECK(linked, "the activity's linked bars: parts %d, %d, %d, %d", bar3, bar4, img, frame);
+	if (linked) {
+		bt_expect_bar(bar3, 0, 0, 271, 0.223045f, "BT6 linked to parts that show nothing");
+		PE_SetPartsRectangleDetectionSize(img, 50, 1000, 1);
+		PE_SetPartsRectangleDetectionSize(frame, 60, 300, 1);
+		bt_expect_bar(bar3, 1000, 300, 271, 0.223045f, "BT6 linked, before an update");
+		bt_expect_bar(bar4, 100, 10, 45, 0.5f, "BT6 a link to no parts");
+	}
 	/* nothing moved: no message */
 	cp_register_event(bar, 5, 77);
 	struct bt_msg m = bt_update();
@@ -857,7 +981,11 @@ static void bt_scrollbar(void)
 	m = bt_update();
 	BT_CHECK(m.n == 0, "BT6: %d message(s) for a move reported before the event was added", m.n);
 
-	/* Guards: what is not a bar, or is not there. */
+	/* Guards: what is not a bar, or is not there. That the user component
+	 * stays one and the functions give 0 for it is xsystem4's choice: the
+	 * original's 0x53daf0 makes any existing parts a bar first, and its
+	 * total would be 50 here. A parts that is not there is not made in the
+	 * original either (0x53db37). */
 	BU_PE("SetVScrollbarTotalSize", BU_I(other), BU_I(50));
 	BU_PE("SetVScrollbarViewSize", BU_I(other), BU_I(5));
 	BU_PE("SetVScrollbarScrollPos", BU_I(other), BU_I(9));
@@ -868,6 +996,47 @@ static void bt_scrollbar(void)
 	BT_CHECK(!parts_try_get(987654), "BT6: a scroll bar function made parts 987654");
 	m = bt_update();
 	BT_CHECK(m.n == 0, "BT6: %d message(s) from what is not a bar", m.n);
+
+	/* The linked bar after the updates above (0x57390c .. 0x573964): each
+	 * amount became the linked height and placed the position again, 271
+	 * of 1000 - 300. Nobody listened, and it was remembered. */
+	if (linked) {
+		bt_expect_bar(bar3, 1000, 300, 271, 271.0f / 700.0f, "BT6 linked, updated");
+		bt_expect_bar(bar4, 100, 10, 45, 0.5f, "BT6 a link to no parts, updated");
+		cp_register_event(bar3, 7, 79);
+		m = bt_update();
+		BT_CHECK(m.n == 0, "BT6 linked: %d message(s) for what was reported before", m.n);
+		/* The picture changes: the getter follows at once, the position
+		 * and the message with the next update. Another state's size
+		 * does not count while the parts shows its first. */
+		PE_SetPartsRectangleDetectionSize(img, 50, 400, 1);
+		PE_SetPartsRectangleDetectionSize(img, 50, 777, 2);
+		bt_expect_bar(bar3, 400, 300, 271, 271.0f / 700.0f, "BT6 linked, a smaller picture before the update");
+		m = bt_update();
+		bt_expect_bar(bar3, 400, 300, 100, 1.0f, "BT6 linked, a smaller picture");
+		BT_CHECK(m.n == 1 && m.type == 21 && m.no == bar3 && m.delegate == 7 && m.pos == 100 && m.max == 100,
+			 "BT6 linked, the message: %d, type %d, parts %d, delegate %d, (%d, %d); want 1, 21, %d, 7, (100, 100)",
+			 m.n, m.type, m.no, m.delegate, m.pos, m.max, bar3);
+		/* A total the script sets lasts until the next update. */
+		BU_PE("SetVScrollbarTotalSize", BU_I(bar3), BU_I(5000));
+		BT_CHECK(BU_PE("GetVScrollbarTotalSize", BU_I(bar3)).i == 400 && BU_PE("GetVScrollbarScrollRate", BU_I(bar3)).f == 100.0f / 4700.0f,
+			 "BT6 linked, a total set by hand: the getter gives %d, the rate is %g; want 400 (the link), %g (of 5000 - 300)",
+			 BU_PE("GetVScrollbarTotalSize", BU_I(bar3)).i, BU_PE("GetVScrollbarScrollRate", BU_I(bar3)).f, 100.0f / 4700.0f);
+		m = bt_update();
+		bt_expect_bar(bar3, 400, 300, 100, 1.0f, "BT6 linked, after that update");
+		BT_CHECK(m.n == 0, "BT6 linked: %d message(s) for the position and rate reported before", m.n);
+		/* The frame larger than the picture: nothing to scroll. */
+		PE_SetPartsRectangleDetectionSize(frame, 60, 500, 1);
+		m = bt_update();
+		bt_expect_bar(bar3, 400, 500, 0, 1.0f, "BT6 linked, a frame larger than the picture");
+		BT_CHECK(m.n == 1 && m.pos == 0 && m.max == 0, "BT6 linked, a larger frame: %d message(s), (%d, %d); want 1, (0, 0)", m.n, m.pos, m.max);
+		/* The linked parts gone: the amount stays as it was. */
+		PE_ReleaseParts(img);
+		m = bt_update();
+		bt_expect_bar(bar3, 400, 500, 0, 1.0f, "BT6 linked, the picture released");
+		BT_CHECK(m.n == 0 && !parts_try_get(img), "BT6 linked, the picture released: %d message(s), the parts %s", m.n,
+			 parts_try_get(img) ? "is still there" : "is gone");
+	}
 	printf("BT6 the scroll bar: %s\n", bt_failures ? "FAIL" : "ok");
 }
 
@@ -975,20 +1144,37 @@ static void bt_log_voice_is(int page, int index, const char *name, const char *f
 	BT_CHECK(!strcmp(bu_str(v), name) && !strcmp(bu_str(f), filter), "page %d voice %d is '%s' with filter '%s'; want '%s', '%s'",
 		 page, index, bu_str(v), bu_str(f), name, filter);
 }
+static int bt_log_pages(void) { return bt_log("GetNumofADVLog", 0, NULL).i; }
+static int bt_log_lines(int page) { return bt_log("GetNumofADVLogText", 1, (union vm_value[]){ BU_I(page) }).i; }
+static void bt_log_add(const char *text) { bt_log("AddText", 2, (union vm_value[]){ BU_I(sf_str(text, -1)), BU_I(sf_str("", 0)) }); }
+static void bt_log_text_is(int page, int line, const char *want)
+{
+	int s = bt_log("GetADVLogText", 2, (union vm_value[]){ BU_I(page), BU_I(line) }).i;
+	BT_CHECK(!strcmp(bu_str(s), want), "page %d line %d is '%s', want '%s'", page, line, bu_str(s), want);
+}
+
 static void bt_log_voices(void)
 {
 	bt_log("Clear", 0, NULL);
 	bt_log("SetEnable", 1, (union vm_value[]){ BU_I(1) });
-	/* a text first: AddNewPage right after Clear has no log to turn (as before) */
-	bt_log("AddText", 2, (union vm_value[]){ BU_I(sf_str("L0", -1)), BU_I(sf_str("", 0)) });
+	/* What has no text is not counted (0x447180, 0x4476f0) and not turned
+	 * (0x447860): no page after Clear; a new page counts once it has a
+	 * text; AddNewPage twice opens one page. */
+	BT_CHECK(bt_log_pages() == 0, "after Clear: %d page(s), want 0 (the empty page is not one)", bt_log_pages());
+	bt_log_add("L0");
+	BT_CHECK(bt_log_pages() == 1, "one text: %d page(s), want 1", bt_log_pages());
 	bt_log("AddNewPage", 0, NULL);
-	bt_log("AddText", 2, (union vm_value[]){ BU_I(sf_str("L1", -1)), BU_I(sf_str("", 0)) });
+	BT_CHECK(bt_log_pages() == 1, "the page turned: %d page(s), want 1 (the new one is empty)", bt_log_pages());
+	bt_log("AddNewPage", 0, NULL);
+	bt_log_add("L1");
+	BT_CHECK(bt_log_pages() == 2, "AddNewPage twice, then a text: %d page(s), want 2", bt_log_pages());
+	bt_log_text_is(1, 0, "L1");
 	bt_log("AddVoice", 2, (union vm_value[]){ BU_I(sf_str("V1", -1)), BU_I(sf_str("F1", -1)) });
 	bt_log("AddVoice", 2, (union vm_value[]){ BU_I(sf_str("V2", -1)), BU_I(sf_str("", 0)) });
 	bt_log("AddNewPage", 0, NULL);
-	bt_log("AddText", 2, (union vm_value[]){ BU_I(sf_str("L2", -1)), BU_I(sf_str("", 0)) });
-	int pages = bt_log("GetNumofADVLog", 0, NULL).i, last = pages - 1, prev = pages - 2;
-	BT_CHECK(pages >= 2, "%d pages, want at least 2", pages);
+	bt_log_add("L2");
+	int pages = bt_log_pages(), last = pages - 1, prev = pages - 2;
+	BT_CHECK(pages == 3, "%d pages, want 3", pages);
 	if (pages < 2)
 		return;
 	int n = bt_log("GetNumofADVLogVoice", 1, (union vm_value[]){ BU_I(prev) }).i;
@@ -997,22 +1183,195 @@ static void bt_log_voices(void)
 	bt_log_voice_is(prev, 1, "V2", "");
 	n = bt_log("GetNumofADVLogVoice", 1, (union vm_value[]){ BU_I(last) }).i;
 	BT_CHECK(n == 0, "the page without a voice has %d", n);
+	/* An index out of range gives "" here; the original does not check it
+	 * (0x447240). */
 	bt_log_voice_is(last, 0, "", "");
 	bt_log_voice_is(prev, 2, "", "");
 	bt_log_voice_is(prev, -1, "", "");
 	/* nothing is added while the log is disabled */
 	bt_log("SetEnable", 1, (union vm_value[]){ BU_I(0) });
 	bt_log("AddVoice", 2, (union vm_value[]){ BU_I(sf_str("V3", -1)), BU_I(sf_str("", 0)) });
+	bt_log("AddNewPage", 0, NULL);
 	bt_log("SetEnable", 1, (union vm_value[]){ BU_I(1) });
 	n = bt_log("GetNumofADVLogVoice", 1, (union vm_value[]){ BU_I(last) }).i;
 	BT_CHECK(n == 0, "a voice was added while the log was disabled (%d)", n);
 	bt_log("AddVoice", 2, (union vm_value[]){ BU_I(sf_str("V4", -1)), BU_I(sf_str("F4", -1)) });
 	bt_log_voice_is(last, 0, "V4", "F4");
+
+	/* A page's empty last line is not counted (0x447735). */
+	BT_CHECK(bt_log_lines(last) == 1, "a page of one text has %d line(s), want 1", bt_log_lines(last));
+	bt_log("AddNewLine", 0, NULL);
+	BT_CHECK(bt_log_lines(last) == 1, "after AddNewLine: %d line(s), want 1 (the new line is empty)", bt_log_lines(last));
+	bt_log_add("x");
+	BT_CHECK(bt_log_lines(last) == 2 && bt_log_pages() == 3, "a text on the second line: %d line(s) on %d pages, want 2 on 3",
+		 bt_log_lines(last), bt_log_pages());
+	bt_log_text_is(last, 0, "L2");
+	bt_log_text_is(last, 1, "x");
+	/* A page of lines without a byte: counted as soon as it has a line that
+	 * is not its last (0x4471b4 looks at the number of lines alone), and
+	 * not turned (0x4478e2), so the next text still goes to it. */
+	bt_log("AddNewPage", 0, NULL);
+	BT_CHECK(bt_log_pages() == 3, "the page turned: %d pages, want 3", bt_log_pages());
+	bt_log("AddNewLine", 0, NULL);
+	bt_log("AddNewLine", 0, NULL);
+	BT_CHECK(bt_log_pages() == 4 && bt_log_lines(3) == 2, "two empty lines and the one being written: %d pages, %d lines; want 4, 2",
+		 bt_log_pages(), bt_log_lines(3));
+	bt_log("AddNewPage", 0, NULL);
+	bt_log_add("L3");
+	BT_CHECK(bt_log_pages() == 4 && bt_log_lines(3) == 3, "AddNewPage on a page without a byte, then a text: %d pages, %d lines; want 4, 3",
+		 bt_log_pages(), bt_log_lines(3));
+	bt_log_text_is(3, 2, "L3");
+
+	/* Guard: before v14 these names keep the DLL's rules, where the page
+	 * being written counts and so does its empty line. */
+	bt_log("AddNewPage", 0, NULL);
+	int v14_pages = bt_log_pages();
+	int version = ain->version;
+	ain->version = 13;
+	int v13_pages = bt_log_pages(), v13_lines = bt_log_lines(v13_pages - 1);
+	bt_log("AddNewPage", 0, NULL);
+	int v13_turned = bt_log_pages();
+	ain->version = version;
+	BT_CHECK(v14_pages == 4 && v13_pages == 5 && v13_lines == 1 && v13_turned == 6,
+		 "v14 counts %d pages; v13 %d, %d line(s) on the last, %d after AddNewPage; want 4; 5, 1, 6", v14_pages, v13_pages,
+		 v13_lines, v13_turned);
+
+	/* AddNewPage right after Clear turns nothing (before the fix it wrote
+	 * to a log that was not there). */
 	bt_log("Clear", 0, NULL);
-	pages = bt_log("GetNumofADVLog", 0, NULL).i;
-	n = bt_log("GetNumofADVLogVoice", 1, (union vm_value[]){ BU_I(pages - 1) }).i;
-	BT_CHECK(n == 0, "after Clear the page has %d voices", n);
-	printf("BT8 the voices of a backlog page: %s\n", bt_failures ? "FAIL" : "ok");
+	bt_log("AddNewPage", 0, NULL);
+	bt_log("AddNewPage", 0, NULL);
+	BT_CHECK(bt_log_pages() == 0, "AddNewPage after Clear: %d page(s), want 0", bt_log_pages());
+	n = bt_log("GetNumofADVLogVoice", 1, (union vm_value[]){ BU_I(0) }).i;
+	BT_CHECK(bt_log_pages() == 0 && n == 0, "after Clear: %d page(s), %d voice(s) on the new page; want 0, 0", bt_log_pages(), n);
+	bt_log_add("Z");
+	BT_CHECK(bt_log_pages() == 1 && bt_log_lines(0) == 1, "a text after that: %d page(s), %d line(s); want 1, 1", bt_log_pages(),
+		 bt_log_lines(0));
+	bt_log_text_is(0, 0, "Z");
+	bt_log("Clear", 0, NULL);
+	printf("BT8 the pages and voices of the backlog: %s\n", bt_failures ? "FAIL" : "ok");
+}
+
+/* --- BT9 --- */
+/* A line wider than the widest texture, without the grid (there 23 and 24
+ * draw the whole line on one texture of its own): the texture is made as
+ * wide as it can be, and what is read back has that width. Before the fix
+ * the rows read back were taken to be as long as the line, and the pixels
+ * were read past their end. This is about xsystem4's own staging; the
+ * original has no such texture. */
+static void bt_wide_line(void)
+{
+	bt_gl_setup(false);
+	Texture limit = { 0 };
+	gfx_init_texture_rgba(&limit, 1 << 20, 1, (SDL_Color){ 0, 0, 0, 0 });
+	const int max_w = limit.w;
+	gfx_delete_texture(&limit);
+	BT_CHECK(max_w >= 2048 && max_w < (1 << 20), "the widest texture is %d wide", max_w);
+	if (max_w < 2048 || max_w >= (1 << 20))
+		return;
+	/* Size 100: an 'A' is 50 wide. The line is 2000 wider than a texture. */
+	const struct bt_style big = { 100, { 200, 100, 50 }, 0, 0, { 9, 8, 7 } };
+	const int W = 64, H = 100, n = max_w / 50 + 40;
+	char *line = xmalloc(n + 1);
+	memset(line, 'A', n);
+	line[n] = '\0';
+	int font = bt_casfont(&big);
+
+	/* At the surface's corner: what four characters draw there. */
+	bt_surface(9590, W, H, false, 10, 20, 30, 0);
+	bt_add_text(9590, bt_factory(23), 3, 0, line, font, 0, 0);
+	uint8_t *got = bt_pixels(9590, W, H, "BT9 a wide line");
+	uint8_t *model = xmalloc(W * H * 4);
+	bt_fill(model, W, H, 10, 20, 30, 0);
+	bt_model_line(model, W, H, true, 23, 3, 0, "AAAA", &big, 0);
+	bt_compare(got, W, H, model, "BT9 a wide line at the corner");
+	BT_CHECK(bt_count_alpha(got, W * H, 0, true) > 1000, "BT9: %d pixels of the wide line can be seen", bt_count_alpha(got, W * H, 0, true));
+	free(got);
+
+	/* The texture's last 10 columns at the surface's left: the line ends
+	 * there, and the rest of the surface is as it was. Column c of the line
+	 * is column c % 50 of an 'A'. */
+	bt_surface(9591, W, H, false, 10, 20, 30, 0);
+	bt_add_text(9591, bt_factory(23), -(max_w - 10), 0, line, font, 0, 0);
+	got = bt_pixels(9591, W, H, "BT9 the end of the texture");
+	struct text_style ts = bt_text_style(&big, 0);
+	uint8_t *cell = bt_render(&ts, "A", 50, H, 0);
+	bt_fill(model, W, H, 10, 20, 30, 0);
+	for (int y = 0; y < H; y++)
+		for (int x = 0; x < 10; x++)
+			bt_put(BT_PX(model, W, x, y), BT_PX(cell, 50, (max_w - 10 + x) % 50, y), 23, true);
+	bt_compare(got, W, H, model, "BT9 the end of the texture");
+	BT_CHECK(got && bt_count_alpha(got, W * H, 0, true) > 100, "BT9: %d pixels of the line's end can be seen",
+		 got ? bt_count_alpha(got, W * H, 0, true) : -1);
+	free(cell);
+	free(model);
+	free(got);
+	free(line);
+	heap_unref(font);
+	printf("BT9 a line wider than a texture: %s\n", bt_failures ? "FAIL" : "ok");
+}
+
+/* --- BT10 --- */
+/* Font values no script gives, on the grid. These are guards of xsystem4's
+ * own (what the original does with them was not read):
+ *   - a 太さ and a 縁取り below 0 leave e at 0 and the text is drawn;
+ *   - an operation whose style has a negative e all the same (set here in
+ *     the operation itself; a cell's width is then below 0) draws nothing.
+ *     Before the fix the cells were read from before their pixels. */
+static void bt_negative_edge(void)
+{
+	bt_gl_setup(true);
+	const struct bt_style neg = { 20, { 200, 100, 50 }, -6, -6, { 9, 8, 7 } };
+	const struct bt_case c = { 9592, 40, 30, false, { 10, 20, 30, 0 }, 23, 2, 1, "a" BT_GBK_A, neg, 0, 0,
+		"BT10 a weight and an edge below 0" };
+	uint8_t *got = bt_run(&c, true);
+	BT_CHECK(bt_count_alpha(got, 40 * 30, 0, true) > 100, "BT10: %d pixels can be seen with a weight and an edge below 0",
+		 bt_count_alpha(got, 40 * 30, 0, true));
+	free(got);
+
+	/* The same operation with a font weight below 0 as well: e is -6, the
+	 * half-width cell -2 wide and the full-width one 8. */
+	struct parts *p = parts_try_get(9592);
+	struct parts_cp_op *op, *text_op = NULL;
+	if (p && p->states[0].type == PARTS_CONSTRUCTION_PROCESS)
+		TAILQ_FOREACH(op, &p->states[0].cproc.ops, entry)
+			if (op->type == 23)
+				text_op = op;
+	BT_CHECK(text_op, "BT10: the text operation was not found");
+	if (text_op) {
+		text_op->text.style.bold_weight = -6;
+		BT_CHECK(gfx_text_cn_style_edge(&text_op->text.style) == -6, "BT10: e is %d, want -6", gfx_text_cn_style_edge(&text_op->text.style));
+		got = bt_pixels(9592, 40, 30, "BT10 a negative e");
+		BT_CHECK(got && bt_count_alpha(got, 40 * 30, 0, false) == 40 * 30, "BT10 a negative e: %d pixels can be seen, want none",
+			 got ? 40 * 30 - bt_count_alpha(got, 40 * 30, 0, false) : -1);
+		if (got)
+			bt_expect_px(got, 40, 5, 5, 10, 20, 30, 0, "BT10 a negative e");
+		free(got);
+	}
+	printf("BT10 a negative e: %s\n", bt_failures ? "FAIL" : "ok");
+}
+
+/* --- BT11 --- */
+/* A size and a 太さ whose line height does not fit an int draw nothing, on
+ * the grid: size 1200000000 with a 太さ of 2e9, so that e is the size and
+ * the size plus 2e is past INT_MAX. Before the fix the sum overflowed. Also
+ * a guard of xsystem4's own. */
+static void bt_huge_font(void)
+{
+	bt_gl_setup(true);
+	uint8_t *got;
+	const struct bt_style huge = { 1200000000, { 200, 100, 50 }, 2e9f, 0, { 9, 8, 7 } };
+	int font = bt_casfont(&huge);
+	bt_surface(9593, 16, 16, false, 10, 20, 30, 0);
+	bt_add_text(9593, bt_factory(23), 0, 0, "A\nA", font, 0, 0);
+	heap_unref(font);
+	got = bt_pixels(9593, 16, 16, "BT11 a huge size");
+	BT_CHECK(got && bt_count_alpha(got, 16 * 16, 0, false) == 16 * 16, "BT11 a huge size: %d pixels can be seen, want none",
+		 got ? 16 * 16 - bt_count_alpha(got, 16 * 16, 0, false) : -1);
+	if (got)
+		bt_expect_px(got, 16, 3, 3, 10, 20, 30, 0, "BT11 a huge size");
+	free(got);
+	printf("BT11 a line height past an int: %s\n", bt_failures ? "FAIL" : "ok");
 }
 
 static int bt_fork(const char *name, void (*fn)(void))
@@ -1040,6 +1399,7 @@ static int test_backlog_text(void)
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
 		{ "BT1", bt_alpha_blend }, { "BT2", bt_other_commands }, { "BT3", bt_no_grid }, { "BT4", bt_save_load },
 		{ "BT5", bt_emplace }, { "BT6", bt_scrollbar }, { "BT7", bt_getters_and_box }, { "BT8", bt_log_voices },
+		{ "BT9", bt_wide_line }, { "BT10", bt_negative_edge }, { "BT11", bt_huge_font },
 	};
 	int failed = 0, n = sizeof(cases) / sizeof(cases[0]);
 	for (int i = 0; i < n; i++)

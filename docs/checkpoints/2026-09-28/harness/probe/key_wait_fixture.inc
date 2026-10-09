@@ -17,6 +17,12 @@
  * KW4 the pactex block.
  * KW5 the loop advances with the engine's own updates (PE_Update,
  *     PE_UpdateParts).
+ * KW6 a loop CG's name with a wide number in it: the name goes through the
+ *     engine's string_format, whose width went to int_to_cstr as it was, and
+ *     512 or more wrote past a buffer on the stack. The width is kept below
+ *     that now; the usual formats give what they gave (guards). The limit is
+ *     xsystem4's own: the original formats the name with a formatter of its
+ *     own (0x41dda0), which was not read.
  *
  * The probe has no archives: the mark's CGs come from kw_load_cg, put in the
  * engine's loader hook. Requires base_ui, layer_root and construction
@@ -31,9 +37,11 @@ static int kw_failures;
  * takes one of the four away. */
 static char kw_log[256];
 static int kw_loads, kw_missing;
+static size_t kw_last_len;
 static struct cg *kw_load_cg(const char *name)
 {
 	kw_loads++;
+	kw_last_len = strlen(name);
 	size_t used = strlen(kw_log);
 	snprintf(kw_log + used, sizeof(kw_log) - used, "%s;", name);
 	int w = 0, h = 0;
@@ -156,7 +164,7 @@ static void kw_properties(void)
 	kw_expect_cg(W, "markB", 0, 0, 0, "a single CG");
 	kw_expect_pos(W, 930, 674, 5, "the position after the name changed");
 
-	/* No window object for a number of 0 or less (0x578ee0): the setters do
+	/* No window object for a number of 0 or less (0x539c80): the setters do
 	 * nothing, the getters give 0, false and "" and leave their outputs. */
 	static const int bad[] = { 0, -3 };
 	for (int i = 0; i < 2; i++) {
@@ -173,7 +181,11 @@ static void kw_properties(void)
 		kw_expect_flat(n, "", "number 0 or less");
 		KW_CHECK(!BU_PE("IsKeyWaitShow", BU_I(n)).i, "number %d shows a mark", n);
 	}
-	/* The getters do not make a parts that is not there either. */
+	/* The getters do not make a parts that is not there either. This is
+	 * xsystem4's choice, not the original's: there a getter makes the parts
+	 * a message window as a setter does (0x578f24 -> 0x578cb0, 0x536c20) and
+	 * gives its defaults, "" and 0 (0x595410). No script reads the mark of
+	 * a window that is not there. */
 	struct kw_cg g = kw_get_cg(NONE, -7);
 	KW_CHECK(!strcmp(g.name, "?") && g.start == -7, "a missing parts: GetKeyWaitCGName wrote \"%s\", %d", g.name, g.start);
 	kw_expect_pos(NONE, 0, 0, 0, "a missing parts");
@@ -325,8 +337,12 @@ static void kw_loop(void)
 	kw_step(W, 1, KW_FRAME(3), "a time of 0, the first update");
 	kw_step(W, 99999, KW_FRAME(3), "a time of 0");
 	kw_step(W, 99999, KW_FRAME(3), "a time of 0, once more");
-	/* One frame missing fails the whole loop CG: no mark, and the frames
-	 * after it are not asked for. */
+	/* One frame missing fails the whole loop CG, and the frames after it are
+	 * not asked for (0x5b30f0). That there is no mark at all then is
+	 * xsystem4's choice: the original keeps the frames loaded before the
+	 * missing one and does not set its name, numbers and current frame
+	 * (0x5b32b1 .. 0x5b32cc), and what it draws from that was not followed.
+	 * The four CGs of the game's mark are all there. */
 	kw_missing = 3;
 	kw_log[0] = 0;
 	kw_set_cg(W, "mark_%02d", 1, 4, 400);
@@ -449,6 +465,85 @@ static void kw_engine_update(void)
 	printf("KW5 the engine's updates: %s\n", kw_failures ? "FAIL" : "ok");
 }
 
+/* --- KW6 --- */
+static struct string *kw_format(const char *fmt, union vm_value v, enum string_format_type type)
+{
+	struct string *f = cstr_to_string(fmt);
+	struct string *out = string_format(f, v, type);
+	free_string(f);
+	return out;
+}
+static void kw_format_is(const char *fmt, int v, const char *want)
+{
+	struct string *out = kw_format(fmt, (union vm_value){ .i = v }, STRFMT_INT);
+	KW_CHECK(!strcmp(out->text, want), "\"%s\" of %d gives \"%s\", want \"%s\"", fmt, v, out->text, want);
+	free_string(out);
+}
+/* The formatted number is `size` bytes of `fill` and then `last`. */
+static void kw_format_wide(const char *fmt, union vm_value v, enum string_format_type type, int size, char fill, char last)
+{
+	struct string *out = kw_format(fmt, v, type);
+	bool ok = out->size == size && (int)strlen(out->text) == size && size >= 2 && out->text[size - 1] == last;
+	for (int i = 0; ok && i < size - 1; i++)
+		ok = out->text[i] == fill;
+	KW_CHECK(ok, "\"%s\" gives %d bytes ending in '%c', want %d of '%c' and a '%c'", fmt, out->size,
+		 out->size ? out->text[out->size - 1] : '?', size - 1, fill, last);
+	free_string(out);
+}
+
+static void kw_format_width(void)
+{
+	cn_gl_setup();
+	lr_setup();
+	if (!kw_hooks()) {
+		printf("KW6 a wide number in the name: FAIL\n");
+		return;
+	}
+	/* The mark's own path: the name asked for is "mark_", 509 spaces and
+	 * the start number; there is no such CG and no mark. */
+	const int W = 9740;
+	parts_get(W);
+	kw_set_cg(W, "mark_%600d", 1, 2, 500);
+	kw_show(W, true);
+	KW_CHECK(kw_width(W, NULL) == 0 && kw_loads == 1 && kw_last_len == 5 + 510,
+		 "a width of 600 in the name: size %d, %d load(s), a name of %zu bytes; want no mark, 1, 515", kw_width(W, NULL), kw_loads,
+		 kw_last_len);
+	/* The number alone: a width of 510 at most, however it is written. */
+	kw_format_wide("%600d", (union vm_value){ .i = 7 }, STRFMT_INT, 510, ' ', '7');
+	kw_format_wide("%0600d", (union vm_value){ .i = 7 }, STRFMT_INT, 510, '0', '7');
+	kw_format_wide("%99999999999d", (union vm_value){ .i = 7 }, STRFMT_INT, 510, ' ', '7');
+	kw_format_wide("%511d", (union vm_value){ .i = 7 }, STRFMT_INT, 510, ' ', '7');
+	kw_format_wide("%600.0f", (union vm_value){ .f = 7.0f }, STRFMT_FLOAT, 510, ' ', '7');
+	/* a precision of 462 at most: "0." and the digits */
+	struct string *out = kw_format("%.600f", (union vm_value){ .f = 0.5f }, STRFMT_FLOAT);
+	KW_CHECK(out->size == 2 + 462 && !strncmp(out->text, "0.5000", 6), "\"%%.600f\" gives %d bytes (%.8s...), want 464 from 0.5000",
+		 out->size, out->text);
+	free_string(out);
+	/* a zenkaku number takes two bytes a character: 255 characters */
+	out = kw_format("%600D", (union vm_value){ .i = 7 }, STRFMT_INT);
+	KW_CHECK(out->size == 510, "\"%%600D\" gives %d bytes, want 510", out->size);
+	free_string(out);
+	out = kw_format("%600F", (union vm_value){ .f = 1.5f }, STRFMT_FLOAT);
+	KW_CHECK(out->size == 510 || out->size == 511, "\"%%600F\" gives %d bytes, want 510 (or 511 with the F of the SJIS rule)", out->size);
+	free_string(out);
+	/* Guards: widths that fitted before give what they gave. */
+	kw_format_is("mark_%02d", 3, "mark_03");
+	kw_format_is("%d", -45, "-45");
+	kw_format_is("a%5db", 42, "a   42b");
+	kw_format_is("%05d", 42, "00042");
+	kw_format_is("%2d", 12345, "12345");
+	kw_format_is("a%sb", 1, "a%sb");
+	kw_format_wide("%300d", (union vm_value){ .i = 7 }, STRFMT_INT, 300, ' ', '7');
+	kw_format_wide("%510d", (union vm_value){ .i = 7 }, STRFMT_INT, 510, ' ', '7');
+	out = kw_format("%8.3f", (union vm_value){ .f = 1.5f }, STRFMT_FLOAT);
+	KW_CHECK(!strcmp(out->text, "   1.500"), "\"%%8.3f\" of 1.5 gives \"%s\", want \"   1.500\"", out->text);
+	free_string(out);
+	out = kw_format("%3D", (union vm_value){ .i = 7 }, STRFMT_INT);
+	KW_CHECK(out->size == 6, "\"%%3D\" of 7 gives %d bytes, want 6 (three zenkaku characters)", out->size);
+	free_string(out);
+	printf("KW6 a wide number in the name: %s\n", kw_failures ? "FAIL" : "ok");
+}
+
 static int kw_fork(const char *name, void (*fn)(void))
 {
 	fflush(stdout);
@@ -473,7 +568,7 @@ static int test_key_wait(void)
 {
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
 		{ "KW1", kw_properties }, { "KW2", kw_single }, { "KW3", kw_loop }, { "KW4", kw_loader },
-		{ "KW5", kw_engine_update },
+		{ "KW5", kw_engine_update }, { "KW6", kw_format_width },
 	};
 	int failed = 0, n = sizeof(cases) / sizeof(cases[0]);
 	for (int i = 0; i < n; i++)

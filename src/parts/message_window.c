@@ -265,9 +265,15 @@ void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space
 
 /* Key wait mark properties. Like the other message window calls of the
  * original these act on the window object of 0x53e010: no object for a
- * number of 0 or less, so the setters do nothing and the getters return 0,
- * false or "" and leave their outputs. Each setter writes and asks for a
- * rebuild only when a value differs. */
+ * number of 0 or less (0x539c80 at 0x539cad), so the setters do nothing and
+ * the getters return 0, false or "" and leave their outputs. Each setter
+ * writes and asks for a rebuild only when a value differs.
+ * Not the original's: for a number above 0 that has no parts, or whose parts
+ * is not a message window, the original's getters make it one as the setters
+ * do (0x578f24 -> 0x578cb0, then 0x536c20) and give its defaults ("", 0, 0,
+ * 0; 0x595410 writes its outputs whenever there is an object). Here the
+ * getters make nothing and leave their outputs. The scripts read these only
+ * from windows that exist (CMessageWindowParts). */
 
 static struct parts_key_wait *key_wait_get(int parts_no)
 {
@@ -415,7 +421,11 @@ static Texture *key_wait_load(struct string *name, int start_no, int nr, bool fo
 			: asset_cg_load_by_name(cg_name->text, &no);
 		free_string(cg_name);
 		if (!cg) {
-			// One missing frame fails the whole loop CG (0x5b30f0).
+			// One missing frame fails the whole loop CG (0x5b30f0). The
+			// original then keeps the frames it had loaded so far, and its
+			// name, numbers and current frame are not set (0x5b32b1 ..
+			// 0x5b32cc releases the failed CG alone); what it goes on to
+			// draw from that was not followed. Here there is no mark.
 			for (int j = 0; j < i; j++)
 				gfx_delete_texture(&frames[j]);
 			free(frames);

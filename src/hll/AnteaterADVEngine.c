@@ -514,14 +514,90 @@ static void AnteaterADVEngine_v14_AddText(struct string *text, struct string *wi
 	ADVLogList_AddText(&ref);
 }
 
+/*
+ * v14 (AnteaterADVLogList is built into the EXE; dispatcher 0x446d60, cases
+ * at 0x447018). A page is a list of lines and starts with one empty line
+ * (0x448010 -> 0x4476a0), and three functions leave out what has no text
+ * yet:
+ *   - GetNumofADVLog (case 7 -> 0x447180) does not count the last page while
+ *     that has no line but an empty last one (0x4471a9 .. 0x4471b8). Clear
+ *     (case 0: 0x4472d0, then 0x447e60 leaves one new page) is followed by 0;
+ *   - GetNumofADVLogText (case 8 -> 0x4476f0) does not count a page's last
+ *     line when it is empty (0x447735 .. 0x447740);
+ *   - AddNewPage (case 3 -> 0x447860) does nothing while the page being
+ *     written has no such line (0x4478bf) or its lines have no byte
+ *     (0x4478e2).
+ * The scripts call AddNewPage at the end of each key wait (message::detail::A
+ * and AA), so the last page is empty whenever the backlog is opened from the
+ * menu. Counted, it gave the backlog an empty line and a separator of its
+ * own, and the 16 rows began two rows later than the original's.
+ * The functions of the older games' DLL above keep their rules, also behind
+ * these names before v14. Not done: the original's Clear also enables the
+ * log again (0x446dc0; no script of the game disables it), and its AddText
+ * calls AddNewPage first when the window name is not the last one's
+ * (0x447750).
+ */
+
+// The lines of a page as the v14 functions count them.
+static unsigned v14_log_lines(struct adv_log *log)
+{
+	unsigned n = log->nr_lines;
+	if (n && !log->lines[n - 1]->size)
+		n--;
+	return n;
+}
+
+static int AnteaterADVEngine_v14_GetNumofADVLog(void)
+{
+	if (ain->version < 14)
+		return ADVLogList_GetNumofADVLog();
+	// Nothing logged yet, or cleared: the original's one new page.
+	if (!logs)
+		return 0;
+	int nr_logs = ADVLogList_GetNumofADVLog();
+	return v14_log_lines(&logs[log_last]) ? nr_logs : nr_logs - 1;
+}
+
+// The page number is not checked by the original; log_entry's check stays,
+// against all the pages there are.
+static int AnteaterADVEngine_v14_GetNumofADVLogText(int log_no)
+{
+	if (ain->version < 14)
+		return ADVLogList_GetNumofADVLogText(log_no);
+	return v14_log_lines(log_entry(log_no));
+}
+
+static void AnteaterADVEngine_v14_AddNewPage(void)
+{
+	if (ain->version < 14) {
+		ADVLogList_AddNewPage();
+		return;
+	}
+	if (!enabled)
+		return;
+	struct adv_log *log = current_log();
+	unsigned nr_lines = v14_log_lines(log);
+	unsigned nr_bytes = 0;
+	for (unsigned i = 0; i < nr_lines; i++)
+		nr_bytes += log->lines[i]->size;
+	if (!nr_bytes)
+		return;
+	ADVLogList_AddNewPage();
+}
+
 /* v14: void AddVoice(string VoiceName, string VoiceFilterName). A voice is a
  * name and a filter name; message::detail::VOICE adds the one it plays to the
- * page being written, and the backlog reads them back
+ * page being written (case 4, 0x446e59 .. 0x446ea0: pushed to the last
+ * page's two lists while the log is enabled), and the backlog reads them back
  * (SBackLogUnitModelManager@GetVoiceNameList): a line with a voice whose file
  * exists is drawn in the voice font and plays it when clicked
- * (CBackLogUnit@IsExistVoice). Taken from how the scripts use the three
- * functions; the library itself was not disassembled. Not saved: Save and
- * Load keep the older layout, without the names. */
+ * (CBackLogUnit@IsExistVoice). The original's GetADVLogVoice (0x447240) does
+ * not check the index; here one out of range gives "".
+ * Nothing of the log is saved in v14: Save returns true without writing and
+ * Load returns false without reading or clearing (see both above), so the
+ * pages and their voices are the ones in memory before a load. What the
+ * original's Save and Load (cases 13 and 14, 0x4479c0 and 0x447b60) keep was
+ * not read. */
 static void AnteaterADVEngine_v14_AddVoice(struct string *voice_name, struct string *voice_filter)
 {
 	if (!enabled)
@@ -592,12 +668,12 @@ HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(Clear, ADVLogList_Clear),
 	    HLL_EXPORT(AddText, AnteaterADVEngine_v14_AddText),
 	    HLL_EXPORT(AddNewLine, ADVLogList_AddNewLine),
-	    HLL_EXPORT(AddNewPage, ADVLogList_AddNewPage),
+	    HLL_EXPORT(AddNewPage, AnteaterADVEngine_v14_AddNewPage),
 	    HLL_EXPORT(AddVoice, AnteaterADVEngine_v14_AddVoice),
 	    HLL_EXPORT(SetEnable, ADVLogList_SetEnable),
 	    HLL_EXPORT(IsEnable, ADVLogList_IsEnable),
-	    HLL_EXPORT(GetNumofADVLog, ADVLogList_GetNumofADVLog),
-	    HLL_EXPORT(GetNumofADVLogText, ADVLogList_GetNumofADVLogText),
+	    HLL_EXPORT(GetNumofADVLog, AnteaterADVEngine_v14_GetNumofADVLog),
+	    HLL_EXPORT(GetNumofADVLogText, AnteaterADVEngine_v14_GetNumofADVLogText),
 	    HLL_EXPORT(GetADVLogText, AnteaterADVEngine_v14_GetADVLogText),
 	    HLL_EXPORT(GetNumofADVLogVoice, AnteaterADVEngine_v14_GetNumofADVLogVoice),
 	    HLL_EXPORT(GetADVLogVoice, AnteaterADVEngine_v14_GetADVLogVoice),

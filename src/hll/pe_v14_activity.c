@@ -1317,6 +1317,47 @@ static void pactex_resolve_clippers(struct activity *act)
 	pactex_nr_clippers = 0;
 }
 
+/* The size links of the scroll bars seen while loading one activity (see the
+ * 豎滾動條 in pactex_apply_properties), resolved by name at the end of
+ * pactex_load as the alpha clippers are. */
+#define PACTEX_MAX_SCROLL_LINKS 16
+static struct { int parts_no; bool view; char name[256]; } pactex_scroll_links[PACTEX_MAX_SCROLL_LINKS];
+static int pactex_nr_scroll_links;
+
+static void pactex_add_scroll_link(int parts_no, bool view, const struct ex_value *name)
+{
+	if (!name || name->type != EX_STRING || !name->s || !name->s->text[0])
+		return;
+	if (pactex_nr_scroll_links >= PACTEX_MAX_SCROLL_LINKS)
+		return;
+	pactex_scroll_links[pactex_nr_scroll_links].parts_no = parts_no;
+	pactex_scroll_links[pactex_nr_scroll_links].view = view;
+	snprintf(pactex_scroll_links[pactex_nr_scroll_links].name,
+		sizeof(pactex_scroll_links[0].name), "%s", name->s->text);
+	pactex_nr_scroll_links++;
+}
+
+static void pactex_resolve_scroll_links(struct activity *act)
+{
+	for (int i = 0; i < pactex_nr_scroll_links; i++) {
+		int no = 0;
+		for (int j = 0; j < act->nr_parts && no <= 0; j++) {
+			if (act->parts[j].name[0] && !strcmp(act->parts[j].name, pactex_scroll_links[i].name))
+				no = act->parts[j].number;
+		}
+		struct parts *bar = parts_try_get(pactex_scroll_links[i].parts_no);
+		if (no <= 0 || !bar) {
+			WARNING("pactex: scroll bar size link '%s' not found", display_game0(pactex_scroll_links[i].name));
+			continue;
+		}
+		if (pactex_scroll_links[i].view)
+			bar->scrollbar.view_link = no;
+		else
+			bar->scrollbar.total_link = no;
+	}
+	pactex_nr_scroll_links = 0;
+}
+
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
 	pactex_apply_pixel_decide(node, parts_no);
@@ -1499,6 +1540,21 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		sb->rate = pactex_value_number(pactex_leaf_value(type_info,
 				"\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x83\x8c\x81\x5b\x83\x67",
 				"\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xa5\xec\xa9\x60\xa5\xc8"), 0);
+		/* 全體スクロール量サイズ連動 and 表示量サイズ連動 name the parts
+		 * whose size the two amounts follow (parts_scrollbar_total). The
+		 * native loader reads the two strings, "" when missing, and has
+		 * the name made a number at once (0x545278 and 0x5452da ->
+		 * 0x4df410, a callback of the loader that was not read; +0x214,
+		 * +0x218); here a name that is not a parts of this activity
+		 * leaves the amount unlinked. SceneStandViewer's bar names its
+		 * Image and ImageRect. The SJIS keys are guesses. */
+		sb->total_link = sb->view_link = 0;
+		pactex_add_scroll_link(parts_no, false, pactex_leaf_value(type_info,
+				"\x91\x53\x91\xcc\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x97\xca\x83\x54\x83\x43\x83\x59\x98\x41\x93\xae",
+				"\xc8\xab\xf3\x77\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xc1\xbf\xa5\xb5\xa5\xa4\xa5\xba\xdf\x42\x84\xd3"));
+		pactex_add_scroll_link(parts_no, true, pactex_leaf_value(type_info,
+				"\x95\x5c\x8e\xa6\x97\xca\x83\x54\x83\x43\x83\x59\x98\x41\x93\xae",
+				"\xb1\xed\xca\xbe\xc1\xbf\xa5\xb5\xa5\xa4\xa5\xba\xdf\x42\x84\xd3"));
 	}
 
 	/* --- Handle パネル (Panel) type: solid color rectangle --- */
@@ -1803,6 +1859,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	}
 
 	pactex_nr_clippers = 0;
+	pactex_nr_scroll_links = 0;
 	int root_no = alloc_activity_parts_no();
 	struct parts *root = parts_get(root_no);
 	{
@@ -1870,6 +1927,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	pactex_apply_properties(root_branch, root_no);
 
 	pactex_resolve_clippers(act);
+	pactex_resolve_scroll_links(act);
 	return true;
 }
 

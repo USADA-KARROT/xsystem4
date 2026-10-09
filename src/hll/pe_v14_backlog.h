@@ -3,10 +3,14 @@
  * PartsEngine.c; registered before the stubs of pe_v14_prelink.h, which then
  * leave these names alone. */
 
-/* The vertical scroll bar with that number (0x53daf0 finds only that type);
- * NULL for a missing parts and for any other widget, on which the original
- * functions below do nothing and return 0. Only a bar loaded from a pactex
- * has the type here. */
+/* The vertical scroll bar with that number; NULL for a missing parts, on
+ * which the original functions below do nothing and return 0 (0x53daf0 at
+ * 0x53db37), and for any other widget. That second half is a choice made
+ * here, not the original's: 0x53daf0 first makes an existing parts' widget a
+ * scroll bar (0x53db3b: 0x535e20 with type 2, which drops the widget it had)
+ * and the functions then work on that. The scripts call them only through
+ * the scroll bar wrappers, and only a bar loaded from a pactex has the type
+ * here. */
 static struct parts *pe_v14_vscrollbar(int number)
 {
 	struct parts *parts = parts_try_get(number);
@@ -46,20 +50,20 @@ static void PE_v14_SetVScrollbarScrollRate(int number, float rate)
 }
 
 /* int GetVScrollbarTotalSize / ViewSize(int Number): cases 277 and 278 ->
- * 0x591b30 / 0x591b60. The original returns the size of the parts named by
- * 全體スクロール量サイズ連動 / 表示量サイズ連動 instead when there is one
- * (0x5749d0, +0x214 / +0x218); no pactex of the game names one, and the
- * link is not implemented. */
+ * 0x591b30 / 0x591b60. The amount, or the height of the parts named by
+ * 全體スクロール量サイズ連動 / 表示量サイズ連動 when there is one (0x5749d0
+ * with +0x214 / +0x218; parts_scrollbar_total). One pactex of the game names
+ * them, SceneStandViewer's bar (Image and ImageRect). */
 static int PE_v14_GetVScrollbarTotalSize(int number)
 {
 	struct parts *parts = pe_v14_vscrollbar(number);
-	return parts ? parts->scrollbar.total : 0;
+	return parts ? parts_scrollbar_total(parts) : 0;
 }
 
 static int PE_v14_GetVScrollbarViewSize(int number)
 {
 	struct parts *parts = pe_v14_vscrollbar(number);
-	return parts ? parts->scrollbar.view : 0;
+	return parts ? parts_scrollbar_view(parts) : 0;
 }
 
 /* int GetVScrollbarScrollPos(int Number): case 279 -> 0x591b90 (+0x118). */
@@ -79,7 +83,9 @@ static float PE_v14_GetVScrollbarScrollRate(int number)
 /* The text of a state for the getters below (0x53e510, then 0x5b77f0 with
  * type 21): a missing parts has none and the getters leave their outputs or
  * return 0; an existing one has the state made a text state, as the gauge
- * getters make theirs (pe_v14_gauge.h). */
+ * getters make theirs (pe_v14_gauge.h). The original also makes the parts'
+ * widget a 低等級部件 first (0x53e55b -> 0x5373b0: 0x535e20 with type 18);
+ * the component type is left as it is here. */
 static struct parts_text *pe_v14_text_state(int number, int state)
 {
 	if (state < 1 || state > PARTS_NR_STATES)

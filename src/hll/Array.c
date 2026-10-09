@@ -53,7 +53,9 @@ static inline bool array_elem_is_ref(void) {
 }
 
 // Check if current Array HLL call operates on struct elements that need construction.
-// v14 encodes struct types as 0x10000 + struct_index; pre-v14 uses 2.
+// The low word of hll_arg3 is the element's kind (2 for an object: a struct,
+// but a string too; hll_generic_slots, ffi.c) and 0x10000 marks a wrap or a
+// reference. Neither says which struct: that is the array page's.
 static inline bool array_elem_is_struct(void) {
 	return hll_current_arg3 == 2 || hll_current_arg3 >= 0x10000;
 }
@@ -1957,6 +1959,26 @@ void *array_isexist_function(const struct ain_hll_function *f)
 // construction parts, and its m_modelList page said a stride of the model's
 // struct index, so that X_A_SIZE counted none of the lines added to it.
 // Returns the new element's value (heap slot for structs, 0 for ints).
+//
+// Not as the original:
+//  - The order. The original makes the array one longer first and constructs
+//    the element in place (0x67f50f .. 0x67f542: 0x41a430, then 0x680170 with
+//    the index), so the constructor sees the longer array. Here the object
+//    is constructed first and the array replaced after: a constructor that
+//    changes this same array (PushBack, EmplaceBack, Erase, Free on it)
+//    would have its change overwritten and the old page freed twice. The
+//    constructors the game's 19 calls run (CMessageText, CMessageWindow,
+//    CBackLogUnit, CMenuView, CASClick, SBackSEPlayList, SEffectInstance)
+//    do not call the Array library themselves.
+//  - The element's struct is taken from the array page whatever kind of
+//    page that is. On a generic page (AIN_ARRAY, AIN_REF_ARRAY) X_A_INIT
+//    keeps the element's slot count in that field, 1 or 2, which cannot be
+//    told from a struct of that number, so this was left as it was. The
+//    game's 19 calls are on arrays of value structs; the three kinds the
+//    test routes reach (CMessageText, CMessageWindow, CBackLogUnit) have
+//    AIN_ARRAY_STRUCT pages with the struct's index.
+//  - Only a struct element is made anything: an operand of 2 is also that
+//    of a string array, and takes the struct path.
 static int Array_EmplaceBack(struct page **array)
 {
 	if (!array) return 0;
@@ -1976,7 +1998,10 @@ static int Array_EmplaceBack(struct page **array)
 			new_a->values[i] = a->values[i];
 		new_a->array = a->array;
 	} else {
+		// No array yet. A page out of the cache still has the metadata of
+		// the array it was (alloc_page): no struct is known here.
 		new_a->array.rank = 1;
+		new_a->array.struct_type = -1;
 	}
 	int new_val = 0;
 	// For struct/wrap elements, construct a new struct object. The
@@ -1984,11 +2009,16 @@ static int Array_EmplaceBack(struct page **array)
 	// object is made, and what this call is about is read before.
 	if (array_elem_is_struct()) {
 		int struct_type = new_a->array.struct_type;
+		// The older fallback for a page without a struct takes the low
+		// word of the operand, which is the element's kind and not a
+		// struct. It keeps giving the object it gave, without running
+		// that struct's constructor.
+		const bool of_page = struct_type >= 0;
 		if (struct_type < 0 && hll_current_arg3 >= 0x10000)
 			struct_type = hll_current_arg3 & 0xFFFF;
 		if (struct_type >= 0 && struct_type < ain->nr_structures) {
 			new_a->array.struct_type = struct_type;
-			if (ain->version >= 14)
+			if (ain->version >= 14 && of_page)
 				new_val = vm_construct_struct(struct_type);
 			if (new_val <= 0)
 				new_val = alloc_struct(struct_type);

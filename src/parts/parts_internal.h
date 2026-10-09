@@ -500,8 +500,10 @@ struct parts_state {
 
 // v14 豎滾動條 (component type 2): what the widget scrolls (native +0x110
 // 全體スクロール量, +0x114 表示量, +0x118 スクロール位置, +0x11c スクロール
-// レート) and the position and rate it last reported to its observers
-// (+0xc4, +0xc8). The bar is not drawn (scrollbar.c). Not saved.
+// レート), the position and rate it last reported to its observers (+0xc4,
+// +0xc8), and the numbers of the parts whose height the two amounts follow
+// (+0x214 全體スクロール量サイズ連動, +0x218 表示量サイズ連動; 0 for none).
+// The bar is not drawn (scrollbar.c). Not saved.
 struct parts_scrollbar {
 	int total;
 	int view;
@@ -509,6 +511,8 @@ struct parts_scrollbar {
 	float rate;
 	int reported_pos;
 	float reported_rate;
+	int total_link;
+	int view_link;
 };
 #define PARTS_COMPONENT_VSCROLLBAR 2
 
@@ -785,6 +789,8 @@ void parts_scrollbar_set_total(struct parts *parts, int total);
 void parts_scrollbar_set_view(struct parts *parts, int view);
 void parts_scrollbar_set_pos(struct parts *parts, int pos);
 void parts_scrollbar_set_rate(struct parts *parts, float rate);
+int parts_scrollbar_total(struct parts *parts);
+int parts_scrollbar_view(struct parts *parts);
 void parts_scrollbar_update(void);
 
 // text.c

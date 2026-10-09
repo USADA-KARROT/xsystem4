@@ -761,11 +761,14 @@ static void cp_text_put(uint8_t *d, const uint8_t *s, enum parts_cp_op_type type
 }
 
 /* Puts the w x h pixels at (sx, 0) of src (src_w x src_h) on the surface at
- * (dx, dy), cut to both. */
+ * (dx, dy), cut to both. src_w and src_h are what src holds, and nothing is
+ * read from outside it whatever the other numbers are. */
 static void cp_text_put_rect(uint8_t *pixels, int tw, int th, int64_t dx, int64_t dy,
 		const uint8_t *src, int src_w, int src_h, int sx, int w, int h,
 		enum parts_cp_op_type type, bool has_alpha)
 {
+	if (sx < 0 || w <= 0 || h <= 0)
+		return;
 	if (dx <= -(int64_t)w || dy <= -(int64_t)h || dx >= tw || dy >= th)
 		return;
 	int sy = 0;
@@ -779,6 +782,8 @@ static void cp_text_put_rect(uint8_t *pixels, int tw, int th, int64_t dx, int64_
 		h += dy;
 		dy = 0;
 	}
+	if (sx < 0 || sy < 0 || sx >= src_w || sy >= src_h)
+		return;
 	w = min(min(w, tw - (int)dx), src_w - sx);
 	h = min(min(h, th - (int)dy), src_h - sy);
 	for (int row = 0; row < h; row++) {
@@ -798,6 +803,8 @@ static bool cp_text_on_grid(void)
 
 // The widest run of cells drawn at once (a texture's width).
 #define CP_TEXT_RUN_WIDTH 2048
+// The largest cell drawn at all (a texture's usual largest size).
+#define CP_TEXT_CELL_MAX 16384
 
 /* A run of characters of one line: their cells are drawn side by side on a
  * surface of their own and put on this one at the pen, one by one. */
@@ -821,13 +828,16 @@ static void cp_text_put_cells(uint8_t *pixels, int tw, int th, struct text_style
 	gfx_init_texture_rgba(&cells, cells_w, cells_h, (SDL_Color) {
 			ts->edge_color.r, ts->edge_color.g, ts->edge_color.b, 0 });
 	gfx_render_textf(&cells, 0, e, run, &cell_ts, false);
+	// What was read back is the texture as it was made, which is no larger
+	// than the GL limit whatever was asked for.
+	const int src_w = cells.w, src_h = cells.h;
 	uint8_t *src = gfx_get_pixels(&cells);
 	gfx_delete_texture(&cells);
 
 	int sx = 0;
 	for (const char *c = run; *c; c += parts_text_char_bytes(c)) {
 		const int cell_w = gfx_text_cn_width(size, *c) + 2 * e;
-		cp_text_put_rect(pixels, tw, th, *pen_x, pen_y, src, cells_w, cells_h, sx,
+		cp_text_put_rect(pixels, tw, th, *pen_x, pen_y, src, src_w, src_h, sx,
 				cell_w, cells_h, type, has_alpha);
 		*pen_x += (int64_t)cell_w + char_space;
 		sx += cell_w;
@@ -852,18 +862,26 @@ static void cp_text_put_cells(uint8_t *pixels, int tw, int th, struct text_style
  * SJIS dash, which the original draws as one line (0x4fd3d8 -> 0x4fc6c0,
  * 0x5ad180), is drawn as the characters those bytes are (a GBK text has no
  * dash there); a pen left of or above the surface loses the cell's left or
- * top (the original's clip for that, 0x5abde0, was not read); the pen does
- * not wrap around at the ends of int.
+ * top here, where the original keeps them and loses the right or bottom
+ * (0x5abed0 moves the destination into the surface and makes it smaller, and
+ * the cell is still read from its corner, 0x4fd5bb); the pen does not wrap
+ * around at the ends of int; a font whose e is negative or whose cell is
+ * larger than CP_TEXT_CELL_MAX draws nothing (what the original does with
+ * either was not read).
  */
 static void build_text_grid(uint8_t *pixels, int tw, int th, struct parts_cp_text *op,
 		enum parts_cp_op_type type, bool has_alpha)
 {
 	const int size = lroundf(op->style.size);
 	const int e = gfx_text_cn_style_edge(&op->style);
+	// With a negative e a cell's width can be below 0, and the cells of a
+	// run no longer lie side by side in what is read back. (No command
+	// gives one: gfx_text_cn_style_edge takes the 太さ with the font's
+	// weight, which is 0 in a construction text.)
+	if (size <= 0 || size > CP_TEXT_CELL_MAX || e < 0 || size + 3 * e > CP_TEXT_CELL_MAX)
+		return;
 	const int line_height = size + (size & 1) + 2 * e;
 	const int char_space = op->style.font_spacing;
-	if (size <= 0)
-		return;
 
 	char *text = xstrdup(op->text->text);
 	int64_t x = op->x, y = op->y;
@@ -895,7 +913,8 @@ static void build_text_grid(uint8_t *pixels, int tw, int th, struct parts_cp_tex
 
 /* Commands 23 and 24 where the glyphs are not on that grid: the text is drawn
  * as command 8 draws it there (one line, build_copy_text), on a surface of
- * its own, and that is put on this one. */
+ * its own, and that is put on this one. A line wider than a texture can be
+ * ends where the texture does. */
 static void build_text_staged(uint8_t *pixels, int tw, int th, struct parts_cp_text *op,
 		enum parts_cp_op_type type, bool has_alpha)
 {
@@ -907,9 +926,11 @@ static void build_text_staged(uint8_t *pixels, int tw, int th, struct parts_cp_t
 	gfx_init_texture_rgba(&staged, w, h, (SDL_Color) {
 			op->style.edge_color.r, op->style.edge_color.g, op->style.edge_color.b, 0 });
 	gfx_render_text(&staged, 0, 0, op->text->text, &op->style, false);
+	// As in cp_text_put_cells: the size of what was read back.
+	const int src_w = staged.w, src_h = staged.h;
 	uint8_t *src = gfx_get_pixels(&staged);
 	gfx_delete_texture(&staged);
-	cp_text_put_rect(pixels, tw, th, op->x, op->y, src, w, h, 0, w, h, type, has_alpha);
+	cp_text_put_rect(pixels, tw, th, op->x, op->y, src, src_w, src_h, 0, src_w, src_h, type, has_alpha);
 	free(src);
 }
 
