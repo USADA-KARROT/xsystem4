@@ -28,6 +28,7 @@
 #include "vm.h"
 #include "vm/heap.h"
 #include "vm/page.h"
+#include "serialize_struct.h"
 #include "xsystem4.h"
 
 #define NR_CACHES 64
@@ -535,6 +536,39 @@ static void init_struct_slot(struct page *page, int idx, struct ain_variable *me
 	}
 }
 
+/*
+ * A new object's option member is none. The original initializes the members
+ * of every object it allocates (0x679db0 -> 0x656b10): strings, structs,
+ * delegates and arrays are -1, and the rest go by type (0x656970), where an
+ * option (0x656a44) gets -1 in every slot but its last and the number of its
+ * option layers there (1 for option<T>); a discriminant of 0 is "has a
+ * value". The slots after the first are void members of their own, which that
+ * loop leaves as they are (0x6569a0). The scripts rely on it: nothing sets
+ * DamageFrameMotionController.m_deadFrame (an option<int>) unless the target
+ * dies, and its Update takes a value there for the frame the death starts at.
+ *
+ * Returns how many of the following members were the option's own slots.
+ */
+static int init_struct_option(struct page *page, int idx, struct ain_struct *s)
+{
+	const struct ain_type *t = &s->members[idx].type;
+	int slots = ss_type_slot_count(t);
+	int layers = 0;
+	for (const struct ain_type *o = t; o && (o->data == AIN_OPTION
+			|| o->data == AIN_UNKNOWN_TYPE_87); o = o->array_type)
+		layers++;
+	if (slots < 2 || idx + slots > s->nr_members)
+		return 0;
+	for (int k = 1; k < slots; k++) {
+		if (s->members[idx + k].type.data != AIN_VOID)
+			return 0;
+	}
+	for (int k = 0; k < slots - 1; k++)
+		page->values[idx + k].i = -1;
+	page->values[idx + slots - 1].i = layers;
+	return slots - 1;
+}
+
 static int alloc_struct_depth = 0;
 
 int alloc_struct(int no)
@@ -560,6 +594,8 @@ int alloc_struct(int no)
 	alloc_struct_depth++;
 	for (int i = 0; i < s->nr_members; i++) {
 		init_struct_slot(heap[slot].page, i, &s->members[i]);
+		if (ain->version >= 14 && s->members[i].type.data == AIN_OPTION)
+			i += init_struct_option(heap[slot].page, i, s);
 	}
 	alloc_struct_depth--;
 	heap_gc_allow();
