@@ -15,6 +15,7 @@ static void option_array_probe_step(void);
 static void array_literal_probe_step(void);
 static void global_init_probe_step(void);
 static void global_init_probe_return(int fno);
+static void delegate_cursor_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -48,6 +49,7 @@ static void probe_step(unsigned op) {
     option_array_probe_step();
     array_literal_probe_step();
     global_init_probe_step();
+    delegate_cursor_probe_step();
 }
 static size_t live_slots(void) {
     size_t n=0;for(size_t i=2;i<heap_size;i++)if(HEAP_REF(i)>0)n++;return n;
@@ -140,6 +142,8 @@ static void init_probe(const char *path) {
 #include "arg_ownership_fixture.inc"
 #include "global_init_fixture.inc"
 #include "controller_id_fixture.inc"
+#include "layer_root_fixture.inc"
+#include "delegate_cursor_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -205,6 +209,8 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"arg-ownership"))return test_arg_ownership();
     if(!strcmp(argv[2],"global-init"))return test_global_init();
     if(!strcmp(argv[2],"controller-id"))return test_controller_id();
+    if(!strcmp(argv[2],"layer-root"))return test_layer_root();
+    if(!strcmp(argv[2],"delegate-cursor"))return test_delegate_cursor();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

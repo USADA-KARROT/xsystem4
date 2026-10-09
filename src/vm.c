@@ -1762,6 +1762,29 @@ static union vm_value delegate_copy_argument(union vm_value value, enum ain_data
 	return value;
 }
 
+// Trace (XSYS4_STAGE2_TRACE): the delegate in heap slot `slot` is changed, or
+// called again, while a DG_CALL is going through it. The stack of a call in
+// progress is [..., dg_page, dg_index] below its handler frame's base_sp.
+static void delegate_trace_in_call(const char *what, int slot)
+{
+	static unsigned traced;
+	if (!stage2_trace_enabled || traced >= 60 || slot <= 1)
+		return;
+	for (int i = call_stack_ptr - 1; i >= 0; i--) {
+		if (!call_stack[i].is_delegate_call || call_stack[i].base_sp < 2
+				|| stack[call_stack[i].base_sp - 2].i != slot)
+			continue;
+		struct page *dg = heap_get_delegate_page(slot);
+		int fno = call_stack[call_stack_ptr-1].fno;
+		traced++;
+		WARNING("S2 delegate: %s delegate %d during its call (handler fno %d; cursor %d, limit %d, %d entries) in fno %d '%s'",
+			what, slot, call_stack[i].fno, dg ? dg->dg.cursor : -1, dg ? dg->dg.limit : -1,
+			dg ? dg->nr_vars / 3 : 0, fno,
+			fno >= 0 && fno < ain->nr_functions ? display_game0(ain->functions[fno].name) : "?");
+		return;
+	}
+}
+
 static void delegate_call(int dg_no, int return_address)
 {
 	if (dg_no < 0 || dg_no >= ain->nr_delegates)
@@ -1771,9 +1794,15 @@ static void delegate_call(int dg_no, int return_address)
 	int return_values = delegate_return_slots(&ain->delegates[dg_no].return_type);
 	int dg_page = stack_peek(1 + return_values).i;
 	int dg_index = stack_peek(0 + return_values).i;
-	int obj, fun;
+	int obj, fun, env = 0;
 	struct page *dg_pg = heap_get_delegate_page(dg_page);
-	if (delegate_get(dg_pg, dg_index, &obj, &fun)) {
+	// v14: the delegate itself knows which entry is next (0x66df92 ->
+	// 0x652a30, page.c); the index on the stack only counts the calls.
+	// Older engines: the index on the stack.
+	bool more = ain->version >= 14
+		? delegate_call_next(dg_pg, &obj, &fun, &env)
+		: delegate_get(dg_pg, dg_index, &obj, &fun);
+	if (more) {
 		// Guard: skip invalid function numbers
 		if (fun < 0 || fun >= ain->nr_functions) {
 			// Pop return value(s) first (like the success path does) so
@@ -1829,15 +1858,8 @@ static void delegate_call(int dg_no, int return_address)
 		}
 
 		set_struct_page(obj);
-		// v14: read closure environment from delegate's 3rd slot.
-		// dg_index was already incremented, so use (dg_index-1).
-		call_stack[call_stack_ptr-1].env_page = 0;
-		if (ain->version >= 14 && dg_pg) {
-			int orig_idx = dg_index; // dg_index was read before increment
-			if (orig_idx * 3 + 2 < dg_pg->nr_vars) {
-				call_stack[call_stack_ptr-1].env_page = dg_pg->values[orig_idx * 3 + 2].i;
-			}
-		}
+		// v14: the closure environment is the entry's 3rd slot.
+		call_stack[call_stack_ptr-1].env_page = ain->version >= 14 ? env : 0;
 		// v14 lambda closure via delegate: if obj is invalid (-1/0),
 		// search up the call stack for the enclosing method's struct_page.
 		if (ain->version >= 14 && obj <= 0) {
@@ -4757,7 +4779,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			int dst_i = var->i;
 			struct page *set = heap_get_delegate_page(set_i);
 			struct page *new_dg = copy_page(set);
+			delegate_trace_in_call("DG_ASSIGN to", dst_i);
 			if (dst_i > 0 && (size_t)dst_i < heap_size && heap[dst_i].ref > 0) {
+				// The original clears the delegate and adds the source's
+				// entries to it (0x66fc27, 0x66fc2c); a new page likewise
+				// has no call in progress, so a call of dst ends here.
 				delete_page(dst_i);
 				heap_set_page(dst_i, new_dg);
 			} else {
@@ -4784,6 +4810,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			int dst_i = var->i;
 			struct page *add = heap_get_delegate_page(add_i);
 			struct page *dst = heap_get_delegate_page(dst_i);
+			delegate_trace_in_call("DG_PLUSA to", dst_i);
 			struct page *result = delegate_plusa(dst, add);
 			if (dst_i > 0 && (size_t)dst_i < heap_size && heap[dst_i].ref > 0) {
 				heap_set_page(dst_i, result);
@@ -4810,6 +4837,7 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			int dst_i = var->i;
 			struct page *minus = heap_get_delegate_page(minus_i);
 			struct page *dst = heap_get_delegate_page(dst_i);
+			delegate_trace_in_call("DG_MINUSA from", dst_i);
 			struct page *result = delegate_minusa(dst, minus);
 			if (dst_i > 0 && (size_t)dst_i < heap_size && heap[dst_i].ref > 0) {
 				heap_set_page(dst_i, result);
@@ -4877,6 +4905,12 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		}
 		stack[stack_ptr-1].i = dg_page;
 		stack_push(0);
+		// v14: the call starts at the first entry and covers the entries
+		// there are now (0x66daf3-0x66db08, page.c).
+		if (ain->version >= 14) {
+			delegate_trace_in_call("DG_CALLBEGIN of", dg_page);
+			delegate_call_begin(heap_get_delegate_page(dg_page));
+		}
 
 		// XXX: If the delegate has a return value, we push dummy value(s)
 		//      so that DG_CALL can replace them.

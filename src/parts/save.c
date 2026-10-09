@@ -29,12 +29,22 @@
 /*
  * Controllers in a save. The controller fields (the active controller, each
  * parts' controller) hold stack positions, which is what they held while a
- * controller's ID was its position, and loading gives every controller its
- * position as its ID. A v14 stack whose IDs differ from the positions, or
- * that has no controller designated, adds its IDs and its active controller
- * in a section after everything else (version 7 and later); a save without
- * the section, and that is every save of a stack that was only pushed and
- * popped, reads as before.
+ * controller's ID was its position. A v14 save ends with a section that
+ * holds the controllers' IDs and the active one (version 7 and later). It
+ * is read first, from the end of the buffer, so that the controllers have
+ * their IDs and their roots before any parts is loaded (a plain parts can
+ * have the number that the default ID of a position would be).
+ *
+ * A v14 save without the section was written while a controller's ID was
+ * its position, or by a build that left the section out for a stack that
+ * had only been pushed and popped. Its controllers get the default ID of
+ * their positions (the root number for the position) and its parts come
+ * back on their controllers. A layer ID that the script kept in the same
+ * image is still the old one, though, and names no controller here; a
+ * warning says so. Engines before v14 neither write nor read the section.
+ *
+ * The v14 root parts are not saved: they come with the controllers, and a
+ * top-level parts records no parent, as before.
  */
 #define SAVE_CONTROLLER_IDS 0x44494350 /* "PCID" */
 
@@ -46,10 +56,8 @@ static int save_controller_no(int id)
 
 static void save_controller_ids(struct iarray_writer *w)
 {
-	bool needed = ctrl_stack.active < 0;
-	for (int i = 0; i < ctrl_stack.nr_controllers; i++)
-		needed |= ctrl_stack.ids[i] != i;
-	if (!needed)
+	// v14: always, the mark of a save whose IDs are root numbers.
+	if (ain->version < 14)
 		return;
 	iarray_write(w, SAVE_CONTROLLER_IDS);
 	iarray_write(w, ctrl_stack.nr_controllers);
@@ -58,32 +66,50 @@ static void save_controller_ids(struct iarray_writer *w)
 	iarray_write(w, ctrl_stack.active);
 }
 
-static void load_controller_ids(struct iarray_reader *r)
+// The section of a save of `nr` controllers: its last nr + 3 words. Returns
+// the IDs (to be freed) and the active controller, NULL without a section.
+static int *load_controller_ids(struct iarray_reader *r, int version, int nr, int *active_out)
 {
-	if (ain->version < 14 || iarray_end(r) || iarray_read(r) != SAVE_CONTROLLER_IDS)
-		return;
-	int nr = iarray_read(r);
-	if (r->error || nr != ctrl_stack.nr_controllers)
-		return;
+	if (ain->version < 14 || version < 7 || nr < 0 || nr > PARTS_CONTROLLER_STACK_MAX)
+		return NULL;
+	unsigned len = nr + 3;
+	if (r->size < len || r->size - len < r->pos)
+		return NULL;
+	union vm_value *section = r->data + (r->size - len);
+	if (section[0].i != SAVE_CONTROLLER_IDS || section[1].i != nr)
+		return NULL;
 	int *ids = xmalloc(max(nr, 1) * sizeof(int));
-	bool valid = true;
 	for (int i = 0; i < nr; i++) {
-		ids[i] = iarray_read(r);
-		valid &= ids[i] >= 0 && ids[i] < PARTS_CONTROLLER_STACK_MAX;
+		ids[i] = section[2 + i].i;
+		bool valid = ids[i] >= PARTS_CONTROLLER_ID_BASE;
 		for (int j = 0; j < i; j++)
 			valid &= ids[j] != ids[i];
-	}
-	int active = iarray_read(r);
-	if (valid && !r->error) {
-		struct parts *parts;
-		PARTS_LIST_FOREACH(parts) {
-			if (parts->controller_no >= 0 && parts->controller_no < nr)
-				parts->controller_no = ids[parts->controller_no];
+		if (!valid) {
+			free(ids);
+			return NULL;
 		}
-		memcpy(ctrl_stack.ids, ids, nr * sizeof(int));
-		PE_set_active_controller(active);
 	}
-	free(ids);
+	*active_out = section[2 + nr].i;
+	return ids;
+}
+
+// The loaded parts' controller fields are positions; make them IDs, put the
+// top-level parts under their roots and make the saved controller active
+// (`active` is an ID when the save had the section, else a position).
+static void load_controller_finish(int active, bool is_id)
+{
+	int nr = ctrl_stack.nr_controllers;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (parts_is_controller_root(parts))
+			continue;
+		if (parts->controller_no >= 0 && parts->controller_no < nr)
+			parts->controller_no = ctrl_stack.ids[parts->controller_no];
+	}
+	if (!is_id && active != PARTS_CONTROLLER_SYSTEM_OVERLAY)
+		active = active >= 0 && active < nr ? ctrl_stack.ids[active] : -1;
+	PE_set_active_controller(active);
+	parts_controller_relink_roots();
 }
 
 static void save_parts_params(struct iarray_writer *w, struct parts_params *params)
@@ -654,7 +680,10 @@ static void save_parts(struct iarray_writer *w, struct parts *parts, int version
 
 	save_parts_params(w, &parts->local);
 	save_parts_params(w, &parts->global);
-	iarray_write(w, parts->parent ? parts->parent->no : -1);
+	// A top-level parts hangs under its controller's root (v14), which is
+	// not saved: it records no parent, as it did without the roots.
+	iarray_write(w, parts->parent && !parts_is_controller_root(parts->parent)
+			? parts->parent->no : -1);
 	iarray_write(w, parts->delegate_index);
 	iarray_write(w, parts->sprite_deform);
 	iarray_write(w, parts->clickable);
@@ -841,7 +870,7 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 	PARTS_LIST_FOREACH(parts) {
 		if (!save_hidden && !parts->global.show)
 			continue;
-		if (!parts->want_save)
+		if (!parts->want_save || parts_is_controller_root(parts))
 			continue;
 		save_parts(&w, parts, version);
 		count++;
@@ -864,7 +893,7 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 		PARTS_LIST_FOREACH(parts) {
 			if (!save_hidden && !parts->global.show)
 				continue;
-			if (!parts->want_save || !parts->edit_hidden)
+			if (!parts->want_save || !parts->edit_hidden || parts_is_controller_root(parts))
 				continue;
 			iarray_write(&w, parts->no);
 			hidden++;
@@ -919,11 +948,18 @@ bool PE_Load(struct page **buffer)
 
 	// TODO: once the Rance 9 save format stabilizes, bump save version
 	// and load based on version check
+	int active = -1;
+	int *ids = NULL;
 	if (parts_multi_controller) {
-		int active = iarray_read(&r);
-		parts_controller_set_count(iarray_read(&r));
+		active = iarray_read(&r);
+		int nr = iarray_read(&r);
+		int active_id;
+		ids = load_controller_ids(&r, version, nr, &active_id);
+		parts_controller_set_stack(nr, ids);
+		if (ids)
+			active = active_id;
 		if (ain->version >= 14)
-			PE_set_active_controller(active);
+			ctrl_stack.active = -1;	// made the loaded one below
 		else
 			ctrl_stack.active = active;
 	}
@@ -931,6 +967,7 @@ bool PE_Load(struct page **buffer)
 	int nr_parts = iarray_read(&r);
 	if (nr_parts < 0) {
 		WARNING("invalid parts count");
+		free(ids);
 		return false;
 	}
 
@@ -949,9 +986,18 @@ bool PE_Load(struct page **buffer)
 			if (parts)
 				parts_set_edit_hidden(parts, true);
 		}
-		if (parts_multi_controller)
-			load_controller_ids(&r);
+		// (the controller ID section follows; it was read first)
 	}
+	if (parts_multi_controller && ain->version >= 14) {
+		load_controller_finish(active, ids != NULL);
+		static bool warned;
+		if (!ids && !warned) {
+			warned = true;
+			WARNING("PartsEngine save without controller IDs (written before a layer's ID "
+				"became its root parts number): layer IDs the script kept from it are not valid");
+		}
+	}
+	free(ids);
 
 	parts_engine_clean();
 	return true;

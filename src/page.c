@@ -85,6 +85,10 @@ struct page *alloc_page(enum page_type type, int type_index, int nr_vars)
 	// A cached page keeps its old metadata; a multi-slot layout must be
 	// set by whoever knows it (X_A_INIT, the Array library), never found.
 	page->array.elem_slots = 0;
+	// A new delegate has no call in progress (also a copy: copy_page
+	// starts from here).
+	if (type == DELEGATE_PAGE)
+		page->dg.cursor = page->dg.limit = 0;
 	return page;
 }
 
@@ -1219,17 +1223,18 @@ void delegate_page_register(int slot)
 	}
 }
 
+static void delegate_remove_at(struct page *page, int index);
+
 static void delegate_drop_entries(struct page *dg, int obj)
 {
-	// back to front, as 0x652970 does
+	// back to front, as 0x652970 does; each entry goes through the one
+	// remove function (0x6529e9: vtable +0xc = 0x652330), so a call in
+	// progress keeps its place here too
 	for (int i = dg->nr_vars - 3; i >= 0; i -= 3) {
-		if (dg->values[i].i != obj)
+		// (releasing an environment can drop further entries)
+		if (i + 2 >= dg->nr_vars || dg->values[i].i != obj)
 			continue;
-		int env = dg->values[i+2].i;
-		for (int j = i + 3; j < dg->nr_vars; j++)
-			dg->values[j-3] = dg->values[j];
-		dg->nr_vars -= 3;
-		heap_unref(env);
+		delegate_remove_at(dg, i / 3);
 	}
 }
 
@@ -1296,6 +1301,16 @@ bool delegate_contains(struct page *dst, int obj, int fun)
 	return false;
 }
 
+static int delegate_find(struct page *page, int obj, int fun);
+
+static bool delegate_trace_enabled(void)
+{
+	static int enabled = -1;
+	if (enabled < 0)
+		enabled = getenv("XSYS4_STAGE2_TRACE") != NULL;
+	return enabled;
+}
+
 static struct page *delegate_append_env(struct page *dst, int obj, int fun, int env)
 {
 	if (!dst)
@@ -1304,15 +1319,32 @@ static struct page *delegate_append_env(struct page *dst, int obj, int fun, int 
 		WARNING("delegate_append: not a delegate (type=%d), creating new", dst->type);
 		return delegate_new_from_method_env(obj, fun, env);
 	}
-	if (delegate_contains(dst, obj, fun))
+	if (ain->version >= 14) {
+		// 0x652210: an entry that is already there is removed first
+		// (0x65225b, the cursor and the limit follow) and the new one
+		// goes to the end. The limit is not raised: an entry added
+		// while the delegate is being called is not called this time.
+		if (heap_index_valid(env))
+			heap_ref(env);
+		int index = delegate_find(dst, obj, fun);
+		if (index >= 0) {
+			// Trace: the order of the handlers changes (the entry
+			// used to stay where it was).
+			static unsigned traced;
+			if (index * 3 + 3 != dst->nr_vars && delegate_trace_enabled() && traced++ < 30)
+				WARNING("S2 delegate: entry %d of %d added again goes to the end (fun %d '%s')",
+					index, dst->nr_vars / 3, fun,
+					fun >= 0 && fun < ain->nr_functions ? display_game0(ain->functions[fun].name) : "?");
+			delegate_remove_at(dst, index);
+		}
+	} else if (delegate_contains(dst, obj, fun)) {
 		return dst;
+	}
 
 	dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * (dst->nr_vars + 3));
 	dst->values[dst->nr_vars+0].i = obj;
 	dst->values[dst->nr_vars+1].i = fun;
 	dst->values[dst->nr_vars+2].i = ain->version >= 14 ? env : heap_get_seq(obj);
-	if (ain->version >= 14 && heap_index_valid(env))
-		heap_ref(env);
 	dst->nr_vars += 3;
 	return dst;
 }
@@ -1352,6 +1384,94 @@ int delegate_numof(struct page *page)
 	return page->nr_vars / 3;
 }
 
+/*
+ * v14: a delegate call in progress (DG_CALLBEGIN until DG_CALL finds no
+ * entry). The original keeps two fields in the delegate object, the cursor
+ * (+0x2c) and the limit (+0x30); here they are page->dg. They belong to the
+ * delegate, not to the call: a nested call of the same delegate starts them
+ * over, and the outer call ends with the inner one.
+ *
+ *   DG_CALLBEGIN (0x66daf3): cursor = 0, limit = number of entries.
+ *   DG_CALL (0x66df92 -> 0x652a30): while cursor < limit, entry `cursor`
+ *     is called and the cursor goes up by one.
+ *   remove (0x652330, at 0x652394): an entry before the cursor takes the
+ *     cursor down with it, so that the entry after it is not skipped; the
+ *     limit goes down by one in any case.
+ *   add (0x652210): removes the same entry first, then appends; the limit
+ *     stays, so an entry added during the call is not called by it.
+ *   clear (0x652620): both 0, which ends the call. DG_ASSIGN and Set clear
+ *     first (0x66fc27, 0x6522a0); here they make a new page, which starts
+ *     with both 0 as well.
+ *   an object's entries dropped when it is freed (0x652970): the same
+ *     remove function.
+ *
+ * parts::detail::CallErasingLayerEvent calls g_dgPartsErasingLayerEvent
+ * while each CMessageWindow@OnErasingLayer that matches takes itself out of
+ * it (EraseErasingLayerEvent, DG_MINUSA). With a cursor that stayed, the
+ * window registered after a released one was skipped, never released, and
+ * the next ADV scene wrote into a blank parts.
+ *
+ * Engines before v14 keep the index on the VM stack and none of the above.
+ */
+void delegate_call_begin(struct page *page)
+{
+	if (!page || page->type != DELEGATE_PAGE)
+		return;
+	page->dg.cursor = 0;
+	page->dg.limit = page->nr_vars / 3;
+}
+
+bool delegate_call_next(struct page *page, int *obj_out, int *fun_out, int *env_out)
+{
+	if (!page)
+		return false;
+	if (page->type != DELEGATE_PAGE) {
+		WARNING("delegate_call_next: not a delegate (type=%d)", page->type);
+		return false;
+	}
+	int i = page->dg.cursor * 3;
+	if (page->dg.cursor >= page->dg.limit || i < 0 || i + 2 >= page->nr_vars)
+		return false;
+	*obj_out = page->values[i].i;
+	*fun_out = page->values[i+1].i;
+	*env_out = page->values[i+2].i;
+	page->dg.cursor++;
+	return true;
+}
+
+static int delegate_find(struct page *page, int obj, int fun)
+{
+	for (int i = 0; i + 2 < page->nr_vars; i += 3) {
+		if (page->values[i].i == obj && page->values[i+1].i == fun)
+			return i / 3;
+	}
+	return -1;
+}
+
+/* v14: takes entry `index` out (0x652330). */
+static void delegate_remove_at(struct page *page, int index)
+{
+	int env = page->values[index*3+2].i;
+	// Trace: an entry that was already called goes while others are still
+	// to come (by DG_MINUSA, Delegate.Erase or because its object was
+	// freed); the entry after it used to be skipped.
+	static unsigned traced;
+	if (page->dg.cursor > index && page->dg.cursor < page->dg.limit
+			&& delegate_trace_enabled() && traced++ < 40) {
+		int fun = page->values[index*3+1].i;
+		WARNING("S2 delegate: entry %d removed during a call (cursor %d, limit %d; fun %d '%s')",
+			index, page->dg.cursor, page->dg.limit, fun,
+			fun >= 0 && fun < ain->nr_functions ? display_game0(ain->functions[fun].name) : "?");
+	}
+	for (int j = index*3 + 3; j < page->nr_vars; j++)
+		page->values[j-3] = page->values[j];
+	page->nr_vars -= 3;
+	if (index < page->dg.cursor)
+		page->dg.cursor--;
+	page->dg.limit--;
+	heap_unref(env);
+}
+
 void delegate_erase(struct page *page, int obj, int fun)
 {
 	if (!page)
@@ -1360,17 +1480,20 @@ void delegate_erase(struct page *page, int obj, int fun)
 		WARNING("delegate_erase: not a delegate (type=%d)", page->type);
 		return;
 	}
+	if (ain->version >= 14) {
+		int index = delegate_find(page, obj, fun);
+		if (index >= 0)
+			delegate_remove_at(page, index);
+		return;
+	}
 	for (int i = 0; i < page->nr_vars; i += 3) {
 		if (page->values[i].i == obj && page->values[i+1].i == fun) {
-			int old_env = page->values[i+2].i;
 			for (int j = i+3; j < page->nr_vars; j += 3) {
 				page->values[j-3].i = page->values[j+0].i;
 				page->values[j-2].i = page->values[j+1].i;
 				page->values[j-1].i = page->values[j+2].i;
 			}
 			page->nr_vars -= 3;
-			if (ain->version >= 14)
-				heap_unref(old_env);
 			break;
 		}
 	}
@@ -1385,6 +1508,11 @@ struct page *delegate_plusa(struct page *dst, struct page *add)
 		return dst;
 	}
 
+	// v14: 0x652710 removes the entries of `add` from dst (0x652830) and
+	// appends them, which is what appending them one by one does. Adding
+	// a delegate to itself changes nothing here.
+	if (ain->version >= 14 && dst == add)
+		return dst;
 	for (int i = 0; i < add->nr_vars; i += 3) {
 		if (ain->version >= 14 || heap_get_seq(add->values[i].i) == add->values[i+2].i)
 			dst = delegate_append_env(dst, add->values[i].i, add->values[i+1].i,
@@ -1427,6 +1555,8 @@ struct page *delegate_clear(struct page *page)
 		if (count) memcpy(old, page->values, sizeof(*old) * count);
 		page->index = 0;
 		page->nr_vars = 0;
+		// a call in progress ends (0x6526d4, 0x6526db)
+		page->dg.cursor = page->dg.limit = 0;
 		for (int i = 0; i + 2 < count; i += 3)
 			heap_unref(old[i+2].i);
 		free(old);

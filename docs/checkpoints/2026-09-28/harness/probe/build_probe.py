@@ -33,7 +33,7 @@ compiled=[compile_as('vm.c',here/'runtime_probe.c',vmobj,['-DFFI_SOURCE="'+str(s
 # Probe-only entry points expose existing static initialization/loader functions.
 # Never patch production behavior or initialize GL for synthetic empty text.
 parts_shadow = here/'probe-parts.c'
-parts_shadow.write_text((source/'src/parts/parts.c').read_text()+"\nvoid probe_init_parts_table(void) { parts_table = ht_create(1024); ctrl_stack_init(); }\n")
+parts_shadow.write_text((source/'src/parts/parts.c').read_text()+"\n/* The v14 controller stack makes a root parts per layer (layer-root), which the parts list keeps; a table made anew while they are there would leave them unreachable, and parts_release_all would spin on them. */ void probe_init_parts_table(void) { if (parts_table) parts_release_all(); parts_table = ht_create(1024); ctrl_stack_init(); }\n")
 activity_shadow = here/'probe-activity.c'
 activity_shadow.write_text((source/'src/hll/pe_v14_activity.c').read_text()+"\nbool probe_load_activity_tree(struct string *name, struct ex *ex) { if (!PartsEngine_CreateActivity(name)) return false; int i = find_activity(name); return i >= 0 && pactex_load(&activities[i], ex); }\n")
 partsobj=here/('parts-'+a.variant+'.o'); activityobj=here/('activity-'+a.variant+'.o')

@@ -311,17 +311,25 @@ static void bu_parent(void)
 	BU_PE("Parts_SetParentPartsNumber", BU_I(C), BU_I(P));
 	int n = BU_PE("NumofChild", BU_I(P)).i, c0 = BU_PE("GetChild", BU_I(P), BU_I(0)).i;
 	BU_CHECK(n == 1 && c0 == C, "attach: NumofChild(P) = %d, GetChild(P, 0) = %d, want 1 and %d", n, c0, C);
+	/* A top-level parts hangs under its layer's root parts, whose number is
+	 * the layer ID (0x53d1d0 -> 0x53afb0 writes it to +0x13c, which
+	 * Parts_GetParentPartsNumber 0x58f110 reads); see layer-root. */
+	int layer = PE_get_active_controller();
+	/* (while a layer's ID was its position, the default layer's was 0, the
+	 * same number "no parent" reads as: say that it is a root's now) */
+	BU_CHECK(layer != 0 && parts_try_get(layer), "the layer's ID %d is not the number of a root parts", layer);
 	BU_PE("Parts_SetParentPartsNumber", BU_I(P), BU_I(C));	/* would make a cycle */
 	n = BU_PE("NumofChild", BU_I(C)).i;
 	int pp = BU_PE("Parts_GetParentPartsNumber", BU_I(P)).i;
-	BU_CHECK(n == 0 && pp == 0, "cycle: NumofChild(C) = %d, parent of P = %d, want 0 and 0", n, pp);
+	BU_CHECK(n == 0 && pp == layer, "cycle: NumofChild(C) = %d, parent of P = %d, want 0 and the layer %d", n, pp, layer);
 	BU_PE("Parts_SetParentPartsNumber", BU_I(C), BU_I(987654));	/* unknown parent */
 	pp = BU_PE("Parts_GetParentPartsNumber", BU_I(C)).i;
 	BU_CHECK(pp == P, "unknown parent: parent of C = %d, want %d", pp, P);
+	/* 0 puts the parts back under the layer's root (0x53ab60). */
 	BU_PE("Parts_SetParentPartsNumber", BU_I(C), BU_I(0));
 	n = BU_PE("NumofChild", BU_I(P)).i;
 	pp = BU_PE("Parts_GetParentPartsNumber", BU_I(C)).i;
-	BU_CHECK(n == 0 && pp == 0, "detach: NumofChild(P) = %d, parent of C = %d, want 0 and 0", n, pp);
+	BU_CHECK(n == 0 && pp == layer, "detach: NumofChild(P) = %d, parent of C = %d, want 0 and the layer %d", n, pp, layer);
 	/* A scaled parent scales the child's offset from the parent's anchor. */
 	BU_PE("Parts_SetParentPartsNumber", BU_I(C), BU_I(P));
 	BU_PE("SetComponentPos", BU_I(P), BU_F(100), BU_F(100));

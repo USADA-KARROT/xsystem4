@@ -220,6 +220,9 @@ static void ia_delegate(void)
 	stack_push(dgslot);
 	stack_push(0);
 	instr_ptr = VM_RETURN - instruction_width(DG_CALL);
+#ifdef DELEGATE_CALL_STATE_IN_PAGE	/* v14: DG_CALLBEGIN also starts the call in the delegate (0x66daf3) */
+	delegate_call_begin(heap_get_delegate_page(dgslot));
+#endif
 	delegate_call(dg, 0);
 	vm_execute();
 	instr_ptr = ip;
@@ -343,6 +346,9 @@ static void ia_delegate_option(void)
 	stack_push(0);
 	stack_push(0);
 	instr_ptr = VM_RETURN - instruction_width(DG_CALL);
+#ifdef DELEGATE_CALL_STATE_IN_PAGE	/* v14: DG_CALLBEGIN also starts the call in the delegate (0x66daf3) */
+	delegate_call_begin(heap_get_delegate_page(dgslot));
+#endif
 	delegate_call(dg, 0);
 	vm_execute();
 	instr_ptr = ip;

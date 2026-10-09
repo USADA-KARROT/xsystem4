@@ -546,8 +546,28 @@ const char *parts_uc_data_get(struct parts *parts, const char *key);
 // root parts (e.g. 0x53d480). Engines before v14 only push and pop, so there
 // the ID always equals the position. The system overlay controller lives
 // outside the stack.
+//
+// v14: the ID is the number of the controller's root parts (the original's
+// ctrl+4, whose number +0x40 every lookup compares). Each new parts is linked
+// under the root of the controller it goes to (0x578cb0 -> 0x53d1d0 ->
+// 0x53afb0: the new parts' parent number +0x13c becomes the root's number and
+// the root's child list +0xbc gets the new number), so Parent::get of a
+// top-level parts is its layer ID, the root's children are the layer's
+// top-level parts, and the root itself has no parent (its +0x13c stays 0: the
+// table's listener is off while 0x53d220 creates the two roots). The script
+// relies on all of that: AFL_Parts_GetLayerIDByParts walks Parent::get up to
+// 0 and returns the last number; AdvMessageWindow@SearchMessageBoxWindow
+// lists GetChild of the active layer's ID; CMessageWindow@OnErasingLayer
+// compares the walked ID with EraseLayer's. The root is not drawn, not hit
+// and not saved, and goes with its controller (0x53bea0 releases both roots).
+// The original takes the numbers from the free-number allocator (base
+// 1000010000, 0x539b13); here they come from their own range below the
+// numbers PE_GetFreeNumber hands out, which starts at 1000001000, so the
+// two never meet. The system overlay controller keeps its constant and has
+// no root parts (parts on it have no parent, as before).
 #define PARTS_CONTROLLER_STACK_MAX 10000
 #define PARTS_CONTROLLER_SYSTEM_OVERLAY PARTS_CONTROLLER_STACK_MAX
+#define PARTS_CONTROLLER_ID_BASE 1000000000
 
 struct parts_controller_stack {
 	int nr_controllers;
@@ -562,10 +582,27 @@ extern struct parts_controller_stack ctrl_stack;
 extern bool parts_multi_controller;
 int parts_controller_index(int id);
 void parts_controller_move(int id, int index);
-void parts_controller_set_count(int nr);
+void parts_controller_set_stack(int nr, const int *ids);
+// The ID a save without an ID section gives the controller at a position.
+int parts_controller_default_id(int position);
+// v14: the controller's root parts (created when missing), NULL for the
+// system overlay controller, an unknown ID, or an older engine.
+struct parts *parts_controller_root(int id);
+bool parts_is_controller_root(struct parts *parts);
+// Puts every parts that has no parent or a root as its parent under the root
+// of the controller it belongs to (after loading a save).
+void parts_controller_relink_roots(void);
+
+// pe_v14_activity.c
+// A controller is releasing the parts of this number; if it is an activity
+// component (a pactex part), remember that. The activity table keeps its
+// entries (and IsExistActivity its answer) when a controller releases parts.
+void pe_v14_activity_parts_released(int parts_no);
+bool pe_v14_activity_number_released(int parts_no);
 
 struct parts *parts_try_get(int parts_no);
 struct parts *parts_get(int parts_no);
+bool parts_exists(int parts_no);
 struct parts_cg *parts_get_cg(struct parts *parts, int state);
 struct parts_text *parts_get_text(struct parts *parts, int state);
 struct parts_animation *parts_get_animation(struct parts *parts, int state);

@@ -89,6 +89,20 @@ struct page {
 			int elem_slots;
 		} array;
 	};
+	// delegate-specific metadata (v14): the call in progress, which the
+	// original keeps in the delegate object. DG_CALLBEGIN (0x66daf3) sets
+	// the cursor to 0 and the limit to the number of entries; DG_CALL
+	// takes entry `cursor` while cursor < limit (0x652a30); removing,
+	// adding and clearing entries adjust both (delegate_remove_at,
+	// page.c). Not saved: RSM has no fields for them, so a call in
+	// progress ends when an image is loaded.
+	// Not in the union above: a cached page keeps its metadata for its
+	// next user (alloc_page), and an array page made from what was a
+	// delegate must not find these in its struct type and rank.
+	struct {
+		int cursor;
+		int limit;
+	} dg;
 	int nr_vars;
 	union vm_value values[];
 };
@@ -158,6 +172,10 @@ struct page *delegate_new_from_method_env(int obj, int fun, int env);
 int delegate_numof(struct page *page);
 bool delegate_contains(struct page *dst, int obj, int fun);
 void delegate_erase(struct page *page, int obj, int fun);
+// v14: the call in progress lives in the delegate page (struct page.dg)
+#define DELEGATE_CALL_STATE_IN_PAGE 1
+void delegate_call_begin(struct page *page);
+bool delegate_call_next(struct page *page, int *obj_out, int *fun_out, int *env_out);
 struct page *delegate_append(struct page *dst, int obj, int fun);
 struct page *delegate_plusa(struct page *dst, struct page *add);
 struct page *delegate_minusa(struct page *dst, struct page *minus);

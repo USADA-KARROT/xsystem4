@@ -85,6 +85,43 @@ static int alloc_activity_parts_no(void)
 	return next_activity_parts_no++;
 }
 
+/* Activity components whose parts a controller released (RemoveController,
+ * ReleaseAllWithoutSystem), one byte per number handed out; numbers are
+ * never handed out twice.
+ *
+ * The activity table itself is the script's and stays as it is: entries go
+ * when the script releases the activity (ReleaseActivity 0x540050 and the
+ * like), not when a controller releases the parts. The original's
+ * RemoveController (0x53d500 -> 0x5386c0, 0x53bea0) does not touch the table
+ * IsExistActivity (0x58a7a0) looks names up in, and the script counts on
+ * that: activity::detail::GetFreeName takes the first name IsExistActivity
+ * does not know, so a name must stay taken for as long as its owner has not
+ * released it, also after the layer it was loaded on is gone (the customer
+ * cards of the sale result screen). So the table can name parts that no
+ * longer exist; this only remembers which, for parts_get to say so when
+ * such a number is written to again. */
+static uint8_t *controller_released;
+static int controller_released_size;
+
+void pe_v14_activity_parts_released(int parts_no)
+{
+	if (parts_no < ACTIVITY_PARTS_BASE || parts_no >= next_activity_parts_no)
+		return;
+	int i = parts_no - ACTIVITY_PARTS_BASE;
+	if (i >= controller_released_size) {
+		int size = max(next_activity_parts_no - ACTIVITY_PARTS_BASE, controller_released_size * 2);
+		controller_released = xrealloc_array(controller_released, controller_released_size, size, 1);
+		controller_released_size = size;
+	}
+	controller_released[i] = 1;
+}
+
+bool pe_v14_activity_number_released(int parts_no)
+{
+	int i = parts_no - ACTIVITY_PARTS_BASE;
+	return i >= 0 && i < controller_released_size && controller_released[i];
+}
+
 /* Pactex files use SJIS encoding for field names (confirmed from tree dump).
  * We match against raw SJIS byte patterns. */
 
@@ -1597,6 +1634,12 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	pactex_nr_clippers = 0;
 	int root_no = alloc_activity_parts_no();
 	struct parts *root = parts_get(root_no);
+	{
+		static unsigned traced;
+		if (getenv("XSYS4_STAGE2_TRACE") && traced++ < 200)
+			WARNING("S2 layer-root load: activity '%s' root %d on controller %d (active %d)",
+				display_game0(act->name), root_no, root->controller_no, PE_get_active_controller());
+	}
 
 	/* Store user component name for root */
 	free(root->user_component_name);

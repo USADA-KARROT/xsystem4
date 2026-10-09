@@ -41,6 +41,7 @@ struct parts_controller_stack ctrl_stack;
 bool parts_multi_controller;
 
 static void ctrl_stack_init(void);
+static void ctrl_root_attach(struct parts *parts);
 
 #define PARTS_PARAMS_INITIALIZER (struct parts_params) { \
 	.z = 1, \
@@ -178,6 +179,21 @@ struct parts *parts_get(int parts_no)
 	parts->controller_no = PE_get_active_controller();
 	slot->value = parts;
 	parts_list_insert(parts);
+	if (ain->version >= 14) {
+		// A number of an activity component whose parts went with its
+		// controller is written to again: the script still holds the
+		// activity and gets a blank parts, as before; say so
+		// (CMessageWindow after an erased ADV layer did this silently).
+		static unsigned stale_warnings;
+		if (stale_warnings < 8 && pe_v14_activity_number_released(parts_no)) {
+			stale_warnings++;
+			WARNING("stale activity parts %d re-created on controller %d",
+					parts_no, parts->controller_no);
+		}
+		// ... and hangs under the root of its controller (0x53d1d0 ->
+		// 0x53afb0).
+		ctrl_root_attach(parts);
+	}
 	return parts;
 }
 
@@ -2157,8 +2173,11 @@ void PE_ReleaseAllWithoutSystem(struct page **erase_number_list)
 	while (parts) {
 		struct parts *next = TAILQ_NEXT(parts, parts_list_entry);
 		if (parts->controller_no != PARTS_CONTROLLER_SYSTEM_OVERLAY) {
-			*erase_number_list = array_pushback(*erase_number_list,
-					(union vm_value){.i = parts->no}, AIN_ARRAY_INT, -1);
+			if (!parts_is_controller_root(parts))
+				*erase_number_list = array_pushback(*erase_number_list,
+						(union vm_value){.i = parts->no}, AIN_ARRAY_INT, -1);
+			if (ain->version >= 14)
+				pe_v14_activity_parts_released(parts->no);
 			parts_release(parts->no);
 		}
 		parts = next;
@@ -2335,17 +2354,50 @@ static bool parts_is_ancestor(struct parts *ancestor, struct parts *parts)
 	return false;
 }
 
+/* v14: a parts belongs to the controller whose root its tree hangs on. The
+ * original keeps no other record (0x53afb0 only moves the parts from one
+ * child list to another; RemoveController collects a controller's parts from
+ * its root's subtree, 0x5386c0). Here controller_no says it, so a subtree
+ * that moves under a parts of another controller takes that controller's
+ * number and its place in the drawing order. */
+static void parts_set_controller(struct parts *parts, int controller_no)
+{
+	if (parts->controller_no != controller_no) {
+		parts->controller_no = controller_no;
+		parts_list_resort(parts);
+	}
+	struct parts *child;
+	PARTS_FOREACH_CHILD(child, parts) {
+		parts_set_controller(child, controller_no);
+	}
+}
+
 /* v14: the native setter (0x58f060 -> 0x58f310 -> 0x550d90) links the child
- * immediately and 0 detaches it (0x53ab60); an unknown parent is ignored.
+ * immediately and 0 puts it back under its controller's root (0x53ab60); an
+ * unknown parent is ignored.
  * AIN walks the tree with NumofChild/GetChild in the same call, e.g.
  * activity::detail::CallUserComponentEventWithChild right after ReadFile. */
 static void parts_set_parent_now(struct parts *parts, int parent_parts_no)
 {
+	// A controller's root stays where it is (0x53b018 for a parent,
+	// 0x53ab93 for 0).
+	if (parts_is_controller_root(parts))
+		return;
 	struct parts *parent = NULL;
 	if (parent_parts_no != 0) {
 		parent = parts_try_get(parent_parts_no);
 		if (!parent || parts_is_ancestor(parts, parent))
 			return;
+	} else {
+		// 0: under the root at the top of the parts' parent chain
+		// (0x53ab60 -> 0x534f00). A tree without one (the system
+		// overlay's, which has no root here) leaves the parts without a
+		// parent.
+		struct parts *top = parts;
+		while (top->parent)
+			top = top->parent;
+		parent = parts_is_controller_root(top) ? top
+			: parts_controller_root(parts->controller_no);
 	}
 	parts->pending_parent = -1;
 	if (parts->parent == parent)
@@ -2361,6 +2413,13 @@ static void parts_set_parent_now(struct parts *parts, int parent_parts_no)
 	}
 	parts->parent = parent;
 	if (parent) {
+		if (ain->version >= 14 && parent->controller_no != parts->controller_no) {
+			static unsigned traced;
+			if (getenv("XSYS4_STAGE2_TRACE") && traced++ < 60)
+				WARNING("S2 layer-root reparent: parts %d (controller %d) under %d (controller %d)",
+					parts->no, parts->controller_no, parent->no, parent->controller_no);
+			parts_set_controller(parts, parent->controller_no);
+		}
 		TAILQ_INSERT_TAIL(&parent->children, parts, child_list_entry);
 		if (parent->states[0].type == PARTS_LAYOUT_BOX)
 			parts_component_dirty(parent);
@@ -2814,15 +2873,90 @@ static int ctrl_active_index(void)
 	return index >= 0 ? index : ctrl_stack.nr_controllers - 1;
 }
 
-// The smallest ID that is not in use, so that controllers pushed and popped
-// in order keep ID == position. The original takes the ID from the allocator
-// of free parts numbers, which also hands out the lowest free one (0x418650).
+// The smallest ID that is not in use. The original takes the ID from the
+// allocator of free parts numbers, which also hands out the lowest free one
+// (0x418650). v14: a parts number from PARTS_CONTROLLER_ID_BASE up, skipping
+// a number some parts already has (the script may Wrap a layer ID it kept
+// after erasing the layer, which creates a parts of that number); older
+// engines: the position, so that pushes and pops keep ID == position.
 static int ctrl_alloc_id(void)
 {
-	int id = 0;
-	while (parts_controller_index(id) >= 0)
+	int id = ain->version >= 14 ? PARTS_CONTROLLER_ID_BASE : 0;
+	while (parts_controller_index(id) >= 0
+			|| (ain->version >= 14 && parts_table && parts_exists(id)))
 		id++;
 	return id;
+}
+
+int parts_controller_default_id(int position)
+{
+	return ain->version >= 14 ? PARTS_CONTROLLER_ID_BASE + position : position;
+}
+
+bool parts_is_controller_root(struct parts *parts)
+{
+	return ain->version >= 14 && parts->no >= PARTS_CONTROLLER_ID_BASE
+		&& parts->no == parts->controller_no;
+}
+
+// v14: the root parts of a controller, numbered with the controller's ID.
+// It has no state, so it is neither drawn nor hit, and saves leave it out.
+// Made outside parts_get, so that it hangs under nothing (0x53d24d: the
+// table's listener is off while 0x53d220 makes the roots).
+static struct parts *ctrl_root_create(int id)
+{
+	struct parts *root = parts_alloc();
+	root->no = id;
+	root->controller_no = id;
+	root->want_save = false;
+	// Neutral for its children: a top-level parts keeps the global z it
+	// had without a parent (parts_combine_params adds the parent's).
+	root->local.z = root->global.z = 0;
+	struct ht_slot *slot = ht_put_int(parts_table, id, NULL);
+	slot->value = root;
+	parts_list_insert(root);
+	return root;
+}
+
+struct parts *parts_controller_root(int id)
+{
+	if (ain->version < 14 || id < PARTS_CONTROLLER_ID_BASE)
+		return NULL;
+	struct parts *root = parts_try_get(id);
+	if (!root && parts_controller_index(id) >= 0)
+		root = ctrl_root_create(id);
+	return root;
+}
+
+// Links a parts that hangs under nothing, or under some controller's root,
+// under the root of its own controller (0x53d1d0 -> 0x53afb0, +0x13c and
+// +0xbc). A parts with a real parent is left where it is.
+static void ctrl_root_attach(struct parts *parts)
+{
+	struct parts *root = parts_controller_root(parts->controller_no);
+	if (root == parts || parts->parent == root)
+		return;
+	if (parts->parent) {
+		if (!parts_is_controller_root(parts->parent))
+			return;
+		TAILQ_REMOVE(&parts->parent->children, parts, child_list_entry);
+		parts->parent = NULL;
+	}
+	if (root) {
+		parts->parent = root;
+		TAILQ_INSERT_TAIL(&root->children, parts, child_list_entry);
+	}
+}
+
+void parts_controller_relink_roots(void)
+{
+	if (ain->version < 14)
+		return;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!parts_is_controller_root(parts))
+			ctrl_root_attach(parts);
+	}
 }
 
 static void ctrl_insert(int index, int id)
@@ -2871,13 +3005,17 @@ static void ctrl_resort_from(int index)
 	free(moved);
 }
 
-// The stack as a save holds it: `nr` controllers with ID == position.
-void parts_controller_set_count(int nr)
+// The stack as a save holds it: `nr` controllers with the IDs the save names
+// (v14), or without them their default IDs (the position; v14: the root
+// number for the position), roots included.
+void parts_controller_set_stack(int nr, const int *ids)
 {
 	nr = max(0, min(nr, PARTS_CONTROLLER_STACK_MAX));
 	ctrl_stack.nr_controllers = 0;
-	for (int i = 0; i < nr; i++)
-		ctrl_insert(i, i);
+	for (int i = 0; i < nr; i++) {
+		ctrl_insert(i, ids ? ids[i] : parts_controller_default_id(i));
+		parts_controller_root(ctrl_stack.ids[i]);
+	}
 }
 
 // Adds a new controller to the stack, makes it active and returns its ID.
@@ -2918,6 +3056,9 @@ int PE_AddController(int index)
 	int id = ctrl_alloc_id();
 	ctrl_insert(pos, id);
 	ctrl_stack.active = id;
+	// The ID is the number of the controller's root parts (0x53d220).
+	if (parts_table)
+		ctrl_root_create(id);
 	ctrl_resort_from(pos + 1);
 	return id;
 }
@@ -2934,8 +3075,13 @@ static void ctrl_release_parts(struct page **erase_number_list, int id)
 	while (p) {
 		struct parts *next = TAILQ_NEXT(p, parts_list_entry);
 		if (p->controller_no == id) {
-			*erase_number_list = array_pushback(*erase_number_list,
-					(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
+			// The root goes too, but is not in the list: 0x5386c0 walks
+			// the root's children.
+			if (!parts_is_controller_root(p))
+				*erase_number_list = array_pushback(*erase_number_list,
+						(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
+			if (ain->version >= 14)
+				pe_v14_activity_parts_released(p->no);
 			parts_release(p->no);
 		}
 		p = next;

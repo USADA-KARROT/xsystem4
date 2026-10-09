@@ -276,10 +276,24 @@ static void pe_v14_trace_window(const char *operation, const char *phase,
 		p->global.show, p->global.alpha, p->global.pos.x, p->global.pos.y);
 }
 
+// The first 12 calls of each operation are traced; a call on a parts that
+// does not exist is traced past that, with its own bound, since the script
+// writing to a window whose parts went (its layer was erased) is what the
+// trace is for.
+static bool pe_v14_trace_window_enabled(unsigned *count, int parts_no)
+{
+	static unsigned missing_count;
+	if (!getenv("XSYS4_STAGE2_TRACE"))
+		return false;
+	if ((*count)++ < 12)
+		return true;
+	return !parts_try_get(parts_no) && missing_count++ < 20;
+}
+
 static void PE_v14_SetMessageWindowActive(int parts_no, bool active)
 {
 	static unsigned trace_count;
-	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
+	bool trace = pe_v14_trace_window_enabled(&trace_count, parts_no);
 	if (trace) pe_v14_trace_window("Active", "before", parts_no, -1, active);
 	struct parts *parts = parts_try_get(parts_no);
 	if (!parts)
@@ -293,7 +307,7 @@ static void PE_v14_SetMessageWindowText(int parts_no, struct string *text,
 		int msg_num, struct string *func_name, int ver, int step)
 {
 	static unsigned trace_count;
-	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
+	bool trace = pe_v14_trace_window_enabled(&trace_count, parts_no);
 	int text_size = text ? text->size : -1;
 	if (trace) pe_v14_trace_window("Text", "before", parts_no, text_size, -1);
 	PE_SetMessageWindowText(parts_no, text, msg_num, func_name, ver, step);
@@ -313,7 +327,7 @@ static bool PE_v14_IsFixedMessageWindowText(possibly_unused int parts_no)
 static void PE_v14_SetMessageWindowCGName(int parts_no, struct string *name)
 {
 	static unsigned trace_count;
-	bool trace = getenv("XSYS4_STAGE2_TRACE") && trace_count++ < 12;
+	bool trace = pe_v14_trace_window_enabled(&trace_count, parts_no);
 	int name_size = name ? name->size : -1;
 	if (trace) pe_v14_trace_window("CGName", "before", parts_no, name_size, -1);
 	PE_SetMessageWindowCGName(parts_no, name);

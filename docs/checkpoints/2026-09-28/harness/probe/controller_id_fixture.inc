@@ -29,22 +29,36 @@
  *   CI9  EraseLayer with an ID that is not there; the last layer stays.
  *   CI10 GetControllerID, GetControllerIndex, MoveController.
  *   CI11 PE_Save and PE_Load of a stack whose IDs are not the positions; a
- *        save without the ID section reads as before.
+ *        save without the ID section gives every layer the ID of its
+ *        position (layer-root LR8: and warns).
  *   CI12 hit order follows the stack after a move.
  *   CI13 the system overlay controller is not in the stack: a layer added
  *        while it is active goes on top.
  * Guards, which pass before the change as well:
- *   CI14 layers only pushed with -1 and popped: every value as before, and a
- *        save of such a stack has no ID section.
+ *   CI14 layers only pushed with -1 and popped: the stack, the active layer
+ *        and the sprite layers as before, and the words of a save of such a
+ *        stack before its ID section.
  *   CI15 an engine before v14: the push and pop contract, its errors, its
  *        save bytes.
  * Each case runs in its own fork. Only functions that exist before the change
  * are referenced. No game assets or GL are used.
  */
 
+/* IDs are taken lowest-free from a base: 0 while the ID was the position,
+ * the layer root parts numbers (PARTS_CONTROLLER_ID_BASE) since layer-root
+ * (the original's come from the free-number allocator, 0x418650). CI_ID(i)
+ * is the i-th ID over the default layer's, which a stack only pushed holds
+ * at position i; the cases here are about the stack, not the numbers
+ * (layer-root pins those). CI15 makes its v13 stack anew: that engine's IDs
+ * are positions. */
+static int ci_base;
+#define CI_ID(i) (ci_base + (i))
+
 static int ci_failures;
 #define CI_CHECK(c, ...) do { if (!(c)) { printf("  FAIL: "); printf(__VA_ARGS__); printf("\n"); ci_failures++; } } while (0)
 #define CI_OVERLAY 10000
+
+extern void probe_init_parts_table(void);
 
 static int ci_fn(const char *name)
 {
@@ -114,7 +128,8 @@ static void ci_setup(void)
 			? (union vm_value){ .i = vm_construct_struct(t->struc) }
 			: variable_initval(t->data);
 	}
-	if (!parts_multi_controller || ci_len() != 1 || ci_id_at(0) != 0 || ci_active() != 0) {
+	ci_base = ci_id_at(0);
+	if (!parts_multi_controller || ci_len() != 1 || ci_active() != ci_base || ci_base < 0) {
 		printf("CONTROLLER-ID setup: multi=%d layers=%d first=%d active=%d\n",
 		       parts_multi_controller, ci_len(), ci_id_at(0), ci_active());
 		exit(2);
@@ -239,15 +254,16 @@ static void ci_parts_layer(void)
 	ci_part(CI_P0);
 	int layer = vm_construct_struct(st);	/* a CASPartsLayer local */
 	int id = ci_layer_id(layer);
-	CI_CHECK(ci_len() == 2 && id > 0 && id == ci_active() && ci_layer_prev(layer) == 0,
-		 "after the constructor: %d layers, LayerID %d, active %d, prevLayerID %d; want 2, the new layer twice, 0",
-		 ci_len(), id, ci_active(), ci_layer_prev(layer));
+	/* CASPartsLayer@Add keeps AFL_Parts_GetActiveLayer() as prevLayerID: the default layer's ID. */
+	CI_CHECK(ci_len() == 2 && id > 0 && id == ci_active() && ci_layer_prev(layer) == CI_ID(0),
+		 "after the constructor: %d layers, LayerID %d, active %d, prevLayerID %d; want 2, the new layer twice, %d",
+		 ci_len(), id, ci_active(), ci_layer_prev(layer), CI_ID(0));
 	ci_part(CI_PA);
-	CI_CHECK(ci_owner(CI_PA) == id && ci_owner(CI_P0) == 0, "parts owners %d %d, want %d 0",
-		 ci_owner(CI_PA), ci_owner(CI_P0), id);
+	CI_CHECK(ci_owner(CI_PA) == id && ci_owner(CI_P0) == CI_ID(0), "parts owners %d %d, want %d %d",
+		 ci_owner(CI_PA), ci_owner(CI_P0), id, CI_ID(0));
 	heap_unref(layer);			/* the local goes out of scope */
-	CI_CHECK(ci_len() == 1 && ci_active() == 0, "after the destructor: %d layers, active %d; want 1, 0",
-		 ci_len(), ci_active());
+	CI_CHECK(ci_len() == 1 && ci_active() == CI_ID(0), "after the destructor: %d layers, active %d; want 1, %d",
+		 ci_len(), ci_active(), CI_ID(0));
 	CI_CHECK(!parts_try_get(CI_PA) && parts_try_get(CI_P0), "the layer's parts %s, the default layer's %s",
 		 parts_try_get(CI_PA) ? "stayed" : "went", parts_try_get(CI_P0) ? "stayed" : "went");
 	printf("CI2 CASPartsLayer: %s\n", ci_failures ? "FAIL" : "ok");
@@ -259,26 +275,26 @@ static void ci_backlog_shape(void)
 	int st = ci_layer_struct();
 	/* SceneAzito and SceneHome: SceneContext@0 calls AFL_Parts_AddLayer(-1). */
 	int azito = ci_add(-1), home = ci_add(-1);
-	ci_layers("two scenes", 3, (int[]){ 0, azito, home });
+	ci_layers("two scenes", 3, (int[]){ CI_ID(0), azito, home });
 	ci_part(CI_PA);
 	/* CBackLogView@Execute's layer, then CActivity@Run's. */
 	int outer = vm_construct_struct(st);
 	int oid = ci_layer_id(outer);
-	ci_layers("outer layer", 4, (int[]){ 0, azito, home, oid });
+	ci_layers("outer layer", 4, (int[]){ CI_ID(0), azito, home, oid });
 	CI_CHECK(ci_active() == oid && ci_layer_prev(outer) == home, "outer: active %d, prev %d; want %d, %d",
 		 ci_active(), ci_layer_prev(outer), oid, home);
 	int inner = vm_construct_struct(st);
 	int iid = ci_layer_id(inner);
-	ci_layers("inner layer", 5, (int[]){ 0, azito, home, oid, iid });
+	ci_layers("inner layer", 5, (int[]){ CI_ID(0), azito, home, oid, iid });
 	CI_CHECK(ci_active() == iid && ci_layer_prev(inner) == oid, "inner: active %d, prev %d; want %d, %d",
 		 ci_active(), ci_layer_prev(inner), iid, oid);
 	ci_part(CI_PB);
 	heap_unref(inner);
-	ci_layers("inner gone", 4, (int[]){ 0, azito, home, oid });
+	ci_layers("inner gone", 4, (int[]){ CI_ID(0), azito, home, oid });
 	CI_CHECK(ci_active() == oid && !parts_try_get(CI_PB), "inner gone: active %d (want %d), its parts %s",
 		 ci_active(), oid, parts_try_get(CI_PB) ? "stayed" : "went");
 	heap_unref(outer);
-	ci_layers("both gone", 3, (int[]){ 0, azito, home });
+	ci_layers("both gone", 3, (int[]){ CI_ID(0), azito, home });
 	CI_CHECK(ci_active() == home && ci_owner(CI_PA) == home, "both gone: active %d, the scene's parts on %d; want %d",
 		 ci_active(), ci_owner(CI_PA), home);
 	printf("CI3 backlog shape: %s\n", ci_failures ? "FAIL" : "ok");
@@ -304,18 +320,18 @@ static void ci_insert_middle(void)
 	int a, b, c;
 	ci_inserted(&a, &b, &c);
 	CI_CHECK(a != b && b != c && a != c && c > 0, "layer IDs %d %d %d are not distinct", a, b, c);
-	ci_layers("AddLayer(A)", 4, (int[]){ 0, a, c, b });
+	ci_layers("AddLayer(A)", 4, (int[]){ CI_ID(0), a, c, b });
 	CI_CHECK(ci_active() == c, "active %d, want the new layer %d", ci_active(), c);
-	CI_CHECK(ci_owner(CI_P0) == 0 && ci_owner(CI_PA) == a && ci_owner(CI_PB) == b && ci_owner(CI_PC) == c,
-		 "parts owners %d %d %d %d, want 0 %d %d %d", ci_owner(CI_P0), ci_owner(CI_PA), ci_owner(CI_PB),
-		 ci_owner(CI_PC), a, b, c);
+	CI_CHECK(ci_owner(CI_P0) == CI_ID(0) && ci_owner(CI_PA) == a && ci_owner(CI_PB) == b && ci_owner(CI_PC) == c,
+		 "parts owners %d %d %d %d, want %d %d %d %d", ci_owner(CI_P0), ci_owner(CI_PA), ci_owner(CI_PB),
+		 ci_owner(CI_PC), CI_ID(0), a, b, c);
 	ci_drawn("AddLayer(A)", 4, (int[]){ CI_P0, CI_PA, CI_PC, CI_PB });
 	CI_CHECK(ci_z(CI_P0) == 0 && ci_z(CI_PA) == 1 && ci_z(CI_PC) == 2 && ci_z(CI_PB) == 3,
 		 "sprite layers %d %d %d %d, want 0 1 2 3 (default, A, C, B)", ci_z(CI_P0), ci_z(CI_PA),
 		 ci_z(CI_PC), ci_z(CI_PB));
 	/* the same ID again: directly above A once more, below the first one */
 	int d = ci_add(a);
-	ci_layers("AddLayer(A) twice", 5, (int[]){ 0, a, d, c, b });
+	ci_layers("AddLayer(A) twice", 5, (int[]){ CI_ID(0), a, d, c, b });
 	printf("CI4 insert in the middle: %s\n", ci_failures ? "FAIL" : "ok");
 }
 
@@ -326,7 +342,7 @@ static void ci_erase_middle(void)
 	ci_inserted(&a, &b, &c);
 	ci_set_active(b);
 	ci_erase(c);				/* neither the top nor the active layer */
-	ci_layers("EraseLayer(C)", 3, (int[]){ 0, a, b });
+	ci_layers("EraseLayer(C)", 3, (int[]){ CI_ID(0), a, b });
 	CI_CHECK(ci_active() == b, "active %d after erasing another layer, want %d", ci_active(), b);
 	CI_CHECK(!parts_try_get(CI_PC) && ci_owner(CI_PA) == a && ci_owner(CI_PB) == b,
 		 "C's parts %s; owners of A's and B's parts %d %d, want %d %d",
@@ -334,7 +350,7 @@ static void ci_erase_middle(void)
 	ci_drawn("EraseLayer(C)", 3, (int[]){ CI_P0, CI_PA, CI_PB });
 	CI_CHECK(ci_z(CI_PA) == 1 && ci_z(CI_PB) == 2, "sprite layers %d %d, want 1 2", ci_z(CI_PA), ci_z(CI_PB));
 	ci_erase(b);				/* the ID the script kept is still B's */
-	ci_layers("EraseLayer(B)", 2, (int[]){ 0, a });
+	ci_layers("EraseLayer(B)", 2, (int[]){ CI_ID(0), a });
 	CI_CHECK(!parts_try_get(CI_PB) && parts_try_get(CI_PA) && parts_try_get(CI_P0),
 		 "after EraseLayer(B): B's parts %s, A's %s", parts_try_get(CI_PB) ? "stayed" : "went",
 		 parts_try_get(CI_PA) ? "stayed" : "went");
@@ -350,11 +366,11 @@ static void ci_erase_active(void)
 	int a = ci_add(-1), b = ci_add(-1);
 	ci_set_active(a);
 	ci_erase(a);
-	ci_layers("erase the active middle layer", 2, (int[]){ 0, b });
-	CI_CHECK(ci_active() == 0, "active %d, want the layer below (0)", ci_active());
+	ci_layers("erase the active middle layer", 2, (int[]){ CI_ID(0), b });
+	CI_CHECK(ci_active() == CI_ID(0), "active %d, want the layer below (%d)", ci_active(), CI_ID(0));
 	/* the bottom layer is active and erased: the new bottom acts (max(pos-1, 0)) */
 	int c = ci_add(b);
-	ci_set_active(0);
+	ci_set_active(CI_ID(0));
 	ci_erase(-1);
 	ci_layers("erase the active bottom layer", 2, (int[]){ b, c });
 	CI_CHECK(ci_active() == b, "active %d, want the new bottom layer %d", ci_active(), b);
@@ -370,7 +386,7 @@ static void ci_add_above_active(void)
 	ci_part(CI_PB);
 	ci_set_active(a);
 	int x = ci_add(-1);
-	ci_layers("AddLayer(-1) with A active", 4, (int[]){ 0, a, x, b });
+	ci_layers("AddLayer(-1) with A active", 4, (int[]){ CI_ID(0), a, x, b });
 	CI_CHECK(ci_active() == x, "active %d, want the new layer %d", ci_active(), x);
 	ci_part(CI_PX);
 	ci_drawn("AddLayer(-1) with A active", 2, (int[]){ CI_PX, CI_PB });
@@ -390,7 +406,7 @@ static void ci_active_missing(void)
 	int prev = ci_set_active(b);
 	CI_CHECK(prev == a, "SetActiveLayer returned the previous layer %d, want %d", prev, a);
 	CI_CHECK(ci_active() == a, "active %d with none designated, want the top layer %d", ci_active(), a);
-	int c = ci_add(0);			/* [0, c, a]: the top layer is still a */
+	int c = ci_add(CI_ID(0));			/* [0, c, a]: the top layer is still a */
 	ci_set_active(777);
 	CI_CHECK(ci_active() == a, "active %d with none designated, want the top layer %d", ci_active(), a);
 	ci_part(CI_PA);
@@ -398,10 +414,10 @@ static void ci_active_missing(void)
 	CI_CHECK(BU_PE("GetControllerID", BU_I(-1)).i == a, "GetControllerID(-1) is %d, want the top layer %d",
 		 BU_PE("GetControllerID", BU_I(-1)).i, a);
 	int d = ci_add(-1);			/* above the top layer */
-	ci_layers("AddLayer(-1) with none designated", 4, (int[]){ 0, c, a, d });
+	ci_layers("AddLayer(-1) with none designated", 4, (int[]){ CI_ID(0), c, a, d });
 	ci_set_active(777);
 	ci_erase(-1);				/* the top one */
-	ci_layers("EraseLayer(-1) with none designated", 3, (int[]){ 0, c, a });
+	ci_layers("EraseLayer(-1) with none designated", 3, (int[]){ CI_ID(0), c, a });
 	printf("CI8 SetActiveLayer with a missing ID: %s\n", ci_failures ? "FAIL" : "ok");
 }
 
@@ -416,7 +432,7 @@ static void ci_erase_edges(void)
 	ci_set_active(a);
 	ci_part(CI_PA);
 	ci_erase(555);				/* no such layer: the active one goes */
-	ci_layers("EraseLayer(missing)", 2, (int[]){ 0, b });
+	ci_layers("EraseLayer(missing)", 2, (int[]){ CI_ID(0), b });
 	CI_CHECK(!parts_try_get(CI_PA) && parts_try_get(CI_PB), "the active layer's parts %s, the other layer's %s",
 		 parts_try_get(CI_PA) ? "stayed" : "went", parts_try_get(CI_PB) ? "stayed" : "went");
 	/* -1 with none designated: the top one */
@@ -424,15 +440,15 @@ static void ci_erase_edges(void)
 	ci_part(CI_PC);
 	ci_set_active(555);
 	((void (*)(int, int))br_pe_fn("RemoveController"))(list, -1);
-	ci_layers("RemoveController(-1) with none designated", 2, (int[]){ 0, c });
+	ci_layers("RemoveController(-1) with none designated", 2, (int[]){ CI_ID(0), c });
 	CI_CHECK(!parts_try_get(CI_PB) && parts_try_get(CI_PC) && ci_active() == c,
 		 "RemoveController(-1) with none designated: the top layer's parts %s, active %d (want %d)",
 		 parts_try_get(CI_PB) ? "stayed" : "went", ci_active(), c);
 	ci_erase(c);
 	/* the last layer is never removed */
 	list = tr_int_array();
-	((void (*)(int, int))br_pe_fn("RemoveController"))(list, 0);
-	CI_CHECK(ci_len() == 1 && ci_id_at(0) == 0 && ci_active() == 0, "the last layer: %d layers, first %d, active %d",
+	((void (*)(int, int))br_pe_fn("RemoveController"))(list, CI_ID(0));
+	CI_CHECK(ci_len() == 1 && ci_id_at(0) == CI_ID(0) && ci_active() == CI_ID(0), "the last layer: %d layers, first %d, active %d",
 		 ci_len(), ci_id_at(0), ci_active());
 	CI_CHECK(parts_try_get(CI_P0) && heap[list].page && heap[list].page->nr_vars == 0,
 		 "removing the last layer: its parts %s, %d list entries; want stayed, 0",
@@ -458,14 +474,14 @@ static void ci_queries(void)
 	ci_set_active(a);
 	CI_CHECK(ci_id(-1) == a && ci_id(-7) == a, "GetControllerID(negative) is %d, want the active layer %d", ci_id(-1), a);
 	CI_CHECK(ci_id(99) == b && ci_id(3) == b, "GetControllerID(past the end) is %d, want the top layer %d", ci_id(99), b);
-	CI_CHECK(ci_id(0) == 0 && ci_id(1) == a && ci_id(2) == b, "GetControllerID(0..2) is %d %d %d", ci_id(0), ci_id(1), ci_id(2));
+	CI_CHECK(ci_id(0) == CI_ID(0) && ci_id(1) == a && ci_id(2) == b, "GetControllerID(0..2) is %d %d %d", ci_id(0), ci_id(1), ci_id(2));
 	CI_CHECK(ci_index(424242) == -1 && ci_index(-1) == -1 && ci_index(CI_OVERLAY) == -1,
 		 "GetControllerIndex of a missing ID, -1, the overlay: %d %d %d; want -1", ci_index(424242),
 		 ci_index(-1), ci_index(CI_OVERLAY));
-	CI_CHECK(ci_index(0) == 0 && ci_index(a) == 1 && ci_index(b) == 2, "GetControllerIndex: %d %d %d",
-		 ci_index(0), ci_index(a), ci_index(b));
+	CI_CHECK(ci_index(CI_ID(0)) == 0 && ci_index(a) == 1 && ci_index(b) == 2, "GetControllerIndex: %d %d %d",
+		 ci_index(CI_ID(0)), ci_index(a), ci_index(b));
 	ci_move(b, 1);				/* [0, b, a] */
-	ci_layers("MoveLayer(B, 1)", 3, (int[]){ 0, b, a });
+	ci_layers("MoveLayer(B, 1)", 3, (int[]){ CI_ID(0), b, a });
 	CI_CHECK(ci_active() == a, "active %d after the move, want %d", ci_active(), a);
 	CI_CHECK(ci_owner(CI_PA) == a && ci_owner(CI_PB) == b, "owners after the move %d %d", ci_owner(CI_PA), ci_owner(CI_PB));
 	ci_drawn("MoveLayer(B, 1)", 3, (int[]){ CI_P0, CI_PB, CI_PA });
@@ -473,14 +489,14 @@ static void ci_queries(void)
 	ci_move(b, 1);				/* already there */
 	ci_move(b, 2);				/* the place before its own removal: stays */
 	ci_move(31337, 0);			/* no such layer */
-	ci_layers("moves that change nothing", 3, (int[]){ 0, b, a });
-	ci_move(0, 99);				/* clamped to the length: on top */
-	ci_layers("MoveLayer(0, 99)", 3, (int[]){ b, a, 0 });
+	ci_layers("moves that change nothing", 3, (int[]){ CI_ID(0), b, a });
+	ci_move(CI_ID(0), 99);				/* clamped to the length: on top */
+	ci_layers("MoveLayer(0, 99)", 3, (int[]){ b, a, CI_ID(0) });
 	ci_drawn("MoveLayer(0, 99)", 3, (int[]){ CI_PB, CI_PA, CI_P0 });
-	ci_move(0, -5);				/* clamped to 0 */
-	ci_layers("MoveLayer(0, -5)", 3, (int[]){ 0, b, a });
-	ci_move(0, 2);				/* [b, 0, a] */
-	ci_layers("MoveLayer(0, 2)", 3, (int[]){ b, 0, a });
+	ci_move(CI_ID(0), -5);				/* clamped to 0 */
+	ci_layers("MoveLayer(0, -5)", 3, (int[]){ CI_ID(0), b, a });
+	ci_move(CI_ID(0), 2);				/* [b, 0, a] */
+	ci_layers("MoveLayer(0, 2)", 3, (int[]){ b, CI_ID(0), a });
 	ci_drawn("MoveLayer(0, 2)", 3, (int[]){ CI_PB, CI_P0, CI_PA });
 	printf("CI10 queries and MoveLayer: %s\n", ci_failures ? "FAIL" : "ok");
 }
@@ -490,6 +506,15 @@ static void ci_queries(void)
 static int ci_words(struct page *buffer)
 {
 	return buffer ? buffer->nr_vars : -1;
+}
+
+/* Words of the controller ID section at the end of a save of `nr` layers
+ * ("PCID", count, IDs, active), 0 when the save has none. */
+static int ci_id_section(struct page *saved, int nr)
+{
+	int len = nr + 3;
+	return saved && saved->nr_vars > len && saved->values[saved->nr_vars - len].i == 0x44494350
+		&& saved->values[saved->nr_vars - len + 1].i == nr ? len : 0;
 }
 
 static void ci_save_load(void)
@@ -506,30 +531,30 @@ static void ci_save_load(void)
 	ci_erase(a);
 	ci_part(CI_PX);
 	CI_CHECK(PE_Load(&saved), "PE_Load failed");
-	ci_layers("after PE_Load", 4, (int[]){ 0, a, c, b });
+	ci_layers("after PE_Load", 4, (int[]){ CI_ID(0), a, c, b });
 	CI_CHECK(ci_active() == c, "active %d after PE_Load, want %d", ci_active(), c);
-	CI_CHECK(ci_owner(CI_P0) == 0 && ci_owner(CI_PA) == a && ci_owner(CI_PB) == b && ci_owner(CI_PC) == c
-		 && !parts_try_get(CI_PX), "owners after PE_Load %d %d %d %d, want 0 %d %d %d",
-		 ci_owner(CI_P0), ci_owner(CI_PA), ci_owner(CI_PB), ci_owner(CI_PC), a, b, c);
+	CI_CHECK(ci_owner(CI_P0) == CI_ID(0) && ci_owner(CI_PA) == a && ci_owner(CI_PB) == b && ci_owner(CI_PC) == c
+		 && !parts_try_get(CI_PX), "owners after PE_Load %d %d %d %d, want %d %d %d %d",
+		 ci_owner(CI_P0), ci_owner(CI_PA), ci_owner(CI_PB), ci_owner(CI_PC), CI_ID(0), a, b, c);
 	ci_drawn("after PE_Load", 4, (int[]){ CI_P0, CI_PA, CI_PC, CI_PB });
 	CI_CHECK(ci_z(CI_PA) == 1 && ci_z(CI_PC) == 2 && ci_z(CI_PB) == 3, "sprite layers after PE_Load %d %d %d",
 		 ci_z(CI_PA), ci_z(CI_PC), ci_z(CI_PB));
 	/* the IDs the script kept still work */
 	ci_erase(c);
-	ci_layers("EraseLayer(C) after PE_Load", 3, (int[]){ 0, a, b });
+	ci_layers("EraseLayer(C) after PE_Load", 3, (int[]){ CI_ID(0), a, b });
 	CI_CHECK(!parts_try_get(CI_PC) && parts_try_get(CI_PB), "EraseLayer(C) after PE_Load released the wrong parts");
 
 	/* A save as it was written before (no ID section: positions only) gives
-	 * every layer its position as its ID. The section is the save's tail;
+	 * every layer the ID of its position. The section is the save's tail;
 	 * the parts and the hidden list before it are what an old save has. */
 	int n = 4, tail = 1 + 1 + n + 1;
 	struct page *old = copy_page(saved);
 	old->nr_vars -= tail;
 	CI_CHECK(PE_Load(&old), "PE_Load of a save without the section failed");
-	ci_layers("old save", 4, (int[]){ 0, 1, 2, 3 });
-	CI_CHECK(ci_active() == 2, "active %d from an old save, want position 2", ci_active());
-	CI_CHECK(ci_owner(CI_P0) == 0 && ci_owner(CI_PA) == 1 && ci_owner(CI_PC) == 2 && ci_owner(CI_PB) == 3,
-		 "owners from an old save %d %d %d %d, want the positions 0 1 2 3", ci_owner(CI_P0),
+	ci_layers("old save", 4, (int[]){ CI_ID(0), CI_ID(1), CI_ID(2), CI_ID(3) });
+	CI_CHECK(ci_active() == CI_ID(2), "active %d from an old save, want position 2's %d", ci_active(), CI_ID(2));
+	CI_CHECK(ci_owner(CI_P0) == CI_ID(0) && ci_owner(CI_PA) == CI_ID(1) && ci_owner(CI_PC) == CI_ID(2) && ci_owner(CI_PB) == CI_ID(3),
+		 "owners from an old save %d %d %d %d, want the positions' IDs", ci_owner(CI_P0),
 		 ci_owner(CI_PA), ci_owner(CI_PC), ci_owner(CI_PB));
 	ci_drawn("old save", 4, (int[]){ CI_P0, CI_PA, CI_PC, CI_PB });
 	old->nr_vars += tail;
@@ -548,10 +573,10 @@ static void ci_save_load(void)
 	/* without its section that save names the top position as the active one */
 	saved->nr_vars -= 1 + 1 + len + 1;
 	CI_CHECK(PE_Load(&saved), "PE_Load of the second save without the section failed");
-	CI_CHECK(ci_len() == len && ci_active() == len - 1, "old save with none designated: %d layers, active %d; want %d, %d",
-		 ci_len(), ci_active(), len, len - 1);
-	ci_move(len - 1, 0);
-	CI_CHECK(ci_active() == len - 1, "active %d after moving the designated layer, want it to stay %d", ci_active(), len - 1);
+	CI_CHECK(ci_len() == len && ci_active() == CI_ID(len - 1), "old save with none designated: %d layers, active %d; want %d, %d",
+		 ci_len(), ci_active(), len, CI_ID(len - 1));
+	ci_move(CI_ID(len - 1), 0);
+	CI_CHECK(ci_active() == CI_ID(len - 1), "active %d after moving the designated layer, want it to stay %d", ci_active(), CI_ID(len - 1));
 	saved->nr_vars += 1 + 1 + len + 1;
 	ca_free_buffer(saved);
 	printf("CI11 save and load: %s\n", ci_failures ? "FAIL" : "ok");
@@ -574,7 +599,7 @@ static void ci_hit_order(void)
 	n = br_click(150, 140, &type, &no);
 	CI_CHECK(n == 1 && type == 4 && no == CI_PA, "click after moving A on top: %d messages, type %d parts %d; want 1, 4, %d",
 		 n, type, no, CI_PA);
-	int c = ci_add(0);			/* [0, c, b, a] */
+	int c = ci_add(CI_ID(0));			/* [0, c, b, a] */
 	ci_part(CI_PC);
 	n = br_click(150, 140, &type, &no);
 	CI_CHECK(n == 1 && type == 4 && no == CI_PA, "click with a new layer at the bottom: %d messages, type %d parts %d; want 1, 4, %d",
@@ -606,7 +631,7 @@ static void ci_overlay(void)
 		 ci_owner(CI_PO), ci_z(CI_PO), ov);
 	CI_CHECK(ci_len() == 2, "%d layers, want 2 (the overlay is not in the stack)", ci_len());
 	int b = ci_add(-1);			/* the overlay is not in the stack: on top */
-	ci_layers("AddLayer(-1) with the overlay active", 3, (int[]){ 0, a, b });
+	ci_layers("AddLayer(-1) with the overlay active", 3, (int[]){ CI_ID(0), a, b });
 	CI_CHECK(ci_active() == b, "active %d, want the new layer %d", ci_active(), b);
 	ci_part(CI_PB);
 	ci_drawn("overlay above every layer", 4, (int[]){ CI_P0, CI_PA, CI_PB, CI_PO });
@@ -615,7 +640,7 @@ static void ci_overlay(void)
 	CI_CHECK(parts_try_get(CI_PO) && ci_owner(CI_PO) == ov && ci_z(CI_PO) == CI_OVERLAY,
 		 "the overlay parts after erasing every layer: %s, layer %d", parts_try_get(CI_PO) ? "there" : "gone",
 		 ci_owner(CI_PO));
-	ci_layers("layers erased", 1, (int[]){ 0 });
+	ci_layers("layers erased", 1, (int[]){ CI_ID(0) });
 	printf("CI13 system overlay: %s\n", ci_failures ? "FAIL" : "ok");
 }
 
@@ -640,9 +665,9 @@ static void ci_push_pop(void)
 	int b = ci_add(-1);
 	ci_part(CI_PB);
 	int c = ci_add(-1);
-	CI_CHECK(a == 1 && b == 2 && c == 3, "AddLayer(-1) three times returned %d %d %d, want 1 2 3", a, b, c);
-	ci_ids("three pushes", 4, (int[]){ 0, 1, 2, 3 });
-	CI_CHECK(ci_active() == 3, "active %d, want 3", ci_active());
+	CI_CHECK(a == CI_ID(1) && b == CI_ID(2) && c == CI_ID(3), "AddLayer(-1) three times returned %d %d %d, want the IDs of positions 1 2 3", a, b, c);
+	ci_ids("three pushes", 4, (int[]){ CI_ID(0), CI_ID(1), CI_ID(2), CI_ID(3) });
+	CI_CHECK(ci_active() == CI_ID(3), "active %d, want %d", ci_active(), CI_ID(3));
 	CI_CHECK(ci_z(CI_P0) == 0 && ci_z(CI_PA) == 1 && ci_z(CI_PB) == 2, "sprite layers %d %d %d, want 0 1 2",
 		 ci_z(CI_P0), ci_z(CI_PA), ci_z(CI_PB));
 	struct page *saved = NULL;
@@ -651,20 +676,26 @@ static void ci_push_pop(void)
 	CI_CHECK(ca_save_version(saved) == 7 && saved->values[6].i == 3 && saved->values[7].i == 4
 		 && saved->values[8].i == 3, "save header: version %d, active %d, layers %d, parts %d; want 7 3 4 3",
 		 ca_save_version(saved), saved->values[6].i, saved->values[7].i, saved->values[8].i);
-	/* the save ends with the (empty) hidden list: no ID section */
-	CI_CHECK(saved->values[saved->nr_vars - 1].i == 0, "the save of a pushed-only stack ends with %d, want the hidden list's 0",
+	/* The words before the ID section are what a save of this stack always
+	 * was, ending with the (empty) hidden list. (Since a layer's ID is its
+	 * root's number every v14 save has the section; layer-root LR8 pins
+	 * that. Before, a pushed-only stack had none.) */
+	int section = ci_id_section(saved, 4);
+	saved->nr_vars -= section;
+	CI_CHECK(saved->values[saved->nr_vars - 1].i == 0, "the save of a pushed-only stack ends with %d before its ID section, want the hidden list's 0",
 		 saved->values[saved->nr_vars - 1].i);
 	printf("  CI14 pushed-only save: %d words, hash %08x\n", ci_words(saved), ci_hash(saved));
+	saved->nr_vars += section;
 	ci_erase(c);
-	CI_CHECK(ci_active() == 2, "active %d after popping, want 2", ci_active());
+	CI_CHECK(ci_active() == CI_ID(2), "active %d after popping, want %d", ci_active(), CI_ID(2));
 	ci_erase(-1);
-	ci_ids("two pops", 2, (int[]){ 0, 1 });
-	CI_CHECK(ci_active() == 1 && !parts_try_get(CI_PB) && parts_try_get(CI_PA), "after two pops: active %d", ci_active());
-	CI_CHECK(ci_add(-1) == 2, "the next layer is not 2");
+	ci_ids("two pops", 2, (int[]){ CI_ID(0), CI_ID(1) });
+	CI_CHECK(ci_active() == CI_ID(1) && !parts_try_get(CI_PB) && parts_try_get(CI_PA), "after two pops: active %d", ci_active());
+	CI_CHECK(ci_add(-1) == CI_ID(2), "the next layer is not position 2's ID");
 	CI_CHECK(PE_Load(&saved), "PE_Load failed");
-	ci_ids("loaded", 4, (int[]){ 0, 1, 2, 3 });
-	CI_CHECK(ci_active() == 3 && ci_owner(CI_PB) == 2, "loaded: active %d, B's parts on %d; want 3, 2",
-		 ci_active(), ci_owner(CI_PB));
+	ci_ids("loaded", 4, (int[]){ CI_ID(0), CI_ID(1), CI_ID(2), CI_ID(3) });
+	CI_CHECK(ci_active() == CI_ID(3) && ci_owner(CI_PB) == CI_ID(2), "loaded: active %d, B's parts on %d; want %d, %d",
+		 ci_active(), ci_owner(CI_PB), CI_ID(3), CI_ID(2));
 	ca_free_buffer(saved);
 	printf("CI14 push and pop as before: %s\n", ci_failures ? "FAIL" : "ok");
 }
@@ -710,6 +741,9 @@ static void ci_legacy(void)
 {
 	ci_setup();
 	ain->version = 13;
+	/* The v14 default layer is a root parts number; a v13 engine's is
+	 * position 0. Make the stack anew as that engine would. */
+	probe_init_parts_table();
 	ci_part(CI_P0);
 	int a = PE_AddController(-1);
 	ci_part(CI_PA);

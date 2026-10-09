@@ -139,6 +139,9 @@ static void da_dgcall(int dg, int dgslot, int nslots, const int *slots, void (*i
 	for (int i = 0; i < ret_slots; i++)
 		stack_push(0);
 	instr_ptr = VM_RETURN - instruction_width(DG_CALL);
+#ifdef DELEGATE_CALL_STATE_IN_PAGE	/* v14: DG_CALLBEGIN also starts the call in the delegate (0x66daf3) */
+	delegate_call_begin(heap_get_delegate_page(dgslot));
+#endif
 	delegate_call(dg, 0);
 	DA_CHECK(call_stack_ptr == csp + 1, "%s: delegate_call did not enter the callee (csp %d)", ain->delegates[dg].name, call_stack_ptr);
 	if (call_stack_ptr == csp + 1) {
