@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <cglm/cglm.h>
 
 #include "system4.h"
 #include "system4/cg.h"
@@ -51,8 +52,11 @@ static void ctrl_root_attach(struct parts *parts);
 	.scale = { 1.0f, 1.0f }, \
 	.rotation = { 0.0f, 0.0f, 0.0f }, \
 	.add_color = { 0, 0, 0, 0 }, \
-	.multiply_color = { 255, 255, 255, 255 } \
+	.multiply_color = { 255, 255, 255, 255 }, \
+	.matrix = GLM_MAT4_IDENTITY_INIT \
 }
+
+static void parts_update_global_pos(struct parts *parts, const struct parts_params *parent);
 
 static void parts_init(struct parts *parts)
 {
@@ -63,6 +67,8 @@ static void parts_init(struct parts *parts)
 	parts->sp.to_json = parts_sprite_to_json;
 	parts->local = PARTS_PARAMS_INITIALIZER;
 	parts->global = PARTS_PARAMS_INITIALIZER;
+	// The anchor frame of a parts that is never placed (root_pos).
+	parts_update_global_pos(parts, NULL);
 	parts->delegate_index = -1;
 	parts->want_save = true;
 	parts->on_cursor_sound = -1;
@@ -498,31 +504,13 @@ void parts_recalculate_hitbox(struct parts *parts)
 }
 
 /*
- * A child's position relative to its parent's anchor (the parent's global
- * position). The parent's reverse flags mirror it around that anchor and the
- * parent's accumulated scale scales it, as in the original, where each parts'
- * flip and scale are part of its level of the transform (0x537b00 records,
- * applied by 0x4e6d80 before the child's own level). E.g. Tutorial's
- * MoveParent shrinks the scene parents to 0.85 with their whole scene.
- * Rotation still does not move the children (existing simplification).
- */
-static Point parts_child_pos(const struct parts_params *parent, Point local)
-{
-	float x = parent->scale.x * local.x, y = parent->scale.y * local.y;
-	return (Point) {
-		parent->pos.x + (int)lroundf(parent->reverse_lr ? -x : x),
-		parent->pos.y + (int)lroundf(parent->reverse_tb ? -y : y)
-	};
-}
-
-/*
  * Where a parts is placed in its parent: its position and, for a child of a
  * v14 free layout box, the box's offset (layoutbox.c). The original adds the
  * two in both places that read the position, the per-frame update (0x53567a,
  * 0x535659) and the transform records (0x537b2f, 0x537b4f), so the offset
  * moves the parts' subtree, its hit box and its upper-left position with it.
  */
-static Point parts_placed_pos(const struct parts *parts)
+Point parts_placed_pos(const struct parts *parts)
 {
 	return (Point) {
 		parts->local.pos.x + parts->layout_offset.x,
@@ -530,20 +518,97 @@ static Point parts_placed_pos(const struct parts *parts)
 	};
 }
 
-// parent == NULL: a top-level parts, relative to root_pos and never mirrored.
+/*
+ * One level of the transform the original builds for every parts on top of
+ * its parent's (0x535260 -> 0x579bb0 -> 0x4e6d80, row vectors):
+ *
+ *   S(reverse) * T(-pivot) * S(scale) * R * T(pos) * parent
+ *
+ * (0x5c3ae0 makes S * Ry * Rx * Rz and writes the translation last; the
+ * pivot +0xa0/+0xa4 has no setter and is 0.) In column-vector form, with
+ * the Z rotation only: parent * T(pos) * Rz * S(scale) * S(reverse). A
+ * parts' anchor is the matrix applied to the origin, so a child follows its
+ * parent's rotation, scale and flips: the fill bar and number under a
+ * battle GaugeBase rotated 315 degrees lie along it, and a MapNodeView name
+ * under its rotated MainText rectangle is rotated with it. E.g. Tutorial's
+ * MoveParent shrinks the scene parents to 0.85 with their whole scene.
+ * parent == NULL: a top-level parts, relative to root_pos.
+ */
+static void parts_level_transform(const struct parts_params *parent,
+		const struct parts_params *local, Point pos, mat4 out)
+{
+	if (parent) {
+		glm_mat4_copy((vec4*)parent->matrix, out);
+	} else {
+		glm_mat4_identity(out);
+		glm_translate(out, (vec3){ root_pos.x, root_pos.y, 0 });
+	}
+	glm_translate(out, (vec3){ pos.x, pos.y, 0 });
+	if (local->rotation.z != 0.0f)
+		glm_rotate_z(out, glm_rad(local->rotation.z), out);
+	if (local->scale.x != 1.0f || local->scale.y != 1.0f)
+		glm_scale(out, (vec3){ local->scale.x, local->scale.y, 1.0f });
+	if (local->reverse_lr || local->reverse_tb)
+		glm_scale(out, (vec3){ local->reverse_lr ? -1.0f : 1.0f, local->reverse_tb ? -1.0f : 1.0f, 1.0f });
+}
+
+// The anchor: the transform applied to the origin, rounded to the pixel.
+static Point parts_transform_anchor(mat4 m)
+{
+	return (Point) { (int)lroundf(m[3][0]), (int)lroundf(m[3][1]) };
+}
+
+// The parent's accumulated transform (root_pos for a top-level parts).
+void parts_parent_transform(struct parts *parts, mat4 out)
+{
+	if (parts->parent) {
+		glm_mat4_copy(parts->parent->global.matrix, out);
+	} else {
+		glm_mat4_identity(out);
+		glm_translate(out, (vec3){ root_pos.x, root_pos.y, 0 });
+	}
+}
+
+// Where the parts' anchor is on screen, from the parent's current transform.
+static Point parts_anchor_pos(struct parts *parts)
+{
+	mat4 m;
+	parts_level_transform(parts->parent ? &parts->parent->global : NULL,
+			&parts->local, parts_placed_pos(parts), m);
+	return parts_transform_anchor(m);
+}
+
+// parent == NULL: a top-level parts, relative to root_pos.
 static void parts_update_global_pos(struct parts *parts, const struct parts_params *parent)
 {
-	Point pos = parts_placed_pos(parts);
-	if (parent) {
-		parts->global.pos = parts_child_pos(parent, pos);
-	} else {
-		parts->global.pos = (Point) { root_pos.x + pos.x, root_pos.y + pos.y };
-	}
+	parts_level_transform(parent, &parts->local, parts_placed_pos(parts), parts->global.matrix);
+	parts->global.pos = parts_transform_anchor(parts->global.matrix);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
 		parts_update_global_pos(child, &parts->global);
 	}
+}
+
+// After a change of this parts' own transform: itself and its subtree.
+static void parts_update_transform(struct parts *parts)
+{
+	parts_update_global_pos(parts, parts->parent ? &parts->parent->global : NULL);
+}
+
+static void parts_accumulate_add_color(const struct parts_params *parent, SDL_Color local,
+		bool sub_color_mode, struct parts_params *out);
+
+/*
+ * The transform and the add colour sum of a parts without a parent, from
+ * its local parameters only; neither is saved. After PE_Load (the parent is
+ * attached by parts_update_component, which then recombines the children)
+ * and in that update for a top-level parts.
+ */
+void parts_load_transform(struct parts *parts)
+{
+	parts_level_transform(NULL, &parts->local, parts_placed_pos(parts), parts->global.matrix);
+	parts_accumulate_add_color(NULL, parts->local.add_color, parts->sub_color_mode, &parts->global);
 }
 
 void parts_set_pos(struct parts *parts, Point pos)
@@ -565,7 +630,9 @@ void parts_set_global_pos(Point pos)
 	root_pos = pos;
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		parts_update_global_pos(parts, NULL);
+		// The children follow through their parent.
+		if (!parts->parent)
+			parts_update_global_pos(parts, NULL);
 	}
 	parts_engine_dirty();
 }
@@ -576,14 +643,12 @@ void parts_set_global_pos(Point pos)
  * anchor and mirrored around it by the reverse flags of the parts and of all
  * its ancestors (like the original, whose hit test 0x57a6b0 transforms the
  * box corners with the accumulated matrix). Scale and rotation are ignored
- * here, as before.
+ * here, as before (the anchor itself does follow the ancestors' transform).
  */
 Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
 {
 	Rectangle box = common->hitbox;
-	Point anchor = parts_placed_pos(parts);
-	if (parts->parent)
-		anchor = parts_child_pos(&parts->parent->global, anchor);
+	Point anchor = parts_anchor_pos(parts);
 	int rx = box.x - parts->local.pos.x, ry = box.y - parts->local.pos.y;
 	if (parts->global.reverse_lr)
 		rx = -rx - box.w;
@@ -602,14 +667,16 @@ Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
  */
 Point parts_screen_upper_left(struct parts *parts, struct parts_common *common)
 {
-	Point anchor = parts_placed_pos(parts);
-	if (parts->parent)
-		anchor = parts_child_pos(&parts->parent->global, anchor);
-	int rx = common->hitbox.x - parts->local.pos.x, ry = common->hitbox.y - parts->local.pos.y;
-	return (Point) {
-		anchor.x + (parts->global.reverse_lr ? -rx : rx),
-		anchor.y + (parts->global.reverse_tb ? -ry : ry)
-	};
+	// The corner in the box (0 unless a surface area moves it), through the
+	// box transform: the flips mirror it around the anchor, and the scales
+	// and rotations above the parts move it as they move the drawing.
+	float bx = common->hitbox.x - parts->local.pos.x - common->origin_offset.x;
+	float by = common->hitbox.y - parts->local.pos.y - common->origin_offset.y;
+	mat4 m;
+	parts_box_transform(parts, common, m);
+	float x = m[0][0] * bx + m[1][0] * by + m[3][0];
+	float y = m[0][1] * bx + m[1][1] * by + m[3][1];
+	return (Point) { (int)lroundf(x), (int)lroundf(y) };
 }
 
 static void parts_update_global_z(struct parts *parts, int parent_z)
@@ -709,33 +776,77 @@ void parts_set_reverse(struct parts *parts, bool lr, bool tb)
 	parts->local.reverse_tb = tb;
 	const struct parts_params *parent = parts->parent ? &parts->parent->global : NULL;
 	parts_update_global_reverse(parts, parent && parent->reverse_lr, parent && parent->reverse_tb);
-	struct parts *child;
-	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_pos(child, &parts->global);
-	}
+	parts_update_transform(parts);
 	parts_dirty(parts);
 }
 
-static void parts_update_global_add_color(struct parts *parts, SDL_Color parent_color)
+/*
+ * The add colour along the parent chain (v14). The original keeps a signed
+ * sum: each parts adds its own add colour to the copy of its parent's
+ * (0x579bb0 at 0x579c5c..0x579c71, +0x8c..+0x94, no clamp), negated when the
+ * parts is in 減算色モード (0x535260 reads the flag at +0xc4 and multiplies
+ * the three components by +1 or -1, 0x53544d..0x5356f7). The mode is not
+ * inherited, but the negative amount is. Before drawing, 0x5aac60 looks at
+ * the sum: with all three components below 1 it is subtracted (0x5b2330
+ * negates them, flag at +0x140 of the draw object), otherwise it is added
+ * and a negative component counts as 0; each is clamped to 0..255. So
+ * MapNodeView's name, in 減算色モード with (0, 0, c), blinks yellow under a
+ * parent without add colour, and stays white under a parent that adds more
+ * than it subtracts.
+ *
+ * Multiplying here, from a parent's default (0, 0, 0), left every add
+ * colour at 0: PlayerFrameView's pink silhouette (multiply black, add
+ * (255, 0, 186)) and MapNodeView's blink never showed. Engines before v14
+ * keep that product (their rule was not read).
+ */
+static void parts_accumulate_add_color(const struct parts_params *parent, SDL_Color local,
+		bool sub_color_mode, struct parts_params *out)
 {
-	parts->global.add_color = (SDL_Color) {
-		parent_color.r * (parts->local.add_color.r / 255.0f),
-		parent_color.g * (parts->local.add_color.g / 255.0f),
-		parent_color.b * (parts->local.add_color.b / 255.0f),
-		0
+	if (ain->version < 14) {
+		SDL_Color p = parent ? parent->add_color : (SDL_Color){0,0,0,0};
+		out->add_color = (SDL_Color) {
+			p.r * (local.r / 255.0f),
+			p.g * (local.g / 255.0f),
+			p.b * (local.b / 255.0f),
+			0
+		};
+		out->add_sum[0] = out->add_color.r;
+		out->add_sum[1] = out->add_color.g;
+		out->add_sum[2] = out->add_color.b;
+		out->add_subtract = false;
+		return;
+	}
+	int sign = sub_color_mode ? -1 : 1;
+	int sum[3] = {
+		(parent ? parent->add_sum[0] : 0) + sign * local.r,
+		(parent ? parent->add_sum[1] : 0) + sign * local.g,
+		(parent ? parent->add_sum[2] : 0) + sign * local.b,
 	};
+	bool subtract = sum[0] < 1 && sum[1] < 1 && sum[2] < 1;
+	uint8_t drawn[3];
+	for (int i = 0; i < 3; i++) {
+		out->add_sum[i] = sum[i];
+		int c = subtract ? -sum[i] : sum[i];
+		drawn[i] = c < 0 ? 0 : c > 255 ? 255 : c;
+	}
+	out->add_color = (SDL_Color) { drawn[0], drawn[1], drawn[2], 0 };
+	out->add_subtract = subtract;
+}
+
+static void parts_update_global_add_color(struct parts *parts, const struct parts_params *parent)
+{
+	parts_accumulate_add_color(parent, parts->local.add_color, parts->sub_color_mode, &parts->global);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_add_color(child, parts->global.add_color);
+		parts_update_global_add_color(child, &parts->global);
 	}
 }
 
 void parts_set_add_color(struct parts *parts, SDL_Color color)
 {
 	parts->local.add_color = color;
-	parts_update_global_add_color(parts, parts->parent ? parts->parent->global.add_color
-			: (SDL_Color){0,0,0,0});
+	parts_update_global_add_color(parts, parts->parent ? &parts->parent->global : NULL);
 	parts_dirty(parts);
 }
 
@@ -797,11 +908,8 @@ void parts_set_scale_x(struct parts *parts, float mag)
 	parts->local.scale.x = mag;
 	parts_recalculate_hitbox(parts);
 	parts_update_global_scale_x(parts, parts->parent ? parts->parent->global.scale.x : 1.0f);
-	// The children's offsets scale with it (parts_child_pos).
-	struct parts *child;
-	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_pos(child, &parts->global);
-	}
+	// The children's offsets scale with it (parts_level_transform).
+	parts_update_transform(parts);
 	parts_dirty(parts);
 }
 
@@ -820,11 +928,8 @@ void parts_set_scale_y(struct parts *parts, float mag)
 	parts->local.scale.y = mag;
 	parts_recalculate_hitbox(parts);
 	parts_update_global_scale_y(parts, parts->parent ? parts->parent->global.scale.y : 1.0f);
-	// The children's offsets scale with it (parts_child_pos).
-	struct parts *child;
-	PARTS_FOREACH_CHILD(child, parts) {
-		parts_update_global_pos(child, &parts->global);
-	}
+	// The children's offsets scale with it (parts_level_transform).
+	parts_update_transform(parts);
 	parts_dirty(parts);
 }
 
@@ -876,6 +981,18 @@ void parts_set_rotation_z(struct parts *parts, float rot)
 {
 	parts->local.rotation.z = rot;
 	parts_update_global_rotate_z(parts, parts->parent ? parts->parent->global.rotation.z : 0.0f);
+	// The children turn around this parts' anchor with it.
+	parts_update_transform(parts);
+	parts_dirty(parts);
+}
+
+void parts_set_sub_color_mode(struct parts *parts, bool enable)
+{
+	if (parts->sub_color_mode == enable)
+		return;
+	parts->sub_color_mode = enable;
+	// Its add colour changes sign in the sum, for the subtree as well.
+	parts_update_global_add_color(parts, parts->parent ? &parts->parent->global : NULL);
 	parts_dirty(parts);
 }
 
@@ -1411,10 +1528,11 @@ static bool parts_has_dirty_parent(struct parts *parts)
 
 // pos: where the child is placed in the parent (parts_placed_pos).
 static void parts_combine_params(struct parts_params *parent, struct parts_params *child,
-		Point pos, struct parts_params *out)
+		Point pos, bool sub_color_mode, struct parts_params *out)
 {
 	out->z = parent->z + child->z;
-	out->pos = parts_child_pos(parent, pos);
+	parts_level_transform(parent, child, pos, out->matrix);
+	out->pos = parts_transform_anchor(out->matrix);
 	out->show = parent->show && child->show;
 	out->alpha = parent->alpha * (child->alpha / 255.0f);
 	out->scale.x = parent->scale.x * child->scale.x;
@@ -1422,9 +1540,7 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 	out->rotation.x = parent->rotation.x + child->rotation.x;
 	out->rotation.y = parent->rotation.y + child->rotation.y;
 	out->rotation.z = parent->rotation.z + child->rotation.z;
-	out->add_color.r = parent->add_color.r * (child->add_color.r / 255.0f);
-	out->add_color.g = parent->add_color.g * (child->add_color.g / 255.0f);
-	out->add_color.b = parent->add_color.b * (child->add_color.b / 255.0f);
+	parts_accumulate_add_color(parent, child->add_color, sub_color_mode, out);
 	out->multiply_color.r = parent->multiply_color.r * (child->multiply_color.r / 255.0f);
 	out->multiply_color.g = parent->multiply_color.g * (child->multiply_color.g / 255.0f);
 	out->multiply_color.b = parent->multiply_color.b * (child->multiply_color.b / 255.0f);
@@ -1436,9 +1552,11 @@ static void parts_update_component(struct parts *parts)
 {
 	if (parts->parent) {
 		parts_combine_params(&parts->parent->global, &parts->local,
-				parts_placed_pos(parts), &parts->global);
+				parts_placed_pos(parts), parts->sub_color_mode, &parts->global);
 		if (parts->edit_hidden)
 			parts->global.show = false;
+	} else {
+		parts_load_transform(parts);
 	}
 	if (parts_get_sprite_z(parts) != parts->sp.z
 			|| parts_get_sprite_z2(parts) != parts->sp.z2) {
@@ -2222,6 +2340,16 @@ void PE_SetAddColor(int parts_no, int r, int g, int b)
 		255
 	};
 	parts_set_add_color(parts_get(parts_no), add_color);
+}
+
+void PE_SetSubColorMode(int parts_no, bool enable)
+{
+	parts_set_sub_color_mode(parts_get(parts_no), enable);
+}
+
+bool PE_IsSubColorMode(int parts_no)
+{
+	return parts_get(parts_no)->sub_color_mode;
 }
 
 void PE_SetMultiplyColor(int parts_no, int r, int g, int b)

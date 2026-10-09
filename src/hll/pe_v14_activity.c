@@ -1317,6 +1317,15 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		PE_SetMultiplyColor(parts_no, mul_col->items[0].value.i,
 			mul_col->items[1].value.i, mul_col->items[2].value.i);
 
+	/* 減算色モード / 減算色模式: the native parser keeps (value == 1)
+	 * (0x553fdc -> 0x554020). MapNodeView's Base, Text and TextCaptionEn
+	 * have it, for the yellow blink of a node that can be walked to. */
+	int sub_color = pactex_get_int(node, "\x8c\xb8\x8e\x5a\x90\x46\x83\x82\x81\x5b\x83\x68", -1);
+	if (sub_color < 0)
+		sub_color = pactex_get_int(node, "\x9c\x70\xcb\xe3\xc9\xab\xc4\xa3\xca\xbd", 0);
+	if (sub_color == 1)
+		PE_SetSubColorMode(parts_no, true);
+
 	/* Find type-specific info branch (種類別情報) for CG data */
 	struct ex_tree *type_info = pactex_find_type_info(node);
 	if (!type_info) {

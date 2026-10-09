@@ -102,6 +102,8 @@ void PE_SetAddColor(int parts_no, int r, int g, int b);
 void PE_GetAddColor(int parts_no, int *r, int *g, int *b);
 void PE_SetMultiplyColor(int parts_no, int r, int g, int b);
 void PE_GetMultiplyColor(int parts_no, int *r, int *g, int *b);
+void PE_SetSubColorMode(int parts_no, bool enable);
+bool PE_IsSubColorMode(int parts_no);
 int PE_GetPartsWidth(int parts_no, int state);
 int PE_GetPartsHeight(int parts_no, int state);
 void PE_GetPartsSize(int parts_no, int *width, int *height, int state);

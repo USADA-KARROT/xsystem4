@@ -517,6 +517,41 @@ static int ci_id_section(struct page *saved, int nr)
 		&& saved->values[saved->nr_vars - len + 1].i == nr ? len : 0;
 }
 
+/* Rewrites a version 8 save of `nr` layers as the version 7 writer wrote it:
+ * version 8 only added the list of the parts in 減算色モード, between the
+ * hidden list and the ID section (parts-transform PT4 pins a non-empty
+ * one). Here it must be empty, so its count word goes and the section moves
+ * up. Returns the number of words removed (the page keeps its allocation;
+ * add it back to nr_vars before freeing). */
+static int ci_to_v7(struct page *saved, int nr)
+{
+	struct iarray_reader r;
+	if (!saved || !iarray_init_reader(&r, saved, "XPE"))
+		return 0;
+	int section = ci_id_section(saved, nr), list = saved->nr_vars - section - 1;
+	if (saved->values[r.pos].i != 8 || list <= (int)r.pos || saved->values[list].i != 0)
+		return 0;
+	memmove(saved->values + list, saved->values + list + 1, section * sizeof(union vm_value));
+	saved->values[r.pos].i = 7;
+	saved->nr_vars--;
+	return 1;
+}
+
+/* Is any of the four parts of ci_inserted, or any layer's root, in
+ * 減算色モード? (Through the AIN declaration: the flag is new.) */
+static bool ci_any_sub(void)
+{
+	int nos[4 + 16] = { CI_P0, CI_PA, CI_PB, CI_PC }, n = 4, len = ci_len();
+	for (int i = 0; i < len && i < 16; i++)
+		nos[n++] = ci_id_at(i);
+	for (int i = 0; i < n; i++) {
+		if (parts_try_get(nos[i])
+				&& ri_hll("IsComponentSubColorMode", 1, (union vm_value[]){ RI_I(nos[i]) }).i == 1)
+			return true;
+	}
+	return false;
+}
+
 static void ci_save_load(void)
 {
 	ci_setup();
@@ -524,7 +559,7 @@ static void ci_save_load(void)
 	ci_inserted(&a, &b, &c);		/* [0, a, c, b], active c */
 	struct page *saved = NULL;
 	CI_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
-	CI_CHECK(ca_save_version(saved) == 7, "XPE v%d, want 7 (the format stays)", ca_save_version(saved));
+	CI_CHECK(ca_save_version(saved) == 8, "XPE v%d, want 8 (the ID section does not change the version)", ca_save_version(saved));
 	/* something else in between */
 	ci_erase(c);
 	ci_erase(b);
@@ -559,6 +594,35 @@ static void ci_save_load(void)
 	ci_drawn("old save", 4, (int[]){ CI_P0, CI_PA, CI_PC, CI_PB });
 	old->nr_vars += tail;
 	ca_free_buffer(old);
+
+	/* The same two saves as version 7 wrote them (no list of sub colour
+	 * parts): with the section the layers keep their IDs, without it they
+	 * get the positions'. */
+	struct page *v7 = copy_page(saved);
+	int cut = ci_to_v7(v7, n);
+	CI_CHECK(cut == 1 && ca_save_version(v7) == 7 && ci_id_section(v7, n) == tail,
+		 "could not rewrite the save as version 7 (cut %d, version %d, section %d)", cut, ca_save_version(v7), ci_id_section(v7, n));
+	ci_part(CI_PX);
+	CI_CHECK(PE_Load(&v7), "PE_Load of a version 7 save with the section failed");
+	ci_layers("version 7 save with the section", 4, (int[]){ CI_ID(0), a, c, b });
+	CI_CHECK(ci_active() == c && ci_owner(CI_P0) == CI_ID(0) && ci_owner(CI_PA) == a && ci_owner(CI_PB) == b
+		 && ci_owner(CI_PC) == c && !parts_try_get(CI_PX),
+		 "version 7 save with the section: active %d, owners %d %d %d %d; want %d, %d %d %d %d", ci_active(),
+		 ci_owner(CI_P0), ci_owner(CI_PA), ci_owner(CI_PB), ci_owner(CI_PC), c, CI_ID(0), a, b, c);
+	ci_drawn("version 7 save with the section", 4, (int[]){ CI_P0, CI_PA, CI_PC, CI_PB });
+	/* It has no list of sub colour parts: the section's words are not read as one. */
+	CI_CHECK(!ci_any_sub(), "a parts or a root is in 減算色モード after loading a version 7 save with the section");
+	v7->nr_vars -= tail;
+	CI_CHECK(PE_Load(&v7), "PE_Load of a version 7 save without the section failed");
+	ci_layers("version 7 save without the section", 4, (int[]){ CI_ID(0), CI_ID(1), CI_ID(2), CI_ID(3) });
+	CI_CHECK(ci_active() == CI_ID(2) && ci_owner(CI_P0) == CI_ID(0) && ci_owner(CI_PA) == CI_ID(1)
+		 && ci_owner(CI_PC) == CI_ID(2) && ci_owner(CI_PB) == CI_ID(3),
+		 "version 7 save without the section: active %d, owners %d %d %d %d; want the positions' IDs", ci_active(),
+		 ci_owner(CI_P0), ci_owner(CI_PA), ci_owner(CI_PC), ci_owner(CI_PB));
+	ci_drawn("version 7 save without the section", 4, (int[]){ CI_P0, CI_PA, CI_PC, CI_PB });
+	CI_CHECK(!ci_any_sub(), "a parts or a root is in 減算色モード after loading a version 7 save without the section");
+	v7->nr_vars += tail + cut;
+	ca_free_buffer(v7);
 	ca_free_buffer(saved);
 
 	/* none designated survives a save as well */
@@ -673,19 +737,33 @@ static void ci_push_pop(void)
 	struct page *saved = NULL;
 	CI_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
 	/* header 4, version, no numeral fonts, active, layers, parts count */
-	CI_CHECK(ca_save_version(saved) == 7 && saved->values[6].i == 3 && saved->values[7].i == 4
-		 && saved->values[8].i == 3, "save header: version %d, active %d, layers %d, parts %d; want 7 3 4 3",
+	CI_CHECK(ca_save_version(saved) == 8 && saved->values[6].i == 3 && saved->values[7].i == 4
+		 && saved->values[8].i == 3, "save header: version %d, active %d, layers %d, parts %d; want 8 3 4 3",
 		 ca_save_version(saved), saved->values[6].i, saved->values[7].i, saved->values[8].i);
 	/* The words before the ID section are what a save of this stack always
-	 * was, ending with the (empty) hidden list. (Since a layer's ID is its
+	 * was, ending with the (empty) hidden list, and since version 8 the
+	 * (empty) list of sub colour parts after it. (Since a layer's ID is its
 	 * root's number every v14 save has the section; layer-root LR8 pins
-	 * that. Before, a pushed-only stack had none.) */
+	 * that. Before, a pushed-only stack had none.) The words and the hash
+	 * printed are those of the version 7 form, which is what they were
+	 * before the IDs and before version 8. */
 	int section = ci_id_section(saved, 4);
 	saved->nr_vars -= section;
-	CI_CHECK(saved->values[saved->nr_vars - 1].i == 0, "the save of a pushed-only stack ends with %d before its ID section, want the hidden list's 0",
-		 saved->values[saved->nr_vars - 1].i);
-	printf("  CI14 pushed-only save: %d words, hash %08x\n", ci_words(saved), ci_hash(saved));
+	CI_CHECK(saved->values[saved->nr_vars - 1].i == 0 && saved->values[saved->nr_vars - 2].i == 0,
+		 "the save of a pushed-only stack ends with %d %d before its ID section, want the 0 of the hidden list and of the sub colour list",
+		 saved->values[saved->nr_vars - 2].i, saved->values[saved->nr_vars - 1].i);
+	printf("  CI14 pushed-only save (version 8): %d words, hash %08x\n", ci_words(saved), ci_hash(saved));
 	saved->nr_vars += section;
+	struct page *v7 = copy_page(saved);
+	int cut = ci_to_v7(v7, 4);
+	CI_CHECK(cut == 1, "could not rewrite the pushed-only save as version 7");
+	v7->nr_vars -= section;
+	printf("  CI14 pushed-only save: %d words, hash %08x\n", ci_words(v7), ci_hash(v7));
+	CI_CHECK(ci_words(v7) == 337 && ci_hash(v7) == 0x70d03dcau,
+		 "the version 7 form of the pushed-only save is %d words, hash %08x; it was 337, 70d03dca",
+		 ci_words(v7), ci_hash(v7));
+	v7->nr_vars += section + cut;
+	ca_free_buffer(v7);
 	ci_erase(c);
 	CI_CHECK(ci_active() == CI_ID(2), "active %d after popping, want %d", ci_active(), CI_ID(2));
 	ci_erase(-1);

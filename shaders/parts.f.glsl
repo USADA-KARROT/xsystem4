@@ -21,6 +21,9 @@ uniform vec2 top_right;
 uniform vec3 add_color;
 uniform vec3 multiply_color;
 uniform int draw_filter;
+// 0: (tex + add) * multiply, as before; 1 (AIN v14): tex * multiply + add,
+// where a negative add colour subtracts (parts_shader_add_color).
+uniform int add_after_multiply;
 
 uniform int use_clipper;
 uniform int use_clip_area;
@@ -46,7 +49,11 @@ void main() {
 		discard;
 
 	vec4 tex_color = texture(tex, tex_coord);
-	vec3 mod_color = (tex_color.rgb + add_color) * multiply_color;
+	vec3 mod_color;
+	if (add_after_multiply != 0)
+		mod_color = clamp(tex_color.rgb * multiply_color + add_color, 0.0, 1.0);
+	else
+		mod_color = (tex_color.rgb + add_color) * multiply_color;
 	float alpha = tex_color.a * blend_rate;
 
 	if (use_clipper != 0) {

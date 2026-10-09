@@ -24,7 +24,21 @@
 #include "parts_internal.h"
 #include "../hll/iarray.h"
 
-#define CURRENT_SAVE_VERSION 7
+/*
+ * A v14 save ("XPE"; engines before v14 keep their version 3 layout):
+ *
+ *   version, numeral fonts, [active controller, number of controllers],
+ *   the parts records,
+ *   the hidden parts' numbers          (version 7 and later),
+ *   the 減算色モード parts' numbers     (version 8 and later),
+ *   the controller ID section          (version 7 and later, see below).
+ *
+ * Each list is a count and then the numbers; a parts record has the same
+ * layout in versions 6, 7 and 8. The controller ID section is always the
+ * last nr + 3 words, whatever precedes it, so a version 7 save with or
+ * without it is read as well (and so is a version 8 save without it).
+ */
+#define CURRENT_SAVE_VERSION 8
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -783,6 +797,9 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->pactex_canvas_w = iarray_read(r);
 		parts->pactex_canvas_h = iarray_read(r);
 	}
+	// The transform is not saved; a child's is combined once its parent is
+	// attached (parts_update_component).
+	parts_load_transform(parts);
 	// A v14 panel written before its colour kept the alpha.
 	if (ain->version >= 14 && parts->component_type == 14)
 		parts_panel_load_blended(parts);
@@ -899,9 +916,29 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 			hidden++;
 		}
 		iarray_write_at(&w, hidden_pos, hidden);
-		if (parts_multi_controller)
-			save_controller_ids(&w);
 	}
+
+	if (version >= 8) {
+		// 減算色モード (SetComponentSubColorMode, pactex 減算色模式), kept
+		// like the list above: the numbers of the parts that have it.
+		unsigned sub_pos = iarray_writer_pos(&w);
+		iarray_write(&w, 0); // size of the list
+		unsigned sub = 0;
+		PARTS_LIST_FOREACH(parts) {
+			if (!save_hidden && !parts->global.show)
+				continue;
+			if (!parts->want_save || !parts->sub_color_mode)
+				continue;
+			iarray_write(&w, parts->no);
+			sub++;
+		}
+		iarray_write_at(&w, sub_pos, sub);
+	}
+
+	// The controller ID section is the end of the save, after every list
+	// (load_controller_ids takes it from there).
+	if (version >= 7 && parts_multi_controller)
+		save_controller_ids(&w);
 
 	if (*buffer) {
 		delete_page_vars(*buffer);
@@ -986,8 +1023,19 @@ bool PE_Load(struct page **buffer)
 			if (parts)
 				parts_set_edit_hidden(parts, true);
 		}
-		// (the controller ID section follows; it was read first)
 	}
+	if (version >= 8) {
+		int nr_sub = iarray_read(&r);
+		for (int i = 0; i < nr_sub; i++) {
+			int no = iarray_read(&r);
+			if (r.error)
+				break;
+			struct parts *parts = parts_try_get(no);
+			if (parts)
+				parts_set_sub_color_mode(parts, true);
+		}
+	}
+	// (the controller ID section follows the lists; it was read first)
 	if (parts_multi_controller && ain->version >= 14) {
 		load_controller_finish(active, ids != NULL);
 		static bool warned;

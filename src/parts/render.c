@@ -41,6 +41,7 @@ static struct {
 	GLint top_right;
 	GLint add_color;
 	GLint multiply_color;
+	GLint add_after_multiply;
 	GLint draw_filter;
 	GLint use_clipper;
 	GLint clipper_tex;
@@ -73,30 +74,48 @@ static void parts_reverse_scale(mat4 m, bool lr, bool tb)
 }
 
 /*
- * The transform around a parts' anchor (its global position):
+ * The transform around a parts' anchor:
  *
- *   T(global pos) * ancestors' reverse * Rz(angle) * S(global scale) * own reverse
+ *   parent's matrix * T(placed pos) * Rz(angle) * S(own scale) * own reverse
  *
  * The original builds each level as S(reverse) * T(-origin) * S(scale) * R *
- * T(pos) (0x4e6d80, row vectors) on top of the parent's accumulated matrix,
+ * T(pos) (0x4e6d80, row vectors; 0x5c3ae0 builds S * Ry * Rx * Rz and
+ * writes the translation last) on top of the parent's accumulated matrix,
  * so a parts' flip mirrors its box around its anchor before the scale,
- * rotation and translation, and the ancestors' flips (global XOR own) mirror
- * the result again around the anchor, whose position parts_update_global_pos
- * already mirrored. Without flips this is the transform used before. angle
- * is in radians; with rotate_scale false (TEXT) neither is applied, as before.
+ * rotation and translation, and everything above it (the ancestors' flips,
+ * scales and rotations) moves the result with the parent: a gauge's fill
+ * bar and number under a GaugeBase rotated 315 degrees lie along it, and a
+ * MapNodeView name under its rotated MainText rectangle is rotated with it.
+ * The parent's matrix is parts_params.matrix (parts_update_global_pos).
+ * Without rotation or scale above the parts this is the transform used
+ * before. angle is in radians; with rotate_scale false the parts' own
+ * rotation and scale are left out (the FLAT root; RI2's TEXT path).
  */
 void parts_anchor_transform(struct parts *parts, float angle, bool rotate_scale, mat4 out)
 {
-	glm_mat4_identity(out);
-	glm_translate(out, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
-	parts_reverse_scale(out, parts->global.reverse_lr != parts->local.reverse_lr,
-			parts->global.reverse_tb != parts->local.reverse_tb);
+	parts_parent_transform(parts, out);
+	Point pos = parts_placed_pos(parts);
+	glm_translate(out, (vec3) { pos.x, pos.y, 0 });
 	if (rotate_scale) {
 		// FIXME: need perspective for 3D rotate
-		glm_rotate_z(out, angle, out);
-		glm_scale(out, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
+		if (angle != 0.0f)
+			glm_rotate_z(out, angle, out);
+		glm_scale(out, (vec3){ parts->local.scale.x, parts->local.scale.y, 1.0 });
 	}
 	parts_reverse_scale(out, parts->local.reverse_lr, parts->local.reverse_tb);
+}
+
+/*
+ * The accumulated add colour for the shader: added, or subtracted when the
+ * signed sum along the parent chain is negative (parts_params.add_subtract;
+ * a parts in 減算色モード counts negative, see parts_accumulate_add_color).
+ */
+static void parts_shader_add_color(struct parts *parts, vec3 out)
+{
+	float sign = parts->global.add_subtract ? -1.0f : 1.0f;
+	out[0] = sign * parts->global.add_color.r / 255.0f;
+	out[1] = sign * parts->global.add_color.g / 255.0f;
+	out[2] = sign * parts->global.add_color.b / 255.0f;
 }
 
 /*
@@ -198,6 +217,11 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 	glUniform2f(parts_shader.top_right, rect->x + rect->w, rect->y + rect->h);
 	glUniform3fv(parts_shader.add_color, 1, add_color);
 	glUniform3fv(parts_shader.multiply_color, 1, multiply_color);
+	// v14: the original passes the multiply colour (with the alpha) and the
+	// add colour to the sprite as two separate colours (0x46a460, 0x46a57c
+	// and 0x46a5af), and PlayerFrameView's silhouette is multiply black
+	// plus add (255, 0, 186): the add colour comes after the multiply.
+	glUniform1i(parts_shader.add_after_multiply, ain->version >= 14);
 	glUniform1i(parts_shader.draw_filter, draw_filter);
 	glUniform1i(parts_shader.use_clip_area, clip_area);
 	if (clip_area)
@@ -242,11 +266,8 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 
 static void parts_render_text(struct parts *parts, struct parts_text *t, Point position)
 {
-	vec3 add_color = {
-		parts->global.add_color.r / 255.0f,
-		parts->global.add_color.g / 255.0f,
-		parts->global.add_color.b / 255.0f
-	};
+	vec3 add_color;
+	parts_shader_add_color(parts, add_color);
 	vec3 multiply_color = {
 		parts->global.multiply_color.r / 255.0f,
 		parts->global.multiply_color.g / 255.0f,
@@ -337,11 +358,8 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		r = (Rectangle) { 0, 0, common->texture.w, common->texture.h };
 	}
 
-	vec3 add_color = {
-		parts->global.add_color.r / 255.0f,
-		parts->global.add_color.g / 255.0f,
-		parts->global.add_color.b / 255.0f
-	};
+	vec3 add_color;
+	parts_shader_add_color(parts, add_color);
 	vec3 multiply_color = {
 		parts->global.multiply_color.r / 255.0f,
 		parts->global.multiply_color.g / 255.0f,
@@ -762,8 +780,8 @@ static void parts_render_v14_gauge(struct parts *parts, struct parts_gauge *g, b
 	parts_v14_gauge_render_geometry(parts, g, vertical, transform, &source);
 	if (!g->common.texture.handle || source.w <= 0 || source.h <= 0)
 		return;
-	vec3 add = {parts->global.add_color.r / 255.f, parts->global.add_color.g / 255.f,
-		parts->global.add_color.b / 255.f};
+	vec3 add;
+	parts_shader_add_color(parts, add);
 	vec3 mul = {parts->global.multiply_color.r / 255.f, parts->global.multiply_color.g / 255.f,
 		parts->global.multiply_color.b / 255.f};
 	int filter = parts_effective_draw_filter(parts);
@@ -892,6 +910,7 @@ void parts_render_init(void)
 	parts_shader.top_right = glGetUniformLocation(parts_shader.shader.program, "top_right");
 	parts_shader.add_color = glGetUniformLocation(parts_shader.shader.program, "add_color");
 	parts_shader.multiply_color = glGetUniformLocation(parts_shader.shader.program, "multiply_color");
+	parts_shader.add_after_multiply = glGetUniformLocation(parts_shader.shader.program, "add_after_multiply");
 	parts_shader.draw_filter = glGetUniformLocation(parts_shader.shader.program, "draw_filter");
 	parts_shader.use_clipper = glGetUniformLocation(parts_shader.shader.program, "use_clipper");
 	parts_shader.clipper_tex = glGetUniformLocation(parts_shader.shader.program, "clipper_tex");

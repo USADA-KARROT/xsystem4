@@ -448,6 +448,22 @@ struct parts_params {
 	// parts' own flags; global: XOR of the flags along the parent chain.
 	bool reverse_lr;
 	bool reverse_tb;
+	// global only: the accumulated transform of the parts' anchor frame, as
+	// the original keeps one per parts (+0x250, written by 0x535260 ->
+	// 0x579bb0 -> 0x4e6d80): the parent's matrix, then this level's
+	// T(pos) * Rz * S(scale) * S(reverse) (column vectors; the original's
+	// row-vector product is S(reverse) * S(scale) * R * T(pos) * parent).
+	// `pos` is the matrix applied to the origin. Not saved: rebuilt from
+	// the local parameters along the parent chain.
+	mat4 matrix;
+	// global only (v14): the signed sum of the add colours along the parent
+	// chain, as the original keeps it (0x579bb0, +0x8c..+0x94; a parts in
+	// 減算色モード adds its own negated, 0x535260). add_color is what is
+	// drawn: the sum clamped to 0..255, or, when all three components are
+	// below 1, the negated sum with add_subtract set (0x5aac60, 0x5b2330).
+	// Not saved: rebuilt like the matrix.
+	int add_sum[3];
+	bool add_subtract;
 };
 
 struct parts {
@@ -485,6 +501,13 @@ struct parts {
 	bool is_hovered;
 	int hover_time;
 	int draw_filter;
+	// v14 減算色モード (SetComponentSubColorMode; pactex 減算色模式, stored as
+	// == 1 by 0x554020, native +0xc4): the parts' own add colour counts
+	// negative in the sum along the parent chain (parts_params.add_sum).
+	// MapNodeView's name and base blink yellow by subtracting (0, 0, c)
+	// from white. Saved since XPE version 8 (a list
+	// of parts numbers after the parts records).
+	bool sub_color_mode;
 	bool message_window;
 	struct parts_message_window *message;
 	int alpha_clipper_parts_no;
@@ -624,6 +647,10 @@ void parts_set_scale_y(struct parts *parts, float mag);
 void parts_set_rotation_z(struct parts *parts, float rot);
 void parts_set_alpha(struct parts *parts, int alpha);
 void parts_set_reverse(struct parts *parts, bool lr, bool tb);
+void parts_set_sub_color_mode(struct parts *parts, bool enable);
+Point parts_placed_pos(const struct parts *parts);
+void parts_parent_transform(struct parts *parts, mat4 out);
+void parts_load_transform(struct parts *parts);
 Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common);
 Point parts_screen_upper_left(struct parts *parts, struct parts_common *common);
 void parts_set_state(struct parts *parts, enum parts_state_type state);

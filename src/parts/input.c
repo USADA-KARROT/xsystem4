@@ -52,37 +52,25 @@ static Point drag_start_cursor;
 static struct parts *drop_target = NULL;
 
 /*
- * Invert parts_box_transform: translation, the ancestors' reverse flags,
- * rotation, scale, the parts' own reverse flags and origin. Returns the point
- * in the parts' box (pixels from its top-left corner), or false when the
- * scale is 0.
+ * Invert parts_box_transform (the parts' accumulated matrix, which now
+ * carries the ancestors' rotation and scale as well, and the origin offset).
+ * Returns the point in the parts' box (pixels from its top-left corner), or
+ * false when the transform is singular (a scale of 0).
  */
 bool parts_screen_to_box(struct parts *parts, struct parts_common *c, float sx, float sy,
 		float *bx, float *by)
 {
-	float x = sx - parts->global.pos.x;
-	float y = sy - parts->global.pos.y;
-	if (parts->global.reverse_lr != parts->local.reverse_lr)
-		x = -x;
-	if (parts->global.reverse_tb != parts->local.reverse_tb)
-		y = -y;
-	if (parts->local.rotation.z != 0.0f) {
-		float angle = parts->local.rotation.z * (3.14159265358979323846f / 180.0f);
-		float cs = cosf(angle), sn = sinf(angle);
-		float rx = cs * x + sn * y;
-		y = -sn * x + cs * y;
-		x = rx;
-	}
-	if (!parts->global.scale.x || !parts->global.scale.y)
+	mat4 m;
+	parts_box_transform(parts, c, m);
+	// The 2D affine part: screen = (a c; b d) * box + (tx, ty).
+	float a = m[0][0], b = m[0][1], cc = m[1][0], d = m[1][1];
+	float det = a * d - b * cc;
+	if (!isfinite(det) || det == 0.0f)
 		return false;
-	x = x / parts->global.scale.x;
-	y = y / parts->global.scale.y;
-	if (parts->local.reverse_lr)
-		x = -x;
-	if (parts->local.reverse_tb)
-		y = -y;
-	*bx = x - c->origin_offset.x;
-	*by = y - c->origin_offset.y;
+	float x = sx - m[3][0];
+	float y = sy - m[3][1];
+	*bx = (d * x - cc * y) / det;
+	*by = (a * y - b * x) / det;
 	return true;
 }
 
