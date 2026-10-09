@@ -20,9 +20,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/cg.h"
 #include "system4/string.h"
 
+#include "vm.h"
 #include "xsystem4.h"
 #include "asset_manager.h"
 #include "parts.h"
@@ -51,6 +53,8 @@ void parts_cp_op_free(struct parts_cp_op *op)
 		break;
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
+	case PARTS_CP_ALPHA_BLEND_TEXT:
+	case PARTS_CP_ONLY_ALPHA_TEXT:
 		free_string(op->text.text);
 		break;
 	case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
@@ -445,6 +449,26 @@ bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct
 			PARTS_CP_COPY_TEXT);
 }
 
+bool PE_AddAlphaBlendTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
+		int type, int size, int r, int g, int b, float bold_weight,
+		int edge_r, int edge_g, int edge_b, float edge_weight,
+		int char_space, int line_space, int state)
+{
+	return add_text_to_cproc(parts_no, x, y, text, type, size, r, g, b, bold_weight,
+			edge_r, edge_g, edge_b, edge_weight, char_space, line_space, state,
+			PARTS_CP_ALPHA_BLEND_TEXT);
+}
+
+bool PE_AddOnlyAlphaTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
+		int type, int size, int r, int g, int b, float bold_weight,
+		int edge_r, int edge_g, int edge_b, float edge_weight,
+		int char_space, int line_space, int state)
+{
+	return add_text_to_cproc(parts_no, x, y, text, type, size, r, g, b, bold_weight,
+			edge_r, edge_g, edge_b, edge_weight, char_space, line_space, state,
+			PARTS_CP_ONLY_ALPHA_TEXT);
+}
+
 static void build_create(struct parts *parts, struct parts_construction_process *cproc,
 		struct parts_cp_create *op)
 {
@@ -686,6 +710,223 @@ static void cp_blend_pixel(uint8_t *d, int r, int g, int b, int a)
 	}
 	if (a > d[3])
 		d[3] = a;
+}
+
+/*
+ * The text commands (v14 commands 7, 8, 23 and 24; native 0x4fc7e0, 0x4fccb0,
+ * 0x4fd250 and 0x4fd720) run the same loop and differ in how a character's
+ * cell, drawn on a surface of its own, is put on this one:
+ *   - 7 blends the colours by the cell's alpha and leaves the surface's
+ *     (0x5aca90 -> 0x491a50 -> 0x494320: c += ((s - c) * sa) >> 8, done here;
+ *     a backend with its SIMD flag set takes 0x491c10 instead,
+ *     ((s - c) * (sa >> 1)) >> 7, which differs by a level or two);
+ *   - 8 copies the cell, with its alpha where the surface has one
+ *     (0x5abb80: 0x5acd70 -> 0x4941b0, else 0x5ad010 -> 0x491860);
+ *   - 23 blends as 7 does and raises the surface's alpha to the cell's where
+ *     that is larger (0x5acc00 -> 0x494420, cp_blend_pixel): on a base of
+ *     alpha 0 in the text's colour, as CBackLogUnit@CreateText and
+ *     CConstructionParts@BuildText fill first, the text alone can be seen
+ *     and its rim has no fringe of another colour;
+ *   - 24 copies the cell's alpha and leaves the colours (0x5acea0 ->
+ *     0x494270); left out on a surface without alpha, as the other commands
+ *     that write only the alpha are.
+ */
+static void cp_text_put(uint8_t *d, const uint8_t *s, enum parts_cp_op_type type, bool has_alpha)
+{
+	switch (type) {
+	case PARTS_CP_DRAW_TEXT:
+		for (int c = 0; c < 3; c++) {
+			const int v = (s[c] - d[c]) * s[3];
+			// sar 8: rounds towards minus infinity
+			d[c] += v >= 0 ? v >> 8 : -((255 - v) >> 8);
+		}
+		break;
+	case PARTS_CP_COPY_TEXT:
+		d[0] = s[0];
+		d[1] = s[1];
+		d[2] = s[2];
+		if (has_alpha)
+			d[3] = s[3];
+		break;
+	case PARTS_CP_ALPHA_BLEND_TEXT:
+		cp_blend_pixel(d, s[0], s[1], s[2], s[3]);
+		break;
+	case PARTS_CP_ONLY_ALPHA_TEXT:
+		if (has_alpha)
+			d[3] = s[3];
+		break;
+	default:
+		break;
+	}
+}
+
+/* Puts the w x h pixels at (sx, 0) of src (src_w x src_h) on the surface at
+ * (dx, dy), cut to both. */
+static void cp_text_put_rect(uint8_t *pixels, int tw, int th, int64_t dx, int64_t dy,
+		const uint8_t *src, int src_w, int src_h, int sx, int w, int h,
+		enum parts_cp_op_type type, bool has_alpha)
+{
+	if (dx <= -(int64_t)w || dy <= -(int64_t)h || dx >= tw || dy >= th)
+		return;
+	int sy = 0;
+	if (dx < 0) {
+		sx -= dx;
+		w += dx;
+		dx = 0;
+	}
+	if (dy < 0) {
+		sy -= dy;
+		h += dy;
+		dy = 0;
+	}
+	w = min(min(w, tw - (int)dx), src_w - sx);
+	h = min(min(h, th - (int)dy), src_h - sy);
+	for (int row = 0; row < h; row++) {
+		const uint8_t *s = src + ((size_t)(sy + row) * src_w + sx) * 4;
+		uint8_t *d = pixels + ((size_t)(dy + row) * tw + dx) * 4;
+		for (int col = 0; col < w; col++, s += 4, d += 4)
+			cp_text_put(d, s, type, has_alpha);
+	}
+}
+
+/* Whether the text commands lay their text out on the CN glyph grid, as a
+ * v14 text state does (parts_text_v14_grid). */
+static bool cp_text_on_grid(void)
+{
+	return ain->version >= 14 && gfx_text_cn_gdi();
+}
+
+// The widest run of cells drawn at once (a texture's width).
+#define CP_TEXT_RUN_WIDTH 2048
+
+/* A run of characters of one line: their cells are drawn side by side on a
+ * surface of their own and put on this one at the pen, one by one. */
+static void cp_text_put_cells(uint8_t *pixels, int tw, int th, struct text_style *ts,
+		char *run, int64_t *pen_x, int64_t pen_y, int char_space,
+		enum parts_cp_op_type type, bool has_alpha)
+{
+	const int size = lroundf(ts->size);
+	const int e = gfx_text_cn_style_edge(ts);
+	const int cells_w = lroundf(gfx_size_text(ts, run));
+	const int cells_h = size + 3 * e;
+	if (cells_w <= 0 || cells_h <= 0)
+		return;
+
+	// The cells as a text state draws a character's (parts_text_append_char),
+	// the spacing left out: transparent, in the edge's colour, where the
+	// glyph is not.
+	struct text_style cell_ts = *ts;
+	cell_ts.font_spacing = 0;
+	Texture cells;
+	gfx_init_texture_rgba(&cells, cells_w, cells_h, (SDL_Color) {
+			ts->edge_color.r, ts->edge_color.g, ts->edge_color.b, 0 });
+	gfx_render_textf(&cells, 0, e, run, &cell_ts, false);
+	uint8_t *src = gfx_get_pixels(&cells);
+	gfx_delete_texture(&cells);
+
+	int sx = 0;
+	for (const char *c = run; *c; c += parts_text_char_bytes(c)) {
+		const int cell_w = gfx_text_cn_width(size, *c) + 2 * e;
+		cp_text_put_rect(pixels, tw, th, *pen_x, pen_y, src, cells_w, cells_h, sx,
+				cell_w, cells_h, type, has_alpha);
+		*pen_x += (int64_t)cell_w + char_space;
+		sx += cell_w;
+	}
+	free(src);
+}
+
+/*
+ * A text command on the CN glyph grid (gfx_text_cn_gdi), as the original runs
+ * it (0x4fd380..0x4fd626 for command 23, the same loop in the other three):
+ * the text is cut into characters (0x4fbba0); a "\n" moves the pen down by
+ * the font's line, its size made even plus 2e (0x69f540), and the line
+ * spacing, and back to X (0x4fd3b9); any other character is drawn into a cell
+ * of its own (0x5abcb0 -> 0x69f9f0, the glyph surface a text state draws: its
+ * width and 2e wide, the size and 2e high, the glyph at (e, e)), the cell,
+ * cut to what is left of the surface right of and below the pen (0x4fd573),
+ * is put at the pen, and the pen moves on by the whole cell and the character
+ * spacing (0x4fd609). e is gfx_text_cn_style_edge.
+ *
+ * Not the original's: the cells are e rows higher, below, as a text state's
+ * are (the default font draws its descenders there); a run of 0x81 0x5C, the
+ * SJIS dash, which the original draws as one line (0x4fd3d8 -> 0x4fc6c0,
+ * 0x5ad180), is drawn as the characters those bytes are (a GBK text has no
+ * dash there); a pen left of or above the surface loses the cell's left or
+ * top (the original's clip for that, 0x5abde0, was not read); the pen does
+ * not wrap around at the ends of int.
+ */
+static void build_text_grid(uint8_t *pixels, int tw, int th, struct parts_cp_text *op,
+		enum parts_cp_op_type type, bool has_alpha)
+{
+	const int size = lroundf(op->style.size);
+	const int e = gfx_text_cn_style_edge(&op->style);
+	const int line_height = size + (size & 1) + 2 * e;
+	const int char_space = op->style.font_spacing;
+	if (size <= 0)
+		return;
+
+	char *text = xstrdup(op->text->text);
+	int64_t x = op->x, y = op->y;
+	for (char *p = text; *p;) {
+		if (*p == '\n') {
+			y += (int64_t)line_height + op->line_space;
+			x = op->x;
+			p++;
+			continue;
+		}
+		// The characters up to the line's end, or as many as one run holds.
+		char *end = p;
+		int run_w = 0;
+		while (*end && *end != '\n') {
+			const int cell_w = gfx_text_cn_width(size, *end) + 2 * e;
+			if (end > p && run_w + cell_w > CP_TEXT_RUN_WIDTH)
+				break;
+			run_w += cell_w;
+			end += parts_text_char_bytes(end);
+		}
+		const char saved = *end;
+		*end = '\0';
+		cp_text_put_cells(pixels, tw, th, &op->style, p, &x, y, char_space, type, has_alpha);
+		*end = saved;
+		p = end;
+	}
+	free(text);
+}
+
+/* Commands 23 and 24 where the glyphs are not on that grid: the text is drawn
+ * as command 8 draws it there (one line, build_copy_text), on a surface of
+ * its own, and that is put on this one. */
+static void build_text_staged(uint8_t *pixels, int tw, int th, struct parts_cp_text *op,
+		enum parts_cp_op_type type, bool has_alpha)
+{
+	const int w = ceilf(gfx_size_text(&op->style, op->text->text));
+	const int h = ceilf(op->style.size + op->style.edge_up + op->style.edge_down);
+	if (w <= 0 || h <= 0)
+		return;
+	Texture staged;
+	gfx_init_texture_rgba(&staged, w, h, (SDL_Color) {
+			op->style.edge_color.r, op->style.edge_color.g, op->style.edge_color.b, 0 });
+	gfx_render_text(&staged, 0, 0, op->text->text, &op->style, false);
+	uint8_t *src = gfx_get_pixels(&staged);
+	gfx_delete_texture(&staged);
+	cp_text_put_rect(pixels, tw, th, op->x, op->y, src, w, h, 0, w, h, type, has_alpha);
+	free(src);
+}
+
+/* The commands that run on the surface's pixels. */
+static bool cp_op_on_pixels(const struct parts_cp_op *op)
+{
+	switch (op->type) {
+	case PARTS_CP_DRAW_TEXT:
+	case PARTS_CP_COPY_TEXT:
+		return cp_text_on_grid();
+	case PARTS_CP_ALPHA_BLEND_TEXT:
+	case PARTS_CP_ONLY_ALPHA_TEXT:
+		return true;
+	default:
+		return op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
+			&& op->type <= PARTS_CP_DRAW_CIRCLE_AMAP;
+	}
 }
 
 /*
@@ -1177,8 +1418,7 @@ bool parts_build_construction_process(struct parts *parts,
 	uint8_t *pixels = NULL;
 	struct parts_cp_op *op;
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
-		const bool on_pixels = op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
-			&& op->type <= PARTS_CP_DRAW_CIRCLE_AMAP;
+		const bool on_pixels = cp_op_on_pixels(op);
 		if (pixels && !on_pixels) {
 			gfx_update_texture_with_pixels(t, pixels);
 			free(pixels);
@@ -1226,10 +1466,23 @@ bool parts_build_construction_process(struct parts *parts,
 			build_copy_cut_cg(cproc, &op->cut_cg);
 			break;
 		case PARTS_CP_DRAW_TEXT:
-			build_draw_text(cproc, &op->text);
+			if (on_pixels)
+				build_text_grid(pixels, t->w, t->h, &op->text, op->type, has_alpha);
+			else
+				build_draw_text(cproc, &op->text);
 			break;
 		case PARTS_CP_COPY_TEXT:
-			build_copy_text(cproc, &op->text);
+			if (on_pixels)
+				build_text_grid(pixels, t->w, t->h, &op->text, op->type, has_alpha);
+			else
+				build_copy_text(cproc, &op->text);
+			break;
+		case PARTS_CP_ALPHA_BLEND_TEXT:
+		case PARTS_CP_ONLY_ALPHA_TEXT:
+			if (cp_text_on_grid())
+				build_text_grid(pixels, t->w, t->h, &op->text, op->type, has_alpha);
+			else
+				build_text_staged(pixels, t->w, t->h, &op->text, op->type, has_alpha);
 			break;
 		case PARTS_CP_GRAY_FILTER:
 			build_gray_filter(cproc, &op->filter);

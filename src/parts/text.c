@@ -59,6 +59,13 @@ static int extract_multibyte_char(const char *src, char *dst)
 	return 1;
 }
 
+// The bytes of the character at src, as a text is cut into characters.
+int parts_text_char_bytes(const char *src)
+{
+	char ch[8];
+	return extract_multibyte_char(src, ch);
+}
+
 struct string *parts_text_line_get(struct parts_text_line *line)
 {
 	struct string *s = make_string("", 0);

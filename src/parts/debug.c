@@ -127,6 +127,8 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_FILL_POLYGON_BLEND] = "fill_polygon_blend",
 		[PARTS_CP_TILE_CG] = "tile_cg",
 		[PARTS_CP_DRAW_CIRCLE_AMAP] = "draw_circle_amap",
+		[PARTS_CP_ALPHA_BLEND_TEXT] = "alpha_blend_text",
+		[PARTS_CP_ONLY_ALPHA_TEXT] = "only_alpha_text",
 	};
 
 	cJSON *ops, *tmp;
@@ -185,6 +187,8 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			break;
 		case PARTS_CP_DRAW_TEXT:
 		case PARTS_CP_COPY_TEXT:
+		case PARTS_CP_ALPHA_BLEND_TEXT:
+		case PARTS_CP_ONLY_ALPHA_TEXT:
 			cJSON_AddSjisToObject(obj, "text", op->text.text->text);
 			cJSON_AddItemToObjectCS(obj, "pos", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->text.x);
@@ -609,6 +613,12 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_COPY_TEXT:
 				sys_message(" copy-text");
+				break;
+			case PARTS_CP_ALPHA_BLEND_TEXT:
+				sys_message(" alpha-blend-text");
+				break;
+			case PARTS_CP_ONLY_ALPHA_TEXT:
+				sys_message(" only-alpha-text");
 				break;
 			case PARTS_CP_GRAY_FILTER:
 				sys_message(" gray-filter");

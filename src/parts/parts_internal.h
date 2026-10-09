@@ -250,7 +250,12 @@ enum parts_cp_op_type {
 	PARTS_CP_FILL_POLYGON_BLEND,
 	PARTS_CP_TILE_CG,
 	PARTS_CP_DRAW_CIRCLE_AMAP,
-#define PARTS_NR_CP_TYPES (PARTS_CP_DRAW_CIRCLE_AMAP+1)
+	// The text commands that write the alpha (v14 commands 23 and 24;
+	// struct parts_cp_text, as PARTS_CP_DRAW_TEXT). Saved since XPE
+	// version 9.
+	PARTS_CP_ALPHA_BLEND_TEXT,
+	PARTS_CP_ONLY_ALPHA_TEXT,
+#define PARTS_NR_CP_TYPES (PARTS_CP_ONLY_ALPHA_TEXT+1)
 };
 
 struct parts_cp_create {
@@ -493,6 +498,20 @@ struct parts_state {
 	};
 };
 
+// v14 豎滾動條 (component type 2): what the widget scrolls (native +0x110
+// 全體スクロール量, +0x114 表示量, +0x118 スクロール位置, +0x11c スクロール
+// レート) and the position and rate it last reported to its observers
+// (+0xc4, +0xc8). The bar is not drawn (scrollbar.c). Not saved.
+struct parts_scrollbar {
+	int total;
+	int view;
+	int pos;
+	float rate;
+	int reported_pos;
+	float reported_rate;
+};
+#define PARTS_COMPONENT_VSCROLLBAR 2
+
 TAILQ_HEAD(parts_list, parts);
 
 struct parts_params {
@@ -609,6 +628,7 @@ struct parts {
 	// it; only used while the state has no size of its own (layoutbox.c).
 	int pactex_canvas_w, pactex_canvas_h;
 	struct parts_panel panel;
+	struct parts_scrollbar scrollbar;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -757,9 +777,17 @@ void parts_v14_gauge_fill_rect(struct parts_gauge *g, bool vertical, Rectangle *
 void parts_hgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 void parts_vgauge_set_rate(struct parts *parts, struct parts_gauge *g, float rate);
 
+// scrollbar.c
+void parts_scrollbar_set_total(struct parts *parts, int total);
+void parts_scrollbar_set_view(struct parts *parts, int view);
+void parts_scrollbar_set_pos(struct parts *parts, int pos);
+void parts_scrollbar_set_rate(struct parts *parts, float rate);
+void parts_scrollbar_update(void);
+
 // text.c
 void parts_text_free(struct parts_text *t);
 void parts_text_extent(struct parts_text *t, int *w, int *h);
+int parts_text_char_bytes(const char *src);
 struct string *parts_text_line_get(struct parts_text_line *line);
 struct string *parts_text_get(struct parts_text *t);
 

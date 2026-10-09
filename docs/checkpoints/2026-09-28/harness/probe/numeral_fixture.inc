@@ -1194,7 +1194,7 @@ static void nm_guards(void)
 }
 
 /* --- NM10 --- */
-/* A save (XPE 8) keeps a numeral's number, 字間隔, コンマ表示, 桁數 and CG
+/* A save (XPE 8 and 9) keeps a numeral's number, 字間隔, コンマ表示, 桁數 and CG
  * font number, and the state's size, but not the 表示タイプ, the font, the
  * ＣＧ名, 全角 or ゼロパディング. A numeral read back without a CG font cannot
  * be built again from that: it keeps the size it was saved with, and the box

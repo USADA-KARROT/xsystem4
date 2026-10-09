@@ -1947,10 +1947,15 @@ void *array_isexist_function(const struct ain_hll_function *f)
 	return NULL;
 }
 
-// EmplaceBack: push a default value (like PushBack(0) for int arrays)
-// EmplaceBack: append a default-constructed element and return it as wrap<T>.
-// For struct elements (hll_arg3=2): create a new struct via alloc_struct().
-// For int elements (hll_arg3=1): append 0.
+// EmplaceBack: append a default element and return it as wrap<T>.
+// The original grows the array by one default-initialized element (case 11
+// -> 0x6476e0 -> Realloc, 0x67f4d0 -> 0x680170 -> 0x656970): a struct
+// element is a constructed object, its no-argument constructor included
+// (0x656a12 -> 0x679b30 with 1), as the elements of a sized X_A_INIT are;
+// an int element is 0. Without the constructor an element keeps the
+// defaults of alloc_struct: CBackLogUnitList@PushUnit's CBackLogUnit had no
+// construction parts, and its m_modelList page said a stride of the model's
+// struct index, so that X_A_SIZE counted none of the lines added to it.
 // Returns the new element's value (heap slot for structs, 0 for ints).
 static int Array_EmplaceBack(struct page **array)
 {
@@ -1970,22 +1975,28 @@ static int Array_EmplaceBack(struct page **array)
 		for (int i = 0; i < old_size; i++)
 			new_a->values[i] = a->values[i];
 		new_a->array = a->array;
-		free_page(a);
 	} else {
 		new_a->array.rank = 1;
 	}
 	int new_val = 0;
-	// For struct/wrap elements, construct a new struct object.
+	// For struct/wrap elements, construct a new struct object. The
+	// constructor runs in the VM: the array is left as it was until the
+	// object is made, and what this call is about is read before.
 	if (array_elem_is_struct()) {
 		int struct_type = new_a->array.struct_type;
 		if (struct_type < 0 && hll_current_arg3 >= 0x10000)
 			struct_type = hll_current_arg3 & 0xFFFF;
 		if (struct_type >= 0 && struct_type < ain->nr_structures) {
 			new_a->array.struct_type = struct_type;
-			new_val = alloc_struct(struct_type);
+			if (ain->version >= 14)
+				new_val = vm_construct_struct(struct_type);
+			if (new_val <= 0)
+				new_val = alloc_struct(struct_type);
 			heap_ref(new_val);
 		}
 	}
+	if (a)
+		free_page(a);
 	new_a->values[old_size].i = new_val;
 	*array = new_a;
 	return new_val;

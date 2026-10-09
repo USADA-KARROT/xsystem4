@@ -37,6 +37,10 @@ struct adv_log {
 	struct string **lines;
 	unsigned nr_voices;
 	int *voices;
+	// v14 (AnteaterADVLogList): a voice is a name and a filter name.
+	unsigned nr_voice_names;
+	struct string **voice_names;
+	struct string **voice_filters;
 };
 
 static bool enabled = true;
@@ -63,10 +67,19 @@ static void free_log(struct adv_log *log)
 	}
 	free(log->lines);
 	free(log->voices);
+	for (unsigned i = 0; i < log->nr_voice_names; i++) {
+		free_string(log->voice_names[i]);
+		free_string(log->voice_filters[i]);
+	}
+	free(log->voice_names);
+	free(log->voice_filters);
 	log->nr_lines = 0;
 	log->lines = NULL;
 	log->nr_voices = 0;
 	log->voices = NULL;
+	log->nr_voice_names = 0;
+	log->voice_names = NULL;
+	log->voice_filters = NULL;
 }
 
 // Ensure there is at least one log allocated
@@ -501,10 +514,31 @@ static void AnteaterADVEngine_v14_AddText(struct string *text, struct string *wi
 	ADVLogList_AddText(&ref);
 }
 
+/* v14: void AddVoice(string VoiceName, string VoiceFilterName). A voice is a
+ * name and a filter name; message::detail::VOICE adds the one it plays to the
+ * page being written, and the backlog reads them back
+ * (SBackLogUnitModelManager@GetVoiceNameList): a line with a voice whose file
+ * exists is drawn in the voice font and plays it when clicked
+ * (CBackLogUnit@IsExistVoice). Taken from how the scripts use the three
+ * functions; the library itself was not disassembled. Not saved: Save and
+ * Load keep the older layout, without the names. */
 static void AnteaterADVEngine_v14_AddVoice(struct string *voice_name, struct string *voice_filter)
 {
-	// v14: voice is identified by name string, not int
-	// Store nothing for now — voice playback from log is cosmetic
+	if (!enabled)
+		return;
+	struct adv_log *log = current_log();
+	log->voice_names = xrealloc_array(log->voice_names, log->nr_voice_names,
+			log->nr_voice_names + 1, sizeof(struct string*));
+	log->voice_filters = xrealloc_array(log->voice_filters, log->nr_voice_names,
+			log->nr_voice_names + 1, sizeof(struct string*));
+	log->voice_names[log->nr_voice_names] = string_dup(voice_name);
+	log->voice_filters[log->nr_voice_names] = string_dup(voice_filter);
+	log->nr_voice_names++;
+}
+
+static int AnteaterADVEngine_v14_GetNumofADVLogVoice(int log_no)
+{
+	return log_entry(log_no)->nr_voice_names;
 }
 
 static struct string *AnteaterADVEngine_v14_GetADVLogText(int log_no, int line_no)
@@ -516,12 +550,18 @@ static struct string *AnteaterADVEngine_v14_GetADVLogText(int log_no, int line_n
 
 static struct string *AnteaterADVEngine_v14_GetADVLogVoice(int log_no, int index)
 {
-	return string_ref(&EMPTY_STRING);
+	struct adv_log *log = log_entry(log_no);
+	if (index < 0 || (unsigned)index >= log->nr_voice_names)
+		return string_ref(&EMPTY_STRING);
+	return string_ref(log->voice_names[index]);
 }
 
 static struct string *AnteaterADVEngine_v14_GetADVLogVoiceFilter(int log_no, int index)
 {
-	return string_ref(&EMPTY_STRING);
+	struct adv_log *log = log_entry(log_no);
+	if (index < 0 || (unsigned)index >= log->nr_voice_names)
+		return string_ref(&EMPTY_STRING);
+	return string_ref(log->voice_filters[index]);
 }
 
 HLL_LIBRARY(AnteaterADVEngine,
@@ -559,7 +599,7 @@ HLL_LIBRARY(AnteaterADVEngine,
 	    HLL_EXPORT(GetNumofADVLog, ADVLogList_GetNumofADVLog),
 	    HLL_EXPORT(GetNumofADVLogText, ADVLogList_GetNumofADVLogText),
 	    HLL_EXPORT(GetADVLogText, AnteaterADVEngine_v14_GetADVLogText),
-	    HLL_EXPORT(GetNumofADVLogVoice, ADVLogList_GetNumofADVLogVoice),
+	    HLL_EXPORT(GetNumofADVLogVoice, AnteaterADVEngine_v14_GetNumofADVLogVoice),
 	    HLL_EXPORT(GetADVLogVoice, AnteaterADVEngine_v14_GetADVLogVoice),
 	    HLL_EXPORT(GetADVLogVoiceFilter, AnteaterADVEngine_v14_GetADVLogVoiceFilter),
 	    HLL_EXPORT(Save, ADVLogList_Save),

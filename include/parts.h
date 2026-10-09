@@ -208,6 +208,14 @@ bool PE_AddDrawTextToPartsConstructionProcess(int parts_no, int x, int y, struct
 		int type, int size, int r, int g, int b, float bold_weight,
 		int edge_r, int edge_g, int edge_b, float edge_weight,
 		int char_space, int line_space, int state);
+bool PE_AddAlphaBlendTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
+		int type, int size, int r, int g, int b, float bold_weight,
+		int edge_r, int edge_g, int edge_b, float edge_weight,
+		int char_space, int line_space, int state);
+bool PE_AddOnlyAlphaTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
+		int type, int size, int r, int g, int b, float bold_weight,
+		int edge_r, int edge_g, int edge_b, float edge_weight,
+		int char_space, int line_space, int state);
 bool PE_BuildPartsConstructionProcess(int parts_no, int state);
 bool PE_ClearPartsConstructionProcess(int parts_no, int state);
 bool PE_SetPartsConstructionSurfaceArea(int parts_no, int x, int y, int w, int h, int state);

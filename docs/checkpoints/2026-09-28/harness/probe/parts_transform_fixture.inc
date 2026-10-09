@@ -456,7 +456,7 @@ static void pt_save_with_layers(void)
 	if (!saved)
 		return;
 	int n = 4, section = ci_id_section(saved, n), end = saved->nr_vars - section;
-	PT_CHECK(ca_save_version(saved) == 8, "XPE version %d, want 8", ca_save_version(saved));
+	PT_CHECK(ca_save_version(saved) >= 8, "XPE version %d, want 8 or later", ca_save_version(saved));
 	PT_CHECK(section == n + 3, "the save does not end with the controller ID section of %d layers", n);
 	PT_CHECK(end >= 3 && saved->values[end - 3].i == 0 && saved->values[end - 2].i == 1 && saved->values[end - 1].i == CI_PA,
 		 "the words before the ID section are %d %d %d; want 0 (no hidden parts), 1 and %d (one sub colour parts)",

@@ -1431,6 +1431,27 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	if (pactex_apply_message_window(type_info, ptype, parts_no))
 		return;
 
+	/* --- 豎滾動條: what the bar scrolls. The native loader reads 全體スクロー
+	 * ル量, 表示量, スクロール位置 and スクロールレート, a missing key being
+	 * 0, into the widget as they are (0x544802, 0x544869, 0x5448d0,
+	 * 0x544937 -> +0x110..+0x11c). BackLog's bar shows 16 lines (表示量), which
+	 * is how many CBackLogView@SetLineIndex builds. The SJIS key of the first
+	 * is a guess: no SJIS pactex was read. --- */
+	if (parts_get(parts_no)->component_type == PARTS_COMPONENT_VSCROLLBAR) {
+		struct parts_scrollbar *sb = &parts_get(parts_no)->scrollbar;
+		sb->total = pactex_value_number(pactex_leaf_value(type_info,
+				"\x91\x53\x91\xcc\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x97\xca",
+				"\xc8\xab\xf3\x77\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xc1\xbf"), 0);
+		sb->view = pactex_value_number(pactex_leaf_value(type_info,
+				"\x95\x5c\x8e\xa6\x97\xca", "\xb1\xed\xca\xbe\xc1\xbf"), 0);
+		sb->pos = pactex_value_number(pactex_leaf_value(type_info,
+				"\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x88\xca\x92\x75",
+				"\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xce\xbb\xd6\xc3"), 0);
+		sb->rate = pactex_value_number(pactex_leaf_value(type_info,
+				"\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x83\x8c\x81\x5b\x83\x67",
+				"\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xa5\xec\xa9\x60\xa5\xc8"), 0);
+	}
+
 	/* --- Handle パネル (Panel) type: solid color rectangle --- */
 	if (ptype && (strstr(ptype, SJIS_PANEL) || strstr(ptype, GBK_PANEL))) {
 		/* サイズ = list[2] = [w, h] */

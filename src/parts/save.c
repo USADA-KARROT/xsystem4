@@ -34,16 +34,17 @@
  *   the controller ID section          (version 7 and later, see below).
  *
  * Each list is a count and then the numbers; a parts record has the same
- * layout in versions 6, 7 and 8. The controller ID section is always the
+ * layout in versions 6 to 9. The controller ID section is always the
  * last nr + 3 words, whatever precedes it, so a version 7 save with or
- * without it is read as well (and so is a version 8 save without it).
+ * without it is read as well (and so is a version 8 or 9 save without it).
  *
  * Version 8 also has the construction operations 14..22 (the pixel
  * operations, struct parts_cp_pixel) in a parts record's operation list. A
  * reader reads no fields for an operation type it does not know, so a save
  * with a new operation needs a new version; these came with version 8.
+ * Version 9 has the text operations 23 and 24 (the fields of 9 and 10).
  */
-#define CURRENT_SAVE_VERSION 8
+#define CURRENT_SAVE_VERSION 9
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -266,7 +267,7 @@ static void load_parts_numeral(struct iarray_reader *r, struct parts *parts,
 	num->font_no = iarray_read(r);
 
 	// A v14 numeral's 表示タイプ, font, ＣＧ名, 全角 and ゼロパディング are
-	// not saved (XPE 8). One with a CG font is drawn again with it; one
+	// not saved (XPE 8 and 9). One with a CG font is drawn again with it; one
 	// without (a font numeral, or a CG numeral with no CG) keeps the size
 	// that was read and is not built until the script gives its type.
 	if (ain->version >= 14 && num->font_no < 0) {
@@ -353,6 +354,8 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		break;
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
+	case PARTS_CP_ALPHA_BLEND_TEXT:
+	case PARTS_CP_ONLY_ALPHA_TEXT:
 		iarray_write_string(w, op->text.text);
 		iarray_write(w, op->text.x);
 		iarray_write(w, op->text.y);
@@ -451,6 +454,8 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		break;
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
+	case PARTS_CP_ALPHA_BLEND_TEXT:
+	case PARTS_CP_ONLY_ALPHA_TEXT:
 		op->text.text = iarray_read_string(r);
 		op->text.x = iarray_read(r);
 		op->text.y = iarray_read(r);

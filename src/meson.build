@@ -71,6 +71,7 @@ xsystem4 = [version_h,
             'parts/motion.c',
             'parts/parts.c',
             'parts/render.c',
+            'parts/scrollbar.c',
             'parts/text.c',
             'parts/save.c',
 

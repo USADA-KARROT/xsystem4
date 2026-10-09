@@ -1154,14 +1154,17 @@ static void v14_cp_fill_rect(struct page *ints, int *x, int *y, int *w, int *h)
  * (0x59a92b..0x59a9c9): ArrayInt[22] the type, [23] the size, [24..26] the
  * colour, [27..29] the edge colour, [20] and [21] the character and line
  * spacing; ArrayFloat[0] the weight, [1] the edge. */
-static void v14_cp_add_text(int parts_no, bool copy, struct page *ints, int wf_slot,
+static void v14_cp_add_text(int parts_no, int cmd, struct page *ints, int wf_slot,
 		int x, int y, struct string *text, int state)
 {
 #define V14_CP_INT(n, def) (ints->nr_vars > (n) ? ints->values[n].i : (def))
 	struct page *floats = wrap_get_backing_array(wf_slot);
 	float bold_weight = (floats && floats->nr_vars > 0) ? floats->values[0].f : 0.0f;
 	float edge_weight = (floats && floats->nr_vars > 1) ? floats->values[1].f : 0.0f;
-	(copy ? PE_AddCopyTextToPartsConstructionProcess : PE_AddDrawTextToPartsConstructionProcess)(
+	(cmd == V14_CP_COPY_TEXT ? PE_AddCopyTextToPartsConstructionProcess
+			: cmd == V14_CP_ALPHA_BLEND_TEXT ? PE_AddAlphaBlendTextToPartsConstructionProcess
+			: cmd == V14_CP_ONLY_ALPHA_TEXT ? PE_AddOnlyAlphaTextToPartsConstructionProcess
+			: PE_AddDrawTextToPartsConstructionProcess)(
 		parts_no, x, y, text, V14_CP_INT(22, 0), V14_CP_INT(23, 16),
 		V14_CP_INT(24, 0), V14_CP_INT(25, 0), V14_CP_INT(26, 0), bold_weight,
 		V14_CP_INT(27, 0), V14_CP_INT(28, 0), V14_CP_INT(29, 0), edge_weight,
@@ -1195,15 +1198,11 @@ static void v14_cp_add_text(int parts_no, bool copy, struct page *ints, int wf_s
  *     0x507640). A polygon with 丸め or a rotation adds nothing.
  *   - 52 writes the alpha of a ring of that radius, 線の幅 wide (0x502570).
  *   - 129 tiles the CG over the rectangle (0x50a220).
- * The two alpha text commands are drawn as 7 is, which is not what they do:
- *   - 23 blends RGB by the text's alpha and raises the surface's alpha to
- *     the text's where that is larger (0x494420). The blend here leaves the
- *     alpha, so on a base of alpha 0, which CBackLogUnit@CreateText and
- *     CConstructionParts@BuildText fill first, the text is drawn and cannot
- *     be seen;
- *   - 24 copies the text's alpha and leaves RGB (0x494270); here it writes
- *     RGB and leaves the alpha, the opposite channels. No script of the
- *     game calls it. */
+ *   - 7, 8, 23 and 24 draw the text (先矩形 X,Y) one character's cell after
+ *     the other and differ in how a cell is put on the surface: blended,
+ *     copied, blended with the alpha raised to the text's (0x494420), only
+ *     the alpha copied (0x494270): construction.c. No script of the game
+ *     calls 24. */
 static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, int wf_slot, int ws_slot, int wp_slot, int state)
 {
 	struct page *ints = wrap_get_backing_array(wi_slot);
@@ -1302,12 +1301,11 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		PE_AddFillWithAlphaToPartsConstructionProcess(parts_no, dx, dy, dw, dh, r, g, b, a, state);
 		break;
 	case V14_CP_DRAW_TEXT:
-		if (text)
-			v14_cp_add_text(parts_no, false, ints, wf_slot, dx, dy, text, state);
-		break;
 	case V14_CP_COPY_TEXT:
+	case V14_CP_ALPHA_BLEND_TEXT:
+	case V14_CP_ONLY_ALPHA_TEXT:
 		if (text)
-			v14_cp_add_text(parts_no, true, ints, wf_slot, dx, dy, text, state);
+			v14_cp_add_text(parts_no, cmd, ints, wf_slot, dx, dy, text, state);
 		break;
 	case V14_CP_FILL_GRADATION_HORIZON: {
 		/* Gradient fill: use RGBA + RGBA2 for start/end colors, approximate with fill */
@@ -1371,13 +1369,6 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, lx, ly, lw, lh, r, g, b, a, state);
 		break;
 	}
-	case V14_CP_ALPHA_BLEND_TEXT:
-	case V14_CP_ONLY_ALPHA_TEXT:
-		/* Drawn as command 7, which neither is (see above): 23 loses
-		 * the alpha it should write, 24 writes the wrong channels. */
-		if (text)
-			v14_cp_add_text(parts_no, false, ints, wf_slot, dx, dy, text, state);
-		break;
 	case V14_CP_MUL_AMAP_GRADATION_HORIZON:
 	case V14_CP_MUL_AMAP_GRADATION_VERTICAL:
 		PE_AddMulAMapGradationToPartsConstructionProcess(parts_no,
@@ -1861,6 +1852,7 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 }
 #include "pe_v14_gauge.h"
 #include "pe_v14_numeral.h"
+#include "pe_v14_backlog.h"
 #include "pe_v14_stubs.h"
 
 /* Fill the v14-only names into the runtime library table. Called from
@@ -1923,6 +1915,7 @@ static void pe_v14_register_batch(int libno)
 	static_library_register(lib, "GetLayoutBoxPaddingRight", PE_get_layoutbox_padding_right);
 	pe_v14_register_gauges(libno);
 	pe_v14_register_numerals(libno);
+	pe_v14_register_backlog();
 #include "pe_v14_prelink.h"
 }
 

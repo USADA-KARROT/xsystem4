@@ -115,8 +115,8 @@
  *     its values (PN2's construction parts go through a panel call first);
  *   - a rectangle past the surface for commands 3, 4 and 5 (command 6 has a
  *     case; nothing of the fix clips, the drawing does);
- *   - the pixels the text commands draw. 23 and 24 are drawn as 7, which on
- *     a base of alpha 0 cannot be seen.
+ *   - the pixels the text commands draw (backlog-text does: 23 and 24 have
+ *     operations of their own since).
  *
  * Uses the construction mode's GL setup and its fork (an environment failure
  * is retried once and ends the mode with exit code 2). An AIN without what a
@@ -750,7 +750,9 @@ static void pn_text(void)
 {
 	cn_gl_setup();
 	static const struct { int cmd; enum parts_cp_op_type type; } cmds[] = {
-		{ 7, PARTS_CP_DRAW_TEXT }, { 8, PARTS_CP_COPY_TEXT }, { 23, PARTS_CP_DRAW_TEXT }, { 24, PARTS_CP_DRAW_TEXT },
+		/* 23 and 24 have operations of their own, numbered as the commands
+		 * (0x494420, 0x494270; backlog-text checks what they draw) */
+		{ 7, PARTS_CP_DRAW_TEXT }, { 8, PARTS_CP_COPY_TEXT }, { 23, (enum parts_cp_op_type)23 }, { 24, (enum parts_cp_op_type)24 },
 	};
 	for (unsigned i = 0; i < sizeof cmds / sizeof cmds[0]; i++) {
 		int no = 9990 + i;

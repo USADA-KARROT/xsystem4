@@ -1857,6 +1857,7 @@ void PE_Update(int passed_time, bool message_window_show)
 	}
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
+	parts_scrollbar_update();
 	audio_update();
 	parts_update_animation(passed_time);
 	PE_UpdateInputState(passed_time);
@@ -3110,6 +3111,13 @@ void PE_SetComponentType(int parts_no, int type, int state)
 		parts->component_type = type;
 		// Preserve explicit raw setters over the loader's inferred state types.
 		memset(parts->component_state_type, 0, sizeof(parts->component_state_type));
+		// A box a script makes (AFL_Parts_CreateLayoutBox ->
+		// CLayoutBoxParts@0 -> SetComponentType 8) is the box widget with
+		// its constructor's values (vertical, 配置 1; layoutbox.c): it lays
+		// out the children AddChild gives it, as a pactex box lays out
+		// its own. CBackLogUnitList@Init makes the backlog's lines one.
+		if (type == 8)
+			parts_get_layout_box(parts);
 		parts_user_component_dirty(parts);
 		return;
 	}
