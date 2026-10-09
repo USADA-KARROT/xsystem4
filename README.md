@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-09）：`4046d17` 讓父元件的旋轉與縮放傳給子元件、加算色沿元件樹累積（原版 `0x535260`、`0x53544d`），`46b78f6` 實作地城地圖用的構築命令，`016b996` 讓 `A_REF` 複製純數值的 struct（顏色常數不再互相污染），`8a18fc6` 是審查後的修正：**戰鬥頭頂的斜量表、剪影，地城地圖的背景、連線、圓底都和原版對上**。同日稍早：`43e5574` 圖層根元件（春銷之後的對話視窗）、`f2ad370` 亂數（顧客不再同一張臉）。預設／GBK 各82模式 PASS、sanitizer0。正常GUI約150秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/parts-transform/README.md) · [圖層根元件與 delegate 游標](docs/checkpoints/2026-09-28/research/layer-root/README.md) · [`X_ICAST` 與亂數](docs/checkpoints/2026-09-28/research/icast-shuffle/README.md) · [全域 struct 的啟動順序](docs/checkpoints/2026-09-28/research/global-init/README.md)。**還不能當成遊戲來玩，畫面與原版仍有差距**（每一項都和 Wine 上的原版並排比過）：戰鬥的傷害數字沒有畫出來；劇情回顧沒有字（構築命令 23）；對話缺 NEXT 圖示、文字顏色不同；設定畫面的滑桿與核取方塊是空殼；據點與春銷的背景沒有模糊；讀檔不能用。做法是照原版的結構整塊盤點再補。差異清單與下一步見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
+> **最新狀態（2026-10-09）：`9fff3a1` 照原版把數字元件做完（原版 `0x5b3e80`、`0x5b4df0`），`4df72e1` 讓新物件的 option 成員一開始是 none（`0x656a44`），`fe9c40f` 是審查後的修正：**戰鬥每一擊都有傷害數字，被打者的量表不再變半透明**。同日稍早：`4046d17`、`46b78f6` 變換與構築命令（戰鬥的斜量表、地城地圖）、`43e5574` 圖層根元件（春銷之後的對話視窗）。預設／GBK 各84模式 PASS、sanitizer0。正常GUI約150秒、MSG88、assert／overflow0。**
+> [本組研究與驗證](docs/checkpoints/2026-09-28/research/numeral/README.md) · [變換、加算色與構築命令](docs/checkpoints/2026-09-28/research/parts-transform/README.md) · [圖層根元件與 delegate 游標](docs/checkpoints/2026-09-28/research/layer-root/README.md) · [`X_ICAST` 與亂數](docs/checkpoints/2026-09-28/research/icast-shuffle/README.md)。**還不能當成遊戲來玩，畫面與原版仍有差距**（每一項都和 Wine 上的原版並排比過）：劇情回顧沒有字（構築命令 23）；對話缺 NEXT 圖示、文字顏色不同；設定畫面的滑桿與核取方塊是空殼；據點與春銷的背景沒有模糊；讀檔不能用。做法是照原版的結構整塊盤點再補。差異清單與下一步見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
