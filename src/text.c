@@ -156,7 +156,16 @@ static struct font *get_font(unsigned face)
 	if (face > 255) {
 		face -= 256;
 		if (face >= MAX_FNL_FONTS || !font_fnl[face]) {
-			WARNING("Invalid fnl face: %u", face);
+			// The original names every type from 256 「外部フォント」
+			// (0x69f460) and leaves the choice to GDI's font mapper
+			// (0x731640); the default font stands in. Said once for
+			// a face, not for every text drawn with it.
+			static bool warned[MAX_FNL_FONTS + 1];
+			bool *w = &warned[face < MAX_FNL_FONTS ? face : MAX_FNL_FONTS];
+			if (!*w) {
+				*w = true;
+				WARNING("Invalid fnl face: %u", face);
+			}
 			return font_ttf[0];
 		}
 		return font_fnl[face];

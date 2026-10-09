@@ -265,6 +265,14 @@ static void load_parts_numeral(struct iarray_reader *r, struct parts *parts,
 	num->length = iarray_read(r);
 	num->font_no = iarray_read(r);
 
+	// A v14 numeral's 表示タイプ, font, ＣＧ名, 全角 and ゼロパディング are
+	// not saved (XPE 8). One with a CG font is drawn again with it; one
+	// without (a font numeral, or a CG numeral with no CG) keeps the size
+	// that was read and is not built until the script gives its type.
+	if (ain->version >= 14 && num->font_no < 0) {
+		num->unknown_type = true;
+		return;
+	}
 	if (num->have_num)
 		parts_numeral_set_number(parts, num, num->num);
 }

@@ -1153,6 +1153,9 @@ void parts_numeral_font_init(struct parts_numeral_font *font)
 		int x = 0;
 		Texture t = {0};
 		struct cg *cg = asset_cg_load(font->cg_no);
+		// A CG that does not load leaves the twelve characters empty.
+		if (!cg)
+			return;
 		gfx_init_texture_with_cg(&t, cg);
 		for (int i = 0; i < 12; i++) {
 			if (font->width[i] <= 0)
@@ -1367,10 +1370,18 @@ static bool parts_numeral_update_v14(struct parts *parts, struct parts_numeral *
 	bool shown[PARTS_NUMERAL_MAX_CHARS];
 	float cw[PARTS_NUMERAL_MAX_CHARS];
 	char buf[3];
-	int nr = parts_numeral_codes(num, codes, shown);
 	const bool font = num->show_type == PARTS_NUMERAL_SHOW_FONT;
+	// The index may come from a save.
 	struct parts_numeral_font *cg_font = !font && num->font_no >= 0
+			&& num->font_no < parts_nr_numeral_fonts
 		? &parts_numeral_fonts[num->font_no] : NULL;
+	// Read from a save, which does not say what the numeral is drawn with
+	// (load_parts_numeral): nothing to build it from, and building it as
+	// a CG numeral with no CG would make it 0 high. It stays as large as
+	// it was saved until a setter gives its type.
+	if (num->unknown_type && !cg_font)
+		return true;
+	int nr = parts_numeral_codes(num, codes, shown);
 	struct text_style *ts = &num->font;
 	// On the CN glyph grid a character's texture is its cell and e on
 	// every side, the glyph at (e, e) in it (0x69c290, 0x69c3d0); the
@@ -2368,13 +2379,14 @@ bool PE_SetNumeralCG(int parts_no, struct string *cg_name, int state)
 		// the numeral becomes 表示タイプ 0.
 		struct parts *parts = parts_get(parts_no);
 		struct parts_numeral *n = parts_get_numeral(parts, state);
-		if (n->show_type == PARTS_NUMERAL_SHOW_CG
+		if (n->show_type == PARTS_NUMERAL_SHOW_CG && !n->unknown_type
 				&& !strcmp(n->cg_name ? n->cg_name->text : "", cg_name->text))
 			return true;
 		if (n->cg_name)
 			free_string(n->cg_name);
 		n->cg_name = string_dup(cg_name);
 		n->show_type = PARTS_NUMERAL_SHOW_CG;
+		n->unknown_type = false;
 		parts_numeral_resolve_cg(n);
 		return parts_numeral_update(parts, n);
 	}
@@ -2433,6 +2445,7 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_n
 		n->cg_name = string_dup(cg_name);
 		memcpy(n->cg_widths, w, sizeof(w));
 		n->show_type = PARTS_NUMERAL_SHOW_LINKED_CG;
+		n->unknown_type = false;
 		parts_numeral_resolve_cg(n);
 		return parts_numeral_update(parts, n);
 	}
@@ -2476,6 +2489,7 @@ bool PE_SetNumeralFont(int parts_no, int type, int size, int r, int g, int b,
 	text_style_set_edge_width(ts, edge_weight);
 	ts->font_size = NULL;
 	num->show_type = PARTS_NUMERAL_SHOW_FONT;
+	num->unknown_type = false;
 	num->font_no = -1;
 	return parts_numeral_update(parts, num);
 }
@@ -2502,9 +2516,11 @@ bool PE_SetNumeralShowType(int parts_no, int type, int state)
 		return false;
 	struct parts *parts = parts_get(parts_no);
 	struct parts_numeral *num = parts_get_numeral(parts, state);
-	if (num->show_type == type || type < 0 || type > PARTS_NUMERAL_SHOW_FONT)
+	if (type < 0 || type > PARTS_NUMERAL_SHOW_FONT
+			|| (num->show_type == type && !num->unknown_type))
 		return true;
 	num->show_type = type;
+	num->unknown_type = false;
 	parts_numeral_resolve_cg(num);
 	return parts_numeral_update(parts, num);
 }

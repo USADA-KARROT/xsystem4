@@ -546,6 +546,10 @@ static void init_struct_slot(struct page *page, int idx, struct ain_variable *me
  * loop leaves as they are (0x6569a0). The scripts rely on it: nothing sets
  * DamageFrameMotionController.m_deadFrame (an option<int>) unless the target
  * dies, and its Update takes a value there for the frame the death starts at.
+ * A 0 there reads as "has the value -1" wherever the discriminant alone is
+ * read: an if-let over a value payload (int, enum), `?.` and `??`. An if-let,
+ * HasValue or Unwrap over a reference payload also compares the value with
+ * -1 and sees none either way.
  *
  * Returns how many of the following members were the option's own slots.
  */

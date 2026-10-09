@@ -205,6 +205,11 @@ struct parts_numeral {
 	// them whatever the type is).
 	struct string *cg_name;
 	int cg_widths[12];
+	// v14: read from a save with no CG font. XPE 8 keeps neither the
+	// 表示タイプ, the font nor the ＣＧ名, so the numeral cannot be built
+	// again; it keeps the size it was saved with until the script gives
+	// its type.
+	bool unknown_type;
 };
 
 struct parts_gauge {

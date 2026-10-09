@@ -13,7 +13,10 @@
  * value", 1 and up none (see option-array).
  *
  * Before the fix alloc_struct left the discriminant slot at 0: a member no
- * script code had written yet read as "has the value -1". The battle relies
+ * script code had written yet read as "has the value -1" wherever the
+ * discriminant alone is read: an if-let over a value payload (int, enum),
+ * `?.` and `??`. An if-let, HasValue or Unwrap over a reference payload also
+ * compares the value with -1 and read none before the fix too. The battle relies
  * on the default: DamageFrameMotionController@2 does not initialize
  * m_deadFrame (option<int>), LoadMotions only sets it when the target dies,
  * and Update fires OnDeadMotionStartEvent once the frame it holds is reached.
@@ -23,17 +26,30 @@
  *
  * Cases (each in its own fork):
  *   OM1 every struct of the AIN: each option member of a new object is
- *       none (two-slot, three-slot and nested ones), and the other members
- *       are what they were (a hash over their types and value classes, taken
- *       before the fix).
- *   OM2 real bytecode: ActionViewControllerSet@Playing::get on an object
- *       that only exists (OptionalExtensions::HasValue on its two options)
- *       is false.
+ *       none (two-slot and three-slot ones; the slots are counted from the
+ *       member table, the option and the void members behind it, not by the
+ *       allocator's own slot count), and the other members are what they
+ *       were (a hash over their types and value classes, taken before the
+ *       fix). This AIN has no option of an option: the layer count above
+ *       is not tested.
+ *   OM2 real bytecode whose result the discriminant decides:
+ *       WorkerCollection@Limit::get (FUNC 28074, `m_limit ?? 2147483647`) of
+ *       a new object is 2147483647 (-1 before the fix) and
+ *       ShopDisplayUnit@PriceRatio::get (FUNC 27914, an if-let over
+ *       DiscountPer) is 1.0 (1.01 before); with a value there they give it.
+ *       ActionViewControllerSet@Playing::get (HasValue on two reference
+ *       options) is false, as it was before the fix: a guard only.
  *   OM3 real bytecode: DamageFrameMotionController@2 and @Update. With the
  *       default m_deadFrame no update calls the death event; with a frame
  *       there it is called once that frame is reached, not before.
  *   OM4 guards: an AIN before version 14 keeps its member defaults; a copy of
- *       an object keeps none as none, and releasing both frees nothing twice.
+ *       an object keeps none as none (a value option, and a three-slot
+ *       option of a reference), and releasing both frees nothing twice.
+ *   OM5 real bytecode: FeelEventResult@Apply (FUNC 27808) of a new object
+ *       takes none of its `if (p = X)` branches (Feel, VoltageBase,
+ *       VoltageMax, MpMax, BadgeCount): the player it is given, an object
+ *       that only exists, is the same afterwards (a hash over it and the
+ *       structs under it). Before the fix each branch added -1 to it.
  */
 #include "serialize_struct.h"
 
@@ -83,10 +99,22 @@ static int om_call(int fno, int obj, int nargs, const int *args)
 	return r;
 }
 
-static int om_layers(const struct ain_type *t)
+static int om_member(int sno, const char *name)
 {
-	int n = 0;
-	for (; t && (t->data == AIN_OPTION || t->data == AIN_UNKNOWN_TYPE_87); t = t->array_type)
+	struct ain_struct *s = &ain->structures[sno];
+	for (int i = 0; i < s->nr_members; i++)
+		if (!strcmp(s->members[i].name, name))
+			return i;
+	om_env("a member the case needs is not in this AIN");
+	return -1;
+}
+
+/* The slots of the option member m as the member table has them: itself and
+ * the void members behind it. */
+static int om_member_slots(struct ain_struct *s, int m)
+{
+	int n = 1;
+	while (m + n < s->nr_members && s->members[m + n].type.data == AIN_VOID)
 		n++;
 	return n;
 }
@@ -120,15 +148,22 @@ static void om_scan(void)
 		for (int m = 0; m < s->nr_members; m++) {
 			const struct ain_type *t = &s->members[m].type;
 			if (t->data == AIN_OPTION) {
-				int slots = ss_type_slot_count(t), layers = om_layers(t);
-				if (!om_option_shape(s, m, slots)) {
+				int slots = om_member_slots(s, m);
+				const int layers = 1;
+				if (slots < 2 || slots > 3) {
 					odd++;
+					m += slots - 1;
 					continue;
 				}
 				options++;
 				two += slots == 2;
 				three += slots == 3;
-				nested += layers > 1;
+				if (t->array_type && (t->array_type->data == AIN_OPTION || t->array_type->data == AIN_UNKNOWN_TYPE_87)) {
+					/* An option of an option: not judged here. */
+					nested++;
+					m += slots - 1;
+					continue;
+				}
 				bool none = p->values[m + slots - 1].i == layers;
 				for (int k = 0; k < slots - 1; k++)
 					none = none && p->values[m + k].i == -1;
@@ -146,11 +181,12 @@ static void om_scan(void)
 		 * destructors are script code. */
 	}
 	om_failures += wrong;
-	printf("  OM1 %d objects, %d option members (%d two-slot, %d three-slot, %d nested), %d not none, %d of another shape; "
-	       "other members' hash %08x\n", objects, options, two, three, nested, wrong, odd, hash);
-	OM_CHECK(options > 100, "OM1 only %d option members were found", options);
-	OM_CHECK(three > 0, "OM1 no three-slot option member was found");
-	OM_CHECK(odd == 0, "OM1 %d option member(s) are not followed by their void slots", odd);
+	printf("  OM1 %d objects, %d option members (%d two-slot, %d three-slot; %d nested, not judged), %d not none, "
+	       "%d of another shape; other members' hash %08x\n", objects, options, two, three, nested, wrong, odd, hash);
+	/* 171 and 37 are also what the decompiled struct list has (counted
+	 * there by the void members after each option). */
+	OM_CHECK(two == 171 && three == 37, "OM1 %d two-slot and %d three-slot option members, want 171 and 37", two, three);
+	OM_CHECK(odd == 0, "OM1 %d option member(s) have another number of slots than 2 or 3", odd);
 	OM_CHECK(hash == OM_OTHER_MEMBERS_HASH, "OM1 the members that are no options changed: hash %08x, want %08x", hash,
 		 OM_OTHER_MEMBERS_HASH);
 	/* The one the battle depends on. */
@@ -164,8 +200,31 @@ static void om_scan(void)
 }
 
 /* --- OM2 --- */
-static void om_playing(void)
+static void om_value_getters(void)
 {
+	/* m_limit ?? 2147483647: `X_REF 2; PUSH 1; GTE` on the discriminant. */
+	int wc = om_struct("WorkerCollection"), lim = om_member(wc, "m_limit");
+	int limit_get = om_fn("WorkerCollection@Limit::get");
+	int c = alloc_struct(wc);
+	int limit = om_call(limit_get, c, 0, NULL);
+	OM_CHECK(limit == 2147483647, "OM2 Limit::get of a new WorkerCollection is %d, want 2147483647 (no limit)", limit);
+	heap[c].page->values[lim].i = 7;
+	heap[c].page->values[lim + 1].i = 0;
+	limit = om_call(limit_get, c, 0, NULL);
+	OM_CHECK(limit == 7, "OM2 Limit::get with the limit 7 is %d", limit);
+	/* if (discount = DiscountPer) return 1.0 - discount / 100.0; return 1.0; */
+	int su = om_struct("ShopDisplayUnit"), dis = om_member(su, "DiscountPer");
+	int ratio_get = om_fn("ShopDisplayUnit@PriceRatio::get");
+	int u = alloc_struct(su);
+	union vm_value ratio = { .i = om_call(ratio_get, u, 0, NULL) };
+	OM_CHECK(ratio.f == 1.0f, "OM2 PriceRatio::get of a new ShopDisplayUnit is %g, want 1 (no discount)", ratio.f);
+	heap[u].page->values[dis].i = 20;
+	heap[u].page->values[dis + 1].i = 0;
+	ratio.i = om_call(ratio_get, u, 0, NULL);
+	OM_CHECK(fabsf(ratio.f - 0.8f) < 1e-6f, "OM2 PriceRatio::get with a discount of 20 is %g, want 0.8", ratio.f);
+
+	/* Unchanged by the fix (HasValue on a reference option also compares
+	 * the value with -1): the slots, and that the getter still says no. */
 	int set = alloc_struct(om_struct("ActionViewControllerSet"));
 	union vm_value *v = heap[set].page->values;
 	/* m_controller and m_overlayController: option<wrap<iwrap<IFrameController>>>. */
@@ -174,7 +233,7 @@ static void om_playing(void)
 		 v[4].i, v[5].i);
 	int playing = om_call(om_fn("ActionViewControllerSet@Playing::get"), set, 0, NULL);
 	OM_CHECK(playing == 0, "OM2 Playing::get of an object without controllers is %d, want false", playing);
-	printf("OM2 ActionViewControllerSet@Playing::get on a new object: %s\n", om_failures ? "FAIL" : "ok");
+	printf("OM2 Limit::get, PriceRatio::get and Playing::get on new objects: %s\n", om_failures ? "FAIL" : "ok");
 }
 
 /* --- OM3 --- */
@@ -263,7 +322,91 @@ static void om_guards(void)
 	heap_unref(b);
 	heap_unref(a);
 	printf("  OM4 copied and released %s (option member %s)\n", ain->structures[no].name, ain->structures[no].members[m].name);
+	/* The same with a three-slot option of a reference (option<wrap<..>>):
+	 * a struct without a destructor whose other members hold no pages. */
+	int no3 = -1, m3 = -1;
+	for (int s = 0; s < ain->nr_structures && no3 < 0; s++) {
+		struct ain_struct *st = &ain->structures[s];
+		if (st->destructor > 0)
+			continue;
+		bool plain = true;
+		int at = -1;
+		for (int i = 0; i < st->nr_members; i++) {
+			const struct ain_type *t = &st->members[i].type;
+			if (t->data == AIN_OPTION) {
+				int slots = om_member_slots(st, i);
+				if (slots == 3 && at < 0)
+					at = i;
+				else if (slots != 2 && slots != 3)
+					plain = false;
+				i += slots - 1;
+			} else if (t->data != AIN_INT && t->data != AIN_FLOAT && t->data != AIN_BOOL && t->data != AIN_ENUM
+				   && t->data != AIN_VOID && t->data != AIN_STRING) {
+				plain = false;
+			}
+		}
+		if (plain && at >= 0) {
+			no3 = s;
+			m3 = at;
+		}
+	}
+	if (no3 < 0)
+		om_env("no plain struct with a three-slot option in this AIN");
+#define OM_NONE3(pg) (heap[pg].page->values[m3].i == -1 && heap[pg].page->values[m3 + 1].i == -1 && heap[pg].page->values[m3 + 2].i == 1)
+	int a3 = alloc_struct(no3);
+	OM_CHECK(OM_NONE3(a3), "OM4 %s.%s is (%d, %d, %d), want none (-1, -1, 1)", ain->structures[no3].name,
+		 ain->structures[no3].members[m3].name, heap[a3].page->values[m3].i, heap[a3].page->values[m3 + 1].i,
+		 heap[a3].page->values[m3 + 2].i);
+	int b3 = vm_copy_page(heap[a3].page);
+	OM_CHECK(b3 > 0 && heap[b3].page && OM_NONE3(b3), "OM4 a copy of %s does not keep its three-slot none", ain->structures[no3].name);
+	OM_CHECK(OM_NONE3(a3), "OM4 %s changed when it was copied", ain->structures[no3].name);
+	heap_unref(b3);
+	OM_CHECK(heap[a3].page && OM_NONE3(a3), "OM4 releasing the copy of %s reached the original", ain->structures[no3].name);
+	heap_unref(a3);
+#undef OM_NONE3
+	printf("  OM4 copied and released %s (three-slot option member %s)\n", ain->structures[no3].name,
+	       ain->structures[no3].members[m3].name);
 	printf("OM4 guards (version 13, copy and release): %s\n", om_failures ? "FAIL" : "ok");
+}
+
+/* --- OM5 --- */
+/* A hash over an object and the struct members under it, a few levels down. */
+static uint32_t om_object_hash(int slot, int depth, uint32_t h)
+{
+	if (depth > 3 || slot <= 0 || !heap_index_valid(slot) || heap[slot].type != VM_PAGE || !heap[slot].page
+	    || heap[slot].page->type != STRUCT_PAGE)
+		return (h ^ 0x5bu) * 16777619u;
+	struct page *p = heap[slot].page;
+	struct ain_struct *s = &ain->structures[p->index];
+	for (int i = 0; i < p->nr_vars && i < s->nr_members; i++) {
+		h = (h ^ (uint32_t)p->values[i].i) * 16777619u;
+		if (s->members[i].type.data == AIN_STRUCT)
+			h = om_object_hash(p->values[i].i, depth + 1, h);
+	}
+	return h;
+}
+
+static void om_feel_result(void)
+{
+	int fr = om_struct("FeelEventResult");
+	int obj = alloc_struct(fr);
+	static const char *const opts[] = { "Feel", "VoltageBase", "VoltageMax", "MpMax", "BadgeCount" };
+	for (int i = 0; i < 5; i++) {
+		int m = om_member(fr, opts[i]);
+		OM_CHECK(heap[obj].page->values[m].i == -1 && heap[obj].page->values[m + 1].i == 1, "OM5 FeelEventResult.%s is (%d, %d), want none",
+			 opts[i], heap[obj].page->values[m].i, heap[obj].page->values[m + 1].i);
+	}
+	/* Its player is one that only exists. A branch that is taken reads a
+	 * value of the player, adds p and writes it back. */
+	int pl = alloc_struct(om_struct("Player"));
+	heap[obj].page->values[om_member(fr, "<Player>")].i = pl;
+	uint32_t before = om_object_hash(pl, 0, 2166136261u);
+	printf("  OM5 calling FeelEventResult@Apply (player hash %08x)\n", before);
+	fflush(stdout);
+	om_call(om_fn("FeelEventResult@Apply"), obj, 0, NULL);
+	uint32_t after = om_object_hash(pl, 0, 2166136261u);
+	OM_CHECK(before == after, "OM5 FeelEventResult@Apply with nothing set changed the player (hash %08x -> %08x)", before, after);
+	printf("OM5 FeelEventResult@Apply with nothing set: %s\n", om_failures ? "FAIL" : "ok");
 }
 
 /* 0 passed, 1 failed, 2 could not run. */
@@ -298,7 +441,8 @@ static int om_fork_case(const char *name, void (*fn)(void))
 static int test_option_member(void)
 {
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
-		{ "OM1", om_scan }, { "OM2", om_playing }, { "OM3", om_dead_frame }, { "OM4", om_guards },
+		{ "OM1", om_scan }, { "OM2", om_value_getters }, { "OM3", om_dead_frame }, { "OM4", om_guards },
+		{ "OM5", om_feel_result },
 	};
 	const int n = sizeof cases / sizeof cases[0];
 	int failed = 0, env = 0;

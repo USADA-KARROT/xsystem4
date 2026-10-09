@@ -1,8 +1,9 @@
 /* v14 numeral (數字部件) accessors. Included by PartsEngine.c. */
 
 /* The PartsEngine functions at 0x599270..0x5999a0 look the component up
- * (0x53e510) and do nothing for a missing one: a getter then returns 0, false
- * or the empty string and leaves its outputs alone. For an existing component
+ * (0x53e510) and do nothing for a missing one (0x599540: je to the end): a
+ * setter does not make it, and a getter returns 0, false or the empty string
+ * and leaves its outputs alone. For an existing component
  * the getters, like the setters, first make the state a numeral (0x5b77f0
  * with type 24): a state of another type is replaced by a default numeral. */
 static struct parts_numeral *pe_v14_numeral_get(int number, int state)
@@ -24,6 +25,8 @@ static void PE_v14_SetNumeralFont(int number, int type, int size, int r, int g, 
 		float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight,
 		int state)
 {
+	if (!parts_try_get(number))
+		return;
 	PE_SetNumeralFont(number, type, size, r, g, b, bold_weight, edge_r, edge_g, edge_b,
 			edge_weight, state);
 }
@@ -53,6 +56,8 @@ static void PE_v14_GetNumeralFont(int number, int *type, int *size, int *r, int 
 // 0x5996b0 -> 0x5673a0
 static void PE_v14_SetNumeralFullPitch(int number, bool full, int state)
 {
+	if (!parts_try_get(number))
+		return;
 	PE_SetNumeralFullPitch(number, full, state);
 }
 
@@ -106,6 +111,8 @@ static void PE_v14_GetNumeralSurfaceArea(int number, int *x, int *y, int *w, int
 // 0x599910 -> 0x567880
 static void PE_v14_SetNumeralShowType(int number, int type, int state)
 {
+	if (!parts_try_get(number))
+		return;
 	PE_SetNumeralShowType(number, type, state);
 }
 
@@ -119,6 +126,8 @@ static int PE_v14_GetNumeralCGType(int number, int state)
 // 0x599970 -> 0x567940
 static void PE_v14_SetNumeralShowPadding(int number, bool show, int state)
 {
+	if (!parts_try_get(number))
+		return;
 	PE_SetNumeralShowPadding(number, show, state);
 }
 
