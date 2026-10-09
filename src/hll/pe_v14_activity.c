@@ -1085,43 +1085,61 @@ static void pactex_rect_size(struct ex_tree *state, int *w, int *h)
 	*h = (int)lroundf(max_y - min_y);
 }
 
-/* 數字部件: numeral widget state. 表示タイプ 2 draws the digits with the
- * state's font (フォントタイプ/サイズ/色/太さ/縁取り/縁取り色), padded with
- * zeros (ゼロパディング) and full-width if 全角; see parts_numeral_update_font. */
+static const char *pactex_get_exact_string(struct ex_tree *node, const char *name);
+
+/* 數字部件: the native loader (0x5b66f0) reads 表示タイプ and then what that
+ * type is made from: 0 ＣＧ名 (0x5b49f0); 1 ＣＧ名 and 幅リスト (0x5b4ac0);
+ * 2 the font, フォントタイプ/サイズ/色/太さ/縁取り/縁取り色 (0x5b4b90), and
+ * 全角. Then, for every type, サーフェイスエリア (by the caller here), 數值
+ * (the number the numeral shows until the script sets one), コンマ表示,
+ * 字間隔, 桁數 and ゼロパディング. A missing key is 0. */
 static void pactex_apply_numeral_state(struct ex_tree *state, int parts_no, int pe_state)
 {
-	struct parts_numeral *num = parts_get_numeral(parts_get(parts_no), pe_state - 1);
-	num->show_type = pactex_get_int(state, "\x95\x5c\x8e\xa6\x83\x5e\x83\x43\x83\x76", /* 表示タイプ */
+	int show_type = pactex_get_int(state, "\x95\x5c\x8e\xa6\x83\x5e\x83\x43\x83\x76", /* 表示タイプ */
 		pactex_get_int(state, "\xb1\xed\xca\xbe\xa5\xbf\xa5\xa4\xa5\xd7", 0));
-	num->zero_pad = pactex_get_int(state, "\x83\x5b\x83\x8d\x83\x70\x83\x66\x83\x42\x83\x93\x83\x4f", /* ゼロパディング */
-		pactex_get_int(state, "\xa5\xbc\xa5\xed\xa5\xd1\xa5\xc7\xa5\xa3\xa5\xf3\xa5\xb0", 1)) != 0;
-	num->full_pitch = pactex_get_int(state, "\x91\x53\x8a\x70", /* 全角 */
-		pactex_get_int(state, "\xc8\xab\xbd\xc7", 0)) != 0;
-	struct text_style *ts = &num->font;
-	ts->face = pactex_message_number(state, PACTEX_MW_FACE, 0);
-	ts->size = pactex_message_number(state, PACTEX_MW_SIZE, 16);
-	ts->color = (SDL_Color) { pactex_message_item(state, PACTEX_MW_COLOR, 0, 255),
-		pactex_message_item(state, PACTEX_MW_COLOR, 1, 255),
-		pactex_message_item(state, PACTEX_MW_COLOR, 2, 255), 255 };
-	float bold = pactex_message_number(state, PACTEX_MW_WEIGHT, 0);
-	ts->weight = bold * 1000;
-	ts->bold_weight = bold;
-	ts->edge_color = (SDL_Color) { pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 0, 0),
-		pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 1, 0),
-		pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 2, 0), 255 };
-	text_style_set_edge_width(ts, pactex_message_number(state, PACTEX_MW_EDGE, 0));
-	int length = pactex_get_int(state, "\x8c\x85\x90\x94", /* 桁数 */
-		pactex_get_int(state, "\xe8\xec\x94\xb5", 1)); /* 桁數 */
-	PE_SetNumeralLength(parts_no, length, pe_state);
-	int comma = pactex_get_int(state, "\x83\x52\x83\x93\x83\x7d\x95\x5c\x8e\xa6", /* コンマ表示 */
-		pactex_get_int(state, "\xa5\xb3\xa5\xf3\xa5\xde\xb1\xed\xca\xbe", 0));
-	PE_SetNumeralShowComma(parts_no, comma != 0, pe_state);
-	int space = pactex_get_int(state, "\x8e\x9a\x8a\xd4\x8a\x75", /* 字間隔 */
-		pactex_get_int(state, "\xd7\xd6\xe9\x67\xb8\xf4", 0));
-	PE_SetNumeralSpace(parts_no, space, pe_state);
+	const char *name = pactex_get_exact_string(state, "\x82\x62\x82\x66\x96\xbc"); /* ＣＧ名 */
+	if (!name) name = pactex_get_exact_string(state, "\xa3\xc3\xa3\xc7\xc3\xfb");
+	struct string *cg = cstr_to_string(name ? name : "");
+	if (show_type == 0) {
+		PE_SetNumeralCG(parts_no, cg, pe_state);
+	} else if (show_type == 1) {
+		struct ex_list *l = pactex_get_list(state, "\x95\x9d\x83\x8a\x83\x58\x83\x67"); /* 幅リスト */
+		if (!l) l = pactex_get_list(state, "\xb7\xf9\xa5\xea\xa5\xb9\xa5\xc8");
+		int w[12] = {0};
+		for (unsigned i = 0; l && i < l->nr_items && i < 12; i++)
+			w[i] = pactex_value_number(&l->items[i].value, 0);
+		PE_SetNumeralLinkedCGNumberWidthWidthList(parts_no, cg, w[0], w[1], w[2], w[3],
+				w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], pe_state);
+	} else if (show_type == 2) {
+		PE_SetNumeralFont(parts_no,
+			pactex_message_number(state, PACTEX_MW_FACE, 0),
+			pactex_message_number(state, PACTEX_MW_SIZE, 0),
+			pactex_message_item(state, PACTEX_MW_COLOR, 0, 0),
+			pactex_message_item(state, PACTEX_MW_COLOR, 1, 0),
+			pactex_message_item(state, PACTEX_MW_COLOR, 2, 0),
+			pactex_message_number(state, PACTEX_MW_WEIGHT, 0),
+			pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 0, 0),
+			pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 1, 0),
+			pactex_message_item(state, PACTEX_MW_EDGE_COLOR, 2, 0),
+			pactex_message_number(state, PACTEX_MW_EDGE, 0), pe_state);
+		PE_SetNumeralFullPitch(parts_no, pactex_get_int(state, "\x91\x53\x8a\x70", /* 全角 */
+			pactex_get_int(state, "\xc8\xab\xbd\xc7", 0)) == 1, pe_state);
+	} else {
+		// No type of the original's: a numeral that draws nothing.
+		parts_get_numeral(parts_get(parts_no), pe_state - 1);
+	}
+	free_string(cg);
+	PE_SetNumeralNumber(parts_no, pactex_get_int(state, "\x90\x94\x92\x6c", /* 数値 */
+		pactex_get_int(state, "\x94\xb5\xd6\xb5", 0)), pe_state); /* 數值 */
+	PE_SetNumeralShowComma(parts_no, pactex_get_int(state, "\x83\x52\x83\x93\x83\x7d\x95\x5c\x8e\xa6", /* コンマ表示 */
+		pactex_get_int(state, "\xa5\xb3\xa5\xf3\xa5\xde\xb1\xed\xca\xbe", 0)) == 1, pe_state);
+	PE_SetNumeralSpace(parts_no, pactex_get_int(state, "\x8e\x9a\x8a\xd4\x8a\x75", /* 字間隔 */
+		pactex_get_int(state, "\xd7\xd6\xe9\x67\xb8\xf4", 0)), pe_state);
+	PE_SetNumeralLength(parts_no, pactex_get_int(state, "\x8c\x85\x90\x94", /* 桁数 */
+		pactex_get_int(state, "\xe8\xec\x94\xb5", 0)), pe_state); /* 桁數 */
+	PE_SetNumeralShowPadding(parts_no, pactex_get_int(state, "\x83\x5b\x83\x8d\x83\x70\x83\x66\x83\x42\x83\x93\x83\x4f", /* ゼロパディング */
+		pactex_get_int(state, "\xa5\xbc\xa5\xed\xa5\xd1\xa5\xc7\xa5\xa3\xa5\xf3\xa5\xb0", 0)) == 1, pe_state);
 }
-
-static const char *pactex_get_exact_string(struct ex_tree *node, const char *name);
 
 static float pactex_gauge_number(struct ex_tree *node, const char *sjis, const char *gbk)
 {

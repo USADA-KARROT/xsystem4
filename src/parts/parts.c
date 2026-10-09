@@ -233,6 +233,8 @@ static void parts_state_free(struct parts_state *state)
 		break;
 	case PARTS_NUMERAL:
 		gfx_delete_texture(&state->common.texture);
+		if (state->num.cg_name)
+			free_string(state->num.cg_name);
 		break;
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
@@ -293,7 +295,10 @@ void parts_state_reset(struct parts_state *state, enum parts_type type)
 		state->text.ts = default_text_style;
 		break;
 	case PARTS_NUMERAL:
-		state->num.length = 1;
+		// v14 (0x5b3e80): 表示タイプ 0 with no ＣＧ名, the number 0, 桁數 0,
+		// ゼロパディング on, and the default font (0x69f1d0: type 0, size
+		// 16, white, no 太さ, no 縁取り).
+		state->num.length = ain->version >= 14 ? 0 : 1;
 		state->num.font_no = -1;
 		state->num.zero_pad = true;
 		state->num.font = default_text_style;
@@ -360,6 +365,9 @@ struct parts_numeral *parts_get_numeral(struct parts *parts, int state)
 	if (parts->states[state].type != PARTS_NUMERAL) {
 		parts_state_reset(&parts->states[state], PARTS_NUMERAL);
 	}
+	// v14 0x5b77f0 (type 24): the state of a low-level widget is a 數字部件.
+	if (ain->version >= 14 && parts->component_type == 18)
+		parts->component_state_type[state] = 24;
 	return &parts->states[state].num;
 }
 
@@ -1154,7 +1162,7 @@ void parts_numeral_font_init(struct parts_numeral_font *font)
 			x += font->width[i];
 		}
 		gfx_delete_texture(&t);
-		free(cg);
+		cg_free(cg);
 	}
 }
 
@@ -1247,83 +1255,192 @@ static int parts_load_numeral_font_combined(struct cg *cg, int cg_no, int w[12])
 }
 
 /*
- * v14 表示タイプ 2 (e.g. SceneHome's NumDay, MoneyView's Money): the number
- * is drawn as text with the numeral's font, digit spacing, comma grouping
- * and zero padding, with the same text renderer as text parts. The original
- * makes a glyph per character and sizes the numeral by them (0x5b4df0): the
- * width and, on the CN glyph grid, the height below follow it; elsewhere the
- * height is the font size and both edges.
+ * A v14 numeral (0x5b3e80) is a row of sprites, one for each character,
+ * made anew whenever something it is made from changes (0x5b4df0):
+ *
+ *   characters (0x5b5230): the digits of |number|, at least one; zeros in
+ *       front up to 桁數; with コンマ表示 a comma before every third digit
+ *       from the right, the padding included; the minus sign first.
+ *   a character's picture: 表示タイプ 0, the CG that ＣＧ名 names when it
+ *       is formatted with the character's index (0..9, 10 the minus sign,
+ *       11 the comma); 1, its part of the linked CG (幅リスト); 2, the
+ *       character drawn with the numeral's font, 全角 or not.
+ *   size: the pictures' widths and (characters - 1) 字間隔 (0x5b50d3,
+ *       0x5b5164..0x5b5182), and the tallest picture's height (0x5b5133).
+ *   shown: the leading zeros, and the commas among them, only with
+ *       ゼロパディング; the last character always (0x5b5188..0x5b51e6). A
+ *       hidden character keeps its place, so 桁數 right-aligns a number.
+ *   placed (0x5b4380): from the left, 字間隔 apart, each at the top.
+ *
+ * Here the row is one texture. A character that lies over the one before it
+ * (字間隔 < 0) is drawn after it, as the sprites are.
  */
-static bool parts_numeral_update_font(struct parts *parts, struct parts_numeral *num)
+#define PARTS_NUMERAL_MAX_CHARS (PARTS_NUMERAL_MAX_LENGTH + 12)
+
+// The characters of the number, the most significant first: 0..9 a digit,
+// 10 the minus sign, 11 the comma. shown[i]: the character is drawn.
+int parts_numeral_codes(struct parts_numeral *num, uint8_t *codes, bool *shown)
 {
-	int_least64_t n = num->num;
-	bool negative = n < 0;
-	if (negative)
-		n = -n;
-	char digits[32];
-	int nd = 0;
+	uint8_t rev[PARTS_NUMERAL_MAX_CHARS];
+	int nr = 0, digits = 0;
+	// The original negates (0x5b5267), which leaves INT_MIN negative and
+	// makes its "digits" negative; its magnitude is used here.
+	unsigned n = num->num < 0 ? 0u - (unsigned)num->num : (unsigned)num->num;
+	int length = min(num->length, PARTS_NUMERAL_MAX_LENGTH);
 	do {
-		digits[nd++] = '0' + n % 10;
+		if (num->show_comma && digits && digits % 3 == 0)
+			rev[nr++] = 11;
+		rev[nr++] = n % 10;
 		n /= 10;
-	} while (n && nd < 20);
-	while (num->zero_pad && nd < num->length && nd < 20)
-		digits[nd++] = '0';
-
-	// digits[] is least significant first; build the string forwards.
-	char buf[128];
-	int len = 0;
-	const bool full = num->full_pitch;
-	#define PUT_CHAR(c) do { \
-		if (full) { buf[len++] = '\xa3'; buf[len++] = (c) == '-' ? '\xad' : (c) == ',' ? '\xac' : '\xb0' + ((c) - '0'); } \
-		else buf[len++] = (c); \
-	} while (0)
-	if (negative)
-		PUT_CHAR('-');
-	for (int i = nd - 1; i >= 0; i--) {
-		PUT_CHAR(digits[i]);
-		if (num->show_comma && i > 0 && i % 3 == 0)
-			PUT_CHAR(',');
+		digits++;
+	} while (n || digits < length);
+	if (num->num < 0)
+		rev[nr++] = 10;
+	for (int i = 0; i < nr; i++) {
+		codes[i] = rev[nr - 1 - i];
+		shown[i] = true;
 	}
-	#undef PUT_CHAR
-	buf[len] = '\0';
+	// A minus sign in front ends this at once: a negative number shows
+	// its padding whatever ゼロパディング is.
+	for (int i = 0; i < nr && (codes[i] == 0 || codes[i] == 11); i++)
+		shown[i] = num->zero_pad;
+	shown[nr - 1] = true;
+	return nr;
+}
 
-	struct text_style ts = num->font;
-	ts.font_spacing = num->space;
-	// The width is the digit cells and the spacing between them (0x5b4df0:
-	// 0x5b50d3 adds a cell, 0x5b5164..0x5b5182 (cells - 1) * 字間隔), which
-	// is where the last glyph drawn below ends; gfx_size_text is the cells.
-	// Without ゼロパディング the original still counts 桁數 cells and only
-	// hides the leading ones (0x5b5230); every numeral in the game pads.
-	int nr_chars = full ? len / 2 : len;
-	int w = (int)ceilf(gfx_size_text(&ts, buf)) + (nr_chars - 1) * num->space;
-	int h = (int)ceilf(ts.size + ts.edge_up + ts.edge_down);
-	int y = 0;
-	if (ain->version >= 14 && gfx_text_cn_gdi()) {
-		// The height is the tallest glyph texture's (0x5b5133), size + 2e
-		// with the glyph e below its top (0x69c290, 0x69c3d0); the textures
-		// are placed from the numeral's top (0x5b4380). No rows are added
-		// below as for a text's glyphs (text.c): digits, the comma and the
-		// minus sign do not reach below the cell.
-		y = gfx_text_cn_style_edge(&ts);
-		h = (int)lroundf(ts.size) + 2 * y;
+// The strings of 0x5b3e80 (+0x38 half-width, +0x158 全角) in the game's
+// character set.
+static const char *parts_numeral_char(int code, bool full, char buf[3])
+{
+	if (!full) {
+		buf[0] = code < 10 ? '0' + code : code == 10 ? '-' : ',';
+		buf[1] = '\0';
+	} else if (ain_is_gb18030) {
+		buf[0] = '\xa3';
+		buf[1] = code < 10 ? '\xb0' + code : code == 10 ? '\xad' : '\xac';
+		buf[2] = '\0';
+	} else {
+		buf[0] = code < 10 ? '\x82' : '\x81';
+		buf[1] = code < 10 ? '\x4f' + code : code == 10 ? '\x7c' : '\x43';
+		buf[2] = '\0';
 	}
-	if (w <= 0 || h <= 0)
-		return true;
+	return buf;
+}
+
+static int parts_numeral_linked_font(int cg_no, const int w[12])
+{
+	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
+		struct parts_numeral_font *font = &parts_numeral_fonts[i];
+		if (font->type == PARTS_NUMERAL_FONT_COMBINED && font->cg_no == cg_no
+				&& !memcmp(font->width, w, sizeof(font->width)))
+			return i;
+	}
+	int font_no = parts_nr_numeral_fonts++;
+	parts_numeral_fonts = xrealloc_array(parts_numeral_fonts, font_no, font_no + 1,
+			sizeof(struct parts_numeral_font));
+	struct parts_numeral_font *font = &parts_numeral_fonts[font_no];
+	font->cg_no = cg_no;
+	font->type = PARTS_NUMERAL_FONT_COMBINED;
+	memcpy(font->width, w, sizeof(font->width));
+	parts_numeral_font_init(font);
+	return font_no;
+}
+
+// The CG font of a v14 numeral's ＣＧ名 for its 表示タイプ; none (-1) for an
+// empty name, a linked CG that does not exist, and a font numeral.
+static void parts_numeral_resolve_cg(struct parts_numeral *num)
+{
+	int no;
+	num->font_no = -1;
+	if (!num->cg_name || !num->cg_name->size)
+		return;
+	if (num->show_type == PARTS_NUMERAL_SHOW_CG)
+		num->font_no = parts_load_numeral_font_separate_string(num->cg_name);
+	else if (num->show_type == PARTS_NUMERAL_SHOW_LINKED_CG
+			&& asset_exists_by_name(ASSET_CG, num->cg_name->text, &no))
+		num->font_no = parts_numeral_linked_font(no, num->cg_widths);
+}
+
+static bool parts_numeral_update_v14(struct parts *parts, struct parts_numeral *num)
+{
+	uint8_t codes[PARTS_NUMERAL_MAX_CHARS];
+	bool shown[PARTS_NUMERAL_MAX_CHARS];
+	float cw[PARTS_NUMERAL_MAX_CHARS];
+	char buf[3];
+	int nr = parts_numeral_codes(num, codes, shown);
+	const bool font = num->show_type == PARTS_NUMERAL_SHOW_FONT;
+	struct parts_numeral_font *cg_font = !font && num->font_no >= 0
+		? &parts_numeral_fonts[num->font_no] : NULL;
+	struct text_style *ts = &num->font;
+	// On the CN glyph grid a character's texture is its cell and e on
+	// every side, the glyph at (e, e) in it (0x69c290, 0x69c3d0); the
+	// numeral is as high as that, size + 2e, not made even as a text's
+	// line is. Elsewhere it is the font size and both edges high, and as
+	// wide as the text renderer's advances.
+	const bool grid = font && gfx_text_cn_gdi();
+	int w = 0, h = 0, y = 0;
+	if (grid) {
+		int size = lroundf(ts->size);
+		y = gfx_text_cn_style_edge(ts);
+		h = size + 2 * y;
+		for (int i = 0; i < nr; i++) {
+			cw[i] = gfx_text_cn_width(size, parts_numeral_char(codes[i], num->full_pitch, buf)[0]) + 2 * y;
+			w += cw[i];
+		}
+	} else if (font) {
+		float fw = 0;
+		for (int i = 0; i < nr; i++)
+			fw += gfx_size_text(ts, parts_numeral_char(codes[i], num->full_pitch, buf));
+		w = (int)ceilf(fw);
+		h = (int)ceilf(ts->size + ts->edge_up + ts->edge_down);
+	} else {
+		for (int i = 0; i < nr; i++) {
+			Texture *ch = cg_font ? &cg_font->cg[codes[i]] : NULL;
+			cw[i] = ch && ch->handle ? ch->w : 0;
+			w += cw[i];
+			if (ch && ch->handle)
+				h = max(h, ch->h);
+		}
+	}
+	w += (nr - 1) * num->space;
+
 	gfx_delete_texture(&num->common.texture);
-	gfx_init_texture_rgba(&num->common.texture, w, h, (SDL_Color){0, 0, 0, 0});
-	// As a construction CopyText: transparent edge colour, then copy glyphs.
-	gfx_fill_with_alpha(&num->common.texture, 0, 0, w, h,
-			ts.edge_color.r, ts.edge_color.g, ts.edge_color.b, 0);
-	gfx_render_text(&num->common.texture, 0, y, buf, &ts, false);
-	parts_set_dims(parts, &num->common, w, h);
+	if (w > 0 && h > 0) {
+		gfx_init_texture_rgba(&num->common.texture, w, h, (SDL_Color){0, 0, 0, 0});
+		float x = 0;
+		if (font) {
+			// As a construction CopyText: transparent edge colour first.
+			gfx_fill_with_alpha(&num->common.texture, 0, 0, w, h,
+					ts->edge_color.r, ts->edge_color.g, ts->edge_color.b, 0);
+			ts->font_spacing = 0;
+		}
+		for (int i = 0; i < nr; i++) {
+			float advance = font ? 0 : cw[i];
+			if (font && (shown[i] || !grid)) {
+				// Off the grid the renderer says how far the next
+				// character is, so a hidden one is measured by
+				// drawing it where nothing shows.
+				advance = gfx_render_textf(&num->common.texture,
+						shown[i] ? x : (float)(-4 * w - 4096), y,
+						(char*)parts_numeral_char(codes[i], num->full_pitch, buf), ts, false);
+			} else if (!font && shown[i] && cw[i] > 0) {
+				Texture *ch = &cg_font->cg[codes[i]];
+				gfx_copy_with_alpha_map(&num->common.texture, (int)x, 0, ch, 0, 0, ch->w, ch->h);
+			}
+			if (grid)
+				advance = cw[i];
+			x += advance + num->space;
+		}
+	}
+	parts_set_dims(parts, &num->common, max(w, 0), max(h, 0));
 	parts_dirty(parts);
 	return true;
 }
 
-static bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
+bool parts_numeral_update(struct parts *parts, struct parts_numeral *num)
 {
-	if (num->have_num && num->show_type == 2)
-		return parts_numeral_update_font(parts, num);
+	if (ain->version >= 14)
+		return parts_numeral_update_v14(parts, num);
 	// XXX: don't generate texture if number hasn't been set yet
 	if (!num->have_num || num->font_no < 0)
 		return true;
@@ -2235,10 +2352,32 @@ bool PE_SetVGaugeSurfaceArea(int parts_no, int x, int y, int w, int h, int state
 	return true;
 }
 
+/*
+ * Numeral setters. In v14 each makes the state a numeral (0x5b77f0 with
+ * type 24) and rebuilds the numeral when it changes it; the PartsEngine
+ * functions at 0x599270..0x5999a0 look the component up and call
+ * 0x567180..0x5679b0.
+ */
+
 bool PE_SetNumeralCG(int parts_no, struct string *cg_name, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
+	if (ain->version >= 14) {
+		// 0x5b49f0: nothing for the same name on a CG numeral; otherwise
+		// the numeral becomes 表示タイプ 0.
+		struct parts *parts = parts_get(parts_no);
+		struct parts_numeral *n = parts_get_numeral(parts, state);
+		if (n->show_type == PARTS_NUMERAL_SHOW_CG
+				&& !strcmp(n->cg_name ? n->cg_name->text : "", cg_name->text))
+			return true;
+		if (n->cg_name)
+			free_string(n->cg_name);
+		n->cg_name = string_dup(cg_name);
+		n->show_type = PARTS_NUMERAL_SHOW_CG;
+		parts_numeral_resolve_cg(n);
+		return parts_numeral_update(parts, n);
+	}
 	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
 	n->font_no = parts_load_numeral_font_separate_string(cg_name);
 	return true;
@@ -2278,15 +2417,109 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_n
 	if (!parts_state_valid(--state))
 		return false;
 
+	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
+	if (ain->version >= 14) {
+		// 0x5b4ac0: nothing for the same name and widths on a linked CG
+		// numeral; otherwise the numeral becomes 表示タイプ 1. True
+		// whether the CG exists or not (0x5992f0).
+		struct parts *parts = parts_get(parts_no);
+		struct parts_numeral *n = parts_get_numeral(parts, state);
+		if (n->show_type == PARTS_NUMERAL_SHOW_LINKED_CG
+				&& !strcmp(n->cg_name ? n->cg_name->text : "", cg_name->text)
+				&& !memcmp(n->cg_widths, w, sizeof(w)))
+			return true;
+		if (n->cg_name)
+			free_string(n->cg_name);
+		n->cg_name = string_dup(cg_name);
+		memcpy(n->cg_widths, w, sizeof(w));
+		n->show_type = PARTS_NUMERAL_SHOW_LINKED_CG;
+		parts_numeral_resolve_cg(n);
+		return parts_numeral_update(parts, n);
+	}
+
 	int no;
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, &no);
 	if (!cg)
 		return false;
 
-	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
 	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
 	n->font_no = parts_load_numeral_font_combined(cg, no, w);
 	return true;
+}
+
+// 0x5b4b90 (SetNumeralFont): nothing for the same font on a font numeral;
+// otherwise the numeral becomes 表示タイプ 2.
+bool PE_SetNumeralFont(int parts_no, int type, int size, int r, int g, int b,
+		float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight,
+		int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	struct text_style *ts = &num->font;
+	if (num->show_type == PARTS_NUMERAL_SHOW_FONT
+			&& ts->face == (unsigned)type && ts->size == (float)size
+			&& ts->color.r == (uint8_t)r && ts->color.g == (uint8_t)g && ts->color.b == (uint8_t)b
+			&& ts->bold_weight == bold_weight
+			&& ts->edge_color.r == (uint8_t)edge_r && ts->edge_color.g == (uint8_t)edge_g
+			&& ts->edge_color.b == (uint8_t)edge_b
+			&& text_style_edge_width(ts) == edge_weight)
+		return true;
+	// As PE_SetFont keeps a text's.
+	ts->face = type;
+	ts->size = size;
+	ts->color = (SDL_Color) { r, g, b, 255 };
+	ts->weight = bold_weight * 1000;
+	ts->bold_weight = bold_weight;
+	ts->edge_color = (SDL_Color) { edge_r, edge_g, edge_b, 255 };
+	text_style_set_edge_width(ts, edge_weight);
+	ts->font_size = NULL;
+	num->show_type = PARTS_NUMERAL_SHOW_FONT;
+	num->font_no = -1;
+	return parts_numeral_update(parts, num);
+}
+
+// 0x5673a0 (SetNumeralFullPitch)
+bool PE_SetNumeralFullPitch(int parts_no, bool full, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	if (num->full_pitch == full)
+		return true;
+	num->full_pitch = full;
+	return parts_numeral_update(parts, num);
+}
+
+// 0x567880 (SetNumeralShowType): a type above 2 is ignored. The CG name
+// and the font stay as they are: a numeral made a font numeral this way
+// draws with whatever font it has (DamageNumber sets the type first).
+bool PE_SetNumeralShowType(int parts_no, int type, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	if (num->show_type == type || type < 0 || type > PARTS_NUMERAL_SHOW_FONT)
+		return true;
+	num->show_type = type;
+	parts_numeral_resolve_cg(num);
+	return parts_numeral_update(parts, num);
+}
+
+// 0x567940 (SetNumeralShowPadding)
+bool PE_SetNumeralShowPadding(int parts_no, bool show, int state)
+{
+	if (!parts_state_valid(--state))
+		return false;
+	struct parts *parts = parts_get(parts_no);
+	struct parts_numeral *num = parts_get_numeral(parts, state);
+	if (num->zero_pad == show)
+		return true;
+	num->zero_pad = show;
+	return parts_numeral_update(parts, num);
 }
 
 bool PE_SetNumeralNumber(int parts_no, int n, int state)
@@ -2295,6 +2528,7 @@ bool PE_SetNumeralNumber(int parts_no, int n, int state)
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
+	// v14 (0x567460) rebuilds the numeral whether the number changed or not.
 	struct parts_numeral *numeral = parts_get_numeral(parts, state);
 	return parts_numeral_set_number(parts, numeral, n);
 }
@@ -2335,6 +2569,15 @@ bool PE_SetNumeralLength(int parts_no, int length, int state)
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
+	if (ain->version >= 14) {
+		// 0x567690: a length below 0 is 0; the comparison is with the
+		// length as given.
+		struct parts_numeral *num = parts_get_numeral(parts, state);
+		if (num->length == length)
+			return true;
+		num->length = max(length, 0);
+		return parts_numeral_update(parts, num);
+	}
 	struct parts_numeral *num = parts_get_numeral(parts, state);
 	if (num->length == length)
 		return true;
@@ -2351,6 +2594,17 @@ bool PE_SetNumeralSurfaceArea(int parts_no, int x, int y, int w, int h, int stat
 		return false;
 
 	struct parts *parts = parts_get(parts_no);
+	if (ain->version >= 14) {
+		// 0x567760 keeps the rectangle as it is given; the numeral is
+		// not rebuilt.
+		struct parts_numeral *n = parts_get_numeral(parts, state);
+		n->common.surface_area = (Rectangle) { x, y, w, h };
+		parts_common_recalculate_hitbox(parts, &n->common);
+		parts_dirty(parts);
+		if (!state)
+			parts_layout_size_changed(parts);
+		return true;
+	}
 	struct parts_numeral *n = parts_get_numeral(parts, state);
 	parts_set_surface_area(parts, &n->common, x, y, w, h);
 	return true;

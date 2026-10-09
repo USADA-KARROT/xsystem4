@@ -78,6 +78,12 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
 bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_name,
 		int w0, int w1, int w2, int w3, int w4, int w5, int w6, int w7, int w8,
 		int w9, int w_minus, int w_comma, int state);
+bool PE_SetNumeralFont(int parts_no, int type, int size, int r, int g, int b,
+		float bold_weight, int edge_r, int edge_g, int edge_b, float edge_weight,
+		int state);
+bool PE_SetNumeralFullPitch(int parts_no, bool full, int state);
+bool PE_SetNumeralShowType(int parts_no, int type, int state);
+bool PE_SetNumeralShowPadding(int parts_no, bool show, int state);
 bool PE_SetNumeralNumber(int parts_no, int n, int state);
 bool PE_SetNumeralShowComma(int parts_no, bool show_comma, int state);
 bool PE_SetNumeralSpace(int parts_no, int space, int state);

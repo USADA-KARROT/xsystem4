@@ -1860,6 +1860,7 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 	return true;
 }
 #include "pe_v14_gauge.h"
+#include "pe_v14_numeral.h"
 #include "pe_v14_stubs.h"
 
 /* Fill the v14-only names into the runtime library table. Called from
@@ -1921,6 +1922,7 @@ static void pe_v14_register_batch(int libno)
 	static_library_register(lib, "GetLayoutBoxPaddingLeft", PE_get_layoutbox_padding_left);
 	static_library_register(lib, "GetLayoutBoxPaddingRight", PE_get_layoutbox_padding_right);
 	pe_v14_register_gauges(libno);
+	pe_v14_register_numerals(libno);
 #include "pe_v14_prelink.h"
 }
 

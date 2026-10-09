@@ -175,6 +175,16 @@ struct parts_numeral_font {
 	Texture cg[12];
 };
 
+// v14 表示タイプ (the numeral's type byte, 0x5b3e80 +0x28)
+enum parts_numeral_show_type {
+	PARTS_NUMERAL_SHOW_CG = 0,        // a CG per character (ＣＧ名 is its format)
+	PARTS_NUMERAL_SHOW_LINKED_CG = 1, // the characters side by side in one CG (幅リスト)
+	PARTS_NUMERAL_SHOW_FONT = 2,      // drawn with the numeral's font
+};
+
+// The most digits a v14 numeral is padded to (桁數); the original has no limit.
+#define PARTS_NUMERAL_MAX_LENGTH 32
+
 struct parts_numeral {
 	struct parts_common common;
 	bool have_num;
@@ -183,11 +193,18 @@ struct parts_numeral {
 	int show_comma;
 	int length;
 	int font_no;
-	// v14 表示タイプ 2: the digits are drawn with a font, not a CG font.
+	// v14 表示タイプ (enum parts_numeral_show_type); before v14 the CG font
+	// `font_no` draws the number.
 	int show_type;
-	bool zero_pad;   // ゼロパディング: pad to `length` with 0
+	// v14 ゼロパディング (SetNumeralShowPadding): the leading zeros are drawn.
+	// Hidden ones keep their cells (0x5b5188).
+	bool zero_pad;
 	bool full_pitch; // 全角: full-width digits
 	struct text_style font;
+	// v14: ＣＧ名 and 幅リスト, kept as they were given (the getters return
+	// them whatever the type is).
+	struct string *cg_name;
+	int cg_widths[12];
 };
 
 struct parts_gauge {
@@ -725,6 +742,8 @@ bool parts_animation_set_cg(struct parts *parts, struct parts_animation *anim,
 		struct string *cg_name, int start_no, int nr_frames, int frame_time);
 void parts_numeral_font_init(struct parts_numeral_font *font);
 bool parts_numeral_set_number(struct parts *parts, struct parts_numeral *num, int n);
+bool parts_numeral_update(struct parts *parts, struct parts_numeral *num);
+int parts_numeral_codes(struct parts_numeral *num, uint8_t *codes, bool *shown);
 bool parts_gauge_set_cg(struct parts *parts, struct parts_gauge *g, struct string *cg_name);
 bool parts_gauge_set_cg_by_index(struct parts *parts, struct parts_gauge *g, int cg_no);
 void parts_v14_gauge_render_geometry(struct parts *parts, struct parts_gauge *g, bool vertical, mat4 transform, Rectangle *source);

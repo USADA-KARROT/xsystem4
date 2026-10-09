@@ -115,13 +115,16 @@ static int ts_failures;
 #define TS_JIN "\xc8\xcb"		/* 人 */
 #define TS_SLASH "\xa3\xaf"		/* ／ */
 
-/* A 數字部件 drawn with a font, with a フォント太さ. */
+#define TS_FONT_COLOR "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xc9\xab"	/* フォント色 */
+/* A 數字部件 drawn with a font, with a フォント太さ. The colour is given as
+ * every numeral of the game gives it: the loader takes a missing key for 0,
+ * as the original does (0x5b6a5c), and TS6 looks for a white glyph body. */
 static struct ex_tree ts_numeral(const char *name, const struct lb_place *pl, int size, float weight, float edge,
 		int space)
 {
 	struct ex_tree info = bu_branch(BU_INFO, 2);
 	info.children[0] = bu_sleaf(BU_TYPE, BU_LOW);
-	info.children[1] = bu_branch(BU_NORMAL, 6);
+	info.children[1] = bu_branch(BU_NORMAL, 7);
 	struct ex_tree *st = &info.children[1];
 	st->children[0] = bu_sleaf(BU_TYPE, BU_NUMERAL);
 	st->children[1] = bu_ileaf(LB_SHOW_TYPE, 2);
@@ -129,6 +132,7 @@ static struct ex_tree ts_numeral(const char *name, const struct lb_place *pl, in
 	st->children[3] = lb_fleaf(LB_WEIGHT, weight);
 	st->children[4] = lb_fleaf(LB_EDGE, edge);
 	st->children[5] = bu_ileaf(LB_SPACE, space);
+	st->children[6] = lb_ilist(TS_FONT_COLOR, 3, (const int[]){ 255, 255, 255 });
 	return lb_node(name, pl, info, 0);
 }
 /* A named text state: 文本 and 文本裝飾. */
