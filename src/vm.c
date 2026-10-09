@@ -950,6 +950,40 @@ int vm_copy_page(struct page *page)
 }
 
 /*
+ * v14 A_REF of a struct whose members are all plain numbers (CASColor,
+ * CASPos, CASSize, ...). The original's A_REF ("PageCopy", 0x66b790 ->
+ * 0x6794d0, case 4 at 0x67959a) allocates a new struct page and copies the
+ * members, for every struct. Sharing the page instead made a copy an alias:
+ * `return CASColor::BLACK;` handed out the global itself, and once a
+ * caller's "copy" was written or released the constant read as another
+ * colour (PlayerFrameView@GetAddColor then returned the acting unit's
+ * focus colour for every other unit). A struct with reference members
+ * keeps sharing its page, as before.
+ */
+static bool v14_struct_is_plain_value(struct page *p)
+{
+	if (p->type != STRUCT_PAGE || p->index < 0 || p->index >= ain->nr_structures)
+		return false;
+	struct ain_struct *s = &ain->structures[p->index];
+	if (s->nr_members != p->nr_vars || p->nr_vars <= 0)
+		return false;
+	for (int i = 0; i < s->nr_members; i++) {
+		switch (s->members[i].type.data) {
+		case AIN_INT:
+		case AIN_FLOAT:
+		case AIN_BOOL:
+		case AIN_LONG_INT:
+		case AIN_ENUM:
+		case AIN_ENUM2:
+			break;
+		default:
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
  * v14 A_REF of an array. The original copies (0x66b790 -> 0x6794d0: a new
  * array, filled by 0x67ffb0, which copies int/float/bool/long elements as
  * values and shares wrap/interface elements with a reference each,
@@ -1399,7 +1433,8 @@ static int delegate_return_slots(struct ain_type *type)
  * DG_NEW_FROM_METHOD, the result of a script or library function, a string
  * expression, or an array literal whose local it sets to -1 before the call.
  * A_REF here gives a struct one more reference (natively a copy of the page,
- * 0x66b790 -> 0x6794d0), an array a copy and a delegate a copy (one more
+ * 0x66b790 -> 0x6794d0; a struct of plain numbers gets that copy here too,
+ * v14_struct_is_plain_value), an array a copy and a delegate a copy (one more
  * reference when its page is null), so function_call must not retain these
  * again: it did, and every such call left one reference behind. A delegate that is a lambda owns the local page
  * it was made in (its third slot), so the locals of a function that passed a
@@ -4160,6 +4195,8 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			} else if (ain->version >= 14 && p && p->type == ARRAY_PAGE
 					&& (copy = v14_array_value_copy(p)) > 0) {
 				stack_push(copy);
+			} else if (ain->version >= 14 && p && v14_struct_is_plain_value(p)) {
+				stack_push(vm_copy_page(p));
 			} else if (ain->version >= 14) {
 				// v14: reference semantics for structs/arrays
 				heap_ref(array);
