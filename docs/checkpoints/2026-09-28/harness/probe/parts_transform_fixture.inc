@@ -32,8 +32,9 @@
  *       GaugeBase) with a child at (2,2) (GaugeHp) and one at (10,0): the
  *       children's global positions, the corners of the child's box through
  *       parts_box_transform, the inverse parts_screen_to_box, Parts_IsCursorIn
- *       (whose box follows the anchor) and Parts_GetPartsUpperLeftPosX; then
- *       the parent scaled 0.5 as well, and the rotation removed again.
+ *       at two points where the upright box kept here and the original's
+ *       turned one agree, and Parts_GetPartsUpperLeftPosX; then the parent
+ *       scaled 0.5 as well, and the rotation removed again.
  *   PT2 a TEXT child under a rotated rectangle (MapNodeView's MainText/Text):
  *       the glyph transform (parts_anchor_transform without the parts' own
  *       rotation) turns with the parent; a grandchild's level composes.
@@ -62,6 +63,21 @@
  *       減算色モード: the list of such parts comes after the hidden list and
  *       before the controller ID section, which stays the end of the save;
  *       the layers' IDs, the parts' layers and the flag come back.
+ *   PT8 guard, AIN version 13: the engines before v14 keep the rule they
+ *       had (no original of theirs was read): a parent's rotation moves
+ *       nothing, a child's position is the parent's plus its own scaled by
+ *       the parent's accumulated scale and rounded at each level, a box is
+ *       T(global pos) * Rz(own) * S(accumulated scale), the upper-left
+ *       corner is the anchor plus the box corner's unscaled offset, and
+ *       SetGlobalPos places every parts from the new position.
+ *   PT9 a parent released on its own (ReleaseParts): its child and that
+ *       child's child are placed from the child's own position at the next
+ *       update, without the released parts' rotation and add colour.
+ *   PT10 the same with layers: the child hangs under its layer's root
+ *       again; erasing the layer afterwards leaves no parts and no root.
+ *   PT11 PE_Load links the children and combines their transforms itself:
+ *       before any update the child of a rotated parent is where it was
+ *       saved (anchor, box, upper-left corner, add colour sum).
  * Only functions that exist before the fix are called by name (the new
  * HLL functions go through the AIN declarations), so before-check builds.
  */
@@ -125,9 +141,16 @@ static void pt_rotated_parent(void)
 	pt_expect_box("rotated", C, 50, 9, ax + 50 * c - 9 * s, ay + 50 * s + 9 * c);
 	/* The parent's own box turns around its anchor as before. */
 	pt_expect_box("rotated", P, 104, 0, 400 + 104 * c, 300 + 104 * s);
-	/* The rectangle hit test keeps the axis-aligned box, at the moved anchor. */
-	PT_CHECK(ri_in(C, 450, 301) == 1, "rotated: Parts_IsCursorIn(C, 450, 301) must be 1 (box from (403,300))");
-	PT_CHECK(ri_in(C, 450, 319) == 0, "rotated: Parts_IsCursorIn(C, 450, 319) must be 0 (box ends at 318)");
+	/* The rectangle hit test here keeps an upright box at the moved anchor,
+	 * (403,300) 100x18; the original transforms the box's corners with the
+	 * matrix (0x57a6b0), a band from the anchor up to the right. Only points
+	 * are asserted on which the two agree (and the corners' bounding box,
+	 * should that be what the original tests): (410,302) lies in all of
+	 * them, (450,319) in none; before the fix it was inside (the box was
+	 * (402,302) 100x18). (450,301) is inside the upright box only: the
+	 * known difference, not a requirement. */
+	PT_CHECK(ri_in(C, 410, 302) == 1, "rotated: Parts_IsCursorIn(C, 410, 302) must be 1 (next to the anchor (403,300))");
+	PT_CHECK(ri_in(C, 450, 319) == 0, "rotated: Parts_IsCursorIn(C, 450, 319) must be 0 (below the box and the turned band)");
 	/* The upper-left corner is the box's (0,0) through the matrix (0x534bb0). */
 	float ul = ri_upper_left_x(C), uly = pt_upper_left_y(C);
 	PT_CHECK(ul == 403.0f && uly == 300.0f, "rotated: Parts_GetPartsUpperLeftPos(C) = (%g,%g), want (403,300)", ul, uly);
@@ -458,6 +481,229 @@ static void pt_save_with_layers(void)
 	printf("PT7 checked\n");
 }
 
+/* PT8: the engines before v14 keep their rule. The values are those of the
+ * formulas from before the matrix (parts_child_pos, the earlier
+ * parts_anchor_transform and parts_screen_upper_left). */
+static void pt_expect_ul(const char *step, int n, int x, int y)
+{
+	int ux = PE_GetPartsUpperLeftPosX(n, 1), uy = PE_GetPartsUpperLeftPosY(n, 1);
+	PT_CHECK(ux == x && uy == y, "%s: PE_GetPartsUpperLeftPos(%d) = (%d,%d), want (%d,%d)", step, n, ux, uy, x, y);
+}
+static void pt_v13_guard(void)
+{
+	ri_postlink();
+	ain->version = 13;
+	const int P = 9361, C = 9362, N = 9363, S = 9364, Q = 9365, D = 9366, F = 9367, E = 9368;
+	parts_get(P); parts_get(C); parts_get(N);
+	PE_SetPos(P, 400, 300); PE_SetPartsRectangleDetectionSize(P, 104, 22, 1); PE_SetPartsRotateZ(P, 315);
+	PE_SetParentPartsNumber(C, P); PE_SetPos(C, 2, 2); PE_SetPartsRectangleDetectionSize(C, 100, 18, 1);
+	PE_SetParentPartsNumber(N, P); PE_SetPos(N, 10, 0); PE_SetPartsRectangleDetectionSize(N, 20, 10, 1);
+	PE_UpdateComponent(0);
+	const float c = cosf(-45.0f * (float)M_PI / 180.0f), s = sinf(-45.0f * (float)M_PI / 180.0f);
+	/* The parent's rotation moves nothing below it; the children's boxes
+	 * stay upright at parent pos + child pos. */
+	pt_expect_pos("v13 rotated", P, 400, 300);
+	pt_expect_pos("v13 rotated", C, 402, 302);
+	pt_expect_pos("v13 rotated", N, 410, 300);
+	pt_expect_box("v13 rotated", C, 0, 0, 402, 302);
+	pt_expect_box("v13 rotated", C, 100, 0, 502, 302);
+	pt_expect_box("v13 rotated", C, 0, 18, 402, 320);
+	pt_expect_ul("v13 rotated", C, 402, 302);
+	pt_expect_ul("v13 rotated", N, 410, 300);
+	PT_CHECK(PE_IsCursorIn(C, 450, 319, 1) && !PE_IsCursorIn(C, 450, 301, 1) && !PE_IsCursorIn(C, 401, 310, 1),
+		 "v13 rotated: the child's hit box is not (402,302) 100x18");
+	/* The parent's own box turns around its anchor. */
+	pt_expect_box("v13 rotated", P, 104, 0, 400 + 104 * c, 300 + 104 * s);
+	/* The rotation changed afterwards: still nothing moves. */
+	PE_SetPartsRotateZ(P, 90);
+	pt_expect_pos("v13 rotated again, no update", C, 402, 302);
+	PE_UpdateComponent(0);
+	pt_expect_pos("v13 rotated again", C, 402, 302);
+	pt_expect_box("v13 rotated again", C, 100, 0, 502, 302);
+
+	/* The parent scaled 0.5: 400 + lround(0.5 * 2), 400 + lround(0.5 * 10);
+	 * the child's box is scaled by the accumulated scale. */
+	PE_SetPartsMagX(P, 0.5f); PE_SetPartsMagY(P, 0.5f);
+	pt_expect_pos("v13 scaled, no update", C, 401, 301);
+	PE_UpdateComponent(0);
+	pt_expect_pos("v13 scaled", C, 401, 301);
+	pt_expect_pos("v13 scaled", N, 405, 300);
+	pt_expect_box("v13 scaled", C, 100, 0, 451, 301);
+	pt_expect_box("v13 scaled", C, 0, 18, 401, 310);
+	pt_expect_ul("v13 scaled", C, 401, 301);
+
+	/* Three levels, each rounded on its own: Q (100,100) scaled 0.5, F at
+	 * (3,3) -> 100 + lround(1.5) = 102, E at (3,3) under F -> 102 +
+	 * lround(1.5) = 104 (one matrix would give 100 + 1.5 + 1.5 = 103). */
+	parts_get(Q); parts_get(F); parts_get(E);
+	PE_SetPos(Q, 100, 100); PE_SetPartsMagX(Q, 0.5f); PE_SetPartsMagY(Q, 0.5f);
+	PE_SetParentPartsNumber(F, Q); PE_SetPos(F, 3, 3);
+	PE_SetParentPartsNumber(E, F); PE_SetPos(E, 3, 3);
+	PE_UpdateComponent(0);
+	pt_expect_pos("v13 three levels", F, 102, 102);
+	pt_expect_pos("v13 three levels", E, 104, 104);
+
+	/* A parent scaled (2,1) and a child turned 90 degrees: the box point
+	 * (10,0) is scaled first, then turned, (0,20) from the anchor (the
+	 * matrix of v14 turns first: (0,10)). */
+	PE_SetPartsMagX(Q, 2.0f); PE_SetPartsMagY(Q, 1.0f);
+	parts_get(D);
+	PE_SetParentPartsNumber(D, Q); PE_SetPartsRectangleDetectionSize(D, 20, 20, 1); PE_SetPartsRotateZ(D, 90);
+	PE_UpdateComponent(0);
+	pt_expect_pos("v13 turned child", D, 100, 100);
+	pt_expect_box("v13 turned child", D, 10, 0, 100, 120);
+
+	/* The upper-left corner of a scaled parts whose origin is its centre:
+	 * the anchor plus the unscaled offset (-50,-25), not twice that. */
+	parts_get(S);
+	PE_SetPos(S, 300, 200); PE_SetPartsRectangleDetectionSize(S, 100, 50, 1); PE_SetPartsOriginPosMode(S, 5);
+	PE_SetPartsMagX(S, 2.0f); PE_SetPartsMagY(S, 2.0f);
+	PE_UpdateComponent(0);
+	pt_expect_pos("v13 own scale", S, 300, 200);
+	pt_expect_ul("v13 own scale", S, 250, 175);
+
+	/* SetGlobalPos places every parts in the list from the new position,
+	 * a child as well: one that comes after its parent in the list ends at
+	 * its own position plus the offset (kept as it was, right or not). */
+	bool seen_p = false, c_after_p = false;
+	struct parts *q;
+	PARTS_LIST_FOREACH(q) {
+		if (q->no == P)
+			seen_p = true;
+		else if (q->no == C)
+			c_after_p = seen_p;
+	}
+	parts_set_global_pos((Point){ 7, 9 });
+	pt_expect_pos("v13 SetGlobalPos", P, 407, 309);
+	pt_expect_pos("v13 SetGlobalPos", S, 307, 209);
+	if (c_after_p)
+		pt_expect_pos("v13 SetGlobalPos, a child after its parent in the list", C, 9, 11);
+	else
+		pt_expect_pos("v13 SetGlobalPos, a child before its parent in the list", C, 408, 310);
+	/* A parts made afterwards is at (0,0) until it is given a position. */
+	parts_get(9369);
+	pt_expect_pos("v13 a new parts after SetGlobalPos", 9369, 0, 0);
+	printf("PT8 checked\n");
+}
+
+/* PT9: a parent released on its own. */
+static void pt_released_parent(void)
+{
+	ri_postlink();
+	const int P = 9371, C = 9372, G = 9373;
+	parts_get(P); parts_get(C); parts_get(G);
+	ri_pos(P, 400, 300); ri_rect(P, 40, 40); pt_rot(P, 90); pt_add(P, 10, 20, 30);
+	ri_parent(C, P); ri_pos(C, 10, 0); ri_rect(C, 20, 10);
+	ri_parent(G, C); ri_pos(G, 5, 0); ri_rect(G, 8, 8); pt_add(G, 1, 2, 3);
+	PE_UpdateComponent(0);
+	pt_expect_pos("under the parent", C, 400, 310);
+	pt_expect_pos("under the parent", G, 400, 315);
+	pt_expect_box("under the parent", G, 8, 0, 400, 323);
+	SDL_Color gc = parts_get(G)->global.add_color;
+	PT_CHECK(gc.r == 11 && gc.g == 22 && gc.b == 33, "under the parent: G's add colour (%d,%d,%d), want (11,22,33)", gc.r, gc.g, gc.b);
+	PE_ReleaseParts(P);
+	PE_UpdateComponent(0);
+	struct parts *cp = parts_try_get(C), *gp = parts_try_get(G);
+	/* C hangs under nothing, or under its layer's root where there is one
+	 * (PT10); either places it like a parts without a parent. */
+	PT_CHECK(!parts_try_get(P) && cp && gp && (!cp->parent || parts_is_controller_root(cp->parent)) && gp->parent == cp,
+		 "after ReleaseParts(parent): the parent %s, C %s, G %s", parts_try_get(P) ? "is there" : "is gone",
+		 cp ? (cp->parent ? "has a parent" : "has no parent") : "is gone",
+		 gp ? (gp->parent == cp ? "hangs under C" : "does not hang under C") : "is gone");
+	if (!cp || !gp)
+		return;
+	/* Both from C's own position now, upright. */
+	pt_expect_pos("parent released", C, 10, 0);
+	pt_expect_pos("parent released", G, 15, 0);
+	pt_expect_box("parent released", C, 20, 0, 30, 0);
+	pt_expect_box("parent released", G, 8, 0, 23, 0);
+	pt_expect_box("parent released", G, 0, 8, 15, 8);
+	pt_expect_upper_left("parent released", G, 15, 0);
+	gc = gp->global.add_color;
+	PT_CHECK(gc.r == 1 && gc.g == 2 && gc.b == 3, "parent released: G's add colour (%d,%d,%d), want its own (1,2,3)", gc.r, gc.g, gc.b);
+	printf("PT9 checked\n");
+}
+
+/* PT10: the same in a layer; the orphan goes back under the layer's root. */
+static void pt_released_parent_layer(void)
+{
+	ci_setup();
+	int a, b, c;
+	ci_inserted(&a, &b, &c);		/* [0, a, c, b], active c; CI_PB in b */
+	const int K = 9381, G = 9382;
+	struct parts *root = parts_try_get(b);
+	parts_get(K); parts_get(G);
+	ri_parent(K, CI_PB); ri_pos(K, 10, 0); ri_rect(K, 20, 10);
+	ri_parent(G, K); ri_pos(G, 5, 0); ri_rect(G, 8, 8);
+	pt_rot(CI_PB, 90);
+	PE_UpdateComponent(0);
+	PT_CHECK(root && ci_owner(K) == b && ci_owner(G) == b, "K and G are in layers %d %d, want %d (their parent's)", ci_owner(K), ci_owner(G), b);
+	pt_expect_pos("under the parent", K, 100, 110);
+	pt_expect_pos("under the parent", G, 100, 115);
+	size_t before = 0, after = 0;
+	struct parts *q;
+	PARTS_LIST_FOREACH(q) before++;
+	PE_ReleaseParts(CI_PB);
+	PARTS_LIST_FOREACH(q) after++;
+	PT_CHECK(after == before - 1, "ReleaseParts(parent) changed the number of parts from %zu to %zu", before, after);
+	struct parts *kp = parts_try_get(K);
+	PT_CHECK(kp && kp->parent == root && parts_try_get(b) == root, "the orphan does not hang under the root of its layer %d", b);
+	PE_UpdateComponent(0);
+	pt_expect_pos("parent released", K, 10, 0);
+	pt_expect_pos("parent released", G, 15, 0);
+	pt_expect_box("parent released", G, 8, 0, 23, 0);
+	/* The layer erased: its parts and its root go, and no root is made for
+	 * a child whose parent went first. */
+	parts_get(9383);
+	ri_parent(9383, K);
+	ci_erase(b);
+	PT_CHECK(!parts_try_get(K) && !parts_try_get(G) && !parts_try_get(9383) && !parts_try_get(b),
+		 "after EraseLayer: K %s, G %s, 9383 %s, the root %s", parts_try_get(K) ? "stayed" : "went",
+		 parts_try_get(G) ? "stayed" : "went", parts_try_get(9383) ? "stayed" : "went", parts_try_get(b) ? "stayed" : "went");
+	ci_layers("PT10 after EraseLayer", 3, (int[]){ CI_ID(0), a, c });
+	PE_UpdateComponent(0);
+	pt_failures += ci_failures;
+	printf("PT10 checked\n");
+}
+
+/* PT11: PE_Load leaves nothing for the next update to place. */
+static void pt_loaded_children(void)
+{
+	ri_postlink();
+	const int P = 9391, C = 9392, G = 9393;
+	parts_get(P); parts_get(C); parts_get(G);
+	ri_pos(P, 400, 300); ri_rect(P, 40, 40); pt_rot(P, 90); pt_add(P, 10, 20, 30);
+	ri_parent(C, P); ri_pos(C, 10, 0); ri_rect(C, 20, 10); pt_add(C, 1, 2, 3);
+	ri_parent(G, C); ri_pos(G, 5, 2); ri_rect(G, 8, 8);
+	PE_UpdateComponent(0);
+	pt_expect_pos("before the save", C, 400, 310);
+	pt_expect_pos("before the save", G, 398, 315);
+	struct page *saved = NULL;
+	PT_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
+	if (!saved)
+		return;
+	PT_CHECK(PE_Load(&saved), "PE_Load failed");
+	/* No update here. */
+	struct parts *pp = parts_try_get(P), *cp = parts_try_get(C), *gp = parts_try_get(G);
+	PT_CHECK(pp && cp && gp && cp->parent == pp && gp->parent == cp, "after PE_Load, before any update: the children are not linked to their parents");
+	if (!pp || !cp || !gp)
+		return;
+	pt_expect_pos("loaded", P, 400, 300);
+	pt_expect_pos("loaded", C, 400, 310);
+	pt_expect_pos("loaded", G, 398, 315);
+	pt_expect_box("loaded", C, 20, 0, 400, 330);
+	pt_expect_box("loaded", G, 8, 0, 398, 323);
+	pt_expect_upper_left("loaded", C, 400, 310);
+	PT_CHECK(PT_NEAR(gp->global.rotation.z, 90.0f), "loaded: G's global rotation %g, want 90", gp->global.rotation.z);
+	SDL_Color gc = gp->global.add_color;
+	PT_CHECK(gc.r == 11 && gc.g == 22 && gc.b == 33, "loaded: G's add colour (%d,%d,%d), want (11,22,33)", gc.r, gc.g, gc.b);
+	/* The update changes nothing more. */
+	PE_UpdateComponent(0);
+	pt_expect_pos("loaded and updated", C, 400, 310);
+	pt_expect_pos("loaded and updated", G, 398, 315);
+	printf("PT11 checked\n");
+}
+
 static int pt_run(const char *name, void (*fn)(void))
 {
 	fflush(stdout);
@@ -487,6 +733,10 @@ static int test_parts_transform(void)
 	failed += pt_run("PT5 drawn: multiply then add, a negative sum subtracts", pt_drawn_colour);
 	failed += pt_run("PT6 the upper-left corner of a surface area under a rotated parent", pt_surface_area_corner);
 	failed += pt_run("PT7 a save with layers: the sub colour list and the controller ID section", pt_save_with_layers);
-	printf("PARTS-TRANSFORM %s: %d of 7 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	failed += pt_run("PT8 guard: AIN version 13 keeps the rule from before the matrix", pt_v13_guard);
+	failed += pt_run("PT9 a released parent's child and grandchild are placed anew", pt_released_parent);
+	failed += pt_run("PT10 in a layer the orphan hangs under the root again", pt_released_parent_layer);
+	failed += pt_run("PT11 PE_Load links and places the children itself", pt_loaded_children);
+	printf("PARTS-TRANSFORM %s: %d of 11 cases failed\n", failed ? "FAIL" : "PASS", failed);
 	return failed ? 92 : 0;
 }

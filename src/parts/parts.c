@@ -67,8 +67,9 @@ static void parts_init(struct parts *parts)
 	parts->sp.to_json = parts_sprite_to_json;
 	parts->local = PARTS_PARAMS_INITIALIZER;
 	parts->global = PARTS_PARAMS_INITIALIZER;
-	// The anchor frame of a parts that is never placed (root_pos).
-	parts_update_global_pos(parts, NULL);
+	// The anchor frame of a parts that is never placed (root_pos; v14).
+	if (ain->version >= 14)
+		parts_update_global_pos(parts, NULL);
 	parts->delegate_index = -1;
 	parts->want_save = true;
 	parts->on_cursor_sound = -1;
@@ -533,6 +534,10 @@ Point parts_placed_pos(const struct parts *parts)
  * under its rotated MainText rectangle is rotated with it. E.g. Tutorial's
  * MoveParent shrinks the scene parents to 0.85 with their whole scene.
  * parent == NULL: a top-level parts, relative to root_pos.
+ *
+ * v14 only. The engines before it were not read for this, and nothing there
+ * was compared with an original: they keep the rule they had, in which a
+ * parent's rotation does not reach its children (parts_child_pos).
  */
 static void parts_level_transform(const struct parts_params *parent,
 		const struct parts_params *local, Point pos, mat4 out)
@@ -558,7 +563,22 @@ static Point parts_transform_anchor(mat4 m)
 	return (Point) { (int)lroundf(m[3][0]), (int)lroundf(m[3][1]) };
 }
 
-// The parent's accumulated transform (root_pos for a top-level parts).
+/*
+ * Before v14: a child's position relative to its parent's anchor (the
+ * parent's global position). The parent's reverse flags mirror it around
+ * that anchor and the parent's accumulated scale scales it, each level
+ * rounded to the pixel. Rotation does not move the children.
+ */
+static Point parts_child_pos(const struct parts_params *parent, Point local)
+{
+	float x = parent->scale.x * local.x, y = parent->scale.y * local.y;
+	return (Point) {
+		parent->pos.x + (int)lroundf(parent->reverse_lr ? -x : x),
+		parent->pos.y + (int)lroundf(parent->reverse_tb ? -y : y)
+	};
+}
+
+// The parent's accumulated transform (root_pos for a top-level parts); v14.
 void parts_parent_transform(struct parts *parts, mat4 out)
 {
 	if (parts->parent) {
@@ -572,6 +592,12 @@ void parts_parent_transform(struct parts *parts, mat4 out)
 // Where the parts' anchor is on screen, from the parent's current transform.
 static Point parts_anchor_pos(struct parts *parts)
 {
+	if (ain->version < 14) {
+		Point anchor = parts_placed_pos(parts);
+		if (parts->parent)
+			anchor = parts_child_pos(&parts->parent->global, anchor);
+		return anchor;
+	}
 	mat4 m;
 	parts_level_transform(parts->parent ? &parts->parent->global : NULL,
 			&parts->local, parts_placed_pos(parts), m);
@@ -581,8 +607,17 @@ static Point parts_anchor_pos(struct parts *parts)
 // parent == NULL: a top-level parts, relative to root_pos.
 static void parts_update_global_pos(struct parts *parts, const struct parts_params *parent)
 {
-	parts_level_transform(parent, &parts->local, parts_placed_pos(parts), parts->global.matrix);
-	parts->global.pos = parts_transform_anchor(parts->global.matrix);
+	if (ain->version < 14) {
+		Point pos = parts_placed_pos(parts);
+		if (parent) {
+			parts->global.pos = parts_child_pos(parent, pos);
+		} else {
+			parts->global.pos = (Point) { root_pos.x + pos.x, root_pos.y + pos.y };
+		}
+	} else {
+		parts_level_transform(parent, &parts->local, parts_placed_pos(parts), parts->global.matrix);
+		parts->global.pos = parts_transform_anchor(parts->global.matrix);
+	}
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
@@ -591,8 +626,17 @@ static void parts_update_global_pos(struct parts *parts, const struct parts_para
 }
 
 // After a change of this parts' own transform: itself and its subtree.
+// Before v14 the parts' own scale and flips do not move its anchor, only
+// its children's.
 static void parts_update_transform(struct parts *parts)
 {
+	if (ain->version < 14) {
+		struct parts *child;
+		PARTS_FOREACH_CHILD(child, parts) {
+			parts_update_global_pos(child, &parts->global);
+		}
+		return;
+	}
 	parts_update_global_pos(parts, parts->parent ? &parts->parent->global : NULL);
 }
 
@@ -602,11 +646,14 @@ static void parts_accumulate_add_color(const struct parts_params *parent, SDL_Co
 /*
  * The transform and the add colour sum of a parts without a parent, from
  * its local parameters only; neither is saved. After PE_Load (the parent is
- * attached by parts_update_component, which then recombines the children)
- * and in that update for a top-level parts.
+ * attached by the update PE_Load ends with, which then recombines the
+ * children) and in that update for a top-level parts. Before v14 nothing is
+ * derived: the global parameters are saved and loaded as they are.
  */
 void parts_load_transform(struct parts *parts)
 {
+	if (ain->version < 14)
+		return;
 	parts_level_transform(NULL, &parts->local, parts_placed_pos(parts), parts->global.matrix);
 	parts_accumulate_add_color(NULL, parts->local.add_color, parts->sub_color_mode, &parts->global);
 }
@@ -630,8 +677,9 @@ void parts_set_global_pos(Point pos)
 	root_pos = pos;
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		// The children follow through their parent.
-		if (!parts->parent)
+		// v14: the children follow through their parent. (Before v14
+		// every parts is placed from the new position, as it was.)
+		if (ain->version < 14 || !parts->parent)
 			parts_update_global_pos(parts, NULL);
 	}
 	parts_engine_dirty();
@@ -643,7 +691,8 @@ void parts_set_global_pos(Point pos)
  * anchor and mirrored around it by the reverse flags of the parts and of all
  * its ancestors (like the original, whose hit test 0x57a6b0 transforms the
  * box corners with the accumulated matrix). Scale and rotation are ignored
- * here, as before (the anchor itself does follow the ancestors' transform).
+ * here, as before (in v14 the anchor itself does follow the ancestors'
+ * transform).
  */
 Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
 {
@@ -667,6 +716,16 @@ Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
  */
 Point parts_screen_upper_left(struct parts *parts, struct parts_common *common)
 {
+	if (ain->version < 14) {
+		// As it was: the corner's offset from the anchor, mirrored by the
+		// flips and not scaled.
+		Point anchor = parts_anchor_pos(parts);
+		int rx = common->hitbox.x - parts->local.pos.x, ry = common->hitbox.y - parts->local.pos.y;
+		return (Point) {
+			anchor.x + (parts->global.reverse_lr ? -rx : rx),
+			anchor.y + (parts->global.reverse_tb ? -ry : ry)
+		};
+	}
 	// The corner in the box (0 unless a surface area moves it), through the
 	// box transform: the flips mirror it around the anchor, and the scales
 	// and rotations above the parts move it as they move the drawing.
@@ -981,8 +1040,10 @@ void parts_set_rotation_z(struct parts *parts, float rot)
 {
 	parts->local.rotation.z = rot;
 	parts_update_global_rotate_z(parts, parts->parent ? parts->parent->global.rotation.z : 0.0f);
-	// The children turn around this parts' anchor with it.
-	parts_update_transform(parts);
+	// The children turn around this parts' anchor with it (v14; before it
+	// a rotation does not move them).
+	if (ain->version >= 14)
+		parts_update_transform(parts);
 	parts_dirty(parts);
 }
 
@@ -1423,6 +1484,9 @@ static void parts_update_animation(int passed_time)
 	}
 }
 
+// Set while parts_release_all empties the list.
+static bool releasing_all;
+
 void parts_release(int parts_no)
 {
 	struct ht_slot *slot = ht_put_int(parts_table, parts_no, NULL);
@@ -1438,10 +1502,28 @@ void parts_release(int parts_no)
 	}
 
 	// break parent/child relationships
+	// v14: a child left behind was placed through the released parts'
+	// matrix, and so were its own children. It hangs under its controller's
+	// root again, like every parts without a parent, and the update places
+	// its subtree from there. (What the original does with the children of
+	// a released parts was not read.) Not when everything goes, nor when the
+	// released parts is that root: its matrix is the one a parts without a
+	// parent is placed with, and a root must not be made in passing.
+	const bool replace_children = ain->version >= 14 && !releasing_all
+		&& !parts_is_controller_root(parts);
 	while (!TAILQ_EMPTY(&parts->children)) {
 		struct parts *child = TAILQ_FIRST(&parts->children);
 		TAILQ_REMOVE(&parts->children, child, child_list_entry);
 		child->parent = NULL;
+		if (replace_children) {
+			struct parts *root = child->controller_no >= PARTS_CONTROLLER_ID_BASE
+				? parts_try_get(child->controller_no) : NULL;
+			if (root && root != child && parts_is_controller_root(root)) {
+				child->parent = root;
+				TAILQ_INSERT_TAIL(&root->children, child, child_list_entry);
+			}
+			parts_component_dirty(child);
+		}
 	}
 	if (parts->parent) {
 		// v14: a layout box above closes the gap.
@@ -1465,10 +1547,12 @@ void parts_release(int parts_no)
 
 void parts_release_all(void)
 {
+	releasing_all = true;
 	while (!TAILQ_EMPTY(&parts_list)) {
 		struct parts *parts = TAILQ_FIRST(&parts_list);
 		parts_release(parts->no);
 	}
+	releasing_all = false;
 
 	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
 		struct parts_numeral_font *font = &parts_numeral_fonts[i];
@@ -1531,8 +1615,12 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 		Point pos, bool sub_color_mode, struct parts_params *out)
 {
 	out->z = parent->z + child->z;
-	parts_level_transform(parent, child, pos, out->matrix);
-	out->pos = parts_transform_anchor(out->matrix);
+	if (ain->version < 14) {
+		out->pos = parts_child_pos(parent, pos);
+	} else {
+		parts_level_transform(parent, child, pos, out->matrix);
+		out->pos = parts_transform_anchor(out->matrix);
+	}
 	out->show = parent->show && child->show;
 	out->alpha = parent->alpha * (child->alpha / 255.0f);
 	out->scale.x = parent->scale.x * child->scale.x;

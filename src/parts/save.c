@@ -498,6 +498,22 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 			for (int i = 0; i < op->pixel.nr_points * 2; i++)
 				op->pixel.points[i] = iarray_read(r);
 		}
+		// Likewise a circle larger than this build draws: it would be
+		// refused at every build (build_fill_circle, build_draw_circle)
+		// and is read as one with no radius, which draws nothing. A
+		// rectangle's position and size, a centre and a vertex may be any
+		// number: the builders clip them in 64 bits, and a limit here
+		// would change what a rectangle reaching across the surface from
+		// far outside it draws.
+		if ((op->type == PARTS_CP_FILL_CIRCLE_AMAP || op->type == PARTS_CP_FILL_CIRCLE_BLEND
+					|| op->type == PARTS_CP_DRAW_CIRCLE_AMAP)
+				&& (op->pixel.radius > PARTS_CP_CIRCLE_MAX_RADIUS
+					|| op->pixel.line_width > PARTS_CP_CIRCLE_MAX_RADIUS)) {
+			WARNING("construction operation %d: radius %d, width %d not loaded",
+					op->type, op->pixel.radius, op->pixel.line_width);
+			op->pixel.radius = 0;
+			op->pixel.line_width = 0;
+		}
 		break;
 	}
 	return op;
@@ -863,8 +879,8 @@ static void load_parts(struct iarray_reader *r, int version)
 		parts->pactex_canvas_w = iarray_read(r);
 		parts->pactex_canvas_h = iarray_read(r);
 	}
-	// The transform is not saved; a child's is combined once its parent is
-	// attached (parts_update_component).
+	// The transform is not saved (v14); a child's is combined once its
+	// parent is attached, by the update PE_Load ends with.
 	parts_load_transform(parts);
 	// A v14 panel written before its colour kept the alpha.
 	if (ain->version >= 14 && parts->component_type == 14)
@@ -1112,6 +1128,14 @@ bool PE_Load(struct page **buffer)
 		}
 	}
 	free(ids);
+
+	// v14: the matrices and the add colour sums are not saved, and a child
+	// is linked to its parent by the update (pending_parent). Without it a
+	// child would be drawn, hit and measured at its own position, as if it
+	// had no parent, until the next frame's update. Before v14 the saved
+	// global position is what is drawn, as it always was.
+	if (ain->version >= 14)
+		PE_UpdateComponent(0);
 
 	parts_engine_clean();
 	return true;

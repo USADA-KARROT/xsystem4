@@ -39,18 +39,23 @@
  *   CC1 gradations: 26 over the whole surface, 26 over a rectangle of an
  *       alpha-100 base (multiplied, not replaced), 25 over rows, through the
  *       AIN declaration; BattleInformationText's two fades through the
- *       pactex loader. Hand-computed alphas and every pixel against a model.
+ *       pactex loader, and a gradation over no column or row, after which
+ *       the next step is still done. Hand-computed alphas and every pixel
+ *       against a model.
  *   CC2 disc 102: MapNodeView's base (64x64, r 24) through the pactex loader
  *       and the same through the AIN declaration; r 1 against hand-computed
  *       coverages (the disc is not symmetric: its centre is a pixel corner);
  *       a disc cut by the left and top edges; r 0 draws nothing.
  *   CC3 disc 106 through the AIN declaration: composed on a transparent and
- *       on an opaque base.
+ *       on an opaque base; discs cut by the edges, 102 beside 106, among
+ *       them a centre at -(r + 1), whose last row or column is the position
+ *       -0.5 and lands on pixel 0 (one pixel, checked by hand).
  *   CC4 polygon 97 through the AIN declaration: a rectangle's coverage
  *       computed by hand (the half columns at both ends, 4 of 8 sub-rows on
  *       the first row and 5 of 8 on the last, the column after the last
- *       vertex), a slanted bar's sum, the composition on black, and what
- *       adds nothing (丸め, a rotation, one vertex) or draws nothing (two).
+ *       vertex), a slanted bar's sum, the composition on black, a run of
+ *       horizontal edges that folds back (one row by hand), and what adds
+ *       nothing (丸め, a rotation, one vertex) or draws nothing (two).
  *   CC5 blurs 27 / 28 through the AIN declaration: hand-computed rows that
  *       show the last pixel's sum, the radius clamps, a rectangle, alpha
  *       untouched.
@@ -59,11 +64,17 @@
  *       gradation beyond the surface, a CG that does not exist (129), and
  *       the AIN commands 29 and 129 with such a CG add no operation.
  *   CC8 the tiling itself (parts_cp_tile, by dlsym): a 3x2 tile over a
- *       rectangle, cut at its right and bottom edges and by the surface.
+ *       rectangle, cut at its right and bottom edges and by the surface;
+ *       rectangles INT_MAX wide and high, from far outside, and a tile
+ *       larger than the surface.
  *   CC9 ring 52 through the AIN declaration: r 2 with width 1 against
  *       hand-computed coverages (the hole in the middle, the lopsided ends
  *       of the centre row), a width that leaves no hole, a ring cut by the
  *       edges, r 0; every pixel against the model.
+ *   CC10 numbers at the ends of int in every command (far outside, sizes
+ *       that are not positive, INT_MAX wide): nothing outside the surface
+ *       is touched and the result is that of the clipped rectangle; a save
+ *       with a circle beyond this build's limit loads it without a radius.
  * Functions and types the fix adds are reached through the AIN declaration
  * or dlsym, so the file builds before the fix.
  */
@@ -340,6 +351,12 @@ static void cc_blur_model(uint8_t *px, int w, int h, int x0, int y0, int bw, int
 static const struct cc_step cc_fades[] = { CC_CREATE(30, 4), CC_GRAD(26, 0, 0, 8, 4, 0, 255, 0),
 	CC_GRAD(26, 22, 0, 8, 4, 255, 0, 0), CC_FILL(3, 0, 0, 30, 1, 255, 255, 255, 0) };
 static const struct cc_step cc_rows[] = { CC_CREATE(8, 4), CC_FILL_ALL(6, 9, 8, 7, 200), CC_GRAD(25, 0, 0, 0, 0, 255, 0, 1) };
+/* Nothing to go over: the original's loop does not run, the command succeeds
+ * (0x4ff973 -> 0x4ff9ac, 0x4ff7df -> 0x4ff812) and the step after it is done. */
+static const struct cc_step cc_no_cols[] = { CC_CREATE(8, 4), CC_FILL_ALL(6, 9, 8, 7, 200), CC_GRAD(26, 2, 0, 0, 4, 0, 255, 0),
+	CC_FILL(3, 0, 0, 8, 1, 255, 255, 255, 0) };
+static const struct cc_step cc_no_rows[] = { CC_CREATE(8, 4), CC_FILL_ALL(6, 9, 8, 7, 200), CC_GRAD(25, 0, 1, 8, -3, 0, 255, 0),
+	CC_FILL(3, 0, 0, 8, 1, 255, 255, 255, 0) };
 
 static void cc_gradations(void)
 {
@@ -383,11 +400,14 @@ static void cc_gradations(void)
 	/* The pactex loader: BattleInformationText's base (a fade at each end,
 	 * then a white line), and rows over everything. */
 	struct ex_tree *kids;
-	struct ex *e = lb_activity("ConstructionGrad", 2, &kids);
+	struct ex *e = lb_activity("ConstructionGrad", 4, &kids);
 	kids->children[0] = cc_parts("Fades", CC_N(cc_fades));
 	kids->children[1] = cc_parts("Rows", CC_N(cc_rows));
+	kids->children[2] = cc_parts("NoColumns", CC_N(cc_no_cols));
+	kids->children[3] = cc_parts("NoRows", CC_N(cc_no_rows));
 	int act = cn_load("ConstructionGrad", e);
 	int fades = cn_no(act, "Fades"), rows = cn_no(act, "Rows");
+	int no_cols = cn_no(act, "NoColumns"), no_rows = cn_no(act, "NoRows");
 	heap_unref(act);
 	cc_fill_model(model, 30, 4, 0, 0, 0, 255);
 	for (int y = 0; y < 4; y++) {
@@ -407,6 +427,13 @@ static void cc_gradations(void)
 	for (int i = 0; i < 32; i++)
 		model[i * 4 + 3] = cc_mul255(200, cc_grad_a(255, 0, i / 8, 4));
 	cc_compare(cn_pixels(rows, 8, 4, "CC1 pactex rows"), 8, 4, model, "CC1 pactex rows");
+	/* A gradation over no column or no row: built, the alpha untouched, the
+	 * white line of the step after it drawn. */
+	cc_fill_model(model, 8, 4, 9, 8, 7, 200);
+	for (int x = 0; x < 8; x++)
+		model[x * 4] = model[x * 4 + 1] = model[x * 4 + 2] = 255;
+	cc_compare(cn_pixels(no_cols, 8, 4, "CC1 pactex 26 over no column"), 8, 4, model, "CC1 pactex 26 over no column");
+	cc_compare(cn_pixels(no_rows, 8, 4, "CC1 pactex 25 over no row"), 8, 4, model, "CC1 pactex 25 over no row");
 	cc_failures += cn_failures;
 	printf("CC1 checked\n");
 }
@@ -511,6 +538,49 @@ static void cc_circle_blend(void)
 	const uint8_t *c = model + (8 * 16 + 8) * 4;
 	CC_CHECK(c[0] == 100 && c[1] == 50 && c[2] == 127 && c[3] == 255, "the model itself: centre (%d,%d,%d,%d)", c[0], c[1], c[2], c[3]);
 	cc_expect_all(HALF, 16, 16, model, "CC3 blue A 128 on opaque");
+
+	/* Cut by the top and the left edge. The position -0.5 is pixel 0
+	 * (truncated towards zero, 0x4cfc39), one more than the position below
+	 * it. With the centre at -(r + 1) the disc's last row or column is that
+	 * position and has one subsample on the radius: one pixel of row 0 or
+	 * column 0 with A * 3 / 255. (The staged buffer was one pixel short for
+	 * it: a write beyond it for the row, a pixel left out for the column.) */
+	static const struct { int x, y, r, px, py; } edge[] = {
+		{ 5, -6, 5, 5, 0 }, { -6, 5, 5, 0, 5 }, { 5, -2, 1, 5, 0 }, { -2, 5, 1, 0, 5 }, { -9, -9, 8, -1, -1 },
+		{ 5, -25, 24, 5, 0 }, { -25, 5, 24, 0, 5 }, { 0, 0, 3, -1, -1 }, { -1, -1, 6, -1, -1 }, { 15, 15, 4, -1, -1 },
+		{ 5, -7, 5, -1, -1 }, { -7, 5, 5, -1, -1 }, { 16, 5, 5, -1, -1 }, { 5, 21, 5, -1, -1 },
+	};
+	for (int i = 0; i < (int)(sizeof edge / sizeof edge[0]); i++) {
+		char what[64];
+		snprintf(what, sizeof what, "CC3 106 centre (%d,%d) r %d", edge[i].x, edge[i].y, edge[i].r);
+		for (int cmd = 102; cmd <= 106; cmd += 4) {
+			const int no = 9423 + i * 2 + (cmd == 106);
+			cc_new(no, 16, 16, 200, 100, 0, 0);
+			cc_hll(no, &(struct cc_cmd){ .cmd = cmd, .x = edge[i].x, .y = edge[i].y, .radius = edge[i].r, .c1 = { 0, 0, 255, 255 } });
+			cc_fill_model(model, 16, 16, 200, 100, 0, 0);
+			cc_model_a = 255; cc_model_rgb[0] = 0; cc_model_rgb[1] = 0; cc_model_rgb[2] = 255;
+			if (cmd == 106) {
+				memset(staged, 0, sizeof staged);
+				cc_circle_walk(edge[i].x, edge[i].y, edge[i].r, 16, 16, cc_stage, staged);
+				cc_compose_all(model, staged, 16, 16);
+			} else {
+				cc_circle_walk(edge[i].x, edge[i].y, edge[i].r, 16, 16, cc_write_alpha, model);
+			}
+			if (edge[i].px >= 0) {
+				/* The one pixel, and nothing else, by hand. */
+				uint8_t hand[16 * 16 * 4];
+				cc_fill_model(hand, 16, 16, 200, 100, 0, 0);
+				uint8_t *h = hand + (edge[i].py * 16 + edge[i].px) * 4;
+				h[3] = 3;
+				if (cmd == 106) {	/* 200 + (-200 * 3 >> 8), 100 + (-100 * 3 >> 8), 0 + (255 * 3 >> 8) */
+					h[0] = 197; h[1] = 98; h[2] = 2;
+				}
+				CC_CHECK(!memcmp(hand, model, sizeof hand), "%s, command %d: the model itself is not the one pixel (%d,%d,%d,%d) at (%d,%d)",
+					 what, cmd, h[0], h[1], h[2], h[3], edge[i].px, edge[i].py);
+			}
+			cc_expect_all(no, 16, 16, model, what);
+		}
+	}
 	printf("CC3 checked\n");
 }
 
@@ -574,6 +644,26 @@ static void cc_polygon(void)
 		CC_CHECK(o[0] == 0 && o[2] == 0 && o[3] == 255, "CC4 on black: outside (%d,%d,%d,%d), want (0,0,0,255)", o[0], o[1], o[2], o[3]);
 		free(got);
 	}
+
+	/* A run of two horizontal edges that folds back, (5,2) (0,2) (10,2),
+	 * then down to (10,8) and (0,8): on the sub-row y = 2.5 the run gives
+	 * its smallest x, 0.5 (the vertex after it, (10.5,8.5), is not right of
+	 * its largest; 0x4d0f10), next to 5.5 from the closing edge and 10.5
+	 * from the right one. Sorted, the first two pair up and the third is
+	 * left over: that sub-row covers [0.5, 6.5). The three sub-rows below
+	 * it in row 2 pair the closing edge (5.396, 5.292, 5.188) with 10.5.
+	 * Sums in 255ths: column 0: 127; 1..4: 255; 5: 255 + 154 + 180 + 207;
+	 * 6: 127 + 3 * 255; 7..10: 3 * 255; 11: 3 * 127; coverage sum / 8.
+	 * (Without the rule for the run that sub-row would cover [5.5, 11.5)
+	 * and the row would be 0 0 0 0 0 83 127 127 127 127 127 63.) */
+	static const int fold[] = { 5, 2, 0, 2, 10, 2, 10, 8, 0, 8 };
+	const int FOLD = 9435;
+	cc_new(FOLD, 16, 10, 255, 255, 255, 0);
+	cc_hll(FOLD, &(struct cc_cmd){ .cmd = 97, .c1 = { 255, 255, 255, 255 }, .nr_pos = 5, .pos = fold });
+	got = cc_pixels(FOLD, 16, 10, "CC4 folded run");
+	cc_expect_alpha_row(got, 16, 2, 0, 16, (int[]){ 15, 31, 31, 31, 31, 99, 111, 95, 95, 95, 95, 47, 0, 0, 0, 0 }, "CC4 folded run");
+	cc_expect_alpha_row(got, 16, 1, 0, 16, (int[]){ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, "CC4 folded run");
+	free(got);
 
 	/* 丸め, a rotation and a single vertex add nothing; two vertices add an
 	 * operation that draws nothing. */
@@ -817,6 +907,43 @@ static void cc_tiles(void)
 	tile(px, 7, 5, 1, 1, 5, -3, src, 3, 2);
 	tile(px, 7, 5, 1, 1, 5, 3, src, 0, 2);
 	CC_CHECK(!memcmp(px, want, sizeof px), "an empty rectangle or tile drew something");
+	/* A size far beyond the surface is cut to it before anything is copied
+	 * (the loop went over every tile of the rectangle; a script's or a
+	 * save's width and height have no limit). Same pattern as 20x20. */
+	for (int y = 0; y < 5; y++)
+		for (int x = 0; x < 7; x++)
+			memcpy(want + (y * 7 + x) * 4, src + (((y + 1) % 2) * 3 + (x + 2) % 3) * 4, 4);
+	tile(px, 7, 5, -2, -1, INT_MAX, INT_MAX, src, 3, 2);
+	CC_CHECK(!memcmp(px, want, sizeof px), "a rectangle from (-2,-1) of INT_MAX x INT_MAX does not tile like 20x20");
+	/* From far left and above, reaching the surface's first 4 columns and
+	 * 3 rows: x + w = 4, y + h = 3; the phase is ((X - x) mod 3, (Y - y) mod 2)
+	 * with -x = 2147483643 = 0 (mod 3) and -y = 2147483644 = 0 (mod 2). */
+	cc_fill_model(px, 7, 5, 1, 2, 3, 4);
+	cc_fill_model(want, 7, 5, 1, 2, 3, 4);
+	for (int y = 0; y < 3; y++)
+		for (int x = 0; x < 4; x++)
+			memcpy(want + (y * 7 + x) * 4, src + ((y % 2) * 3 + x % 3) * 4, 4);
+	tile(px, 7, 5, -2147483643, -2147483644, INT_MAX, INT_MAX, src, 3, 2);
+	CC_CHECK(!memcmp(px, want, sizeof px), "a rectangle from (-2147483643,-2147483644) of INT_MAX x INT_MAX is not the 4x3 corner");
+	/* Nothing of these reaches the surface. */
+	cc_fill_model(px, 7, 5, 1, 2, 3, 4);
+	cc_fill_model(want, 7, 5, 1, 2, 3, 4);
+	tile(px, 7, 5, INT_MIN, INT_MIN, INT_MAX, INT_MAX, src, 3, 2);
+	tile(px, 7, 5, INT_MAX, 0, INT_MAX, INT_MAX, src, 3, 2);
+	tile(px, 7, 5, 0, INT_MAX, INT_MAX, INT_MAX, src, 3, 2);
+	tile(px, 7, 5, 7, 0, INT_MAX, 5, src, 3, 2);
+	tile(px, 7, 5, 0, 5, 7, INT_MAX, src, 3, 2);
+	tile(px, 7, 5, 0, 0, INT_MIN, INT_MIN, src, 3, 2);
+	CC_CHECK(!memcmp(px, want, sizeof px), "a rectangle outside the surface drew something");
+	/* A tile larger than the surface: its top-left part. */
+	uint8_t big[9 * 6 * 4];
+	for (int i = 0; i < 9 * 6; i++) {
+		big[i * 4] = i; big[i * 4 + 1] = 2 * i; big[i * 4 + 2] = 7; big[i * 4 + 3] = 255 - i;
+	}
+	for (int y = 0; y < 5; y++)
+		memcpy(want + y * 7 * 4, big + y * 9 * 4, 7 * 4);
+	tile(px, 7, 5, 0, 0, INT_MAX, INT_MAX, big, 9, 6);
+	CC_CHECK(!memcmp(px, want, sizeof px), "a 9x6 tile over a 7x5 surface is not its top-left part");
 	printf("CC8 checked\n");
 }
 
@@ -901,6 +1028,159 @@ static void cc_rings(void)
 	printf("CC9 checked\n");
 }
 
+/* --- CC10 --- */
+/* How many words of a save are `v`. */
+static int cc_save_count(const struct page *saved, int v)
+{
+	int n = 0;
+	for (int i = 0; saved && i < saved->nr_vars; i++)
+		n += saved->values[i].i == v;
+	return n;
+}
+
+/* Numbers a script or a save may hold: nothing is read or written outside
+ * the surface and no loop runs over more than the surface (ASan, UBSan and
+ * the case's alarm are the judges). */
+static void cc_extremes(void)
+{
+	cn_gl_setup();
+	ri_postlink();
+	const int P_OUT = 9481, P_HUGE = 9482, P_MID = 9483, P_BLUR = 9484, P_ALL = 9485, P_GRAD = 9486, P_SAVE = 9487;
+	static const int far_a[] = { INT_MIN, INT_MIN, INT_MIN + 5, INT_MIN, INT_MIN, INT_MIN + 5 };
+	static const int far_b[] = { INT_MAX, INT_MAX, INT_MAX - 5, INT_MAX, INT_MAX, INT_MAX - 5 };
+	static const int far_c[] = { INT_MIN, 3, INT_MIN + 9, 3, INT_MIN, 12 };
+	static const int around_all[] = { INT_MIN, INT_MIN, INT_MAX, INT_MIN, INT_MAX, INT_MAX, INT_MIN, INT_MAX };
+	static const int around[] = { -100, -100, 100, -100, 100, 100, -100, 100 };
+
+	/* Everything far outside, and sizes that are not positive: nothing is
+	 * drawn on a surface that is not flat (a red disc on grey). */
+	cc_new(P_OUT, 16, 16, 90, 80, 70, 200);
+	cc_hll(P_OUT, &(struct cc_cmd){ .cmd = 106, .x = 8, .y = 8, .radius = 5, .c1 = { 255, 0, 0, 255 } });
+	uint8_t *before = cc_pixels(P_OUT, 16, 16, "CC10 before");
+	const struct cc_cmd outside[] = {
+		{ .cmd = 25, .x = INT_MIN, .y = INT_MIN, .w = INT_MAX, .h = INT_MAX, .c2 = { 0, 0, 0, 255 } },
+		{ .cmd = 26, .x = INT_MAX, .y = INT_MAX, .w = INT_MAX, .h = INT_MAX, .c2 = { 0, 0, 0, 255 } },
+		{ .cmd = 25, .w = INT_MIN, .h = INT_MIN, .c2 = { 0, 0, 0, 255 } },
+		{ .cmd = 26, .w = INT_MIN, .h = INT_MIN, .c2 = { 0, 0, 0, 255 } },
+		{ .cmd = 25, .x = 16, .w = INT_MAX, .h = INT_MAX, .c2 = { 0, 0, 0, 255 } },
+		{ .cmd = 26, .y = 16, .w = INT_MAX, .h = INT_MAX, .c2 = { 0, 0, 0, 255 } },
+		{ .cmd = 27, .x = INT_MIN, .w = INT_MAX, .h = INT_MAX, .blur = INT_MAX },
+		{ .cmd = 28, .y = INT_MAX, .w = INT_MAX, .h = INT_MAX, .blur = INT_MAX },
+		{ .cmd = 27, .x = 16, .w = INT_MAX, .h = 16, .blur = 3 },
+		{ .cmd = 28, .w = INT_MIN, .h = INT_MIN, .blur = INT_MIN },
+		{ .cmd = 102, .x = INT_MAX, .y = INT_MAX, .radius = 1024, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 102, .x = INT_MIN, .y = INT_MIN, .radius = 1024, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 106, .x = INT_MAX, .y = INT_MIN, .radius = 1024, .c1 = { 0, 255, 0, 255 } },
+		{ .cmd = 106, .x = INT_MIN, .y = INT_MAX, .radius = 1024, .c1 = { 0, 255, 0, 255 } },
+		{ .cmd = 102, .x = 8, .y = 8, .radius = INT_MIN, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 106, .x = 8, .y = 8, .radius = -1, .c1 = { 0, 255, 0, 255 } },
+		{ .cmd = 106, .x = 8, .y = 8, .radius = INT_MAX, .c1 = { 0, 255, 0, 255 } },
+		{ .cmd = 52, .x = INT_MAX, .y = INT_MAX, .radius = 1024, .width = 1024, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 52, .x = INT_MIN, .y = INT_MIN, .radius = 1024, .width = 1024, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 52, .x = 8, .y = 8, .radius = 3, .width = INT_MIN, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 52, .x = 8, .y = 8, .radius = 3, .width = INT_MAX, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 52, .x = 8, .y = 8, .radius = INT_MAX, .width = INT_MAX, .c1 = { 0, 0, 0, 255 } },
+		{ .cmd = 97, .c1 = { 0, 255, 0, 255 }, .nr_pos = 3, .pos = far_a },
+		{ .cmd = 97, .c1 = { 0, 255, 0, 255 }, .nr_pos = 3, .pos = far_b },
+		{ .cmd = 97, .c1 = { 0, 255, 0, 255 }, .nr_pos = 3, .pos = far_c },
+	};
+	for (int i = 0; i < (int)(sizeof outside / sizeof outside[0]); i++)
+		cc_hll(P_OUT, &outside[i]);
+	CC_CHECK(cc_nr_ops(P_OUT) == 3 + (int)(sizeof outside / sizeof outside[0]), "CC10: %d operations, want %d", cc_nr_ops(P_OUT),
+		 3 + (int)(sizeof outside / sizeof outside[0]));
+	uint8_t *after = cc_pixels(P_OUT, 16, 16, "CC10 far outside");
+	if (before && after) {
+		CC_CHECK(before[(8 * 16 + 8) * 4] == 254 && before[0] == 90, "CC10: the surface before is not a red disc on grey");
+		CC_CHECK(!memcmp(before, after, 16 * 16 * 4), "CC10: operations far outside the surface changed it");
+	}
+	free(before);
+	free(after);
+
+	/* A polygon around everything is the polygon around the surface. */
+	cc_new(P_HUGE, 16, 16, 90, 80, 70, 0);
+	cc_hll(P_HUGE, &(struct cc_cmd){ .cmd = 97, .c1 = { 0, 0, 255, 255 }, .nr_pos = 4, .pos = around_all });
+	cc_new(P_MID, 16, 16, 90, 80, 70, 0);
+	cc_hll(P_MID, &(struct cc_cmd){ .cmd = 97, .c1 = { 0, 0, 255, 255 }, .nr_pos = 4, .pos = around });
+	before = cc_pixels(P_MID, 16, 16, "CC10 polygon around the surface");
+	after = cc_pixels(P_HUGE, 16, 16, "CC10 polygon around everything");
+	if (before && after) {
+		/* 90 + ((0 - 90) * 255 >> 8) = 0, 70 + ((255 - 70) * 255 >> 8) = 254 */
+		const uint8_t *c = before + (7 * 16 + 9) * 4;
+		CC_CHECK(c[0] == 0 && c[1] == 0 && c[2] == 254 && c[3] == 255, "CC10 polygon around the surface: (9,7) = (%d,%d,%d,%d), want (0,0,254,255)",
+			 c[0], c[1], c[2], c[3]);
+		CC_CHECK(!memcmp(before, after, 16 * 16 * 4), "CC10: the polygon around everything differs from the one around the surface");
+	}
+	free(before);
+	free(after);
+
+	/* A blur over a rectangle that reaches across the surface with a radius
+	 * beyond every line is the blur of everything with the largest radius a
+	 * line of 16 allows (16 / 2 - 1). */
+	cc_new(P_BLUR, 16, 16, 90, 80, 70, 200);
+	cc_hll(P_BLUR, &(struct cc_cmd){ .cmd = 106, .x = 6, .y = 9, .radius = 4, .c1 = { 255, 0, 0, 255 } });
+	cc_hll(P_BLUR, &(struct cc_cmd){ .cmd = 27, .x = -5, .y = -5, .w = INT_MAX, .h = INT_MAX, .blur = INT_MAX });
+	cc_hll(P_BLUR, &(struct cc_cmd){ .cmd = 28, .x = -5, .y = -5, .w = INT_MAX, .h = INT_MAX, .blur = INT_MAX });
+	cc_new(P_ALL, 16, 16, 90, 80, 70, 200);
+	cc_hll(P_ALL, &(struct cc_cmd){ .cmd = 106, .x = 6, .y = 9, .radius = 4, .c1 = { 255, 0, 0, 255 } });
+	cc_hll(P_ALL, &(struct cc_cmd){ .cmd = 27, .full = 1, .blur = 7 });
+	cc_hll(P_ALL, &(struct cc_cmd){ .cmd = 28, .full = 1, .blur = 7 });
+	before = cc_pixels(P_ALL, 16, 16, "CC10 blur of everything");
+	after = cc_pixels(P_BLUR, 16, 16, "CC10 blur across the surface");
+	if (before && after) {
+		CC_CHECK(before[(9 * 16 + 6) * 4] < 254 && before[0] > 90, "CC10: the blur of everything left the disc as it was");
+		CC_CHECK(!memcmp(before, after, 16 * 16 * 4), "CC10: the blur across the surface differs from the blur of everything");
+	}
+	free(before);
+	free(after);
+
+	/* Columns of a gradation INT_MAX wide: i * (255 - 128) / INT_MAX is 0 for
+	 * the 16 columns there are, so every alpha is 200 * 128 / 255 = 100. */
+	cc_new(P_GRAD, 16, 16, 90, 80, 70, 200);
+	cc_hll(P_GRAD, &(struct cc_cmd){ .cmd = 26, .w = INT_MAX, .h = INT_MAX, .c1 = { 0, 0, 0, 128 }, .c2 = { 0, 0, 0, 255 } });
+	uint8_t model[16 * 16 * 4];
+	cc_fill_model(model, 16, 16, 90, 80, 70, 100);
+	cc_expect_all(P_GRAD, 16, 16, model, "CC10 gradation INT_MAX wide");
+
+	/* A save: a circle larger than this build draws is read as one without
+	 * a radius (it was never built); the blur's radius, which is cut to the
+	 * line when it is built, stays. */
+	cc_new(P_SAVE, 16, 16, 90, 80, 70, 200);
+	cc_hll(P_SAVE, &(struct cc_cmd){ .cmd = 106, .x = 8, .y = 8, .radius = 5, .c1 = { 255, 0, 0, 255 } });
+	cc_hll(P_SAVE, &(struct cc_cmd){ .cmd = 102, .x = 8, .y = 8, .radius = 5000, .c1 = { 0, 0, 0, 255 } });
+	cc_hll(P_SAVE, &(struct cc_cmd){ .cmd = 52, .x = 8, .y = 8, .radius = 3, .width = 5000, .c1 = { 0, 0, 0, 255 } });
+	cc_hll(P_SAVE, &(struct cc_cmd){ .cmd = 27, .full = 1, .blur = 5000 });
+	CC_CHECK(cc_nr_ops(P_SAVE) == 6, "CC10: %d operations before the save, want 6", cc_nr_ops(P_SAVE));
+	before = cc_pixels(P_SAVE, 16, 16, "CC10 before the save");
+	PE_UpdateComponent(0);
+	struct page *saved = NULL;
+	CC_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
+	if (!saved || !before) {
+		free(before);
+		return;
+	}
+	/* The radius, the width and the blur as declared. */
+	CC_CHECK(cc_save_count(saved, 5000) == 3, "CC10: the first save holds 5000 %d time(s), want 3", cc_save_count(saved, 5000));
+	CC_CHECK(PE_Load(&saved), "PE_Load failed");
+	PE_UpdateComponent(0);
+	CC_CHECK(cc_nr_ops(P_SAVE) == 6, "CC10 after PE_Load: %d operations, want 6", cc_nr_ops(P_SAVE));
+	after = cc_pixels(P_SAVE, 16, 16, "CC10 after the load");
+	if (after)
+		CC_CHECK(!memcmp(before, after, 16 * 16 * 4), "CC10: the pixels differ after PE_Save / PE_Load");
+	free(before);
+	free(after);
+	/* Saved again: only the blur's 5000 is left, the disc and the ring have
+	 * no radius and no width. */
+	PE_UpdateComponent(0);
+	struct page *again = NULL;
+	CC_CHECK(PE_Save(&again) && again, "the second PE_Save failed");
+	if (again) {
+		CC_CHECK(cc_save_count(again, 5000) == 1, "CC10: the save after PE_Load holds 5000 %d time(s), want 1 (the blur)",
+			 cc_save_count(again, 5000));
+		CC_CHECK(again->nr_vars == saved->nr_vars, "CC10: the second save has %d words, the first %d", again->nr_vars, saved->nr_vars);
+	}
+	printf("CC10 checked\n");
+}
+
 static void cc_tiles_case(void)
 {
 	cn_gl_setup();	/* reports the environment ready to cn_fork_case */
@@ -910,18 +1190,18 @@ static void cc_tiles_case(void)
 static int test_construction_cmds(void)
 {
 	void (*cases[])(void) = { cc_gradations, cc_circles, cc_circle_blend, cc_polygon, cc_blurs, cc_save, cc_unbuilt, cc_tiles_case,
-		cc_rings };
-	const char *names[] = { "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9" };
+		cc_rings, cc_extremes };
+	const char *names[] = { "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9", "CC10" };
 	int failed = 0, env = 0;
-	for (int i = 0; i < 9; i++) {
+	for (int i = 0; i < 10; i++) {
 		int r = cn_fork_case(names[i], cases[i], &cc_failures);
 		failed += r == 1;
 		env += r == 2;
 	}
 	if (env) {
-		printf("CONSTRUCTION-CMDS ENVIRONMENT FAILURE: %d of 9 cases could not run, %d failed\n", env, failed);
+		printf("CONSTRUCTION-CMDS ENVIRONMENT FAILURE: %d of 10 cases could not run, %d failed\n", env, failed);
 		return 2;
 	}
-	printf("CONSTRUCTION-CMDS %s: %d of 9 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	printf("CONSTRUCTION-CMDS %s: %d of 10 cases failed\n", failed ? "FAIL" : "PASS", failed);
 	return failed ? 1 : 0;
 }

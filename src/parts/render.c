@@ -90,9 +90,30 @@ static void parts_reverse_scale(mat4 m, bool lr, bool tb)
  * Without rotation or scale above the parts this is the transform used
  * before. angle is in radians; with rotate_scale false the parts' own
  * rotation and scale are left out (the FLAT root; RI2's TEXT path).
+ *
+ * That is v14. Before it the transform is the one those engines had:
+ *
+ *   T(global pos) * ancestors' reverse * Rz(angle) * S(global scale) * own reverse
+ *
+ * where the global position follows the ancestors' scales and flips but not
+ * their rotation (parts_child_pos) and the scale is the product down the
+ * tree. No earlier engine was read or compared for the matrix rule.
  */
 void parts_anchor_transform(struct parts *parts, float angle, bool rotate_scale, mat4 out)
 {
+	if (ain->version < 14) {
+		glm_mat4_identity(out);
+		glm_translate(out, (vec3) { parts->global.pos.x, parts->global.pos.y, 0 });
+		parts_reverse_scale(out, parts->global.reverse_lr != parts->local.reverse_lr,
+				parts->global.reverse_tb != parts->local.reverse_tb);
+		if (rotate_scale) {
+			// FIXME: need perspective for 3D rotate
+			glm_rotate_z(out, angle, out);
+			glm_scale(out, (vec3){ parts->global.scale.x, parts->global.scale.y, 1.0 });
+		}
+		parts_reverse_scale(out, parts->local.reverse_lr, parts->local.reverse_tb);
+		return;
+	}
 	parts_parent_transform(parts, out);
 	Point pos = parts_placed_pos(parts);
 	glm_translate(out, (vec3) { pos.x, pos.y, 0 });

@@ -959,6 +959,11 @@ int vm_copy_page(struct page *page)
  * colour (PlayerFrameView@GetAddColor then returned the acting unit's
  * focus colour for every other unit). A struct with reference members
  * keeps sharing its page, as before.
+ *
+ * A plain number is what the original's member copy (0x656d60, table
+ * 0x657004) moves as one word: int, float, bool and the enum type 92. A
+ * long int (55) and type 91 take its failing branch there (0x656fc8), so a
+ * struct with one is not copied here; this game has no such member.
  */
 static bool v14_struct_is_plain_value(struct page *p)
 {
@@ -972,9 +977,7 @@ static bool v14_struct_is_plain_value(struct page *p)
 		case AIN_INT:
 		case AIN_FLOAT:
 		case AIN_BOOL:
-		case AIN_LONG_INT:
 		case AIN_ENUM:
-		case AIN_ENUM2:
 			break;
 		default:
 			return false;
@@ -1455,6 +1458,16 @@ static int delegate_return_slots(struct ain_type *type)
  * releases the one left when there is no further entry (0x672490). Here
  * neither happens: one entry balances, none leaves the value behind and each
  * further entry releases it once too often.
+ *
+ * For a struct passed by value that means: with no entry the value stays on
+ * the heap for good (the copy A_REF made of a struct of plain numbers, one
+ * more reference of the source page for any other struct), and with two or
+ * more entries the first handler's return frees it, so the second one reads
+ * a freed slot and releases it again. The game's own script subscribes at
+ * most one handler to each delegate that takes a struct by value
+ * (DG_EventP<CASPosF> and its two-argument forms; found by reading the
+ * script, not by running it), and three of those events have none, so the
+ * first case happens and the second is not known to.
  */
 static bool function_call_args_borrowed;
 

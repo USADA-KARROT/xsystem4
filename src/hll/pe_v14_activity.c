@@ -868,6 +868,12 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 			s->w = surface_w;
 			s->h = surface_h;
 		}
+		// No line to go over (no row for 25, no column for 26): the
+		// original's loop does not run and the command succeeds (0x4ff7df
+		// -> 0x4ff812, 0x4ff973 -> 0x4ff9ac), so the steps after it are
+		// done; the operation draws nothing here either.
+		if ((s->command == PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS ? s->w : s->h) <= 0)
+			return true;
 		return pactex_byte(s->color[3]) && pactex_byte(s->alpha2)
 			&& s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
 			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y;

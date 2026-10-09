@@ -834,6 +834,9 @@ static int cp_circle_coverage(int dx, int dy, int r)
  *       same size (0x5a94d0, 0x4cbb20 -> 0x5b0b80), a later write to a pixel
  *       replacing an earlier one, and composes it (cp_blend_pixel). Only the
  *       scanned pixels are staged here; the others would not change.
+ *       With nothing written (the disc lies outside the surface) the
+ *       original fails the command and the steps after it (0x507ee2 ->
+ *       0x507f2c); here the later operations still run.
  * The colour and the alpha are clamped to 0..255 here (0x5b0b80 was not
  * read for what it does with other values).
  */
@@ -847,9 +850,11 @@ static void build_fill_circle(uint8_t *pixels, int tw, int th, const struct part
 		return;
 	}
 
-	// The staged alpha of pixels x - r - 1 .. x + r, y - r - 1 .. y + r.
+	// The staged alpha of pixels x - r .. x + r + 1, y - r .. y + r + 1:
+	// position p is pixel floor(p) = x - r + i, except -0.5, which is
+	// pixel 0, one more than that (so 2r + 2 pixels a side, not 2r + 1).
 	const int side = 2 * r + 2;
-	const int64_t bx = (int64_t)op->x - r - 1, by = (int64_t)op->y - r - 1;
+	const int64_t bx = (int64_t)op->x - r, by = (int64_t)op->y - r;
 	uint8_t *staged = blend ? xcalloc(side, side) : NULL;
 	for (int j = 0; j <= 2 * r; j++) {
 		const double fy = op->y + 0.5 - r + j;
@@ -907,11 +912,15 @@ static void build_draw_circle(uint8_t *pixels, int tw, int th, const struct part
 	const int r = op->radius, lw = op->line_width;
 	if (r <= 0)
 		return;
-	if (r > PARTS_CP_CIRCLE_MAX_RADIUS || lw > PARTS_CP_CIRCLE_MAX_RADIUS || lw < -2 * r) {
-		if (lw >= -2 * r)
-			WARNING("DrawCircle: unsupported radius %d, width %d", r, lw);
+	if (r > PARTS_CP_CIRCLE_MAX_RADIUS || lw > PARTS_CP_CIRCLE_MAX_RADIUS) {
+		WARNING("DrawCircle: unsupported radius %d, width %d", r, lw);
 		return;
 	}
+	// With a width below -2r even the outer radius is negative: there is
+	// no position to scan. (Checked after the limit above, so that -2 * r
+	// cannot overflow.)
+	if (lw < -2 * r)
+		return;
 	const int64_t inner = max(16 * r - 8 * lw, 0), outer = 16 * r + 8 * lw;
 	const int64_t inner2 = inner * inner, outer2 = outer * outer;
 	const int n = 2 * r + lw;	// the last position
@@ -1029,7 +1038,10 @@ static int cp_compare_double(const void *a, const void *b)
  *
  * 丸め (rounded corners, 0x4e98a0) and a rotation (0x4e9940) are not
  * implemented; PartsEngine_AddPartsConstructionProcess adds no operation for
- * them. Fewer than three vertices draw nothing (0x4d0870).
+ * them. Fewer than three vertices draw nothing (0x4d0870). With nothing
+ * written (that, or the polygon lies outside the surface) the original
+ * fails the command and the steps after it (0x506756 -> 0x50679b); here the
+ * later operations still run.
  */
 static void build_fill_polygon(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
 {
@@ -1115,28 +1127,26 @@ static void build_fill_polygon(uint8_t *pixels, int tw, int th, const struct par
  * alpha included (0x5acd70), over the rectangle (全體: the whole surface)
  * from its corner in steps of the CG's size, the last column and row of
  * tiles cut at the rectangle's edge. `src` is the CG's cw x ch pixels.
+ * The rectangle is clipped to the surface first: a pixel (X, Y) of what is
+ * left gets the CG's ((X - x) mod cw, (Y - y) mod ch), so the work does not
+ * grow with a width or height beyond the surface (a script's or a save's
+ * may be anything). A size that is not positive copies nothing.
  */
 void parts_cp_tile(uint8_t *pixels, int tw, int th, int x, int y, int w, int h,
 		const uint8_t *src, int cw, int ch)
 {
-	if (!src || cw <= 0 || ch <= 0)
+	if (!src || cw <= 0 || ch <= 0 || w <= 0 || h <= 0)
 		return;
-	for (int ty = 0; ty < h; ty += ch) {
-		for (int tx = 0; tx < w; tx += cw) {
-			// One tile: (cw, ch) or what is left of the rectangle,
-			// clipped to the surface.
-			const int64_t dx = (int64_t)x + tx, dy = (int64_t)y + ty;
-			const int rows = min(h - ty, ch), cols = min(w - tx, cw);
-			const int from = dx < 0 ? min(-dx, cols) : 0;
-			const int to = dx + cols > tw ? max(tw - dx, 0) : cols;
-			if (to <= from)
-				continue;
-			for (int row = 0; row < rows; row++) {
-				if (dy + row < 0 || dy + row >= th)
-					continue;
-				memcpy(pixels + (size_t)((dy + row) * tw + dx + from) * 4,
-						src + ((size_t)row * cw + from) * 4, (size_t)(to - from) * 4);
-			}
+	const int64_t x0 = max((int64_t)x, 0), x1 = min((int64_t)x + w, tw);
+	const int64_t y0 = max((int64_t)y, 0), y1 = min((int64_t)y + h, th);
+	for (int64_t row = y0; row < y1; row++) {
+		const uint8_t *s = src + (size_t)((row - y) % ch) * cw * 4;
+		uint8_t *d = pixels + (size_t)row * tw * 4;
+		for (int64_t col = x0; col < x1;) {
+			const int64_t from = (col - x) % cw;
+			const int64_t n = min(cw - from, x1 - col);
+			memcpy(d + col * 4, s + from * 4, (size_t)n * 4);
+			col += n;
 		}
 	}
 }
