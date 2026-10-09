@@ -1860,6 +1860,7 @@ void PE_Update(int passed_time, bool message_window_show)
 	parts_scrollbar_update();
 	audio_update();
 	parts_update_animation(passed_time);
+	parts_message_window_update(passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update();
 }
@@ -1869,6 +1870,7 @@ void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_
 	parts_message_window_show = message_window_show;
 	audio_update();
 	parts_update_animation(passed_time);
+	parts_message_window_update(passed_time);
 	parts_render_update();
 }
 

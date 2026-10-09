@@ -323,6 +323,28 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 	}
 }
 
+/* A message window's key wait mark: one texture at a position in the owner's
+ * anchor frame, with the owner's scale, alpha and colours like the glyphs of
+ * its text. */
+static void parts_render_message_mark(struct parts *parts, Texture *t, Point position)
+{
+	vec3 add_color;
+	parts_shader_add_color(parts, add_color);
+	vec3 multiply_color = {
+		parts->global.multiply_color.r / 255.0f,
+		parts->global.multiply_color.g / 255.0f,
+		parts->global.multiply_color.b / 255.0f,
+	};
+	mat4 mw_transform;
+	parts_anchor_transform(parts, glm_rad(parts->local.rotation.z), true, mw_transform);
+	glm_translate(mw_transform, (vec3){ position.x - parts->global.pos.x,
+		position.y - parts->global.pos.y, 0 });
+	glm_scale(mw_transform, (vec3){ t->w, t->h, 1.0f });
+	Rectangle r = { 0, 0, t->w, t->h };
+	parts_render_texture(parts, t, mw_transform, &r, parts->global.alpha / 255.0,
+			add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+}
+
 /*
  * 描畫フィルタ covers the subtree (v14): a parts without its own filter is
  * drawn with the nearest ancestor's. SceneLogo's Light has 描畫フィルタ 3 (screen)
@@ -870,6 +892,11 @@ void parts_render(struct parts *parts)
 	struct parts_text *text = parts_message_window_render_text(parts, &position);
 	if (text)
 		parts_render_text(parts, text, position);
+	// The key wait mark is the last of the window's three private children
+	// (background, text, mark: 0x4f1d30), so it is drawn over the text.
+	Texture *mark = parts_message_window_key_wait(parts, &position);
+	if (mark)
+		parts_render_message_mark(parts, mark, position);
 }
 
 void parts_render_family(struct parts *parts)

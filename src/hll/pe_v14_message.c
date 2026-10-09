@@ -357,6 +357,17 @@ static void PE_v14_SetKeyWaitShow(int parts_no, bool show)
 	PE_SetKeyWaitShow(parts_no, show);
 }
 
+/* void GetKeyWaitCGName(int Number, wrap<string> Name, wrap<int> StartNo,
+ * wrap<int> NumofCG, wrap<int> TimePerCG): native case 514 -> 0x595410.
+ * Nothing is written without a window. */
+static void PE_v14_GetKeyWaitCGName(int parts_no, int name_slot, int *start_no,
+		int *nr_cg, int *time_per_cg)
+{
+	struct string *name = NULL;
+	if (PE_GetKeyWaitCGName(parts_no, &name, start_no, nr_cg, time_per_cg))
+		wrap_slot_set_string(name_slot, name);
+}
+
 /* --- click/input state queries (v14 WaitForClick contract) ---
  * GetActiveParts returns the clicked parts number: the game's
  * IsInputPartsActive checks its component type to decide whether the
@@ -430,6 +441,16 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "SetMessageWindowTextSpace", PE_v14_SetMessageWindowTextSpace);
 	static_library_register(lib, "SetKeyWaitShow", PE_v14_SetKeyWaitShow);
 	static_library_register(lib, "IsKeyWaitShow", PE_IsKeyWaitShow);
+	// The rest of the key wait mark (native cases 513 to 520), ahead of the
+	// empty ones of pe_v14_prelink.h: the first registration is the one kept.
+	static_library_register(lib, "SetKeyWaitCGName", PE_SetKeyWaitCGName);
+	static_library_register(lib, "GetKeyWaitCGName", PE_v14_GetKeyWaitCGName);
+	static_library_register(lib, "SetKeyWaitFlatName", PE_SetKeyWaitFlatName);
+	static_library_register(lib, "GetKeyWaitFlatName", PE_GetKeyWaitFlatName);
+	static_library_register(lib, "SetKeyWaitPos", PE_SetKeyWaitPos);
+	static_library_register(lib, "GetKeyWaitPosX", PE_GetKeyWaitPosX);
+	static_library_register(lib, "GetKeyWaitPosY", PE_GetKeyWaitPosY);
+	static_library_register(lib, "GetKeyWaitPosZ", PE_GetKeyWaitPosZ);
 	static_library_register(lib, "GetActiveParts", PE_v14_GetActiveParts);
 	static_library_register(lib, "GetClickNumber", PE_v14_GetClickNumber);
 	static_library_register(lib, "SetClickMissSoundName", PE_v14_SetClickMissSoundName);

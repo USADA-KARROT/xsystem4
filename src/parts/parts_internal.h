@@ -742,6 +742,9 @@ extern bool parts_message_window_show;
 // message_window.c: the sidecar owns text/strings; the parts owns the background.
 void parts_message_window_free(struct parts_message_window *message);
 struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position);
+struct texture *parts_message_window_key_wait(struct parts *parts, Point *position);
+void parts_message_window_update(int passed_time);
+extern struct cg *(*parts_key_wait_load_cg)(const char *name);
 
 // message queue (implemented in PartsEngine.c)
 void parts_enqueue_message(int type, int parts_no, int delegate_index, int unique_id);

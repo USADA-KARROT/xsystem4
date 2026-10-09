@@ -5,9 +5,46 @@
 #include <string.h>
 
 #include "system4.h"
+#include "system4/cg.h"
 #include "system4/string.h"
+#include "asset_manager.h"
+#include "vm.h"
 #include "parts.h"
 #include "parts_internal.h"
+
+/* The key wait mark (キー待ちマーク), the NEXT sign of a message window.
+ * The original keeps it as the third private child of the window object
+ * (obj+0xa8, after the background +0xa0 and the text +0xa4) and builds it
+ * from these properties whenever one of them changed (0x4f2370):
+ *   a Flat of FlatName exists           -> that Flat
+ *   StartNo, NumofCG, TimePerCG all 0   -> the CG CGName, or the text "▼"
+ *                                          (size 24) when there is no such CG
+ *   otherwise                           -> a loop CG (0x5b30f0): CGName is a
+ *                                          printf format for the numbers
+ *                                          StartNo .. StartNo+NumofCG-1
+ * Its place is the top left corner of the background plus Pos, and it shows
+ * while Show is set (0x4f2790, 0x4f2370). Not drawn here: the Flat and the
+ * "▼"; such a window has no mark, as before. */
+struct parts_key_wait {
+	struct string *cg_name;        // +0x100
+	struct string *flat_name;      // +0x118
+	int start_no, nr_cg, time_per_cg;  // +0x130, +0x134, +0x138
+	int x, y, z;                   // +0x13c, +0x140, +0x144
+	bool show;                     // +0x148
+	// A property changed since the mark was built.
+	bool changed;
+	// What is built: one CG, or the frames of the loop CG.
+	bool built;
+	bool loop;
+	struct string *built_name;
+	int built_start, built_nr, built_time;
+	Texture *frames;
+	int nr_frames;
+	int frame;
+	int remainder;
+	// The next update does not advance the loop (0x5b3090).
+	bool first;
+};
 
 /* A message window is a background and independent text, not two mutually
  * exclusive DEFAULT states. The sidecar dies with its owning parts object. */
@@ -18,7 +55,7 @@ struct parts_message_window {
 	int plain_bytes;
 	Rectangle text_area;
 	int text_origin_mode;
-	bool key_wait_show;
+	struct parts_key_wait key_wait;
 	// The text, font or spacing changed since the text was laid out.
 	bool text_changed;
 };
@@ -36,10 +73,28 @@ static struct parts_message_window *message_window_get(struct parts *parts)
 	return parts->message;
 }
 
+static void key_wait_free_frames(struct parts_key_wait *kw)
+{
+	for (int i = 0; i < kw->nr_frames; i++)
+		gfx_delete_texture(&kw->frames[i]);
+	free(kw->frames);
+	kw->frames = NULL;
+	kw->nr_frames = 0;
+	if (kw->built_name)
+		free_string(kw->built_name);
+	kw->built_name = NULL;
+	kw->built = false;
+}
+
 void parts_message_window_free(struct parts_message_window *mw)
 {
 	if (!mw)
 		return;
+	key_wait_free_frames(&mw->key_wait);
+	if (mw->key_wait.cg_name)
+		free_string(mw->key_wait.cg_name);
+	if (mw->key_wait.flat_name)
+		free_string(mw->key_wait.flat_name);
 	if (mw->raw_text)
 		free_string(mw->raw_text);
 	if (mw->cg_name)
@@ -208,18 +263,263 @@ void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space
 	message_window_rebuild(parts);
 }
 
-void PE_SetKeyWaitShow(int parts_no, bool show)
+/* Key wait mark properties. Like the other message window calls of the
+ * original these act on the window object of 0x53e010: no object for a
+ * number of 0 or less, so the setters do nothing and the getters return 0,
+ * false or "" and leave their outputs. Each setter writes and asks for a
+ * rebuild only when a value differs. */
+
+static struct parts_key_wait *key_wait_get(int parts_no)
 {
-	// The wait marker is independent of the window background and dialogue.
-	// Its CG/animation is not implemented here; hiding it must not hide text.
-	struct parts *parts = parts_get(parts_no);
-	message_window_get(parts)->key_wait_show = show;
+	if (parts_no <= 0)
+		return NULL;
+	return &message_window_get(parts_get(parts_no))->key_wait;
 }
 
+static struct parts_key_wait *key_wait_try_get(int parts_no)
+{
+	struct parts *parts = parts_no > 0 ? parts_try_get(parts_no) : NULL;
+	return parts && parts->message ? &parts->message->key_wait : NULL;
+}
+
+static bool key_wait_name_is(struct string *have, struct string *name)
+{
+	return !strcmp(have ? have->text : "", name ? name->text : "");
+}
+
+static void key_wait_set_name(struct string **dst, struct string *name)
+{
+	if (*dst)
+		free_string(*dst);
+	*dst = name ? string_dup(name) : NULL;
+}
+
+static void key_wait_changed(int parts_no, struct parts_key_wait *kw)
+{
+	kw->changed = true;
+	parts_dirty(parts_get(parts_no));
+}
+
+// 0x5953d0 -> 0x4ee930
+void PE_SetKeyWaitCGName(int parts_no, struct string *name, int start_no,
+		int nr_cg, int time_per_cg)
+{
+	struct parts_key_wait *kw = key_wait_get(parts_no);
+	if (!kw)
+		return;
+	if (key_wait_name_is(kw->cg_name, name) && kw->start_no == start_no
+			&& kw->nr_cg == nr_cg && kw->time_per_cg == time_per_cg)
+		return;
+	key_wait_set_name(&kw->cg_name, name);
+	kw->start_no = start_no;
+	kw->nr_cg = nr_cg;
+	kw->time_per_cg = time_per_cg;
+	key_wait_changed(parts_no, kw);
+}
+
+// 0x595410
+bool PE_GetKeyWaitCGName(int parts_no, struct string **name, int *start_no,
+		int *nr_cg, int *time_per_cg)
+{
+	struct parts_key_wait *kw = key_wait_try_get(parts_no);
+	if (!kw)
+		return false;
+	if (name)
+		*name = kw->cg_name ? string_dup(kw->cg_name) : string_ref(&EMPTY_STRING);
+	if (start_no) *start_no = kw->start_no;
+	if (nr_cg) *nr_cg = kw->nr_cg;
+	if (time_per_cg) *time_per_cg = kw->time_per_cg;
+	return true;
+}
+
+// 0x595470 -> 0x4ee9e0
+void PE_SetKeyWaitFlatName(int parts_no, struct string *name)
+{
+	struct parts_key_wait *kw = key_wait_get(parts_no);
+	if (!kw || key_wait_name_is(kw->flat_name, name))
+		return;
+	key_wait_set_name(&kw->flat_name, name);
+	key_wait_changed(parts_no, kw);
+}
+
+// 0x5954a0
+struct string *PE_GetKeyWaitFlatName(int parts_no)
+{
+	struct parts_key_wait *kw = key_wait_try_get(parts_no);
+	return kw && kw->flat_name ? string_ref(kw->flat_name) : string_ref(&EMPTY_STRING);
+}
+
+// 0x595500
+void PE_SetKeyWaitPos(int parts_no, int x, int y, int z)
+{
+	struct parts_key_wait *kw = key_wait_get(parts_no);
+	if (!kw || (kw->x == x && kw->y == y && kw->z == z))
+		return;
+	kw->x = x;
+	kw->y = y;
+	kw->z = z;
+	key_wait_changed(parts_no, kw);
+}
+
+// 0x595560, 0x595580, 0x5955a0
+int PE_GetKeyWaitPosX(int parts_no)
+{
+	struct parts_key_wait *kw = key_wait_try_get(parts_no);
+	return kw ? kw->x : 0;
+}
+
+int PE_GetKeyWaitPosY(int parts_no)
+{
+	struct parts_key_wait *kw = key_wait_try_get(parts_no);
+	return kw ? kw->y : 0;
+}
+
+int PE_GetKeyWaitPosZ(int parts_no)
+{
+	struct parts_key_wait *kw = key_wait_try_get(parts_no);
+	return kw ? kw->z : 0;
+}
+
+// 0x5955c0. The script sets it in every frame of the key wait and clears it
+// on leaving (FUNC 7153); the rebuild this asks for puts a loop CG back to
+// its first frame, so the mark starts from there each time it appears.
+void PE_SetKeyWaitShow(int parts_no, bool show)
+{
+	struct parts_key_wait *kw = key_wait_get(parts_no);
+	if (!kw || kw->show == show)
+		return;
+	kw->show = show;
+	key_wait_changed(parts_no, kw);
+}
+
+// 0x5955f0
 bool PE_IsKeyWaitShow(int parts_no)
 {
-	struct parts *parts = parts_try_get(parts_no);
-	return parts && parts->message && parts->message->key_wait_show;
+	struct parts_key_wait *kw = key_wait_try_get(parts_no);
+	return kw && kw->show;
+}
+
+/* Loads one CG of the mark by name; NULL takes it from the game's archives.
+ * (The probe has no archives and puts its own CGs here.) */
+struct cg *(*parts_key_wait_load_cg)(const char *name);
+
+static Texture *key_wait_load(struct string *name, int start_no, int nr, bool format)
+{
+	Texture *frames = xcalloc(nr, sizeof(Texture));
+	for (int i = 0; i < nr; i++) {
+		struct string *cg_name = format
+			? string_format(name, (union vm_value){.i = start_no + i}, STRFMT_INT)
+			: string_ref(name);
+		int no;
+		struct cg *cg = parts_key_wait_load_cg ? parts_key_wait_load_cg(cg_name->text)
+			: asset_cg_load_by_name(cg_name->text, &no);
+		free_string(cg_name);
+		if (!cg) {
+			// One missing frame fails the whole loop CG (0x5b30f0).
+			for (int j = 0; j < i; j++)
+				gfx_delete_texture(&frames[j]);
+			free(frames);
+			return NULL;
+		}
+		gfx_init_texture_with_cg(&frames[i], cg);
+		cg_free(cg);
+	}
+	return frames;
+}
+
+// 0x4f2370
+static void key_wait_build(struct parts_key_wait *kw)
+{
+	kw->changed = false;
+	bool loop = kw->start_no || kw->nr_cg || kw->time_per_cg;
+	if (kw->built && kw->loop == loop && key_wait_name_is(kw->built_name, kw->cg_name)
+			&& (!loop || (kw->built_start == kw->start_no && kw->built_nr == kw->nr_cg
+				&& kw->built_time == kw->time_per_cg))) {
+		// The same loop CG set again: back to its first frame, and the
+		// next update leaves it there (0x5b30f0).
+		kw->frame = 0;
+		kw->remainder = 0;
+		kw->first = true;
+		return;
+	}
+	key_wait_free_frames(kw);
+	kw->built = true;
+	kw->loop = loop;
+	kw->built_name = kw->cg_name ? string_dup(kw->cg_name) : NULL;
+	kw->built_start = kw->start_no;
+	kw->built_nr = kw->nr_cg;
+	kw->built_time = kw->time_per_cg;
+	kw->frame = 0;
+	kw->remainder = 0;
+	kw->first = true;
+	int nr = loop ? kw->nr_cg : 1;
+	// No name, no such CG (the original then draws "▼") or a loop CG that
+	// does not load: no mark.
+	if (!kw->cg_name || !kw->cg_name->size || nr <= 0 || nr > 10000)
+		return;
+	kw->frames = key_wait_load(kw->cg_name, kw->start_no, nr, loop);
+	if (kw->frames)
+		kw->nr_frames = nr;
+}
+
+// 0x5b3090: the frame of a loop CG after passed_time more milliseconds.
+static bool key_wait_advance(struct parts_key_wait *kw, int passed_time)
+{
+	if (!kw->loop || kw->built_time <= 0 || !kw->nr_frames)
+		return false;
+	if (kw->first) {
+		kw->first = false;
+		return false;
+	}
+	if (passed_time < 0)
+		passed_time = 0;
+	int elapsed = passed_time + kw->remainder;
+	int frame = (kw->frame + elapsed / kw->built_time) % kw->nr_frames;
+	kw->remainder = elapsed % kw->built_time;
+	if (frame == kw->frame)
+		return false;
+	kw->frame = frame;
+	return true;
+}
+
+/* Once per PartsEngine update: rebuilds the marks whose properties changed
+ * and advances the loop CGs. The original gives the mark the time its owner
+ * selected, the scaled one for a window with スピードアップ有効 (0x4f32c0);
+ * here it is the passed time of PE_Update. */
+void parts_message_window_update(int passed_time)
+{
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!parts->message)
+			continue;
+		struct parts_key_wait *kw = &parts->message->key_wait;
+		bool redraw = kw->changed;
+		if (kw->changed)
+			key_wait_build(kw);
+		if (key_wait_advance(kw, passed_time) && kw->show)
+			redraw = true;
+		if (redraw)
+			parts_dirty(parts);
+	}
+}
+
+/* The frame to draw and where, or NULL: the top left corner of the mark is
+ * the owner's position plus the background's origin offset plus Pos
+ * (0x4f2790), as for the text area. */
+Texture *parts_message_window_key_wait(struct parts *parts, Point *position)
+{
+	struct parts_message_window *mw = parts->message;
+	if (!mw)
+		return NULL;
+	struct parts_key_wait *kw = &mw->key_wait;
+	if (kw->changed)
+		key_wait_build(kw);
+	if (!kw->show || !kw->nr_frames)
+		return NULL;
+	Point background = parts->states[PARTS_STATE_DEFAULT].common.origin_offset;
+	*position = (Point){parts->global.pos.x + background.x + kw->x,
+		parts->global.pos.y + background.y + kw->y};
+	return &kw->frames[kw->frame];
 }
 
 struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position)

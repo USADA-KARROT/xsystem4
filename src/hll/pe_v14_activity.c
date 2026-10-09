@@ -465,6 +465,8 @@ static int pactex_message_item(struct ex_tree *node, enum pactex_message_key key
 	return fallback;
 }
 
+static void pactex_apply_key_wait(struct ex_tree *type_info, int parts_no);
+
 static bool pactex_apply_message_window(struct ex_tree *type_info, const char *ptype, int parts_no)
 {
 	if (!ptype || (strcmp(ptype, "\x83\x81\x83\x62\x83\x5a\x81\x5b\x83\x57\x83\x45\x83\x42\x83\x93\x83\x68\x83\x45") &&
@@ -500,6 +502,7 @@ static bool pactex_apply_message_window(struct ex_tree *type_info, const char *p
 	PE_SetMessageWindowTextSpace(parts_no,
 		pactex_message_number(type_info, PACTEX_MW_CHAR_SPACE, 0),
 		pactex_message_number(type_info, PACTEX_MW_LINE_SPACE, 0));
+	pactex_apply_key_wait(type_info, parts_no);
 	return true;
 }
 
@@ -529,6 +532,52 @@ static float pactex_value_number(const struct ex_value *v, float fallback)
 	if (v && v->type == EX_FLOAT) return v->f;
 	if (v && v->type == EX_INT) return v->i;
 	return fallback;
+}
+
+/* キー待ちマーク of a message window (props::Load, 0x4f0821 to 0x4f0c5a): the
+ * block's ＣＧ名 and フラット名 as they are, 循環ＣＧ開始番號, 循環ＣＧ枚數,
+ * 循環ＣＧ切換時間 and the three items of 座標, each 0 when missing; without
+ * the block the mark is the default one (no names, all 0, 0x4ee460). A loaded
+ * mark is hidden. The names of the three numbers are the GBK release's; the
+ * SJIS ones are those characters in SJIS, a guess (no SJIS pactex was read). */
+static void pactex_apply_key_wait(struct ex_tree *type_info, int parts_no)
+{
+	struct ex_tree *block = NULL;
+	if (type_info && !type_info->is_leaf) {
+		for (unsigned i = 0; i < type_info->nr_children && !block; i++) {
+			struct ex_tree *c = &type_info->children[i];
+			if (!c->is_leaf && pactex_name_is(c,
+					"\x83\x4c\x81\x5b\x91\xd2\x82\xbf\x83\x7d\x81\x5b\x83\x4e",
+					"\xa5\xad\xa9\x60\xb4\xfd\xa4\xc1\xa5\xde\xa9\x60\xa5\xaf"))
+				block = c;
+		}
+	}
+	struct ex_value *cg = pactex_leaf_value(block, "\x82\x62\x82\x66\x96\xbc", "\xa3\xc3\xa3\xc7\xc3\xfb");
+	struct ex_value *flat = pactex_leaf_value(block,
+			"\x83\x74\x83\x89\x83\x62\x83\x67\x96\xbc", "\xa5\xd5\xa5\xe9\xa5\xc3\xa5\xc8\xc3\xfb");
+	struct ex_value *pos = pactex_leaf_value(block, "\x8d\xc0\x95\x57", "\xd7\xf9\x98\xcb");
+	int xyz[3] = {0, 0, 0};
+	if (pos && pos->type == EX_LIST && pos->list) {
+		for (unsigned i = 0; i < 3 && i < pos->list->nr_items; i++)
+			xyz[i] = pactex_value_number(&pos->list->items[i].value, 0);
+	}
+	struct string *name = cstr_to_string(cg && cg->type == EX_STRING && cg->s ? cg->s->text : "");
+	PE_SetKeyWaitCGName(parts_no, name,
+		pactex_value_number(pactex_leaf_value(block,
+			"\x8f\x7a\x8a\xc2\x82\x62\x82\x66\x8a\x4a\x8e\x6e\x94\xd4\xe5\x6a",
+			"\xd1\xad\xad\x68\xa3\xc3\xa3\xc7\xe9\x5f\xca\xbc\xb7\xac\xcc\x96"), 0),
+		pactex_value_number(pactex_leaf_value(block,
+			"\x8f\x7a\x8a\xc2\x82\x62\x82\x66\x96\x87\x9d\xc9",
+			"\xd1\xad\xad\x68\xa3\xc3\xa3\xc7\xc3\xb6\x94\xb5"), 0),
+		pactex_value_number(pactex_leaf_value(block,
+			"\x8f\x7a\x8a\xc2\x82\x62\x82\x66\x90\xd8\x8a\xb7\x8e\x9e\x8a\xd4",
+			"\xd1\xad\xad\x68\xa3\xc3\xa3\xc7\xc7\xd0\x93\x51\x95\x72\xe9\x67"), 0));
+	free_string(name);
+	name = cstr_to_string(flat && flat->type == EX_STRING && flat->s ? flat->s->text : "");
+	PE_SetKeyWaitFlatName(parts_no, name);
+	free_string(name);
+	PE_SetKeyWaitPos(parts_no, xyz[0], xyz[1], xyz[2]);
+	PE_SetKeyWaitShow(parts_no, false);
 }
 
 static int pactex_named_state(struct ex_tree *node)

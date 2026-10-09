@@ -37,6 +37,16 @@ void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
 void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space);
 void PE_SetKeyWaitShow(int parts_no, bool show);
 bool PE_IsKeyWaitShow(int parts_no);
+void PE_SetKeyWaitCGName(int parts_no, struct string *name, int start_no,
+		int nr_cg, int time_per_cg);
+bool PE_GetKeyWaitCGName(int parts_no, struct string **name, int *start_no,
+		int *nr_cg, int *time_per_cg);
+void PE_SetKeyWaitFlatName(int parts_no, struct string *name);
+struct string *PE_GetKeyWaitFlatName(int parts_no);
+void PE_SetKeyWaitPos(int parts_no, int x, int y, int z);
+int PE_GetKeyWaitPosX(int parts_no);
+int PE_GetKeyWaitPosY(int parts_no);
+int PE_GetKeyWaitPosZ(int parts_no);
 
 // parts.c
 void PE_enable_multi_controller(void);
