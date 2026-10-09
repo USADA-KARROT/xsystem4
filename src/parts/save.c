@@ -37,6 +37,11 @@
  * layout in versions 6, 7 and 8. The controller ID section is always the
  * last nr + 3 words, whatever precedes it, so a version 7 save with or
  * without it is read as well (and so is a version 8 save without it).
+ *
+ * Version 8 also has the construction operations 14..22 (the pixel
+ * operations, struct parts_cp_pixel) in a parts record's operation list. A
+ * reader reads no fields for an operation type it does not know, so a save
+ * with a new operation needs a new version; these came with version 8.
  */
 #define CURRENT_SAVE_VERSION 8
 
@@ -365,6 +370,34 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		iarray_write(w, op->pie.a);
 		iarray_write(w, op->pie.angle);
 		break;
+	case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
+	case PARTS_CP_MUL_AMAP_GRADATION_COLUMNS:
+	case PARTS_CP_BLUR_H:
+	case PARTS_CP_BLUR_V:
+	case PARTS_CP_FILL_CIRCLE_AMAP:
+	case PARTS_CP_FILL_CIRCLE_BLEND:
+	case PARTS_CP_FILL_POLYGON_BLEND:
+	case PARTS_CP_TILE_CG:
+	case PARTS_CP_DRAW_CIRCLE_AMAP:
+		// Since version 8, for the reason given above. One layout for all
+		// of them, the polygon's points last.
+		iarray_write(w, op->pixel.x);
+		iarray_write(w, op->pixel.y);
+		iarray_write(w, op->pixel.w);
+		iarray_write(w, op->pixel.h);
+		iarray_write(w, op->pixel.full);
+		iarray_write(w, op->pixel.r);
+		iarray_write(w, op->pixel.g);
+		iarray_write(w, op->pixel.b);
+		iarray_write(w, op->pixel.a);
+		iarray_write(w, op->pixel.a2);
+		iarray_write(w, op->pixel.radius);
+		iarray_write(w, op->pixel.cg_no);
+		iarray_write(w, op->pixel.line_width);
+		iarray_write(w, op->pixel.nr_points);
+		for (int i = 0; i < op->pixel.nr_points * 2; i++)
+			iarray_write(w, op->pixel.points[i]);
+		break;
 	}
 }
 
@@ -432,6 +465,39 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		op->pie.sweep = iarray_read(r);
 		op->pie.a = iarray_read(r);
 		op->pie.angle = iarray_read(r);
+		break;
+	case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
+	case PARTS_CP_MUL_AMAP_GRADATION_COLUMNS:
+	case PARTS_CP_BLUR_H:
+	case PARTS_CP_BLUR_V:
+	case PARTS_CP_FILL_CIRCLE_AMAP:
+	case PARTS_CP_FILL_CIRCLE_BLEND:
+	case PARTS_CP_FILL_POLYGON_BLEND:
+	case PARTS_CP_TILE_CG:
+	case PARTS_CP_DRAW_CIRCLE_AMAP:
+		op->pixel.x = iarray_read(r);
+		op->pixel.y = iarray_read(r);
+		op->pixel.w = iarray_read(r);
+		op->pixel.h = iarray_read(r);
+		op->pixel.full = !!iarray_read(r);
+		op->pixel.r = iarray_read(r);
+		op->pixel.g = iarray_read(r);
+		op->pixel.b = iarray_read(r);
+		op->pixel.a = iarray_read(r);
+		op->pixel.a2 = iarray_read(r);
+		op->pixel.radius = iarray_read(r);
+		op->pixel.cg_no = iarray_read(r);
+		op->pixel.line_width = iarray_read(r);
+		op->pixel.nr_points = iarray_read(r);
+		// A count this build would not have written reads no points and
+		// builds nothing.
+		if (op->pixel.nr_points < 0 || op->pixel.nr_points > PARTS_CP_POLYGON_MAX_POINTS)
+			op->pixel.nr_points = 0;
+		if (op->pixel.nr_points) {
+			op->pixel.points = xmalloc(op->pixel.nr_points * 2 * sizeof(int));
+			for (int i = 0; i < op->pixel.nr_points * 2; i++)
+				op->pixel.points[i] = iarray_read(r);
+		}
 		break;
 	}
 	return op;

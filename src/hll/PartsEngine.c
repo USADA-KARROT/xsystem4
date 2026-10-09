@@ -16,13 +16,16 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "system4/ain.h"
+#include "system4/cg.h"
 
 #include "vm/heap.h"
 #include "vm/page.h"
 #include "system4/string.h"
+#include "asset_manager.h"
 #include "parts.h"
 #include "../parts/parts_internal.h"
 #include "movie.h"
@@ -1045,7 +1048,12 @@ enum v14_cp_type {
 	V14_CP_VBLUR_FILTER = 28,
 	V14_CP_CG_BLEND = 29,
 	V14_CP_DRAW_LINE_WITH_ALPHA = 30,
+	V14_CP_DRAW_CIRCLE_AMAP = 52,
 	V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT = 57,
+	V14_CP_FILL_POLYGON_ALPHA_BLEND = 97,
+	V14_CP_FILL_CIRCLE_AMAP = 102,
+	V14_CP_FILL_CIRCLE_ALPHA_BLEND = 106,
+	V14_CP_TILE_CG_COPY = 129,
 };
 
 /*
@@ -1166,9 +1174,27 @@ static void v14_cp_add_text(int parts_no, bool copy, struct page *ints, int wf_s
  * table 0x4fb7d8; each handler's error message names it as
  * CASConstructionProcess's Set method does). Of the 133 commands the ones
  * below have an operation here, and several only an approximation: 9, 18,
- * 25, 26, 30 and 57 fill a rectangle, 10 draws a one-pixel frame whatever
- * the line width and rounding, 29 takes no size; the filters (15 to 17, 27,
- * 28) and every other command add nothing.
+ * 30 and 57 fill a rectangle, 10 draws a one-pixel frame whatever the line
+ * width and rounding; the filters 15 to 17 and every other command add
+ * nothing.
+ * The step's other fields, as 0x59a730 copies them: ArrayInt[16..19] 色２
+ * (+0x44..+0x50), [30] 全體 (+0xc4, != 0), [31] ブラー (+0x54), [32] and [33]
+ * 半径 (+0xc8, +0xcc), [34] 線の幅 (+0xd0), [36] 丸め (+0xd5, != 0), [37]
+ * 回転角度 (+0xd8); ArrayPos is copied int by int (0x59ab62), x0, y0, x1,
+ * y1, ...
+ *   - 25 / 26 multiply the alpha by a gradation between 色１.A and 色２.A
+ *     over the rows / columns (0x4ff740 / 0x4ff8d0), 27 / 28 blur along the
+ *     rows / columns by ブラー (0x4ffa60 / 0x4ffba0): construction.c.
+ *   - 29 blends the whole CG at 先矩形 X,Y (0x4ffce0 -> 0x5aca90 with the
+ *     CG's own size, 0x5ab9b0): command 11's operation with that size. Its
+ *     blend (0x491c10) moves each colour by (alpha >> 1) / 128 and leaves the
+ *     surface's alpha; the operation here blends by alpha / 255, and leaves
+ *     the alpha only where it was 255.
+ *   - 97 fills ArrayPos's polygon, 106 a disc of 半径[0] around 先矩形 X,Y,
+ *     both blended; 102 writes the disc's alpha (0x506610, 0x507d60,
+ *     0x507640). A polygon with 丸め or a rotation adds nothing.
+ *   - 52 writes the alpha of a ring of that radius, 線の幅 wide (0x502570).
+ *   - 129 tiles the CG over the rectangle (0x50a220).
  * The two alpha text commands are drawn as 7 is, which is not what they do:
  *   - 23 blends RGB by the text's alpha and raises the surface's alpha to
  *     the text's where that is larger (0x494420). The blend here leaves the
@@ -1190,6 +1216,7 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	}
 
 	int cmd = ints->values[0].i;
+#define V14_CP_INT(n, def) (ints->nr_vars > (n) ? ints->values[n].i : (def))
 
 	// Trace: dump ints array for debugging Construction
 	{
@@ -1299,11 +1326,17 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	case V14_CP_CUT_CG_SCALE_BLEND:
 	case V14_CP_CUT_CG_ALPHA_BLEND:
 	case V14_CP_CUT_CG_SCALE_ALPHA_BLEND:
-	case V14_CP_CG_BLEND:
 		if (cg_name)
 			PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
 				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
 		break;
+	case V14_CP_CG_BLEND: {
+		struct cg_metrics metrics;
+		if (cg_name && asset_cg_get_metrics_by_name(cg_name->text, &metrics))
+			PE_AddDrawCutCGToPartsConstructionProcess(parts_no, cg_name,
+				dx, dy, metrics.w, metrics.h, 0, 0, metrics.w, metrics.h, interp, state);
+		break;
+	}
 	case V14_CP_CUT_CG_COPY:
 	case V14_CP_CUT_CG_SCALE_COPY:
 	case V14_CP_CUT_CG_ONLY_ALPHA:
@@ -1312,11 +1345,14 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 			PE_AddCopyCutCGToPartsConstructionProcess(parts_no, cg_name,
 				dx, dy, dw, dh, sx, sy, sw, sh, interp, state);
 		break;
+	case V14_CP_HBLUR_FILTER:
+	case V14_CP_VBLUR_FILTER:
+		PE_AddBlurToPartsConstructionProcess(parts_no, cmd == V14_CP_VBLUR_FILTER,
+			dx, dy, dw, dh, V14_CP_INT(30, 0) != 0, V14_CP_INT(31, 0), state);
+		break;
 	case V14_CP_GRAY_FILTER:
 	case V14_CP_ADD_FILTER:
-	case V14_CP_MUL_FILTER:
-	case V14_CP_HBLUR_FILTER:
-	case V14_CP_VBLUR_FILTER: {
+	case V14_CP_MUL_FILTER: {
 		/* Filter stubs — no-op, the parts texture is already rendered */
 		static int filter_warn = 0;
 		if (filter_warn++ < 3)
@@ -1343,13 +1379,45 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 			v14_cp_add_text(parts_no, false, ints, wf_slot, dx, dy, text, state);
 		break;
 	case V14_CP_MUL_AMAP_GRADATION_HORIZON:
-	case V14_CP_MUL_AMAP_GRADATION_VERTICAL: {
-		/* Gradient alpha map — approximate with FillAMap */
-		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
-		int fh = dh > 0 ? dh : (dy2 > 0 ? dy2 : 16384);
-		PE_AddFillAMapToPartsConstructionProcess(parts_no, dx, dy, fw, fh, a, state);
+	case V14_CP_MUL_AMAP_GRADATION_VERTICAL:
+		PE_AddMulAMapGradationToPartsConstructionProcess(parts_no,
+			cmd == V14_CP_MUL_AMAP_GRADATION_VERTICAL, dx, dy, dw, dh,
+			V14_CP_INT(30, 0) != 0, V14_CP_INT(15, 0), V14_CP_INT(19, 0), state);
+		break;
+	case V14_CP_FILL_CIRCLE_AMAP:
+	case V14_CP_FILL_CIRCLE_ALPHA_BLEND:
+		PE_AddFillCircleToPartsConstructionProcess(parts_no, cmd == V14_CP_FILL_CIRCLE_ALPHA_BLEND,
+			dx, dy, V14_CP_INT(32, 0), r, g, b, V14_CP_INT(15, 0), state);
+		break;
+	case V14_CP_DRAW_CIRCLE_AMAP:
+		PE_AddDrawCircleToPartsConstructionProcess(parts_no, dx, dy, V14_CP_INT(32, 0),
+			V14_CP_INT(34, 0), V14_CP_INT(15, 0), state);
+		break;
+	case V14_CP_FILL_POLYGON_ALPHA_BLEND: {
+		// 0x506610 fails with fewer than two vertices; the scan draws
+		// nothing with fewer than three.
+		struct page *pos = wrap_get_backing_array(wp_slot);
+		int nr_points = pos ? pos->nr_vars / 2 : 0;
+		if (V14_CP_INT(36, 0) || V14_CP_INT(37, 0) || nr_points > PARTS_CP_POLYGON_MAX_POINTS) {
+			WARNING("AddPartsConstructionProcess: unsupported polygon (%d points, round %d, angle %d)",
+				nr_points, V14_CP_INT(36, 0), V14_CP_INT(37, 0));
+			break;
+		}
+		if (nr_points < 2)
+			break;
+		int *points = xmalloc(nr_points * 2 * sizeof(int));
+		for (int i = 0; i < nr_points * 2; i++)
+			points[i] = pos->values[i].i;
+		PE_AddFillPolygonToPartsConstructionProcess(parts_no, nr_points, points,
+			r, g, b, V14_CP_INT(15, 0), state);
+		free(points);
 		break;
 	}
+	case V14_CP_TILE_CG_COPY:
+		if (cg_name)
+			PE_AddTileCGToPartsConstructionProcess(parts_no, cg_name, dx, dy, dw, dh,
+				V14_CP_INT(30, 0) != 0, state);
+		break;
 	case V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT: {
 		/* Circle draw — approximate with fill alpha color */
 		int fw = dw > 0 ? dw : (dx2 > 0 ? dx2 : 16384);
@@ -1371,6 +1439,7 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		break;
 	}
 	}
+#undef V14_CP_INT
 }
 // Parts movie implementation (APEG audio playback via movie.h)
 #define PARTS_MOVIE_MAX 16

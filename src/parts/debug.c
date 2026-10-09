@@ -118,6 +118,15 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_COPY_TEXT] = "copy_text",
 		[PARTS_CP_GRAY_FILTER] = "gray_filter",
 		[PARTS_CP_FILL_PIE_AMAP] = "fill_pie_amap",
+		[PARTS_CP_MUL_AMAP_GRADATION_ROWS] = "mul_amap_gradation_rows",
+		[PARTS_CP_MUL_AMAP_GRADATION_COLUMNS] = "mul_amap_gradation_columns",
+		[PARTS_CP_BLUR_H] = "blur_h",
+		[PARTS_CP_BLUR_V] = "blur_v",
+		[PARTS_CP_FILL_CIRCLE_AMAP] = "fill_circle_amap",
+		[PARTS_CP_FILL_CIRCLE_BLEND] = "fill_circle_blend",
+		[PARTS_CP_FILL_POLYGON_BLEND] = "fill_polygon_blend",
+		[PARTS_CP_TILE_CG] = "tile_cg",
+		[PARTS_CP_DRAW_CIRCLE_AMAP] = "draw_circle_amap",
 	};
 
 	cJSON *ops, *tmp;
@@ -201,6 +210,34 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			cJSON_AddNumberToObject(obj, "sweep_angle", op->pie.sweep);
 			cJSON_AddNumberToObject(obj, "a", op->pie.a);
 			cJSON_AddNumberToObject(obj, "angle", op->pie.angle);
+			break;
+		case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
+		case PARTS_CP_MUL_AMAP_GRADATION_COLUMNS:
+		case PARTS_CP_BLUR_H:
+		case PARTS_CP_BLUR_V:
+		case PARTS_CP_FILL_CIRCLE_AMAP:
+		case PARTS_CP_FILL_CIRCLE_BLEND:
+		case PARTS_CP_FILL_POLYGON_BLEND:
+		case PARTS_CP_TILE_CG:
+		case PARTS_CP_DRAW_CIRCLE_AMAP:
+			cJSON_AddItemToObjectCS(obj, "rect", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "x", op->pixel.x);
+			cJSON_AddNumberToObject(tmp, "y", op->pixel.y);
+			cJSON_AddNumberToObject(tmp, "w", op->pixel.w);
+			cJSON_AddNumberToObject(tmp, "h", op->pixel.h);
+			cJSON_AddBoolToObject(obj, "full_size", op->pixel.full);
+			cJSON_AddItemToObjectCS(obj, "color", tmp = cJSON_CreateObject());
+			cJSON_AddNumberToObject(tmp, "r", op->pixel.r);
+			cJSON_AddNumberToObject(tmp, "g", op->pixel.g);
+			cJSON_AddNumberToObject(tmp, "b", op->pixel.b);
+			cJSON_AddNumberToObject(tmp, "a", op->pixel.a);
+			cJSON_AddNumberToObject(obj, "a2", op->pixel.a2);
+			cJSON_AddNumberToObject(obj, "radius", op->pixel.radius);
+			cJSON_AddNumberToObject(obj, "no", op->pixel.cg_no);
+			cJSON_AddNumberToObject(obj, "line_width", op->pixel.line_width);
+			cJSON_AddItemToObjectCS(obj, "points", tmp = cJSON_CreateArray());
+			for (int i = 0; i < op->pixel.nr_points * 2; i++)
+				cJSON_AddItemToArray(tmp, cJSON_CreateNumber(op->pixel.points[i]));
 			break;
 		}
 	}
@@ -578,6 +615,33 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_FILL_PIE_AMAP:
 				sys_message(" fill-pie-amap");
+				break;
+			case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
+				sys_message(" mul-amap-gradation-rows");
+				break;
+			case PARTS_CP_MUL_AMAP_GRADATION_COLUMNS:
+				sys_message(" mul-amap-gradation-columns");
+				break;
+			case PARTS_CP_BLUR_H:
+				sys_message(" blur-h");
+				break;
+			case PARTS_CP_BLUR_V:
+				sys_message(" blur-v");
+				break;
+			case PARTS_CP_FILL_CIRCLE_AMAP:
+				sys_message(" fill-circle-amap");
+				break;
+			case PARTS_CP_FILL_CIRCLE_BLEND:
+				sys_message(" fill-circle-blend");
+				break;
+			case PARTS_CP_FILL_POLYGON_BLEND:
+				sys_message(" fill-polygon-blend");
+				break;
+			case PARTS_CP_TILE_CG:
+				sys_message(" tile-cg");
+				break;
+			case PARTS_CP_DRAW_CIRCLE_AMAP:
+				sys_message(" draw-circle-amap");
 				break;
 			}
 		}

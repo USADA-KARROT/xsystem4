@@ -66,11 +66,18 @@
  *   PN6 guards: what every other command adds is unchanged (a table taken
  *       on the tree before the fix: xsystem4's present bindings, several of
  *       which are approximations and not the original's result). Of its 45
- *       commands 12 add an operation whose fields are compared; 23 are
+ *       commands 10 add an operation whose fields are compared; 18 are
  *       filters or have no binding and add none; the 10 that take a CG (2,
  *       11 to 14, 19 to 22, 29) are added with an empty CG name, for which
  *       nothing is added before the binding is reached: those are not
- *       guarded.
+ *       guarded. Seven were given their own operation with construction-cmds
+ *       (2026-10-09), which checks what they draw: 25 and 26 (they were a
+ *       fill of the alpha; the original multiplies it by a gradation,
+ *       0x4ff740 / 0x4ff8d0), 27 and 28 (nothing; the blurs 0x4ffa60 /
+ *       0x4ffba0), 52 (nothing; the ring 0x502570), 102 and 106 (nothing;
+ *       the discs 0x507640 / 0x507d60).
+ *       For those the table holds the operation's type as a number, since
+ *       the tree before that change has no name for it.
  *   PN7 PE_Save / PE_Load: the same pixels and operations, and the loaded
  *       panel keeps its colour for a new size and its size for a new colour
  *       (the values are not saved but taken from the two operations); a
@@ -792,13 +799,14 @@ static const struct pn_guard pn_guards[] = {
 	{ 15, 0 }, { 16, 0 }, { 17, 0 },
 	{ 18, 1, PARTS_CP_FILL_ALPHA_COLOR, { 5, 6, 26, 26, 10, 20, 30, 40 } },
 	{ 19, 0 }, { 20, 0 }, { 21, 0 }, { 22, 0 },
-	{ 25, 1, PARTS_CP_FILL_AMAP, { 5, 6, 12, 8, 0, 0, 0, 40 } },
-	{ 26, 1, PARTS_CP_FILL_AMAP, { 5, 6, 12, 8, 0, 0, 0, 40 } },
-	{ 27, 0 }, { 28, 0 }, { 29, 0 },
+	/* PARTS_CP_MUL_AMAP_GRADATION_ROWS / _COLUMNS, PARTS_CP_BLUR_H / _V */
+	{ 25, 1, 14 }, { 26, 1, 15 }, { 27, 1, 16 }, { 28, 1, 17 },
+	{ 29, 0 },
 	{ 30, 1, PARTS_CP_FILL_ALPHA_COLOR, { 5, 6, 26, 26, 10, 20, 30, 40 } },
-	{ 31, 0 }, { 52, 0 }, { 56, 0 },
+	{ 31, 0 }, { 52, 1, 22 }, { 56, 0 },	/* PARTS_CP_DRAW_CIRCLE_AMAP */
 	{ 57, 1, PARTS_CP_FILL_ALPHA_COLOR, { 5, 6, 12, 8, 10, 20, 30, 40 } },
-	{ 58, 0 }, { 89, 0 }, { 95, 0 }, { 97, 0 }, { 102, 0 }, { 103, 0 }, { 106, 0 }, { 107, 0 }, { 120, 0 }, { 121, 0 },
+	/* 97 has no vertices here; PARTS_CP_FILL_CIRCLE_AMAP / _BLEND */
+	{ 58, 0 }, { 89, 0 }, { 95, 0 }, { 97, 0 }, { 102, 1, 18 }, { 103, 0 }, { 106, 1, 19 }, { 107, 0 }, { 120, 0 }, { 121, 0 },
 	{ 122, 0 }, { 128, 0 }, { 132, 0 }, { 133, 0 }, { 200, 0 },
 };
 
@@ -816,7 +824,9 @@ static void pn_other_commands(void)
 		PN_CHECK(op->type == g->type, "PN6 command %d: operation type %d, want %d", g->cmd, op->type, g->type);
 		if (op->type != g->type)
 			continue;
-		if (g->type == PARTS_CP_CREATE || g->type == PARTS_CP_CREATE_PIXEL_ONLY) {
+		if (g->type > PARTS_CP_FILL_PIE_AMAP) {
+			/* the pixel commands: construction-cmds checks their fields */
+		} else if (g->type == PARTS_CP_CREATE || g->type == PARTS_CP_CREATE_PIXEL_ONLY) {
 			PN_CHECK(op->create.w == g->v[0] && op->create.h == g->v[1], "PN6 command %d: %dx%d, want %dx%d", g->cmd,
 				 op->create.w, op->create.h, g->v[0], g->v[1]);
 		} else {

@@ -711,16 +711,19 @@ static bool pactex_construction_has_steps(struct ex_tree *state)
 
 /* One 手順, as far as the commands built here read it. The native step
  * parser (0x4f82a0) stores コマンド at +4, 先矩形 X,Y,X2,Y2,W,H at
- * +0x1c..+0x30, 色１ at +0x34..+0x40, 全體 at +0xc4, 半徑 at +0xc8/+0xcc,
- * 旋轉角度 at +0xd8 and 円弧角度 (start, sweep) at +0xdc/+0xe0. */
+ * +0x1c..+0x30, 色１ at +0x34..+0x40, 色２ at +0x44..+0x50, ＣＧ名 at +0xac,
+ * 全體 at +0xc4, 半徑 at +0xc8/+0xcc, 旋轉角度 at +0xd8 and 円弧角度 (start,
+ * sweep) at +0xdc/+0xe0. */
 struct pactex_cp_step {
 	int command;
 	int x, y, w, h;
 	int color[4];
+	int alpha2;		// 色２'s alpha
 	bool full;
 	int rx, ry;
 	int rotate;
 	int start, sweep;
+	const char *cg_name;	// in the pactex tree
 };
 
 enum {
@@ -728,7 +731,11 @@ enum {
 	PACTEX_CP_FILL = 3,
 	PACTEX_CP_FILL_AMAP = 5,
 	PACTEX_CP_FILL_WITH_ALPHA = 6,
+	PACTEX_CP_MUL_AMAP_GRADATION_ROWS = 25,
+	PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS = 26,
+	PACTEX_CP_FILL_CIRCLE_AMAP = 102,
 	PACTEX_CP_FILL_PIE_AMAP = 122,
+	PACTEX_CP_TILE_CG = 129,
 };
 // Limit of what is built (xsystem4's; the original has none). The game's
 // largest surface is 2048x1024. PARTS_CP_PIE_MAX_RADIUS limits the sectors.
@@ -842,6 +849,49 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 			&& pactex_clip_span(&s->y, &s->h, surface_h)
 			&& s->w > 0 && s->h > 0;
 	}
+	case PACTEX_CP_MUL_AMAP_GRADATION_ROWS:
+	case PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS:
+		// 0x4ff740, 0x4ff8d0: the alpha goes from 色１'s to 色２'s over
+		// the rectangle's rows or columns. The original clips line by line
+		// and fails at the first one outside the surface (0x4ff99f), with
+		// part of the gradation drawn; only a rectangle that lies within
+		// the surface is built, and values the multiplication (0x5aca3c)
+		// takes whole.
+		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
+				|| !pactex_step_item(node, "\x90\x46\x82\x51", "\xc9\xab\xa3\xb2", 3, &s->alpha2) /* 色２ */
+				|| !pactex_step_int(node, "\x91\x53\x91\xcc", "\xc8\xab\xf3\x77", &full)) /* 全体 / 全體 */
+			return false;
+		s->full = full == 1;
+		if (s->full) {
+			s->x = 0;
+			s->y = 0;
+			s->w = surface_w;
+			s->h = surface_h;
+		}
+		return pactex_byte(s->color[3]) && pactex_byte(s->alpha2)
+			&& s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
+			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y;
+	case PACTEX_CP_FILL_CIRCLE_AMAP:
+		// 0x507640: the alpha of a disc of 半徑[0] around 先矩形 X,Y.
+		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
+				|| !pactex_step_item(node, "\x94\xbc\x8c\x61", "\xb0\xeb\x8f\xbd", 0, &s->rx)) /* 半径 / 半徑 */
+			return false;
+		return s->rx <= PARTS_CP_CIRCLE_MAX_RADIUS && pactex_byte(s->color[3]);
+	case PACTEX_CP_TILE_CG: {
+		// 0x50a220: ＣＧ名 tiled over the rectangle. A CG that cannot be
+		// loaded fails the step; a rectangle that is not within the
+		// surface is not built (what 0x5acd70 does with it was not read).
+		int cg_no;
+		s->cg_name = pactex_get_string(node, SJIS_CG_MEI);
+		if (!s->cg_name)
+			s->cg_name = pactex_get_string(node, GBK_CG_MEI);
+		if (!s->cg_name || !asset_exists_by_name(ASSET_CG, s->cg_name, &cg_no)
+				|| !pactex_step_int(node, "\x91\x53\x91\xcc", "\xc8\xab\xf3\x77", &full)) /* 全体 / 全體 */
+			return false;
+		s->full = full == 1;
+		return s->full || (s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
+			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y);
+	}
 	case PACTEX_CP_FILL_PIE_AMAP:
 		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
 				|| !pactex_step_item(node, "\x94\xbc\x8c\x61", "\xb0\xeb\x8f\xbd", 0, &s->rx) /* 半径 / 半徑 */
@@ -866,8 +916,9 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 }
 
 /* The steps of a construction state, when the loader can run them as the
- * original does: every command is one of 0 (create), 3, 5, 6 (fills) and 122
- * (sector alpha), the first step creates the surface and none would fail.
+ * original does: every command is one of 0 (create), 3, 5, 6 (fills), 25, 26
+ * (alpha gradations), 102 (disc alpha), 122 (sector alpha) and 129 (CG
+ * tiles), the first step creates the surface and none would fail.
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;
@@ -926,6 +977,23 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 			PE_AddFillPieAMapToPartsConstructionProcess(parts_no, s->x, s->y, s->rx, s->ry,
 				s->start, s->sweep, s->color[3], s->rotate, pe_state);
 			break;
+		case PACTEX_CP_MUL_AMAP_GRADATION_ROWS:
+		case PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS:
+			PE_AddMulAMapGradationToPartsConstructionProcess(parts_no,
+				s->command == PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS, s->x, s->y, s->w, s->h,
+				false, s->color[3], s->alpha2, pe_state);
+			break;
+		case PACTEX_CP_FILL_CIRCLE_AMAP:
+			PE_AddFillCircleToPartsConstructionProcess(parts_no, false, s->x, s->y, s->rx,
+				0, 0, 0, s->color[3], pe_state);
+			break;
+		case PACTEX_CP_TILE_CG: {
+			struct string *name = cstr_to_string(s->cg_name);
+			PE_AddTileCGToPartsConstructionProcess(parts_no, name, s->x, s->y, s->w, s->h,
+				s->full, pe_state);
+			free_string(name);
+			break;
+		}
 		}
 	}
 	free(steps);

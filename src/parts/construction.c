@@ -15,7 +15,10 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include "system4.h"
 #include "system4/cg.h"
 #include "system4/string.h"
@@ -49,6 +52,17 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_DRAW_TEXT:
 	case PARTS_CP_COPY_TEXT:
 		free_string(op->text.text);
+		break;
+	case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
+	case PARTS_CP_MUL_AMAP_GRADATION_COLUMNS:
+	case PARTS_CP_BLUR_H:
+	case PARTS_CP_BLUR_V:
+	case PARTS_CP_FILL_CIRCLE_AMAP:
+	case PARTS_CP_FILL_CIRCLE_BLEND:
+	case PARTS_CP_FILL_POLYGON_BLEND:
+	case PARTS_CP_TILE_CG:
+	case PARTS_CP_DRAW_CIRCLE_AMAP:
+		free(op->pixel.points);
 		break;
 	}
 	free(op);
@@ -285,6 +299,85 @@ bool PE_AddFillPieAMapToPartsConstructionProcess(int parts_no, int x, int y, int
 
 	parts_add_cp_op(cproc, op);
 	return true;
+}
+
+static bool add_pixel_op(int parts_no, int state, enum parts_cp_op_type type, struct parts_cp_pixel pixel)
+{
+	if (!parts_state_valid(--state))
+		return false;
+
+	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
+	op->type = type;
+	op->pixel = pixel;
+	parts_add_cp_op(get_cproc(parts_no, state), op);
+	return true;
+}
+
+bool PE_AddMulAMapGradationToPartsConstructionProcess(int parts_no, bool columns,
+		int x, int y, int w, int h, bool full_size, int a1, int a2, int state)
+{
+	return add_pixel_op(parts_no, state, columns ? PARTS_CP_MUL_AMAP_GRADATION_COLUMNS
+			: PARTS_CP_MUL_AMAP_GRADATION_ROWS, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .full = full_size, .a = a1, .a2 = a2
+	});
+}
+
+bool PE_AddBlurToPartsConstructionProcess(int parts_no, bool vertical,
+		int x, int y, int w, int h, bool full_size, int radius, int state)
+{
+	return add_pixel_op(parts_no, state, vertical ? PARTS_CP_BLUR_V : PARTS_CP_BLUR_H,
+			(struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .full = full_size, .radius = radius
+	});
+}
+
+bool PE_AddFillCircleToPartsConstructionProcess(int parts_no, bool blend, int x, int y, int radius,
+		int r, int g, int b, int a, int state)
+{
+	return add_pixel_op(parts_no, state, blend ? PARTS_CP_FILL_CIRCLE_BLEND : PARTS_CP_FILL_CIRCLE_AMAP,
+			(struct parts_cp_pixel) {
+		.x = x, .y = y, .radius = radius, .r = r, .g = g, .b = b, .a = a
+	});
+}
+
+bool PE_AddDrawCircleToPartsConstructionProcess(int parts_no, int x, int y, int radius, int line_width,
+		int a, int state)
+{
+	return add_pixel_op(parts_no, state, PARTS_CP_DRAW_CIRCLE_AMAP, (struct parts_cp_pixel) {
+		.x = x, .y = y, .radius = radius, .line_width = line_width, .a = a
+	});
+}
+
+// `points` is x0, y0, x1, y1, ...; it is copied.
+bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, const int *points,
+		int r, int g, int b, int a, int state)
+{
+	if (nr_points < 0 || nr_points > PARTS_CP_POLYGON_MAX_POINTS || (nr_points && !points))
+		return false;
+	int *copy = NULL;
+	if (nr_points) {
+		copy = xmalloc(nr_points * 2 * sizeof(int));
+		memcpy(copy, points, nr_points * 2 * sizeof(int));
+	}
+	if (!add_pixel_op(parts_no, state, PARTS_CP_FILL_POLYGON_BLEND, (struct parts_cp_pixel) {
+			.r = r, .g = g, .b = b, .a = a, .nr_points = nr_points, .points = copy })) {
+		free(copy);
+		return false;
+	}
+	return true;
+}
+
+bool PE_AddTileCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int x, int y, int w, int h, bool full_size, int state)
+{
+	int cg_no;
+	if (!asset_exists_by_name(ASSET_CG, cg_name->text, &cg_no)) {
+		WARNING("Invalid CG name: %s", display_sjis0(cg_name->text));
+		return false;
+	}
+	return add_pixel_op(parts_no, state, PARTS_CP_TILE_CG, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .full = full_size, .cg_no = cg_no
+	});
 }
 
 bool PE_AddAddFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
@@ -548,6 +641,518 @@ static void build_fill_pie_amap(struct parts_construction_process *cproc, struct
 	free(pixels);
 }
 
+/*
+ * The commands below work on the surface's pixels, rows from the top, RGBA;
+ * parts_build_construction_process reads the texture once for a run of them.
+ */
+
+/* [pos, pos + size) as 0x5abed0 normalizes it (a negative size extends the
+ * other way) and clips it to [0, limit]; false when nothing is left
+ * (0x5abde0). The original adds in 32 bits and wraps around; a sum outside
+ * that range is not reproduced and counts as nothing left. */
+static bool cp_clip_span(int *pos, int *size, int limit)
+{
+	int64_t a = *pos, b = a + *size;
+	if (b < INT32_MIN || b > INT32_MAX)
+		return false;
+	if (a > b) {
+		int64_t t = a;
+		a = b;
+		b = t;
+	}
+	a = min(max(a, 0), limit);
+	b = min(max(b, 0), limit);
+	*pos = a;
+	*size = b - a;
+	return b > a;
+}
+
+static uint8_t cp_byte(int v)
+{
+	return min(max(v, 0), 255);
+}
+
+/* The composition of a staged pixel (r, g, b, a) onto the surface, as the
+ * alpha-blend commands end (0x5acc00 -> 0x494420): each colour moves towards
+ * the staged one by a / 256, rounded down (0x4944c6), and the alpha becomes
+ * the larger of the two (0x4944f1). */
+static void cp_blend_pixel(uint8_t *d, int r, int g, int b, int a)
+{
+	const int src[3] = { r, g, b };
+	for (int c = 0; c < 3; c++) {
+		const int v = (src[c] - d[c]) * a;
+		// sar 8: rounds towards minus infinity
+		d[c] += v >= 0 ? v >> 8 : -((255 - v) >> 8);
+	}
+	if (a > d[3])
+		d[3] = a;
+}
+
+/*
+ * MulAMapGradation (v14 construction commands 25 and 26, native 0x4ff740 and
+ * 0x4ff8d0): line i of the n rows (25) or columns (26) of the rectangle has
+ * its alpha multiplied by a1 + i * (a2 - a1) / n, the quotient truncated
+ * (0x4ff7e8, 0x4ff983), as A * a / 255 with the low byte of a (0x5ac8d0,
+ * 0x5aca3c). 全體 selects the whole surface. Each line is clipped on its own
+ * and the original fails the command, and with it the steps that follow, at
+ * the first line with nothing left (0x4ff805, 0x4ff99f); here the rest of
+ * the command is skipped and the later operations still run.
+ */
+static void build_mul_amap_gradation(uint8_t *pixels, int tw, int th,
+		const struct parts_cp_pixel *op, bool columns)
+{
+	int x = op->x, y = op->y, w = op->w, h = op->h;
+	if (op->full) {
+		x = 0; y = 0;
+		w = tw; h = th;
+	}
+	const int n = columns ? w : h;
+	const int64_t diff = (int64_t)op->a2 - op->a;
+	for (int i = 0; i < n; i++) {
+		const unsigned a = (unsigned)(i * diff / n + op->a) & 0xff;
+		int lx = columns ? x + i : x, lw = columns ? 1 : w;
+		int ly = columns ? y : y + i, lh = columns ? h : 1;
+		if (!cp_clip_span(&lx, &lw, tw) || !cp_clip_span(&ly, &lh, th))
+			return;
+		for (int row = ly; row < ly + lh; row++) {
+			uint8_t *p = pixels + ((size_t)row * tw + lx) * 4 + 3;
+			for (int col = 0; col < lw; col++, p += 4)
+				*p = *p * a / 255;
+		}
+	}
+}
+
+/*
+ * One line of n pixels, `step` bytes apart, blurred from src into dst as
+ * 0x493790 (rows) and 0x493b10 (columns) do: each of the three colours is
+ * the sum of the 2r + 1 pixels around it divided by 2r + 1, truncated (the
+ * table built at 0x493844). The first pixel stands in for those before the
+ * line and the last for those after it. For the last r pixels the original
+ * drops p[n - 2r + k] (0x493a60, 0x493e01) where the window's left end is
+ * p[n - 2r - 1 + k]: those sums keep one pixel too far and miss a near one,
+ * and so do these. The alpha is not written.
+ */
+static void cp_blur_line(uint8_t *dst, const uint8_t *src, int n, int step, int r)
+{
+	const int div = 2 * r + 1;
+	for (int c = 0; c < 3; c++) {
+		const uint8_t *p = src + c;
+		uint8_t *o = dst + c;
+		int sum = p[0] * r;
+		for (int j = 0; j <= r; j++)
+			sum += p[j * step];
+		o[0] = sum / div;
+		for (int i = 1; i <= r; i++) {
+			sum += p[(r + i) * step] - p[0];
+			o[i * step] = sum / div;
+		}
+		for (int k = 0; k < n - 2 * r - 1; k++) {
+			sum += p[(2 * r + 1 + k) * step] - p[k * step];
+			o[(r + 1 + k) * step] = sum / div;
+		}
+		for (int k = 0; k < r; k++) {
+			sum += p[(n - 1) * step] - p[(n - 2 * r + k) * step];
+			o[(n - r + k) * step] = sum / div;
+		}
+	}
+}
+
+/*
+ * Blur (v14 construction commands 27 and 28, native 0x4ffa60 and 0x4ffba0):
+ * a box blur of the rectangle (全體: the whole surface) along its rows (27,
+ * 0x5b0d70) or its columns (28, 0x5b0fa0), read from a copy of the surface.
+ * The radius is ブラー, 1 when it is smaller, and n / 2 - 1 for a line of n
+ * pixels when it is n / 2 or more (0x49379f, 0x493b1f). That leaves 0 for a
+ * line of 2 or 3 pixels, which changes nothing; for a shorter line, or one of
+ * 2 with a radius below 1, the original reads beyond the line, and nothing
+ * is done here.
+ */
+static void build_blur(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op, bool vertical)
+{
+	int x = op->x, y = op->y, w = op->w, h = op->h;
+	if (op->full) {
+		x = 0; y = 0;
+		w = tw; h = th;
+	}
+	if (!cp_clip_span(&x, &w, tw) || !cp_clip_span(&y, &h, th))
+		return;
+	const int n = vertical ? h : w;
+	int r = op->radius;
+	if (r < 1)
+		r = 1;
+	else if (r >= n / 2)
+		r = n / 2 - 1;
+	if (r < 1 || 2 * r + 1 > n)
+		return;
+
+	const size_t size = (size_t)tw * th * 4;
+	uint8_t *src = xmalloc(size);
+	memcpy(src, pixels, size);
+	if (vertical) {
+		for (int col = x; col < x + w; col++) {
+			const size_t off = ((size_t)y * tw + col) * 4;
+			cp_blur_line(pixels + off, src + off, h, tw * 4, r);
+		}
+	} else {
+		for (int row = y; row < y + h; row++) {
+			const size_t off = ((size_t)row * tw + x) * 4;
+			cp_blur_line(pixels + off, src + off, w, 4, r);
+		}
+	}
+	free(src);
+}
+
+/* The coverage of the cell whose corner is (dx, dy) from a circle's centre
+ * (0x4e6530): the number of its 8x8 subsamples, at offsets k/8 from that
+ * corner, within the radius, scaled to n * 255 / 64. In eighths, exactly. */
+static int cp_circle_coverage(int dx, int dy, int r)
+{
+	const int64_t rr = (int64_t)64 * r * r;
+	int n = 0;
+	for (int j = 0; j < 8; j++) {
+		const int64_t v = (int64_t)8 * dy + j;
+		for (int i = 0; i < 8; i++) {
+			const int64_t u = (int64_t)8 * dx + i;
+			if (u * u + v * v <= rr)
+				n++;
+		}
+	}
+	return n * 255 / 64;
+}
+
+/*
+ * FillCircle (v14 construction commands 102 and 106, native 0x507640 and
+ * 0x507d60): an antialiased disc of 半徑 around (x + 0.5, y + 0.5). The scan
+ * (0x4cfb40) takes the 2r + 1 positions centre - r, centre - r + 1, ... on
+ * both axes; the pixel is the position truncated towards zero (0x4cfc39),
+ * so the column and the row just left of and above the surface land on the
+ * first one, and the coverage is that of the cell from the position's
+ * offset to the centre. Cells without coverage write nothing. A radius that
+ * is not positive draws nothing and succeeds.
+ *   102 replaces the alpha by a * coverage / 255 (0x4cbbd0 -> 0x5b0a10).
+ *   106 stages (r, g, b, a * coverage / 255) on a transparent surface of the
+ *       same size (0x5a94d0, 0x4cbb20 -> 0x5b0b80), a later write to a pixel
+ *       replacing an earlier one, and composes it (cp_blend_pixel). Only the
+ *       scanned pixels are staged here; the others would not change.
+ * The colour and the alpha are clamped to 0..255 here (0x5b0b80 was not
+ * read for what it does with other values).
+ */
+static void build_fill_circle(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op, bool blend)
+{
+	const int r = op->radius;
+	if (r <= 0)
+		return;
+	if (r > PARTS_CP_CIRCLE_MAX_RADIUS) {
+		WARNING("FillCircle: unsupported radius %d", r);
+		return;
+	}
+
+	// The staged alpha of pixels x - r - 1 .. x + r, y - r - 1 .. y + r.
+	const int side = 2 * r + 2;
+	const int64_t bx = (int64_t)op->x - r - 1, by = (int64_t)op->y - r - 1;
+	uint8_t *staged = blend ? xcalloc(side, side) : NULL;
+	for (int j = 0; j <= 2 * r; j++) {
+		const double fy = op->y + 0.5 - r + j;
+		if (fy <= -1.0 || fy >= th)
+			continue;
+		const int py = fy;
+		for (int i = 0; i <= 2 * r; i++) {
+			const double fx = op->x + 0.5 - r + i;
+			if (fx <= -1.0 || fx >= tw)
+				continue;
+			const int px = fx;
+			const int cov = cp_circle_coverage(i - r, j - r, r);
+			if (cov <= 0)
+				continue;
+			// Scaled first, then clamped (0x5b0a10).
+			const uint8_t a = cp_byte((int64_t)op->a * cov / 255);
+			if (blend)
+				staged[(py - by) * side + (px - bx)] = a;
+			else
+				pixels[((size_t)py * tw + px) * 4 + 3] = a;
+		}
+	}
+	if (!blend)
+		return;
+	for (int j = 0; j < side; j++) {
+		const int64_t py = by + j;
+		if (py < 0 || py >= th)
+			continue;
+		for (int i = 0; i < side; i++) {
+			const int64_t px = bx + i;
+			if (px < 0 || px >= tw || !staged[j * side + i])
+				continue;
+			cp_blend_pixel(pixels + ((size_t)py * tw + px) * 4, cp_byte(op->r), cp_byte(op->g),
+					cp_byte(op->b), staged[j * side + i]);
+		}
+	}
+	free(staged);
+}
+
+/*
+ * DrawCircle (v14 construction command 52, native 0x502570 -> 0x4cb910): the
+ * alpha of a ring around (x + 0.5, y + 0.5), from 半徑 minus half 線の幅 (0
+ * when that is negative, 0x4cb9b8) to 半徑 plus half of it, written as
+ * command 102 writes its disc (0x4cbbd0 -> 0x5b0a10). The scan takes the
+ * positions from the centre minus the outer radius in steps of 1 while they
+ * do not exceed the centre plus it, the pixel being the position truncated
+ * towards zero; the coverage (0x4e5f40) is the number of the cell's 8x8
+ * subsamples whose distance from the centre lies between the two radii,
+ * both included, scaled to n * 255 / 64. Counted in sixteenths, exactly
+ * (the positions are multiples of 1/2, the subsamples of 1/8). A radius that
+ * is not positive draws nothing and succeeds.
+ */
+static void build_draw_circle(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
+{
+	const int r = op->radius, lw = op->line_width;
+	if (r <= 0)
+		return;
+	if (r > PARTS_CP_CIRCLE_MAX_RADIUS || lw > PARTS_CP_CIRCLE_MAX_RADIUS || lw < -2 * r) {
+		if (lw >= -2 * r)
+			WARNING("DrawCircle: unsupported radius %d, width %d", r, lw);
+		return;
+	}
+	const int64_t inner = max(16 * r - 8 * lw, 0), outer = 16 * r + 8 * lw;
+	const int64_t inner2 = inner * inner, outer2 = outer * outer;
+	const int n = 2 * r + lw;	// the last position
+	for (int j = 0; j <= n; j++) {
+		const double fy = op->y + 0.5 - r - lw * 0.5 + j;
+		if (fy <= -1.0 || fy >= th)
+			continue;
+		for (int i = 0; i <= n; i++) {
+			const double fx = op->x + 0.5 - r - lw * 0.5 + i;
+			if (fx <= -1.0 || fx >= tw)
+				continue;
+			int count = 0;
+			for (int b = 0; b < 8; b++) {
+				const int64_t v = -outer + 16 * j + 2 * b;
+				for (int a = 0; a < 8; a++) {
+					const int64_t u = -outer + 16 * i + 2 * a;
+					const int64_t d2 = u * u + v * v;
+					if (inner2 <= d2 && d2 <= outer2)
+						count++;
+				}
+			}
+			if (!count)
+				continue;
+			pixels[((size_t)(int)fy * tw + (int)fx) * 4 + 3] = cp_byte((int64_t)op->a * (count * 255 / 64) / 255);
+		}
+	}
+}
+
+/* The crossings of the line y with the polygon's edges, unsorted, as
+ * 0x4d0ba0 collects them; `out` has room for one per edge. An edge has its
+ * crossing when y lies between its ends, both included; at the end it leads
+ * to, it has none when the next edge goes on in the same vertical direction
+ * (0x4d0cf7). A run of horizontal edges on the line (0x4d0f10) gives one
+ * point: its largest x when the vertex after it lies right of that, else its
+ * smallest. Crossings are clamped to the scanned columns (0x4d0da3). */
+static int cp_polygon_crossings(const double *xs, const double *ys, int n, double y,
+		double col0, double col1, double *out)
+{
+	int nr = 0;
+	for (int i = 0; i < n; i++) {
+		const double x0 = xs[i], y0 = ys[i];
+		const double x1 = xs[(i + 1) % n], y1 = ys[(i + 1) % n];
+		double x;
+		if (y0 == y1) {
+			if (y0 != y)
+				continue;
+			double lo = x0 < x1 ? x0 : x1;
+			double hi = x0 > x1 ? x0 : x1;
+			bool found = false;
+			for (; i < n; i++) {
+				const double xk = xs[(i + 2) % n];
+				if (ys[(i + 2) % n] != y0) {
+					x = xk > hi ? hi : lo;
+					found = true;
+					break;
+				}
+				lo = xk < lo ? xk : lo;
+				hi = xk > hi ? xk : hi;
+			}
+			if (!found)
+				break;
+		} else {
+			if (y == y1) {
+				const double before = y1 - y0, after = ys[(i + 2) % n] - y1;
+				if ((before < 0.0 && after < 0.0) || (before > 0.0 && after > 0.0))
+					continue;
+			}
+			double xl = x0, yl = y0, xh = x1, yh = y1;
+			if (y0 > y1) {
+				xl = x1; yl = y1;
+				xh = x0; yh = y0;
+			}
+			if (yl > y || y > yh)
+				continue;
+			// Three statements: the original multiplies, divides and adds.
+			x = (xh - xl) * (y - yl);
+			x = x / (yh - yl);
+			x = x + xl;
+		}
+		if (!(x <= col1))
+			x = col1;
+		if (!(x > col0))
+			x = col0;
+		out[nr++] = x;
+	}
+	return nr;
+}
+
+static int cp_compare_double(const void *a, const void *b)
+{
+	const double x = *(const double *)a, y = *(const double *)b;
+	return (x > y) - (x < y);
+}
+
+/*
+ * FillPolygonAlphaBlend (v14 construction command 97, native 0x506610 ->
+ * 0x5af7d0): the polygon of ArrayPos, each vertex at its pixel's centre
+ * (0x4e9400 adds 0.5; a vertex equal to the one before it is left out),
+ * staged as (r, g, b, a * coverage / 255) on a transparent surface and
+ * composed like the circle of command 106.
+ *
+ * The scan (0x4d0820) covers the rows of the vertices' bounding box, the
+ * coordinates truncated (0x4ea230) and the box clipped to the surface
+ * (0x4caf50), and the columns from one before it to one after it (0x4d1030).
+ * A row's coverage per column is summed over the 8 lines y + k/8 (0x4d09c0):
+ * the crossings are sorted, an equal neighbour is removed (0x4d0e20, which
+ * shortens what it still looks at by two unless the pair is the first or the
+ * last), and each pair (x1, x2) adds (0x4d0a80), in 255ths of a column,
+ *   the part of x1's column right of x1, the whole of the columns after it
+ *   up to and including x2's, and the fraction of x2 to the column after
+ *   that, or (x2 - x1) to the one column both lie in.
+ * That is the span [x1, x2 + 1) unless it stays within one column: a
+ * vertex names the last pixel of an edge, not the position after it. A
+ * column with a sum of 8 or more gets coverage sum / 8 (0x4d0901).
+ *
+ * 丸め (rounded corners, 0x4e98a0) and a rotation (0x4e9940) are not
+ * implemented; PartsEngine_AddPartsConstructionProcess adds no operation for
+ * them. Fewer than three vertices draw nothing (0x4d0870).
+ */
+static void build_fill_polygon(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
+{
+	if (op->nr_points < 3 || op->nr_points > PARTS_CP_POLYGON_MAX_POINTS)
+		return;
+
+	double *xs = xmalloc(op->nr_points * 3 * sizeof(double));
+	double *ys = xs + op->nr_points, *cross = ys + op->nr_points;
+	int n = 0;
+	int min_x = INT_MAX, min_y = INT_MAX, max_x = INT_MIN, max_y = INT_MIN;
+	for (int i = 0; i < op->nr_points; i++) {
+		const double x = op->points[i * 2] + 0.5, y = op->points[i * 2 + 1] + 0.5;
+		if (n && xs[n - 1] == x && ys[n - 1] == y)
+			continue;
+		xs[n] = x;
+		ys[n] = y;
+		n++;
+		min_x = min(min_x, (int)x); max_x = max(max_x, (int)x);
+		min_y = min(min_y, (int)y); max_y = max(max_y, (int)y);
+	}
+	const int x0 = max(min_x, 0), y0 = max(min_y, 0);
+	const int x1 = max_x >= tw ? tw - 1 : max_x, y1 = max_y >= th ? th - 1 : max_y;
+	const int col0 = max(x0 - 1, 0), col1 = min(x1 + 2, tw);
+	if (n < 3 || x1 < x0 || y1 < y0 || col1 <= col0) {
+		free(xs);
+		return;
+	}
+
+	const uint8_t r = cp_byte(op->r), g = cp_byte(op->g), b = cp_byte(op->b);
+	int *sums = xmalloc((col1 - col0) * sizeof(int));
+	for (int row = y0; row <= y1; row++) {
+		memset(sums, 0, (col1 - col0) * sizeof(int));
+		for (int k = 0; k < 8; k++) {
+			int nr = cp_polygon_crossings(xs, ys, n, row + k * 0.125, col0, col1, cross);
+			qsort(cross, nr, sizeof(double), cp_compare_double);
+			for (int i = 0, last = nr - 1, penult = nr - 2; i < last;) {
+				if (cross[i] != cross[i + 1]) {
+					i++;
+					continue;
+				}
+				memmove(&cross[i], &cross[i + 1], (nr - i - 1) * sizeof(double));
+				nr--;
+				const int less = (i == 0 || i == penult) ? 1 : 2;
+				last -= less;
+				penult -= less;
+			}
+			for (int i = 1; i < nr; i += 2) {
+				const double a = cross[i - 1], z = cross[i];
+				const int ca = a, cz = z;
+				if (ca == cz) {
+					if (ca >= col0 && ca < col1)
+						sums[ca - col0] += (int)((z - a) * 255.0);
+					continue;
+				}
+				if (ca >= col0 && ca < col1) {
+					// Two statements: the original multiplies, then subtracts.
+					const double part = (a - ca) * 255.0;
+					sums[ca - col0] += (int)(255.0 - part);
+				}
+				for (int col = ca + 1; col <= cz; col++) {
+					if (col >= col0 && col < col1)
+						sums[col - col0] += 255;
+				}
+				if (cz + 1 >= col0 && cz + 1 < col1)
+					sums[cz + 1 - col0] += (int)((z - cz) * 255.0);
+			}
+		}
+		for (int col = col0; col < col1; col++) {
+			const int cov = sums[col - col0] / 8;
+			if (cov <= 0)
+				continue;
+			const int a = cp_byte((int64_t)op->a * cov / 255);
+			if (a)
+				cp_blend_pixel(pixels + ((size_t)row * tw + col) * 4, r, g, b, a);
+		}
+	}
+	free(sums);
+	free(xs);
+}
+
+/*
+ * TileCG (v14 construction command 129, native 0x50a220): the CG copied,
+ * alpha included (0x5acd70), over the rectangle (全體: the whole surface)
+ * from its corner in steps of the CG's size, the last column and row of
+ * tiles cut at the rectangle's edge. `src` is the CG's cw x ch pixels.
+ */
+void parts_cp_tile(uint8_t *pixels, int tw, int th, int x, int y, int w, int h,
+		const uint8_t *src, int cw, int ch)
+{
+	if (!src || cw <= 0 || ch <= 0)
+		return;
+	for (int ty = 0; ty < h; ty += ch) {
+		for (int tx = 0; tx < w; tx += cw) {
+			// One tile: (cw, ch) or what is left of the rectangle,
+			// clipped to the surface.
+			const int64_t dx = (int64_t)x + tx, dy = (int64_t)y + ty;
+			const int rows = min(h - ty, ch), cols = min(w - tx, cw);
+			const int from = dx < 0 ? min(-dx, cols) : 0;
+			const int to = dx + cols > tw ? max(tw - dx, 0) : cols;
+			if (to <= from)
+				continue;
+			for (int row = 0; row < rows; row++) {
+				if (dy + row < 0 || dy + row >= th)
+					continue;
+				memcpy(pixels + (size_t)((dy + row) * tw + dx + from) * 4,
+						src + ((size_t)row * cw + from) * 4, (size_t)(to - from) * 4);
+			}
+		}
+	}
+}
+
+static void build_tile_cg(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
+{
+	struct cg *cg = asset_cg_load(op->cg_no);
+	if (!cg)
+		return;
+	if (op->full)
+		parts_cp_tile(pixels, tw, th, 0, 0, tw, th, cg->pixels, cg->metrics.w, cg->metrics.h);
+	else
+		parts_cp_tile(pixels, tw, th, op->x, op->y, op->w, op->h, cg->pixels, cg->metrics.w, cg->metrics.h);
+	cg_free(cg);
+}
+
 bool parts_build_construction_process(struct parts *parts,
 		struct parts_construction_process *cproc)
 {
@@ -556,8 +1161,26 @@ bool parts_build_construction_process(struct parts *parts,
 	// does not record its format, so this follows the operations that
 	// create the surface.
 	bool has_alpha = true;
+	// The surface's pixels while the pixel commands run: read before the
+	// first of a run of them, written back after the last.
+	Texture *t = &cproc->common.texture;
+	uint8_t *pixels = NULL;
 	struct parts_cp_op *op;
 	TAILQ_FOREACH(op, &cproc->ops, entry) {
+		const bool on_pixels = op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
+			&& op->type <= PARTS_CP_DRAW_CIRCLE_AMAP;
+		if (pixels && !on_pixels) {
+			gfx_update_texture_with_pixels(t, pixels);
+			free(pixels);
+			pixels = NULL;
+		}
+		if (on_pixels) {
+			// Every one of them fails without a surface (e.g. 0x4ff904).
+			if (!t->handle || t->w <= 0 || t->h <= 0)
+				continue;
+			if (!pixels)
+				pixels = gfx_get_pixels(t);
+		}
 		switch (op->type) {
 		case PARTS_CP_CREATE:
 			build_create(parts, cproc, &op->create);
@@ -605,7 +1228,41 @@ bool parts_build_construction_process(struct parts *parts,
 			if (has_alpha)
 				build_fill_pie_amap(cproc, &op->pie);
 			break;
+		// The commands that write only the alpha are left out on a
+		// surface without one, as FillPieAMap is; what the original does
+		// with them there was not read.
+		case PARTS_CP_MUL_AMAP_GRADATION_ROWS:
+		case PARTS_CP_MUL_AMAP_GRADATION_COLUMNS:
+			if (has_alpha)
+				build_mul_amap_gradation(pixels, t->w, t->h, &op->pixel,
+						op->type == PARTS_CP_MUL_AMAP_GRADATION_COLUMNS);
+			break;
+		case PARTS_CP_BLUR_H:
+		case PARTS_CP_BLUR_V:
+			build_blur(pixels, t->w, t->h, &op->pixel, op->type == PARTS_CP_BLUR_V);
+			break;
+		case PARTS_CP_FILL_CIRCLE_AMAP:
+			if (has_alpha)
+				build_fill_circle(pixels, t->w, t->h, &op->pixel, false);
+			break;
+		case PARTS_CP_FILL_CIRCLE_BLEND:
+			build_fill_circle(pixels, t->w, t->h, &op->pixel, true);
+			break;
+		case PARTS_CP_FILL_POLYGON_BLEND:
+			build_fill_polygon(pixels, t->w, t->h, &op->pixel);
+			break;
+		case PARTS_CP_TILE_CG:
+			build_tile_cg(pixels, t->w, t->h, &op->pixel);
+			break;
+		case PARTS_CP_DRAW_CIRCLE_AMAP:
+			if (has_alpha)
+				build_draw_circle(pixels, t->w, t->h, &op->pixel);
+			break;
 		}
+	}
+	if (pixels) {
+		gfx_update_texture_with_pixels(t, pixels);
+		free(pixels);
 	}
 	parts_dirty(parts);
 	return true;

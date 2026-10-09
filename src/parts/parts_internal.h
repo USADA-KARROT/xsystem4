@@ -217,7 +217,18 @@ enum parts_cp_op_type {
 	PARTS_CP_GRAY_FILTER,
 	PARTS_CP_FILL_WITH_ALPHA,
 	PARTS_CP_FILL_PIE_AMAP,
-#define PARTS_NR_CP_TYPES (PARTS_CP_FILL_PIE_AMAP+1)
+	// The values are saved: new types go at the end. Those below work on
+	// the surface's pixels (struct parts_cp_pixel).
+	PARTS_CP_MUL_AMAP_GRADATION_ROWS,
+	PARTS_CP_MUL_AMAP_GRADATION_COLUMNS,
+	PARTS_CP_BLUR_H,
+	PARTS_CP_BLUR_V,
+	PARTS_CP_FILL_CIRCLE_AMAP,
+	PARTS_CP_FILL_CIRCLE_BLEND,
+	PARTS_CP_FILL_POLYGON_BLEND,
+	PARTS_CP_TILE_CG,
+	PARTS_CP_DRAW_CIRCLE_AMAP,
+#define PARTS_NR_CP_TYPES (PARTS_CP_DRAW_CIRCLE_AMAP+1)
 };
 
 struct parts_cp_create {
@@ -265,6 +276,32 @@ struct parts_cp_pie {
 	int angle;
 };
 
+// The commands that work on the surface's pixels; each uses the fields its
+// native step does:
+//   MUL_AMAP_GRADATION_ROWS / _COLUMNS (v14 commands 25 / 26): the rectangle
+//     (or `full`), the alpha `a` at its first line and `a2` after its last;
+//   BLUR_H / BLUR_V (27 / 28): the rectangle (or `full`) and `radius`;
+//   FILL_CIRCLE_AMAP / _BLEND (102 / 106): the centre (x, y), `radius` and
+//     the alpha `a`, with the colour for the blend;
+//   FILL_POLYGON_BLEND (97): `points` (x0, y0, x1, y1, ...) and the colour;
+//   TILE_CG (129): the rectangle (or `full`) and `cg_no`;
+//   DRAW_CIRCLE_AMAP (52): the centre (x, y), `radius`, `line_width` and
+//     the alpha `a`.
+// Larger circles and polygons are not built (xsystem4's limits).
+#define PARTS_CP_CIRCLE_MAX_RADIUS 1024
+#define PARTS_CP_POLYGON_MAX_POINTS 1024
+struct parts_cp_pixel {
+	int x, y, w, h;
+	bool full;
+	int r, g, b, a;
+	int a2;
+	int radius;
+	int cg_no;
+	int line_width;
+	int nr_points;
+	int *points;
+};
+
 struct parts_cp_op {
 	TAILQ_ENTRY(parts_cp_op) entry;
 	enum parts_cp_op_type type;
@@ -276,6 +313,7 @@ struct parts_cp_op {
 		struct parts_cp_text text;
 		struct parts_cp_filter filter;
 		struct parts_cp_pie pie;
+		struct parts_cp_pixel pixel;
 	};
 };
 
@@ -754,6 +792,8 @@ void parts_add_cp_op(struct parts_construction_process *cproc, struct parts_cp_o
 bool parts_build_construction_process(struct parts *parts,
 		struct parts_construction_process *cproc);
 bool parts_clear_construction_process(struct parts_construction_process *cproc);
+void parts_cp_tile(uint8_t *pixels, int tw, int th, int x, int y, int w, int h,
+		const uint8_t *src, int cw, int ch);
 struct parts_panel *parts_get_panel(struct parts *parts);
 void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a);
 void parts_panel_set_size(struct parts *parts, int w, int h);

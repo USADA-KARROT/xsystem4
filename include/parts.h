@@ -182,6 +182,18 @@ bool PE_AddGrayFilterToPartsConstructionProcess(int parts_no, int x, int y, int 
 		bool full_size, int state);
 bool PE_AddFillPieAMapToPartsConstructionProcess(int parts_no, int x, int y, int rx, int ry,
 		int start_angle, int sweep_angle, int a, int angle, int state);
+bool PE_AddMulAMapGradationToPartsConstructionProcess(int parts_no, bool columns,
+		int x, int y, int w, int h, bool full_size, int a1, int a2, int state);
+bool PE_AddBlurToPartsConstructionProcess(int parts_no, bool vertical,
+		int x, int y, int w, int h, bool full_size, int radius, int state);
+bool PE_AddFillCircleToPartsConstructionProcess(int parts_no, bool blend, int x, int y, int radius,
+		int r, int g, int b, int a, int state);
+bool PE_AddDrawCircleToPartsConstructionProcess(int parts_no, int x, int y, int radius, int line_width,
+		int a, int state);
+bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, const int *points,
+		int r, int g, int b, int a, int state);
+bool PE_AddTileCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int x, int y, int w, int h, bool full_size, int state);
 bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
 		int type, int size, int r, int g, int b, float bold_weight,
 		int edge_r, int edge_g, int edge_b, float edge_weight,
