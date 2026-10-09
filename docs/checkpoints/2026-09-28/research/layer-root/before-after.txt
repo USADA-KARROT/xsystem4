@@ -1,0 +1,319 @@
+before 1ad658a controller-id (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b303e in AFL_Parts_AddTopLayer
+CI1 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b303e in AFL_Parts_AddTopLayer
+	0x002b3524 in CASPartsLayer@AddTopLayer
+	0x002b3424 in CASPartsLayer@0
+CI2 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b303e in AFL_Parts_AddTopLayer
+	0x002b3524 in CASPartsLayer@AddTopLayer
+	0x002b3424 in CASPartsLayer@0
+  FAIL: two scenes: GetLayerIndex(1) is 0, want 1
+  FAIL: two scenes: GetLayerIndex(2) is 0, want 2
+CI3 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+CI4 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+CI5 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+  FAIL: erase the active middle layer: layers [0 1], want [0 2]
+  FAIL: active 1, want the layer below (0)
+CI6 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+CI7 FAILED (exit 1)
+at CALLHLL (0x2EBF20) in:
+	0x002ebf20 in parts::detail::SetActiveLayer
+	0x002b308a in AFL_Parts_SetActiveLayer
+CI8 FAILED (exit 1)
+at CALLHLL (0x2EBCEE) in:
+	0x002ebcee in parts::detail::EraseLayer
+	0x002b3068 in AFL_Parts_EraseLayer
+CI9 FAILED (exit 1)
+  FAIL: GetControllerID(negative) is -1, want the active layer 1
+  FAIL: GetControllerID(past the end) is -1, want the top layer 2
+  FAIL: GetControllerIndex of a missing ID, -1, the overlay: 0 0 0; want -1
+  FAIL: GetControllerIndex: 0 0 0
+  FAIL: MoveLayer(B, 1): layers [0 1 2], want [0 2 1]
+  FAIL: MoveLayer(B, 1): parts 19601 is drawn at place 1, want 2
+  FAIL: sprite layers 2 1, want 1 2
+  FAIL: moves that change nothing: layers [0 1 2], want [0 2 1]
+  FAIL: MoveLayer(0, 99): layers [0 1 2], want [2 1 0]
+  FAIL: MoveLayer(0, 99): parts 19600 is drawn at place 0, want 2
+  FAIL: MoveLayer(0, -5): layers [0 1 2], want [0 2 1]
+  FAIL: MoveLayer(0, 2): layers [0 1 2], want [2 0 1]
+  FAIL: MoveLayer(0, 2): parts 19600 is drawn at place 0, want 1
+CI10 queries and MoveLayer: FAIL
+CI10 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+CI11 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+  FAIL: click after moving A on top: 1 messages, type 4 parts 19602; want 1, 4, 19601
+CI12 FAILED (exit 1)
+at CALLHLL (0x2EBC22) in:
+	0x002ebc22 in parts::detail::AddLayer
+	0x002b2fd2 in AFL_Parts_AddLayer
+CI13 FAILED (exit 1)
+  CI14 pushed-only save: 337 words, hash 70d03dca
+CI14 push and pop as before: ok
+  CI15 legacy save: 303 words, hash 2a9865ba
+CI15 engines before v14: ok
+CONTROLLER-ID FAIL: 13 of 15 cases failed
+
+before 1ad658a controller-id (XS4_PROBE_GBK=1)
+CONTROLLER-ID FAIL: 13 of 15 cases failed
+
+after controller-id at 43e5574 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CI1 AFL_Parts_AddTopLayer: ok
+CI2 CASPartsLayer: ok
+CI3 backlog shape: ok
+CI4 insert in the middle: ok
+CI5 erase a middle layer: ok
+CI6 erase the active layer: ok
+CI7 AddLayer(-1) above the active layer: ok
+CI8 SetActiveLayer with a missing ID: ok
+CI9 EraseLayer edges: ok
+CI10 queries and MoveLayer: ok
+CI11 save and load: ok
+CI12 hit order: ok
+CI13 system overlay: ok
+  CI14 pushed-only save: 337 words, hash 70d03dca
+CI14 push and pop as before: ok
+  CI15 legacy save: 303 words, hash 2a9865ba
+CI15 engines before v14: ok
+CONTROLLER-ID PASS: 0 of 15 cases failed
+
+after controller-id (XS4_PROBE_GBK=1)
+CONTROLLER-ID PASS: 0 of 15 cases failed
+
+
+before 6dfbab6 layer-root (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: the default layer's ID is 0, want 1000000000
+  FAIL: no root parts numbered 0
+  FAIL: the root: state type -1, want_save -1, show -1, alpha -1, z -1; want 0 0 1 255 0
+  FAIL: root: IsExist 0, parent 0, children 0; want 1, 0, 0
+  FAIL: the root's children: 0, first -1; want 1, 19601
+  FAIL: GetLayerIDByParts(a top-level parts) is 19601, want 0
+  FAIL: a child: parent 19601, the root's children 0, layer 19601; want 19601, 1, 0
+  FAIL: SetParent(0): parent 0, the root's children 0 (second -1), A's children 0; want 0, 2, 19602, 0
+  FAIL: SetParent of the root: parent 19601, A's children 1; want 0, 0
+  FAIL: the layer's parts still show with the root hidden
+  FAIL: the root under another layer's parts: parent 19603, that parts' children 1, layer 0; want 0, 0, 0
+  FAIL: another layer's root under a parts: parent 19601, want 0
+  FAIL: the root under an overlay parts: parent 19605, want 0
+  FAIL: the layer's parts after that: parent 0, layer 19601
+LR1 layer roots and parents: FAIL
+LR1 FAILED (exit 1)
+  FAIL: AddLayer(-1) gave 1 (want 1000000001); root 0, IsExist 0, parent 0
+  FAIL: parents 0 0, layer of A's parts 19601; want 1 1000000000 1
+  FAIL: after EraseLayer(A): layers 19602 19600, the gone root's parent 0, children 0
+  FAIL: the next layer is 1 (want 1 again), root 0, children 0
+  FAIL: parents after the ID came back: 0, B's layer 19602
+  FAIL: a stray parts numbered 1: root 0, parent 0; want no, 2
+  FAIL: the next layer is 1, want 1000000003 (the taken number 1 skipped)
+LR2 AddLayer and EraseLayer roots: FAIL
+LR2 FAILED (exit 1)
+  FAIL: the activity root's parent 0, layer 900000, the window's layer 900000; want 1
+  FAIL: the layer's children: 0, first -1; want 1, 900000
+  FAIL: active 0, 1 layers; want 1000000000, 1
+LR3 an activity on an erased layer: FAIL
+LR3 FAILED (exit 1)
+  FAIL: the window root's parent 0, GetLayerIDByParts 900000; want the layer 1
+  FAIL: after EraseLayer: IsExist 1, the root went, the activity there; want 0, gone, gone
+  FAIL: created again: IsExist 1, root 900002 (was 900000), its layer 900002 (want 1)
+LR4 CMessageWindow over EraseLayer: FAIL
+LR4 FAILED (exit 1)
+  FAIL: no warning for the stale activity parts; stderr:
+LR5 stale activity parts warning: FAIL
+LR5 FAILED (exit 1)
+LR6 engines before v14: ok
+LR7 the system overlay layer: ok
+  FAIL: a big-numbered parts: root 0, parent 0
+  FAIL: the ID section of a pushed-only stack: 0 words
+  FAIL: a root number 1 is in the save at 6
+  FAIL: a root number 1 is in the save at 50
+  FAIL: a root number 1 is in the save at 53
+  FAIL: a root number 1 is in the save at 68
+  FAIL: a root number 1 is in the save at 71
+  FAIL: a root number 1 is in the save at 89
+  FAIL: a root number 1 is in the save at 92
+  FAIL: a root number 1 is in the save at 159
+  FAIL: a root number 1 is in the save at 162
+  FAIL: a root number 1 is in the save at 177
+  FAIL: a root number 1 is in the save at 180
+  FAIL: a root number 1 is in the save at 198
+  FAIL: a root number 1 is in the save at 201
+  FAIL: a root number 1 is in the save at 268
+  FAIL: a root number 1 is in the save at 271
+  FAIL: a root number 1 is in the save at 286
+  FAIL: a root number 1 is in the save at 289
+  FAIL: a root number 1 is in the save at 307
+  FAIL: a root number 1 is in the save at 310
+  FAIL: a root number 1 is in the save at 327
+  FAIL: a root number 1 is in the save at 377
+  FAIL: a root number 1 is in the save at 380
+  FAIL: a root number 1 is in the save at 398
+  FAIL: a root number 1 is in the save at 416
+  FAIL: a root number 1 is in the save at 419
+  FAIL: a root number 1 is in the save at 436
+  FAIL: loaded: 2 layers, active 1, roots 0 0
+  FAIL: the big-numbered parts after PE_Load: there, root 0, parent 0
+  FAIL: loaded parents 0 0, A's layer 19601; want 1000000000 1 1
+  FAIL: loaded child: parent 19601, layer 19601, the layer's children 0; want 19601 1 1
+  FAIL: loaded with the section: 3 layers [0 1 2], roots 0 0
+  FAIL: parents with the section 0 0 0; want 2 1 1000000000
+  FAIL: loaded with a gap: 2 layers [0 2], c's root 0, C's parent 0
+  FAIL: a parts numbered 1000000001: root 0, parent 0; want no, 2
+  FAIL: a plain parts numbered 1000000001 after PE_Load: there, root 0, parent 0, layer 2; want there, no, 2, 2
+  FAIL: a save without the section: 2 layers [0 1], active 1, A's parent 0
+  FAIL: no warning for a save without the ID section; stderr:
+LR8 save and load: FAIL
+LR8 FAILED (exit 1)
+LR9 push and pop: ok
+  FAIL: window 0: root 900000, layer 900000 (want 1)
+  FAIL: window 1: root 900002, layer 900002 (want 1)
+  FAIL: window 0 after EraseLayer: IsExist 1, root went, activity there; want released
+  FAIL: window 1 after EraseLayer: IsExist 1, root went, activity there; want released
+LR10 two windows on one layer: FAIL
+LR10 FAILED (exit 1)
+  FAIL: under another layer's parts: parent 19603, layers 19603 19603, the old layer's children 0; want 19603, 2 2, 0
+  FAIL: the moved parts' controllers 1 1 (want 2), sprite layers 1 1 (want 2)
+  FAIL: SetParent(0) after the move: parent 0, want the new layer 2
+  FAIL: under another layer's root: parent 0, controllers 1 1, B's sprite layer 1; want 1000000000, 1000000000 1000000000, 0
+  FAIL: EraseLayer of the layer the parts were made on: A went, B went
+  FAIL: under an overlay parts: controller 0, parent 19605
+  FAIL: back under the default layer's root: controller 0, parent 19605
+LR11 parts moved between layers: FAIL
+LR11 FAILED (exit 1)
+LAYER-ROOT FAIL: 8 of 11 cases failed
+
+before 6dfbab6 layer-root (XS4_PROBE_GBK=1)
+LAYER-ROOT FAIL: 8 of 11 cases failed
+
+after layer-root at 43e5574 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+LR1 layer roots and parents: ok
+LR2 AddLayer and EraseLayer roots: ok
+LR3 an activity on an erased layer: ok
+LR4 CMessageWindow over EraseLayer: ok
+LR5 stale activity parts warning: ok
+LR6 engines before v14: ok
+LR7 the system overlay layer: ok
+LR8 save and load: ok
+LR9 push and pop: ok
+LR10 two windows on one layer: ok
+LR11 parts moved between layers: ok
+LAYER-ROOT PASS: 0 of 11 cases failed
+
+after layer-root (XS4_PROBE_GBK=1)
+LAYER-ROOT PASS: 0 of 11 cases failed
+
+
+before 6dfbab6 base-ui (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BU1 activity tree: ok
+  FAIL: the layer's ID 0 is not the number of a root parts
+BU2 parent links: FAIL
+BU2 FAILED (exit 1)
+BU3 button enable: ok
+BU4 two-slot Add/PopBack: ok
+BU5 MainEXFile.Col: ok
+BASE-UI FAIL: 1 of 5 cases failed
+
+before 6dfbab6 base-ui (XS4_PROBE_GBK=1)
+BASE-UI FAIL: 1 of 5 cases failed
+
+after base-ui at 43e5574 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BU1 activity tree: ok
+BU2 parent links: ok
+BU3 button enable: ok
+BU4 two-slot Add/PopBack: ok
+BU5 MainEXFile.Col: ok
+BASE-UI PASS: 0 of 5 cases failed
+
+after base-ui (XS4_PROBE_GBK=1)
+BASE-UI PASS: 0 of 5 cases failed
+
+
+before 6dfbab6 delegate-cursor (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DC1 handlers in order: ok
+  FAIL: A removes itself: called AC, want ABC
+DC2 a handler removes itself: FAIL
+DC2 FAILED (exit 1)
+DC3 removing an entry that is still to come: ok
+  FAIL: B removes A: called AB, want ABC
+DC4 removing another entry before the cursor: FAIL
+DC4 FAILED (exit 1)
+  FAIL: A adds D: called ABCD, want ABC
+  FAIL: A added itself (0x652210: removed, then appended): the delegate holds ABC, want BCA
+  FAIL: A removes and adds itself: called ACA, want ABC
+DC5 adding during a call: FAIL
+DC5 FAILED (exit 1)
+  FAIL: A clears the delegate and adds D, E: called AE, want A
+DC6 clearing during a call: FAIL
+DC6 FAILED (exit 1)
+  FAIL: A assigns [D, E]: called AE, want A
+DC7 assigning during a call: FAIL
+DC7 FAILED (exit 1)
+  FAIL: A's object is freed when A returns: called AC, want ABC
+  FAIL: B frees A's object: called AB, want ABC
+DC8 an object freed during a call: FAIL
+DC8 FAILED (exit 1)
+  FAIL: A calls the delegate again: called AABCBC, want AABC
+DC9 a nested call of the same delegate: FAIL
+DC9 FAILED (exit 1)
+DC10 outside a call: ok
+  FAIL: adding A again (0x652210): the delegate holds ABC, want BCA
+  FAIL: the call: called ABC, want BCA
+DC11 adding an entry that is there: FAIL
+DC11 FAILED (exit 1)
+DC12 engines before v14: ok
+  FAIL: the call is not kept in the delegate page
+DC13 the call fields: FAIL
+DC13 FAILED (exit 1)
+DELEGATE-CURSOR FAIL: 9 of 13 cases failed
+
+before 6dfbab6 delegate-cursor (XS4_PROBE_GBK=1)
+DELEGATE-CURSOR FAIL: 9 of 13 cases failed
+
+after delegate-cursor at 43e5574 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DC1 handlers in order: ok
+DC2 a handler removes itself: ok
+DC3 removing an entry that is still to come: ok
+DC4 removing another entry before the cursor: ok
+DC5 adding during a call: ok
+DC6 clearing during a call: ok
+DC7 assigning during a call: ok
+DC8 an object freed during a call: ok
+DC9 a nested call of the same delegate: ok
+DC10 outside a call: ok
+DC11 adding an entry that is there: ok
+DC12 engines before v14: ok
+DC13 the call fields: ok
+DELEGATE-CURSOR PASS: 0 of 13 cases failed
+
+after delegate-cursor (XS4_PROBE_GBK=1)
+DELEGATE-CURSOR PASS: 0 of 13 cases failed
