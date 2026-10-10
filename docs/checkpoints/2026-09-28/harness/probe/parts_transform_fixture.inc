@@ -153,9 +153,11 @@ static void pt_rotated_parent(void)
 	PT_CHECK(ri_in(C, 450, 319) == 0, "rotated: Parts_IsCursorIn(C, 450, 319) must be 0 (below the box and the turned band)");
 	/* The upper-left corner is the box's (0,0) through the matrix (0x534bb0). */
 	float ul = ri_upper_left_x(C), uly = pt_upper_left_y(C);
-	PT_CHECK(ul == 403.0f && uly == 300.0f, "rotated: Parts_GetPartsUpperLeftPos(C) = (%g,%g), want (403,300)", ul, uly);
+	/* Native 0x534c94..0x534cb3 writes floats without rounding; the
+	 * component-position integer API above retains its separate contract. */
+	PT_CHECK(PT_NEAR(ul, ax) && PT_NEAR(uly, ay), "rotated: Parts_GetPartsUpperLeftPos(C) = (%g,%g), want (%g,%g)", ul, uly, ax, ay);
 	ul = ri_upper_left_x(N);
-	PT_CHECK(ul == (float)(400 + (int)lroundf(10 * c)), "rotated: Parts_GetPartsUpperLeftPosX(N) = %g, want %d", ul, 400 + (int)lroundf(10 * c));
+	PT_CHECK(PT_NEAR(ul, 400 + 10 * c), "rotated: Parts_GetPartsUpperLeftPosX(N) = %g, want %g", ul, 400 + 10 * c);
 
 	/* The parent scaled by 0.5 as well: S then R (0x5c3ae0 builds S * R). */
 	pt_mag(P, 0.5f, 0.5f);
@@ -371,10 +373,10 @@ static void pt_drawn_colour(void)
 }
 
 /* PT6: the upper-left corner of a box that does not start at (0,0). */
-static void pt_expect_upper_left(const char *step, int n, int x, int y)
+static void pt_expect_upper_left(const char *step, int n, float x, float y)
 {
 	float ux = ri_upper_left_x(n), uy = pt_upper_left_y(n);
-	PT_CHECK(ux == (float)x && uy == (float)y, "%s: Parts_GetPartsUpperLeftPos(%d) = (%g,%g), want (%d,%d)",
+	PT_CHECK(PT_NEAR(ux, x) && PT_NEAR(uy, y), "%s: Parts_GetPartsUpperLeftPos(%d) = (%g,%g), want (%g,%g)",
 		 step, n, ux, uy, x, y);
 }
 static void pt_surface_area_corner(void)
@@ -403,7 +405,7 @@ static void pt_surface_area_corner(void)
 	pt_rot(P, 315);
 	PE_UpdateComponent(0);
 	const float q = 0.70710678f;
-	pt_expect_upper_left("rotated 315", C, (int)lroundf(300 + 10 * q - 7 * q), (int)lroundf(200 - 10 * q + 1 * q));
+	pt_expect_upper_left("rotated 315", C, 300 + 10 * q - 7 * q, 200 - 10 * q + 1 * q);
 	/* Scaled instead: the corner's offset doubles with everything else. */
 	pt_rot(P, 0); pt_mag(P, 2, 2);
 	PE_UpdateComponent(0);

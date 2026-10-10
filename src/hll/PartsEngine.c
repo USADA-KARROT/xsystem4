@@ -1852,6 +1852,7 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 }
 #include "pe_v14_gauge.h"
 #include "pe_v14_numeral.h"
+#include "pe_v14_upper_left.h"
 #include "pe_v14_backlog.h"
 #include "pe_v14_stubs.h"
 
@@ -1915,6 +1916,7 @@ static void pe_v14_register_batch(int libno)
 	static_library_register(lib, "GetLayoutBoxPaddingRight", PE_get_layoutbox_padding_right);
 	pe_v14_register_gauges(libno);
 	pe_v14_register_numerals(libno);
+	pe_v14_register_upper_left(libno);
 	pe_v14_register_backlog();
 #include "pe_v14_prelink.h"
 }

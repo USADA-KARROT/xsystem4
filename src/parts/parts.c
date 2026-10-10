@@ -722,6 +722,17 @@ Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common)
  * that corner with the parts' matrix (0x534bb0 -> 0x57b6a0), so under a flip
  * it is mirrored around the anchor like every other point of the box.
  */
+static void parts_screen_upper_left_float(struct parts *parts, struct parts_common *common,
+		float *x, float *y)
+{
+	float bx = common->hitbox.x - parts->local.pos.x - common->origin_offset.x;
+	float by = common->hitbox.y - parts->local.pos.y - common->origin_offset.y;
+	mat4 m;
+	parts_box_transform(parts, common, m);
+	*x = m[0][0] * bx + m[1][0] * by + m[3][0];
+	*y = m[0][1] * bx + m[1][1] * by + m[3][1];
+}
+
 Point parts_screen_upper_left(struct parts *parts, struct parts_common *common)
 {
 	if (ain->version < 14) {
@@ -737,12 +748,8 @@ Point parts_screen_upper_left(struct parts *parts, struct parts_common *common)
 	// The corner in the box (0 unless a surface area moves it), through the
 	// box transform: the flips mirror it around the anchor, and the scales
 	// and rotations above the parts move it as they move the drawing.
-	float bx = common->hitbox.x - parts->local.pos.x - common->origin_offset.x;
-	float by = common->hitbox.y - parts->local.pos.y - common->origin_offset.y;
-	mat4 m;
-	parts_box_transform(parts, common, m);
-	float x = m[0][0] * bx + m[1][0] * by + m[3][0];
-	float y = m[0][1] * bx + m[1][1] * by + m[3][1];
+	float x, y;
+	parts_screen_upper_left_float(parts, common, &x, &y);
 	return (Point) { (int)lroundf(x), (int)lroundf(y) };
 }
 
@@ -2768,6 +2775,23 @@ int PE_GetPartsCGDeform(int parts_no, int state)
 	// PE_SetPartsCG receives this but ignores it.
 	(void)parts_no; (void)state;
 	return 0;
+}
+
+/* v14 0x58bf80 -> 0x534bb0: read without creating a missing component,
+ * retain float precision, and write X before Y (the outputs may alias).
+ * The old integer API below deliberately keeps its existing semantics. */
+bool PE_GetPartsUpperLeftPosF(int parts_no, int state, float *x, float *y)
+{
+	if (state < 1 || state > PARTS_NR_STATES)
+		return false;
+	struct parts *parts = parts_try_get(parts_no);
+	if (!parts)
+		return false;
+	float px, py;
+	parts_screen_upper_left_float(parts, &parts->states[state - 1].common, &px, &py);
+	if (x) *x = px;
+	if (y) *y = py;
+	return true;
 }
 
 int PE_GetPartsUpperLeftPosX(int parts_no, int state)

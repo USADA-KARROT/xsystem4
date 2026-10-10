@@ -123,6 +123,7 @@ bool PE_IsSubColorMode(int parts_no);
 int PE_GetPartsWidth(int parts_no, int state);
 int PE_GetPartsHeight(int parts_no, int state);
 void PE_GetPartsSize(int parts_no, int *width, int *height, int state);
+bool PE_GetPartsUpperLeftPosF(int parts_no, int state, float *x, float *y);
 int PE_GetPartsUpperLeftPosX(int parts_no, int state);
 int PE_GetPartsUpperLeftPosY(int parts_no, int state);
 void PE_SetPartsOriginPosMode(int parts_no, int origin_pos_mode);
