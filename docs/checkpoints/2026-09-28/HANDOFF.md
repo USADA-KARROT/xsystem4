@@ -2,7 +2,17 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10：純量陣列配置與誤釋放（最新）
+## 2026-10-10：對白淡入工作快照，尚未驗收（最新）
+
+- **本次僅更新進度文件，對白修補尚未提交或推送。** 最後已推送程式仍為 `f6b6c0f`，已提交 harness 為91模式，libsys4固定247f544。不要把本段的私人工作樹測試結果當成遠端程式具備的新功能。
+- 本機第四版實作字速、逐字200ms淡入、time標記、Fix／IsFixed與NEXT完成狀態。default／GBK各92模式PASS，新增dialogue-fade十案全過、san0；獨立複審沒有未解High／Medium。已讀色、ruby／font styling、scaled-time與完整持久化不在本組。
+- 原版靜態依據：Fix 0x5956b0、IsFixed 0x5956f0、字速乘率0x4f21a3、每字alpha 0x5bd205..297、同內容與ID不重設0x4f2a60。AIN直接呼叫：SetText4、Fix1、IsFixed1、SetSpeed1、GetSpeed2。
+- 最初五案before在a2bf9b9全失敗且san0；第四版擴充到十案，**完整十案正式before、突變驗證、程式提交後驗證尚未做**。第三版的runtime registration未經selector，八案失敗；第四版已修正真實註冊路徑，不能引用第三版為PASS。
+- **Wine驗收未完成**：兩次啟動專用副本均未取得遊戲視窗，原因未確認；本次程序已停止，啟動前後真SaveData 82/82 hash相同。沒有執行解殼EXE。尚無本組原版同文字、同設定的逐字／Fix／NEXT時序並排，因此程式不得按已完成修正推送。
+- 提交前實機normal150／haruuri／fightr完整150／182／350秒，exit0、error0、無stack overflow；MSG88／629／681與上一組逐位元組相同。root看過正常對話、Day2據點、戰鬥與戰後地圖。另20秒不快進觀察看到文字逐步顯示及完成後NEXT，僅本機觀察，不代表原版時序一致。
+- GUI結果與工作樹快照保存在私人 `codex-dialogue-fade-20261010` 報告及 `codex-progress-sync`。下一手先核對11個修補檔案的manifest和patch，再補Wine、十案before與突變驗證；通過後依既定審查、提交後verify／GUI、推送雙源核對流程。原有未追蹤wraplock不要動。
+
+## 2026-10-10：純量陣列配置與誤釋放（歷史）
 
 - **程式 `f6b6c0f` 已推送、雙源確認**；提交後default／GBK各91模式PASS、san0，libsys4固定247f544。[本組研究](research/array-primitive/README.md)。
 - 原版Alloc 0x67f4a0先清空，再0x67fe20初始化；int／float／bool初值0（0x6569a9），release為no-op（0x656c50）。只接v14 operand1、rank1、具體純量頁，保留metadata；未知形狀／v13／Realloc不變。沒有新VM_ERROR或submodule更動。

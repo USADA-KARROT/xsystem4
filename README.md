@@ -1,7 +1,7 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-10）：`f6b6c0f` 修正v14純量Array.Alloc，清空舊值並避免把座標等數值當成物件參照釋放。真SetPosList探針修前失敗、修後通過；提交後預設／GBK各91模式PASS、san0，四條實機路線完整通過，原版設定頁並排確認無新增退化。程式已推送並雙源核對，libsys4維持247f544。**
+> **最新狀態（2026-10-10）：已推送程式仍為 `f6b6c0f`（純量陣列修正，預設／GBK各91模式PASS）。本機對白淡入修補各92模式PASS、獨立複審無未解High／Medium，但Wine同畫面時序驗收尚未完成，程式未提交或推送；本次只保存進度文件。libsys4維持247f544。**
 > [陣列研究](docs/checkpoints/2026-09-28/research/array-primitive/README.md) · [走位](docs/checkpoints/2026-09-28/research/upper-left/README.md) · [音訊](docs/checkpoints/2026-09-28/research/audio-init/README.md)。**仍不能當作完整遊戲使用。** 已讀字色／逐字淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出與長時穩定仍待修驗；generic enum／巢狀等Array形狀未在本組修正。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
