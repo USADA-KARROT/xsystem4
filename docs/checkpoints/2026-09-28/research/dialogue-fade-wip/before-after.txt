@@ -1,0 +1,11 @@
+Scope: uncommitted dialogue fade v4; not native-visual accepted.
+Baseline a2bf9b9: 91 modes PASS.
+Initial corrected five-case before: 5/5 failed, exit 1, sanitizer 0.
+First attempt without GL setup was an invalid test environment; excluded.
+v1: new five cases pass; text-size TS11 instantaneous-pixel assumption fails.
+TS11 now explicitly selects native-compatible speed 0; pixel assertions retained.
+v2: synthetic zero-advance glyph overlap breaks DF6; fixture spacing corrected, alpha thresholds retained.
+v3: runtime binding bypasses generic selector; 8/10 fail. Not accepted.
+v4: explicit actual-declaration binding; default/GBK 92/92 PASS; 10/10 new cases, sanitizer 0.
+Independent review v4: no unresolved High/Medium code findings.
+Pending: full ten-case formal before, mutations, Wine same-state animation comparison, code commit and post-commit validation.

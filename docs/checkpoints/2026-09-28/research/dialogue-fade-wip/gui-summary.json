@@ -1,0 +1,38 @@
+{
+  "normal150": {
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "elapsed_seconds": 150.319,
+    "matched": [],
+    "binary_sha256": "54ae1658d717c8ed86591688c036bedde5317b04235a26b122acf7982f5abcc2",
+    "msg_count": 88,
+    "msg_same_baseline": true
+  },
+  "haruuri": {
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "elapsed_seconds": 182.352,
+    "matched": [],
+    "binary_sha256": "54ae1658d717c8ed86591688c036bedde5317b04235a26b122acf7982f5abcc2",
+    "msg_count": 629,
+    "msg_same_baseline": true
+  },
+  "fightr": {
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "elapsed_seconds": 350.333,
+    "matched": [],
+    "binary_sha256": "54ae1658d717c8ed86591688c036bedde5317b04235a26b122acf7982f5abcc2",
+    "msg_count": 681,
+    "msg_same_baseline": true
+  },
+  "slow": {
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "elapsed_seconds": 20.438,
+    "matched": [],
+    "binary_sha256": "54ae1658d717c8ed86591688c036bedde5317b04235a26b122acf7982f5abcc2",
+    "msg_count": 2,
+    "msg_same_baseline": null
+  }
+}

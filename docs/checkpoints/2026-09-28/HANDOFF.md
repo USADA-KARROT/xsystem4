@@ -4,6 +4,8 @@
 
 ## 2026-10-10：對白淡入工作快照，尚未驗收（最新）
 
+可公開證據已整理至[對白淡入研究快照](research/dialogue-fade-wip/README.md)。此為Opus接手資料，程式仍留在本機待驗收。
+
 - **本次僅更新進度文件，對白修補尚未提交或推送。** 最後已推送程式仍為 `f6b6c0f`，已提交 harness 為91模式，libsys4固定247f544。不要把本段的私人工作樹測試結果當成遠端程式具備的新功能。
 - 本機第四版實作字速、逐字200ms淡入、time標記、Fix／IsFixed與NEXT完成狀態。default／GBK各92模式PASS，新增dialogue-fade十案全過、san0；獨立複審沒有未解High／Medium。已讀色、ruby／font styling、scaled-time與完整持久化不在本組。
 - 原版靜態依據：Fix 0x5956b0、IsFixed 0x5956f0、字速乘率0x4f21a3、每字alpha 0x5bd205..297、同內容與ID不重設0x4f2a60。AIN直接呼叫：SetText4、Fix1、IsFixed1、SetSpeed1、GetSpeed2。
