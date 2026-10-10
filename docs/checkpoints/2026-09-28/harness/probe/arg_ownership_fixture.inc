@@ -244,8 +244,12 @@ static void ao_join(void)
 			printf("AO1 the second Join left %d wrap box(es), %d update record(s), %d empty delegate(s), %d other\n", l.boxes,
 			       l.records, l.empty_delegates, l.other);
 			AO_CHECK(l.other == 0 && l.delegates == 0, "the second Join left %d slot(s) of another kind", l.other + l.delegates);
-			AO_CHECK(l.boxes == 25 && l.records == 4 && l.empty_delegates == 1,
-				"the known leaks of a Join are 25 boxes, 4 records and 1 empty delegate; got %d, %d and %d", l.boxes, l.records,
+			/* One record, not four, since Array.Realloc gives an element one
+			 * reference (array-construct): the three were the elements of
+			 * CallPartsUpdateEvent's local list, which Array.Copy replaced
+			 * and the extra reference kept. */
+			AO_CHECK(l.boxes == 25 && l.records == 1 && l.empty_delegates == 1,
+				"the known leaks of a Join are 25 boxes, 1 record and 1 empty delegate; got %d, %d and %d", l.boxes, l.records,
 				l.empty_delegates);
 		}
 		xl_mark();

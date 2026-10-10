@@ -16,6 +16,7 @@ static void array_literal_probe_step(void);
 static void global_init_probe_step(void);
 static void global_init_probe_return(int fno);
 static void delegate_cursor_probe_step(void);
+static void array_construct_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -50,6 +51,7 @@ static void probe_step(unsigned op) {
     array_literal_probe_step();
     global_init_probe_step();
     delegate_cursor_probe_step();
+    array_construct_probe_step();
 }
 static size_t live_slots(void) {
     size_t n=0;for(size_t i=2;i<heap_size;i++)if(HEAP_REF(i)>0)n++;return n;
@@ -151,6 +153,7 @@ static void init_probe(const char *path) {
 #include "option_member_fixture.inc"
 #include "backlog_text_fixture.inc"
 #include "key_wait_fixture.inc"
+#include "array_construct_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -225,6 +228,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"option-member"))return test_option_member();
     if(!strcmp(argv[2],"backlog-text"))return test_backlog_text();
     if(!strcmp(argv[2],"key-wait"))return test_key_wait();
+    if(!strcmp(argv[2],"array-construct"))return test_array_construct();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
