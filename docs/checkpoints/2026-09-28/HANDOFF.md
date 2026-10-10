@@ -2,7 +2,20 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10 交接：兩組做完但還沒審查的修改（最新）
+## 2026-10-10：G15 struct 陣列審查整合（最新）
+
+- **程式 `0f0af6c`、`3ab99a1` 已推送並以 ls-remote／GitHub branches API 雙源核對。** 文件另隨本節所在 commit；libsys4 固定 `247f544`。預設／GBK 各87模式 PASS、san0。研究與限制見 [array-construct](research/array-construct/README.md)。
+- 原版 Alloc `0x67f4a0` 先清空再建構；清空 `0x67ec50` 與 Realloc 縮短 `0x67f554` 逆序釋放，釋放完成前保留舊長度與尚未處理的元素。struct 預設建構 `0x679b30(struct,1)`。獨立審查三項 Medium 已結清，修正 owner 重用／FFI 回傳形狀、解構期間可觀察狀態及未知 operand 相容性。
+- 最終14案正式before：修前 `f517ca8` 12/14失敗（5份ASan UAF；san匹配數10），初版 `b63ce19` 5/14失敗、san0；修後全過。兩組完整verify及11條GUI均在主線提交後完成；各路線重錄為 `codex-g15-final-<route>-20261010`，之後用這批作比較基準，因Mob建構／循環會改變亂數消耗。
+- 背景 MobView 路人已與原版同場景並排、由主審者開圖確認；粉紅顧客走位仍未修。GUI全程錯誤／overflow0，正常150秒MSG88；fightr打完回地圖，noskip有對白及NEXT。未驗完整逐幀、亮度／速度、人數或反覆進出清理等價。
+- 重入安全界線：析構前當前格設−1、owner失效停止／null回傳、內層變更優先，是安全契約，不宣稱任意重入等同原版。非struct元素、負個數、帶填值Realloc、舊存檔未建構元素與每幀成本仍待核對。存檔沿用第9版。
+- **下一組G16**：`ee54909` 尚未合併。初審RGB CG的alpha退化已用G9在ee54909重現（1/9 fail、san0）；修訂於plan限制CG起始命令2/3/4/15/27/28，其餘保留legacyCG、first0不變。獨立複審無H/M，修後default／GBK各87PASS、G1–G9全過；提交前GUI進行中，尚未提交／推送。須依完整流程接到G15後，保留兩模式，共88模式。
+- G16倍率來源已查清：generic／DCF／PCF getter回100，CCR從cuti記錄取可變倍率。本遊戲23目標狀態的11個CG實際皆QNT、走100%；尚未支援CCR，不因此改submodule。
+- **音訊獨立修正**：Kiwi module先於gfx開裝置，SDL_AUDIO未初始化已由runtime確認；修正default／GBK各87PASS、獨立審查無H/M，尚未合主線。私人因果實驗已有CoreAudio非零PCM，不代表已做揚聲器聽測或原版音量／轉場比較。
+- **粉紅顧客**：CustomerViewSet.MoveOut依組合 `Parts_GetPartsUpperLeftPos` 計算目的地，該getter仍為空殼。原版全域矩陣／float語義與AIN呼叫已查，下一組需新探針、修前失敗、獨立審查及正確移動同場景比較。
+- 其他缺口仍依下方清單：Array.Alloc對int縮短的誤釋放、對話字色／淡入、回顧把手、設定控制項、讀檔與返回標題、地圖淡出與長時間穩定性。不要套用其他工作區的舊stash。
+
+## 2026-10-10 交接：兩組做完但還沒審查的修改（歷史，G15 已由上節接續）
 
 - **本分支停在 `04c1e3a`**，是已審查、已推送的最後一組（下一節）。預設／GBK 各86模式 PASS。
 - **另有兩組做完、驗證過、但還沒有獨立審查的修改，各在一個分支上**（基底都是 `04c1e3a`，各一個 commit）。先審查，再接到本分支（cherry-pick，不 rebase）：

@@ -1,0 +1,172 @@
+G15 array-construct：修前／修後摘要（2026-10-10）
+
+以下擷取實際探針輸出；省略重複的 linker 警告及 ASan 完整 backtrace。
+基底、fixture 版本、執行來源分開列出；A／B 是歷史 fixture，D 才是最終 14 案的正式 before-check。
+修正提交 3f65915；主線整合 0f0af6c + 3ab99a1。src/include/harness 與 3f65915 無差異。
+提交後 verify：主線 3ab99a1、diff 空，default／GBK 各 87 模式 PASS、san=0、14 案全過；最終 14 案 before-check 已補於 D。
+提交前 normal150／haruuri／fightr 已完成限時執行，詳見 gui-summary.json；完整原版畫面等價仍待驗證。
+
+=== A. 前手建構修正之前（歷史證據，非本輪重跑） ===
+src/include：04c1e3a；fixture：初版 7 案。
+原紀錄：相對 XS4_WORK 的 logs/before/array-construct.txt。
+
+  FAIL: Alloc(3) ran CASFont@0 0 time(s), want 3 (0x656a12 -> 0x679b30 with 1)
+  FAIL: element 0 (slot 13) has Size 0, want 16 (its constructor)
+  FAIL: element 0 has 2 reference(s), want 1 (the array's)
+  FAIL: Alloc(2) over 3 elements: 2 element(s), [0] is the old object with Size 99; want a new object with 16
+AC1 Alloc constructs, empties first, owns alone: FAIL
+  FAIL: Realloc(4) of 2 ran CASFont@0 0 time(s), want 2 (0x67f530)
+  FAIL: Realloc(1) of [18, 20, 22] ran 0 destructor(s), on -1, -1, -1; want 2, the last element first
+AC2 Realloc keeps, constructs the tail, releases from the back: FAIL
+AC3 a struct without a constructor gets its defaults: FAIL
+[AC4：AddressSanitizer heap-use-after-free；完整 backtrace 略]
+AC4 FAILED (signal 6)
+AC5 CASEffectKeyCancelChecker@Init: FAIL
+  FAIL: MobViewCollection@0 ran MobView@0 0, Reset 0 and Run 0 time(s); want 7 each
+  FAIL: m_views[0] has no CG parts object (m_partsCg -1): its constructor did not run
+  FAIL: m_views[0] has no m_timer (-1)
+AC6 MobViewCollection@0 makes its seven MobView: FAIL
+AC7 guards: ok
+ARRAY-CONSTRUCT FAIL: 6 of 7 cases failed
+
+=== B. 早期 13 案 before-check：未審初版 b63ce19（歷史證據） ===
+src/include：b63ce195cdc9070a05c93bc69c04eec1ee9cbcdb。
+fixture：先加入審查測例的 13 案；尚無 AC14 及 AC13 的未知 operand 子案例。
+原執行紀錄曾為相對 XS4_WORK 的 logs/before/b63ce19-array-construct.txt。
+該路徑後來被最終 14 案執行更新；本段 13 案摘錄保留於私人歷史紀錄 before-b63ce19-array-construct.txt，不代表目前該 log。
+這輪是先只改 fixture、src/include 保持乾淨，再由 before-check 執行。
+
+AC1 Alloc constructs, empties first, owns alone: ok
+AC2 Realloc keeps, constructs the tail, releases from the back: ok
+AC3 a struct without a constructor gets its defaults: ok
+  FAIL: Array.Free in a destructor under Alloc(2): 2 destructor(s), CTextReader@0 ran 0 time(s), 0 element(s); want 2, 2 and 2
+AC4 a constructor that changes its own array: FAIL
+AC5 CASEffectKeyCancelChecker@Init: ok
+AC6 MobViewCollection@0 makes its seven MobView: ok
+AC7 guards: ok
+  FAIL: EmplaceBack with owner replacement 0 returned 1 slot(s) [17, -999]; want one slot [-1]
+  FAIL: the replacement element has 2 refs; want 1
+AC8 EmplaceBack owner replacement 0: FAIL
+  FAIL: EmplaceBack with owner replacement 1 returned 2 slot(s) [11, 0]; want one slot [-1]
+  FAIL: a primitive replacement value was treated as a reference (2 refs)
+  FAIL: replacement owner has 2 refs or its pointer was overwritten; want 1 and its original pointer
+AC9 EmplaceBack owner replacement 1: FAIL
+AC10 EmplaceBack owner replacement 2: ok
+AC11 EmplaceBack owner replacement 3: ok
+  FAIL: round 0 destructor 0: object 17 saw Numof 0; want object 17 and old length 3
+  FAIL: round 0 destructor 0: pending element 0 is -1, want 12
+  FAIL: round 0 destructor 0: pending element 1 is -1, want 14
+  FAIL: round 1 destructor 0: object 18 saw Numof 2; want object 18 and old length 3
+  FAIL: round 2 destructor 0: object 17 saw Numof 1; want object 17 and old length 3
+  FAIL: round 3 destructor 0: object 18 saw Numof 0; want object 18 and old length 3
+AC12 destructors see the old length and pending elements: FAIL
+AC13 primitive and struct wrap result shapes: ok
+ARRAY-CONSTRUCT FAIL: 4 of 13 cases failed
+
+before-check 摘要：
+src/include from b63ce19
+array-construct      rc=1   san=0   ARRAY-CONSTRUCT FAIL: 4 of 13 cases failed
+restored src/include to b63ce19, dirty=0
+
+AC4 的解構子 Free 期待是依原版先清空再建構修正，沒有沿用初版「0 次建構、空陣列」的錯誤期待。
+AC12 使用只讀 Numof／其他待刪元素的合法解構子觀察，不需要 owner 失效就能重現差異。
+AC10／AC11／當時的 AC13 修前已過，保留作守衛；不能將它們列為新增失敗證據。
+
+=== C. 三項審查修正後 v2 ===
+src/include：b63ce19 加未提交修訂。
+git diff -- src include 的 SHA256：
+b6f1ff216cd607e9cd7333d3e3d41a09a4e287904c1834560a0befb5ae693421
+fixture：14 案，含 AC13 operand 0／-1 + 存活 NULL 頁及 AC14 解構子重入。
+原紀錄：相對 XS4_WORK 的 logs/codex-g15-review-fix-v2-20261010/array-construct.txt。
+
+AC1 Alloc constructs, empties first, owns alone: ok
+AC2 Realloc keeps, constructs the tail, releases from the back: ok
+AC3 a struct without a constructor gets its defaults: ok
+AC4 a constructor that changes its own array: ok
+AC5 CASEffectKeyCancelChecker@Init: ok
+AC6 MobViewCollection@0 makes its seven MobView: ok
+AC7 guards: ok
+AC8 EmplaceBack owner replacement 0: ok
+AC9 EmplaceBack owner replacement 1: ok
+AC10 EmplaceBack owner replacement 2: ok
+AC11 EmplaceBack owner replacement 3: ok
+AC12 destructors see the old length and pending elements: ok
+AC13 primitive and struct wrap result shapes: ok
+AC14 destructor mutations keep their elements and owner: ok
+ARRAY-CONSTRUCT PASS: 0 of 14 cases failed
+
+default 完整驗證：
+相對 XS4_WORK 的 logs/verify/codex-g15-review-v2-20261010/summary.txt
+tag=codex-g15-review-v2-20261010 head=b63ce19 diff_sha=b6f1ff216cd6 probe_gbk=0
+array-construct      rc=0   want=0   san=0   ok   ARRAY-CONSTRUCT PASS: 0 of 14 cases failed
+VERDICT PASS
+
+GBK 完整驗證：
+相對 XS4_WORK 的 logs/verify/codex-g15-review-v2-20261010-gbk/summary.txt
+tag=codex-g15-review-v2-20261010-gbk head=b63ce19 diff_sha=b6f1ff216cd6 probe_gbk=1
+array-construct      rc=0   want=0   san=0   ok   ARRAY-CONSTRUCT PASS: 0 of 14 cases failed
+VERDICT PASS
+
+兩份 summary 的 header 省略 AIN／libsys4 指紋；各 87 模式符合各自預期回傳碼，sanitizer 0。
+AC14 驗證的是重入安全契約，不宣稱 native 中間狀態完全相同。
+AC13 新增未知 operand 子案例由第二輪靜態複審發現；沒有為中間修訂另留一次正式 before-check，不捏造它的修前執行輸出。
+前手舊版 GUI／突變結果不在此列作 v2 驗收。
+
+=== D. 最終 14 案正式 before-check ===
+fixture：最終 AC1–AC14，包含 AC13 未知 operand 子案例與 AC14 解構子重入。
+兩輪執行者均確認已恢復來源，工作樹乾淨。
+
+主線修前 f517ca8
+來源：主線 XS4_WORK/logs/before/f517ca8-array-construct.txt
+AC1 Alloc constructs, empties first, owns alone: FAIL
+AC2 Realloc keeps, constructs the tail, releases from the back: FAIL
+AC3 a struct without a constructor gets its defaults: FAIL
+AC4 FAILED (signal 6)
+AC5 CASEffectKeyCancelChecker@Init: FAIL
+AC6 MobViewCollection@0 makes its seven MobView: FAIL
+AC7 guards: ok
+AC8 FAILED (signal 6)
+AC9 FAILED (signal 6)
+AC10 FAILED (signal 6)
+AC11 FAILED (signal 6)
+AC12 destructors see the old length and pending elements: FAIL
+AC13 primitive and struct wrap result shapes: ok
+AC14 destructor mutations keep their elements and owner: FAIL
+ARRAY-CONSTRUCT FAIL: 12 of 14 cases failed
+
+未審初版 b63ce19
+來源：G15 XS4_WORK/logs/before/b63ce19-array-construct.txt
+AC1 Alloc constructs, empties first, owns alone: ok
+AC2 Realloc keeps, constructs the tail, releases from the back: ok
+AC3 a struct without a constructor gets its defaults: ok
+AC4 a constructor that changes its own array: FAIL
+AC5 CASEffectKeyCancelChecker@Init: ok
+AC6 MobViewCollection@0 makes its seven MobView: ok
+AC7 guards: ok
+AC8 EmplaceBack owner replacement 0: FAIL
+AC9 EmplaceBack owner replacement 1: FAIL
+AC10 EmplaceBack owner replacement 2: ok
+AC11 EmplaceBack owner replacement 3: ok
+AC12 destructors see the old length and pending elements: FAIL
+AC13 primitive and struct wrap result shapes: ok
+AC14 destructor mutations keep their elements and owner: FAIL
+ARRAY-CONSTRUCT FAIL: 5 of 14 cases failed
+
+f517ca8：rc=1、12／14 失敗、san=10。ASan ERROR 5 行、SUMMARY 5 行，實際為 AC4／AC8／AC9／AC10／AC11 共 5 份 heap-use-after-free 報告；san 是關鍵字匹配數，不是 10 個獨立錯誤。AC7／AC13 通過。
+b63ce19：rc=1、5／14 失敗（AC4／AC8／AC9／AC12／AC14）、san=0。相較 B 的 13 案，新增 AC14 亦能重現未審初版缺陷；沒有把 4／13 誤寫為同一輪結果。
+
+=== E. 最終整合與 GUI ===
+修正提交：3f65915fba09c58c213ad67c5126880b38066647
+主線整合：0f0af6c952afb20e4304a785c052adc76d50c00a + 3ab99a1ee200279932e07be0516478c7ed1664f0
+git diff 3f65915 3ab99a1 -- src include docs/checkpoints/2026-09-28/harness：空，目錄內容相同。
+提交後 default／GBK verify：head=3ab99a1、diff_sha=e3b0c44298fc，各 87 模式 PASS、san=0、array-construct 14 案全過。
+最終原摘要見 verify-default.txt／verify-gbk.txt；C 的 v2 紀錄仍是提交前歷史，兩者分開。
+提交前 normal150：150.382 秒、MSG 88、PNG 40、duration、exit 0。
+提交前 haruuri：182.314 秒、MSG 629、PNG 120、duration、exit 0。
+提交前 fightr：350.217 秒、MSG 681、PNG 162、duration、exit 0、overflow 0。
+fightr MSG SHA256：3525dc699b4d6f6f4dc4068faeb2a108f12539a63026fb0f20307b7da761e748，與 baseline 逐位元組相同；主審者（root）已開 t100／t150 確認回地圖。
+三輪均為同一 precommit v2 binary；細節見 gui-summary.json，不列作最終提交後重跑。
+背景 Mob：主審者已開原版／f517ca8 修前／v2 修後並排，確認原版與修後存在該類背景路人，修前缺少；場景狀態相同但隨機角色與顧客不同。未作逐像素、速度、亮度或長時間清理等價驗證。
+粉紅顧客走位 getter 與音訊：本組未修復，不列為 G15 通過項目。
+
+主線提交後 11 條 GUI 已完整重錄，各 exit0／error0／overflow0，詳 gui-summary.json 的 postcommit_runs。程式推送經雙源核對；未宣稱完整 native 等價。

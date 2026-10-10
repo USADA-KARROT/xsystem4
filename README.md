@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-10）：`bdc181c` 讓劇情回顧有字（豎捲軸、`Array.EmplaceBack` 對 struct 跑建構子、構築命令 23 的 alpha；原版 `0x5738e0`、`0x6476e0`、`0x494420`），`6882bb6` 畫出對話視窗的 NEXT 圖示（`0x4f2370`），`ea1cc9b` 是審查後的修正（回顧不再比原版晚兩行，`0x447180`）：**劇情回顧的字與 NEXT 圖示都和原版對上**。前一日：`9fff3a1` 數字元件（戰鬥的傷害數字）、`4046d17`、`46b78f6` 變換與構築命令、`43e5574` 圖層根元件。預設／GBK 各86模式 PASS、sanitizer0。正常GUI約150秒、MSG88、assert／overflow0。**
-> [本組研究與驗證](docs/checkpoints/2026-09-28/research/backlog-text/README.md) · [數字元件與 option 成員](docs/checkpoints/2026-09-28/research/numeral/README.md) · [變換、加算色與構築命令](docs/checkpoints/2026-09-28/research/parts-transform/README.md) · [圖層根元件與 delegate 游標](docs/checkpoints/2026-09-28/research/layer-root/README.md) · [`X_ICAST` 與亂數](docs/checkpoints/2026-09-28/research/icast-shuffle/README.md)。**還不能當成遊戲來玩，畫面與原版仍有差距**（每一項都和 Wine 上的原版並排比過）：據點、春銷與回顧的背景沒有模糊；對話文字沒有已讀的顏色、沒有逐字淡入；回顧沒有捲軸把手；設定畫面的滑桿與核取方塊是空殼；讀檔不能用。做法是照原版的結構整塊盤點再補。差異清單與下一步見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)最上節。長時間穩定性尚未驗證。
+> **最新狀態（2026-10-10）：`0f0af6c`、`3ab99a1` 修正值 struct 陣列的建構、逆序釋放與重入；春銷的半透明背景路人已出現，並與 Wine 原版同場景並排確認。提交後預設／GBK 各87模式 PASS、sanitizer0；14案新探針全過，11條實機路線完整重錄、錯誤／overflow0。正常GUI 150.322秒、MSG88；穩健戰鬥路線完成戰鬥回地圖。程式已推送並雙源核對，libsys4維持247f544。**
+> [struct 陣列研究與驗證](docs/checkpoints/2026-09-28/research/array-construct/README.md) · [回顧與 NEXT](docs/checkpoints/2026-09-28/research/backlog-text/README.md)。**仍不能當作完整遊戲使用。** G16 模糊背景尚未合併；粉紅顧客的移動目的地、音訊初始化另案處理。已讀字色、逐字淡入、回顧把手、設定控制項、讀檔／返回標題與長時間穩定性仍有缺口。路人隨機角色不同，未驗逐像素、速度或亮度等價。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
