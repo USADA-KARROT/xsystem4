@@ -199,7 +199,8 @@ static struct page *array_struct_page(int slot, uint32_t seq, int no)
 	if (!heap_index_valid(slot) || heap[slot].seq != seq || heap[slot].type != VM_PAGE)
 		return NULL;
 	struct page *a = heap[slot].page;
-	if (!a || a->type != ARRAY_PAGE || a->a_type != AIN_ARRAY_STRUCT || a->array.struct_type != no)
+	if (!a || a->type != ARRAY_PAGE || a->a_type != AIN_ARRAY_STRUCT
+	    || a->array.struct_type != no || a->array.rank > 1)
 		return NULL;
 	return a;
 }
@@ -221,6 +222,11 @@ static struct page *array_struct_page(int slot, uint32_t seq, int no)
  *
  * A constructor runs in the VM and can call the Array library again, also on
  * this array, so no page pointer is kept over one:
+ *  - Removed elements are released before resizing, last to first. Their
+ *    destructors see the old length and the elements not yet released
+ *    (0x67ec70..0x67ec7d, 0x67f560..0x67f57f). Only the current element is
+ *    detached first, so a recursive Free cannot release it twice. Native
+ *    0x656c58 does not detach it: this part is a safety measure.
  *  - The resized page is in the array's heap slot before any element is
  *    constructed (as natively: a constructor sees the array at its new
  *    length). An element not constructed yet reads -1; natively it is
@@ -233,16 +239,19 @@ static struct page *array_struct_page(int slot, uint32_t seq, int no)
  *    element address it took before the constructor, 0x656a20.)
  *  - The heap slot is recognized by its allocation sequence: an array a
  *    constructor destroyed, whose slot may have been handed out again, is
- *    left alone. *array ends as whatever page the slot has, which is what
- *    hll_call writes back to it.
+ *    left alone. *array follows the surviving allocation, or is NULL if
+ *    it is gone; hll_call checks the allocation before writing it back.
+ *    EmplaceBack gets a separate result, checked against the same owner
+ *    and the constructed object's sequence after all callbacks.
  *  - Each object is owned by the array alone, one reference, as the elements
  *    of a sized X_A_INIT are. The collector frees nothing that has a
  *    reference, so the object in hand needs no root.
  *
  * Not as the original:
- *  - The removed elements are released after the new page is in place (as in
- *    array_option_resize), so a destructor sees the new array where natively
- *    it sees the old one.
+ *  - If a destructor replaces an element or shrinks past the kept prefix,
+ *    its change wins: the outer resize stops instead of overwriting it.
+ *    A nested Free during Alloc leaves an empty page, so Alloc can still
+ *    make its new elements after clearing, as 0x67f4a0 does.
  *  - An element that cannot be made fails the native call, which leaves the
  *    array empty and reports 0x7e21ac. Here it becomes the unconstructed
  *    object the older code gave; vm_construct_struct only fails for a struct
@@ -253,8 +262,10 @@ static struct page *array_struct_page(int slot, uint32_t seq, int no)
  * Returns false, and does nothing, when the call is not on such an array or
  * the array's heap slot is not known (hll_self_slot); the caller then does
  * what it did before. */
-static bool array_struct_resize(struct page **array, int numof, bool keep)
+static bool array_struct_resize(struct page **array, int numof, bool keep, int *element)
 {
+	if (element)
+		*element = -1;
 	struct page *old = *array;
 	int no = array_value_struct(old);
 	int slot = hll_self_slot;
@@ -268,25 +279,48 @@ static bool array_struct_resize(struct page **array, int numof, bool keep)
 	int kept = 0;
 	if (keep)
 		kept = old_n < numof ? old_n : numof;
+	int result = -1;
+	uint32_t result_seq = 0;
+	int nr_gone = old_n - kept;
+	struct { int slot; uint32_t seq; } *gone = nr_gone > 0 ? xmalloc(nr_gone * sizeof(*gone)) : NULL;
+	for (int i = 0; i < nr_gone; i++) {
+		gone[i].slot = old->values[kept + i].i;
+		gone[i].seq = heap_get_seq(gone[i].slot);
+	}
+	// Keep the old length, and leave the other pending elements visible.
+	// Re-entry may move the page or replace an element: own no stale pointer
+	// or extra reference across its destructor, and never delete its replacement.
+	for (int i = nr_gone - 1; i >= 0; i--) {
+		struct page *a = array_struct_page(slot, seq, no);
+		if (!a)
+			break;
+		int index = kept + i, obj = gone[i].slot;
+		if (index >= a->nr_vars || a->values[index].i != obj
+		    || (obj > 0 && heap_get_seq(obj) != gone[i].seq))
+			continue;
+		a->values[index].i = -1;
+		if (obj > 0)
+			heap_unref(obj);
+	}
+	free(gone);
+	old = array_struct_page(slot, seq, no);
+	if (!old || old->nr_vars < kept)
+		goto out;
+	// New elements placed here by a destructor belong to its inner call.
+	// Do not discard them, nor release them a second time with an old snapshot.
+	for (int i = kept; i < old->nr_vars; i++) {
+		if (old->values[i].i > 0)
+			goto out;
+	}
 	struct page *new_a = alloc_page(ARRAY_PAGE, old->a_type, numof);
 	new_a->array = old->array;
 	for (int i = 0; i < kept; i++)
 		new_a->values[i] = old->values[i];
 	for (int i = kept; i < numof; i++)
 		new_a->values[i].i = -1;
-	int nr_gone = old_n - kept;
-	int *gone = nr_gone > 0 ? xmalloc(nr_gone * sizeof(int)) : NULL;
-	for (int i = 0; i < nr_gone; i++)
-		gone[i] = old->values[kept + i].i;
 	heap[slot].page = new_a;
 	*array = new_a;
 	free_page(old);
-	// 0x67ec50, 0x67f554: from the back. A destructor can run here.
-	for (int i = nr_gone - 1; i >= 0; i--) {
-		if (gone[i] > 0)
-			heap_unref(gone[i]);
-	}
-	free(gone);
 	for (int i = kept; i < numof; i++) {
 		struct page *a = array_struct_page(slot, seq, no);
 		if (!a || i >= a->nr_vars)
@@ -301,10 +335,24 @@ static bool array_struct_resize(struct page **array, int numof, bool keep)
 		}
 		int prev = a->values[i].i;
 		a->values[i].i = obj;
+		if (element && i == numof - 1) {
+			result = obj;
+			result_seq = heap_get_seq(obj);
+		}
 		if (prev > 0)
 			heap_unref(prev);
 	}
-	*array = heap[slot].page;
+out:
+	if (element && result > 0) {
+		struct page *a = array_struct_page(slot, seq, no);
+		if (a && numof <= a->nr_vars && a->values[numof - 1].i == result
+		    && heap_index_valid(result) && heap[result].seq == result_seq)
+			*element = result;
+	}
+	// A differently shaped page in the same allocation still belongs to its
+	// inner call. Return its pointer for write-back, but never its elements.
+	*array = heap_index_valid(slot) && heap[slot].seq == seq && heap[slot].type == VM_PAGE
+		? heap[slot].page : NULL;
 	return true;
 }
 
@@ -322,7 +370,7 @@ static void Array_Alloc(struct page **array, int numof)
 		array_option_resize(array, numof, false);
 		return;
 	}
-	if (array_struct_resize(array, numof, false))
+	if (array_struct_resize(array, numof, false, NULL))
 		return;
 	struct page *old = *array;
 	int old_size = (old && old->type == ARRAY_PAGE) ? old->nr_vars : 0;
@@ -1962,7 +2010,7 @@ static void Array_Realloc(struct page **array, int new_size)
 		array_option_resize(array, new_size, true);
 		return;
 	}
-	if (array_struct_resize(array, new_size, true))
+	if (array_struct_resize(array, new_size, true, NULL))
 		return;
 	struct page *old = *array;
 	if (!old) {
@@ -2131,12 +2179,11 @@ static int Array_EmplaceBack(struct page **array)
 	}
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
-	if (array_struct_resize(array, old_size + 1, true)) {
+	int obj;
+	if (array_struct_resize(array, old_size + 1, true, &obj)) {
 		// The element is the array's; the wrap this returns holds a
 		// reference of its own. A constructor that took the element's
 		// place away leaves nothing to return.
-		a = *array;
-		int obj = (a && a->type == ARRAY_PAGE && old_size < a->nr_vars) ? a->values[old_size].i : -1;
 		if (obj <= 0)
 			return -1;
 		heap_ref(obj);

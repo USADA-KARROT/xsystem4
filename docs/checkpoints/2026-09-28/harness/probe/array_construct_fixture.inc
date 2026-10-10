@@ -33,6 +33,14 @@
  * AC7 guards: version 13, an int array, a string array, the operand of a
  *     wrap or reference element, an array without a page and a generic page
  *     all keep what they did.
+ * AC8-AC11 EmplaceBack loses its owner during construction: another struct
+ *     array, a primitive array, a string, or no allocation takes its slot.
+ *     The result stays a one-slot null wrap; replacements keep their refs.
+ * AC12 destructors only reading the array see its old length and the
+ *     elements not yet released, for Alloc and a shrinking Realloc.
+ * AC13 ordinary primitive and struct wraps keep their result slot counts.
+ * AC14 destructor re-entry keeps an inner Alloc's new elements, a Free
+ *     during Realloc, and a replacement of the owner allocation intact.
  *
  * Requires base_ui, base_ui_review, delegate_args, layer_root and
  * backlog_text fixtures. */
@@ -49,6 +57,8 @@ static struct {
 	void (*action)(void);
 	int array;
 	int seq[16], nseq;
+	bool read_array;
+	int length[16], visible[16][2];
 } ac;
 
 static void array_construct_probe_step(void)
@@ -58,8 +68,16 @@ static void array_construct_probe_step(void)
 	struct function_call *f = &call_stack[call_stack_ptr-1];
 	if (f->fno != ac.fn || instr_ptr != ac.addr)
 		return;
-	if (ac.nseq < 16)
-		ac.seq[ac.nseq++] = f->struct_page;
+	if (ac.nseq < 16) {
+		int n = ac.nseq++;
+		ac.seq[n] = f->struct_page;
+		if (ac.read_array) {
+			ac.length[n] = bu_call("Array", "Numof", 1, 2, 1, (union vm_value[]){ BU_I(ac.array) }).i;
+			struct page *a = da_live_page(ac.array) ? heap[ac.array].page : NULL;
+			for (int i = 0; i < 2; i++)
+				ac.visible[n][i] = a && i < a->nr_vars ? a->values[i].i : -1;
+		}
+	}
 	if (!ac.action)
 		return;
 	if (ac.skip > 0) {
@@ -400,13 +418,11 @@ static void ac_case_reenter(void)
 	ac_alloc(fonts, 0, 2);
 	AC_CHECK(live_slots() == live, "after the array was replaced under Alloc %zu slot(s) are live, %zu before", live_slots(), live);
 
-	/* Alloc over elements whose destructor frees the array. Natively the
-	 * array is emptied before it is made anew (0x67f4a0), so the new
-	 * elements are made all the same. Here the new page is in place while
-	 * the old elements go: the destructor empties that page, and no
-	 * element is constructed for an array that has no place for it. The
-	 * outcome is xsystem4's own; what is kept is that nothing is made in
-	 * vain and nothing is left. */
+	/* Alloc over elements whose destructor frees the array. Native Alloc
+	 * clears before making the new buffer (0x67f4a0), so the new elements
+	 * are made after that Free. Clearing the element currently being
+	 * destroyed before entering its destructor is our safety measure;
+	 * native 0x656c58 does not write -1 there. */
 	int rst = bt_struct("textfile::detail::CTextReader");
 	int rctor = ain->structures[rst].constructor, rdtor = ain->structures[rst].destructor;
 	int readers = ac_new_array(AIN_ARRAY_STRUCT, rst);
@@ -419,9 +435,10 @@ static void ac_case_reenter(void)
 	ac_alloc(readers, 2, 2);
 	int destructed = ac.nseq;
 	ac_watch(0, 0, 0, NULL);
-	AC_CHECK(destructed == 2 && calls[rctor] == made && ac_numof(readers) == 0,
-		 "Array.Free in a destructor under Alloc(2): %d destructor(s), CTextReader@0 ran %lu time(s), %d element(s); want 2, 0 and 0",
+	AC_CHECK(destructed == 2 && calls[rctor] == made + 2 && ac_numof(readers) == 2,
+		 "Array.Free in a destructor under Alloc(2): %d destructor(s), CTextReader@0 ran %lu time(s), %d element(s); want 2, 2 and 2",
 		 destructed, calls[rctor] - made, ac_numof(readers));
+	ac_alloc(readers, 0, 2);
 	AC_CHECK(live_slots() == live_r, "after it %zu slot(s) are live, %zu before", live_slots(), live_r);
 	printf("AC4 a constructor that changes its own array: %s\n", ac_failures ? "FAIL" : "ok");
 }
@@ -562,6 +579,249 @@ static void ac_case_guards(void)
 	printf("AC7 guards: %s\n", ac_failures ? "FAIL" : "ok");
 }
 
+/* Call through the real FFI without bu_call's single-result convenience:
+ * both the returned values and the number of stack slots are the contract. */
+static int ac_emplace_result(int array, int arg3, int result[2])
+{
+	int lib = bu_lib("Array"), fn = sf_find(lib, "EmplaceBack", 1), sp = stack_ptr;
+	AC_CHECK(fn >= 0, "Array.EmplaceBack is not declared");
+	if (fn < 0)
+		return 0;
+	stack_push(array);
+	hll_call(lib, fn, arg3);
+	int count = stack_ptr - sp;
+	for (int i = 0; i < 2; i++)
+		result[i] = i < count ? stack[sp + i].i : -999;
+	stack_ptr = sp;
+	return count;
+}
+
+enum ac_replacement_kind { AC_STRUCT, AC_PRIMITIVE, AC_STRING, AC_RELEASED };
+static enum ac_replacement_kind ac_replace_kind;
+static int ac_replacement, ac_replacement_value, ac_guard;
+static uint32_t ac_replacement_seq;
+static void *ac_replacement_ptr;
+
+static void ac_act_replace_owner(void)
+{
+	int target = ac.array, st = heap[target].page->array.struct_type;
+	heap_unref(target);
+	ac_replacement = -1;
+	if (ac_replace_kind == AC_RELEASED)
+		return;
+	int extra[64], n = 0;
+	while (n < 64) {
+		int s;
+		if (ac_replace_kind == AC_STRING) {
+			s = heap_alloc_string(make_string("owner replacement", 17));
+		} else {
+			s = ac_new_array(ac_replace_kind == AC_STRUCT ? AIN_ARRAY_STRUCT : AIN_ARRAY_INT,
+					 ac_replace_kind == AC_STRUCT ? st : -1);
+		}
+		if (s == target) {
+			ac_replacement = s;
+			break;
+		}
+		extra[n++] = s;
+	}
+	for (int i = 0; i < n; i++)
+		heap_unref(extra[i]);
+	if (ac_replacement < 0)
+		return;
+	if (ac_replace_kind != AC_STRING) {
+		ac_alloc(ac_replacement, 1, ac_replace_kind == AC_STRUCT ? 2 : 1);
+		if (ac_replace_kind == AC_PRIMITIVE)
+			heap[ac_replacement].page->values[0].i = ac_guard;
+		ac_replacement_value = ac_elem(ac_replacement, 0);
+	}
+	ac_replacement_seq = heap[ac_replacement].seq;
+	ac_replacement_ptr = heap[ac_replacement].page;
+}
+
+/* These deliberately invalidate the caller's owner. The native engine has
+ * no defined result for all these lifetime violations; the safety contract
+ * is a null result of the original shape, without touching a replacement. */
+static void ac_case_owner_replaced(enum ac_replacement_kind kind)
+{
+	lr_setup();
+	int st = bt_struct("CASFont"), ctor = ain->structures[st].constructor;
+	int fonts = ac_new_array(AIN_ARRAY_STRUCT, st);
+	ac_alloc(fonts, 1, 2);
+	ac_alloc(fonts, 0, 2);
+	ac_guard = vm_construct_struct(st);
+	size_t live = live_slots();
+	uint32_t owner_seq = heap[fonts].seq;
+	ac_replace_kind = kind;
+	ac_watch(ctor, fonts, 0, ac_act_replace_owner);
+	int result[2], count = ac_emplace_result(fonts, 2, result);
+	ac_watch(0, 0, 0, NULL);
+	AC_CHECK(count == 1 && result[0] == -1,
+		 "EmplaceBack with owner replacement %d returned %d slot(s) [%d, %d]; want one slot [-1]",
+		 kind, count, result[0], result[1]);
+	AC_CHECK(!ac_same(fonts, owner_seq), "the original owner allocation is still alive");
+	AC_CHECK(HEAP_REF(ac_guard) == 1, "a primitive replacement value was treated as a reference (%d refs)", HEAP_REF(ac_guard));
+	if (kind == AC_RELEASED) {
+		AC_CHECK(!heap_index_valid(fonts), "the released owner became live again");
+		AC_CHECK(live_slots() == live - 1, "released owner left %zu live slots; want %zu", live_slots(), live - 1);
+	} else {
+		bool same = ac_replacement == fonts && ac_same(fonts, ac_replacement_seq);
+		AC_CHECK(same, "the replacement allocation was lost (slot %d, wanted %d)", ac_replacement, fonts);
+		if (same) {
+			AC_CHECK(HEAP_REF(fonts) == 1 && heap[fonts].page == ac_replacement_ptr,
+				 "replacement owner has %d refs or its pointer was overwritten; want 1 and its original pointer", HEAP_REF(fonts));
+			if (kind == AC_STRING) {
+				AC_CHECK(heap[fonts].type == VM_STRING && heap[fonts].s && !strcmp(bu_str(fonts), "owner replacement"),
+					 "the replacement string was overwritten");
+			} else {
+				AC_CHECK(heap[fonts].type == VM_PAGE && ac_numof(fonts) == 1 && ac_elem(fonts, 0) == ac_replacement_value,
+					 "the replacement array's page or element was overwritten");
+				if (kind == AC_STRUCT)
+					AC_CHECK(da_live_page(ac_replacement_value) && HEAP_REF(ac_replacement_value) == 1,
+						 "the replacement element has %d refs; want 1", da_live_page(ac_replacement_value) ? HEAP_REF(ac_replacement_value) : -1);
+			}
+			/* Failed implementations may have taken an extra result ref. Do
+			 * not hide it by releasing a guessed result; this child exits. */
+			if (!ac_failures) {
+				heap_unref(fonts);
+				AC_CHECK(live_slots() == live - 1, "replacement cleanup left %zu live slots; want %zu", live_slots(), live - 1);
+			}
+		}
+	}
+	printf("AC%d EmplaceBack owner replacement %d: %s\n", 8 + kind, kind, ac_failures ? "FAIL" : "ok");
+}
+static void ac_case_owner_struct(void) { ac_case_owner_replaced(AC_STRUCT); }
+static void ac_case_owner_primitive(void) { ac_case_owner_replaced(AC_PRIMITIVE); }
+static void ac_case_owner_string(void) { ac_case_owner_replaced(AC_STRING); }
+static void ac_case_owner_released(void) { ac_case_owner_replaced(AC_RELEASED); }
+
+/* --- AC12: native observation, unlike the safety cases above --- */
+static void ac_case_destructor_observes(void)
+{
+	lr_setup();
+	int st = bt_struct("textfile::detail::CTextReader"), dtor = ain->structures[st].destructor;
+	int readers = ac_new_array(AIN_ARRAY_STRUCT, st);
+	AC_CHECK(dtor > 0, "CTextReader has no destructor");
+	if (dtor <= 0)
+		return;
+	for (int round = 0; round < 4; round++) {
+		ac_alloc(readers, 3, 2);
+		int e[3] = { ac_elem(readers, 0), ac_elem(readers, 1), ac_elem(readers, 2) };
+		ac_watch(dtor, readers, 0, NULL);
+		ac.read_array = true;
+		if (round < 2)
+			ac_alloc(readers, round == 0 ? 0 : 2, 2);
+		else
+			ac_realloc(readers, round == 2 ? 1 : 0, 2);
+		int want = round == 2 ? 2 : 3;
+		AC_CHECK(ac.nseq == want, "destructor observation round %d: %d calls, want %d", round, ac.nseq, want);
+		for (int i = 0; i < want && i < ac.nseq; i++) {
+			AC_CHECK(ac.seq[i] == e[2 - i] && ac.length[i] == 3,
+				 "round %d destructor %d: object %d saw Numof %d; want object %d and old length 3",
+				 round, i, ac.seq[i], ac.length[i], e[2 - i]);
+			/* We permit the currently dying element to be -1 for safe
+			 * recursive Free, but no earlier element may disappear yet. */
+			for (int j = 0; j < 2 - i; j++)
+				AC_CHECK(ac.visible[i][j] == e[j], "round %d destructor %d: pending element %d is %d, want %d",
+					 round, i, j, ac.visible[i][j], e[j]);
+		}
+		ac_watch(0, 0, 0, NULL);
+		ac_alloc(readers, 0, 2);
+	}
+	printf("AC12 destructors see the old length and pending elements: %s\n", ac_failures ? "FAIL" : "ok");
+}
+
+/* --- AC13 --- */
+static void ac_case_wrap_results(void)
+{
+	lr_setup();
+	enum ain_data_type primitive[] = { AIN_ARRAY_INT, AIN_ARRAY_FLOAT, AIN_ARRAY_BOOL };
+	for (int i = 0; i < 3; i++) {
+		int a = ac_new_array(primitive[i], -1), result[2];
+		int count = ac_emplace_result(a, 1, result);
+		AC_CHECK(count == 2 && result[0] == a && result[1] == 0 && ac_numof(a) == 1 && HEAP_REF(a) == 2,
+			 "primitive wrap %d: %d slots [%d, %d], %d elements, %d refs; want [%d, 0], 1 and 2",
+			 i, count, result[0], result[1], ac_numof(a), HEAP_REF(a), a);
+		if (count == 2 && result[0] == a)
+			heap_unref(a);
+		heap_unref(a);
+	}
+	/* Unknown operands keep the legacy fallback: a live owner without a
+	 * page becomes an int array, and its result is still an owning pair. */
+	for (int operand = 0; operand >= -1; operand--) {
+		int a = heap_alloc_slot(VM_PAGE), result[2];
+		heap[a].page = NULL;
+		int count = ac_emplace_result(a, operand, result);
+		AC_CHECK(count == 2 && result[0] == a && result[1] == 0 && ac_numof(a) == 1 && HEAP_REF(a) == 2
+			 && heap[a].page->a_type == AIN_ARRAY_INT,
+			 "unknown operand %d on a NULL page: %d slots [%d, %d], %d elements, %d refs; want [%d, 0], 1 and 2",
+			 operand, count, result[0], result[1], ac_numof(a), HEAP_REF(a), a);
+		if (count == 2 && result[0] == a)
+			heap_unref(a);
+		heap_unref(a);
+	}
+	int st = bt_struct("CASFont"), a = ac_new_array(AIN_ARRAY_STRUCT, st), result[2];
+	int count = ac_emplace_result(a, 2, result), obj = ac_elem(a, 0);
+	AC_CHECK(count == 1 && result[0] == obj && da_live_page(obj) && HEAP_REF(obj) == 2,
+		 "struct wrap: %d slots [%d, %d], element %d has %d refs; want one slot and 2 refs",
+		 count, result[0], result[1], obj, da_live_page(obj) ? HEAP_REF(obj) : -1);
+	if (count == 1 && result[0] == obj && da_live_page(obj))
+		heap_unref(obj);
+	heap_unref(a);
+	printf("AC13 primitive and struct wrap result shapes: %s\n", ac_failures ? "FAIL" : "ok");
+}
+
+static int ac_nested_element;
+static uint32_t ac_nested_seq;
+static void ac_act_alloc_one(void)
+{
+	ac_alloc(ac.array, 1, 2);
+	ac_nested_element = ac_elem(ac.array, 0);
+	ac_nested_seq = heap_get_seq(ac_nested_element);
+}
+
+/* --- AC14: safety under mutation, not a claim of native equivalence --- */
+static void ac_case_destructor_reenter(void)
+{
+	lr_setup();
+	int st = bt_struct("textfile::detail::CTextReader"), dtor = ain->structures[st].destructor;
+	AC_CHECK(dtor > 0, "CTextReader has no destructor");
+	if (dtor <= 0)
+		return;
+	for (int round = 0; round < 3; round++) {
+		int readers = ac_new_array(AIN_ARRAY_STRUCT, st);
+		ac_alloc(readers, 1, 2);
+		ac_alloc(readers, 0, 2);
+		size_t live = live_slots();
+		ac_alloc(readers, 3, 2);
+		uint32_t owner_seq = heap_get_seq(readers);
+		ac_watch(dtor, readers, 0, round == 0 ? ac_act_alloc_one : round == 1 ? ac_act_free : ac_act_replace);
+		if (round == 1)
+			ac_realloc(readers, 1, 2);
+		else
+			ac_alloc(readers, 2, 2);
+		int destructed = ac.nseq;
+		ac_watch(0, 0, 0, NULL);
+		AC_CHECK(destructed == 3, "destructor re-entry round %d destroyed %d objects; want the three old elements", round, destructed);
+		if (round == 0) {
+			AC_CHECK(ac_same(readers, owner_seq) && ac_numof(readers) == 1 && ac_elem(readers, 0) == ac_nested_element
+				 && ac_same(ac_nested_element, ac_nested_seq) && HEAP_REF(ac_nested_element) == 1,
+				 "Alloc inside a destructor lost or overwrote its new element");
+		} else if (round == 1) {
+			AC_CHECK(ac_same(readers, owner_seq) && ac_numof(readers) == 0, "Free inside Realloc did not leave the array empty");
+		} else {
+			AC_CHECK(ac_other == readers && !ac_same(readers, owner_seq) && ac_numof(readers) == 2
+				 && ac_elem(readers, 0) == ac_other_elem[0] && ac_elem(readers, 1) == ac_other_elem[1]
+				 && HEAP_REF(readers) == 1 && HEAP_REF(ac_other_elem[0]) == 1 && HEAP_REF(ac_other_elem[1]) == 1,
+				 "the replacement owner or its elements were overwritten or retained by the outer Alloc");
+		}
+		if (!ac_failures) {
+			heap_unref(readers);
+			AC_CHECK(live_slots() == live - 1, "destructor re-entry round %d left %zu live slots; want %zu", round, live_slots(), live - 1);
+		}
+	}
+	printf("AC14 destructor mutations keep their elements and owner: %s\n", ac_failures ? "FAIL" : "ok");
+}
+
 static int ac_fork(const char *name, void (*fn)(void))
 {
 	fflush(stdout);
@@ -587,6 +847,10 @@ static int test_array_construct(void)
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
 		{ "AC1", ac_case_alloc }, { "AC2", ac_case_realloc }, { "AC3", ac_case_plain }, { "AC4", ac_case_reenter },
 		{ "AC5", ac_case_key_cancel }, { "AC6", ac_case_mob }, { "AC7", ac_case_guards },
+		{ "AC8", ac_case_owner_struct }, { "AC9", ac_case_owner_primitive },
+		{ "AC10", ac_case_owner_string }, { "AC11", ac_case_owner_released },
+		{ "AC12", ac_case_destructor_observes }, { "AC13", ac_case_wrap_results },
+		{ "AC14", ac_case_destructor_reenter },
 	};
 	int failed = 0, n = sizeof(cases) / sizeof(cases[0]);
 	for (int i = 0; i < n; i++)

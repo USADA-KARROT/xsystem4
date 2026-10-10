@@ -414,6 +414,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 	// reallocation during HLL calls.
 	void *heap_ptrs[HLL_MAX_ARGS];
 	int heap_slots[HLL_MAX_ARGS];
+	uint32_t array_seqs[HLL_MAX_ARGS];
 	// (wrap_pagenos/wrap_varnos removed — AIN_WRAP is 1-slot)
 	// HLL functions may call the VM, which can enter another HLL function.
 	// Keep this call's metadata active through argument cleanup and return
@@ -644,6 +645,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 				heap_slots[i] = -1;
 				heap_ptrs[i] = NULL;
 			}
+			array_seqs[i] = heap_get_seq(heap_slots[i]);
 			ptrs[i] = &heap_ptrs[i];
 			args[i] = &ptrs[i];
 			break;
@@ -716,6 +718,28 @@ void hll_call(int libno, int fno, int hll_arg3)
 	if (have_args_copy && args_nslots > 0)
 		memcpy(args_copy, &stack[args_base], sizeof(args_copy[0]) * args_nslots);
 
+	// Fix EmplaceBack's result shape before its constructor can re-enter the
+	// VM. CALLHLL's known type operands are 1 for a primitive and 2 for an
+	// object. Unknown operands keep the old post-call page-based decision
+	// only when the original allocation survives; a replacement never decides
+	// the result shape. Keep its initial shape for an owner that goes away.
+	bool emplace_value_wrap = false, emplace_unknown_wrap = false;
+	int emplace_slot = hll_self_slot, emplace_index = 0;
+	uint32_t emplace_seq = heap_get_seq(emplace_slot);
+	if (ain->version >= 14 && f->return_type.data == AIN_WRAP
+	    && !strcmp(ain->libraries[libno].name, "Array") && !strcmp(f->name, "EmplaceBack")) {
+		struct page *a = page_index_valid(emplace_slot) ? heap[emplace_slot].page : NULL;
+		if (a && a->type == ARRAY_PAGE) {
+			emplace_index = a->nr_vars;
+			emplace_value_wrap = a->a_type == AIN_ARRAY_INT || a->a_type == AIN_ARRAY_FLOAT
+				|| a->a_type == AIN_ARRAY_BOOL;
+		}
+		if (hll_arg3 == 1 || hll_arg3 == 2)
+			emplace_value_wrap = hll_arg3 == 1;
+		else
+			emplace_unknown_wrap = true;
+	}
+
 	union vm_value r;
 
 #ifdef TRACE_HLL
@@ -773,8 +797,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 			}
 			break;
 		case AIN_REF_ARRAY: {
-			// v14: 1-slot — write back directly to heap slot
-			if (heap_slots[i] > 0 && (size_t)heap_slots[i] < heap_size) {
+			// The call may have released this owner and allocated something
+			// else in its slot. Never write its local page pointer to that object.
+			if (heap_slots[i] > 0 && page_index_valid(heap_slots[i])
+			    && heap[heap_slots[i]].seq == array_seqs[i]) {
 				heap[heap_slots[i]].page = heap_ptrs[i];
 			}
 			break;
@@ -810,23 +836,35 @@ void hll_call(int libno, int fno, int hll_arg3)
 		// Read the low byte and normalize to 0/1.
 		stack_push((int)(*(uint8_t*)&r != 0));
 		break;
-	case AIN_WRAP:
+	case AIN_WRAP: {
 		// EmplaceBack returns a writable element reference. Primitive elements
 		// use (array slot, index), while reference elements use their heap slot.
-		if (ain->version >= 14 && !strcmp(ain->libraries[libno].name, "Array")
-		    && !strcmp(f->name, "EmplaceBack") && hll_self_slot > 0
-		    && heap_index_valid(hll_self_slot) && heap[hll_self_slot].page) {
-			struct page *array = heap[hll_self_slot].page;
-			if (array->a_type == AIN_ARRAY_INT || array->a_type == AIN_ARRAY_FLOAT
-			    || array->a_type == AIN_ARRAY_BOOL) {
-				heap_ref(hll_self_slot); // owning wrap result, released by bytecode DELETE
-				stack_push(hll_self_slot);
-				stack_push(array->nr_vars - 1);
-				break;
+		struct page *a = (emplace_value_wrap || emplace_unknown_wrap) && emplace_slot > 0
+			&& page_index_valid(emplace_slot) && heap[emplace_slot].seq == emplace_seq
+			? heap[emplace_slot].page : NULL;
+		if (emplace_unknown_wrap && a && a->type == ARRAY_PAGE) {
+			// An initially NULL page becomes an int array in the legacy
+			// fallback. Preserve its two-slot wrap and last-element index.
+			emplace_value_wrap = a->a_type == AIN_ARRAY_INT || a->a_type == AIN_ARRAY_FLOAT
+				|| a->a_type == AIN_ARRAY_BOOL;
+			emplace_index = a->nr_vars - 1;
+		}
+		if (emplace_value_wrap) {
+			if (a && a->type == ARRAY_PAGE
+			    && (emplace_unknown_wrap || (r.i >= 0 && emplace_index >= 0 && emplace_index < a->nr_vars))
+			    && (a->a_type == AIN_ARRAY_INT || a->a_type == AIN_ARRAY_FLOAT || a->a_type == AIN_ARRAY_BOOL)) {
+				heap_ref(emplace_slot); // owning wrap result, released by bytecode DELETE
+				stack_push(emplace_slot);
+				stack_push(emplace_index);
+			} else {
+				stack_push(-1);
+				stack_push(-1);
 			}
+			break;
 		}
 		stack_push(r);
 		break;
+	}
 	case AIN_REF_HLL_PARAM:
 		// v14: The HLL function has already pushed the return value(s) directly
 		// to the stack. Do NOT push the C return value here.
