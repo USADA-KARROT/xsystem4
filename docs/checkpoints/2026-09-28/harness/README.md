@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 90 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 91 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
 RUN_FROM_TITLE=1 RUN_AUTO_CLICK_SEQ="4000,640,700;8000,640,700;14000,152,130" RUN_CLICK_TRACE=1 RUN_SHOTS=9000,500,60 \
@@ -151,3 +151,5 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
   沒有守著的：真 CG（QNT／WebP）的載入與 1280x720 的耗時由 GUI 確認；命令 2 的縮放（`0x50ac80` 對兩個倍率不是 100 的 CG 會縮放）沒有實作。
 
 - `probe/parts_upper_left_fixture.inc`：`parts-upper-left`，六案：真HLL六槽float輸出與別名、原點整數半值後的浮點變換、旋轉／翻轉原始角點、未知元件不建立及各state尺寸、真AFL wrapper與三店目的地公式、scalar X的v13／未知回傳型別／arity fallback守衛。組合及Y的未知形狀主要由靜態審查核對。無GL／資產；legacy int rounding守衛。只驗預設2D camera，非法state為安全守衛，完整camera／投影與Motion時間另需實機驗證。
+
+- `probe/array_primitive_fixture.inc`：`array-primitive`（2026-10-10）。v14精確operand1／rank1的具體int、float、bool頁：Alloc清空並初始化0，從不把值當heap參照（原版0x67f4a0／0x6569a9／0x656c50）。7案涵蓋縮短／等長／擴大／空、ref容器、Realloc保留、v13與未知operand／generic／rank守衛，以及真`CASConstructionProcess@SetPosList`從3點縮成1點。測試參數合成，正常GUI是否實際縮短未證；bool非0/1位元型樣用來偵測誤釋放，不宣稱遊戲會產生該值。AC7與option-array G1的int Alloc舊保留斷言同步改為原版清零，Realloc仍須保留。負長度、generic enum、巢狀與其他元素保留既有行為。

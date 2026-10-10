@@ -126,8 +126,8 @@ static void array_elem_extra(int *value, int extra[2])
  * heap[offset] for an offset X_OP_SET stored before, never one too few.
  *
  * These do not follow that layout and still treat a multi-slot page slot by
- * slot: Array_Alloc for a non-option element (shrinking releases every slot
- * above 0, and it reads the page's struct_type, a stride there, as a struct
+ * slot: Array_Alloc outside its known option/struct/primitive paths
+ * (shrinking releases every slot above 0, and it reads the page's struct_type, a stride there, as a struct
  * index), Array_Realloc for a non-option element (shrinking releases
  * nothing), Array_ShallowCopy (no reference for a generic page, though the
  * copy's teardown releases the first slots), Array_Duplicate and
@@ -356,6 +356,34 @@ out:
 	return true;
 }
 
+// Native Alloc (0x67f4a0) clears before initializing (0x67fe20).
+// int/float/bool defaults are zero (0x6569a9), and their release is a
+// no-op (0x656c50): even positive bits are never heap references.
+// Operand 1 alone is insufficient (it also occurs on nested arrays).
+static bool array_primitive_alloc(struct page **array, int numof)
+{
+	struct page *old = *array;
+	if (ain->version < 14 || hll_current_arg3 != 1 || !old
+	    || old->type != ARRAY_PAGE || old->array.rank != 1
+	    || old->array.elem_slots > 1)
+		return false;
+	switch (old->a_type) {
+	case AIN_ARRAY_INT: case AIN_REF_ARRAY_INT:
+	case AIN_ARRAY_FLOAT: case AIN_REF_ARRAY_FLOAT:
+	case AIN_ARRAY_BOOL: case AIN_REF_ARRAY_BOOL:
+		break;
+	default:
+		return false;
+	}
+	struct page *new_a = alloc_page(ARRAY_PAGE, old->a_type, numof);
+	new_a->array = old->array;
+	for (int i = 0; i < numof; i++)
+		new_a->values[i].i = 0;
+	free_page(old);
+	*array = new_a;
+	return true;
+}
+
 // Alloc: allocate/resize an array.
 // An array of value structs (v14) is emptied and made of newly constructed
 // objects, as the original does: array_struct_resize.
@@ -365,6 +393,8 @@ out:
 static void Array_Alloc(struct page **array, int numof)
 {
 	if (!array || numof < 0)
+		return;
+	if (array_primitive_alloc(array, numof))
 		return;
 	if (array_elem_is_option()) {
 		array_option_resize(array, numof, false);

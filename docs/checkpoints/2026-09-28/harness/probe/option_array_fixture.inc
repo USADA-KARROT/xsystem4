@@ -1041,7 +1041,9 @@ static void oa_insert(void)
  * values) and the references of the named objects. The lines are compared
  * with this table, recorded on 57e98af before the change. It pins what
  * xsystem4 does, not the original: Alloc on a wrap array, for one, keeps
- * the old element and constructs an object ("[A obj]"). */
+ * the old element and constructs an object ("[A obj]"). The primitive
+ * Alloc line was corrected to zero on 2026-10-10 (native 0x67f4a0,
+ * 0x6569a9); the other entries still pin the earlier behavior. */
 static const char *const oa_g1_want[] = {
 	"int PushBack#0 left=0 type=14 meta=-1 n=1 [5]",
 	"int Add#0 left=0 type=14 meta=-1 n=2 [5 7]",
@@ -1053,7 +1055,7 @@ static const char *const oa_g1_want[] = {
 	"int Erase#0 left=1 1 type=14 meta=-1 n=2 [9 7]",
 	"int PopBack#0 left=0 type=14 meta=-1 n=1 [9]",
 	"int Realloc#0 left=0 type=14 meta=-1 n=3 [9 0 0]",
-	"int Alloc#0 left=0 type=14 meta=-1 n=2 [9 0]",
+	"int Alloc#0 left=0 type=14 meta=-1 n=2 [0 0]",
 	"int Free#0 left=0 type=14 meta=-1 n=0 []",
 	"string PushBack#0 left=0 type=16 meta=-1 n=1 [A] A:2 B:1",
 	"string Add#0 left=0 type=16 meta=-1 n=2 [A B] A:2 B:2",
@@ -1240,7 +1242,7 @@ static void oa_guard_operands(void)
 	OA_CHECK(HEAP_REF(oa_named[0]) == 1 && HEAP_REF(oa_named[1]) == 1 && HEAP_REF(oa_named[2]) == 1, "interface references are not back to 1");
 	OA_CHECK(oa_g1_i == (int)(sizeof(oa_g1_want) / sizeof(oa_g1_want[0])), "G1 ran %d step(s), the table has %zu",
 		oa_g1_i, sizeof(oa_g1_want) / sizeof(oa_g1_want[0]));
-	printf("  G1 operands 1, 2, 0x10002 and 0x10003: %d steps match the lines recorded before the change\n", oa_g1_i);
+	printf("  G1 operands 1, 2, 0x10002 and 0x10003: %d steps match the compatibility table\n", oa_g1_i);
 }
 
 static void oa_guard_legacy(void)

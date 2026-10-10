@@ -30,7 +30,7 @@
  * AC5 the game's own bytecode: CASEffectKeyCancelChecker@Init (Alloc 14).
  * AC6 the game's own bytecode: MobViewCollection@0 (Alloc 7 of MobView,
  *     whose constructor makes a CG parts and starts its walk).
- * AC7 guards: version 13, an int array, a string array, the operand of a
+ * AC7 guards: version 13, a string array, the operand of a
  *     wrap or reference element, an array without a page and a generic page
  *     all keep what they did.
  * AC8-AC11 EmplaceBack loses its owner during construction: another struct
@@ -520,16 +520,18 @@ static void ac_case_guards(void)
 		 && ac_member(ac_elem(fonts, 2), size_m) == 0,
 		 "v13 Alloc(2), Realloc(3): %d element(s), [0] %d (was %d), CASFont@0 ran %lu time(s), Sizes %d and %d; want the old element, 0 and 0",
 		 ac_numof(fonts), ac_elem(fonts, 0), e0, calls[ctor] - made, ac_member(ac_elem(fonts, 1), size_m), ac_member(ac_elem(fonts, 2), size_m));
-	/* an int array keeps its values over Alloc and Realloc, as before */
+	/* Realloc keeps primitive values; Alloc resets them (0x67f4a0). */
 	int ints = ac_new_array(AIN_ARRAY_INT, -1);
 	ac_alloc(ints, 3, 1);
 	for (int i = 0; i < 3 && i < ac_numof(ints); i++)
 		heap[ints].page->values[i].i = 5 + i;
 	ac_realloc(ints, 5, 1);
+	AC_CHECK(ac_elem(ints, 0) == 5 && ac_elem(ints, 2) == 7 && ac_elem(ints, 4) == 0,
+		 "primitive Realloc did not retain its prefix");
 	ac_alloc(ints, 6, 1);
-	AC_CHECK(ac_numof(ints) == 6 && ac_elem(ints, 0) == 5 && ac_elem(ints, 2) == 7 && ac_elem(ints, 3) == 0 && ac_elem(ints, 5) == 0
+	AC_CHECK(ac_numof(ints) == 6 && ac_elem(ints, 0) == 0 && ac_elem(ints, 2) == 0 && ac_elem(ints, 3) == 0 && ac_elem(ints, 5) == 0
 		 && heap[ints].page->a_type == AIN_ARRAY_INT,
-		 "an int array after Realloc(5), Alloc(6): %d element(s) [%d, .., %d, %d, .., %d]; want 5, 7, 0, 0", ac_numof(ints), ac_elem(ints, 0),
+		 "an int array after Realloc(5), Alloc(6): %d element(s) [%d, .., %d, %d, .., %d]; want 0, 0, 0, 0", ac_numof(ints), ac_elem(ints, 0),
 		 ac_elem(ints, 2), ac_elem(ints, 3), ac_elem(ints, 5));
 	/* a string array has operand 2 as well: no struct is made of it */
 	int strs = ac_new_array(AIN_ARRAY_STRING, -1);
