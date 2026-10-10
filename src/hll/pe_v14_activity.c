@@ -1062,6 +1062,24 @@ static struct pactex_cp_step *pactex_construction_plan(struct ex_tree *state, in
 			free(steps);
 			return NULL;
 		}
+		if (steps[0].command == PACTEX_CP_CREATE_CG) {
+			/* CG textures do not preserve whether the source had an alpha
+			 * channel. Native FillAMap skips RGB surfaces (0x4fc378), so
+			 * keep the legacy CG for plans whose channel semantics we
+			 * cannot reproduce. Reject the whole plan before building it. */
+			switch (steps[i].command) {
+			case PACTEX_CP_CREATE_CG:
+			case PACTEX_CP_FILL:
+			case PACTEX_CP_BLEND_FILL:
+			case PACTEX_CP_GRAY_SCALE:
+			case PACTEX_CP_BLUR_H:
+			case PACTEX_CP_BLUR_V:
+				break;
+			default:
+				free(steps);
+				return NULL;
+			}
+		}
 	}
 	*nr_steps = list->nr_children;
 	return steps;

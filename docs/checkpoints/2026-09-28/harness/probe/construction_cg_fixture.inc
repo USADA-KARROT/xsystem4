@@ -54,6 +54,14 @@
  *   G8 the new operations with numbers at the ends of int: nothing outside
  *       the surface is touched, a rectangle from far outside is the clipped
  *       one, an alpha outside 0..255 blends nothing; saved and loaded.
+ *   G9 the CG-start acceptance boundary: an RGB CG followed by command 5
+ *       with alpha 0 must keep the opaque legacy CG. Native 0x4fc378 tests
+ *       the alpha channel and 0x4fc400 returns success without writing when
+ *       there is none (it skips this command, not the rest of the plan).
+ *       Other commands outside the checked CG set 2/3/4/15/27/28 also keep
+ *       the legacy fallback, even after a supported prefix; their native
+ *       alpha semantics are not asserted here. First-0 states retain the
+ *       existing acceptance of these commands; 5/6 still write alpha 0.
  * Functions the fix adds are reached by dlsym, so the file builds before
  * the fix.
  */
@@ -809,20 +817,88 @@ CG_CASE(cg_extremes)
 	printf("G8 checked\n");
 }
 
+/* --- G9 --- */
+static const struct cg_step cg_rgb_alpha_zero[] = {
+	CG_NAMED(CGN_FLAT), { .cmd = 5, .full = 1, .color = { 0, 0, 0, 0 } },
+};
+
+CG_CASE(cg_acceptance)
+{
+	/* These commands are supported after first-0, but were not checked for
+	 * the source-channel semantics of first-2. This is a conservative loader
+	 * boundary, not a claim that all of them skip a surface without alpha. */
+	static const int excluded[] = { 5, 6, 25, 26, 102, 122, 129 };
+	enum { NR = sizeof excluded / sizeof excluded[0] };
+	char cg_names[NR][32], create_names[NR][32];
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("ConstructionCgAcceptance", 1 + 2 * NR, &kids);
+	kids->children[0] = cg_parts("RgbAlphaZero", CG_N(cg_rgb_alpha_zero));
+	for (int i = 0; i < NR; i++) {
+		snprintf(cg_names[i], sizeof cg_names[i], "CgThen%d", excluded[i]);
+		snprintf(create_names[i], sizeof create_names[i], "CreateThen%d", excluded[i]);
+		struct cg_step target = {
+			.cmd = excluded[i], .cg = CGN_FLAT, .full = 1, .color = { 9, 8, 7, 0 },
+		};
+		struct cg_step from_cg[] = { CG_NAMED(CGN_FLAT), CG_FILL(32, 95, 255), target };
+		struct cg_step from_create[] = {
+			CG_CREATE(4, 2), { .cmd = 6, .full = 1, .color = { 10, 200, 255, 255 } }, target,
+		};
+		kids->children[1 + i] = cg_parts(cg_names[i], CG_N(from_cg));
+		kids->children[1 + NR + i] = cg_parts(create_names[i], CG_N(from_create));
+	}
+	int act = cn_load("ConstructionCgAcceptance", e);
+	int minimal = cn_no(act, "RgbAlphaZero"), cg_no[NR], create_no[NR];
+	for (int i = 0; i < NR; i++) {
+		cg_no[i] = cn_no(act, cg_names[i]);
+		create_no[i] = cn_no(act, create_names[i]);
+	}
+	heap_unref(act);
+
+	/* Native command 5 is a no-op on RGB. Until the construction path can
+	 * preserve this channel distinction, reject the plan and retain the CG. */
+	CG_CHECK(!cg_built(minimal), "G9: RGB (2, 5 alpha=0) was built instead of keeping its CG");
+	uint8_t *got = cg_state_pixels(minimal, 4, 2, "G9 RGB (2, 5 alpha=0) fallback");
+	cc_compare(got, 4, 2, cg_src[CG_FLAT].px, "G9 RGB (2, 5 alpha=0) fallback");
+
+	for (int i = 0; i < NR; i++) {
+		char what[96];
+		snprintf(what, sizeof what, "G9 (2, 3, %d) legacy fallback", excluded[i]);
+		CG_CHECK(!cg_built(cg_no[i]), "%s was built", what);
+		/* The original CG, not the partially applied command-3 prefix. */
+		cc_compare(cg_state_pixels(cg_no[i], 4, 2, what), 4, 2, cg_src[CG_FLAT].px, what);
+
+		struct parts *p = parts_try_get(create_no[i]);
+		CG_CHECK(cg_built(create_no[i]) && p && cn_nr_ops(p) == 3,
+			 "G9: first-0 command %d lost its existing three-operation construction", excluded[i]);
+		if (excluded[i] == 5 || excluded[i] == 6) {
+			snprintf(what, sizeof what, "G9 first-0 command %d alpha=0", excluded[i]);
+			uint8_t model[4 * 2 * 4];
+			for (int j = 0; j < 8; j++) {
+				model[j * 4] = excluded[i] == 5 ? 10 : 9;
+				model[j * 4 + 1] = excluded[i] == 5 ? 200 : 8;
+				model[j * 4 + 2] = excluded[i] == 5 ? 255 : 7;
+				model[j * 4 + 3] = 0;
+			}
+			cg_expect(create_no[i], 4, 2, model, what);
+		}
+	}
+	printf("G9 checked\n");
+}
+
 static int test_construction_cg(void)
 {
-	void (*cases[])(void) = { cg_surface, cg_blurs, cg_blend, cg_grays, cg_unbuilt, cg_save, cg_v13, cg_extremes };
-	const char *names[] = { "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8" };
+	void (*cases[])(void) = { cg_surface, cg_blurs, cg_blend, cg_grays, cg_unbuilt, cg_save, cg_v13, cg_extremes, cg_acceptance };
+	const char *names[] = { "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9" };
 	int failed = 0, env = 0;
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 9; i++) {
 		int r = cn_fork_case(names[i], cases[i], &cg_failures);
 		failed += r == 1;
 		env += r == 2;
 	}
 	if (env) {
-		printf("CONSTRUCTION-CG ENVIRONMENT FAILURE: %d of 8 cases could not run, %d failed\n", env, failed);
+		printf("CONSTRUCTION-CG ENVIRONMENT FAILURE: %d of 9 cases could not run, %d failed\n", env, failed);
 		return 2;
 	}
-	printf("CONSTRUCTION-CG %s: %d of 8 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	printf("CONSTRUCTION-CG %s: %d of 9 cases failed\n", failed ? "FAIL" : "PASS", failed);
 	return failed ? 1 : 0;
 }
