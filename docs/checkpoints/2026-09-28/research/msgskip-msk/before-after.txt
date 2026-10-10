@@ -1,0 +1,87 @@
+before c40182c msgskip-msk (default rule; 14 FAIL lines)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+== M1 new table byte for byte
+  FAIL mk_expect:157: MsgSkip.msk was not written
+M1 new table byte for byte                           FAIL (exit 1)
+== M2 read, round trip, one more flag
+  FAIL mk2_read_roundtrip:346: flags 3..20 not read
+M2 read, round trip, one more flag                   FAIL (exit 1)
+== M3 files that must not be loaded
+  FAIL mk_expect:164: MsgSkip.msk differs at offset 2: 0x58, want 0x4b
+  (magic MSX)
+M3 files that must not be loaded                     FAIL (exit 1)
+== M4 size mismatches that still load
+  FAIL mk4_size_mismatch:509: the leading part of a smaller table was not read
+M4 size mismatches that still load                   FAIL (exit 1)
+== M5 partial reads
+  FAIL mk_expect:164: MsgSkip.msk differs at offset 17: 0x00, want 0x18
+  (tag before a zero table size)
+M5 partial reads                                     FAIL (exit 1)
+== M6 ADV flags
+  FAIL mk6_adv:668: steps up to the recorded one are not read
+M6 ADV flags                                         FAIL (exit 1)
+== M7 accessors for engine code
+  FAIL mk7_accessors:713: msgskip_get_flag / msgskip_get_adv_flag are missing
+M7 accessors for engine code                         FAIL (exit 1)
+== M8 a failed write keeps the previous file
+  FAIL mk8_failed_write:739: the fixture file was not read
+M8 a failed write keeps the previous file            FAIL (exit 1)
+== M9 guard: AIN v13 keeps the old format
+  FAIL mk_expect:164: MsgSkip.asd differs at offset 5: 0x18, want 0x1c
+M9 guard: AIN v13 keeps the old format               FAIL (exit 1)
+== M10 guard: a library that declares Init
+  FAIL mk_expect:157: Skip.asd was not written
+M10 guard: a library that declares Init              FAIL (exit 1)
+== M11 vm_exit writes the file
+  FAIL mk_expect:157: MsgSkip.msk was not written
+M11 vm_exit writes the file                          FAIL (exit 1)
+== M12 vm_reset writes and reloads
+  FAIL mk_expect:157: MsgSkip.msk was not written
+M12 vm_reset writes and reloads                      FAIL (exit 1)
+== M13 guard: only the known declaration is linked
+  FAIL mk13_shape_guard:1003: the original declarations were not linked
+M13 guard: only the known declaration is linked      FAIL (exit 1)
+== M14 system.Reset writes and keeps the table
+  FAIL mk_expect:157: MsgSkip.msk was not written
+M14 system.Reset writes and keeps the table          FAIL (exit 1)
+MSGSKIP-MSK FAIL: 14 of 14 cases failed
+
+before c40182c msgskip-msk (XS4_PROBE_GBK=1)
+MSGSKIP-MSK FAIL: 14 of 14 cases failed
+
+after msgskip-msk at 4682a89 (default rule; the engine's MsgSkip notice lines are left out)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+== M1 new table byte for byte
+  7213 bytes: 17 header + 7192 table + 4 ADV count
+M1 new table byte for byte                           PASS
+== M2 read, round trip, one more flag
+M2 read, round trip, one more flag                   PASS
+== M3 files that must not be loaded
+  14 files not loaded and replaced by an empty table
+M3 files that must not be loaded                     PASS
+== M4 size mismatches that still load
+M4 size mismatches that still load                   PASS
+== M5 partial reads
+M5 partial reads                                     PASS
+== M6 ADV flags
+M6 ADV flags                                         PASS
+== M7 accessors for engine code
+M7 accessors for engine code                         PASS
+== M8 a failed write keeps the previous file
+M8 a failed write keeps the previous file            PASS
+== M9 guard: AIN v13 keeps the old format
+M9 guard: AIN v13 keeps the old format               PASS
+== M10 guard: a library that declares Init
+M10 guard: a library that declares Init              PASS
+== M11 vm_exit writes the file
+M11 vm_exit writes the file                          PASS
+== M12 vm_reset writes and reloads
+M12 vm_reset writes and reloads                      PASS
+== M13 guard: only the known declaration is linked
+M13 guard: only the known declaration is linked      PASS
+== M14 system.Reset writes and keeps the table
+M14 system.Reset writes and keeps the table          PASS
+MSGSKIP-MSK PASS: 0 of 14 cases failed
+
+after msgskip-msk at 4682a89 (XS4_PROBE_GBK=1)
+MSGSKIP-MSK PASS: 0 of 14 cases failed

@@ -14,7 +14,7 @@
 
 AIN只有一個兩引數Alloc宣告，直接呼叫64處：operand1 19處、2 32處、0x10002 3處、0x30002 9處、0x30003 1處。operand1的宣告形狀為int9、float6、bool2、enum1、array<int>1；巢狀陣列不可只憑operand1判成純量。Realloc有兩/三引數宣告，13個直接call全部呼兩引數版本：operand1 1處、2 10處、0x10002 1處、0x10003 1處；填值版本沒有直接call。不包含間接/動態派送的推算。
 
-本組保留v13、未知operand、無頁、generic與多槽／多維形狀的舊行為。GameContext的enum陣列有generic表示的界線，未藉本組修正；負個數仍no-op（原版清空），string、nested、wrap與非option Realloc的其他釋放缺口亦未修。不能稱完整Array相容。
+本組保留v13、未知operand、無頁、generic與多槽／多維形狀的舊行為。enum陣列其實已在本組範圍內：唯一的enum Alloc呼叫點 `GameContext@0` 先跑初始化器 `GameContext@2`，`X_A_INIT` 把enum元素與int、bool一樣建成具體int頁（`src/vm.c`），隨後operand 1的Alloc走新路徑（探針AP8，2026-10-11 於 `c40182c` 新增；以 `ed78cc6` 的 Array.c 重跑時失敗、`f6b6c0f` 起通過）。原版enum（型別92）的初值與釋放和int相同（`0x6569a9`、`0x656c50`）。只有沒跑過初始化器的物件，該成員才是generic頁：`src/page.c` 的 `init_struct_slot` 只轉int與bool、不轉enum（`src/vm.c` 的 `X_A_INIT` 與 `src/serialize_struct.c` 都轉，三處不一致）。那種頁仍走舊路徑。它剛建立時是空的，第一次Alloc只會擴大；但它之後存的enum值在頁銷毀、複製與舊路徑縮短時會被當成heap參照（值大於1就可能動到別的物件的參照計數），所以這個不一致要另案修，不是無害。（2026-10-11 更正：原先寫成「GameContext的enum陣列有generic表示的界線，未藉本組修正」；見[查證](../handover-check/README.md)。）負個數仍no-op（原版清空），string、nested、wrap與非option Realloc的其他釋放缺口亦未修。不能稱完整Array相容。
 
 ## 探針與既有斷言
 

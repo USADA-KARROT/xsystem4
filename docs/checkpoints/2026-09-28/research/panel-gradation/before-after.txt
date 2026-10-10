@@ -1,0 +1,195 @@
+before 4f2220e construction-cmds (default rule; 54 FAIL lines)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CC1 checked
+CC2 checked
+CC3 checked
+CC4 checked
+CC5 checked
+CC6 checked
+CC7 checked
+CC8 checked
+CC9 checked
+CC10 checked
+  FAIL: CC11 94: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CC11 94: no pixels to compare
+  FAIL: CC11 94: not 3 operations
+  FAIL: CC11 94 under the SJIS keys: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CC11 94 under the SJIS keys: no pixels to compare
+  FAIL: CC11 95: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CC11 95: no pixels to compare
+  FAIL: CC11 94 with alpha 1: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CC11 94 with alpha 1: no pixels to compare
+  FAIL: CC11 95 with alpha 1: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  ... (7 more FAIL lines in this case)
+CC11 checked
+CC11 FAILED (exit 1)
+  FAIL: RoundFirst: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: RoundFirst: no pixels to compare
+  FAIL: NoRound: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: NoRound: no pixels to compare
+  FAIL: NoRotate: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: NoRotate: no pixels to compare
+  FAIL: Color95: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: Color95: no pixels to compare
+  FAIL: NineInts: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: NineInts: no pixels to compare
+  ... (16 more FAIL lines in this case)
+CC12 checked
+CC12 FAILED (exit 1)
+  FAIL: CC13: XPE v10, want 11
+  FAIL: CC13 before the save: state type 0, texture missing 0x0, size 0x0; want a built 20x10 construction
+  FAIL: CC13 before the save: state type 0, texture missing 0x0, size 0x0; want a built 240x80 construction
+  FAIL: CC13 before the save: state type 0, texture missing 0x0, size 0x0; want a built 128x48 construction
+  FAIL: CC13: the rectangle of command 94 is not built before the save
+  FAIL: CC13: the operations of commands 94 and 95 have the types -1 and -1, want 27 and 28
+  FAIL: CC13: a save with the new operations is XPE v10, want 11
+  FAIL: CC13: state 0 after PE_Load: not built, -1 operations (want 3)
+  FAIL: CC13: state 1 after PE_Load: not built, -1 operations (want 3)
+  FAIL: CC13: state 2 after PE_Load: not built, -1 operations (want 9)
+CC13 checked
+CC13 FAILED (exit 1)
+  FAIL: CC14: v14 did not build the state with command 94
+CC14 checked
+CC14 FAILED (exit 1)
+CONSTRUCTION-CMDS FAIL: 4 of 14 cases failed
+
+before 4f2220e construction-cmds (XS4_PROBE_GBK=1)
+CONSTRUCTION-CMDS FAIL: 4 of 14 cases failed
+
+before 4f2220e construction-cg (default rule; 3 FAIL lines)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+G1 checked
+G2 checked
+G3 checked
+G4 checked
+G5 checked
+  FAIL: G6: XPE v10, want 11
+  FAIL: G6: a save with the new operations is XPE v10, want 11
+G6 checked
+G6 FAILED (exit 1)
+G7 checked
+  FAIL: G8: no XPE v11 save
+G8 checked
+G8 FAILED (exit 1)
+G9 checked
+CONSTRUCTION-CG FAIL: 2 of 9 cases failed
+
+before 4f2220e construction-cg (XS4_PROBE_GBK=1)
+CONSTRUCTION-CG FAIL: 2 of 9 cases failed
+
+before 5e88b88 panel (default rule; 286 FAIL lines)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+  FAIL: PN2 SetPanelColor on a number without a parts: not created, GetComponentType -1; want a panel (14)
+  FAIL: PN2 SetPanelColor on a number without a parts: GetPanelR/G/B/A (0,0,0,0), want (1,2,3,4)
+  FAIL: PN2 SetPanelColor on a number without a parts: state type -1, texture missing 0x0, size 0x0; want a built 200x200 surface
+  FAIL: PN2 SetPanelSize on a number without a parts: GetComponentType -1, want 14
+  FAIL: PN2 SetPanelSize on a number without a parts: state type -1, texture missing 0x0, size 0x0; want a built 5x5 surface
+  FAIL: PN2 GetPanelA on a number without a parts: 0, then GetComponentType -1; want 255, 14
+  FAIL: PN2 a getter on a number without a parts: GetPanelR/G/B/A (0,0,0,0), want (220,220,220,255)
+PN2 panel calls: FAIL
+PN2 FAILED (exit 1)
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+  FAIL: PN9 Edges: (0,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN9 Edges: (1,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN9 Edges: (2,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN9 Edges: 107 pixels differ
+  FAIL: PN9 Edges: the operations after the fill are "" (2 in all), want "RRCC"
+  FAIL: PN9 Edges: GetPanelAlphaGradationTop/Bottom/Left/Right (0,0,0,0), want (2,3,4,5)
+  FAIL: PN9 MapClip: (0,0) = (255,255,255,255), want (255,255,255,0)
+  FAIL: PN9 MapClip: (1,0) = (255,255,255,255), want (255,255,255,3)
+  FAIL: PN9 MapClip: (2,0) = (255,255,255,255), want (255,255,255,7)
+  FAIL: PN9 MapClip: 46080 pixels differ
+  ... (87 more FAIL lines in this case)
+PN9 alpha gradations from a pactex: FAIL
+PN9 FAILED (exit 1)
+  FAIL: PN10 left 4: (0,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN10 left 4: (1,0) = (10,20,30,200), want (10,20,30,39)
+  FAIL: PN10 left 4: (2,0) = (10,20,30,200), want (10,20,30,78)
+  FAIL: PN10 left 4: 32 pixels differ
+  FAIL: PN10 left 4: the operations after the fill are "" (2 in all), want "C"
+  FAIL: PN10 left 4: GetPanelAlphaGradationTop/Bottom/Left/Right (0,0,0,0), want (0,0,4,0)
+  FAIL: PN10 top after left: the operations after the fill are "" (2 in all), want "RC"
+  FAIL: PN10 top after left: (0,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN10 top after left: (1,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN10 top after left: (2,0) = (10,20,30,200), want (10,20,30,0)
+  ... (42 more FAIL lines in this case)
+PN10 alpha gradation calls: FAIL
+PN10 FAILED (exit 1)
+  FAIL: PN11 Edges before saving: the operations after the fill are "" (2 in all), want "RRCC"
+  FAIL: PN11 Edges after loading version 11: (0,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN11 Edges after loading version 11: (1,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN11 Edges after loading version 11: (2,0) = (10,20,30,200), want (10,20,30,0)
+  FAIL: PN11 Edges after loading version 11: 107 pixels differ
+  FAIL: PN11 Edges after loading version 11: GetPanelAlphaGradationTop/Bottom/Left/Right (0,0,0,0), want (2,3,4,5)
+  FAIL: PN11 LeftFade after loading version 11: (0,0) = (255,255,255,255), want (255,255,255,0)
+  FAIL: PN11 LeftFade after loading version 11: (1,0) = (255,255,255,255), want (255,255,255,3)
+  FAIL: PN11 LeftFade after loading version 11: (2,0) = (255,255,255,255), want (255,255,255,7)
+  FAIL: PN11 LeftFade after loading version 11: 768 pixels differ
+  ... (120 more FAIL lines in this case)
+PN11 alpha gradations saved and loaded: FAIL
+PN11 FAILED (exit 1)
+PANEL FAIL: 4 of 11 cases failed
+
+before 5e88b88 panel (XS4_PROBE_GBK=1)
+PANEL FAIL: 4 of 11 cases failed
+
+after construction-cmds at 4682a89 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CC1 checked
+CC2 checked
+CC3 checked
+CC4 checked
+CC5 checked
+CC6 checked
+CC7 checked
+CC8 checked
+CC9 checked
+CC10 checked
+CC11 checked
+CC12 checked
+CC13 checked
+CC14 checked
+CONSTRUCTION-CMDS PASS: 0 of 14 cases failed
+
+after construction-cmds at 4682a89 (XS4_PROBE_GBK=1)
+CONSTRUCTION-CMDS PASS: 0 of 14 cases failed
+
+after construction-cg at 4682a89 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+G1 checked
+G2 checked
+G3 checked
+G4 checked
+G5 checked
+G6 checked
+G7 checked
+G8 checked
+G9 checked
+CONSTRUCTION-CG PASS: 0 of 9 cases failed
+
+after construction-cg at 4682a89 (XS4_PROBE_GBK=1)
+CONSTRUCTION-CG PASS: 0 of 9 cases failed
+
+after panel at 4682a89 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+PN9 alpha gradations from a pactex: ok
+PN10 alpha gradation calls: ok
+PN11 alpha gradations saved and loaded: ok
+PANEL PASS: 0 of 11 cases failed
+
+after panel at 4682a89 (XS4_PROBE_GBK=1)
+PANEL PASS: 0 of 11 cases failed

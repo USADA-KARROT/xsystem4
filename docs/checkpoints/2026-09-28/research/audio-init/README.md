@@ -16,7 +16,7 @@
 | 音訊初始化返回 | `audio_init` 的一次性 guard | 即使沒有輸出裝置也設為已初始化，後續不再開啟裝置 |
 | 第一次建立視窗 | `gfx_init` → `SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)` | 音訊子系統此時才就緒，但先前失敗的 mixer 不會重試 |
 
-這是 SDL 平台初始化順序缺陷。Windows 原版不使用這條 SDL 路徑；本組依 runtime 診斷、現有程式呼叫鏈與 SDL 的初始化／參照計數契約修復，不以原版函式位址推定 SDL 行為。
+這個順序問題是這條移植線自己帶進來的，不是上游或 SDL 的缺陷。上游的 KiwiSoundEngine 沒有 `_ModuleInit`；上游的 PartsEngine 路徑是 `PE_Init` → `sact_init`，在 `gfx_init` 之後才呼叫 `audio_init`。上游另有 `Gpx2Plus_Init`（同樣排在 `gfx_init` 之後）與腳本呼叫的 `vmMusic_Init`／`vmSound_Init`（不先呼叫 `gfx_init`）。這條線在 `1dae88b`（2026-07-06，批次移植 HLL 的 WIP 提交）替 Kiwi 加了呼叫 `audio_init()` 的 `_ModuleInit`；這個 `_ModuleInit` 最早出現在舊 master 線的 `31287ca`（2026-03-30），`1dae88b` 把它搬到這條線。這份 AIN 的函式庫順序是 KiwiSoundEngine（21）早於 PartsEngine（27），而 `gfx_init` 要到 PartsEngine 初始化才執行，所以從 `1dae88b` 到 `70c7ed6` 之前，這條移植線一直沒有聲音（約三個月），不是近期才壞的。修法選擇在 `mixer_init` 補初始化而不是拿掉 Kiwi 的 `audio_init`：前者同時涵蓋共用同一個入口的 vmMusic／vmSound，也不依賴函式庫的初始化順序。Windows 原版不使用這條 SDL 路徑；本組依 runtime 診斷、現有程式呼叫鏈與 SDL 的初始化／參照計數契約修復，不以原版函式位址推定 SDL 行為。（2026-10-11 更正：原先只寫成「SDL 平台初始化順序缺陷」。舊 master 線當時是不是同樣沒有聲音，沒有查。）
 
 ## 修正
 
@@ -60,7 +60,7 @@
 - 保留一次性初始化；裝置稍後恢復時不會自動重試，也沒有新增熱插拔、熱重啟、外部宿主任意 QuitSubSystem 或多執行緒同時初始化的保證。
 - 裝置不可用時，既有 Play 仍可能回成功；本組沒有改所有無裝置 WAV／BGM 操作的語義。
 - dummy refill 只證明 callback 與串流生命週期；私人 coreaudio 實驗只量到引擎交出的非零 PCM。兩者都不等於使用者實際聽見、完整 BGM 解碼正確、選曲／切曲／音量／淡入淡出與原版一致。
-- 後續 gfx 初始化原本仍會再取得 AUDIO 參照；現有引擎以整體 `SDL_Quit` 結束。本組沒有改這套生命週期。
+- 後續 gfx 初始化原本仍會再取得 AUDIO 參照。引擎結束時不關音訊裝置，也不會呼叫 `SDL_Quit`：`vm_exit`、VM 錯誤與 `main` 的結尾都走 libsys4 的 `sys_exit`，它是 `_exit`，`atexit(gfx_fini)` 裡的 `SDL_Quit` 不會執行；裝置與混音執行緒靠行程終止回收。本組沒有改這套生命週期。修補之後才第一次有開著的裝置，所以結束時的模組收尾與全域解構（`vm_free`）是在混音執行緒還在跑的情況下進行；目前沒有看到問題，結束瞬間有沒有爆音沒有驗。日後若要替音訊加收尾，不能放在 `gfx_fini`（它不會被執行）。（2026-10-11 更正：原先寫「現有引擎以整體 `SDL_Quit` 結束」是錯的。）
 - G15 struct 陣列與G16背景構築已先整合。粉紅顧客走位 getter 是另一組尚未整合的工作；本組不把它列為已修。
 
 ## 主線提交後實機與輸出取樣

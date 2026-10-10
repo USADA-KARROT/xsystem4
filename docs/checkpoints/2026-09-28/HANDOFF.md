@@ -2,7 +2,38 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10：對白淡入工作快照，尚未驗收（最新）
+## 2026-10-11 已讀表、結算底板與地圖淡出後接續（最新）
+
+- **程式 `c40182c`、`4f2220e`、`5e88b88`、`4682a89` 已推送**；本機／ls-remote／GitHub branches API 均 `4682a89ba0c30069628ce920eb8ba482a0e22c26`。文件另隨本節所在 commit，libsys4 固定 247f544。預設／GBK 各92模式 PASS、san0；十條實機路線無錯誤，對白的行數與雜湊和前幾組相同。研究：[已讀表](research/msgskip-msk/README.md)、[結算底板與面板淡出](research/panel-gradation/README.md)、[前五組的查證與修正](research/handover-check/README.md)。
+- **四個 commit 各做了什麼**：`c40182c` 是對前五組做獨立查證之後的修正（左上角座標 getter 改成原版的取得或建立；struct 陣列縮短時解構子在尾端新增的元素照原版丟掉）；`4f2220e` 讓已讀表照原版 `MsgSkip.msk` 的格式讀寫並真的存到磁碟；`5e88b88` 建出構築命令 94／95 的多邊形（春銷結算的底板）；`4682a89` 做面板的 alpha 漸層（地圖左緣的淡出），並把面板函式改成取得或建立。
+- **存檔是第 11 版**（構築操作 27、28）；第 7–10 版照舊讀。存讀檔還沒有實機驗證過。這次修改之前存的映像讀回後沒有底板也沒有淡出，要等場景重新載入。
+- **實機（與原版並排）**：春銷結算中央圖片後面有黑色斜底板（各列的左右界與原版差 1 px 以內）；地城地圖左緣的白圓、連線與名稱往左淡出（白圓內的亮度與原版差 5 以內，戰後回到地圖的那一張 8 以內）；開場 LOGO 光澤的邊緣是柔的（寬度與斜率和原版相同）。量測是提交前在同一份修改上做的；推送後的十條路線只看過畫面。先前清單裡的「結算中央影片的黑框與傾斜」就是這塊底板：中央是一張正的 CG，歪的是後面的底板。
+- **已讀表會存檔，但對話文字還沒有變色**。會寫檔的時機只有關視窗與腳本呼叫 `system.Reset`（回標題、讀檔、Game Over；`system.Reset` 本身仍是空殼，只先做寫檔這一步）。設定畫面的「結束遊戲」、VM 錯誤、當掉、強制結束都不寫。**從現在起每次實機結束都會在存檔資料夾留下 `MsgSkip.msk`**：拿舊的存檔資料夾當種子時，先看裡面有沒有它。已讀表有內容之後，任何誤開跳過模式的殘留問題會從看不出來變成對白被快進。
+- **對白逐字淡入仍在進行、未提交**：在另一個工作副本（`$PORT/worktrees/xsystem4-cn-on-upstream`），基底是 `51e6bd8`，本機分支比遠端落後這四個 commit；不要在那裡 pull，也不要動它未提交的修改。下一節是它的工作快照。查證對它的意見：三條實機路線都按住 Return，腳本的等待迴圈第一圈就把淡入完成，自然淡入的路徑沒有被走到；驗收要有不按住鍵的路線。交付後接到這四個 commit 之上，再照流程審查。這四個 commit 是在另開的整合用工作副本（`$PORT/worktrees/integ`）上套用、驗證、推送的。
+- **這一夜確立的幾件事**：
+  - 前五組（G15 `3ab99a1`、G16 `8787a31`、音訊 `70c7ed6`、左上角座標 `298d6ce`、純量陣列 `f6b6c0f`）的獨立查證：程式都可信，沒有 High；每一組的證據狀態與留下的 Low 在[查證](research/handover-check/README.md)。
+  - **「元件不存在時，原版是取得或建立」在好幾組寫反了。** 原版以 `0x540250`（面板是 `0x53e290`）→ `0x53d920` 取元件：只有號碼小於等於 0 回空，其餘沒有元件就建立；只取得的是 `0x540280`、`0x53d950`。左上角座標與面板已修。**裁切區域與量表還沒有依 `0x540250`／`0x53d920` 重新核對**：那兩組的研究文件、探針與實作都寫著未知元件不建立。函式庫函式裡仍有不少用只取得的查找（`src/hll/PartsEngine.c` 就有 20 處，訊息視窗、數字元件、量表、回顧的函式也有），各自在原版是哪一種沒有核對過。要開一組一次盤點，不要再碰到一個改一個。
+  - **設定畫面的核取方塊與橫向捲軸的讀取函式是空殼（回 false／0），而腳本在設定頁每一幀把讀到的值寫回設定；所以打開設定頁可能把該頁的設定清掉**（訊息速度這類比率、核取方塊對應的選項；「窗口」頁還會呼叫切換全螢幕）。這是靜態推論，**還沒有實機確認**，排在前面做：先在未修改的建置上證實或推翻。自動路線不要點「全屏」。
+  - 已讀只在關視窗與 `system.Reset` 時存（原版也是這兩個時機，但原版的 Reset 是真的重置）。
+  - 音訊那一組沒有人聽過；切曲與音量有疑點（切曲都在同一個頻道上、據點那一次的淡出等同硬切、峰值常頂到混音器的上限）。
+  - 併入時的衝突只有兩處文字（harness README 相鄰的條目、`pe_v14_activity.c` 的一段註解），手動合併後讀過；沒有程式上的衝突。
+- **Wine 上的原版**：10/10 兩次啟動都沒有拿到遊戲畫面，遊戲行程停在繪圖初始化之前（下一節寫的「沒有視窗」當時其實沒有確認過，遊戲行程活著的期間沒有留下完整的視窗清單或截圖）。當時同一個 Wine 環境留著一批沒有 wineserver 的服務行程；逐一結束之後再啟動，4 秒內出現標題畫面。因果只有這一次的前後對照，沒有另外驗證。之後照這幾點做：
+  - 啟動前先確認沒有殘留的 Wine 服務行程（沒有 wineserver、父行程是 1 的 `wine-preloader`）。有的話先備份登錄檔、認證檔與存檔，逐一核對再結束，不要用整批終止的指令。
+  - 啟動後等視窗至少 60 秒，並先喚醒螢幕。判斷有沒有視窗要看不過濾標題的視窗清單加一張全螢幕截圖。
+  - 遊戲卡住時用 `wineserver -k` 收尾，不要直接結束遊戲行程：那會讓 wineserver 異常結束並留下孤兒行程。紀錄裡的「wineserver crashed」是這樣來的，不是沒有視窗的原因。
+  - 不要用會在母片目錄執行遊戲的啟動器；看原版一律用專用的副本與既有的啟動腳本。
+- **還沒修的（依優先順序）**：
+  1. 設定畫面：核取方塊、單選群（「全屏」與三選一的選項靠它）、橫向捲軸（比率的讀寫）、按鈕文字。核取方塊與單選群要同一次交付；先實機確認上面「開設定頁會清掉設定」的推論。
+  2. 對話：逐字淡入（進行中）與已讀字色（訊息視窗查已讀表、回呼腳本取色；已讀表與給引擎用的查詢函式已經有了）。
+  3. 劇情回顧：捲軸的把手與拖曳、滾輪與按鍵捲動。
+  4. 「取得或建立」的盤點（裁切區域、量表與其餘函式庫函式）。
+  5. `system.Reset`（讀檔、回標題、Game Over）；接上之後已讀檔的寫入時機才和原版一樣。
+  6. 派遣結果等沒有路線的畫面：洋紅的名牌底板、帶漸層的 13 個面板裡沒有原版畫面的 9 個（其中 8 個沒有路線）、左上角座標影響到的鑑賞模式與立繪拖曳。
+  7. 音訊：聽測、切曲與音量，以及依賴播放狀態的流程（自動模式、語音、音效）。
+  8. 其餘沿用「2026-10-10 劇情回顧與 NEXT 圖示後接續」一節清單裡還沒做的（存檔縮圖與存讀檔的實機驗證、戰鬥的字形與結果畫面、另案各項）。這次另外記下的小項：結構的 enum 陣列成員在沒跑過初始化器時不是 int 頁（`init_struct_slot`）；腳本路徑的構築命令 94／95；多邊形的圓角與旋轉。
+- **repo 外的私人工作區**：四份實作前的預研筆記（已讀字色、捲軸、設定畫面的元件、地圖淡出）在 `$PORT/reports/claude-layout-gray-20261006/`（`next-read-color-design.md`、`next-scrollbar-design.md`、`next-config-widgets-design.md`、`next-map-fade-design.md`）；這四個 commit 的實作筆記、審查全文、並排圖與進度紀錄也在那裡（`pcf-impl.md`、`msk-impl.md`、`mapfade-impl.md`、`review-*.json`、各 `*-evidence/`、`progress.md` 末段）。原版的靜態反編譯輔助工具在 `$PORT/tools/native-decomp/`：只做靜態分析，不執行解殼檔；它的輸出只當閱讀輔助，位址與語義仍以反組譯為準。這些都不進 repo。
+
+## 2026-10-10：對白淡入工作快照，尚未驗收（進行中，未提交）
 
 可公開證據已整理至[對白淡入研究快照](research/dialogue-fade-wip/README.md)。此為Opus接手資料，程式仍留在本機待驗收。
 
@@ -18,19 +49,19 @@
 
 - **程式 `f6b6c0f` 已推送、雙源確認**；提交後default／GBK各91模式PASS、san0，libsys4固定247f544。[本組研究](research/array-primitive/README.md)。
 - 原版Alloc 0x67f4a0先清空，再0x67fe20初始化；int／float／bool初值0（0x6569a9），release為no-op（0x656c50）。只接v14 operand1、rank1、具體純量頁，保留metadata；未知形狀／v13／Realloc不變。沒有新VM_ERROR或submodule更動。
-- AIN Alloc64處、Realloc13處。operand1的19個Alloc含巢狀／enum，不能全部當純量。真SetPosList以合成3點→1點重現座標誤unref；正常GUI是否實際觸發仍未驗。
+- AIN Alloc64處、Realloc13處。operand1的19個Alloc含一個巢狀陣列，不能全部當純量；enum那一個實際是int頁，已涵蓋（AP8）。真SetPosList以合成3點→1點重現座標誤unref；正常GUI是否實際觸發仍未驗。
 - 七案正式before ed78cc6為5/7 fail、san0；更新原版語義後的AC7與option-array G1在舊程式各1組fail。修後全過，七種突變均被抓到。首次v1完整驗證的G1失敗經原版核對，只改41筆中的int Alloc一筆，其他40筆不動。獨立審查0H/0M，metadata Low已補齊。
 - 提交前後normal150／haruuri／fightr／config完整duration、exit0、error0，MSG88／629／681／88，與基準逐位元組相同。root看開場／Day2／戰後地圖與原版設定第一頁並排。Day2／戰後隨機狀態不同，未宣稱完全逐像素；沒有新啟Wine或聽測。原有設定控制項差異保留。
-- 界線：負個數仍no-op（原版clear）、generic enum、nested／string／wrap與非option Realloc其他缺口尚未處理。bool非canonical位元是測試壓力值，不宣稱真遊戲會產生。
+- 界線：負個數仍no-op（原版clear）、nested／string／wrap與非option Realloc其他缺口尚未處理；enum陣列只有在物件沒跑過初始化器時才是generic頁、仍走舊路徑；那種頁存了enum值之後，銷毀、複製與舊路徑縮短會把值當成heap參照（`init_struct_slot` 缺enum，不是無害，另案）。bool非canonical位元是測試壓力值，不宣稱真遊戲會產生。
 - **下一步**：對話已讀色／逐字淡入／NEXT連動。現行FixMessageWindowText空、IsFixedMessageWindowText恆true；GetReadMessageTextColor其實是AIN腳本FUNC2，不要當缺同名HLL。只有私人唯讀預研，未改程式／未核對該組原版位址／未新增fixture。其後回顧把手、設定、讀檔與地圖淡出、長時穩定。
 
 ## 2026-10-10：粉紅顧客走位與浮點左上角（歷史）
 
 - **程式 `298d6ce` 已推送並雙源確認**（支線b5e357a）。default／GBK各90模式PASS、san0，libsys4固定247f544。研究見[upper-left](research/upper-left/README.md)。
-- 組合getter原是空stub，CParts輸出維持0，MoveOut算錯目前畫面中心，導致粉紅顧客向右退場。原版0x58bf80／0x58c020／0x58c0e0共用0x534bb0，保留float、寫X再Y；缺件不寫組合輸出、scalar0。已知v14精確宣告才新綁定，保留舊int rounding、v13與未知形狀，不新增VM_ERROR。
-- 六案涵蓋真HLL/FFI/AFL、別名、父變換／倍率／旋轉／翻轉／小數、缺件/state與宣告守衛。原版有float依據，舊parts-transform的float斷言同步修正。主線正式before c3c2fe0：upper-left 6/6 fail rc1，parts-transform 2/11 fail rc92，san0；修後全過。獨立審查無H/M，整合production patch-id與fixture保持已審版本。
+- 組合getter原是空stub，CParts輸出維持0，MoveOut算錯目前畫面中心，導致粉紅顧客向右退場。原版0x58bf80／0x58c020／0x58c0e0共用0x534bb0，保留float、寫X再Y；元件以取得或建立的查找取得（`0x540250`），只有號碼小於等於0不寫組合輸出、scalar0（2026-10-11 更正：先前寫成「缺件不寫」與原版相反，程式與 UL4 已改）。已知v14精確宣告才新綁定，保留舊int rounding、v13與未知形狀，不新增VM_ERROR。
+- 六案涵蓋真HLL/FFI/AFL、別名、父變換／倍率／旋轉／翻轉／小數、缺件的取得或建立／state與宣告守衛。原版有float依據，舊parts-transform的float斷言同步修正。主線正式before c3c2fe0：upper-left 6/6 fail rc1，parts-transform 2/11 fail rc92，san0；修後全過。獨立審查無H/M，整合production patch-id與fixture保持已審版本。
 - 提交後slow104／normal150／haruuri／fightr完整duration/exit0/error0，MSG88／88／629／681。root看第一位顧客向左到第一店後縮淡，與既有Wine w20與修前三欄並排；也看正常、Day2、戰後回地圖。沒有新啟Wine，人物狀態不同，未驗三店全部GUI、精確速度或完整逐幀。UL5只是真AFL加目的地公式，不是完整MoveOut。
-- 新helper沿用2D surface-area模型；非預設camera/3D/全域比例0x696ea0、所有非法state subtype尚未證實。parts_try_get可能加入空hash entry但不建立parts。GetMessageUniqueID的批次註冊marker限制沿用。
+- 新helper沿用2D surface-area模型；非預設camera/3D/全域比例0x696ea0、所有非法state subtype尚未證實。getter 照原版替號碼大於0的缺件建立預設元件（`parts_get`）；讀到已釋放的 activity 元件號碼時會重新建立空白元件並留下 stale 警告。GetMessageUniqueID的批次註冊marker限制沿用。
 - 音訊70c7ed6已包含：主線正式來源私人觀測版88/88區間CoreAudio非零PCM；沒有聽測或原版選曲/音量/轉場等價保證。
 - 人物亂數：回歸固定seed；移除seed後的兩次空白新遊戲顧客／人材皆變，未改亂數。讀同一存檔、跨日分布與原版完整等價未驗。
 - **下一步優先**：依原交接查非struct Array.Alloc縮短int陣列時把整數當heap slot釋放；先核對AIN宣告/所有callsite與原版，再新fixture、before、兩組verify、實機與獨立審查。之後對話字色／淡入、回顧把手、設定控制項、讀檔/返回標題、地圖淡出及長時穩定。
@@ -54,7 +85,7 @@
 - 提交後9條GUI：normal150、sysmenu、config、target、haruuri、fightr、backlog、garage、savedialog，全程duration／exit0／error0、MSG與G15基準逐位元組相同。正常MSG88；春銷629；戰鬥681。root看圖確認fightr回地圖、據點／設定／春銷背景與既有Wine同場景並排。未重跑Wine、noskip或完整逐幀。
 - 本遊戲11個目標CG實際檔頭皆QNT、倍率100；CCR的cuti可變倍率另未實作，不改submodule。腳本命令4／15、舊存檔activity不重載、商店／派遣／GameOver／附錄／設定2–7頁、存讀檔實機仍未驗證。
 - **下一組音訊**：獨立支線c96f79f（audio-init），審查無H/M、default／GBK各87PASS、3案及3條GUI通過，正式before f517ca8 2/3失敗。尚未合主線／推送，接上應89模式，需提交後重驗。根因Kiwi早於gfx初始化SDL_AUDIO；已有私人非零PCM因果實驗，正式整合版輸出與聽感仍需確認。
-- **粉紅顧客**：原版upper-left getter保留float、只讀查找、寫X再Y（0x534bb0／0x58bf80）。獨立支線新探針建立中，尚未修復；須修前失敗、精度／ABI／v13守衛、同場景走位比較與審查。三家店目的地為192／500／628，不能拿背景Mob路人代替驗收。
+- **粉紅顧客**：原版upper-left getter保留float、取得或建立的查找（不是只讀）、寫X再Y（0x534bb0／0x58bf80）。獨立支線新探針建立中，尚未修復；須修前失敗、精度／ABI／v13守衛、同場景走位比較與審查。三家店目的地為192／500／628，不能拿背景Mob路人代替驗收。
 - G15等其他缺口仍保留：非struct Array、對話字色／淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出、長時穩定。本文件也更正harness舊7案G15敘述為已審14案，不改程式。
 
 ## 2026-10-10：G15 struct 陣列審查整合（歷史）

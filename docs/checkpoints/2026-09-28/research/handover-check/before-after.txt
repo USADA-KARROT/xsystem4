@@ -1,0 +1,123 @@
+before 51e6bd8 parts-upper-left (default rule; 6 FAIL lines)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+UL1 combined and aliased output ABI PASS
+UL2 float corner and integer legacy guard PASS
+UL3 rotated and mirrored original corner PASS
+  FAIL: combined getter on a missing part left (1234.25,-4321.5); want the new part's (0,0)
+  FAIL: combined getter did not create the missing part
+  FAIL: scalar X getter did not create the missing part
+  FAIL: scalar Y getter did not create the missing part
+  FAIL: state 0: the lookup did not create the missing part
+  FAIL: state 4: the lookup did not create the missing part
+UL4 missing part and per-state dimensions FAIL
+UL5 real AFL wrapper and customer destinations PASS
+UL6 declaration selection and legacy fallback PASS
+PARTS-UPPER-LEFT FAIL: 1 of 6 cases failed
+
+before 51e6bd8 parts-upper-left (XS4_PROBE_GBK=1)
+PARTS-UPPER-LEFT FAIL: 1 of 6 cases failed
+
+before 51e6bd8 array-construct (default rule; 16 FAIL lines)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AC1 Alloc constructs, empties first, owns alone: ok
+AC2 Realloc keeps, constructs the tail, releases from the back: ok
+AC3 a struct without a constructor gets its defaults: ok
+AC4 a constructor that changes its own array: ok
+AC5 CASEffectKeyCancelChecker@Init: ok
+AC6 MobViewCollection@0 makes its seven MobView: ok
+AC7 guards: ok
+AC8 EmplaceBack owner replacement 0: ok
+AC9 EmplaceBack owner replacement 1: ok
+AC10 EmplaceBack owner replacement 2: ok
+AC11 EmplaceBack owner replacement 3: ok
+AC12 destructors see the old length and pending elements: ok
+AC13 primitive and struct wrap result shapes: ok
+AC14 destructor mutations keep their elements and owner: ok
+  FAIL: round 0: element 1 of 4 is -1, a cell without an object
+  FAIL: round 0: element 2 of 4 is -1, a cell without an object
+  FAIL: round 0 Realloc(1) under an appending destructor: 4 element(s), the first 13; want 1 and the kept 13
+  FAIL: round 1: element 0 of 4 is -1, a cell without an object
+  FAIL: round 1: element 1 of 4 is -1, a cell without an object
+  FAIL: round 1: element 2 of 4 is -1, a cell without an object
+  FAIL: Alloc(2) under an appending destructor: 4 element(s) [-1, -1]; want two new objects
+  FAIL: Alloc(2): 1 object(s) appended, 1 constructor(s); want 1 and 3
+  FAIL: round 2: element 1 of 3 is -1, a cell without an object
+  FAIL: Realloc(1) under an appending and erasing destructor: 3 element(s) [19, -1]; want [19, 28]
+  FAIL: round 3: element 1 of 4 is -1, a cell without an object
+  FAIL: round 3: element 2 of 4 is -1, a cell without an object
+  FAIL: round 3 Realloc(1) under an appending destructor: 4 element(s), the first 27; want 1 and the kept 27
+  FAIL: round 4: element 1 of 7 is -1, a cell without an object
+  FAIL: round 4: element 2 of 7 is -1, a cell without an object
+  FAIL: round 4 Realloc(1) under an appending destructor: 7 element(s), the first 33; want 1 and the kept 33
+AC15 a destructor's appended elements are cut off and lost, the length as asked: FAIL
+AC15 FAILED (exit 1)
+ARRAY-CONSTRUCT FAIL: 1 of 15 cases failed
+
+before 51e6bd8 array-construct (XS4_PROBE_GBK=1)
+ARRAY-CONSTRUCT FAIL: 1 of 15 cases failed
+
+before 51e6bd8 array-primitive (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AP7 real SetPosList: points 3 -> 1, witness refs=2
+AP8 note: before GameContext@2 m_menuState is a page of a_type 79
+ARRAY-PRIMITIVE PASS: 0 of 8 cases failed
+
+before 51e6bd8 array-primitive (XS4_PROBE_GBK=1)
+ARRAY-PRIMITIVE PASS: 0 of 8 cases failed
+
+array-primitive with the Array.c of ed78cc6, the commit before f6b6c0f (recorded while the fix was made,
+not part of the formal before-check; the AP8 part and the total)
+AP8 note: before GameContext@2 m_menuState is a page of a_type 79
+  FAIL: enum round 0 interpreted enum bits as a heap reference
+  FAIL: enum round 0 index 0 kept bits 13
+  FAIL: enum round 0 index 1 kept bits 13
+  FAIL: enum round 0 index 2 kept bits 13
+  FAIL: enum round 0 index 3 kept bits 13
+  FAIL: enum round 0 index 4 kept bits 13
+  ... (13 more FAIL lines in this case)
+AP8-enum FAILED (exit 1)
+ARRAY-PRIMITIVE FAIL: 6 of 8 cases failed
+
+after parts-upper-left at 4682a89 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+UL1 combined and aliased output ABI PASS
+UL2 float corner and integer legacy guard PASS
+UL3 rotated and mirrored original corner PASS
+UL4 missing part and per-state dimensions PASS
+UL5 real AFL wrapper and customer destinations PASS
+UL6 declaration selection and legacy fallback PASS
+PARTS-UPPER-LEFT PASS: 0 of 6 cases failed
+
+after parts-upper-left at 4682a89 (XS4_PROBE_GBK=1)
+PARTS-UPPER-LEFT PASS: 0 of 6 cases failed
+
+after array-construct at 4682a89 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AC1 Alloc constructs, empties first, owns alone: ok
+AC2 Realloc keeps, constructs the tail, releases from the back: ok
+AC3 a struct without a constructor gets its defaults: ok
+AC4 a constructor that changes its own array: ok
+AC5 CASEffectKeyCancelChecker@Init: ok
+AC6 MobViewCollection@0 makes its seven MobView: ok
+AC7 guards: ok
+AC8 EmplaceBack owner replacement 0: ok
+AC9 EmplaceBack owner replacement 1: ok
+AC10 EmplaceBack owner replacement 2: ok
+AC11 EmplaceBack owner replacement 3: ok
+AC12 destructors see the old length and pending elements: ok
+AC13 primitive and struct wrap result shapes: ok
+AC14 destructor mutations keep their elements and owner: ok
+AC15 a destructor's appended elements are cut off and lost, the length as asked: ok
+ARRAY-CONSTRUCT PASS: 0 of 15 cases failed
+
+after array-construct at 4682a89 (XS4_PROBE_GBK=1)
+ARRAY-CONSTRUCT PASS: 0 of 15 cases failed
+
+after array-primitive at 4682a89 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+AP7 real SetPosList: points 3 -> 1, witness refs=2
+AP8 note: before GameContext@2 m_menuState is a page of a_type 79
+ARRAY-PRIMITIVE PASS: 0 of 8 cases failed
+
+after array-primitive at 4682a89 (XS4_PROBE_GBK=1)
+ARRAY-PRIMITIVE PASS: 0 of 8 cases failed

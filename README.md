@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-10）：已推送程式仍為 `f6b6c0f`（純量陣列修正，預設／GBK各91模式PASS）。本機對白淡入修補各92模式PASS、獨立複審無未解High／Medium，但Wine同畫面時序驗收尚未完成，程式未提交或推送；本次只保存進度文件。libsys4維持247f544。**
-> [陣列研究](docs/checkpoints/2026-09-28/research/array-primitive/README.md) · [走位](docs/checkpoints/2026-09-28/research/upper-left/README.md) · [音訊](docs/checkpoints/2026-09-28/research/audio-init/README.md)。**仍不能當作完整遊戲使用。** 已讀字色／逐字淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出與長時穩定仍待修驗；generic enum／巢狀等Array形狀未在本組修正。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-11）：已推送程式為 `4682a89`（`c40182c`、`4f2220e`、`5e88b88`、`4682a89` 四個commit），預設／GBK各92模式PASS。已讀表照原版 `MsgSkip.msk` 讀寫並真的存檔（對話字色尚未接上）；春銷結算的黑色斜底板、地城地圖左緣的淡出、開場LOGO光澤的邊緣與Wine原版並排相符；前五組經獨立查證，修正左上角座標getter的元件查找與struct陣列縮短時的重入兩處。存檔為XPE第11版，libsys4維持247f544。對白逐字淡入仍在另一個工作副本進行，未提交。**
+> [已讀表](docs/checkpoints/2026-09-28/research/msgskip-msk/README.md) · [結算底板與面板淡出](docs/checkpoints/2026-09-28/research/panel-gradation/README.md) · [前五組的查證](docs/checkpoints/2026-09-28/research/handover-check/README.md)。**仍不能當作完整遊戲使用。** 設定畫面的核取方塊／單選群／橫向捲軸與按鈕文字（開設定頁可能把該頁的設定清掉：靜態推論，未實機確認）、已讀字色／逐字淡入、回顧把手與滾輪、讀檔／返回標題、音訊聽測與長時穩定仍待修驗。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
