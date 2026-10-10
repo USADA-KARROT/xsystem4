@@ -1,0 +1,67 @@
+{
+  "commit": "f6b6c0ff95eda34f1dd48c1d7de3c3ea378009c1",
+  "runs": [
+    {
+      "binary_sha256": "986662ce78e5b13aca814f734d8ad966a9f1bc574501b55c66749180e04879c4",
+      "elapsed_seconds": 150.403,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 473694208,
+      "route": "normal150",
+      "tag": "codex-primitive-final-normal150-20261010",
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_baseline": true
+    },
+    {
+      "binary_sha256": "986662ce78e5b13aca814f734d8ad966a9f1bc574501b55c66749180e04879c4",
+      "elapsed_seconds": 182.28,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 585220096,
+      "route": "haruuri",
+      "tag": "codex-primitive-final-haruuri-20261010",
+      "MSG_lines": 629,
+      "MSG_sha256": "dd66ad5329c8ef886fe905f4ed78470ed48a3868ae268b622948d213dc4ba2a0",
+      "PNG_count": 120,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_baseline": true
+    },
+    {
+      "binary_sha256": "986662ce78e5b13aca814f734d8ad966a9f1bc574501b55c66749180e04879c4",
+      "elapsed_seconds": 350.205,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 920518656,
+      "route": "fightr",
+      "tag": "codex-primitive-final-fightr-20261010",
+      "MSG_lines": 681,
+      "MSG_sha256": "3525dc699b4d6f6f4dc4068faeb2a108f12539a63026fb0f20307b7da761e748",
+      "PNG_count": 162,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_baseline": true
+    },
+    {
+      "binary_sha256": "986662ce78e5b13aca814f734d8ad966a9f1bc574501b55c66749180e04879c4",
+      "elapsed_seconds": 45.346,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 470712320,
+      "route": "config",
+      "tag": "codex-primitive-final-config-20261010",
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 24,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_baseline": true
+    }
+  ],
+  "native_comparison": "Existing Wine settings page 1 compared with current and pre-fix images. Also reviewed opening, Day 2 base and post-battle map.",
+  "limits": "No fresh Wine run. Random events and battle state differ in Day 2/map references. Actual normal-GUI shrinking primitive Alloc trigger is unverified; SetPosList proof uses real bytecode with synthetic coordinates."
+}

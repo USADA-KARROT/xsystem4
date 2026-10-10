@@ -1,0 +1,7 @@
+src/include from ed78cc6
+array-primitive      rc=1   san=0   ARRAY-PRIMITIVE FAIL: 5 of 7 cases failed
+array-construct      rc=1   san=0   ARRAY-CONSTRUCT FAIL: 1 of 14 cases failed
+option-array         rc=1   san=0   OPTION-ARRAY FAIL: 1 of 17 cases failed, 0 environment error(s)
+restored src/include to f6b6c0f, dirty=0
+
+After f6b6c0f: array-primitive 7/7 pass; array-construct 14/14 pass; option-array 17/17 pass. Default/GBK 91 modes PASS, san0. Seven deliberate mutations detected and source restored.

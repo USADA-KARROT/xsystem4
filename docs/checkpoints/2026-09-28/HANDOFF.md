@@ -2,7 +2,17 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10：粉紅顧客走位與浮點左上角（最新）
+## 2026-10-10：純量陣列配置與誤釋放（最新）
+
+- **程式 `f6b6c0f` 已推送、雙源確認**；提交後default／GBK各91模式PASS、san0，libsys4固定247f544。[本組研究](research/array-primitive/README.md)。
+- 原版Alloc 0x67f4a0先清空，再0x67fe20初始化；int／float／bool初值0（0x6569a9），release為no-op（0x656c50）。只接v14 operand1、rank1、具體純量頁，保留metadata；未知形狀／v13／Realloc不變。沒有新VM_ERROR或submodule更動。
+- AIN Alloc64處、Realloc13處。operand1的19個Alloc含巢狀／enum，不能全部當純量。真SetPosList以合成3點→1點重現座標誤unref；正常GUI是否實際觸發仍未驗。
+- 七案正式before ed78cc6為5/7 fail、san0；更新原版語義後的AC7與option-array G1在舊程式各1組fail。修後全過，七種突變均被抓到。首次v1完整驗證的G1失敗經原版核對，只改41筆中的int Alloc一筆，其他40筆不動。獨立審查0H/0M，metadata Low已補齊。
+- 提交前後normal150／haruuri／fightr／config完整duration、exit0、error0，MSG88／629／681／88，與基準逐位元組相同。root看開場／Day2／戰後地圖與原版設定第一頁並排。Day2／戰後隨機狀態不同，未宣稱完全逐像素；沒有新啟Wine或聽測。原有設定控制項差異保留。
+- 界線：負個數仍no-op（原版clear）、generic enum、nested／string／wrap與非option Realloc其他缺口尚未處理。bool非canonical位元是測試壓力值，不宣稱真遊戲會產生。
+- **下一步**：對話已讀色／逐字淡入／NEXT連動。現行FixMessageWindowText空、IsFixedMessageWindowText恆true；GetReadMessageTextColor其實是AIN腳本FUNC2，不要當缺同名HLL。只有私人唯讀預研，未改程式／未核對該組原版位址／未新增fixture。其後回顧把手、設定、讀檔與地圖淡出、長時穩定。
+
+## 2026-10-10：粉紅顧客走位與浮點左上角（歷史）
 
 - **程式 `298d6ce` 已推送並雙源確認**（支線b5e357a）。default／GBK各90模式PASS、san0，libsys4固定247f544。研究見[upper-left](research/upper-left/README.md)。
 - 組合getter原是空stub，CParts輸出維持0，MoveOut算錯目前畫面中心，導致粉紅顧客向右退場。原版0x58bf80／0x58c020／0x58c0e0共用0x534bb0，保留float、寫X再Y；缺件不寫組合輸出、scalar0。已知v14精確宣告才新綁定，保留舊int rounding、v13與未知形狀，不新增VM_ERROR。
