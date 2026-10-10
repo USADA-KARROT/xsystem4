@@ -150,4 +150,4 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
   共 9 個案例；歷史 8 案在 `04c1e3a` 全部失敗（G5 以 `build_cg` 的 assert 中止）；新增 G9 的正式 before-check 在 `ee54909` 為 1／9 失敗、san=0，其餘八案通過。
   沒有守著的：真 CG（QNT／WebP）的載入與 1280x720 的耗時由 GUI 確認；命令 2 的縮放（`0x50ac80` 對兩個倍率不是 100 的 CG 會縮放）沒有實作。
 
-- `probe/parts_upper_left_fixture.inc`：`parts-upper-left`，六案：真HLL六槽float輸出與別名、原點整數半值後的浮點變換、旋轉／翻轉原始角點、未知元件不建立及各state尺寸、真AFL wrapper與三店目的地公式、v13及未知宣告形狀保留原綁定。無GL／資產；legacy int rounding守衛。只驗預設2D camera，非法state為安全守衛，完整camera／投影與Motion時間另需實機驗證。
+- `probe/parts_upper_left_fixture.inc`：`parts-upper-left`，六案：真HLL六槽float輸出與別名、原點整數半值後的浮點變換、旋轉／翻轉原始角點、未知元件不建立及各state尺寸、真AFL wrapper與三店目的地公式、scalar X的v13／未知回傳型別／arity fallback守衛。組合及Y的未知形狀主要由靜態審查核對。無GL／資產；legacy int rounding守衛。只驗預設2D camera，非法state為安全守衛，完整camera／投影與Motion時間另需實機驗證。

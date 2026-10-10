@@ -1,0 +1,6 @@
+src/include from c3c2fe0
+parts-upper-left     rc=1   san=0   PARTS-UPPER-LEFT FAIL: 6 of 6 cases failed
+parts-transform      rc=92  san=0   PARTS-TRANSFORM FAIL: 2 of 11 cases failed
+restored src/include to 298d6ce, dirty=0
+
+After 298d6ce: upper-left 6/6 pass; parts-transform 11/11 pass; default/GBK 90 modes VERDICT PASS, san0.

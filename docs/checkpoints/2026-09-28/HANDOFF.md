@@ -2,7 +2,18 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10：音訊初始化（最新）
+## 2026-10-10：粉紅顧客走位與浮點左上角（最新）
+
+- **程式 `298d6ce` 已推送並雙源確認**（支線b5e357a）。default／GBK各90模式PASS、san0，libsys4固定247f544。研究見[upper-left](research/upper-left/README.md)。
+- 組合getter原是空stub，CParts輸出維持0，MoveOut算錯目前畫面中心，導致粉紅顧客向右退場。原版0x58bf80／0x58c020／0x58c0e0共用0x534bb0，保留float、寫X再Y；缺件不寫組合輸出、scalar0。已知v14精確宣告才新綁定，保留舊int rounding、v13與未知形狀，不新增VM_ERROR。
+- 六案涵蓋真HLL/FFI/AFL、別名、父變換／倍率／旋轉／翻轉／小數、缺件/state與宣告守衛。原版有float依據，舊parts-transform的float斷言同步修正。主線正式before c3c2fe0：upper-left 6/6 fail rc1，parts-transform 2/11 fail rc92，san0；修後全過。獨立審查無H/M，整合production patch-id與fixture保持已審版本。
+- 提交後slow104／normal150／haruuri／fightr完整duration/exit0/error0，MSG88／88／629／681。root看第一位顧客向左到第一店後縮淡，與既有Wine w20與修前三欄並排；也看正常、Day2、戰後回地圖。沒有新啟Wine，人物狀態不同，未驗三店全部GUI、精確速度或完整逐幀。UL5只是真AFL加目的地公式，不是完整MoveOut。
+- 新helper沿用2D surface-area模型；非預設camera/3D/全域比例0x696ea0、所有非法state subtype尚未證實。parts_try_get可能加入空hash entry但不建立parts。GetMessageUniqueID的批次註冊marker限制沿用。
+- 音訊70c7ed6已包含：主線正式來源私人觀測版88/88區間CoreAudio非零PCM；沒有聽測或原版選曲/音量/轉場等價保證。
+- 人物亂數：回歸固定seed；移除seed後的兩次空白新遊戲顧客／人材皆變，未改亂數。讀同一存檔、跨日分布與原版完整等價未驗。
+- **下一步優先**：依原交接查非struct Array.Alloc縮短int陣列時把整數當heap slot釋放；先核對AIN宣告/所有callsite與原版，再新fixture、before、兩組verify、實機與獨立審查。之後對話字色／淡入、回顧把手、設定控制項、讀檔/返回標題、地圖淡出及長時穩定。
+
+## 2026-10-10：音訊初始化（歷史）
 
 - **程式 `70c7ed6` 已推送並雙源確認。** default／GBK各89模式PASS、san0；libsys4固定247f544。研究見[audio-init](research/audio-init/README.md)。
 - Kiwi ModuleInit先於gfx呼audio_init，舊版在SDL_AUDIO未初始化時開裝置失敗，一次性guard讓後續不再開。mixer建立後補SDL_InitSubSystem（已有AUDIO不加ref），Init／Open失敗警告返回，只有有效裝置才Pause(false)。不改Play語義、不增加重試或新存檔格式。這是SDL平台初始化問題，原版EXE沒有同條SDL路徑，不虛列native位址作SDL依據。
