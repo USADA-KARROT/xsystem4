@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-10）：`0f0af6c`、`3ab99a1` 修正值 struct 陣列的建構、逆序釋放與重入；春銷的半透明背景路人已出現，並與 Wine 原版同場景並排確認。提交後預設／GBK 各87模式 PASS、sanitizer0；14案新探針全過，11條實機路線完整重錄、錯誤／overflow0。正常GUI 150.322秒、MSG88；穩健戰鬥路線完成戰鬥回地圖。程式已推送並雙源核對，libsys4維持247f544。**
-> [struct 陣列研究與驗證](docs/checkpoints/2026-09-28/research/array-construct/README.md) · [回顧與 NEXT](docs/checkpoints/2026-09-28/research/backlog-text/README.md)。**仍不能當作完整遊戲使用。** G16 模糊背景尚未合併；粉紅顧客的移動目的地、音訊初始化另案處理。已讀字色、逐字淡入、回顧把手、設定控制項、讀檔／返回標題與長時間穩定性仍有缺口。路人隨機角色不同，未驗逐像素、速度或亮度等價。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-10）：`83b09ac`、`8787a31` 補齊23個以CG起始的背景構築狀態，據點、設定、春銷背景恢復模糊／暗化，已與Wine原版同場景並排確認。提交後預設／GBK各88模式PASS、san0，9條實機路線error0，正常150秒MSG88；fightr完成戰鬥回地圖。程式已推送、雙源核對，libsys4維持247f544。**
+> [背景構築研究](docs/checkpoints/2026-09-28/research/blur-background/README.md) · [struct陣列](docs/checkpoints/2026-09-28/research/array-construct/README.md)。**仍不能當作完整遊戲使用。** 音訊初始化與粉紅顧客走位另案接續；已讀字色／淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出與長時間穩定性仍待修驗。本組XPE升第10版、可讀7–9版；未驗完整原版逐幀等價。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

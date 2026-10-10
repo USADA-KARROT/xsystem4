@@ -2,7 +2,18 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10：G15 struct 陣列審查整合（最新）
+## 2026-10-10：G16 背景構築審查整合（最新）
+
+- **程式 `83b09ac`、`8787a31` 已推送並雙源確認。** 預設／GBK各88模式PASS、san0；G15 14案與G16 9案全過。libsys4固定247f544。研究見[blur-background](research/blur-background/README.md)。
+- 首步CG的23個構築狀態支援2／3／4／15／27／28，原版CG `0x4fbf40`、混色 `0x4922a0`（兩商各截斷）、灰階 `0x5ad8f0`。XPE第10版可讀7–9版；v13寫第3版不變。
+- 初審Medium：RGB CG接alpha操作被錯清空。G9在ee54909 1/9失敗；修訂plan白名單，未支援形狀整份保留legacy CG、首步0不變，獨立複審無H/M。正式before：0ded2b3 8/9失敗、ee54909 1/9失敗，皆san0。原版無alpha命令5在0x4fc378–0x4fc400跳過。
+- 提交後9條GUI：normal150、sysmenu、config、target、haruuri、fightr、backlog、garage、savedialog，全程duration／exit0／error0、MSG與G15基準逐位元組相同。正常MSG88；春銷629；戰鬥681。root看圖確認fightr回地圖、據點／設定／春銷背景與既有Wine同場景並排。未重跑Wine、noskip或完整逐幀。
+- 本遊戲11個目標CG實際檔頭皆QNT、倍率100；CCR的cuti可變倍率另未實作，不改submodule。腳本命令4／15、舊存檔activity不重載、商店／派遣／GameOver／附錄／設定2–7頁、存讀檔實機仍未驗證。
+- **下一組音訊**：獨立支線c96f79f（audio-init），審查無H/M、default／GBK各87PASS、3案及3條GUI通過，正式before f517ca8 2/3失敗。尚未合主線／推送，接上應89模式，需提交後重驗。根因Kiwi早於gfx初始化SDL_AUDIO；已有私人非零PCM因果實驗，正式整合版輸出與聽感仍需確認。
+- **粉紅顧客**：原版upper-left getter保留float、只讀查找、寫X再Y（0x534bb0／0x58bf80）。獨立支線新探針建立中，尚未修復；須修前失敗、精度／ABI／v13守衛、同場景走位比較與審查。三家店目的地為192／500／628，不能拿背景Mob路人代替驗收。
+- G15等其他缺口仍保留：非struct Array、對話字色／淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出、長時穩定。本文件也更正harness舊7案G15敘述為已審14案，不改程式。
+
+## 2026-10-10：G15 struct 陣列審查整合（歷史）
 
 - **程式 `0f0af6c`、`3ab99a1` 已推送並以 ls-remote／GitHub branches API 雙源核對。** 文件另隨本節所在 commit；libsys4 固定 `247f544`。預設／GBK 各87模式 PASS、san0。研究與限制見 [array-construct](research/array-construct/README.md)。
 - 原版 Alloc `0x67f4a0` 先清空再建構；清空 `0x67ec50` 與 Realloc 縮短 `0x67f554` 逆序釋放，釋放完成前保留舊長度與尚未處理的元素。struct 預設建構 `0x679b30(struct,1)`。獨立審查三項 Medium 已結清，修正 owner 重用／FFI 回傳形狀、解構期間可觀察狀態及未知 operand 相容性。

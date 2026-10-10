@@ -1,0 +1,51 @@
+G16 正式 before／after（2026-10-10）
+
+主線整合83b09ac + 8787a31；獨立審查修正fba68c2。
+最終fixture G1–G9。兩次before均在提交後由主線harness執行，恢復8787a31、dirty0。
+
+=== 修前 0ded2b3 ===
+  FAIL: G1 the CG: state type 1, texture present 6x5, size 6x5; want a built 6x5 construction
+  FAIL: G1 the CG: no pixels to compare
+  FAIL: G1 (2, 3): state type 1, texture present 6x5, size 6x5; want a built 6x5 construction
+  FAIL: G1 (2, 3): no pixels to compare
+  FAIL: G1 a CG without alpha: state type 1, texture present 4x2, size 4x2; want a built 4x2 construction
+G1 checked
+G1 FAILED (exit 1)
+G2 checked
+G2 FAILED (exit 1)
+G3 checked
+G3 FAILED (exit 1)
+G4 checked
+G4 FAILED (exit 1)
+G5 FAILED (signal 6)
+G6 checked
+G6 FAILED (exit 1)
+G7 checked
+G7 FAILED (exit 1)
+G8 FAILED (exit 1)
+G9 checked
+CONSTRUCTION-CG FAIL: 8 of 9 cases failed
+rc1、san0。
+
+=== 修前 ee54909 ===
+  FAIL: G9: RGB (2, 5 alpha=0) was built instead of keeping its CG
+  FAIL: G9 RGB (2, 5 alpha=0) fallback (0,0) = (10,200,255,0), want (10,200,255,255)
+  FAIL: G9 RGB (2, 5 alpha=0) fallback (1,0) = (10,200,255,0), want (10,200,255,255)
+  FAIL: G9 RGB (2, 5 alpha=0) fallback (2,0) = (10,200,255,0), want (10,200,255,255)
+  FAIL: G9 RGB (2, 5 alpha=0) fallback (3,0) = (10,200,255,0), want (10,200,255,255)
+G1 checked
+G2 checked
+G3 checked
+G4 checked
+G5 checked
+G6 checked
+G7 checked
+G8 checked
+G9 checked
+G9 FAILED (exit 1)
+CONSTRUCTION-CG FAIL: 1 of 9 cases failed
+rc1、san0。
+
+=== 修後 ===
+head8787a31、diff空、libsys4247f544。預設／GBK各88模式VERDICT PASS、san0，construction-cg九案全過，array-construct十四案全過。
+提交前四條GUI皆完整，MSG88、error0；主線提交後九條GUI完整duration、exit0、error0，MSG與G15基準相同；詳gui-summary.json。
