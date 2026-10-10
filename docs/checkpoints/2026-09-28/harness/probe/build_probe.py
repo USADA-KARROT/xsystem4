@@ -67,6 +67,12 @@ video_shadow=here/'probe-video.c'
 video_shadow.write_text((source/'src/video.c').read_text()+"\nvoid probe_gl_initialize(void) { gl_initialize(); }\n")
 videoobj=here/('video-'+a.variant+'.o')
 compiled += [compile_as('src/video.c', video_shadow, videoobj)]
+# construction_cg_fixture.inc needs CGs and the probe has no archives: cg_assets_shadow.inc serves
+# files made in memory through the asset manager's own (static) table.
+asset_shadow=here/'probe-asset-manager.c'
+asset_shadow.write_text((source/'src/asset_manager.c').read_text()+'\n'+(here/'cg_assets_shadow.inc').read_text())
+assetobj=here/('asset-manager-'+a.variant+'.o')
+compiled += [compile_as('src/asset_manager.c', asset_shadow, assetobj)]
 link=shlex.split(subprocess.check_output(['ninja','-t','commands','src/xsystem4'],cwd=build,text=True).splitlines()[-1])
 link.remove('src/xsystem4.p/ffi.c.o')
 binary=here/('runtime-probe-'+a.variant)
@@ -81,6 +87,7 @@ for i,arg in enumerate(link):
     elif arg=='src/xsystem4.p/font_freetype.c.o':link[i]=str(ftobj)
     elif arg=='src/xsystem4.p/hll_MainEXFile.c.o':link[i]=str(mainexobj)
     elif arg=='src/xsystem4.p/video.c.o':link[i]=str(videoobj)
+    elif arg=='src/xsystem4.p/asset_manager.c.o':link[i]=str(assetobj)
 run=subprocess.run(link,cwd=build,capture_output=True,text=True)
 (here/('link-'+a.variant+'.log')).write_text(run.stdout+run.stderr)
 if run.returncode:raise SystemExit(run.stderr)

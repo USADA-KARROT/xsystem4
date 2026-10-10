@@ -33,6 +33,7 @@
 
 #include "system4/ain.h"
 #include "system4/archive.h"
+#include "system4/cg.h"
 #include "system4/ex.h"
 #include "system4/string.h"
 #include "system4/utfsjis.h"
@@ -737,10 +738,11 @@ static int pactex_low_level_type(struct ex_tree *state)
 /* 構築部件 with a non-empty 手順リスト. The native state loader (0x5a64e0)
  * reads the list (0x5a6569) and runs its steps at once (0x5a66ed -> 0x5a73c0
  * -> 0x4fa1d0), so the state has its surface before the AIN sees it. The
- * loader here builds the states pactex_construction_plan accepts; the others
- * (e.g. SceneAzito's Bg: load 背景／那由多, then blur) keep the legacy CG
- * fallback (the first step's ＣＧ名) and only report type 26. An empty list
- * (StandView's PlayerC) is filled by the game. */
+ * loader here builds the states pactex_construction_plan accepts (among them
+ * the blurred backgrounds, e.g. SceneAzito's Bg: load 背景／那由多, then
+ * blur); the others keep the legacy CG fallback (the first step's ＣＧ名)
+ * and only report type 26. An empty list (StandView's PlayerC) is filled by
+ * the game. */
 static struct ex_tree *pactex_construction_steps(struct ex_tree *state)
 {
 	for (unsigned i = 0; i < state->nr_children; i++) {
@@ -772,16 +774,22 @@ struct pactex_cp_step {
 	int rx, ry;
 	int rotate;
 	int start, sweep;
+	int blur;		// ブラー (+0x54)
 	const char *cg_name;	// in the pactex tree
 };
 
 enum {
 	PACTEX_CP_CREATE = 0,
+	PACTEX_CP_CREATE_CG = 2,
 	PACTEX_CP_FILL = 3,
+	PACTEX_CP_BLEND_FILL = 4,
 	PACTEX_CP_FILL_AMAP = 5,
 	PACTEX_CP_FILL_WITH_ALPHA = 6,
+	PACTEX_CP_GRAY_SCALE = 15,
 	PACTEX_CP_MUL_AMAP_GRADATION_ROWS = 25,
 	PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS = 26,
+	PACTEX_CP_BLUR_H = 27,
+	PACTEX_CP_BLUR_V = 28,
 	PACTEX_CP_FILL_CIRCLE_AMAP = 102,
 	PACTEX_CP_FILL_PIE_AMAP = 122,
 	PACTEX_CP_TILE_CG = 129,
@@ -850,9 +858,16 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	if (node->is_leaf || !pactex_step_int(node, "\x83\x52\x83\x7d\x83\x93\x83\x68",
 			"\xa5\xb3\xa5\xde\xa5\xf3\xa5\xc9", &s->command)) /* コマンド */
 		return false;
-	// A step that creates no surface leaves none for the rest; one that
-	// replaces the surface does not occur in the game.
-	if (first != (s->command == PACTEX_CP_CREATE))
+	// The first step makes the surface: command 0 creates it, command 2
+	// loads it from a CG. A step that makes none leaves none for the rest;
+	// one that replaces the surface does not occur in the game.
+	if (first != (s->command == PACTEX_CP_CREATE || s->command == PACTEX_CP_CREATE_CG))
+		return false;
+	// The states that start with a CG, and the commands only they have,
+	// are built for v14 alone.
+	if (ain->version < 14 && (s->command == PACTEX_CP_CREATE_CG || s->command == PACTEX_CP_BLEND_FILL
+			|| s->command == PACTEX_CP_GRAY_SCALE || s->command == PACTEX_CP_BLUR_H
+			|| s->command == PACTEX_CP_BLUR_V))
 		return false;
 	if (!pactex_step_item(node, dest_sjis, dest_gbk, 0, &s->x)
 			|| !pactex_step_item(node, dest_sjis, dest_gbk, 1, &s->y)
@@ -864,7 +879,55 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	case PACTEX_CP_CREATE:
 		// 0x4fbd30 -> 0x5a94d0 fails unless both are positive.
 		return s->w > 0 && s->h > 0 && s->w <= PACTEX_CP_MAX_SIZE && s->h <= PACTEX_CP_MAX_SIZE;
+	case PACTEX_CP_CREATE_CG: {
+		// 0x4fbf40 -> 0x50ac80: the surface is ＣＧ名's CG, of its size
+		// (先矩形 is not read). A CG that cannot be loaded fails the step
+		// and leaves no surface.
+		int cg_no;
+		struct cg_metrics metrics;
+		s->cg_name = pactex_get_string(node, SJIS_CG_MEI);
+		if (!s->cg_name)
+			s->cg_name = pactex_get_string(node, GBK_CG_MEI);
+		if (!s->cg_name || !asset_exists_by_name(ASSET_CG, s->cg_name, &cg_no)
+				|| !asset_cg_get_metrics(cg_no, &metrics))
+			return false;
+		s->x = 0;
+		s->y = 0;
+		s->w = metrics.w;
+		s->h = metrics.h;
+		return s->w > 0 && s->h > 0 && s->w <= PACTEX_CP_MAX_SIZE && s->h <= PACTEX_CP_MAX_SIZE;
+	}
+	case PACTEX_CP_GRAY_SCALE:
+	case PACTEX_CP_BLUR_H:
+	case PACTEX_CP_BLUR_V: {
+		// 0x4fe870 (gray scale), 0x4ffa60 / 0x4ffba0 (a box blur of ブラー
+		// along the rows / the columns): over the rectangle, clipped as
+		// the fills' is, or with 全體 the whole surface.
+		if (!pactex_step_int(node, "\x91\x53\x91\xcc", "\xc8\xab\xf3\x77", &full)) /* 全体 / 全體 */
+			return false;
+		if (s->command != PACTEX_CP_GRAY_SCALE && !pactex_step_int(node, "\x83\x75\x83\x89\x81\x5b",
+				"\xa5\xd6\xa5\xe9\xa9\x60", &s->blur)) /* ブラー */
+			return false;
+		s->full = full == 1;
+		if (s->full) {
+			s->x = 0;
+			s->y = 0;
+			s->w = surface_w;
+			s->h = surface_h;
+		}
+		if (!pactex_clip_span(&s->x, &s->w, surface_w) || !pactex_clip_span(&s->y, &s->h, surface_h)
+				|| s->w <= 0 || s->h <= 0)
+			return false;
+		if (s->command == PACTEX_CP_GRAY_SCALE)
+			return true;
+		// The radius is clamped to the line (0x49379f): a line of one
+		// pixel, or of two with a radius below 1, is read beyond its end
+		// by the original; not built.
+		const int n = s->command == PACTEX_CP_BLUR_V ? s->h : s->w;
+		return n >= 3 || (n == 2 && s->blur >= 1);
+	}
 	case PACTEX_CP_FILL:
+	case PACTEX_CP_BLEND_FILL:
 	case PACTEX_CP_FILL_AMAP:
 	case PACTEX_CP_FILL_WITH_ALPHA: {
 		for (int i = 0; i < 4; i++) {
@@ -874,16 +937,17 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		if (!pactex_step_int(node, "\x91\x53\x91\xcc", "\xc8\xab\xf3\x77", &full)) /* 全体 / 全體 */
 			return false;
 		// The original clamps what commands 3 and 6 write to 0..255
-		// (0x5ac2a4, 0x5ac764) and stores the low byte for command 5
-		// (0x492286); a state with a value outside 0..255 (none in the
-		// game) is not built.
+		// (0x5ac2a4, 0x5ac764), and command 4's colour (0x5ac581), whose
+		// alpha indexes a table as it is (0x4922be); it stores the low
+		// byte for command 5 (0x492286). A state with a value outside
+		// 0..255 (none in the game) is not built.
 		if (s->command != PACTEX_CP_FILL_AMAP && !(pactex_byte(s->color[0])
 				&& pactex_byte(s->color[1]) && pactex_byte(s->color[2])))
 			return false;
 		if (s->command != PACTEX_CP_FILL && !pactex_byte(s->color[3]))
 			return false;
-		// 0x4fc040, 0x4fc2f0, 0x4fc490: 全體 == 1 (0x4f8f76) selects
-		// the whole surface.
+		// 0x4fc040, 0x4fc190, 0x4fc2f0, 0x4fc490: 全體 == 1 (0x4f8f76)
+		// selects the whole surface.
 		// 0x5abed0 normalizes the rectangle (a negative size extends the
 		// other way) and clips it to the surface; 0x5abde0 fails the step,
 		// and with it every later one (0x4fb675), when nothing is left.
@@ -971,9 +1035,10 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 }
 
 /* The steps of a construction state, when the loader can run them as the
- * original does: every command is one of 0 (create), 3, 5, 6 (fills), 25, 26
- * (alpha gradations), 102 (disc alpha), 122 (sector alpha) and 129 (CG
- * tiles), the first step creates the surface and none would fail.
+ * original does: every command is one of 0 (create), 2 (the surface from a
+ * CG), 3, 4, 5, 6 (fills), 15 (gray scale), 25, 26 (alpha gradations), 27, 28
+ * (blurs), 102 (disc alpha), 122 (sector alpha) and 129 (CG tiles), the
+ * first step makes the surface and none would fail.
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;
@@ -1016,9 +1081,28 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 		case PACTEX_CP_CREATE:
 			PE_AddCreateToPartsConstructionProcess(parts_no, s->w, s->h, pe_state);
 			break;
+		case PACTEX_CP_CREATE_CG: {
+			struct string *name = cstr_to_string(s->cg_name);
+			PE_AddCreateCGToProcess(parts_no, name, pe_state);
+			free_string(name);
+			break;
+		}
 		case PACTEX_CP_FILL:
 			PE_AddFillToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h,
 				s->color[0], s->color[1], s->color[2], pe_state);
+			break;
+		case PACTEX_CP_BLEND_FILL:
+			PE_AddBlendFillToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h, s->full,
+				s->color[0], s->color[1], s->color[2], s->color[3], pe_state);
+			break;
+		case PACTEX_CP_GRAY_SCALE:
+			PE_AddGrayScaleToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h, s->full,
+				pe_state);
+			break;
+		case PACTEX_CP_BLUR_H:
+		case PACTEX_CP_BLUR_V:
+			PE_AddBlurToPartsConstructionProcess(parts_no, s->command == PACTEX_CP_BLUR_V,
+				s->x, s->y, s->w, s->h, s->full, s->blur, pe_state);
 			break;
 		case PACTEX_CP_FILL_AMAP:
 			PE_AddFillAMapToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h,
