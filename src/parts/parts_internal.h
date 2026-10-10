@@ -319,7 +319,8 @@ struct parts_cp_pie {
 // The commands that work on the surface's pixels; each uses the fields its
 // native step does:
 //   MUL_AMAP_GRADATION_ROWS / _COLUMNS (v14 commands 25 / 26): the rectangle
-//     (or `full`), the alpha `a` at its first line and `a2` after its last;
+//     (or `full`), the alpha `a` at its first line and `a2` after its last
+//     (a panel's fade also keeps its edge + 1 in `line_width`);
 //   BLUR_H / BLUR_V (27 / 28): the rectangle (or `full`) and `radius`;
 //   FILL_CIRCLE_AMAP / _BLEND (102 / 106): the centre (x, y), `radius` and
 //     the alpha `a`, with the colour for the blend;
@@ -367,14 +368,18 @@ struct parts_construction_process {
 };
 
 // v14 パネル (component type 14): the size and colour its surface is built
-// from, as the native widget keeps them (+0xa8/+0xac, +0xb0..+0xbc; 200x200
-// and (220,220,220,255) from its constructor 0x4dc6f0). The surface is the
-// normal state's construction: Create, then FillWithAlpha over all of it.
-// Not saved: after a load the values are taken from those two operations.
+// from and アルファグラデーション, the widths of the fades of its top,
+// bottom, left and right edges, as the native widget keeps them (+0xa8/+0xac,
+// +0xb0..+0xbc, +0xc0..+0xcc; 200x200, (220,220,220,255) and no fades from
+// its constructor 0x4dc6f0). The surface is the normal state's construction:
+// Create, FillWithAlpha over all of it, then MulAMapGradation for each edge
+// that has a fade (the operation's line_width is the edge + 1). Not saved:
+// after a load the values are taken from those operations.
 struct parts_panel {
 	bool valid;
 	int w, h;
 	int r, g, b, a;
+	int grad[4];	// top, bottom, left, right
 };
 
 enum parts_flash_blend_mode {
@@ -873,9 +878,10 @@ bool parts_clear_construction_process(struct parts_construction_process *cproc);
 void parts_cp_tile(uint8_t *pixels, int tw, int th, int x, int y, int w, int h,
 		const uint8_t *src, int cw, int ch);
 struct parts_panel *parts_get_panel(struct parts *parts);
-void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a);
+void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a, const int grad[4]);
 void parts_panel_set_size(struct parts *parts, int w, int h);
 void parts_panel_set_color(struct parts *parts, int r, int g, int b, int a);
+void parts_panel_set_gradation(struct parts *parts, int side, int size);
 void parts_panel_load_blended(struct parts *parts);
 
 // flash.c

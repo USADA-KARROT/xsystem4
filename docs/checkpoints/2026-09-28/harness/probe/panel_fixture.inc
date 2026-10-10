@@ -13,9 +13,13 @@
  *     all of it with the colour (0x569200 -> 0x5a6df0, which writes 6 at
  *     0x5a6e73) and the steps are run (0x569350 -> 0x5a73c0).
  *     Command 6 (0x4fc490) replaces RGBA, so the surface is (r, g, b, a).
- *     The getters (0x597260..) return the stored values, 0 without a parts;
- *     every panel function turns an existing parts of another type into a
- *     panel (0x53e290 -> 0x536ff0) and does nothing for an unknown number;
+ *     The getters (0x597260..) return the stored values. Every panel
+ *     function takes the widget through 0x53e290, which looks the component
+ *     up as 0x53d920 does (-> 0x53a0b0 -> 0x539c80, 0x578ee0): a number of 0
+ *     or less has none (0x539cb0: the setters do nothing, the getters
+ *     return 0), any other number without a component gets one (0x578f0e ->
+ *     0x578cb0), and a component of another type, a new one included,
+ *     becomes a panel with the constructor's values (0x536ff0);
  *   - PartsEngine.AddPartsConstructionProcess (0x59a730) copies ArrayInt
  *     0..39 into a step: [0] コマンド, [6],[7] 先矩形 X,Y, [10],[11] W,H,
  *     [12..15] 色１, [20],[21] the character and line spacing, [22],[23] the
@@ -45,8 +49,9 @@
  *       and the colour the size, a size that is not positive keeps the
  *       surface and the colour; a parts that is not a panel yet, a
  *       construction parts included, starts as 200x200 (220,220,220,255),
- *       and a getter makes it a panel as a setter does; an unknown number is
- *       not created; the real CPanelParts@ColorA::set, which reads the other
+ *       and a getter makes it a panel as a setter does; a number above 0
+ *       without a parts gets one, for a setter and a getter alike, and 0 or
+ *       a negative number none; the real CPanelParts@ColorA::set, which reads the other
  *       three back, changes only the alpha (to 0 as well).
  *   PN3 the script's command 6, as DungeonSelector@BuildAreaParts draws its
  *       Area with the real CASConstructionProcess::Create / Fill (r,g,b,a) /
@@ -98,9 +103,71 @@
  * PN3's four presses are checked against xsystem4's present dispatch, like
  * click-permission's (see that file): they change with it.
  *
+ * アルファグラデーション (2026-10-11; before, a panel's surface was flat and
+ * the eight functions were empty):
+ *   - the widget keeps the widths of the fades of its top, bottom, left and
+ *     right edges at +0xc0, +0xc4, +0xc8, +0xcc. The pactex loader stores
+ *     the four items of アルファグラデーション there as they are (0x4dc67b,
+ *     0x4dc691, 0x4dc6a7, 0x4dc6bd; key 0x7d120c), 0 for a missing key;
+ *   - the rebuild 0x4dcc10 takes each width as at most the surface's height
+ *     or width (cmovl, 0x4dccf4..0x4dcd29) and, after the fill, adds a step
+ *     for every one that is not 0, in the order top, bottom, left, right:
+ *     command 25 (0x569600 -> 0x5a7240) over the rows 0 .. top with the
+ *     alphas 0 and A, over the last `bottom` rows with A and 0; command 26
+ *     (0x569670 -> 0x5a7300) over the columns 0 .. left with 0 and A, over
+ *     the last `right` columns with A and 0; A is the colour's alpha
+ *     (+0xbc), not 255. Commands 25 and 26 multiply the alpha (see
+ *     construction-cmds);
+ *   - SetPanelAlphaGradationTop / Bottom / Left / Right (0x5972e0,
+ *     0x597340, 0x5973a0, 0x597400) do nothing for the width the widget has
+ *     and store one that is not positive as 0; the getters (0x597460,
+ *     0x597480, 0x5974a0, 0x5974c0) return the stored width. All eight take
+ *     the widget as the other panel functions do (0x53e290, above): a number
+ *     above 0 without a component gets a panel, 0 or less does nothing.
+ *   PN9 panels with fades from a pactex. Five are the game's, with its
+ *       sizes, colours and widths: SceneMap's MapClip (the mask of the
+ *       dungeon map, left 64), SceneLogo's LightA (left and right 20 of
+ *       64), the two page-turn shades of the CG viewer (all of their 80
+ *       columns), SceneScriptMovie's MessageFade (top and bottom 50).
+ *       Every panel of the game with a fade has a colour whose alpha is 255
+ *       (the shades' 128 is their component's アルファ), for which a far end
+ *       of 255 and one of the colour's alpha are the same pixels: that it
+ *       is the colour's alpha (0x4dcc81, 0x4dcd1d: +0xbc is what the four
+ *       calls push) shows only in the made-up Edges (alpha 200) and Wide
+ *       (128), and no picture of the original has such a panel.
+ *       Pixels by hand and every pixel against a model; the order of the
+ *       operations; a width beyond the size; a negative width (no step
+ *       here; the getter returns it); the SJIS key; a panel without the
+ *       key.
+ *   PN10 the eight functions through their AIN declarations: the fades are
+ *       rebuilt in the fixed order whatever the order of the calls, the
+ *       same width does nothing, a width that is not positive is 0, one
+ *       beyond the size is kept, SetPanelColor and SetPanelSize keep the
+ *       fades (the far end follows the colour's alpha); a number without
+ *       a parts (made a panel, by a getter too), 0 and a negative number
+ *       (nothing), a parts of another type; the real CPanelParts@GradationLeft::set
+ *       and the 0 that ScrollBase@CreateClipperParts sets on every list.
+ *   PN11 PE_Save / PE_Load: the same pixels under every XPE version since
+ *       8 (the fades are operations those have), the widths come back from
+ *       the operations (as built: at most the size) on the edges they were
+ *       set on, also for a colour whose alpha is 0 (each operation keeps
+ *       its edge); a loaded panel keeps them for a new colour, size or
+ *       width; fades that name no edge are told apart by where they start;
+ *       a panel saved without fades loads flat; under an AIN before version
+ *       14 the loader reads none.
+ * PN9 to PN11 fail before the change.
+ *
  * Not covered:
- *   - アルファグラデーション (commands 25 and 26 after the fill, 0x569600 /
- *     0x569670) is not implemented;
+ *   - a fade with a negative width: the original adds a step over no line
+ *     for it, here none is added (the pixels are the same);
+ *   - the widths of a loaded panel beyond its size (they come back as the
+ *     size);
+ *   - a fade that names no edge (not one of this build's panels) over all of
+ *     a panel whose colour has alpha 0: it loads as the top or the left
+ *     one, and a later colour with another alpha fades from that edge;
+ *   - the surface of a panel that was only made (by a getter, or by
+ *     SetComponentType): the original builds 200x200 at its next update,
+ *     here it has none until a size, a colour or a fade is set;
  *   - the drawing of a panel over the scene;
  *   - the size the original's widget reports for its parts (its width and
  *     height fields, 0x4dce10; here the surface's): a parts a script makes a
@@ -363,12 +430,39 @@ static void pn_hll(void)
 	pn_expect_flat(CONS_SIZE, 3, 2, 220, 220, 220, 255, "PN2 SetPanelSize on a construction parts");
 	pn_set_color(CONS_COLOR, 9, 9, 9, 9);
 	pn_expect_flat(CONS_COLOR, 200, 200, 9, 9, 9, 9, "PN2 SetPanelColor on a construction parts");
-	/* An unknown number is not created (0x53d920 finds nothing). */
+	/* A number above 0 that has no parts gets one, a panel with the
+	 * constructor's values (0x53e290 -> 0x53d920 -> 0x53a0b0 -> 0x578ee0
+	 * makes the component, 0x536ff0 the widget), for a getter as for a
+	 * setter. */
+	const int UNKNOWN3 = 9980;
+	PN_CHECK(!parts_try_get(UNKNOWN) && !parts_try_get(UNKNOWN2) && !parts_try_get(UNKNOWN3), "PN2: the unknown numbers are in use");
 	pn_set_color(UNKNOWN, 1, 2, 3, 4);
+	type = parts_try_get(UNKNOWN) ? BU_PE("GetComponentType", BU_I(UNKNOWN), BU_I(1)).i : -1;
+	PN_CHECK(type == 14, "PN2 SetPanelColor on a number without a parts: %s, GetComponentType %d; want a panel (14)",
+		 parts_try_get(UNKNOWN) ? "created" : "not created", type);
+	pn_expect_color(UNKNOWN, 1, 2, 3, 4, "PN2 SetPanelColor on a number without a parts");
+	pn_expect_flat(UNKNOWN, 200, 200, 1, 2, 3, 4, "PN2 SetPanelColor on a number without a parts");
 	pn_set_size(UNKNOWN2, 5, 5);
-	pn_expect_color(UNKNOWN, 0, 0, 0, 0, "PN2 an unknown number");
-	PN_CHECK(!parts_try_get(UNKNOWN) && !parts_try_get(UNKNOWN2), "PN2 a panel call created parts %d: %d, %d: %d", UNKNOWN,
-		 !!parts_try_get(UNKNOWN), UNKNOWN2, !!parts_try_get(UNKNOWN2));
+	type = parts_try_get(UNKNOWN2) ? BU_PE("GetComponentType", BU_I(UNKNOWN2), BU_I(1)).i : -1;
+	PN_CHECK(type == 14, "PN2 SetPanelSize on a number without a parts: GetComponentType %d, want 14", type);
+	pn_expect_flat(UNKNOWN2, 5, 5, 220, 220, 220, 255, "PN2 SetPanelSize on a number without a parts");
+	int alpha3 = BU_PE("GetPanelA", BU_I(UNKNOWN3)).i;
+	type = parts_try_get(UNKNOWN3) ? BU_PE("GetComponentType", BU_I(UNKNOWN3), BU_I(1)).i : -1;
+	PN_CHECK(alpha3 == 255 && type == 14, "PN2 GetPanelA on a number without a parts: %d, then GetComponentType %d; want 255, 14",
+		 alpha3, type);
+	pn_expect_color(UNKNOWN3, 220, 220, 220, 255, "PN2 a getter on a number without a parts");
+	/* A number of 0 or less has no component (0x539cb0): nothing is made
+	 * or changed and the getters return 0. */
+	const bool had0 = parts_try_get(0) != NULL, had_neg = parts_try_get(-7) != NULL;
+	pn_set_color(0, 1, 2, 3, 4);
+	pn_set_size(0, 5, 5);
+	pn_set_color(-7, 1, 2, 3, 4);
+	pn_set_size(-7, 5, 5);
+	pn_expect_color(0, 0, 0, 0, 0, "PN2 number 0");
+	pn_expect_color(-7, 0, 0, 0, 0, "PN2 a negative number");
+	PN_CHECK((parts_try_get(0) != NULL) == had0 && (parts_try_get(-7) != NULL) == had_neg && !had_neg,
+		 "PN2: a panel call made a parts for number 0 (%d -> %d) or -7 (%d -> %d)", had0, parts_try_get(0) != NULL, had_neg,
+		 parts_try_get(-7) != NULL);
 
 	/* The real CPanelParts: ColorA::set reads R, G and B back and calls
 	 * SetPanelColor with them. */
@@ -1031,10 +1125,548 @@ static void pn_guards_other(void)
 	printf("PN8 guards: %s\n", pn_failures ? "FAIL" : "ok");
 }
 
+/* --- PN9 .. PN11: アルファグラデーション --- */
+#define PN_GRAD "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1\xa5\xb0\xa5\xe9\xa5\xc7\xa9\x60\xa5\xb7\xa5\xe7\xa5\xf3"
+#define PN_GRAD_S "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4f\x83\x89\x83\x66\x81\x5b\x83\x56\x83\x87\x83\x93"
+
+/* パネル { サイズ, 色, アルファグラデーション = (top, bottom, left, right) }. */
+static struct ex_tree pn_grad_panel(const char *name, int w, int h, const int c[4], const int grad[4], bool sjis)
+{
+	struct ex_tree info = bu_branch(BU_INFO, 4);
+	info.children[0] = bu_sleaf(sjis ? PN_TYPE_S : BU_TYPE, sjis ? PN_PANEL_S : CP_PANEL);
+	info.children[1] = lb_ilist(sjis ? PN_SIZE_S : CP_SIZE, 2, (int[]){ w, h });
+	info.children[2] = lb_ilist(sjis ? PN_COLOR_S : CP_COLOR, 4, c);
+	info.children[3] = lb_ilist(sjis ? PN_GRAD_S : PN_GRAD, 4, grad);
+	struct lb_place pl = { 0, 0, 1 };
+	return lb_node(name, &pl, info, 0);
+}
+
+/* The surface the rebuild 0x4dcc10 leaves, w x h: the colour, then the alpha
+ * multiplied over the rows of the top and the bottom fade and over the
+ * columns of the left and the right one, in that order (commands 25 and 26:
+ * line i of n by a1 + i * (a2 - a1) / n, the quotient truncated, as
+ * A * a / 255). A fade is at most as wide as the surface, starts or ends
+ * with 0 at the edge and has the colour's alpha at its other end. */
+static void pn_grad_model(uint8_t *px, int w, int h, const int c[4], const int grad[4])
+{
+	for (int i = 0; i < w * h; i++) {
+		px[i * 4] = c[0]; px[i * 4 + 1] = c[1]; px[i * 4 + 2] = c[2]; px[i * 4 + 3] = c[3];
+	}
+	const int a = c[3];
+	const int top = grad[0] < h ? grad[0] : h, bottom = grad[1] < h ? grad[1] : h;
+	const int left = grad[2] < w ? grad[2] : w, right = grad[3] < w ? grad[3] : w;
+	for (int i = 0; i < top; i++) {
+		for (int x = 0; x < w; x++)
+			px[(i * w + x) * 4 + 3] = px[(i * w + x) * 4 + 3] * (0 + i * (a - 0) / top) / 255;
+	}
+	for (int i = 0; i < bottom; i++) {
+		for (int x = 0; x < w; x++)
+			px[((h - bottom + i) * w + x) * 4 + 3] = px[((h - bottom + i) * w + x) * 4 + 3] * (a + i * (0 - a) / bottom) / 255;
+	}
+	for (int i = 0; i < left; i++) {
+		for (int y = 0; y < h; y++)
+			px[(y * w + i) * 4 + 3] = px[(y * w + i) * 4 + 3] * (0 + i * (a - 0) / left) / 255;
+	}
+	for (int i = 0; i < right; i++) {
+		for (int y = 0; y < h; y++)
+			px[(y * w + w - right + i) * 4 + 3] = px[(y * w + w - right + i) * 4 + 3] * (a + i * (0 - a) / right) / 255;
+	}
+}
+
+static void pn_expect_model(int no, int w, int h, const uint8_t *model, const char *what)
+{
+	uint8_t *px = pn_pixels(no, w, h, what);
+	if (!px)
+		return;
+	int bad = 0;
+	for (int i = 0; i < w * h; i++) {
+		if (memcmp(px + i * 4, model + i * 4, 4) && bad++ < 3)
+			PN_CHECK(0, "%s: (%d,%d) = (%d,%d,%d,%d), want (%d,%d,%d,%d)", what, i % w, i / w, px[i * 4], px[i * 4 + 1],
+				 px[i * 4 + 2], px[i * 4 + 3], model[i * 4], model[i * 4 + 1], model[i * 4 + 2], model[i * 4 + 3]);
+	}
+	PN_CHECK(bad <= 3, "%s: %d pixels differ", what, bad);
+	free(px);
+}
+static void pn_expect_grad(int no, int w, int h, const int c[4], const int grad[4], const char *what)
+{
+	uint8_t *model = xmalloc((size_t)w * h * 4);
+	pn_grad_model(model, w, h, c, grad);
+	pn_expect_model(no, w, h, model, what);
+	free(model);
+}
+
+static const char *const pn_grad_setters[4] = { "SetPanelAlphaGradationTop", "SetPanelAlphaGradationBottom",
+	"SetPanelAlphaGradationLeft", "SetPanelAlphaGradationRight" };
+static const char *const pn_grad_getters[4] = { "GetPanelAlphaGradationTop", "GetPanelAlphaGradationBottom",
+	"GetPanelAlphaGradationLeft", "GetPanelAlphaGradationRight" };
+static void pn_set_grad(int no, int side, int size)
+{
+	BU_PE(pn_grad_setters[side], BU_I(no), BU_I(size));
+}
+static void pn_expect_grad_values(int no, int top, int bottom, int left, int right, const char *what)
+{
+	int got[4];
+	for (int i = 0; i < 4; i++)
+		got[i] = BU_PE(pn_grad_getters[i], BU_I(no)).i;
+	PN_CHECK(got[0] == top && got[1] == bottom && got[2] == left && got[3] == right,
+		 "%s: GetPanelAlphaGradationTop/Bottom/Left/Right (%d,%d,%d,%d), want (%d,%d,%d,%d)", what, got[0], got[1], got[2],
+		 got[3], top, bottom, left, right);
+}
+/* The types of the operations after Create and the fill, e.g. "RRCC" for the
+ * four fades (R: rows, command 25; C: columns, command 26). */
+static void pn_expect_fades(int no, const char *want, const char *what)
+{
+	char got[16] = "";
+	int n = 0;
+	struct parts_cp_op *op = pn_op_at(no, 2);
+	for (; op && n < 15; op = TAILQ_NEXT(op, entry))
+		got[n++] = op->type == PARTS_CP_MUL_AMAP_GRADATION_ROWS ? 'R' : op->type == PARTS_CP_MUL_AMAP_GRADATION_COLUMNS ? 'C' : '?';
+	got[n] = '\0';
+	PN_CHECK(!strcmp(got, want) && pn_nr_ops(no) == 2 + (int)strlen(want), "%s: the operations after the fill are \"%s\" (%d in all), want \"%s\"",
+		 what, got, pn_nr_ops(no), want);
+}
+static void pn_expect_alpha(const uint8_t *px, int w, int x, int y, int a, const char *what)
+{
+	if (px)
+		PN_CHECK(px[(y * w + x) * 4 + 3] == a, "%s: alpha (%d,%d) = %d, want %d", what, x, y, px[(y * w + x) * 4 + 3], a);
+}
+
+/* --- PN9 --- */
+static void pn_gradation(void)
+{
+	cn_gl_setup();
+	static const struct { const char *name; int w, h, c[4], grad[4]; const char *fades; bool sjis; } panels[] = {
+		{ "Edges", 16, 8, { 10, 20, 30, 200 }, { 2, 3, 4, 5 }, "RRCC" },
+		{ "MapClip", 1024, 720, { 255, 255, 255, 255 }, { 0, 0, 64, 0 }, "C" },		/* SceneMap */
+		{ "LightA", 64, 400, { 255, 255, 128, 255 }, { 0, 0, 20, 20 }, "CC" },		/* SceneLogo */
+		{ "Left", 80, 720, { 0, 0, 0, 255 }, { 0, 0, 0, 80 }, "C" },			/* SceneCgModeDetail */
+		{ "Right", 80, 720, { 0, 0, 0, 255 }, { 0, 0, 80, 0 }, "C" },
+		{ "MessageFade", 1280, 206, { 220, 220, 220, 255 }, { 50, 50, 0, 0 }, "RR" },	/* SceneScriptMovie */
+		{ "Wide", 8, 4, { 0, 0, 0, 128 }, { 0, 0, 20, 0 }, "C" },
+		{ "Flat", 9, 5, { 1, 2, 3, 4 }, { 0, 0, 0, 0 }, "" },
+		{ "Negative", 9, 5, { 1, 2, 3, 200 }, { -3, 0, 0, 0 }, "" },
+		{ "EdgesSjis", 16, 8, { 10, 20, 30, 200 }, { 2, 3, 4, 5 }, "RRCC", true },
+	};
+	enum { N = sizeof(panels) / sizeof(panels[0]) };
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("PanelGradation", N, &kids);
+	for (int i = 0; i < N; i++)
+		kids->children[i] = pn_grad_panel(panels[i].name, panels[i].w, panels[i].h, panels[i].c, panels[i].grad, panels[i].sjis);
+	int act = cn_load("PanelGradation", e);
+	pn_failures += cn_failures;
+	int no[N];
+	for (int i = 0; i < N; i++) {
+		no[i] = bu_number(act, panels[i].name);
+		PN_CHECK(no[i] > 0, "%s has no parts number", panels[i].name);
+		if (no[i] <= 0)
+			continue;
+		char what[64];
+		snprintf(what, sizeof what, "PN9 %s", panels[i].name);
+		pn_expect_grad(no[i], panels[i].w, panels[i].h, panels[i].c, panels[i].grad, what);
+		pn_expect_fades(no[i], panels[i].fades, what);
+		/* The values as the pactex has them, neither clamped to the size
+		 * nor to 0 (0x4dc67b). */
+		pn_expect_grad_values(no[i], panels[i].grad[0], panels[i].grad[1], panels[i].grad[2], panels[i].grad[3], what);
+		pn_expect_color(no[i], panels[i].c[0], panels[i].c[1], panels[i].c[2], panels[i].c[3], what);
+	}
+	heap_unref(act);
+
+	/* By hand. Edges (made up: an alpha that is not 255 shows which alpha
+	 * the far end of a fade has), alpha 200: the top fade's rows are 0 and 200 / 2 = 100
+	 * (200 * 100 / 255 = 78), the bottom's 200, 200 - 66 = 134 and 200 - 133
+	 * = 67 (-200 / 3 and -400 / 3 truncated towards zero: 156, 105, 52), the
+	 * left columns 0, 50, 100, 150 (0, 39, 78, 117), the right ones 200, 160,
+	 * 120, 80, 40 (156, 125, 94, 62, 31); a corner is multiplied twice. */
+	uint8_t *px = no[0] > 0 ? pn_pixels(no[0], 16, 8, "PN9 Edges") : NULL;
+	if (px) {
+		static const struct { int x, y, a; } want[] = {
+			{ 8, 3, 200 }, { 8, 0, 0 }, { 8, 1, 78 }, { 8, 5, 156 }, { 8, 6, 105 }, { 8, 7, 52 },
+			{ 0, 3, 0 }, { 1, 3, 39 }, { 2, 3, 78 }, { 3, 3, 117 }, { 4, 3, 200 },
+			{ 10, 3, 200 }, { 11, 3, 156 }, { 12, 3, 125 }, { 13, 3, 94 }, { 14, 3, 62 }, { 15, 3, 31 },
+			{ 1, 1, 15 }, { 15, 7, 8 }, { 12, 6, 65 },
+		};
+		for (unsigned i = 0; i < sizeof want / sizeof want[0]; i++)
+			pn_expect_alpha(px, 16, want[i].x, want[i].y, want[i].a, "PN9 Edges");
+		PN_CHECK(px[(3 * 16 + 1) * 4] == 10 && px[(3 * 16 + 1) * 4 + 1] == 20 && px[(3 * 16 + 1) * 4 + 2] == 30,
+			 "PN9 Edges: a fade changed the colour");
+		free(px);
+	}
+	/* MapClip: column i of the 64 is i * 255 / 64. */
+	px = no[1] > 0 ? pn_pixels(no[1], 1024, 720, "PN9 MapClip") : NULL;
+	if (px) {
+		static const int col[] = { 0, 1, 2, 16, 32, 48, 63, 64, 500, 1023 }, a[] = { 0, 3, 7, 63, 127, 191, 251, 255, 255, 255 };
+		for (unsigned i = 0; i < sizeof col / sizeof col[0]; i++) {
+			pn_expect_alpha(px, 1024, col[i], 0, a[i], "PN9 MapClip");
+			pn_expect_alpha(px, 1024, col[i], 719, a[i], "PN9 MapClip");
+		}
+		free(px);
+	}
+	/* LightA: 20 columns from each side, 24 whole ones between them; the
+	 * right fade starts with 255 and ends with 255 - 242 = 13. */
+	px = no[2] > 0 ? pn_pixels(no[2], 64, 400, "PN9 LightA") : NULL;
+	if (px) {
+		static const int col[] = { 0, 10, 19, 20, 43, 44, 45, 63 }, a[] = { 0, 127, 242, 255, 255, 255, 243, 13 };
+		for (unsigned i = 0; i < sizeof col / sizeof col[0]; i++)
+			pn_expect_alpha(px, 64, col[i], 200, a[i], "PN9 LightA");
+		free(px);
+	}
+	/* The page-turn shades, black with alpha 255 (the game draws them with
+	 * a component alpha of 128): all of the width is the fade. Left (its
+	 * right edge fades): 255 at column 0, 255 - 127 = 128 at 40, 255 - 251 =
+	 * 4 at 79; Right: 0, 127 at column 40, 251 at 79. */
+	px = no[3] > 0 ? pn_pixels(no[3], 80, 720, "PN9 Left") : NULL;
+	pn_expect_alpha(px, 80, 0, 5, 255, "PN9 Left");
+	pn_expect_alpha(px, 80, 40, 5, 128, "PN9 Left");
+	pn_expect_alpha(px, 80, 79, 5, 4, "PN9 Left");
+	free(px);
+	px = no[4] > 0 ? pn_pixels(no[4], 80, 720, "PN9 Right") : NULL;
+	pn_expect_alpha(px, 80, 0, 5, 0, "PN9 Right");
+	pn_expect_alpha(px, 80, 40, 5, 127, "PN9 Right");
+	pn_expect_alpha(px, 80, 79, 5, 251, "PN9 Right");
+	free(px);
+	/* MessageFade: 50 rows from the top (row 25 is 25 * 255 / 50 = 127) and
+	 * from the bottom (row 156 is 255, row 181 is 255 - 127 = 128, the last
+	 * row 255 - 249 = 6); the 106 rows between them are whole. */
+	px = no[5] > 0 ? pn_pixels(no[5], 1280, 206, "PN9 MessageFade") : NULL;
+	pn_expect_alpha(px, 1280, 640, 0, 0, "PN9 MessageFade");
+	pn_expect_alpha(px, 1280, 640, 25, 127, "PN9 MessageFade");
+	pn_expect_alpha(px, 1280, 640, 50, 255, "PN9 MessageFade");
+	pn_expect_alpha(px, 1280, 640, 155, 255, "PN9 MessageFade");
+	pn_expect_alpha(px, 1280, 640, 156, 255, "PN9 MessageFade");
+	pn_expect_alpha(px, 1280, 640, 181, 128, "PN9 MessageFade");
+	pn_expect_alpha(px, 1280, 640, 205, 6, "PN9 MessageFade");
+	free(px);
+	/* Wider than the panel (made up, alpha 128): the fade is the panel's 8
+	 * columns, 16 a step (128 * 16 / 255 = 8, 128 * 112 / 255 = 56). */
+	px = no[6] > 0 ? pn_pixels(no[6], 8, 4, "PN9 Wide") : NULL;
+	pn_expect_alpha(px, 8, 0, 2, 0, "PN9 Wide");
+	pn_expect_alpha(px, 8, 1, 2, 8, "PN9 Wide");
+	pn_expect_alpha(px, 8, 7, 2, 56, "PN9 Wide");
+	free(px);
+	if (no[7] > 0)
+		pn_expect_flat(no[7], 9, 5, 1, 2, 3, 4, "PN9 Flat");
+	if (no[8] > 0)
+		pn_expect_flat(no[8], 9, 5, 1, 2, 3, 200, "PN9 Negative");
+
+	/* A panel without the key, as before. */
+	e = lb_activity("PanelNoGradation", 1, &kids);
+	kids->children[0] = pn_panel("Dimmer", 64, 32, 0, 0, 0, 128, false);
+	act = cn_load("PanelNoGradation", e);
+	pn_failures += cn_failures;
+	int dim = bu_number(act, "Dimmer");
+	heap_unref(act);
+	if (dim > 0) {
+		pn_expect_flat(dim, 64, 32, 0, 0, 0, 128, "PN9 no key");
+		pn_expect_fades(dim, "", "PN9 no key");
+		pn_expect_grad_values(dim, 0, 0, 0, 0, "PN9 no key");
+	}
+	printf("PN9 alpha gradations from a pactex: %s\n", pn_failures ? "FAIL" : "ok");
+}
+
+/* --- PN10 --- */
+static GLuint pn_handle(int no)
+{
+	struct parts *p = parts_try_get(no);
+	return p ? p->states[0].common.texture.handle : 0;
+}
+
+static void pn_gradation_hll(void)
+{
+	cn_gl_setup();
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("PanelGradationCalls", 1, &kids);
+	kids->children[0] = pn_panel("Plain", 16, 8, 10, 20, 30, 200, false);
+	int act = cn_load("PanelGradationCalls", e);
+	pn_failures += cn_failures;
+	int no = bu_number(act, "Plain");
+	heap_unref(act);
+	PN_CHECK(no > 0, "Plain has no parts number");
+	if (no <= 0)
+		return;
+	const int c[4] = { 10, 20, 30, 200 };
+
+	pn_set_grad(no, 2, 4);
+	pn_expect_grad(no, 16, 8, c, (int[]){ 0, 0, 4, 0 }, "PN10 left 4");
+	pn_expect_fades(no, "C", "PN10 left 4");
+	pn_expect_grad_values(no, 0, 0, 4, 0, "PN10 left 4");
+	/* The same width again does nothing (0x5973c2). */
+	GLuint handle = pn_handle(no);
+	struct parts_cp_op *first = pn_op_at(no, 0);
+	pn_set_grad(no, 2, 4);
+	PN_CHECK(pn_handle(no) == handle && pn_op_at(no, 0) == first, "PN10: the same width rebuilt the panel");
+	/* The fades are added top, bottom, left, right, whatever the order of
+	 * the calls. */
+	pn_set_grad(no, 0, 2);
+	pn_expect_fades(no, "RC", "PN10 top after left");
+	pn_expect_grad(no, 16, 8, c, (int[]){ 2, 0, 4, 0 }, "PN10 top after left");
+	pn_set_grad(no, 3, 5);
+	pn_set_grad(no, 1, 3);
+	pn_expect_fades(no, "RRCC", "PN10 all four");
+	pn_expect_grad(no, 16, 8, c, (int[]){ 2, 3, 4, 5 }, "PN10 all four");
+	pn_expect_grad_values(no, 2, 3, 4, 5, "PN10 all four");
+	/* A width that is not positive is stored as 0 (0x5973e3). */
+	pn_set_grad(no, 2, -5);
+	pn_expect_fades(no, "RRC", "PN10 left -5");
+	pn_expect_grad(no, 16, 8, c, (int[]){ 2, 3, 0, 5 }, "PN10 left -5");
+	pn_expect_grad_values(no, 2, 3, 0, 5, "PN10 left -5");
+	/* One beyond the size is kept and fades all of the panel. */
+	pn_set_grad(no, 2, 100);
+	pn_expect_grad(no, 16, 8, c, (int[]){ 2, 3, 100, 5 }, "PN10 left 100");
+	pn_expect_grad_values(no, 2, 3, 100, 5, "PN10 left 100");
+	uint8_t *px = pn_pixels(no, 16, 8, "PN10 left 100");
+	/* column 8 of 16: 8 * 200 / 16 = 100, 200 * 100 / 255 = 78 */
+	pn_expect_alpha(px, 16, 8, 3, 78, "PN10 left 100");
+	free(px);
+	pn_set_grad(no, 2, 4);
+	/* The colour and the size keep the fades; the far end follows the
+	 * colour's alpha. */
+	pn_set_color(no, 40, 50, 60, 100);
+	pn_expect_grad(no, 16, 8, (int[]){ 40, 50, 60, 100 }, (int[]){ 2, 3, 4, 5 }, "PN10 after SetPanelColor");
+	px = pn_pixels(no, 16, 8, "PN10 after SetPanelColor");
+	/* column 2 of the left 4: 2 * 100 / 4 = 50, 100 * 50 / 255 = 19 */
+	pn_expect_alpha(px, 16, 2, 3, 19, "PN10 after SetPanelColor");
+	free(px);
+	pn_set_size(no, 6, 4);
+	pn_expect_grad(no, 6, 4, (int[]){ 40, 50, 60, 100 }, (int[]){ 2, 3, 4, 5 }, "PN10 after SetPanelSize");
+	pn_expect_fades(no, "RRCC", "PN10 after SetPanelSize");
+	pn_expect_grad_values(no, 2, 3, 4, 5, "PN10 after SetPanelSize");
+	for (int i = 0; i < 4; i++)
+		pn_set_grad(no, i, 0);
+	pn_expect_flat(no, 6, 4, 40, 50, 60, 100, "PN10 all four back to 0");
+	pn_expect_fades(no, "", "PN10 all four back to 0");
+
+	/* A number above 0 without a parts gets one, a panel with the
+	 * constructor's values, and the width is set on it; a getter makes
+	 * the panel as well (0x53e290 -> 0x53d920 -> ... -> 0x578cb0, then
+	 * 0x536ff0; see PN2). A number of 0 or less has no component
+	 * (0x539cb0): nothing is made, the getters return 0. A parts of
+	 * another type becomes a panel. */
+	const int UNKNOWN = 9981, PLAIN = 9982, GETTER = 9983, UNKNOWN_GET = 9985;
+	PN_CHECK(!parts_try_get(UNKNOWN) && !parts_try_get(UNKNOWN_GET), "PN10: the unknown numbers are in use");
+	pn_set_grad(UNKNOWN, 0, 3);
+	int type = parts_try_get(UNKNOWN) ? BU_PE("GetComponentType", BU_I(UNKNOWN), BU_I(1)).i : -1;
+	PN_CHECK(type == 14, "PN10 SetPanelAlphaGradationTop on a number without a parts: %s, GetComponentType %d; want a panel (14)",
+		 parts_try_get(UNKNOWN) ? "created" : "not created", type);
+	pn_expect_grad_values(UNKNOWN, 3, 0, 0, 0, "PN10 a number without a parts");
+	pn_expect_color(UNKNOWN, 220, 220, 220, 255, "PN10 a number without a parts");
+	if (parts_try_get(UNKNOWN))
+		pn_expect_grad(UNKNOWN, 200, 200, (int[]){ 220, 220, 220, 255 }, (int[]){ 3, 0, 0, 0 }, "PN10 a number without a parts");
+	int left = BU_PE("GetPanelAlphaGradationLeft", BU_I(UNKNOWN_GET)).i;
+	type = parts_try_get(UNKNOWN_GET) ? BU_PE("GetComponentType", BU_I(UNKNOWN_GET), BU_I(1)).i : -1;
+	PN_CHECK(left == 0 && type == 14, "PN10 GetPanelAlphaGradationLeft on a number without a parts: %d, then GetComponentType %d; want 0, 14",
+		 left, type);
+	const bool had0 = parts_try_get(0) != NULL, had_neg = parts_try_get(-3) != NULL;
+	pn_set_grad(0, 2, 9);
+	pn_set_grad(-3, 1, 9);
+	pn_expect_grad_values(0, 0, 0, 0, 0, "PN10 number 0");
+	pn_expect_grad_values(-3, 0, 0, 0, 0, "PN10 a negative number");
+	PN_CHECK((parts_try_get(0) != NULL) == had0 && (parts_try_get(-3) != NULL) == had_neg && !had_neg,
+		 "PN10: a gradation call made a parts for number 0 (%d -> %d) or -3 (%d -> %d)", had0, parts_try_get(0) != NULL,
+		 had_neg, parts_try_get(-3) != NULL);
+	parts_get(PLAIN);
+	pn_set_grad(PLAIN, 0, 50);
+	type = BU_PE("GetComponentType", BU_I(PLAIN), BU_I(1)).i;
+	PN_CHECK(type == 14, "PN10 a plain parts after SetPanelAlphaGradationTop: GetComponentType %d, want 14", type);
+	pn_expect_grad(PLAIN, 200, 200, (int[]){ 220, 220, 220, 255 }, (int[]){ 50, 0, 0, 0 }, "PN10 a plain parts");
+	parts_get(GETTER);
+	int right = BU_PE("GetPanelAlphaGradationRight", BU_I(GETTER)).i;
+	type = BU_PE("GetComponentType", BU_I(GETTER), BU_I(1)).i;
+	PN_CHECK(right == 0 && type == 14, "PN10 GetPanelAlphaGradationRight on a plain parts: %d, then GetComponentType %d; want 0, 14",
+		 right, type);
+
+	/* The real CPanelParts. */
+	const int REAL = 9984;
+	int create = ain_get_function(ain, "AFL_Parts_CreatePanel");
+	int set_left = ain_get_function(ain, "parts::detail::CPanelParts@GradationLeft::set");
+	int set_bottom = ain_get_function(ain, "parts::detail::CPanelParts@GradationBottom::set");
+	PN_CHECK(create >= 0 && set_left >= 0 && set_bottom >= 0, "AFL_Parts_CreatePanel or CPanelParts@GradationLeft/Bottom::set is not in the AIN");
+	if (create >= 0 && set_left >= 0 && set_bottom >= 0) {
+		int args[] = { REAL, -1, 1 };	/* option<string> comment = none */
+		union vm_value r[2] = {{ .i = -1 }, { .i = -1 }};
+		int n = da_callfunc(create, 3, args, r);
+		pn_failures += da_failures;
+		PN_CHECK(n == 2 && da_live_page(r[0].i), "AFL_Parts_CreatePanel returned %d slot(s) [%d, %d]", n, r[0].i, r[1].i);
+		if (n == 2 && da_live_page(r[0].i)) {
+			pn_set_size(REAL, 12, 6);
+			int v = 3;
+			call_method_args(set_left, r[0].i, 1, &v);
+			v = 2;
+			call_method_args(set_bottom, r[0].i, 1, &v);
+			pn_expect_grad_values(REAL, 0, 2, 3, 0, "PN10 CPanelParts@GradationLeft/Bottom::set");
+			pn_expect_grad(REAL, 12, 6, (int[]){ 220, 220, 220, 255 }, (int[]){ 0, 2, 3, 0 }, "PN10 CPanelParts@GradationLeft/Bottom::set");
+			/* What ScrollBase@CreateClipperParts does for every list of
+			 * the game: a width of 0 on a sized panel changes nothing. */
+			handle = pn_handle(REAL);
+			v = 0;
+			call_method_args(ain_get_function(ain, "parts::detail::CPanelParts@GradationTop::set"), r[0].i, 1, &v);
+			PN_CHECK(pn_handle(REAL) == handle, "PN10: CPanelParts@GradationTop::set(0) rebuilt the panel");
+		}
+	}
+	printf("PN10 alpha gradation calls: %s\n", pn_failures ? "FAIL" : "ok");
+}
+
+/* --- PN11 --- */
+static int pn_version_pos(struct page *saved)
+{
+	struct iarray_reader r;
+	return iarray_init_reader(&r, saved, "XPE") ? (int)r.pos : -1;
+}
+
+static void pn_gradation_save(void)
+{
+	cn_gl_setup();
+	static const struct { const char *name; int w, h, c[4], grad[4], loaded[4]; } panels[] = {
+		{ "Edges", 16, 8, { 10, 20, 30, 200 }, { 2, 3, 4, 5 }, { 2, 3, 4, 5 } },
+		{ "LeftFade", 96, 12, { 255, 255, 255, 255 }, { 0, 0, 64, 0 }, { 0, 0, 64, 0 } },
+		{ "Bottom", 16, 8, { 10, 20, 30, 200 }, { 0, 8, 0, 0 }, { 0, 8, 0, 0 } },
+		{ "RightOnly", 16, 8, { 10, 20, 30, 200 }, { 0, 0, 0, 16 }, { 0, 0, 0, 16 } },
+		/* The values come back from the operations: clamped to the size. */
+		{ "Wide", 8, 4, { 0, 0, 0, 128 }, { 0, 0, 20, 0 }, { 0, 0, 8, 0 } },
+		{ "Flat", 9, 5, { 1, 2, 3, 4 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 } },
+	};
+	enum { N = sizeof(panels) / sizeof(panels[0]) };
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("PanelGradationSave", N, &kids);
+	for (int i = 0; i < N; i++)
+		kids->children[i] = pn_grad_panel(panels[i].name, panels[i].w, panels[i].h, panels[i].c, panels[i].grad, false);
+	int act = cn_load("PanelGradationSave", e);
+	pn_failures += cn_failures;
+	int no[N];
+	bool all = true;
+	for (int i = 0; i < N; i++) {
+		no[i] = bu_number(act, panels[i].name);
+		PN_CHECK(no[i] > 0, "%s has no parts number", panels[i].name);
+		all = all && no[i] > 0;
+	}
+	heap_unref(act);
+	if (!all)
+		return;
+	pn_expect_fades(no[0], "RRCC", "PN11 Edges before saving");
+	PE_UpdateComponent(0);
+	struct page *saved = NULL;
+	PN_CHECK(PE_Save(&saved), "PE_Save failed");
+	if (!saved)
+		return;
+	/* The fades are operations every XPE since version 8 has: the same
+	 * page loads under each of those numbers. */
+	const int current = ca_save_version(saved), pos = pn_version_pos(saved);
+	PN_CHECK(current >= 8 && pos >= 0, "XPE v%d, want 8 or later", current);
+	for (int version = current; pos >= 0 && version >= 8; version--) {
+		struct page *page = copy_page(saved);
+		page->values[pos].i = version;
+		PN_CHECK(PE_Load(&page), "PE_Load failed (version %d)", version);
+		PE_UpdateComponent(0);
+		for (int i = 0; i < N; i++) {
+			char what[64];
+			snprintf(what, sizeof what, "PN11 %s after loading version %d", panels[i].name, version);
+			pn_expect_grad(no[i], panels[i].w, panels[i].h, panels[i].c, panels[i].grad, what);
+			pn_expect_grad_values(no[i], panels[i].loaded[0], panels[i].loaded[1], panels[i].loaded[2], panels[i].loaded[3], what);
+			pn_expect_color(no[i], panels[i].c[0], panels[i].c[1], panels[i].c[2], panels[i].c[3], what);
+		}
+		ca_free_buffer(page);
+	}
+	pn_expect_fades(no[0], "RRCC", "PN11 Edges after loading");
+	/* Saving what was loaded gives the same page. */
+	struct page *again = NULL;
+	PN_CHECK(PE_Save(&again), "the second PE_Save failed");
+	if (again) {
+		bool same = again->nr_vars == saved->nr_vars;
+		for (int i = 0; same && i < again->nr_vars; i++)
+			same = again->values[i].i == saved->values[i].i;
+		PN_CHECK(same, "saving the loaded panels gave another page (%d and %d values)", saved->nr_vars, again->nr_vars);
+		ca_free_buffer(again);
+	}
+	ca_free_buffer(saved);
+	/* A loaded panel keeps its fades for a new colour and a new size, and
+	 * takes a new width. */
+	pn_set_color(no[0], 40, 50, 60, 100);
+	pn_expect_grad(no[0], 16, 8, (int[]){ 40, 50, 60, 100 }, (int[]){ 2, 3, 4, 5 }, "PN11 Edges recoloured after loading");
+	pn_set_size(no[2], 10, 12);
+	pn_expect_grad(no[2], 10, 12, panels[2].c, (int[]){ 0, 8, 0, 0 }, "PN11 Bottom resized after loading");
+	pn_set_grad(no[3], 3, 2);
+	pn_expect_grad(no[3], 16, 8, panels[3].c, (int[]){ 0, 0, 0, 2 }, "PN11 RightOnly narrowed after loading");
+	pn_expect_grad_values(no[3], 0, 0, 0, 2, "PN11 RightOnly narrowed after loading");
+
+	/* A panel saved before the fades were built (Create and the fill
+	 * alone) loads flat, with no widths. */
+	const int OLD = 10401;
+	parts_get(OLD)->component_type = 14;
+	PE_AddCreateToPartsConstructionProcess(OLD, 16, 8, 1);
+	PE_AddFillWithAlphaToPartsConstructionProcess(OLD, 0, 0, 16, 8, 10, 20, 30, 200, 1);
+	PE_BuildPartsConstructionProcess(OLD, 1);
+	/* A fill whose alpha is 0: every fade multiplies by 0, and a bottom
+	 * fade over all of the height is the same rectangle and the same two
+	 * alphas as a top one would be (a right one over all of the width as a
+	 * left one). Each comes back on its own edge, so that a colour set
+	 * after the load fades the way it did before. */
+	const int ZERO = 10402, ZERO_RIGHT = 10403;
+	parts_get(ZERO);
+	pn_set_size(ZERO, 6, 4);
+	pn_set_color(ZERO, 9, 8, 7, 0);
+	pn_set_grad(ZERO, 1, 4);
+	parts_get(ZERO_RIGHT);
+	pn_set_size(ZERO_RIGHT, 6, 4);
+	pn_set_color(ZERO_RIGHT, 9, 8, 7, 0);
+	pn_set_grad(ZERO_RIGHT, 3, 6);
+	/* Fades that name no edge (added as a script would add them, or by a
+	 * build without the mark): the four of Edges on a panel's operations.
+	 * They are told apart by where they start and with which alpha. */
+	const int UNMARKED = 10404;
+	parts_get(UNMARKED)->component_type = 14;
+	PE_AddCreateToPartsConstructionProcess(UNMARKED, 16, 8, 1);
+	PE_AddFillWithAlphaToPartsConstructionProcess(UNMARKED, 0, 0, 16, 8, 10, 20, 30, 200, 1);
+	PE_AddMulAMapGradationToPartsConstructionProcess(UNMARKED, false, 0, 0, 16, 2, false, 0, 200, 1);
+	PE_AddMulAMapGradationToPartsConstructionProcess(UNMARKED, false, 0, 5, 16, 3, false, 200, 0, 1);
+	PE_AddMulAMapGradationToPartsConstructionProcess(UNMARKED, true, 0, 0, 4, 8, false, 0, 200, 1);
+	PE_AddMulAMapGradationToPartsConstructionProcess(UNMARKED, true, 11, 0, 5, 8, false, 200, 0, 1);
+	PE_BuildPartsConstructionProcess(UNMARKED, 1);
+	pn_expect_grad_values(UNMARKED, 2, 3, 4, 5, "PN11 fades that name no edge");
+	pn_expect_grad(UNMARKED, 16, 8, (int[]){ 10, 20, 30, 200 }, (int[]){ 2, 3, 4, 5 }, "PN11 fades that name no edge");
+	saved = NULL;
+	PN_CHECK(PE_Save(&saved), "PE_Save failed (old panel)");
+	if (saved) {
+		PN_CHECK(PE_Load(&saved), "PE_Load failed (old panel)");
+		PE_UpdateComponent(0);
+		pn_expect_flat(OLD, 16, 8, 10, 20, 30, 200, "PN11 a panel saved without fades");
+		pn_expect_grad_values(OLD, 0, 0, 0, 0, "PN11 a panel saved without fades");
+		pn_expect_flat(ZERO, 6, 4, 9, 8, 7, 0, "PN11 a transparent panel with a bottom fade");
+		pn_expect_fades(ZERO, "R", "PN11 a transparent panel with a bottom fade");
+		pn_expect_grad_values(ZERO, 0, 4, 0, 0, "PN11 a transparent panel with a bottom fade");
+		pn_set_color(ZERO, 9, 8, 7, 200);
+		pn_expect_grad(ZERO, 6, 4, (int[]){ 9, 8, 7, 200 }, (int[]){ 0, 4, 0, 0 }, "PN11 the bottom fade after a colour");
+		/* the last row of a bottom fade over 4 rows: 200 - 150 = 50, 200 * 50 / 255 = 39; the first is 200 * 200 / 255 = 156 */
+		uint8_t *zp = pn_pixels(ZERO, 6, 4, "PN11 the bottom fade after a colour");
+		pn_expect_alpha(zp, 6, 2, 0, 156, "PN11 the bottom fade after a colour");
+		pn_expect_alpha(zp, 6, 2, 3, 39, "PN11 the bottom fade after a colour");
+		free(zp);
+		pn_expect_grad_values(ZERO_RIGHT, 0, 0, 0, 6, "PN11 a transparent panel with a right fade");
+		pn_set_color(ZERO_RIGHT, 9, 8, 7, 200);
+		pn_expect_grad(ZERO_RIGHT, 6, 4, (int[]){ 9, 8, 7, 200 }, (int[]){ 0, 0, 0, 6 }, "PN11 the right fade after a colour");
+		pn_expect_grad_values(UNMARKED, 2, 3, 4, 5, "PN11 fades that name no edge, loaded");
+		ca_free_buffer(saved);
+	}
+
+	/* An AIN before version 14 has no panels; its loader reads no fades. */
+	ain->version = 13;
+	e = lb_activity("PanelGradationV13", 1, &kids);
+	kids->children[0] = pn_grad_panel("Edges", 16, 8, panels[0].c, panels[0].grad, false);
+	act = cn_load("PanelGradationV13", e);
+	pn_failures += cn_failures;
+	int v13 = bu_number(act, "Edges");
+	heap_unref(act);
+	if (v13 > 0) {
+		pn_expect_flat(v13, 16, 8, 10, 20, 30, 200, "PN11 version 13");
+		PN_CHECK(pn_nr_ops(v13) == 2, "PN11 version 13: %d operations, want 2", pn_nr_ops(v13));
+	}
+	ain->version = 14;
+	printf("PN11 alpha gradations saved and loaded: %s\n", pn_failures ? "FAIL" : "ok");
+}
+
 static int test_panel(void)
 {
-	void (*cases[])(void) = { pn_pactex, pn_hll, pn_area, pn_full, pn_text, pn_other_commands, pn_save, pn_guards_other };
-	const char *names[] = { "PN1", "PN2", "PN3", "PN4", "PN5", "PN6", "PN7", "PN8" };
+	void (*cases[])(void) = { pn_pactex, pn_hll, pn_area, pn_full, pn_text, pn_other_commands, pn_save, pn_guards_other,
+		pn_gradation, pn_gradation_hll, pn_gradation_save };
+	const char *names[] = { "PN1", "PN2", "PN3", "PN4", "PN5", "PN6", "PN7", "PN8", "PN9", "PN10", "PN11" };
 	enum { N = sizeof(cases) / sizeof(cases[0]) };
 	int failed = 0, env = 0;
 	for (int i = 0; i < N; i++) {

@@ -1759,15 +1759,20 @@ static struct string *PE_v14_GetUserComponentData(int number, struct string *key
 	return value ? make_string(value, strlen(value)) : string_ref(&EMPTY_STRING);
 }
 
-/* v14 パネル (component type 14). Every panel function takes the widget of
- * an existing parts (0x53e290), turning a parts of another type into a panel
- * with the constructor's values (0x536ff0), and does nothing for an unknown
- * number. The surface is rebuilt in parts/construction.c. */
+/* v14 パネル (component type 14). Every panel function takes the panel
+ * widget of its number (0x53e290). The component is looked up as 0x53d920
+ * does it (-> 0x53a0b0 -> 0x539c80, 0x578ee0): a number of 0 or less has none
+ * (0x539cb0) and the function does nothing; any other number without a
+ * component gets one (0x578f0e -> 0x578cb0). A component of another type,
+ * a new one included, then becomes a panel with the constructor's values
+ * (0x536ff0). The surface is rebuilt in parts/construction.c; a panel that
+ * was only made has none here until a size, a colour or a fade is set (the
+ * original builds its 200x200 at the next update). */
 static struct parts *pe_v14_panel(int number)
 {
-	struct parts *p = parts_try_get(number);
-	if (!p)
+	if (number <= 0)
 		return NULL;
+	struct parts *p = parts_get(number);
 	// Before the type changes: a parts that is no panel and never had
 	// panel values gets the constructor's, not those of the operations
 	// it has. One the script gave type 14 first is taken for a loaded
@@ -1796,8 +1801,8 @@ static void PE_v14_SetPanelColor(int parts_no, int r, int g, int b, int a)
 }
 
 /* GetPanelR, G, B, A (cases 635..638 -> 0x597260..): the values as they were
- * set, 0 without a parts. CPanelParts@ColorA::set reads the other three
- * back to change one. */
+ * set, 0 for a number of 0 or less. CPanelParts@ColorA::set reads the other
+ * three back to change one. */
 static int PE_v14_GetPanelR(int parts_no)
 {
 	struct parts *p = pe_v14_panel(parts_no);
@@ -1820,6 +1825,62 @@ static int PE_v14_GetPanelA(int parts_no)
 {
 	struct parts *p = pe_v14_panel(parts_no);
 	return p ? parts_get_panel(p)->a : 0;
+}
+
+/* SetPanelAlphaGradationTop, Bottom, Left, Right (cases 639..642 -> 0x5972e0,
+ * 0x597340, 0x5973a0, 0x597400) and their getters (643..646 -> 0x597460..):
+ * the width of the fade at that edge, 0 for a number of 0 or less. */
+static void pe_v14_set_panel_gradation(int parts_no, int side, int size)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	if (p)
+		parts_panel_set_gradation(p, side, size);
+}
+
+static int pe_v14_get_panel_gradation(int parts_no, int side)
+{
+	struct parts *p = pe_v14_panel(parts_no);
+	return p ? parts_get_panel(p)->grad[side] : 0;
+}
+
+static void PE_v14_SetPanelAlphaGradationTop(int parts_no, int size)
+{
+	pe_v14_set_panel_gradation(parts_no, 0, size);
+}
+
+static void PE_v14_SetPanelAlphaGradationBottom(int parts_no, int size)
+{
+	pe_v14_set_panel_gradation(parts_no, 1, size);
+}
+
+static void PE_v14_SetPanelAlphaGradationLeft(int parts_no, int size)
+{
+	pe_v14_set_panel_gradation(parts_no, 2, size);
+}
+
+static void PE_v14_SetPanelAlphaGradationRight(int parts_no, int size)
+{
+	pe_v14_set_panel_gradation(parts_no, 3, size);
+}
+
+static int PE_v14_GetPanelAlphaGradationTop(int parts_no)
+{
+	return pe_v14_get_panel_gradation(parts_no, 0);
+}
+
+static int PE_v14_GetPanelAlphaGradationBottom(int parts_no)
+{
+	return pe_v14_get_panel_gradation(parts_no, 1);
+}
+
+static int PE_v14_GetPanelAlphaGradationLeft(int parts_no)
+{
+	return pe_v14_get_panel_gradation(parts_no, 2);
+}
+
+static int PE_v14_GetPanelAlphaGradationRight(int parts_no)
+{
+	return pe_v14_get_panel_gradation(parts_no, 3);
 }
 
 /* Flat message-window animations are not implemented. Text and background
@@ -1869,6 +1930,14 @@ static void pe_v14_register_batch(int libno)
 	static_library_register(lib, "GetPanelG", PE_v14_GetPanelG);
 	static_library_register(lib, "GetPanelB", PE_v14_GetPanelB);
 	static_library_register(lib, "GetPanelA", PE_v14_GetPanelA);
+	static_library_register(lib, "SetPanelAlphaGradationTop", PE_v14_SetPanelAlphaGradationTop);
+	static_library_register(lib, "SetPanelAlphaGradationBottom", PE_v14_SetPanelAlphaGradationBottom);
+	static_library_register(lib, "SetPanelAlphaGradationLeft", PE_v14_SetPanelAlphaGradationLeft);
+	static_library_register(lib, "SetPanelAlphaGradationRight", PE_v14_SetPanelAlphaGradationRight);
+	static_library_register(lib, "GetPanelAlphaGradationTop", PE_v14_GetPanelAlphaGradationTop);
+	static_library_register(lib, "GetPanelAlphaGradationBottom", PE_v14_GetPanelAlphaGradationBottom);
+	static_library_register(lib, "GetPanelAlphaGradationLeft", PE_v14_GetPanelAlphaGradationLeft);
+	static_library_register(lib, "GetPanelAlphaGradationRight", PE_v14_GetPanelAlphaGradationRight);
 	static_library_register(lib, "NumofChild", PE_v14_NumofChild);
 	static_library_register(lib, "GetChild", PE_v14_GetChild);
 	static_library_register(lib, "GetChildIndex", PE_v14_GetChildIndex);

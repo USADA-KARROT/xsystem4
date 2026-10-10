@@ -176,6 +176,10 @@ static const char GBK_PARTS_TYPE[]  = "\xb2\xbf\xbc\xfe\xa5\xbf\xa5\xa4\xa5\xd7"
 static const char GBK_PANEL[]       = "\xa5\xd1\xa5\xcd\xa5\xeb"; /* パネル (GBK) */
 static const char GBK_SIZE[]        = "\xa5\xb5\xa5\xa4\xa5\xba"; /* サイズ (GBK) */
 static const char GBK_COLOR[]       = "\xc9\xab";                 /* 色 (GBK) */
+/* アルファグラデーション (native key 0x7d120c; the SJIS spelling is the same
+ * Japanese) */
+static const char SJIS_ALPHA_GRADATION[] = "\x83\x41\x83\x8b\x83\x74\x83\x40\x83\x4f\x83\x89\x83\x66\x81\x5b\x83\x56\x83\x87\x83\x93";
+static const char GBK_ALPHA_GRADATION[] = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1\xa5\xb0\xa5\xe9\xa5\xc7\xa9\x60\xa5\xb7\xa5\xe7\xa5\xf3";
 static const char GBK_BUTTON[]      = "\xa5\xdc\xa5\xbf\xa5\xf3"; /* ボタン (GBK katakana) */
 static const char GBK_CN_BUTTON[]   = "\xb0\xb4\xe2\x6f";         /* 按鈕 (GBK Chinese) */
 static const char GBK_SURFACE_AREA[] = "\xa5\xb5\xa1\xbc\xa5\xd5\xa5\xa7\xa5\xa4\xa5\xb9\xa5\xa8\xa5\xea\xa5\xa2"; /* サーフェイスエリア (GBK) */
@@ -1779,10 +1783,21 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			cb = col->items[2].value.i;
 			ca = col->items[3].value.i;
 		}
+		/* アルファグラデーション = (top, bottom, left, right): the widths
+		 * of the fades at the panel's edges, 0 for an item or a key that
+		 * is missing (0x4dc67b..0x4dc6bd; widget +0xc0..+0xcc). Engines
+		 * before v14 have no panels and read none. */
+		int grad[4] = { 0, 0, 0, 0 };
+		struct ex_list *gl = pactex_get_list(type_info, SJIS_ALPHA_GRADATION);
+		if (!gl) gl = pactex_get_list(type_info, GBK_ALPHA_GRADATION);
+		for (unsigned i = 0; ain->version >= 14 && gl && i < 4 && i < gl->nr_items; i++) {
+			if (gl->items[i].value.type == EX_INT)
+				grad[i] = gl->items[i].value.i;
+		}
 		/* The widget's surface is this colour with its alpha (see
 		 * parts_get_panel): SceneYesNoDialog's Dimmer, (0,0,0,128),
 		 * darkens the scene and does not hide it. */
-		parts_panel_init(parts_get(parts_no), pw, ph, cr, cg, cb, ca);
+		parts_panel_init(parts_get(parts_no), pw, ph, cr, cg, cb, ca, grad);
 		return;
 	}
 

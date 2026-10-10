@@ -441,14 +441,6 @@ static void PE_stub_SetHSliderTotalSizeLinkNumber(possibly_unused int number, po
 static void PE_stub_SetHSliderViewSizeLinkNumber(possibly_unused int number, possibly_unused int linkpartsnumber) { }
 static int PE_stub_GetHSliderTotalSizeLinkNumber(possibly_unused int number) { return 0; }
 static int PE_stub_GetHSliderViewSizeLinkNumber(possibly_unused int number) { return 0; }
-static void PE_stub_SetPanelAlphaGradationTop(possibly_unused int number, possibly_unused int size) { }
-static void PE_stub_SetPanelAlphaGradationBottom(possibly_unused int number, possibly_unused int size) { }
-static void PE_stub_SetPanelAlphaGradationLeft(possibly_unused int number, possibly_unused int size) { }
-static void PE_stub_SetPanelAlphaGradationRight(possibly_unused int number, possibly_unused int size) { }
-static int PE_stub_GetPanelAlphaGradationTop(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelAlphaGradationBottom(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelAlphaGradationLeft(possibly_unused int number) { return 0; }
-static int PE_stub_GetPanelAlphaGradationRight(possibly_unused int number) { return 0; }
 static void PE_stub_FormClose(possibly_unused int number) { }
 static void PE_stub_CancelFormClose(possibly_unused int number) { }
 static void PE_stub_SetFormSize(possibly_unused int number, possibly_unused int width, possibly_unused int height) { }

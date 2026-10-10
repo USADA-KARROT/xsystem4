@@ -1739,17 +1739,31 @@ bool PE_ClearPartsConstructionProcess(int parts_no, int state)
 
 /*
  * v14 パネル (component type 14). The native widget rebuilds its surface
- * when its size or colour changed (0x4dcc10, from the update 0x4dc940). A
- * width or height that is not positive ends the rebuild at once (0x4dcc69:
- * the steps and the surface stay as they were). Otherwise the steps of its
- * inner construction state are cleared (0x568f40), command 0 creates the
- * surface (0x568fa0 -> 0x5a6980) and command 6 fills all of it with the
- * colour (0x569200 -> 0x5a6df0), alpha included: a dialogue's dimmer is
- * (0,0,0,128) and shows the scene behind it.
+ * when its size, its colour or a fade changed (0x4dcc10, from the update
+ * 0x4dc940). A width or height that is not positive ends the rebuild at once
+ * (0x4dcc69: the steps and the surface stay as they were). Otherwise the
+ * steps of its inner construction state are cleared (0x568f40), command 0
+ * creates the surface (0x568fa0 -> 0x5a6980) and command 6 fills all of it
+ * with the colour (0x569200 -> 0x5a6df0), alpha included: a dialogue's dimmer
+ * is (0,0,0,128) and shows the scene behind it.
+ *
+ * Then アルファグラデーション: each of the four widths is taken as at most
+ * the surface's height (top, bottom) or width (left, right) (0x4dcce8), and
+ * every one that is not 0 adds a step, in this order (0x4dcd34):
+ *   top     command 25 (0x569600) over the rows 0 .. top, alpha 0 to A;
+ *   bottom  command 25 over the last `bottom` rows, alpha A to 0;
+ *   left    command 26 (0x569670) over the columns 0 .. left, 0 to A;
+ *   right   command 26 over the last `right` columns, A to 0,
+ * A being the colour's alpha as it was given. The steps multiply the alpha
+ * the fill left (build_mul_amap_gradation), which is A as well, so the inner
+ * line of a fade is about A * A / 255: it meets the rest of the panel only
+ * for an A of 255, which every panel of the game with a fade has. SceneMap's
+ * MapClip, the mask of the dungeon map, is a white panel with a left fade of
+ * 64: what it masks fades in over those columns.
+ * A negative width, which only a pactex can give (the setters store 0), adds
+ * a step over no line in the original; none is added here.
  *
  * What the original does and this does not:
- *   - the alpha gradation of the four edges, added after the fill (commands
- *     25 and 26, 0x569600 / 0x569670);
  *   - the rebuild waits for the next update; here it is done at the call;
  *   - the widget reports its width and height fields as the size of the
  *     parts (vtable 0x80eea4 +0x20 = 0x4dce10); here the size is the
@@ -1771,6 +1785,18 @@ bool PE_ClearPartsConstructionProcess(int parts_no, int state)
  * parts that is a panel already, those of its operations. That is a loaded
  * panel, but also a construction parts that SetComponentType made a panel
  * before the first panel call (the original's has the constructor's).
+ *
+ * The fades of a loaded panel are the operations after the fill, in the
+ * order the rebuild adds them, each on the edge it was built for (the
+ * operation keeps it, see panel_add_fade). These are the widths as they were
+ * built, at most the surface's (the original keeps what it was given; a
+ * panel made larger later would fade wider there).
+ * A fade that does not name its edge (the operations of a script, or of a
+ * build without the mark) is the top or the left one when it starts at that
+ * edge with alpha 0, else the bottom or the right one. For a colour whose
+ * alpha is 0 that can be the other edge than the one it was set on; the
+ * pixels are the same then, but a later colour with another alpha fades the
+ * other way.
  */
 struct parts_panel *parts_get_panel(struct parts *parts)
 {
@@ -1786,13 +1812,42 @@ struct parts_panel *parts_get_panel(struct parts *parts)
 	panel->w = op->create.w;
 	panel->h = op->create.h;
 	op = TAILQ_NEXT(op, entry);
-	if (op && op->type == PARTS_CP_FILL_WITH_ALPHA) {
-		panel->r = op->fill.r;
-		panel->g = op->fill.g;
-		panel->b = op->fill.b;
-		panel->a = op->fill.a;
+	if (!op || op->type != PARTS_CP_FILL_WITH_ALPHA)
+		return panel;
+	panel->r = op->fill.r;
+	panel->g = op->fill.g;
+	panel->b = op->fill.b;
+	panel->a = op->fill.a;
+	// The first edge the next fade may be: 0 top, 1 bottom, 2 left, 3 right.
+	int next = 0;
+	while ((op = TAILQ_NEXT(op, entry))) {
+		const struct parts_cp_pixel *p = &op->pixel;
+		const bool rows = op->type == PARTS_CP_MUL_AMAP_GRADATION_ROWS;
+		if (!rows && op->type != PARTS_CP_MUL_AMAP_GRADATION_COLUMNS)
+			break;
+		const int first = rows ? 0 : 2;
+		int edge = p->line_width - 1;
+		if (edge != first && edge != first + 1)
+			edge = next <= first && (rows ? p->y : p->x) == 0 && p->a == 0 ? first : first + 1;
+		if (edge < next)
+			break;
+		panel->grad[edge] = rows ? p->h : p->w;
+		next = edge + 1;
 	}
 	return panel;
+}
+
+/* A fade of the panel's edge 0 (top), 1 (bottom), 2 (left) or 3 (right):
+ * MulAMapGradation over the rows or the columns of the rectangle, from the
+ * alpha a1 to a2. The operation also keeps the edge, as edge + 1 in
+ * line_width, which a gradation does not use: a save holds the field, and
+ * parts_get_panel gives a loaded panel its widths back by it. */
+static void panel_add_fade(struct parts *parts, int edge, int x, int y, int w, int h, int a1, int a2)
+{
+	add_pixel_op(parts->no, 1, edge < 2 ? PARTS_CP_MUL_AMAP_GRADATION_ROWS
+			: PARTS_CP_MUL_AMAP_GRADATION_COLUMNS, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .a = a1, .a2 = a2, .line_width = edge + 1
+	});
 }
 
 static void panel_rebuild(struct parts *parts)
@@ -1805,6 +1860,16 @@ static void panel_rebuild(struct parts *parts)
 	PE_AddCreateToPartsConstructionProcess(parts->no, panel->w, panel->h, 1);
 	PE_AddFillWithAlphaToPartsConstructionProcess(parts->no, 0, 0, panel->w, panel->h,
 			panel->r, panel->g, panel->b, panel->a, 1);
+	const int top = min(panel->grad[0], panel->h), bottom = min(panel->grad[1], panel->h);
+	const int left = min(panel->grad[2], panel->w), right = min(panel->grad[3], panel->w);
+	if (top > 0)
+		panel_add_fade(parts, 0, 0, 0, panel->w, top, 0, panel->a);
+	if (bottom > 0)
+		panel_add_fade(parts, 1, 0, panel->h - bottom, panel->w, bottom, panel->a, 0);
+	if (left > 0)
+		panel_add_fade(parts, 2, 0, 0, left, panel->h, 0, panel->a);
+	if (right > 0)
+		panel_add_fade(parts, 3, panel->w - right, 0, right, panel->h, panel->a, 0);
 	parts_build_construction_process(parts, cproc);
 }
 
@@ -1813,10 +1878,12 @@ static bool panel_built(struct parts *parts)
 	return parts->states[0].type == PARTS_CONSTRUCTION_PROCESS && parts->states[0].common.texture.handle;
 }
 
-// The pactex loader's (0x4dc440).
-void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a)
+// The pactex loader's (0x4dc440): the fades as the pactex has them (top,
+// bottom, left, right; neither clamped to the size nor to 0).
+void parts_panel_init(struct parts *parts, int w, int h, int r, int g, int b, int a, const int grad[4])
 {
-	parts->panel = (struct parts_panel) { .valid = true, .w = w, .h = h, .r = r, .g = g, .b = b, .a = a };
+	parts->panel = (struct parts_panel) { .valid = true, .w = w, .h = h, .r = r, .g = g, .b = b, .a = a,
+		.grad = { grad[0], grad[1], grad[2], grad[3] } };
 	panel_rebuild(parts);
 }
 
@@ -1841,6 +1908,18 @@ void parts_panel_set_color(struct parts *parts, int r, int g, int b, int a)
 	panel->g = g;
 	panel->b = b;
 	panel->a = a;
+	panel_rebuild(parts);
+}
+
+// Native 0x5972e0, 0x597340, 0x5973a0, 0x597400 (top, bottom, left, right):
+// nothing for the width it already has; one that is not positive is stored
+// as 0 (the comparison is with the width as it was given, 0x597302).
+void parts_panel_set_gradation(struct parts *parts, int side, int size)
+{
+	struct parts_panel *panel = parts_get_panel(parts);
+	if (panel->grad[side] == size && panel_built(parts))
+		return;
+	panel->grad[side] = max(size, 0);
 	panel_rebuild(parts);
 }
 

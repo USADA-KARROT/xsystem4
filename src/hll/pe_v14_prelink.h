@@ -428,14 +428,6 @@
 	static_library_register(&lib_PartsEngine, "SetHSliderViewSizeLinkNumber", PE_stub_SetHSliderViewSizeLinkNumber);
 	static_library_register(&lib_PartsEngine, "GetHSliderTotalSizeLinkNumber", PE_stub_GetHSliderTotalSizeLinkNumber);
 	static_library_register(&lib_PartsEngine, "GetHSliderViewSizeLinkNumber", PE_stub_GetHSliderViewSizeLinkNumber);
-	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationTop", PE_stub_SetPanelAlphaGradationTop);
-	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationBottom", PE_stub_SetPanelAlphaGradationBottom);
-	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationLeft", PE_stub_SetPanelAlphaGradationLeft);
-	static_library_register(&lib_PartsEngine, "SetPanelAlphaGradationRight", PE_stub_SetPanelAlphaGradationRight);
-	static_library_register(&lib_PartsEngine, "GetPanelAlphaGradationTop", PE_stub_GetPanelAlphaGradationTop);
-	static_library_register(&lib_PartsEngine, "GetPanelAlphaGradationBottom", PE_stub_GetPanelAlphaGradationBottom);
-	static_library_register(&lib_PartsEngine, "GetPanelAlphaGradationLeft", PE_stub_GetPanelAlphaGradationLeft);
-	static_library_register(&lib_PartsEngine, "GetPanelAlphaGradationRight", PE_stub_GetPanelAlphaGradationRight);
 	static_library_register(&lib_PartsEngine, "FormClose", PE_stub_FormClose);
 	static_library_register(&lib_PartsEngine, "CancelFormClose", PE_stub_CancelFormClose);
 	static_library_register(&lib_PartsEngine, "SetFormSize", PE_stub_SetFormSize);
