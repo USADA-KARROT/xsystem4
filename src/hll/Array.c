@@ -176,11 +176,144 @@ static void array_option_resize(struct page **array, int numof, bool keep)
 	free(gone);
 }
 
+// v14: the struct of this call's array when its elements are value objects
+// of one struct, or -1. Operand 2 is an object element, which a string is
+// too (hll_generic_slots); which struct is the page's to say. X_A_INIT gives
+// an array<T> of a struct T an AIN_ARRAY_STRUCT page with T's index. A
+// generic page (wraps, references, nested arrays) keeps its element stride
+// in that field, and an array without a page says nothing.
+static int array_value_struct(struct page *a)
+{
+	if (ain->version < 14 || hll_current_arg3 != 2)
+		return -1;
+	if (!a || a->type != ARRAY_PAGE || a->a_type != AIN_ARRAY_STRUCT || a->array.rank > 1)
+		return -1;
+	int no = a->array.struct_type;
+	return (no >= 0 && no < ain->nr_structures) ? no : -1;
+}
+
+// The page of the array in heap[slot] while that slot is still the array the
+// call was made on (same allocation, same kind of page), or NULL.
+static struct page *array_struct_page(int slot, uint32_t seq, int no)
+{
+	if (!heap_index_valid(slot) || heap[slot].seq != seq || heap[slot].type != VM_PAGE)
+		return NULL;
+	struct page *a = heap[slot].page;
+	if (!a || a->type != ARRAY_PAGE || a->a_type != AIN_ARRAY_STRUCT || a->array.struct_type != no)
+		return NULL;
+	return a;
+}
+
+/* Alloc, Realloc and EmplaceBack on an array of value structs (v14).
+ *
+ * Native Alloc (0x647470 -> vtable +0x4c, 0x67f4a0) empties the array first
+ * (+0x54, 0x67f5a0 -> 0x67ec50: every element released, the last one first)
+ * and makes it anew (0x67fe20 with 1): the buffer gets its full size
+ * (0x41a430, not zeroed) and then each element its default, in index order
+ * (0x656970 with 1). Realloc (+0x50, 0x67f4d0) is Alloc for an array without
+ * a buffer and empties the array for n <= 0; a longer array grows first and
+ * then gets the defaults of its new tail (0x680170 with the index and 1), a
+ * shorter one releases the removed elements, the last one first (0x680270),
+ * and shrinks. The default of a struct element is a constructed object, its
+ * no-argument constructor included (jump table 0x656aa4: 13 -> 0x656a12 ->
+ * 0x679b30(struct, 1)); vm_construct_struct makes that object. Without the
+ * constructor MobViewCollection@0's seven MobView had no parts and never ran.
+ *
+ * A constructor runs in the VM and can call the Array library again, also on
+ * this array, so no page pointer is kept over one:
+ *  - The resized page is in the array's heap slot before any element is
+ *    constructed (as natively: a constructor sees the array at its new
+ *    length). An element not constructed yet reads -1; natively it is
+ *    whatever the buffer held.
+ *  - Before and after each constructor the page is taken from the heap slot
+ *    again. The object goes to its index if the array still has it, and what
+ *    a constructor may have put there is released; if the array has become
+ *    too short or is gone, the object is released and the rest is left out.
+ *    (The original checks the index before, 0x680185, and writes through an
+ *    element address it took before the constructor, 0x656a20.)
+ *  - The heap slot is recognized by its allocation sequence: an array a
+ *    constructor destroyed, whose slot may have been handed out again, is
+ *    left alone. *array ends as whatever page the slot has, which is what
+ *    hll_call writes back to it.
+ *  - Each object is owned by the array alone, one reference, as the elements
+ *    of a sized X_A_INIT are. The collector frees nothing that has a
+ *    reference, so the object in hand needs no root.
+ *
+ * Not as the original:
+ *  - The removed elements are released after the new page is in place (as in
+ *    array_option_resize), so a destructor sees the new array where natively
+ *    it sees the old one.
+ *  - An element that cannot be made fails the native call, which leaves the
+ *    array empty and reports 0x7e21ac. Here it becomes the unconstructed
+ *    object the older code gave; vm_construct_struct only fails for a struct
+ *    that cannot be allocated.
+ *  - A negative count returns before this (Array_Alloc, Array_Realloc); the
+ *    original empties the array.
+ *
+ * Returns false, and does nothing, when the call is not on such an array or
+ * the array's heap slot is not known (hll_self_slot); the caller then does
+ * what it did before. */
+static bool array_struct_resize(struct page **array, int numof, bool keep)
+{
+	struct page *old = *array;
+	int no = array_value_struct(old);
+	int slot = hll_self_slot;
+	if (no < 0 || slot <= 0 || !heap_index_valid(slot) || heap[slot].type != VM_PAGE
+	    || heap[slot].page != old)
+		return false;
+	uint32_t seq = heap[slot].seq;
+	int old_n = old->nr_vars;
+	if (keep && numof == old_n)
+		return true; // 0x67f50b
+	int kept = 0;
+	if (keep)
+		kept = old_n < numof ? old_n : numof;
+	struct page *new_a = alloc_page(ARRAY_PAGE, old->a_type, numof);
+	new_a->array = old->array;
+	for (int i = 0; i < kept; i++)
+		new_a->values[i] = old->values[i];
+	for (int i = kept; i < numof; i++)
+		new_a->values[i].i = -1;
+	int nr_gone = old_n - kept;
+	int *gone = nr_gone > 0 ? xmalloc(nr_gone * sizeof(int)) : NULL;
+	for (int i = 0; i < nr_gone; i++)
+		gone[i] = old->values[kept + i].i;
+	heap[slot].page = new_a;
+	*array = new_a;
+	free_page(old);
+	// 0x67ec50, 0x67f554: from the back. A destructor can run here.
+	for (int i = nr_gone - 1; i >= 0; i--) {
+		if (gone[i] > 0)
+			heap_unref(gone[i]);
+	}
+	free(gone);
+	for (int i = kept; i < numof; i++) {
+		struct page *a = array_struct_page(slot, seq, no);
+		if (!a || i >= a->nr_vars)
+			break;
+		int obj = vm_construct_struct(no);
+		if (obj <= 0)
+			obj = alloc_struct(no);
+		a = array_struct_page(slot, seq, no);
+		if (!a || i >= a->nr_vars) {
+			heap_unref(obj);
+			break;
+		}
+		int prev = a->values[i].i;
+		a->values[i].i = obj;
+		if (prev > 0)
+			heap_unref(prev);
+	}
+	*array = heap[slot].page;
+	return true;
+}
+
 // Alloc: allocate/resize an array.
-// For struct/wrap elements, preserves existing elements and only creates
-// new struct instances for newly added slots (like Realloc).
-// This is critical because game code initializes struct members after
-// the first Alloc, and a subsequent Alloc must not destroy those values.
+// An array of value structs (v14) is emptied and made of newly constructed
+// objects, as the original does: array_struct_resize.
+// For other struct/wrap elements, preserves existing elements and only creates
+// new struct instances for newly added slots (like Realloc); the original
+// empties every array here.
 static void Array_Alloc(struct page **array, int numof)
 {
 	if (!array || numof < 0)
@@ -189,6 +322,8 @@ static void Array_Alloc(struct page **array, int numof)
 		array_option_resize(array, numof, false);
 		return;
 	}
+	if (array_struct_resize(array, numof, false))
+		return;
 	struct page *old = *array;
 	int old_size = (old && old->type == ARRAY_PAGE) ? old->nr_vars : 0;
 	int struct_type = (old && old->type == ARRAY_PAGE) ? old->array.struct_type : -1;
@@ -1815,7 +1950,9 @@ static int Array_VS_or(struct page **self, int m) {
 	return r;
 }
 // Realloc: resize array, preserving existing elements.
-// For struct/wrap arrays (hll_arg3 == 2), allocates struct instances
+// An array of value structs (v14) gets constructed objects for its new
+// elements and releases the ones it loses: array_struct_resize.
+// For other struct/wrap arrays (hll_arg3 == 2), allocates struct instances
 // for any newly added elements (beyond the old size).
 static void Array_Realloc(struct page **array, int new_size)
 {
@@ -1825,6 +1962,8 @@ static void Array_Realloc(struct page **array, int new_size)
 		array_option_resize(array, new_size, true);
 		return;
 	}
+	if (array_struct_resize(array, new_size, true))
+		return;
 	struct page *old = *array;
 	if (!old) {
 		*array = alloc_page(ARRAY_PAGE, AIN_ARRAY_INT, new_size);
@@ -1960,16 +2099,16 @@ void *array_isexist_function(const struct ain_hll_function *f)
 // struct index, so that X_A_SIZE counted none of the lines added to it.
 // Returns the new element's value (heap slot for structs, 0 for ints).
 //
-// Not as the original:
-//  - The order. The original makes the array one longer first and constructs
-//    the element in place (0x67f50f .. 0x67f542: 0x41a430, then 0x680170 with
-//    the index), so the constructor sees the longer array. Here the object
-//    is constructed first and the array replaced after: a constructor that
-//    changes this same array (PushBack, EmplaceBack, Erase, Free on it)
-//    would have its change overwritten and the old page freed twice. The
-//    constructors the game's 19 calls run (CMessageText, CMessageWindow,
-//    CBackLogUnit, CMenuView, CASClick, SBackSEPlayList, SEffectInstance)
-//    do not call the Array library themselves.
+// An array of value structs whose heap slot is known grows as the original
+// does, longer first and then the element constructed in place (0x67f50f ..
+// 0x67f542: 0x41a430, then 0x680170 with the index), so the constructor sees
+// the longer array and may change it: array_struct_resize.
+//
+// Not as the original (the calls that do not take that path):
+//  - The order. Here the object is constructed first and the array replaced
+//    after: a constructor that changes this same array (PushBack,
+//    EmplaceBack, Erase, Free on it) would have its change overwritten and
+//    the old page freed twice.
 //  - The element's struct is taken from the array page whatever kind of
 //    page that is. On a generic page (AIN_ARRAY, AIN_REF_ARRAY) X_A_INIT
 //    keeps the element's slot count in that field, 1 or 2, which cannot be
@@ -1992,6 +2131,17 @@ static int Array_EmplaceBack(struct page **array)
 	}
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
+	if (array_struct_resize(array, old_size + 1, true)) {
+		// The element is the array's; the wrap this returns holds a
+		// reference of its own. A constructor that took the element's
+		// place away leaves nothing to return.
+		a = *array;
+		int obj = (a && a->type == ARRAY_PAGE && old_size < a->nr_vars) ? a->values[old_size].i : -1;
+		if (obj <= 0)
+			return -1;
+		heap_ref(obj);
+		return obj;
+	}
 	struct page *new_a = alloc_page(ARRAY_PAGE, a ? a->a_type : AIN_ARRAY_INT, old_size + 1);
 	if (a) {
 		for (int i = 0; i < old_size; i++)
