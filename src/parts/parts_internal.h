@@ -260,8 +260,16 @@ enum parts_cp_op_type {
 	// since XPE version 10.
 	PARTS_CP_BLEND_FILL,
 	PARTS_CP_GRAY_SCALE,
-#define PARTS_NR_CP_TYPES (PARTS_CP_GRAY_SCALE+1)
+	// The polygon fills that write what they cover instead of blending it
+	// (v14 commands 94 and 95; struct parts_cp_pixel, as
+	// PARTS_CP_FILL_POLYGON_BLEND). Saved since XPE version 11.
+	PARTS_CP_FILL_POLYGON_PIXEL_AMAP,
+	PARTS_CP_FILL_POLYGON_AMAP,
+#define PARTS_NR_CP_TYPES (PARTS_CP_FILL_POLYGON_AMAP+1)
 };
+// What an XPE version 11 save holds for the two types added last.
+_Static_assert(PARTS_CP_FILL_POLYGON_PIXEL_AMAP == 27 && PARTS_CP_FILL_POLYGON_AMAP == 28,
+		"the values of enum parts_cp_op_type are saved");
 
 struct parts_cp_create {
 	int w;
@@ -320,7 +328,9 @@ struct parts_cp_pie {
 //   DRAW_CIRCLE_AMAP (52): the centre (x, y), `radius`, `line_width` and
 //     the alpha `a`;
 //   BLEND_FILL (4): the rectangle (or `full`), the colour and the alpha `a`;
-//   GRAY_SCALE (15): the rectangle (or `full`).
+//   GRAY_SCALE (15): the rectangle (or `full`);
+//   FILL_POLYGON_PIXEL_AMAP / _AMAP (94 / 95): `points`, with the colour
+//     and the alpha `a`, or the alpha alone.
 // Larger circles and polygons are not built (xsystem4's limits).
 #define PARTS_CP_CIRCLE_MAX_RADIUS 1024
 #define PARTS_CP_POLYGON_MAX_POINTS 1024

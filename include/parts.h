@@ -209,6 +209,8 @@ bool PE_AddDrawCircleToPartsConstructionProcess(int parts_no, int x, int y, int 
 		int a, int state);
 bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, const int *points,
 		int r, int g, int b, int a, int state);
+bool PE_AddFillPolygonWriteToPartsConstructionProcess(int parts_no, bool amap_only, int nr_points,
+		const int *points, int r, int g, int b, int a, int state);
 bool PE_AddTileCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
 		int x, int y, int w, int h, bool full_size, int state);
 bool PE_AddBlendFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,

@@ -19,7 +19,8 @@
  * showed the CG as it is; 4 and 15 had no operation on the surface's pixels
  * (the older blending fill rounds on the GPU, and the AIN's 15 adds
  * nothing), and a CG that failed to load ended the engine on an assertion.
- * The new operations make the save XPE version 10.
+ * The new operations made the save XPE version 10 (it is 11 since the
+ * polygon fills of construction-cmds).
  *
  * The probe has no archives: build_probe.py appends cg_assets_shadow.inc to
  * a copy of asset_manager.c, and the CGs are PNG files made here.
@@ -45,7 +46,7 @@
  *       radius 0). Through the AIN declaration a CG that cannot be decoded
  *       leaves no surface, the later operations are not run and nothing
  *       crashes.
- *   G6 PE_Save / PE_Load: a state with every command above is version 10
+ *   G6 PE_Save / PE_Load: a state with every command above is version 11
  *       and comes back with the same pixels; a save without the new
  *       operations rewritten as versions 9, 8 and 7 loads the same.
  *   G7 engines before v14: the loader builds no state that starts with a
@@ -616,7 +617,7 @@ CG_CASE(cg_save)
 {
 	/* A save without the new operations, as the older versions wrote it:
 	 * 7 has neither the pixel operations nor the list of sub colour parts
-	 * at the end; 8 and 9 differ from 10 by the number alone. */
+	 * at the end; 8 to 10 differ from 11 by the number alone. */
 	const int PLAIN = 9561, PIXEL = 9562;
 	cc_new(PLAIN, 8, 4, 10, 20, 30, 200);
 	cc_dot(PLAIN, 2, 1, 250);
@@ -627,7 +628,7 @@ CG_CASE(cg_save)
 	if (!saved || !plain)
 		return;
 	int pos = cg_version_pos(saved);
-	CG_CHECK(pos >= 0 && ca_save_version(saved) == 10, "G6: XPE v%d, want 10", ca_save_version(saved));
+	CG_CHECK(pos >= 0 && ca_save_version(saved) == 11, "G6: XPE v%d, want 11", ca_save_version(saved));
 	CG_CHECK(saved->values[saved->nr_vars - 1].i == 0, "G6: the save does not end with an empty list of sub colour parts");
 	struct page *v7 = copy_page(saved);
 	v7->values[pos].i = 7;
@@ -651,7 +652,7 @@ CG_CASE(cg_save)
 	CG_CHECK(PE_Save(&saved), "G6: PE_Save failed");
 	if (!saved || !pixel)
 		return;
-	for (int version = 9; version >= 8; version--) {
+	for (int version = 10; version >= 8; version--) {
 		struct page *old = copy_page(saved);
 		old->values[pos].i = version;
 		CG_CHECK(ca_save_version(old) == version && PE_Load(&old), "G6: a version %d save did not load", version);
@@ -685,7 +686,7 @@ CG_CASE(cg_save)
 	saved = NULL;
 	CG_CHECK(PE_Save(&saved), "G6: PE_Save failed");
 	if (saved) {
-		CG_CHECK(ca_save_version(saved) == 10, "G6: a save with the new operations is XPE v%d, want 10", ca_save_version(saved));
+		CG_CHECK(ca_save_version(saved) == 11, "G6: a save with the new operations is XPE v%d, want 11", ca_save_version(saved));
 		int words = saved->nr_vars;
 		CG_CHECK(PE_Load(&saved), "G6: PE_Load failed");
 		PE_UpdateComponent(0);
@@ -798,7 +799,7 @@ CG_CASE(cg_extremes)
 		/* The fields of both operations in a save. */
 		PE_UpdateComponent(0);
 		struct page *saved = NULL;
-		CG_CHECK(PE_Save(&saved) && saved && ca_save_version(saved) == 10, "G8: no XPE v10 save");
+		CG_CHECK(PE_Save(&saved) && saved && ca_save_version(saved) == 11, "G8: no XPE v11 save");
 		if (saved) {
 			CG_CHECK(PE_Load(&saved), "G8: PE_Load failed");
 			PE_UpdateComponent(0);

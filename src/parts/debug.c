@@ -131,6 +131,8 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_ONLY_ALPHA_TEXT] = "only_alpha_text",
 		[PARTS_CP_BLEND_FILL] = "blend_fill",
 		[PARTS_CP_GRAY_SCALE] = "gray_scale",
+		[PARTS_CP_FILL_POLYGON_PIXEL_AMAP] = "fill_polygon_pixel_amap",
+		[PARTS_CP_FILL_POLYGON_AMAP] = "fill_polygon_amap",
 	};
 
 	cJSON *ops, *tmp;
@@ -228,6 +230,8 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		case PARTS_CP_DRAW_CIRCLE_AMAP:
 		case PARTS_CP_BLEND_FILL:
 		case PARTS_CP_GRAY_SCALE:
+		case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
+		case PARTS_CP_FILL_POLYGON_AMAP:
 			cJSON_AddItemToObjectCS(obj, "rect", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->pixel.x);
 			cJSON_AddNumberToObject(tmp, "y", op->pixel.y);
@@ -662,6 +666,12 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_GRAY_SCALE:
 				sys_message(" gray-scale");
+				break;
+			case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
+				sys_message(" fill-polygon-pixel-amap");
+				break;
+			case PARTS_CP_FILL_POLYGON_AMAP:
+				sys_message(" fill-polygon-amap");
 				break;
 			}
 		}

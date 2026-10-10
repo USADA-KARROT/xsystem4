@@ -75,8 +75,47 @@
  *       that are not positive, INT_MAX wide): nothing outside the surface
  *       is touched and the result is that of the clipped rectangle; a save
  *       with a circle beyond this build's limit loads it without a radius.
- * Functions and types the fix adds are reached through the AIN declaration
- * or dlsym, so the file builds before the fix.
+ *
+ * The polygon fills that write (2026-10-11; before, the pactex loader built
+ * no state with them):
+ *   - 94 多角形塗りつぶし（ピクセル＆アルファ）(0x506210 -> 0x5af7d0 ->
+ *     0x5afa40): the scan of 97 straight on the surface, its writer
+ *     (vtable 0x80ecec, 0x4d13a0 -> 0x5b0b80) replacing every covered pixel
+ *     by (R, G, B, A * cov / 255), each clamped to 0..255; nothing is
+ *     blended;
+ *   - 95 多角形塗りつぶし（アルファのみ）(0x506330 -> 0x5af720 -> 0x5af970):
+ *     the same scan, the writer (vtable 0x80ecb4, 0x4d1420 -> 0x5b0a10)
+ *     replacing the alpha by A * cov / 255 and leaving the colour.
+ *   The pactex step keeps its vertices in 座標總覽 (0x4f9410, key 0x7d2e3c:
+ *   x0, y0, x1, y1, ...; step +0xe4), and the handlers read 丸め's second
+ *   item (+0xd5) and 旋轉角度 (+0xd8); a state with either is not built.
+ *   CC11 the two commands through the pactex loader beside 97 through the
+ *        AIN declaration, the same rectangle (CC4's coverages) and colour on
+ *        an opaque coloured base: replaced, alpha only, blended; an alpha
+ *        of 1, whose covered pixels are written with alpha 0; the three
+ *        states of the game: WorkResultScreen's ResultBase (rows 0 and 135
+ *        by hand, every pixel against a model for convex polygons),
+ *        SceneSendResult's ProfBase (two vertices one past the surface; row
+ *        64 by hand) and BattleResultPlayerView's NewSkillBase (95 among
+ *        the commands 5 and 122; the triangle's edges on rows 40, 43 and
+ *        47 by hand); the SJIS keys.
+ *   CC12 what stays unbuilt (rounded corners, a rotation, two vertices,
+ *        also as five ints, a float among the points, the colour or 丸め,
+ *        no list, a polygon outside the surface, a repeated vertex that
+ *        leaves two, an alpha whose product does not fit 32 bits) and what
+ *        is built as the original runs it: the first item of 丸め, 丸め or
+ *        旋轉角度 missing, any colour with 95, an odd number of ints (the
+ *        last is dropped), a colour and an alpha outside 0..255 (clamped
+ *        where they are written, the alpha after its division), no 色１
+ *        (transparent black), an angle that is a multiple of 360.
+ *   CC13 PE_Save writes XPE version 11, in which the two operations are
+ *        the types 27 and 28; a save without the new operations loads as
+ *        version 10, 9, 8 and 7 wrote it; the three states come back with
+ *        the same pixels and operations.
+ *   CC14 under an AIN before version 14 the loader builds neither command
+ *        and a save is version 3.
+ * Functions and types the fix adds are reached through the AIN declaration,
+ * the pactex loader or dlsym, so the file builds before the fix.
  */
 #include <dlfcn.h>
 
@@ -1181,6 +1220,646 @@ static void cc_extremes(void)
 	printf("CC10 checked\n");
 }
 
+/* --- CC11 .. CC14: the polygon fills that write (commands 94 and 95) --- */
+#define CQ_ROUND "\xcd\xe8\xa4\xe1"				/* 丸め */
+#define CQ_ROUND_S "\x8a\xdb\x82\xdf"
+#define CQ_POINTS "\xd7\xf9\x98\xcb\xbf\x82\xd3\x5b"		/* 座標總覽 */
+#define CQ_POINTS_S "\x8d\xc0\x95\x57\x88\xea\x97\x97"		/* 座標一覧 */
+#define CQ_COLOR2_S "\x90\x46\x82\x51"				/* 色２ */
+
+/* A step with the keys the polygon commands read besides those of cc_step. */
+struct cq_step {
+	int cmd;
+	int dest[6];	/* 先矩形 */
+	int color[4];	/* 色１ */
+	int full;	/* 全體 */
+	int radius[2];	/* 半徑 */
+	int arc[2];	/* 円弧角度 */
+	int round[2];	/* 丸め */
+	int rotate;	/* 旋轉角度 */
+	int nr_xy;	/* 座標總覽's items; the key is left out without xy */
+	const int *xy;
+	int flags;	/* CQ_* */
+};
+enum {
+	CQ_FLOAT_POINT = 1 << 0,	/* 座標總覽's third item is a float */
+	CQ_NO_ROUND = 1 << 1,		/* no 丸め, */
+	CQ_NO_ROTATE = 1 << 2,		/* no 旋轉角度 */
+	CQ_FLOAT_ROUND = 1 << 3,	/* 丸め's second item is a float */
+	CQ_NO_COLOR = 1 << 4,		/* no 色１ */
+	CQ_FLOAT_COLOR = 1 << 5,	/* 色１'s first item is a float */
+};
+#define CQ_CREATE(w, h) { 0, { 0, 0, 0, 0, w, h } }
+#define CQ_FILL(cmd, x, y, w, h, r, g, b, a) { cmd, { x, y, 0, 0, w, h }, { r, g, b, a } }
+#define CQ_FILL_ALL(cmd, r, g, b, a) { cmd, { 0 }, { r, g, b, a }, 1 }
+#define CQ_PIE(x, y, rx, ry, start, sweep, a) { 122, { x, y }, { 0, 0, 0, a }, 0, { rx, ry }, { start, sweep } }
+#define CQ_XY(pts) .nr_xy = (int)(sizeof(pts) / sizeof((pts)[0])), .xy = pts
+#define CQ_POLY(cmd, r, g, b, a, pts) { cmd, { 0 }, { r, g, b, a }, CQ_XY(pts) }
+#define CQ_N(steps) (int)(sizeof(steps) / sizeof((steps)[0])), steps
+
+static struct ex_tree cq_parts(const char *name, int n, const struct cq_step *steps, bool sjis)
+{
+	struct lb_place pl = { 0, 0, 1 };
+	struct ex_tree info = bu_branch(BU_INFO, 2);
+	info.children[0] = bu_sleaf(BU_TYPE, BU_LOW);
+	info.children[1] = bu_branch(BU_NORMAL, 3);
+	struct ex_tree *st = &info.children[1];
+	st->children[0] = bu_sleaf(BU_TYPE, BR_CONS);
+	st->children[1] = lb_ilist(CN_AREA, 4, (int[]){ 0, 0, 0, 0 });
+	st->children[2] = bu_branch(sjis ? CN_STEPS_S : BR_STEPS, n);
+	for (int i = 0; i < n; i++) {
+		const struct cq_step *s = &steps[i];
+		char key[32];
+		snprintf(key, sizeof key, "Step%d", i + 1);
+		unsigned k = 0;
+		struct ex_tree t = bu_branch(key, 11);
+		t.children[k++] = bu_ileaf(sjis ? CN_COMMAND_S : BR_COMMAND, s->cmd);
+		t.children[k++] = lb_ilist(sjis ? CN_DEST_S : LB_DEST, 6, s->dest);
+		if (!(s->flags & CQ_NO_COLOR)) {
+			t.children[k++] = lb_ilist(sjis ? CN_COLOR1_S : CN_COLOR1, 4, s->color);
+			if (s->flags & CQ_FLOAT_COLOR)
+				t.children[k - 1].leaf.value.list->items[0].value = (struct ex_value){ .type = EX_FLOAT, .f = s->color[0] };
+		}
+		t.children[k++] = lb_ilist(sjis ? CQ_COLOR2_S : CC_COLOR2, 4, (int[]){ 0, 0, 0, 0 });
+		t.children[k++] = bu_ileaf(sjis ? CN_FULL_S : CN_FULL, s->full);
+		t.children[k++] = lb_ilist(sjis ? CN_RADIUS_S : CN_RADIUS, 2, s->radius);
+		t.children[k++] = lb_ilist(sjis ? CN_ARC_S : CN_ARC, 2, s->arc);
+		if (!(s->flags & CQ_NO_ROUND)) {
+			t.children[k++] = lb_ilist(sjis ? CQ_ROUND_S : CQ_ROUND, 2, s->round);
+			if (s->flags & CQ_FLOAT_ROUND)
+				t.children[k - 1].leaf.value.list->items[1].value = (struct ex_value){ .type = EX_FLOAT, .f = s->round[1] };
+		}
+		if (!(s->flags & CQ_NO_ROTATE))
+			t.children[k++] = bu_ileaf(sjis ? CN_ROTATE_S : CN_ROTATE, s->rotate);
+		t.children[k++] = bu_sleaf(BR_CG_NAME, "");
+		if (s->xy) {
+			t.children[k++] = lb_ilist(sjis ? CQ_POINTS_S : CQ_POINTS, s->nr_xy, s->xy);
+			if (s->flags & CQ_FLOAT_POINT)
+				t.children[k - 1].leaf.value.list->items[2].value = (struct ex_value){ .type = EX_FLOAT, .f = s->xy[2] };
+		}
+		t.nr_children = k;
+		st->children[2].children[i] = t;
+	}
+	return lb_node(name, &pl, info, 0);
+}
+
+/*
+ * The coverage (0..255) of every pixel of a w x h surface by a convex polygon
+ * that has no horizontal edge, as the scan 0x4d0820 sums it: the vertices at
+ * their pixels' centres, the rows of their bounding box (clipped to the
+ * surface), 8 lines y + k/8 a row; on a line the polygon reaches from its
+ * leftmost crossing to its rightmost one (each x = (xh - xl) * (y - yl) /
+ * (yh - yl) + xl from the edge's upper end, clamped to the scanned columns)
+ * and adds the span [x1, x2 + 1) in 255ths of a column, or (x2 - x1) to the
+ * one column both lie in; a line that only touches a vertex adds nothing. A
+ * column's coverage is its sum / 8. Written for this shape alone: it does not
+ * sort crossings or pair them.
+ */
+static void cq_cover(int w, int h, int n, const int *xy, int *cov)
+{
+	double xs[8], ys[8];
+	int min_x = INT_MAX, min_y = INT_MAX, max_x = INT_MIN, max_y = INT_MIN;
+	memset(cov, 0, (size_t)w * h * sizeof(int));
+	assert(n >= 3 && n <= 8);
+	for (int i = 0; i < n; i++) {
+		xs[i] = xy[i * 2] + 0.5;
+		ys[i] = xy[i * 2 + 1] + 0.5;
+		if ((int)xs[i] < min_x) min_x = (int)xs[i];
+		if ((int)xs[i] > max_x) max_x = (int)xs[i];
+		if ((int)ys[i] < min_y) min_y = (int)ys[i];
+		if ((int)ys[i] > max_y) max_y = (int)ys[i];
+	}
+	const int x0 = min_x < 0 ? 0 : min_x, x1 = max_x >= w ? w - 1 : max_x;
+	const int y0 = min_y < 0 ? 0 : min_y, y1 = max_y >= h ? h - 1 : max_y;
+	const int col0 = x0 - 1 < 0 ? 0 : x0 - 1, col1 = x1 + 2 > w ? w : x1 + 2;
+	int *sums = xcalloc(w + 2, sizeof(int));
+	for (int row = y0; row <= y1; row++) {
+		memset(sums, 0, (w + 2) * sizeof(int));
+		for (int k = 0; k < 8; k++) {
+			const double y = row + k / 8.0;
+			double lo = 0, hi = 0;
+			int nr = 0;
+			for (int i = 0; i < n; i++) {
+				const int j = (i + 1) % n;
+				assert(ys[i] != ys[j]);
+				const int u = ys[i] < ys[j] ? i : j, d = u == i ? j : i;
+				if (y < ys[u] || y > ys[d])
+					continue;
+				double x = (xs[d] - xs[u]) * (y - ys[u]);
+				x = x / (ys[d] - ys[u]);
+				x = x + xs[u];
+				if (x > col1) x = col1;
+				if (x < col0) x = col0;
+				if (!nr || x < lo) lo = x;
+				if (!nr || x > hi) hi = x;
+				nr++;
+			}
+			if (nr < 2 || lo == hi)
+				continue;
+			const int ca = (int)lo, cz = (int)hi;
+			if (ca == cz) {
+				sums[ca] += (int)((hi - lo) * 255.0);
+				continue;
+			}
+			sums[ca] += (int)(255.0 - (lo - ca) * 255.0);
+			for (int c = ca + 1; c <= cz; c++)
+				sums[c] += 255;
+			sums[cz + 1] += (int)((hi - cz) * 255.0);
+		}
+		for (int c = col0; c < col1; c++)
+			cov[row * w + c] = sums[c] / 8;
+	}
+	free(sums);
+}
+
+/* What the two commands write for a coverage (0x4d13a0 -> 0x5b0b80: the
+ * colour and A * cov / 255 replace the pixel; 0x4d1420 -> 0x5b0a10: the
+ * alpha alone): every covered pixel, also one whose alpha comes to 0. Each
+ * value is clamped to 0..255 as it is written, the alpha after the division
+ * (which truncates towards zero). */
+static int cq_clamp(int v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+static void cq_write(uint8_t *px, int npx, const int *cov, int cmd, int r, int g, int b, int a)
+{
+	for (int i = 0; i < npx; i++) {
+		if (cov[i] <= 0)
+			continue;
+		if (cmd == 94) {
+			px[i * 4] = cq_clamp(r);
+			px[i * 4 + 1] = cq_clamp(g);
+			px[i * 4 + 2] = cq_clamp(b);
+		}
+		px[i * 4 + 3] = cq_clamp(cc_mul255(a, cov[i]));
+	}
+}
+
+/* CC4's rectangle (2,2) (11,2) (11,7) (2,7) on 20x10, computed there by hand:
+ * columns 2 and 12 are the half columns, 3..11 whole; row 2 has 4 of the 8
+ * lines, rows 3..6 all, row 7 has 5. */
+static const int cq_rect[] = { 2, 2, 11, 2, 11, 7, 2, 7 };
+static void cq_rect_cover(int *cov)
+{
+	memset(cov, 0, 20 * 10 * sizeof(int));
+	for (int y = 2; y <= 7; y++) {
+		const int edge = y == 2 ? 63 : y == 7 ? 79 : 127, in = y == 2 ? 127 : y == 7 ? 159 : 255;
+		cov[y * 20 + 2] = cov[y * 20 + 12] = edge;
+		for (int x = 3; x <= 11; x++)
+			cov[y * 20 + x] = in;
+	}
+}
+
+static const struct cq_step cq_rect94[] = { CQ_CREATE(20, 10), CQ_FILL_ALL(6, 10, 200, 30, 255), CQ_POLY(94, 255, 0, 186, 128, cq_rect) };
+static const struct cq_step cq_rect95[] = { CQ_CREATE(20, 10), CQ_FILL_ALL(6, 10, 200, 30, 255), CQ_POLY(95, 255, 0, 186, 128, cq_rect) };
+static const struct cq_step cq_faint94[] = { CQ_CREATE(20, 10), CQ_FILL_ALL(6, 10, 200, 30, 255), CQ_POLY(94, 255, 0, 186, 1, cq_rect) };
+static const struct cq_step cq_faint95[] = { CQ_CREATE(20, 10), CQ_FILL_ALL(6, 10, 200, 30, 255), CQ_POLY(95, 0, 0, 0, 1, cq_rect) };
+/* WorkResultScreen's ResultBase, SceneSendResult's ProfBase and
+ * BattleResultPlayerView's NewSkillBase, as their pactex has them. */
+static const int cq_result_xy[] = { 2, 0, 415, 15, 409, 266, 11, 254 };
+static const int cq_prof_xy[] = { 0, 0, 211, 12, 240, 64, 14, 80 };
+static const int cq_skill_xy[] = { 64, 48, 60, 38, 68, 38 };
+static const struct cq_step cq_result[] = { CQ_CREATE(420, 270), CQ_FILL_ALL(6, 0, 0, 0, 0), CQ_POLY(94, 0, 0, 0, 255, cq_result_xy) };
+static const struct cq_step cq_prof[] = { CQ_CREATE(240, 80), CQ_FILL_ALL(5, 0, 0, 0, 0), CQ_POLY(94, 255, 0, 186, 255, cq_prof_xy) };
+static const struct cq_step cq_skill[] = { CQ_CREATE(128, 48), CQ_FILL_ALL(6, 255, 255, 0, 0), CQ_POLY(95, 0, 0, 0, 255, cq_skill_xy),
+	CQ_FILL(5, 16, 0, 96, 40, 0, 0, 0, 255), CQ_FILL(5, 0, 16, 128, 8, 0, 0, 0, 255),
+	CQ_PIE(16, 16, 16, 16, 180, 90, 255), CQ_PIE(112, 16, 16, 16, 270, 90, 255),
+	CQ_PIE(112, 24, 16, 16, 0, 90, 255), CQ_PIE(16, 24, 16, 16, 90, 90, 255) };
+
+static void cq_expect_px(const uint8_t *got, int w, int x, int y, int r, int g, int b, int a, const char *what)
+{
+	if (!got)
+		return;
+	const uint8_t *p = got + (y * w + x) * 4;
+	CC_CHECK(p[0] == r && p[1] == g && p[2] == b && p[3] == a, "%s (%d,%d) = (%d,%d,%d,%d), want (%d,%d,%d,%d)", what, x, y,
+		 p[0], p[1], p[2], p[3], r, g, b, a);
+}
+
+/* --- CC11 --- */
+static void cc_polygon_write(void)
+{
+	cn_gl_setup();
+	ri_postlink();
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("ConstructionPolygon", 8, &kids);
+	kids->children[0] = cq_parts("Rect94", CQ_N(cq_rect94), false);
+	kids->children[1] = cq_parts("Rect95", CQ_N(cq_rect95), false);
+	kids->children[2] = cq_parts("Faint94", CQ_N(cq_faint94), false);
+	kids->children[3] = cq_parts("Faint95", CQ_N(cq_faint95), false);
+	kids->children[4] = cq_parts("ResultBase", CQ_N(cq_result), false);
+	kids->children[5] = cq_parts("ProfBase", CQ_N(cq_prof), false);
+	kids->children[6] = cq_parts("NewSkillBase", CQ_N(cq_skill), false);
+	kids->children[7] = cq_parts("Rect94Sjis", CQ_N(cq_rect94), true);
+	int act = cn_load("ConstructionPolygon", e);
+	int rect94 = cn_no(act, "Rect94"), rect95 = cn_no(act, "Rect95"), faint94 = cn_no(act, "Faint94");
+	int faint95 = cn_no(act, "Faint95"), result = cn_no(act, "ResultBase"), prof = cn_no(act, "ProfBase");
+	int skill = cn_no(act, "NewSkillBase"), sjis = cn_no(act, "Rect94Sjis");
+	heap_unref(act);
+
+	/* The same rectangle and colour, (255,0,186) with alpha 128, on an
+	 * opaque (10,200,30): 94 replaces what it covers by the colour and
+	 * 128 * cov / 255 (128, and 63, 31, 39, 79 for the coverages 127, 63,
+	 * 79, 159), 95 writes that alpha and keeps the colour, 97 blends
+	 * ((255 - 10) * 128 >> 8 = 122 and so on) and keeps the larger alpha. */
+	int cov[20 * 10];
+	uint8_t model[20 * 10 * 4];
+	cq_rect_cover(cov);
+	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+	cq_write(model, 20 * 10, cov, 94, 255, 0, 186, 128);
+	uint8_t *got = cn_pixels(rect94, 20, 10, "CC11 94");
+	cq_expect_px(got, 20, 5, 4, 255, 0, 186, 128, "CC11 94 inside");
+	cq_expect_px(got, 20, 2, 4, 255, 0, 186, 63, "CC11 94 half column");
+	cq_expect_px(got, 20, 12, 2, 255, 0, 186, 31, "CC11 94 corner");
+	cq_expect_px(got, 20, 5, 7, 255, 0, 186, 79, "CC11 94 last row");
+	cq_expect_px(got, 20, 2, 7, 255, 0, 186, 39, "CC11 94 last row's half column");
+	cq_expect_px(got, 20, 13, 4, 10, 200, 30, 255, "CC11 94 beside");
+	cq_expect_px(got, 20, 5, 1, 10, 200, 30, 255, "CC11 94 above");
+	cc_compare(got, 20, 10, model, "CC11 94");
+	struct parts *p = parts_try_get(rect94);
+	CC_CHECK(p && cn_nr_ops(p) == 3, "CC11 94: not 3 operations");
+	cc_compare(cn_pixels(sjis, 20, 10, "CC11 94 under the SJIS keys"), 20, 10, model, "CC11 94 under the SJIS keys");
+
+	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+	cq_write(model, 20 * 10, cov, 95, 0, 0, 0, 128);
+	got = cn_pixels(rect95, 20, 10, "CC11 95");
+	cq_expect_px(got, 20, 5, 4, 10, 200, 30, 128, "CC11 95 inside");
+	cq_expect_px(got, 20, 2, 4, 10, 200, 30, 63, "CC11 95 half column");
+	cq_expect_px(got, 20, 13, 4, 10, 200, 30, 255, "CC11 95 beside");
+	cc_compare(got, 20, 10, model, "CC11 95");
+
+	const int BLEND = 9471;
+	cc_new(BLEND, 20, 10, 10, 200, 30, 255);
+	cc_hll(BLEND, &(struct cc_cmd){ .cmd = 97, .c1 = { 255, 0, 186, 128 }, .nr_pos = 4, .pos = cq_rect });
+	got = cc_pixels(BLEND, 20, 10, "CC11 97");
+	cq_expect_px(got, 20, 5, 4, 132, 100, 108, 255, "CC11 97 inside");
+	cq_expect_px(got, 20, 13, 4, 10, 200, 30, 255, "CC11 97 beside");
+	uint8_t staged[20 * 10 * 4] = { 0 };
+	for (int i = 0; i < 20 * 10; i++)
+		staged[i * 4 + 3] = cc_mul255(128, cov[i]);
+	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+	cc_model_rgb[0] = 255; cc_model_rgb[1] = 0; cc_model_rgb[2] = 186;
+	cc_compose_all(model, staged, 20, 10);
+	cc_compare(got, 20, 10, model, "CC11 97");
+
+	/* An alpha of 1: 1 * cov / 255 is 0 unless the pixel is whole, and the
+	 * pixel is written all the same (0x4d13a0 does not look at it). */
+	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+	cq_write(model, 20 * 10, cov, 94, 255, 0, 186, 1);
+	got = cn_pixels(faint94, 20, 10, "CC11 94 with alpha 1");
+	cq_expect_px(got, 20, 5, 4, 255, 0, 186, 1, "CC11 94 with alpha 1, inside");
+	cq_expect_px(got, 20, 2, 4, 255, 0, 186, 0, "CC11 94 with alpha 1, half column");
+	cq_expect_px(got, 20, 5, 2, 255, 0, 186, 0, "CC11 94 with alpha 1, first row");
+	cc_compare(got, 20, 10, model, "CC11 94 with alpha 1");
+	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+	cq_write(model, 20 * 10, cov, 95, 0, 0, 0, 1);
+	got = cn_pixels(faint95, 20, 10, "CC11 95 with alpha 1");
+	cq_expect_px(got, 20, 2, 4, 10, 200, 30, 0, "CC11 95 with alpha 1, half column");
+	cc_compare(got, 20, 10, model, "CC11 95 with alpha 1");
+
+	/* ResultBase: black on a transparent 420x270. By hand: row 0 holds the
+	 * top vertex (2.5, 0.5), only its lines 0.625, 0.75 and 0.875 cross
+	 * the two edges from it ([2.504, 6.942), [2.509, 10.383), [2.513,
+	 * 13.825) with the last column): sums 375, 765 x3, 750, 510 x3, 352,
+	 * 255 x2, 210. Row 135: the left edge runs from 7.266 to 7.297 (sum
+	 * 1462, coverage 182), the right one from 412.643 to 412.623, which
+	 * adds its fraction to column 413 (sum 1288, coverage 161). */
+	int *big = xcalloc(420 * 270, sizeof(int));
+	uint8_t *bm = xcalloc(420 * 270, 4);
+	cq_cover(420, 270, 4, cq_result_xy, big);
+	static const int row0[14] = { 0, 46, 95, 95, 95, 93, 63, 63, 63, 44, 31, 31, 26, 0 };
+	for (int x = 1; x <= 14; x++)
+		CC_CHECK(big[x] == row0[x - 1], "the model itself: coverage (%d,0) = %d, want %d", x, big[x], row0[x - 1]);
+	CC_CHECK(big[135 * 420 + 6] == 0 && big[135 * 420 + 7] == 182 && big[135 * 420 + 8] == 255 && big[135 * 420 + 412] == 255
+		 && big[135 * 420 + 413] == 161 && big[135 * 420 + 414] == 0,
+		 "the model itself: row 135 has %d %d %d .. %d %d %d, want 0 182 255 .. 255 161 0", big[135 * 420 + 6],
+		 big[135 * 420 + 7], big[135 * 420 + 8], big[135 * 420 + 412], big[135 * 420 + 413], big[135 * 420 + 414]);
+	cq_write(bm, 420 * 270, big, 94, 0, 0, 0, 255);
+	got = cn_pixels(result, 420, 270, "CC11 ResultBase");
+	cq_expect_px(got, 420, 210, 135, 0, 0, 0, 255, "CC11 ResultBase centre");
+	cq_expect_px(got, 420, 0, 0, 0, 0, 0, 0, "CC11 ResultBase corner");
+	cq_expect_px(got, 420, 419, 0, 0, 0, 0, 0, "CC11 ResultBase corner");
+	cq_expect_px(got, 420, 0, 269, 0, 0, 0, 0, "CC11 ResultBase corner");
+	cq_expect_px(got, 420, 419, 269, 0, 0, 0, 0, "CC11 ResultBase corner");
+	cq_expect_px(got, 420, 7, 135, 0, 0, 0, 182, "CC11 ResultBase left edge");
+	cq_expect_px(got, 420, 413, 135, 0, 0, 0, 161, "CC11 ResultBase right edge");
+	cq_expect_px(got, 420, 2, 0, 0, 0, 0, 46, "CC11 ResultBase top vertex");
+	cq_expect_px(got, 420, 13, 0, 0, 0, 0, 26, "CC11 ResultBase top row");
+	cc_compare(got, 420, 270, bm, "CC11 ResultBase");
+	free(big);
+	free(bm);
+
+	/* ProfBase: magenta on a 240x80 whose alpha command 5 cleared. Two of
+	 * its vertices, (240,64) and (14,80), lie one past the surface. By
+	 * hand, row 64: the lines 64 .. 64.5 reach the last column (their
+	 * right crossing is clamped to 240), 64.625 ends at 238.734 and adds
+	 * 187 to column 239, 64.75 ends at 236.969: sums 1462, 1530, 1777. */
+	big = xcalloc(240 * 80, sizeof(int));
+	bm = xcalloc(240 * 80, 4);
+	cq_cover(240, 80, 4, cq_prof_xy, big);
+	CC_CHECK(big[64 * 240 + 239] == 182 && big[64 * 240 + 238] == 191 && big[64 * 240 + 237] == 222,
+		 "the model itself: row 64 ends with %d %d %d, want 222 191 182", big[64 * 240 + 237], big[64 * 240 + 238],
+		 big[64 * 240 + 239]);
+	cq_write(bm, 240 * 80, big, 94, 255, 0, 186, 255);
+	got = cn_pixels(prof, 240, 80, "CC11 ProfBase");
+	cq_expect_px(got, 240, 120, 40, 255, 0, 186, 255, "CC11 ProfBase inside");
+	cq_expect_px(got, 240, 239, 64, 255, 0, 186, 182, "CC11 ProfBase right vertex");
+	cq_expect_px(got, 240, 239, 40, 0, 0, 0, 0, "CC11 ProfBase beside");
+	cq_expect_px(got, 240, 20, 79, 255, 0, 186, 255, "CC11 ProfBase last row");
+	cc_compare(got, 240, 80, bm, "CC11 ProfBase");
+	free(big);
+	free(bm);
+
+	/* NewSkillBase: a yellow whose alpha is the triangle of command 95,
+	 * two rectangles and four sectors; the colour stays. Row 44 of the
+	 * triangle (64,48) (60,38) (68,38) spans [62.7, 67.3) at its top line
+	 * and [63.05, 66.95) at its last: columns 64 and 65 are whole.
+	 * Its edges, by hand (the rows below the rectangle of command 5; the
+	 * left edge is at 60.5 + 0.4 (y - 38.5), the right one at 68.5 less
+	 * that, and a product that falls on a whole or a half is the double's):
+	 * row 40, lines 40 .. 40.875: the left edge runs from 61.1 to 61.45 and
+	 * leaves column 61 229, 216, 203, 191, 178, 165, 153, 140 of 255 (1475,
+	 * coverage 184); the right one runs from 67.9 to 67.55 and adds 229,
+	 * 216, 203, 191, 178, 165, 152, 140 to column 68 (1474, 184).
+	 * row 43: 178, 165, 153, 140, 127, 114, 101, 89 in column 62 (1067,
+	 * 133) and as much in column 67.
+	 * row 47, the last of the surface (the tip (64,48) lies one below it):
+	 * its first two lines span [63.9, 66.1) and [63.95, 66.05), 25 and 12
+	 * for columns 63 and 66 (37, coverage 4) and both of 64 and 65 whole;
+	 * the third spans [64, 66): 64 and 65 whole; the other five stay within
+	 * column 64, 229, 204, 178, 152 and 127. Column 64: 3 * 255 + 890 =
+	 * 1655 (206); column 65: 3 * 255 (95). */
+	got = cn_pixels(skill, 128, 48, "CC11 NewSkillBase");
+	p = parts_try_get(skill);
+	CC_CHECK(p && cn_nr_ops(p) == 9, "CC11 NewSkillBase: not 9 operations");
+	cq_expect_px(got, 128, 64, 44, 255, 255, 0, 255, "CC11 NewSkillBase triangle");
+	cq_expect_px(got, 128, 65, 42, 255, 255, 0, 255, "CC11 NewSkillBase triangle");
+	cq_expect_px(got, 128, 61, 40, 255, 255, 0, 184, "CC11 NewSkillBase left edge");
+	cq_expect_px(got, 128, 68, 40, 255, 255, 0, 184, "CC11 NewSkillBase right edge");
+	cq_expect_px(got, 128, 60, 40, 255, 255, 0, 0, "CC11 NewSkillBase beside the left edge");
+	cq_expect_px(got, 128, 62, 43, 255, 255, 0, 133, "CC11 NewSkillBase left edge");
+	cq_expect_px(got, 128, 67, 43, 255, 255, 0, 133, "CC11 NewSkillBase right edge");
+	cq_expect_px(got, 128, 63, 47, 255, 255, 0, 4, "CC11 NewSkillBase last row");
+	cq_expect_px(got, 128, 64, 47, 255, 255, 0, 206, "CC11 NewSkillBase last row");
+	cq_expect_px(got, 128, 65, 47, 255, 255, 0, 95, "CC11 NewSkillBase last row");
+	cq_expect_px(got, 128, 66, 47, 255, 255, 0, 4, "CC11 NewSkillBase last row");
+	cq_expect_px(got, 128, 40, 44, 255, 255, 0, 0, "CC11 NewSkillBase below the box");
+	cq_expect_px(got, 128, 64, 20, 255, 255, 0, 255, "CC11 NewSkillBase box");
+	cq_expect_px(got, 128, 2, 2, 255, 255, 0, 0, "CC11 NewSkillBase corner");
+	cq_expect_px(got, 128, 127, 47, 255, 255, 0, 0, "CC11 NewSkillBase corner");
+	free(got);
+	cc_failures += cn_failures;
+	printf("CC11 checked\n");
+}
+
+/* --- CC12 --- */
+static const int cq_nine[] = { 2, 2, 11, 2, 11, 7, 2, 7, 5 };
+static const int cq_five[] = { 2, 2, 11, 2, 11 };
+static const int cq_outside[] = { 30, 30, 40, 30, 40, 40 };
+static const int cq_repeated[] = { 2, 2, 2, 2, 11, 7 };
+#define CQ_BASE CQ_CREATE(20, 10), CQ_FILL_ALL(6, 10, 200, 30, 255)
+static const struct cq_step cq_round1[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, .round = { 0, 1 }, CQ_XY(cq_rect) } };
+static const struct cq_step cq_rotated[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, .rotate = 30, CQ_XY(cq_rect) } };
+static const struct cq_step cq_odd_two[] = { CQ_BASE, CQ_POLY(94, 255, 0, 186, 128, cq_five) };
+static const struct cq_step cq_two[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, .nr_xy = 4, .xy = cq_rect } };
+static const struct cq_step cq_float[] = { CQ_BASE, { 95, { 0 }, { 0, 0, 0, 128 }, CQ_XY(cq_rect), .flags = CQ_FLOAT_POINT } };
+static const struct cq_step cq_no_xy[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 } } };
+static const struct cq_step cq_far[] = { CQ_BASE, CQ_POLY(94, 255, 0, 186, 128, cq_outside) };
+static const struct cq_step cq_same[] = { CQ_BASE, CQ_POLY(94, 255, 0, 186, 128, cq_repeated) };
+static const struct cq_step cq_round_float[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, CQ_XY(cq_rect), .flags = CQ_FLOAT_ROUND } };
+static const struct cq_step cq_color_float[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, CQ_XY(cq_rect), .flags = CQ_FLOAT_COLOR } };
+/* 255 * 8421505 does not fit 32 bits: the original's product wraps around. */
+static const struct cq_step cq_alpha_wrap[] = { CQ_BASE, CQ_POLY(95, 0, 0, 0, 8421505, cq_rect) };
+/* Built as the original runs them: 丸め's first item is another flag (the
+ * handlers read +0xd5, the second); a missing 丸め or 旋轉角度 is 0
+ * (0x4f82a0); 95 reads only 色１'s alpha; a last int without a partner is
+ * dropped (0x4eaab4); the colour and A * cov / 255 are clamped when they are
+ * written (0x5b0b80, 0x5b0a10); a missing 色１ is (0, 0, 0, 0); the angle is
+ * taken modulo 360 (0x4e996d). */
+static const struct cq_step cq_round0[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, .round = { 1, 0 }, CQ_XY(cq_rect) } };
+static const struct cq_step cq_no_round[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, CQ_XY(cq_rect), .flags = CQ_NO_ROUND } };
+static const struct cq_step cq_no_rotate[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, CQ_XY(cq_rect), .flags = CQ_NO_ROTATE } };
+static const struct cq_step cq_color95[] = { CQ_BASE, CQ_POLY(95, 999, -1, 300, 128, cq_rect) };
+static const struct cq_step cq_odd[] = { CQ_BASE, CQ_POLY(94, 255, 0, 186, 128, cq_nine) };
+static const struct cq_step cq_red256[] = { CQ_BASE, CQ_POLY(94, 256, -1, 186, 128, cq_rect) };
+static const struct cq_step cq_alpha300[] = { CQ_BASE, CQ_POLY(95, 0, 0, 0, 300, cq_rect) };
+static const struct cq_step cq_alpha_neg[] = { CQ_BASE, CQ_POLY(94, 255, 0, 186, -40, cq_rect) };
+static const struct cq_step cq_no_color[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, CQ_XY(cq_rect), .flags = CQ_NO_COLOR } };
+static const struct cq_step cq_rotate720[] = { CQ_BASE, { 94, { 0 }, { 255, 0, 186, 128 }, .rotate = 720, CQ_XY(cq_rect) } };
+static const struct cq_step cq_rotate_m360[] = { CQ_BASE, { 95, { 0 }, { 0, 0, 0, 128 }, .rotate = -360, CQ_XY(cq_rect) } };
+
+static void cc_polygon_unbuilt(void)
+{
+	cn_gl_setup();
+	ri_postlink();
+	static const struct { const char *name; int n; const struct cq_step *steps; } unbuilt[] = {
+		{ "RoundCorner", CQ_N(cq_round1) }, { "Rotated", CQ_N(cq_rotated) }, { "FiveInts", CQ_N(cq_odd_two) },
+		{ "TwoVertices", CQ_N(cq_two) }, { "FloatPoint", CQ_N(cq_float) }, { "NoPoints", CQ_N(cq_no_xy) },
+		{ "Outside", CQ_N(cq_far) }, { "Repeated", CQ_N(cq_same) }, { "FloatRound", CQ_N(cq_round_float) },
+		{ "FloatColor", CQ_N(cq_color_float) }, { "AlphaWrap", CQ_N(cq_alpha_wrap) },
+	};
+	/* What each of the built ones writes on the rectangle's pixels. */
+	static const struct { const char *name; int n; const struct cq_step *steps; int c[4]; } built[] = {
+		{ "RoundFirst", CQ_N(cq_round0), { 255, 0, 186, 128 } }, { "NoRound", CQ_N(cq_no_round), { 255, 0, 186, 128 } },
+		{ "NoRotate", CQ_N(cq_no_rotate), { 255, 0, 186, 128 } }, { "Color95", CQ_N(cq_color95), { 0, 0, 0, 128 } },
+		{ "NineInts", CQ_N(cq_odd), { 255, 0, 186, 128 } }, { "Red256", CQ_N(cq_red256), { 256, -1, 186, 128 } },
+		{ "Alpha300", CQ_N(cq_alpha300), { 0, 0, 0, 300 } }, { "AlphaNegative", CQ_N(cq_alpha_neg), { 255, 0, 186, -40 } },
+		{ "NoColor", CQ_N(cq_no_color), { 0, 0, 0, 0 } }, { "Rotate720", CQ_N(cq_rotate720), { 255, 0, 186, 128 } },
+		{ "RotateMinus360", CQ_N(cq_rotate_m360), { 0, 0, 0, 128 } },
+	};
+	enum { NU = sizeof(unbuilt) / sizeof(unbuilt[0]), NB = sizeof(built) / sizeof(built[0]) };
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("ConstructionPolygonUnbuilt", NU + NB, &kids);
+	for (int i = 0; i < NU; i++)
+		kids->children[i] = cq_parts(unbuilt[i].name, unbuilt[i].n, unbuilt[i].steps, false);
+	for (int i = 0; i < NB; i++)
+		kids->children[NU + i] = cq_parts(built[i].name, built[i].n, built[i].steps, false);
+	int act = cn_load("ConstructionPolygonUnbuilt", e);
+	for (int i = 0; i < NU; i++)
+		cn_expect_unbuilt(cn_no(act, unbuilt[i].name), 20, 10, unbuilt[i].name);
+	int cov[20 * 10];
+	uint8_t model[20 * 10 * 4];
+	cq_rect_cover(cov);
+	for (int i = 0; i < NB; i++) {
+		cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+		cq_write(model, 20 * 10, cov, built[i].steps[2].cmd, built[i].c[0], built[i].c[1], built[i].c[2], built[i].c[3]);
+		cc_compare(cn_pixels(cn_no(act, built[i].name), 20, 10, built[i].name), 20, 10, model, built[i].name);
+	}
+	/* By hand: R 256 and G -1 are written as 255 and 0; an alpha of 300
+	 * gives 300 -> 255 inside and 300 * 127 / 255 = 149 on the half column
+	 * (an alpha clamped to 255 before the division would give 127); a
+	 * negative alpha is 0; without 色１ the covered pixels are transparent
+	 * black. */
+	uint8_t *got = cn_pixels(cn_no(act, "Red256"), 20, 10, "Red256");
+	cq_expect_px(got, 20, 5, 4, 255, 0, 186, 128, "CC12 Red256 inside");
+	free(got);
+	got = cn_pixels(cn_no(act, "Alpha300"), 20, 10, "Alpha300");
+	cq_expect_px(got, 20, 5, 4, 10, 200, 30, 255, "CC12 Alpha300 inside");
+	cq_expect_px(got, 20, 2, 4, 10, 200, 30, 149, "CC12 Alpha300 half column");
+	free(got);
+	got = cn_pixels(cn_no(act, "AlphaNegative"), 20, 10, "AlphaNegative");
+	cq_expect_px(got, 20, 5, 4, 255, 0, 186, 0, "CC12 AlphaNegative inside");
+	free(got);
+	got = cn_pixels(cn_no(act, "NoColor"), 20, 10, "NoColor");
+	cq_expect_px(got, 20, 5, 4, 0, 0, 0, 0, "CC12 NoColor inside");
+	cq_expect_px(got, 20, 13, 4, 10, 200, 30, 255, "CC12 NoColor beside");
+	free(got);
+	heap_unref(act);
+	cc_failures += cn_failures;
+	printf("CC12 checked\n");
+}
+
+/* --- CC13 --- */
+static int cq_version_pos(struct page *saved)
+{
+	struct iarray_reader r;
+	return iarray_init_reader(&r, saved, "XPE") ? (int)r.pos : -1;
+}
+static uint8_t *cq_state_pixels(int no, int w, int h)
+{
+	struct parts *p = no > 0 ? parts_try_get(no) : NULL;
+	struct parts_state *s = p ? &p->states[0] : NULL;
+	return s && s->type == PARTS_CONSTRUCTION_PROCESS && s->common.texture.handle && s->common.texture.w == w
+		&& s->common.texture.h == h ? gfx_get_pixels(&s->common.texture) : NULL;
+}
+
+static void cc_polygon_save(void)
+{
+	cn_gl_setup();
+	ri_postlink();
+	/* A save without the new operations is version 11 too, and loads as
+	 * the versions before it wrote it: 8 to 10 differ by the number alone,
+	 * 7 has no list of sub colour parts at the end. */
+	const int PLAIN = 9481;
+	static const int tri[] = { 1, 1, 14, 3, 6, 13 };
+	cc_new(PLAIN, 16, 16, 10, 20, 30, 200);
+	cc_hll(PLAIN, &(struct cc_cmd){ .cmd = 97, .c1 = { 0, 90, 200, 180 }, .nr_pos = 3, .pos = tri });
+	cc_hll(PLAIN, &(struct cc_cmd){ .cmd = 27, .full = 1, .blur = 2 });
+	uint8_t *plain = cc_pixels(PLAIN, 16, 16, "CC13 plain");
+	PE_UpdateComponent(0);
+	struct page *saved = NULL;
+	CC_CHECK(PE_Save(&saved), "CC13: PE_Save failed");
+	if (!saved || !plain)
+		return;
+	int pos = cq_version_pos(saved);
+	CC_CHECK(pos >= 0 && ca_save_version(saved) == 11, "CC13: XPE v%d, want 11", ca_save_version(saved));
+	CC_CHECK(saved->values[saved->nr_vars - 1].i == 0, "CC13: the save does not end with an empty list of sub colour parts");
+	for (int version = 10; pos >= 0 && version >= 7; version--) {
+		struct page *old = copy_page(saved);
+		old->values[pos].i = version;
+		if (version == 7)
+			old->nr_vars--;
+		CC_CHECK(ca_save_version(old) == version && PE_Load(&old), "CC13: a version %d save did not load", version);
+		PE_UpdateComponent(0);
+		uint8_t *got = cq_state_pixels(PLAIN, 16, 16);
+		CC_CHECK(got && !memcmp(got, plain, 16 * 16 * 4) && cc_nr_ops(PLAIN) == 4,
+			 "CC13: a version %d save loads other pixels (%d operations)", version, cc_nr_ops(PLAIN));
+		free(got);
+		if (version == 7)
+			old->nr_vars++;
+		ca_free_buffer(old);
+	}
+	ca_free_buffer(saved);
+	free(plain);
+
+	/* The three states of the game, saved and loaded. */
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("ConstructionPolygonSave", 3, &kids);
+	kids->children[0] = cq_parts("Rect94", CQ_N(cq_rect94), false);
+	kids->children[1] = cq_parts("ProfBase", CQ_N(cq_prof), false);
+	kids->children[2] = cq_parts("NewSkillBase", CQ_N(cq_skill), false);
+	int act = cn_load("ConstructionPolygonSave", e);
+	const int no[3] = { cn_no(act, "Rect94"), cn_no(act, "ProfBase"), cn_no(act, "NewSkillBase") };
+	heap_unref(act);
+	static const int size[3][2] = { { 20, 10 }, { 240, 80 }, { 128, 48 } }, nr_ops[3] = { 3, 3, 9 };
+	uint8_t *before[3];
+	for (int i = 0; i < 3; i++)
+		before[i] = cn_pixels(no[i], size[i][0], size[i][1], "CC13 before the save");
+	int cov[20 * 10];
+	uint8_t model[20 * 10 * 4];
+	cq_rect_cover(cov);
+	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
+	cq_write(model, 20 * 10, cov, 94, 255, 0, 186, 128);
+	CC_CHECK(before[0] && !memcmp(before[0], model, sizeof model), "CC13: the rectangle of command 94 is not built before the save");
+	/* The numbers a version 11 save holds for the two operations: the
+	 * third of Rect94 (command 94) and of NewSkillBase (command 95). */
+	int types[2] = { -1, -1 };
+	for (int i = 0; i < 2; i++) {
+		struct parts *p = parts_try_get(no[i * 2]);
+		struct parts_cp_op *op = p && p->states[0].type == PARTS_CONSTRUCTION_PROCESS ? TAILQ_FIRST(&p->states[0].cproc.ops) : NULL;
+		for (int k = 0; op && k < 2; k++)
+			op = TAILQ_NEXT(op, entry);
+		if (op)
+			types[i] = op->type;
+	}
+	CC_CHECK(types[0] == 27 && types[1] == 28, "CC13: the operations of commands 94 and 95 have the types %d and %d, want 27 and 28",
+		 types[0], types[1]);
+	PE_UpdateComponent(0);
+	saved = NULL;
+	CC_CHECK(PE_Save(&saved), "CC13: PE_Save failed");
+	if (saved) {
+		CC_CHECK(ca_save_version(saved) == 11, "CC13: a save with the new operations is XPE v%d, want 11", ca_save_version(saved));
+		int words = saved->nr_vars;
+		CC_CHECK(PE_Load(&saved), "CC13: PE_Load failed");
+		PE_UpdateComponent(0);
+		for (int i = 0; i < 3; i++) {
+			uint8_t *after = cq_state_pixels(no[i], size[i][0], size[i][1]);
+			CC_CHECK(before[i] && after && !memcmp(before[i], after, (size_t)size[i][0] * size[i][1] * 4)
+				 && cc_nr_ops(no[i]) == nr_ops[i], "CC13: state %d after PE_Load: %s, %d operations (want %d)", i,
+				 after ? "other pixels" : "not built", cc_nr_ops(no[i]), nr_ops[i]);
+			free(after);
+		}
+		struct page *again = NULL;
+		CC_CHECK(PE_Save(&again) && again && again->nr_vars == words, "CC13: the save after PE_Load has %d words, the first %d",
+			 again ? again->nr_vars : -1, words);
+		ca_free_buffer(again);
+		ca_free_buffer(saved);
+	}
+	for (int i = 0; i < 3; i++)
+		free(before[i]);
+	cc_failures += cn_failures;
+	printf("CC13 checked\n");
+}
+
+/* --- CC14 --- */
+static const struct cq_step cq_old[] = { CQ_CREATE(20, 10), CQ_FILL_ALL(6, 10, 200, 30, 255) };
+
+static void cc_polygon_v13(void)
+{
+	cn_gl_setup();
+	ri_postlink();
+	int version = ain->version;
+	ain->version = 13;
+	struct ex_tree *kids;
+	struct ex *e = lb_activity("ConstructionPolygonV13", 3, &kids);
+	kids->children[0] = cq_parts("Rect94", CQ_N(cq_rect94), false);
+	kids->children[1] = cq_parts("Rect95", CQ_N(cq_rect95), false);
+	kids->children[2] = cq_parts("Old", CQ_N(cq_old), false);
+	int act = cn_load("ConstructionPolygonV13", e);
+	int r94 = cn_no(act, "Rect94"), r95 = cn_no(act, "Rect95"), old = cn_no(act, "Old");
+	heap_unref(act);
+	uint8_t *a = cq_state_pixels(r94, 20, 10), *b = cq_state_pixels(r95, 20, 10), *c = cq_state_pixels(old, 20, 10);
+	CC_CHECK(!a && !b, "CC14: v13 built a state with command 94 or 95");
+	CC_CHECK(c, "CC14: v13 did not build (0, 6)");
+	free(a);
+	free(b);
+	free(c);
+	PE_UpdateComponent(0);
+	struct page *saved = NULL;
+	CC_CHECK(PE_Save(&saved) && saved && ca_save_version(saved) == 3, "CC14: a v13 save is XPE v%d, want 3",
+		 saved ? ca_save_version(saved) : -1);
+	ca_free_buffer(saved);
+	ain->version = version;
+
+	/* The same activity on v14. */
+	e = lb_activity("ConstructionPolygonV14", 1, &kids);
+	kids->children[0] = cq_parts("Rect94", CQ_N(cq_rect94), false);
+	act = cn_load("ConstructionPolygonV14", e);
+	r94 = cn_no(act, "Rect94");
+	heap_unref(act);
+	a = cq_state_pixels(r94, 20, 10);
+	CC_CHECK(a, "CC14: v14 did not build the state with command 94");
+	free(a);
+	cc_failures += cn_failures;
+	printf("CC14 checked\n");
+}
+
 static void cc_tiles_case(void)
 {
 	cn_gl_setup();	/* reports the environment ready to cn_fork_case */
@@ -1190,18 +1869,19 @@ static void cc_tiles_case(void)
 static int test_construction_cmds(void)
 {
 	void (*cases[])(void) = { cc_gradations, cc_circles, cc_circle_blend, cc_polygon, cc_blurs, cc_save, cc_unbuilt, cc_tiles_case,
-		cc_rings, cc_extremes };
-	const char *names[] = { "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9", "CC10" };
+		cc_rings, cc_extremes, cc_polygon_write, cc_polygon_unbuilt, cc_polygon_save, cc_polygon_v13 };
+	const char *names[] = { "CC1", "CC2", "CC3", "CC4", "CC5", "CC6", "CC7", "CC8", "CC9", "CC10", "CC11", "CC12", "CC13", "CC14" };
+	enum { N = sizeof(cases) / sizeof(cases[0]) };
 	int failed = 0, env = 0;
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < N; i++) {
 		int r = cn_fork_case(names[i], cases[i], &cc_failures);
 		failed += r == 1;
 		env += r == 2;
 	}
 	if (env) {
-		printf("CONSTRUCTION-CMDS ENVIRONMENT FAILURE: %d of 10 cases could not run, %d failed\n", env, failed);
+		printf("CONSTRUCTION-CMDS ENVIRONMENT FAILURE: %d of %d cases could not run, %d failed\n", env, N, failed);
 		return 2;
 	}
-	printf("CONSTRUCTION-CMDS %s: %d of 10 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	printf("CONSTRUCTION-CMDS %s: %d of %d cases failed\n", failed ? "FAIL" : "PASS", failed, N);
 	return failed ? 1 : 0;
 }

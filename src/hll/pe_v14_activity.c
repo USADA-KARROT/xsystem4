@@ -763,8 +763,9 @@ static bool pactex_construction_has_steps(struct ex_tree *state)
 /* One 手順, as far as the commands built here read it. The native step
  * parser (0x4f82a0) stores コマンド at +4, 先矩形 X,Y,X2,Y2,W,H at
  * +0x1c..+0x30, 色１ at +0x34..+0x40, 色２ at +0x44..+0x50, ＣＧ名 at +0xac,
- * 全體 at +0xc4, 半徑 at +0xc8/+0xcc, 旋轉角度 at +0xd8 and 円弧角度 (start,
- * sweep) at +0xdc/+0xe0. */
+ * 全體 at +0xc4, 半徑 at +0xc8/+0xcc, 丸め's two flags at +0xd4/+0xd5,
+ * 旋轉角度 at +0xd8, 円弧角度 (start, sweep) at +0xdc/+0xe0 and the ints of
+ * 座標總覽 (x0, y0, x1, y1, ...; 0x4f9410) at +0xe4. */
 struct pactex_cp_step {
 	int command;
 	int x, y, w, h;
@@ -776,6 +777,7 @@ struct pactex_cp_step {
 	int start, sweep;
 	int blur;		// ブラー (+0x54)
 	const char *cg_name;	// in the pactex tree
+	struct ex_list *points;	// 座標總覽, in the pactex tree
 };
 
 enum {
@@ -790,6 +792,8 @@ enum {
 	PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS = 26,
 	PACTEX_CP_BLUR_H = 27,
 	PACTEX_CP_BLUR_V = 28,
+	PACTEX_CP_FILL_POLYGON_PIXEL_AMAP = 94,
+	PACTEX_CP_FILL_POLYGON_AMAP = 95,
 	PACTEX_CP_FILL_CIRCLE_AMAP = 102,
 	PACTEX_CP_FILL_PIE_AMAP = 122,
 	PACTEX_CP_TILE_CG = 129,
@@ -844,6 +848,38 @@ static bool pactex_byte(int v)
 	return v >= 0 && v <= 255;
 }
 
+/* 座標總覽 as the polygon commands 94 and 95 scan it on a w x h surface: the
+ * ints pair up into vertices, a last one without a partner being dropped
+ * (0x4eaab4; the handlers count the same way, 0x50625e); a vertex equal to
+ * the one before it is left out (0x4e9400), and the scan fails with fewer
+ * than three (0x4d0870) or when the vertices' bounding box, each coordinate
+ * at its pixel's centre and truncated (0x4ea230), does not reach the surface
+ * (0x4d08aa). False for those, where the original fails the step and keeps
+ * what the steps before it drew, and for what is not reproduced: an item
+ * that is no int (what the original's list gives for one was not read) and
+ * more vertices than PARTS_CP_POLYGON_MAX_POINTS (xsystem4's limit). */
+static bool pactex_polygon_points(const struct ex_list *l, int w, int h)
+{
+	if (!l || l->nr_items / 2 > PARTS_CP_POLYGON_MAX_POINTS)
+		return false;
+	const unsigned nr_items = l->nr_items & ~1u;
+	int nr = 0;
+	int min_x = INT32_MAX, min_y = INT32_MAX, max_x = INT32_MIN, max_y = INT32_MIN;
+	for (unsigned i = 0; i < nr_items; i += 2) {
+		const struct ex_value *vx = &l->items[i].value, *vy = &l->items[i + 1].value;
+		if (vx->type != EX_INT || vy->type != EX_INT)
+			return false;
+		if (i && vx->i == l->items[i - 2].value.i && vy->i == l->items[i - 1].value.i)
+			continue;
+		// v + 0.5 truncated towards zero: -1 lands on 0.
+		const int x = vx->i < 0 ? vx->i + 1 : vx->i, y = vy->i < 0 ? vy->i + 1 : vy->i;
+		min_x = min(min_x, x); max_x = max(max_x, x);
+		min_y = min(min_y, y); max_y = max(max_y, y);
+		nr++;
+	}
+	return nr >= 3 && max(min_x, 0) <= min(max_x, w - 1) && max(min_y, 0) <= min(max_y, h - 1);
+}
+
 /* Reads one step and checks it against the surface (w x h) the steps before
  * it leave. False for anything the build below would not reproduce. */
 static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step *s,
@@ -863,11 +899,12 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	// one that replaces the surface does not occur in the game.
 	if (first != (s->command == PACTEX_CP_CREATE || s->command == PACTEX_CP_CREATE_CG))
 		return false;
-	// The states that start with a CG, and the commands only they have,
-	// are built for v14 alone.
+	// The states that start with a CG, the commands only they have and the
+	// polygon fills are built for v14 alone.
 	if (ain->version < 14 && (s->command == PACTEX_CP_CREATE_CG || s->command == PACTEX_CP_BLEND_FILL
 			|| s->command == PACTEX_CP_GRAY_SCALE || s->command == PACTEX_CP_BLUR_H
-			|| s->command == PACTEX_CP_BLUR_V))
+			|| s->command == PACTEX_CP_BLUR_V || s->command == PACTEX_CP_FILL_POLYGON_PIXEL_AMAP
+			|| s->command == PACTEX_CP_FILL_POLYGON_AMAP))
 		return false;
 	if (!pactex_step_item(node, dest_sjis, dest_gbk, 0, &s->x)
 			|| !pactex_step_item(node, dest_sjis, dest_gbk, 1, &s->y)
@@ -990,6 +1027,46 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		return pactex_byte(s->color[3]) && pactex_byte(s->alpha2)
 			&& s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
 			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y;
+	case PACTEX_CP_FILL_POLYGON_PIXEL_AMAP:
+	case PACTEX_CP_FILL_POLYGON_AMAP: {
+		// 0x506210, 0x506330: 座標總覽's polygon in 色１ with its alpha
+		// (94), or as that alpha alone (95, which reads no colour). A
+		// missing 色１ is (0, 0, 0, 0) (0x4f82a0). The colour and
+		// A * coverage / 255 are clamped to 0..255 where they are written
+		// (0x5b0b80, 0x5b0a10), as the operation does; the original's
+		// product is one of 32 bits (0x4d13ab), and an alpha that could
+		// wrap it around is not built. 丸め's second flag (+0xd5: an
+		// item that is 1) rounds the corners (0x4e98a0) and 旋轉角度,
+		// taken modulo 360 (0x4e996d), turns the polygon; neither is
+		// built. A missing key is 0 (0x4f82a0). The SJIS spelling of
+		// 座標總覽 is a guess (座標一覧).
+		int round = 0;
+		struct ex_value *v;
+		memset(s->color, 0, sizeof s->color);
+		if (pactex_leaf_value(node, color_sjis, color_gbk)) {
+			for (int i = s->command == PACTEX_CP_FILL_POLYGON_AMAP ? 3 : 0; i < 4; i++) {
+				if (!pactex_step_item(node, color_sjis, color_gbk, i, &s->color[i]))
+					return false;
+			}
+		}
+		if (s->color[3] > INT32_MAX / 255 || s->color[3] < INT32_MIN / 255)
+			return false;
+		if ((v = pactex_leaf_value(node, "\x8a\xdb\x82\xdf", "\xcd\xe8\xa4\xe1")) /* 丸め */
+				&& !pactex_step_item(node, "\x8a\xdb\x82\xdf", "\xcd\xe8\xa4\xe1", 1, &round))
+			return false;
+		s->rotate = 0;
+		if ((v = pactex_leaf_value(node, "\x89\xf1\x93\x5d\x8a\x70\x93\x78",
+				"\xd0\xfd\xde\x44\xbd\xc7\xb6\xc8")) /* 回転角度 / 旋轉角度 */
+				&& !pactex_step_int(node, "\x89\xf1\x93\x5d\x8a\x70\x93\x78",
+					"\xd0\xfd\xde\x44\xbd\xc7\xb6\xc8", &s->rotate))
+			return false;
+		if (round == 1 || s->rotate % 360)
+			return false;
+		v = pactex_leaf_value(node, "\x8d\xc0\x95\x57\x88\xea\x97\x97",
+				"\xd7\xf9\x98\xcb\xbf\x82\xd3\x5b"); /* 座標一覧 / 座標總覽 */
+		s->points = v && v->type == EX_LIST ? v->list : NULL;
+		return pactex_polygon_points(s->points, surface_w, surface_h);
+	}
 	case PACTEX_CP_FILL_CIRCLE_AMAP:
 		// 0x507640: the alpha of a disc of 半徑[0] around 先矩形 X,Y.
 		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
@@ -1037,8 +1114,8 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 /* The steps of a construction state, when the loader can run them as the
  * original does: every command is one of 0 (create), 2 (the surface from a
  * CG), 3, 4, 5, 6 (fills), 15 (gray scale), 25, 26 (alpha gradations), 27, 28
- * (blurs), 102 (disc alpha), 122 (sector alpha) and 129 (CG tiles), the
- * first step makes the surface and none would fail.
+ * (blurs), 94, 95 (polygons), 102 (disc alpha), 122 (sector alpha) and 129
+ * (CG tiles), the first step makes the surface and none would fail.
  * A list whose first step is command 2 is narrower: every step must be one
  * of 2, 3, 4, 15, 27 and 28, and a list with any other step is not built
  * (the state keeps the CG it had). A CG's texture does not say whether its
@@ -1146,6 +1223,18 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 				s->command == PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS, s->x, s->y, s->w, s->h,
 				false, s->color[3], s->alpha2, pe_state);
 			break;
+		case PACTEX_CP_FILL_POLYGON_PIXEL_AMAP:
+		case PACTEX_CP_FILL_POLYGON_AMAP: {
+			const int nr_points = s->points->nr_items / 2;
+			int *points = xmalloc(nr_points * 2 * sizeof(int));
+			for (int j = 0; j < nr_points * 2; j++)
+				points[j] = s->points->items[j].value.i;
+			PE_AddFillPolygonWriteToPartsConstructionProcess(parts_no,
+				s->command == PACTEX_CP_FILL_POLYGON_AMAP, nr_points, points,
+				s->color[0], s->color[1], s->color[2], s->color[3], pe_state);
+			free(points);
+			break;
+		}
 		case PACTEX_CP_FILL_CIRCLE_AMAP:
 			PE_AddFillCircleToPartsConstructionProcess(parts_no, false, s->x, s->y, s->rx,
 				0, 0, 0, s->color[3], pe_state);

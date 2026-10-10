@@ -68,6 +68,8 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_DRAW_CIRCLE_AMAP:
 	case PARTS_CP_BLEND_FILL:
 	case PARTS_CP_GRAY_SCALE:
+	case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
+	case PARTS_CP_FILL_POLYGON_AMAP:
 		free(op->pixel.points);
 		break;
 	}
@@ -355,8 +357,8 @@ bool PE_AddDrawCircleToPartsConstructionProcess(int parts_no, int x, int y, int 
 }
 
 // `points` is x0, y0, x1, y1, ...; it is copied.
-bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, const int *points,
-		int r, int g, int b, int a, int state)
+static bool add_polygon_op(int parts_no, int state, enum parts_cp_op_type type, int nr_points,
+		const int *points, int r, int g, int b, int a)
 {
 	if (nr_points < 0 || nr_points > PARTS_CP_POLYGON_MAX_POINTS || (nr_points && !points))
 		return false;
@@ -365,12 +367,26 @@ bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, co
 		copy = xmalloc(nr_points * 2 * sizeof(int));
 		memcpy(copy, points, nr_points * 2 * sizeof(int));
 	}
-	if (!add_pixel_op(parts_no, state, PARTS_CP_FILL_POLYGON_BLEND, (struct parts_cp_pixel) {
+	if (!add_pixel_op(parts_no, state, type, (struct parts_cp_pixel) {
 			.r = r, .g = g, .b = b, .a = a, .nr_points = nr_points, .points = copy })) {
 		free(copy);
 		return false;
 	}
 	return true;
+}
+
+bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, const int *points,
+		int r, int g, int b, int a, int state)
+{
+	return add_polygon_op(parts_no, state, PARTS_CP_FILL_POLYGON_BLEND, nr_points, points, r, g, b, a);
+}
+
+// Commands 94 (the colour and the alpha) and 95 (`amap_only`: the alpha).
+bool PE_AddFillPolygonWriteToPartsConstructionProcess(int parts_no, bool amap_only, int nr_points,
+		const int *points, int r, int g, int b, int a, int state)
+{
+	return add_polygon_op(parts_no, state, amap_only ? PARTS_CP_FILL_POLYGON_AMAP
+			: PARTS_CP_FILL_POLYGON_PIXEL_AMAP, nr_points, points, r, g, b, a);
 }
 
 bool PE_AddTileCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
@@ -983,6 +999,8 @@ static bool cp_op_on_pixels(const struct parts_cp_op *op)
 		return true;
 	case PARTS_CP_BLEND_FILL:
 	case PARTS_CP_GRAY_SCALE:
+	case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
+	case PARTS_CP_FILL_POLYGON_AMAP:
 		return true;
 	default:
 		return op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
@@ -1406,8 +1424,21 @@ static int cp_compare_double(const void *a, const void *b)
  * written (that, or the polygon lies outside the surface) the original
  * fails the command and the steps after it (0x506756 -> 0x50679b); here the
  * later operations still run.
+ *
+ * The commands 94 and 95 run the same scan on the surface itself (0x506210
+ * -> 0x5af7d0 -> 0x5afa40, 0x506330 -> 0x5af720 -> 0x5af970) and write
+ * every pixel it covers, also one whose alpha comes to 0; nothing is blended:
+ *   94 (FILL_POLYGON_PIXEL_AMAP, 0x4d13a0 -> 0x5b0b80) the colour and
+ *      a * coverage / 255, each clamped to 0..255, the alpha only on a
+ *      surface that has one;
+ *   95 (FILL_POLYGON_AMAP, 0x4d1420 -> 0x5b0a10) that alpha alone. The
+ *      command fails on a surface without alpha (0x506363 -> 0x5abb80) and
+ *      is not run on one here.
+ * Both fail with fewer than two vertices (0x506263, 0x506389), or when the
+ * scan has no row (0x4d08aa); here the later operations still run.
  */
-static void build_fill_polygon(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
+static void build_fill_polygon(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op,
+		enum parts_cp_op_type type, bool has_alpha)
 {
 	if (op->nr_points < 3 || op->nr_points > PARTS_CP_POLYGON_MAX_POINTS)
 		return;
@@ -1478,8 +1509,18 @@ static void build_fill_polygon(uint8_t *pixels, int tw, int th, const struct par
 			if (cov <= 0)
 				continue;
 			const int a = cp_byte((int64_t)op->a * cov / 255);
-			if (a)
-				cp_blend_pixel(pixels + ((size_t)row * tw + col) * 4, r, g, b, a);
+			uint8_t *p = pixels + ((size_t)row * tw + col) * 4;
+			if (type == PARTS_CP_FILL_POLYGON_PIXEL_AMAP) {
+				p[0] = r;
+				p[1] = g;
+				p[2] = b;
+				if (has_alpha)
+					p[3] = a;
+			} else if (type == PARTS_CP_FILL_POLYGON_AMAP) {
+				p[3] = a;
+			} else if (a) {
+				cp_blend_pixel(p, r, g, b, a);
+			}
 		}
 	}
 	free(sums);
@@ -1636,7 +1677,12 @@ bool parts_build_construction_process(struct parts *parts,
 			build_fill_circle(pixels, t->w, t->h, &op->pixel, true);
 			break;
 		case PARTS_CP_FILL_POLYGON_BLEND:
-			build_fill_polygon(pixels, t->w, t->h, &op->pixel);
+		case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
+			build_fill_polygon(pixels, t->w, t->h, &op->pixel, op->type, has_alpha);
+			break;
+		case PARTS_CP_FILL_POLYGON_AMAP:
+			if (has_alpha)
+				build_fill_polygon(pixels, t->w, t->h, &op->pixel, op->type, true);
 			break;
 		case PARTS_CP_TILE_CG:
 			build_tile_cg(pixels, t->w, t->h, &op->pixel);
