@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 88 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 89 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
 RUN_FROM_TITLE=1 RUN_AUTO_CLICK_SEQ="4000,640,700;8000,640,700;14000,152,130" RUN_CLICK_TRACE=1 RUN_SHOTS=9000,500,60 \
@@ -85,6 +85,8 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 - `probe/working_cards_fixture.inc`：`working-cards`（2026-10-05），春銷對手／顧客卡片的兩條 VM 資料鏈。WC1 取真 `LocalGame@2` 的 `X_A_INIT 1`，檢查兩個不同的 WorkerCollection、各自真建構子及內部清單，並驗證重新初始化、外部持有舊陣列與最終釋放；WC2 使用真 AIN 的直接 float／int／bool／string 陣列宣告及初始化指令，檢查長度、零值／空字串初值與釋放；WC3 真 CustomerCollection 的 Shuffle／GetOrdered 對四個合成顧客產生完整順序，核對身分、PushBack 前堆疊，以及結果與來源分別釋放（精確記錄留下的一個空 wrap 暫存物件；2026-10-08 的 `arg-ownership` 那一組之前還有一個空 delegate 頁，是 `GetOrdered` 交給 `ArrayExtensions::Select` 的 lambda 引數被多留的參照，這條斷言當時釘的是兩個）；WC4 全 26 個一般物件／18 個介面 wrap delegate 宣告及合成 primitive／舊版控制；WC5 執行真 Tutorial 介面 selector 的 DA1／DA2，保留兩槽契約；WC6（兩段都在 2026-10-08 的 `array-literal` 那一組依原版改）具大小的介面陣列 `X_A_INIT 0` 是每元素兩槽（原版由宣告決定元素槽數，`0x679432` → `0x653420`；那一組之前這裡釘的是立即數加一的一槽；size 1 是案例給的，腳本 `CGridView@0` 在那裡是 size 0）；合成的巢狀 option 以真 `X_A_INIT 1` 初始化，一個元素兩槽、預設是 none（-1, 2）：原版對非 0 立即數逐元素預設初始化，option 的最後一槽是 option 層數（`0x656a44`：`0x653610` + 1；那一組之前這裡釘的是（-1, -1））；釋放不影響哨兵物件。各案例 fork，不需 GL、遊戲素材或存檔。CASMatrix 的巢狀陣列宣告解析仍未修，不能把 WC2 當作完整矩陣驗證。
 - `observer`、`reentrancy` 兩個模式在 2026-09-30 改為原版的 delegate 所有權：delegate 持有 lambda 的環境、不持有目標物件（`observer` 的 smoke 案例與 `reentrancy` 的參照數斷言；`reentrancy` 由 harness 保留目標物件的根參照）。在 `ce5c75a` 之前的版本上這兩個模式會失敗，是預期結果。
 - `deleted_event_fixture.inc` 放在上一層，因為 `runtime_probe.c` 以 `../deleted_event_fixture.inc` 引用它。
+
+- `probe/audio_init_fixture.inc`：`audio-init`（2026-10-10），SDL 音訊自行初始化，不依賴 PartsEngine 第一次建立視窗。這是平台初始化順序缺陷，不以 Windows 原版位址推定 SDL 行為。AI1 從沒有 AUDIO／VIDEO 的狀態走真正 `KiwiSoundEngine._ModuleInit`，以 SDL dummy driver 及合成 stereo stream 驗證引擎 callback 在另一執行緒持續取樣，重複 module init 保留混音器名稱／音量／串流；AI2 外部先初始化 AUDIO，再走同一路徑，兩案最後一次 `SDL_QuitSubSystem` 即應清除 AUDIO，防止多加子系統參照；AI3 無效音訊 driver 必須非致命返回、留下含 SDL API 及錯誤原因的 warning，混音器仍可使用，重複 module init 不重建。三案各自 fork、15 秒上限，callback 每次等待最多 1.5 秒；不開視窗、不用實體音訊裝置、音檔或測試 hook。缺少 warning 算一般失敗，不阻斷其他案。裝置開啟失敗支線未強迫重現；dummy 取樣通過不代表真實 BGM 解碼或可聽輸出，另由實機診斷驗證。只用修正前已有的函式，`before-check.sh` 可直接建置。
 
 新增一組測試：
 

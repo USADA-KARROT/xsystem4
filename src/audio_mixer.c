@@ -691,7 +691,14 @@ void mixer_init(void)
 	if (config.wai_path)
 		wai_load(config.wai_path);
 
-	// initialize SDL audio
+	// Audio modules can start before video. Reuse an existing subsystem
+	// without adding a reference; keep the mixer usable if output is unavailable.
+	if (!(SDL_WasInit(SDL_INIT_AUDIO) & SDL_INIT_AUDIO)
+	    && SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+		WARNING("SDL_InitSubSystem(SDL_INIT_AUDIO) failed: %s", SDL_GetError());
+		return;
+	}
+
 	SDL_AudioSpec have;
 	SDL_AudioSpec want = {
 		.format = AUDIO_F32,
@@ -701,6 +708,10 @@ void mixer_init(void)
 		.callback = audio_callback,
 	};
 	audio_device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+	if (!audio_device) {
+		WARNING("SDL_OpenAudioDevice failed: %s", SDL_GetError());
+		return;
+	}
 	SDL_PauseAudioDevice(audio_device, 0);
 }
 

@@ -155,6 +155,7 @@ static void init_probe(const char *path) {
 #include "key_wait_fixture.inc"
 #include "array_construct_fixture.inc"
 #include "construction_cg_fixture.inc"
+#include "audio_init_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -231,6 +232,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"key-wait"))return test_key_wait();
     if(!strcmp(argv[2],"array-construct"))return test_array_construct();
     if(!strcmp(argv[2],"construction-cg"))return test_construction_cg();
+    if(!strcmp(argv[2],"audio-init"))return test_audio_init();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
