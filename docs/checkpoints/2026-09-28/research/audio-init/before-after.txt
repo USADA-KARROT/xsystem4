@@ -1,0 +1,6 @@
+Main integration before-check, audio-init fixture
+src/include from 9eb1a91
+audio-init           rc=1   san=0   AUDIO-INIT FAIL: 2 of 3 cases failed
+restored src/include to 70c7ed6, dirty=0
+
+After 70c7ed6: AI1/AI2/AI3 pass; default and GBK 89 modes VERDICT PASS, san0.

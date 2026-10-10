@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-10）：`83b09ac`、`8787a31` 補齊23個以CG起始的背景構築狀態，據點、設定、春銷背景恢復模糊／暗化，已與Wine原版同場景並排確認。提交後預設／GBK各88模式PASS、san0，9條實機路線error0，正常150秒MSG88；fightr完成戰鬥回地圖。程式已推送、雙源核對，libsys4維持247f544。**
-> [背景構築研究](docs/checkpoints/2026-09-28/research/blur-background/README.md) · [struct陣列](docs/checkpoints/2026-09-28/research/array-construct/README.md)。**仍不能當作完整遊戲使用。** 音訊初始化與粉紅顧客走位另案接續；已讀字色／淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出與長時間穩定性仍待修驗。本組XPE升第10版、可讀7–9版；未驗完整原版逐幀等價。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-10）：`70c7ed6` 修正音訊初始化順序，讓Kiwi在視窗建立前也能開啟SDL音訊。提交後預設／GBK各89模式PASS、san0，正常150秒MSG88、春銷629、戰鬥681，三路線error0。正式修補來源的私人觀測版已確認CoreAudio持續非零PCM；程式已推送並雙源核對，libsys4維持247f544。**
+> [音訊研究](docs/checkpoints/2026-09-28/research/audio-init/README.md) · [背景構築](docs/checkpoints/2026-09-28/research/blur-background/README.md)。**仍不能當作完整遊戲使用。** 非零PCM不等於原版聽感等價。粉紅顧客走位另案驗證中；已讀字色／淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出與長時間穩定性仍待修驗。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

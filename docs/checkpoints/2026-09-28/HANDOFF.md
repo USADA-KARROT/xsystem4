@@ -2,7 +2,18 @@
 
 給接手的工程師或代理。先讀完本文與 [STATUS.md](STATUS.md)，再動手。
 
-## 2026-10-10：G16 背景構築審查整合（最新）
+## 2026-10-10：音訊初始化（最新）
+
+- **程式 `70c7ed6` 已推送並雙源確認。** default／GBK各89模式PASS、san0；libsys4固定247f544。研究見[audio-init](research/audio-init/README.md)。
+- Kiwi ModuleInit先於gfx呼audio_init，舊版在SDL_AUDIO未初始化時開裝置失敗，一次性guard讓後續不再開。mixer建立後補SDL_InitSubSystem（已有AUDIO不加ref），Init／Open失敗警告返回，只有有效裝置才Pause(false)。不改Play語義、不增加重試或新存檔格式。這是SDL平台初始化問題，原版EXE沒有同條SDL路徑，不虛列native位址作SDL依據。
+- audio-init三案：冷啟動真Kiwi/dummy callback、既有AUDIO參照計數、無效driver警告與mixer保留。正式before在f517ca8及整合前9eb1a91均2/3失敗（AI1／3），san0；修後全過。獨立審查無H/M，主線production與已審支線逐位元組一致。
+- 提交後normal150／haruuri／fightr完整duration、exit0、error0，MSG88／629／681，與G16基準逐位元組一致；root看圖確認Day2及戰後回地圖，並與既有Wine戰後地圖並排。正式修補來源的私人觀測版確認CoreAudio非零PCM，不等於聽測或原版音量／切曲等價。沒有新跑Wine。
+- 裝置Open單獨失敗只有靜態審查；無效driver的非致命保證只到audio_init返回，gfx仍可能因SDL失敗中止。熱插拔、裝置恢復重試、多執行緒初始化與完整聲音相容性未驗。
+- **下一組粉紅顧客 upper-left**：獨立支線b5e357a以0ded2b3為底，六案修前全失敗、修後default／GBK各88PASS，獨立審查無H/M。已知v14組合float輸出與scalar精度修正完成，104秒慢速實機確認第一位顧客向左到第一店後縮淡，已與既有Wine w20並排；三店全部GUI與完整逐幀未驗。尚未合主線／推送；接入應90模式。整合harness README時保留主線G15已更正14案描述，不可用union把支線舊7案段落復活。
+- **人物亂數追加觀察**：固定種子回歸刻意重複。另清除兩種seed override、各空白home/saves的新遊戲跑42秒兩次，顧客與人材姓名／外觀皆變，不需為此改亂數。讀同一存檔是否保留人物、日數分布與原版完整等價仍未驗。
+- 其餘缺口：非struct Array、對話字色／淡入、回顧把手、設定控制項、讀檔／返回標題、地圖淡出與長時穩定。
+
+## 2026-10-10：G16 背景構築審查整合（歷史）
 
 - **程式 `83b09ac`、`8787a31` 已推送並雙源確認。** 預設／GBK各88模式PASS、san0；G15 14案與G16 9案全過。libsys4固定247f544。研究見[blur-background](research/blur-background/README.md)。
 - 首步CG的23個構築狀態支援2／3／4／15／27／28，原版CG `0x4fbf40`、混色 `0x4922a0`（兩商各截斷）、灰階 `0x5ad8f0`。XPE第10版可讀7–9版；v13寫第3版不變。

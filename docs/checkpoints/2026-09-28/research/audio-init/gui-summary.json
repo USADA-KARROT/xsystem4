@@ -1,0 +1,70 @@
+{
+  "commit": "70c7ed6d445c6e3da0a939b8e755124168f0e015",
+  "postcommit_runs": [
+    {
+      "binary_sha256": "0466235c7236c7dfb04490bbd336e0d2f99bcf704a52a3b9bfb9126e5dd57f14",
+      "elapsed_seconds": 150.257,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 473415680,
+      "route": "normal150",
+      "tag": "codex-audio-final-normal150-20261010",
+      "MSG_lines": 88,
+      "MSG_sha256": "41ebf0047b8b120ffdccafe1c8df68acdea922f7bc0349f535dd21342fc7ba49",
+      "PNG_count": 40,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_G16": true
+    },
+    {
+      "binary_sha256": "0466235c7236c7dfb04490bbd336e0d2f99bcf704a52a3b9bfb9126e5dd57f14",
+      "elapsed_seconds": 182.341,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 535314432,
+      "route": "haruuri",
+      "tag": "codex-audio-final-haruuri-20261010",
+      "MSG_lines": 629,
+      "MSG_sha256": "dd66ad5329c8ef886fe905f4ed78470ed48a3868ae268b622948d213dc4ba2a0",
+      "PNG_count": 120,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_G16": true
+    },
+    {
+      "binary_sha256": "0466235c7236c7dfb04490bbd336e0d2f99bcf704a52a3b9bfb9126e5dd57f14",
+      "elapsed_seconds": 350.304,
+      "stop_reason": "duration",
+      "exit_code": 0,
+      "peak_rss_bytes": 943079424,
+      "route": "fightr",
+      "tag": "codex-audio-final-fightr-20261010",
+      "MSG_lines": 681,
+      "MSG_sha256": "3525dc699b4d6f6f4dc4068faeb2a108f12539a63026fb0f20307b7da761e748",
+      "PNG_count": 162,
+      "error_lines": 0,
+      "stack_overflow_lines": 0,
+      "MSG_identical_to_G16": true
+    }
+  ],
+  "output_observer": {
+    "source_commit": "70c7ed6d445c6e3da0a939b8e755124168f0e015",
+    "kind": "private output-only observer built from integrated production sources",
+    "run": "codex-audio-final-pcm-20261010",
+    "binary_sha256": "30ad1bd216eb8cb3d64d5cab322bff52b5b3f72da3d00c06581cdc00837ce20f",
+    "elapsed_seconds": 90.21,
+    "stop_reason": "duration",
+    "exit_code": 0,
+    "open": [
+      "[AUDIO-DIAG] ms=65 SDL_OpenAudioDevice device=2 driver=coreaudio capture=0 want_freq=44100 want_format=0x8120 want_channels=2 want_samples=1024 have_freq=44100 have_format=0x8120 have_channels=2 have_samples=1024 error=(none)"
+    ],
+    "pcm_windows": 88,
+    "nonzero_output_windows": 88,
+    "steady_bgm_windows": 34,
+    "steady_nonzero_windows": 34,
+    "nonfinite_max": 0.0,
+    "MSG": 88,
+    "limits": "Measures PCM handed to CoreAudio. No recording, speaker listening, native loudness/selection/transition parity, or exact official binary claim."
+  },
+  "visual_review": "Root inspected opening, Day2, and completed battle map; existing Wine same-scene comparison. No fresh Wine run, listening test, or full temporal parity."
+}
