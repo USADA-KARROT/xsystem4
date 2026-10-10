@@ -66,6 +66,8 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_FILL_POLYGON_BLEND:
 	case PARTS_CP_TILE_CG:
 	case PARTS_CP_DRAW_CIRCLE_AMAP:
+	case PARTS_CP_BLEND_FILL:
+	case PARTS_CP_GRAY_SCALE:
 		free(op->pixel.points);
 		break;
 	}
@@ -384,6 +386,22 @@ bool PE_AddTileCGToPartsConstructionProcess(int parts_no, struct string *cg_name
 	});
 }
 
+bool PE_AddBlendFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		bool full_size, int r, int g, int b, int a, int state)
+{
+	return add_pixel_op(parts_no, state, PARTS_CP_BLEND_FILL, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .full = full_size, .r = r, .g = g, .b = b, .a = a
+	});
+}
+
+bool PE_AddGrayScaleToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		bool full_size, int state)
+{
+	return add_pixel_op(parts_no, state, PARTS_CP_GRAY_SCALE, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .full = full_size
+	});
+}
+
 bool PE_AddAddFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		int r, int g, int b, bool full_size, int state);
 bool PE_AddMulFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
@@ -485,14 +503,33 @@ static void build_create_pixel_only(struct parts *parts, struct parts_constructi
 	parts_set_dims(parts, &cproc->common, op->w, op->h);
 }
 
-static void build_cg(struct parts *parts, struct parts_construction_process *cproc, struct parts_cp_cg *op)
+/*
+ * CreateCG (v14 construction command 2, native 0x4fbf40): the surface becomes
+ * the CG, with its size and its channels (0x50ac80 -> 0x5a8ea0). The original
+ * frees the surface it had first (0x4fbf72) and, when the CG cannot be
+ * loaded, fails the command and with it the steps that follow (0x4fb675):
+ * the state is left without a surface. False for that; engines before v14
+ * keep their assertion.
+ * 0x50ac80 also scales a CG whose two rates (its vtable +0x2c, +0x30) are
+ * not 100; what sets them was not read, and nothing is scaled here.
+ */
+static bool build_cg(struct parts *parts, struct parts_construction_process *cproc, struct parts_cp_cg *op)
 {
 	struct cg *cg = asset_cg_load(op->no);
+	if (ain->version >= 14 && (!cg || cg->metrics.w <= 0 || cg->metrics.h <= 0)) {
+		WARNING("construction: CG %d cannot be loaded", op->no);
+		if (cg)
+			cg_free(cg);
+		gfx_delete_texture(&cproc->common.texture);
+		parts_set_dims(parts, &cproc->common, 0, 0);
+		return false;
+	}
 	assert(cg);
 	gfx_delete_texture(&cproc->common.texture);
 	gfx_init_texture_with_cg(&cproc->common.texture, cg);
 	parts_set_dims(parts, &cproc->common, cg->metrics.w, cg->metrics.h);
 	cg_free(cg);
+	return true;
 }
 
 static void build_fill(struct parts_construction_process *cproc, struct parts_cp_fill *op)
@@ -944,6 +981,9 @@ static bool cp_op_on_pixels(const struct parts_cp_op *op)
 	case PARTS_CP_ALPHA_BLEND_TEXT:
 	case PARTS_CP_ONLY_ALPHA_TEXT:
 		return true;
+	case PARTS_CP_BLEND_FILL:
+	case PARTS_CP_GRAY_SCALE:
+		return true;
 	default:
 		return op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
 			&& op->type <= PARTS_CP_DRAW_CIRCLE_AMAP;
@@ -1062,6 +1102,68 @@ static void build_blur(uint8_t *pixels, int tw, int th, const struct parts_cp_pi
 		}
 	}
 	free(src);
+}
+
+/*
+ * BlendFill (v14 construction command 4, native 0x4fc190 -> 0x5ac510): the
+ * colour over the rectangle (全體: the whole surface), blended by its alpha.
+ * Each of the surface's three colours becomes (255 - a) * d / 255 +
+ * a * c / 255, both quotients truncated: the pixel function (0x4922a0) adds
+ * two entries of the table that 0x491660 fills with (2 * a * x + 1) / 510.
+ * The alpha is not written. The colour is clamped to 0..255 (0x5ac581); the
+ * alpha indexes the table as it is, and nothing is done here for one outside
+ * 0..255.
+ */
+static void build_blend_fill(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
+{
+	int x = op->x, y = op->y, w = op->w, h = op->h;
+	if (op->full) {
+		x = 0; y = 0;
+		w = tw; h = th;
+	}
+	if (!cp_clip_span(&x, &w, tw) || !cp_clip_span(&y, &h, th))
+		return;
+	const int a = op->a;
+	if (a < 0 || a > 255)
+		return;
+	const int add[3] = { a * cp_byte(op->r) / 255, a * cp_byte(op->g) / 255, a * cp_byte(op->b) / 255 };
+	uint8_t keep[256];
+	for (int i = 0; i < 256; i++)
+		keep[i] = (255 - a) * i / 255;
+	for (int row = y; row < y + h; row++) {
+		uint8_t *p = pixels + ((size_t)row * tw + x) * 4;
+		for (int col = 0; col < w; col++, p += 4) {
+			p[0] = keep[p[0]] + add[0];
+			p[1] = keep[p[1]] + add[1];
+			p[2] = keep[p[2]] + add[2];
+		}
+	}
+}
+
+/*
+ * GrayScale (v14 construction command 15, native 0x4fe870 -> 0x5ad7b0): the
+ * three colours of every pixel of the rectangle (全體: the whole surface)
+ * become (306 * R + 601 * G + 117 * B) >> 10 (0x5ad8f0). The alpha is not
+ * written.
+ */
+static void build_gray_scale(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op)
+{
+	int x = op->x, y = op->y, w = op->w, h = op->h;
+	if (op->full) {
+		x = 0; y = 0;
+		w = tw; h = th;
+	}
+	if (!cp_clip_span(&x, &w, tw) || !cp_clip_span(&y, &h, th))
+		return;
+	for (int row = y; row < y + h; row++) {
+		uint8_t *p = pixels + ((size_t)row * tw + x) * 4;
+		for (int col = 0; col < w; col++, p += 4) {
+			const uint8_t v = (306 * p[0] + 601 * p[1] + 117 * p[2]) >> 10;
+			p[0] = v;
+			p[1] = v;
+			p[2] = v;
+		}
+	}
 }
 
 /* The coverage of the cell whose corner is (dx, dy) from a circle's centre
@@ -1462,7 +1564,8 @@ bool parts_build_construction_process(struct parts *parts,
 			has_alpha = false;
 			break;
 		case PARTS_CP_CG:
-			build_cg(parts, cproc, &op->cg);
+			if (!build_cg(parts, cproc, &op->cg))
+				goto done;
 			has_alpha = true;
 			break;
 		case PARTS_CP_FILL:
@@ -1542,12 +1645,19 @@ bool parts_build_construction_process(struct parts *parts,
 			if (has_alpha)
 				build_draw_circle(pixels, t->w, t->h, &op->pixel);
 			break;
+		case PARTS_CP_BLEND_FILL:
+			build_blend_fill(pixels, t->w, t->h, &op->pixel);
+			break;
+		case PARTS_CP_GRAY_SCALE:
+			build_gray_scale(pixels, t->w, t->h, &op->pixel);
+			break;
 		}
 	}
 	if (pixels) {
 		gfx_update_texture_with_pixels(t, pixels);
 		free(pixels);
 	}
+done:
 	parts_dirty(parts);
 	return true;
 }

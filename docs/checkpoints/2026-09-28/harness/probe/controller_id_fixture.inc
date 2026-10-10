@@ -517,8 +517,8 @@ static int ci_id_section(struct page *saved, int nr)
 		&& saved->values[saved->nr_vars - len + 1].i == nr ? len : 0;
 }
 
-/* Rewrites a version 8 or 9 save of `nr` layers as the version 7 writer wrote
- * it (9 has two more construction operation types, none in these saves):
+/* Rewrites a version 8 to 10 save of `nr` layers as the version 7 writer wrote
+ * it (9 and 10 have more construction operation types, none in these saves):
  * version 8 only added the list of the parts in 減算色モード, between the
  * hidden list and the ID section (parts-transform PT4 pins a non-empty
  * one). Here it must be empty, so its count word goes and the section moves
@@ -530,7 +530,7 @@ static int ci_to_v7(struct page *saved, int nr)
 	if (!saved || !iarray_init_reader(&r, saved, "XPE"))
 		return 0;
 	int section = ci_id_section(saved, nr), list = saved->nr_vars - section - 1;
-	if (saved->values[r.pos].i < 8 || saved->values[r.pos].i > 9 || list <= (int)r.pos || saved->values[list].i != 0)
+	if (saved->values[r.pos].i < 8 || saved->values[r.pos].i > 10 || list <= (int)r.pos || saved->values[list].i != 0)
 		return 0;
 	memmove(saved->values + list, saved->values + list + 1, section * sizeof(union vm_value));
 	saved->values[r.pos].i = 7;
@@ -560,7 +560,7 @@ static void ci_save_load(void)
 	ci_inserted(&a, &b, &c);		/* [0, a, c, b], active c */
 	struct page *saved = NULL;
 	CI_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
-	CI_CHECK(ca_save_version(saved) >= 8 && ca_save_version(saved) <= 9, "XPE v%d, want 8 or 9 (the ID section does not change the version)",
+	CI_CHECK(ca_save_version(saved) >= 8 && ca_save_version(saved) <= 10, "XPE v%d, want 8 to 10 (the ID section does not change the version)",
 		 ca_save_version(saved));
 	/* something else in between */
 	ci_erase(c);
@@ -739,8 +739,8 @@ static void ci_push_pop(void)
 	struct page *saved = NULL;
 	CI_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
 	/* header 4, version, no numeral fonts, active, layers, parts count */
-	CI_CHECK(ca_save_version(saved) >= 8 && ca_save_version(saved) <= 9 && saved->values[6].i == 3 && saved->values[7].i == 4
-		 && saved->values[8].i == 3, "save header: version %d, active %d, layers %d, parts %d; want 8 or 9, 3 4 3",
+	CI_CHECK(ca_save_version(saved) >= 8 && ca_save_version(saved) <= 10 && saved->values[6].i == 3 && saved->values[7].i == 4
+		 && saved->values[8].i == 3, "save header: version %d, active %d, layers %d, parts %d; want 8 to 10, 3 4 3",
 		 ca_save_version(saved), saved->values[6].i, saved->values[7].i, saved->values[8].i);
 	/* The words before the ID section are what a save of this stack always
 	 * was, ending with the (empty) hidden list, and since version 8 the

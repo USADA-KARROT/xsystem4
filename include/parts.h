@@ -210,6 +210,10 @@ bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, co
 		int r, int g, int b, int a, int state);
 bool PE_AddTileCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
 		int x, int y, int w, int h, bool full_size, int state);
+bool PE_AddBlendFillToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		bool full_size, int r, int g, int b, int a, int state);
+bool PE_AddGrayScaleToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		bool full_size, int state);
 bool PE_AddCopyTextToPartsConstructionProcess(int parts_no, int x, int y, struct string *text,
 		int type, int size, int r, int g, int b, float bold_weight,
 		int edge_r, int edge_g, int edge_b, float edge_weight,

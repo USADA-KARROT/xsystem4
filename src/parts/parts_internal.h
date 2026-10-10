@@ -255,7 +255,12 @@ enum parts_cp_op_type {
 	// version 9.
 	PARTS_CP_ALPHA_BLEND_TEXT,
 	PARTS_CP_ONLY_ALPHA_TEXT,
-#define PARTS_NR_CP_TYPES (PARTS_CP_ONLY_ALPHA_TEXT+1)
+	// The blending fill and the gray scale as the v14 commands 4 and 15
+	// compute them, on the surface's pixels (struct parts_cp_pixel). Saved
+	// since XPE version 10.
+	PARTS_CP_BLEND_FILL,
+	PARTS_CP_GRAY_SCALE,
+#define PARTS_NR_CP_TYPES (PARTS_CP_GRAY_SCALE+1)
 };
 
 struct parts_cp_create {
@@ -313,7 +318,9 @@ struct parts_cp_pie {
 //   FILL_POLYGON_BLEND (97): `points` (x0, y0, x1, y1, ...) and the colour;
 //   TILE_CG (129): the rectangle (or `full`) and `cg_no`;
 //   DRAW_CIRCLE_AMAP (52): the centre (x, y), `radius`, `line_width` and
-//     the alpha `a`.
+//     the alpha `a`;
+//   BLEND_FILL (4): the rectangle (or `full`), the colour and the alpha `a`;
+//   GRAY_SCALE (15): the rectangle (or `full`).
 // Larger circles and polygons are not built (xsystem4's limits).
 #define PARTS_CP_CIRCLE_MAX_RADIUS 1024
 #define PARTS_CP_POLYGON_MAX_POINTS 1024

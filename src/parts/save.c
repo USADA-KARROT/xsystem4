@@ -34,17 +34,19 @@
  *   the controller ID section          (version 7 and later, see below).
  *
  * Each list is a count and then the numbers; a parts record has the same
- * layout in versions 6 to 9. The controller ID section is always the
+ * layout in versions 6 to 10. The controller ID section is always the
  * last nr + 3 words, whatever precedes it, so a version 7 save with or
- * without it is read as well (and so is a version 8 or 9 save without it).
+ * without it is read as well (and so is a later save without it).
  *
  * Version 8 also has the construction operations 14..22 (the pixel
  * operations, struct parts_cp_pixel) in a parts record's operation list. A
  * reader reads no fields for an operation type it does not know, so a save
  * with a new operation needs a new version; these came with version 8.
  * Version 9 has the text operations 23 and 24 (the fields of 9 and 10).
+ * Version 10 has the operations 25 and 26 (the blending fill and the gray
+ * scale on the surface's pixels; the fields of 14..22).
  */
-#define CURRENT_SAVE_VERSION 9
+#define CURRENT_SAVE_VERSION 10
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -390,8 +392,11 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 	case PARTS_CP_FILL_POLYGON_BLEND:
 	case PARTS_CP_TILE_CG:
 	case PARTS_CP_DRAW_CIRCLE_AMAP:
-		// Since version 8, for the reason given above. One layout for all
-		// of them, the polygon's points last.
+	case PARTS_CP_BLEND_FILL:
+	case PARTS_CP_GRAY_SCALE:
+		// Since version 8, for the reason given above (the last two since
+		// version 10). One layout for all of them, the polygon's points
+		// last.
 		iarray_write(w, op->pixel.x);
 		iarray_write(w, op->pixel.y);
 		iarray_write(w, op->pixel.w);
@@ -488,6 +493,8 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 	case PARTS_CP_FILL_POLYGON_BLEND:
 	case PARTS_CP_TILE_CG:
 	case PARTS_CP_DRAW_CIRCLE_AMAP:
+	case PARTS_CP_BLEND_FILL:
+	case PARTS_CP_GRAY_SCALE:
 		op->pixel.x = iarray_read(r);
 		op->pixel.y = iarray_read(r);
 		op->pixel.w = iarray_read(r);
