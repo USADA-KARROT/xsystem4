@@ -17,6 +17,7 @@
 #include "cJSON.h"
 #include "hll.h"
 #include "input.h"
+#include "msgskip.h"
 #include "parts.h"
 #include "savedata.h"
 #include "serialize_struct.h"
@@ -111,6 +112,10 @@ static void system_Exit(int result)
 // [5] Reset() -> void
 static void system_Reset(void)
 {
+	// The original writes the read-message table as the first step of a
+	// reset (0x4b5bc3 -> 0x4c12e0), before anything is released. The reset
+	// itself is not implemented here.
+	msgskip_flush();
 	WARNING("system.Reset() stub");
 }
 

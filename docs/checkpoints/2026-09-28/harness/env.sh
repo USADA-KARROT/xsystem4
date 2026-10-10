@@ -34,7 +34,7 @@ assignment observer reentrancy array-reinit metadata click timer bound-overload 
 fill-copy-extra fc-selector fc-fill0 fc-fill1-int fc-fill1-str fc-fill-clamp fc-copy0 fc-copy3
 fc-copy3-str fc-copy3-dest1 fc-copy-overlap fc-realloc math sort string cif activity-text dialogue-model dialogue-copy
 save-list save-roundtrip save-comment save-fixes gbk-string gbk-vm gbk-detect sjis-chars parts-reverse iface-arg
-text-metrics delegate-args reverse-inherit base-ui frame-pacing base-ui-review title-review third-review mojibake logo-gloss clip-area input-nesting gauge working-cards alpha-inherit text-default layout-box construction free-box text-size click-permission option-array panel ex-name-list option-return array-literal arg-ownership global-init icast shuffle controller-id layer-root delegate-cursor aref-value parts-transform construction-cmds numeral option-member backlog-text key-wait array-construct construction-cg audio-init parts-upper-left array-primitive"
+text-metrics delegate-args reverse-inherit base-ui frame-pacing base-ui-review title-review third-review mojibake logo-gloss clip-area input-nesting gauge working-cards alpha-inherit text-default layout-box construction free-box text-size click-permission option-array panel ex-name-list option-return array-literal arg-ownership global-init icast shuffle controller-id layer-root delegate-cursor aref-value parts-transform construction-cmds numeral option-member backlog-text key-wait array-construct construction-cg audio-init parts-upper-left array-primitive msgskip-msk"
 xs4_expected_rc() { case "$1" in deleted-event) echo 87 ;; *) echo 0 ;; esac; }
 
 # Copy the probe sources from the repo into the work directory (build outputs stay out of the repo).
