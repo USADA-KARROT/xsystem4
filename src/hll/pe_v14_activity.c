@@ -1039,6 +1039,12 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
  * CG), 3, 4, 5, 6 (fills), 15 (gray scale), 25, 26 (alpha gradations), 27, 28
  * (blurs), 102 (disc alpha), 122 (sector alpha) and 129 (CG tiles), the
  * first step makes the surface and none would fail.
+ * A list whose first step is command 2 is narrower: every step must be one
+ * of 2, 3, 4, 15, 27 and 28, and a list with any other step is not built
+ * (the state keeps the CG it had). A CG's texture does not say whether its
+ * source had an alpha channel, and natively command 5 skips a surface
+ * without one (0x4fc378); 6, 25, 26, 102, 122 and 129 after a CG were not
+ * checked against the original and are left out with it.
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;

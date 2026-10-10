@@ -1,8 +1,11 @@
 /* parts-upper-left: native 0x58bf80 / 0x58c020 / 0x58c0e0 share
  * 0x534bb0: transform the origin corner, retain float precision, write X
- * then Y. Missing parts leave output refs untouched; scalar getters return
- * zero. Integer half-size precedes the float transform. Default 2D camera
- * only; other camera/projection ratios are not claimed here.
+ * then Y. All three take the component from the get-or-create lookup
+ * (0x540250 -> 0x53a0b0 -> 0x578ee0): a positive number without a component
+ * gets a default one and its corner is reported; only a number of 0 or less
+ * (0x539cb0) leaves the output refs untouched and makes the scalar getters
+ * return zero. Integer half-size precedes the float transform. Default 2D
+ * camera only; other camera/projection ratios are not claimed here.
  *
  * The combined AIN declaration has 4 arguments but SIX VM slots. Exercise
  * the real FFI and AFL wrapper; do not hide a bad return-slot count.
@@ -93,21 +96,62 @@ static void ul_rotated(void)
 
 static void ul_missing_state(void)
 {
-	ri_postlink();const int missing=9639;
-	UL_CHECK(!parts_try_get(missing),"missing fixture part already exists");
-	int pg=ul_page();ul_combined(missing,1,pg,0,1);
-	UL_CHECK(heap[pg].page->values[0].f==1234.25f && heap[pg].page->values[1].f==-4321.5f,
-		"missing part changed output sentinels");
-	UL_CHECK(ul_scalar(missing,1,false)==0 && ul_scalar(missing,1,true)==0,"missing scalar not zero");
-	UL_CHECK(!parts_try_get(missing),"read-only getter created a missing part");heap_unref(pg);
+	ri_postlink();
+	/* A positive number without a component: each getter makes the default
+	 * component (empty cell, 0x578f07 -> 0x578cb0) and reports its corner,
+	 * (0,0) for a new one. One number per getter, so each is seen to create. */
+	static const int missing[3]={9636,9637,9638};
+	for(int i=0;i<3;i++)
+		UL_CHECK(!parts_try_get(missing[i]),"missing fixture part %d already exists",missing[i]);
+	int pg=ul_page();ul_combined(missing[0],1,pg,0,1);
+	UL_CHECK(heap[pg].page->values[0].f==0 && heap[pg].page->values[1].f==0,
+		"combined getter on a missing part left (%g,%g); want the new part's (0,0)",
+		heap[pg].page->values[0].f,heap[pg].page->values[1].f);
+	UL_CHECK(parts_try_get(missing[0]),"combined getter did not create the missing part");
+	heap_unref(pg);
+	UL_CHECK(ul_scalar(missing[1],1,false)==0,"scalar X of a missing part not zero");
+	UL_CHECK(parts_try_get(missing[1]),"scalar X getter did not create the missing part");
+	UL_CHECK(ul_scalar(missing[2],1,true)==0,"scalar Y of a missing part not zero");
+	UL_CHECK(parts_try_get(missing[2]),"scalar Y getter did not create the missing part");
+	/* The component a getter made is an ordinary one afterwards. */
+	if(parts_try_get(missing[0])){ri_pos(missing[0],30,40);PE_UpdateComponent(0);ul_expect(missing[0],1,30,40);}
+	/* A number of 0 or less has no component (0x539cb0 returns before the
+	 * table is touched): nothing is made, the combined outputs keep what
+	 * the caller put there and the scalar getters return zero. */
+	static const int none[3]={0,-1,-9639};
+	for(int i=0;i<3;i++) {
+		pg=ul_page();ul_combined(none[i],1,pg,0,1);
+		UL_CHECK(heap[pg].page->values[0].f==1234.25f && heap[pg].page->values[1].f==-4321.5f,
+			"number %d changed output sentinels",none[i]);
+		UL_CHECK(ul_scalar(none[i],1,false)==0 && ul_scalar(none[i],1,true)==0,"number %d scalar not zero",none[i]);
+		UL_CHECK(!parts_try_get(none[i]),"number %d got a component",none[i]);
+		heap_unref(pg);
+	}
 	parts_get(9631);ri_pos(9631,100,200);ri_rect(9631,17,13);ri_origin(9631,8);
 	ri_hll("Parts_SetPartsRectangleDetectionSize",4,(union vm_value[]){RI_I(9631),RI_I(40),RI_I(30),RI_I(2)});
 	PE_UpdateComponent(0);ul_expect(9631,1,92,187);ul_expect(9631,2,80,170);
-	/* Invalid states retain a safe no-write contract, not a claimed native
-	 * subtype rule (those have not all been disassembled). */
-	pg=ul_page();ul_combined(9631,0,pg,0,1);
-	UL_CHECK(heap[pg].page->values[0].f==1234.25f && heap[pg].page->values[1].f==-4321.5f,
-		"invalid state changed output sentinels");heap_unref(pg);
+	/* States outside 1..3 write nothing and return zero: a limit of this
+	 * port's three states, not the original's rule. Natively the state goes
+	 * unchecked to the content (0x534be8, vtable +0x20); a low-level widget
+	 * indexes its four state cells with it (0x5b7cb0, cells 0..3 made at
+	 * 0x5b730c), so EPartsState Disable (4) reads past them there and state
+	 * 0 reads a cell this port does not have. Other widget kinds not read.
+	 * The lookup comes first (0x58bfb4, then 0x58bfda), so a missing
+	 * component is made whatever the state. */
+	static const int bad_state[2]={0,4};
+	for(int i=0;i<2;i++) {
+		pg=ul_page();ul_combined(9631,bad_state[i],pg,0,1);
+		UL_CHECK(heap[pg].page->values[0].f==1234.25f && heap[pg].page->values[1].f==-4321.5f,
+			"state %d changed output sentinels",bad_state[i]);
+		UL_CHECK(ul_scalar(9631,bad_state[i],false)==0 && ul_scalar(9631,bad_state[i],true)==0,
+			"state %d scalar not zero",bad_state[i]);
+		UL_CHECK(!parts_try_get(9632+i),"missing fixture part %d already exists",9632+i);
+		ul_combined(9632+i,bad_state[i],pg,0,1);
+		UL_CHECK(heap[pg].page->values[0].f==1234.25f && heap[pg].page->values[1].f==-4321.5f,
+			"state %d on a missing part changed output sentinels",bad_state[i]);
+		UL_CHECK(parts_try_get(9632+i),"state %d: the lookup did not create the missing part",bad_state[i]);
+		heap_unref(pg);
+	}
 }
 
 static void ul_script_formula(void)

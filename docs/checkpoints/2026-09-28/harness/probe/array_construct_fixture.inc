@@ -41,6 +41,10 @@
  * AC13 ordinary primitive and struct wraps keep their result slot counts.
  * AC14 destructor re-entry keeps an inner Alloc's new elements, a Free
  *     during Realloc, and a replacement of the owner allocation intact.
+ * AC15 a destructor that appends to the array being resized (EmplaceBack,
+ *     PushBack, several elements): the outer call still ends at the
+ *     requested length and the appended objects are lost, neither destroyed
+ *     nor released (0x67f560..0x67f57f, 0x41a430); no emptied cell stays.
  *
  * Requires base_ui, base_ui_review, delegate_args, layer_root and
  * backlog_text fixtures. */
@@ -824,6 +828,173 @@ static void ac_case_destructor_reenter(void)
 	printf("AC14 destructor mutations keep their elements and owner: %s\n", ac_failures ? "FAIL" : "ok");
 }
 
+/* --- AC15: a destructor that appends to the array being resized --- */
+static int ac_added[8], ac_nr_added, ac_add_rounds, ac_pushed = -1;
+static uint32_t ac_added_seq[8];
+static void ac_act_emplace_seq(void)
+{
+	int obj = bt_emplace_back(ac.array, 2);
+	if (ac_nr_added < 8) {
+		ac_added[ac_nr_added] = obj;
+		ac_added_seq[ac_nr_added++] = heap_get_seq(obj);
+	}
+	if (da_live_page(obj))
+		heap_unref(obj); /* the wrap the call returned */
+}
+static void ac_act_emplace_erase(void)
+{
+	ac_act_emplace_seq();
+	bu_call("Array", "Erase", 3, 2, 3, (union vm_value[]){ BU_I(ac.array), BU_I(1), BU_I(1) });
+}
+static void ac_act_push(void)
+{
+	bu_call("Array", "PushBack", 2, 2, 2, (union vm_value[]){ BU_I(ac.array), BU_I(ac_pushed) });
+}
+/* Two elements from every destructor that is entered: the watch is armed
+ * again (at most four times, should a destructor of an appended element run). */
+static void ac_act_emplace_two_each(void)
+{
+	ac_act_emplace_seq();
+	ac_act_emplace_seq();
+	if (++ac_add_rounds < 4) {
+		ac.action = ac_act_emplace_two_each;
+		ac.skip = 0;
+	}
+}
+
+/* Natively the length is read once, the removed elements go by their old
+ * indices, and then only the size is set: a shrinking Realloc calls 0x680270
+ * from the old last index down (0x67f504, 0x67f560..0x67f570) and then
+ * 0x41a430 with the requested size (0x67f572..0x67f57f), which releases no
+ * element; Alloc's clearing (0x67ec50) reads the length at 0x67ec60 and
+ * zeroes it at 0x67ec7d before the new elements are made. So an element a
+ * destructor appended meanwhile is past the old indices: its cell is cut off
+ * and the object is neither destroyed nor released. It is lost (a leak the
+ * original has), and no script runs for it.
+ * Before, the outer call stopped at the appended element and left the cells
+ * it had emptied in a longer array: [e0, -1, -1, x] after Realloc(1) of three.
+ *
+ * Native semantics (rounds 0, 1, 3, 4): the final length and elements, how
+ * many constructors and destructors ran and on which objects, and that the
+ * appended objects are still alive afterwards.
+ * This port's own, marked "port" below:
+ *  - a lost object is seen as one reference left on it, the array's (round 3:
+ *    two, PushBack's reference here and the probe's; natively a pushed
+ *    struct was not read);
+ *  - the probe releases the lost objects itself before it counts the live
+ *    slots, so that count says nothing else was left behind;
+ *  - round 2 as a whole: the destructor also erases an element the outer
+ *    call had still to release, so its change wins (AC14), and the cell of
+ *    the element being destroyed is taken out with it. Natively the old
+ *    indices would then name other cells; there is no result to follow. */
+static void ac_case_destructor_appends(void)
+{
+	lr_setup();
+	int st = bt_struct("textfile::detail::CTextReader");
+	int ctor = ain->structures[st].constructor, dtor = ain->structures[st].destructor;
+	AC_CHECK(dtor > 0, "CTextReader has no destructor");
+	if (dtor <= 0)
+		return;
+	static void (*const actions[5])(void) = {
+		ac_act_emplace_seq, ac_act_emplace_seq, ac_act_emplace_erase, ac_act_push, ac_act_emplace_two_each,
+	};
+	for (int round = 0; round < 5; round++) {
+		int readers = ac_new_array(AIN_ARRAY_STRUCT, st);
+		ac_alloc(readers, 1, 2);
+		ac_alloc(readers, 0, 2);
+		size_t live = live_slots();
+		ac_pushed = -1;
+		uint32_t pushed_seq = 0;
+		if (round == 3) {
+			/* a constructed object the probe holds: one reference */
+			int tmp = ac_new_array(AIN_ARRAY_STRUCT, st);
+			ac_alloc(tmp, 1, 2);
+			ac_pushed = ac_elem(tmp, 0);
+			heap_ref(ac_pushed);
+			heap_unref(tmp);
+			pushed_seq = heap_get_seq(ac_pushed);
+			AC_CHECK(da_live_page(ac_pushed) && HEAP_REF(ac_pushed) == 1, "the object to push has %d reference(s), want 1",
+				 da_live_page(ac_pushed) ? HEAP_REF(ac_pushed) : -1);
+		}
+		ac_alloc(readers, 3, 2);
+		int e[3] = { ac_elem(readers, 0), ac_elem(readers, 1), ac_elem(readers, 2) };
+		uint32_t e0_seq = heap_get_seq(e[0]);
+		unsigned long made = calls[ctor];
+		ac_nr_added = 0;
+		ac_add_rounds = 0;
+		ac_watch(dtor, readers, 0, actions[round]);
+		if (round == 1)
+			ac_alloc(readers, 2, 2);
+		else
+			ac_realloc(readers, 1, 2);
+		int destructed = ac.nseq, seen[4] = { ac.seq[0], ac.seq[1], ac.seq[2], ac.seq[3] };
+		ac_watch(0, 0, 0, NULL);
+		int n = ac_numof(readers), e0 = ac_elem(readers, 0), e1 = ac_elem(readers, 1);
+		/* native for rounds 0, 1, 3, 4 ([e0], or two new elements); port for round 2 */
+		for (int i = 0; i < n; i++)
+			AC_CHECK(ac_elem(readers, i) > 0, "round %d: element %d of %d is %d, a cell without an object",
+				 round, i, n, ac_elem(readers, i));
+		/* The objects that were appended and cut off: alive, not destroyed. */
+		int lost[8], nr_lost = 0, lost_refs = 1;
+		if (round == 3) {
+			lost[nr_lost++] = ac_pushed;
+			lost_refs = 2; /* port: PushBack's reference and the probe's */
+			AC_CHECK(ac_same(ac_pushed, pushed_seq), "round 3: the pushed object %d was destroyed", ac_pushed);
+		} else if (round != 2) {
+			for (int i = 0; i < ac_nr_added; i++) {
+				lost[nr_lost++] = ac_added[i];
+				AC_CHECK(ac_same(ac_added[i], ac_added_seq[i]), "round %d: the appended object %d was destroyed; natively it is lost, not released",
+					 round, ac_added[i]);
+			}
+		}
+		for (int i = 0; i < nr_lost; i++) /* port: the lost object keeps the array's reference */
+			AC_CHECK(!da_live_page(lost[i]) || HEAP_REF(lost[i]) == lost_refs, "round %d: the lost object %d has %d reference(s), want %d",
+				 round, lost[i], da_live_page(lost[i]) ? HEAP_REF(lost[i]) : -1, lost_refs);
+		if (round == 0 || round == 3 || round == 4) {
+			int want_added = round == 0 ? 1 : round == 3 ? 0 : 4;
+			AC_CHECK(n == 1 && e0 == e[0] && ac_same(e[0], e0_seq) && HEAP_REF(e[0]) == 1,
+				 "round %d Realloc(1) under an appending destructor: %d element(s), the first %d; want 1 and the kept %d",
+				 round, n, e0, e[0]);
+			AC_CHECK(destructed == 2 && seen[0] == e[2] && seen[1] == e[1],
+				 "round %d Realloc(1): %d destructor(s) on %d, %d, %d; want two, on %d and %d",
+				 round, destructed, seen[0], seen[1], seen[2], e[2], e[1]);
+			AC_CHECK(ac_nr_added == want_added && calls[ctor] == made + want_added,
+				 "round %d Realloc(1): %d object(s) appended, %lu constructor(s); want %d and %d",
+				 round, ac_nr_added, calls[ctor] - made, want_added, want_added);
+		} else if (round == 1) {
+			AC_CHECK(n == 2 && e0 != e1 && da_live_page(e0) && da_live_page(e1)
+				 && HEAP_REF(e0) == 1 && HEAP_REF(e1) == 1 && !ac_same(e[0], e0_seq)
+				 && e0 != ac_added[0] && e1 != ac_added[0],
+				 "Alloc(2) under an appending destructor: %d element(s) [%d, %d]; want two new objects", n, e0, e1);
+			AC_CHECK(destructed == 3 && seen[0] == e[2] && seen[1] == e[1] && seen[2] == e[0],
+				 "Alloc(2): %d destructor(s) on %d, %d, %d, %d; want three, on %d, %d and %d",
+				 destructed, seen[0], seen[1], seen[2], seen[3], e[2], e[1], e[0]);
+			AC_CHECK(ac_nr_added == 1 && calls[ctor] == made + 3,
+				 "Alloc(2): %d object(s) appended, %lu constructor(s); want 1 and 3", ac_nr_added, calls[ctor] - made);
+		} else {
+			/* port */
+			AC_CHECK(n == 2 && e0 == e[0] && ac_same(e[0], e0_seq) && HEAP_REF(e[0]) == 1
+				 && ac_nr_added == 1 && e1 == ac_added[0] && ac_same(ac_added[0], ac_added_seq[0]) && HEAP_REF(ac_added[0]) == 1,
+				 "Realloc(1) under an appending and erasing destructor: %d element(s) [%d, %d]; want [%d, %d]",
+				 n, e0, e1, e[0], ac_added[0]);
+			AC_CHECK(destructed == 2 && seen[0] == e[2] && seen[1] == e[1] && calls[ctor] == made + 1,
+				 "Realloc(1) with Erase: %d destructor(s) on %d, %d, %lu constructor(s); want %d, %d and 1",
+				 destructed, seen[0], seen[1], calls[ctor] - made, e[2], e[1]);
+		}
+		if (!ac_failures) {
+			/* port: give back what was lost, then nothing else may be left */
+			for (int i = 0; i < nr_lost; i++) {
+				for (int k = 0; k < lost_refs; k++)
+					heap_unref(lost[i]);
+			}
+			heap_unref(readers);
+			AC_CHECK(live_slots() == live - 1, "appending destructor round %d left %zu live slots; want %zu",
+				 round, live_slots(), live - 1);
+		}
+	}
+	printf("AC15 a destructor's appended elements are cut off and lost, the length as asked: %s\n", ac_failures ? "FAIL" : "ok");
+}
+
 static int ac_fork(const char *name, void (*fn)(void))
 {
 	fflush(stdout);
@@ -852,7 +1023,7 @@ static int test_array_construct(void)
 		{ "AC8", ac_case_owner_struct }, { "AC9", ac_case_owner_primitive },
 		{ "AC10", ac_case_owner_string }, { "AC11", ac_case_owner_released },
 		{ "AC12", ac_case_destructor_observes }, { "AC13", ac_case_wrap_results },
-		{ "AC14", ac_case_destructor_reenter },
+		{ "AC14", ac_case_destructor_reenter }, { "AC15", ac_case_destructor_appends },
 	};
 	int failed = 0, n = sizeof(cases) / sizeof(cases[0]);
 	for (int i = 0; i < n; i++)

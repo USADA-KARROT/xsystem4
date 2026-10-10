@@ -2777,15 +2777,25 @@ int PE_GetPartsCGDeform(int parts_no, int state)
 	return 0;
 }
 
-/* v14 0x58bf80 -> 0x534bb0: read without creating a missing component,
- * retain float precision, and write X before Y (the outputs may alias).
+/* v14 0x58bf80 / 0x58c020 / 0x58c0e0 -> 0x534bb0: retain float precision,
+ * and write X before Y (the outputs may alias).
+ * The component comes from the get-or-create lookup, as for the setters
+ * (0x540250 -> 0x53a0b0 -> 0x578ee0, where an empty cell gets a default
+ * component, 0x578f24 -> 0x578cb0): only a number of 0 or less has none
+ * (0x539cb0), and then nothing is written. The lookup precedes the state
+ * (0x58bfb4, 0x58bfda), so a missing component is made whatever the state.
+ * A state outside this port's three writes nothing. Natively the state goes
+ * unchecked to the content (0x534be8, vtable +0x20), and a low-level widget
+ * indexes its four state cells with it (0x5b7cb0; cells 0..3, 0x5b730c): the
+ * script's EPartsState Disable (4) reads past them there. Other widget
+ * kinds were not read.
  * The old integer API below deliberately keeps its existing semantics. */
 bool PE_GetPartsUpperLeftPosF(int parts_no, int state, float *x, float *y)
 {
-	if (state < 1 || state > PARTS_NR_STATES)
+	if (parts_no <= 0)
 		return false;
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts)
+	struct parts *parts = parts_get(parts_no);
+	if (state < 1 || state > PARTS_NR_STATES)
 		return false;
 	float px, py;
 	parts_screen_upper_left_float(parts, &parts->states[state - 1].common, &px, &py);

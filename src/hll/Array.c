@@ -205,6 +205,30 @@ static struct page *array_struct_page(int slot, uint32_t seq, int no)
 	return a;
 }
 
+// Takes the cells without an object out of the array's tail, from index
+// `from` on: what a resize had emptied when a destructor's own change to the
+// array stopped it. Nothing is released and nothing runs.
+static void array_struct_squeeze(int slot, struct page *a, int from)
+{
+	int n = from;
+	for (int i = from; i < a->nr_vars; i++) {
+		if (a->values[i].i > 0)
+			n++;
+	}
+	if (n == a->nr_vars)
+		return;
+	struct page *new_a = alloc_page(ARRAY_PAGE, a->a_type, n);
+	new_a->array = a->array;
+	for (int i = 0; i < from; i++)
+		new_a->values[i] = a->values[i];
+	for (int i = from, j = from; i < a->nr_vars; i++) {
+		if (a->values[i].i > 0)
+			new_a->values[j++] = a->values[i];
+	}
+	heap[slot].page = new_a;
+	free_page(a);
+}
+
 /* Alloc, Realloc and EmplaceBack on an array of value structs (v14).
  *
  * Native Alloc (0x647470 -> vtable +0x4c, 0x67f4a0) empties the array first
@@ -246,12 +270,26 @@ static struct page *array_struct_page(int slot, uint32_t seq, int no)
  *  - Each object is owned by the array alone, one reference, as the elements
  *    of a sized X_A_INIT are. The collector frees nothing that has a
  *    reference, so the object in hand needs no root.
+ *  - Elements a destructor appended past the old length (PushBack,
+ *    EmplaceBack) are cut off, exactly as natively. The length is read once
+ *    (0x67f504, 0x67ec60), the removed elements go by their old indices,
+ *    and then only the size is set: 0x67f572..0x67f57f -> 0x41a430, which
+ *    releases no element, and 0x67ec7d, which zeroes it before Alloc makes
+ *    the new elements. The appended objects are neither destroyed nor
+ *    released: they are lost, with their members and whatever their
+ *    destructors would have given back, and so they are here (the array's
+ *    reference stays on each; a leak the original has too). No script runs
+ *    for them, so the outer call ends at the length that was asked for.
  *
  * Not as the original:
- *  - If a destructor replaces an element or shrinks past the kept prefix,
- *    its change wins: the outer resize stops instead of overwriting it.
- *    A nested Free during Alloc leaves an empty page, so Alloc can still
- *    make its new elements after clearing, as 0x67f4a0 does.
+ *  - If a destructor puts an element at one of the old indices (an inner
+ *    Alloc, a replacement) or shrinks past the kept prefix, its change wins:
+ *    the outer resize stops instead of overwriting it, and takes out the
+ *    cells it had emptied by then, so that no element without an object
+ *    stays. (Natively a shrinking Realloc gives up when an index has left
+ *    the array, 0x680287 and 0x67f56b, and otherwise goes on by the old
+ *    indices.) A nested Free during Alloc leaves an empty page, so Alloc can
+ *    still make its new elements after clearing, as 0x67f4a0 does.
  *  - An element that cannot be made fails the native call, which leaves the
  *    array empty and reports 0x7e21ac. Here it becomes the unconstructed
  *    object the older code gave; vm_construct_struct only fails for a struct
@@ -306,12 +344,21 @@ static bool array_struct_resize(struct page **array, int numof, bool keep, int *
 	old = array_struct_page(slot, seq, no);
 	if (!old || old->nr_vars < kept)
 		goto out;
-	// New elements placed here by a destructor belong to its inner call.
-	// Do not discard them, nor release them a second time with an old snapshot.
-	for (int i = kept; i < old->nr_vars; i++) {
-		if (old->values[i].i > 0)
+	// New elements a destructor placed at the old indices belong to its
+	// inner call. Do not discard them, nor release them a second time with
+	// an old snapshot; only the cells emptied above are taken out.
+	int old_end = old->nr_vars < old_n ? old->nr_vars : old_n;
+	for (int i = kept; i < old_end; i++) {
+		if (old->values[i].i > 0) {
+			array_struct_squeeze(slot, old, kept);
 			goto out;
+		}
 	}
+	// What a destructor appended past the old length is cut off, as
+	// natively: those cells go with the old page and nothing is released
+	// (0x67f57f, 0x67ec7d; 0x41a430 only sets the size). No destructor runs
+	// here, so nothing can change the array again before the new elements
+	// are made, and a shrinking Realloc ends at the requested length.
 	struct page *new_a = alloc_page(ARRAY_PAGE, old->a_type, numof);
 	new_a->array = old->array;
 	for (int i = 0; i < kept; i++)
