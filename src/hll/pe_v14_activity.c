@@ -291,6 +291,19 @@ static void pactex_apply_pass_cursor(struct ex_tree *node, int parts_no)
 	PE_SetPassCursor(parts_no, pactex_get_int(node, GBK_CN_PASS_CURSOR, 0) == 1);
 }
 
+/* スピードアップ有効 (speed-up enabled), the last field the same parser reads:
+ * 0x554b75 gets it with the default 1 and stores "== 1" at block +0x1a9
+ * (0x554ba5), i.e. parts +0x22d, the flag SetEnableSpeedUp (0x5909f0) writes.
+ * A parts with it takes the scaled passed time in its update (0x5352b1).
+ * 2691 components of the game are 1 and 15 are 0; all message windows are 1.
+ * Only the CN spelling is known. */
+static const char GBK_CN_SPEED_UP[] = "\xa5\xb9\xa5\xd4\xa9\x60\xa5\xc9\xa5\xa2\xa5\xc3\xa5\xd7\xd3\xd0\x84\xbf"; /* スピードアップ有効 */
+
+static void pactex_apply_speed_up(struct ex_tree *node, int parts_no)
+{
+	PE_SetEnableSpeedUp(parts_no, pactex_get_int(node, GBK_CN_SPEED_UP, 1) == 1);
+}
+
 /* 點擊許可 (click permission), the field the same parser reads just before
  * オン指針透過: 0x5547be gets it with the default 0 and stores "== 1" at block
  * +0x120 (0x5547e9), i.e. parts +0x1a4, the flag Parts_SetClickable
@@ -422,6 +435,7 @@ enum pactex_message_key {
 	PACTEX_MW_EDGE_COLOR,
 	PACTEX_MW_CHAR_SPACE,
 	PACTEX_MW_LINE_SPACE,
+	PACTEX_MW_SPEED,
 };
 static const struct { const char *sjis, *gbk; } pactex_message_keys[] = {
 	[PACTEX_MW_AREA] = {"\x83\x65\x83\x4c\x83\x58\x83\x67\x83\x47\x83\x8a\x83\x41", "\xce\xc4\xb1\xbe\xa5\xa8\xa5\xea\xa5\xa2"}, /* テキストエリア / 文本エリア */
@@ -433,6 +447,7 @@ static const struct { const char *sjis, *gbk; } pactex_message_keys[] = {
 	[PACTEX_MW_EDGE] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x89\x8f\x8e\xe6\x82\xe8", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xbf\x46\xc8\xa1\xa4\xea"}, /* フォント縁取り / フォント縁取り */
 	[PACTEX_MW_EDGE_COLOR] = {"\x83\x74\x83\x48\x83\x93\x83\x67\x89\x8f\x8e\xe6\x82\xe8\x90\x46", "\xa5\xd5\xa5\xa9\xa5\xf3\xa5\xc8\xbf\x46\xc8\xa1\xa4\xea\xc9\xab"}, /* フォント縁取り色 / フォント縁取り色 */
 	[PACTEX_MW_CHAR_SPACE] = {"\x95\xb6\x8e\x9a\x8a\xd4\x8a\x75", "\xce\xc4\xd7\xd6\xe9\x67\xb8\xf4"}, /* 文字間隔 / 文字間隔 */
+	[PACTEX_MW_SPEED] = {"\x8e\x9a\x91\xac\x93\x78", "\xd7\xd6\xcb\xd9\xb6\xc8"}, /* 字速度 / 字速度 */
 	[PACTEX_MW_LINE_SPACE] = {"\x8d\x73\x8a\xd4\x8a\x75", "\xd0\xd0\xe9\x67\xb8\xf4"}, /* 行間隔 / 行間隔 */
 };
 
@@ -507,6 +522,9 @@ static bool pactex_apply_message_window(struct ex_tree *type_info, const char *p
 	PE_SetMessageWindowTextSpace(parts_no,
 		pactex_message_number(type_info, PACTEX_MW_CHAR_SPACE, 0),
 		pactex_message_number(type_info, PACTEX_MW_LINE_SPACE, 0));
+	// 0x4f0ee0: a missing key is 0, which shows the text at once.
+	PE_SetMessageWindowTextSpeed(parts_no,
+		pactex_message_number(type_info, PACTEX_MW_SPEED, 0));
 	pactex_apply_key_wait(type_info, parts_no);
 	return true;
 }
@@ -1564,6 +1582,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	pactex_apply_pixel_decide(node, parts_no);
 	pactex_apply_click_permission(node, parts_no);
 	pactex_apply_pass_cursor(node, parts_no);
+	pactex_apply_speed_up(node, parts_no);
 
 	/* ClipArea is stored even when disabled. The pactex loader writes the
 	 * fields directly; unlike SetComponentClipArea it does not auto-enable. */

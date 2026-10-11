@@ -23,6 +23,10 @@ struct page;
 struct string;
 
 // v14 message windows keep their text independently from the background CG.
+void PE_SetMessageWindowTextSpeed(int parts_no, int speed);
+int PE_GetMessageWindowTextSpeed(int parts_no);
+void PE_FixMessageWindowText(int parts_no);
+bool PE_IsFixedMessageWindowText(int parts_no);
 void PE_SetMessageWindowText(int parts_no, struct string *text, int msg_num,
 		struct string *func_name, int ver, int step);
 struct string *PE_GetMessageWindowText(int parts_no);
@@ -53,6 +57,7 @@ void PE_enable_multi_controller(void);
 bool PE_Init(void);
 void PE_Reset(void);
 void PE_Update(int passed_time, bool message_window_show);
+void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_window_show);
 void PE_UpdateComponent(int passed_time);
 void PE_UpdateParts(int passed_time, bool is_skip, bool message_window_show);
 void PE_SetDelegateIndex(int parts_no, int delegate_index);
@@ -134,6 +139,8 @@ bool PE_SetPartsGroupNumber(int parts_no, int group_no);
 void PE_SetPartsMessageWindowShowLink(int parts_no, bool message_window_show_link);
 bool PE_GetPartsMessageWindowShowLink(int parts_no);
 void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate);
+void PE_SetEnableSpeedUp(int parts_no, bool enable);
+bool PE_IsEnableSpeedUp(int parts_no);
 void PE_SetPartsMagX(int parts_no, float scale_x);
 float PE_GetPartsMagX(int parts_no);
 void PE_SetPartsMagY(int parts_no, float scale_y);

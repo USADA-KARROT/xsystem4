@@ -613,6 +613,12 @@ struct parts {
 	// from white. Saved since XPE version 8 (a list
 	// of parts numbers after the parts records).
 	bool sub_color_mode;
+	// v14 スピードアップ有効 (SetEnableSpeedUp 0x5909f0; pactex key read as
+	// == 1 by 0x554b75, default 1; native +0x22d, on in a new parts
+	// 0x550a9c), stored inverted so a new parts starts enabled: its update
+	// takes the scaled passed time of UpdateComponent instead of the passed
+	// time (0x5352b1). Only the message window reads it so far. Not saved.
+	bool speed_up_disabled;
 	bool message_window;
 	struct parts_message_window *message;
 	int alpha_clipper_parts_no;
@@ -767,9 +773,11 @@ extern bool parts_message_window_show;
 
 // message_window.c: the sidecar owns text/strings; the parts owns the background.
 void parts_message_window_free(struct parts_message_window *message);
+float parts_message_window_glyph_alpha(struct parts *parts, struct parts_text *text, int index);
 struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position);
 struct texture *parts_message_window_key_wait(struct parts *parts, Point *position);
 void parts_message_window_update(int passed_time);
+void parts_message_window_update_times(int passed_time, int scaled_passed_time);
 extern struct cg *(*parts_key_wait_load_cg)(const char *name);
 
 // message queue (implemented in PartsEngine.c)

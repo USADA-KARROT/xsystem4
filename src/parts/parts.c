@@ -1843,7 +1843,10 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 
 bool parts_message_window_show = true;
 
-void PE_Update(int passed_time, bool message_window_show)
+/* scaled_passed_time is the second time of v14 UpdateComponent: the game's
+ * frame time under its timer scale (3 while it skips) and capped at 150 ms
+ * where the passed time is capped at 50 (view::detail::CalcPassedTime). */
+void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_window_show)
 {
 	// v14 (Dohna Dohna): the game computes passed_time with its own
 	// CASTimerManager, which yields 0 under xsystem4; without a real
@@ -1861,15 +1864,22 @@ void PE_Update(int passed_time, bool message_window_show)
 			if (passed_time > 100) passed_time = 100;
 		}
 		pe_last_time = now;
+		if (scaled_passed_time == 0)
+			scaled_passed_time = passed_time;
 	}
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
 	parts_scrollbar_update();
 	audio_update();
 	parts_update_animation(passed_time);
-	parts_message_window_update(passed_time);
+	parts_message_window_update_times(passed_time, scaled_passed_time);
 	PE_UpdateInputState(passed_time);
 	parts_render_update();
+}
+
+void PE_Update(int passed_time, bool message_window_show)
+{
+	PE_UpdateScaled(passed_time, passed_time, message_window_show);
 }
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
@@ -3370,6 +3380,24 @@ void PE_SetSpeedupRateByMessageSkip(int parts_no, int rate)
 {
 	if (rate != 1)
 		UNIMPLEMENTED("(%d, %d)");
+}
+
+/* 0x5909f0, 0x590a80: the component comes from the get-or-create lookup
+ * (0x540250, see PE_GetPartsUpperLeftPosF), so a number above 0 that has
+ * none gets one, enabled as every new component is (0x550a9c); only 0 and
+ * below have no object, and then nothing is written and false returned. */
+void PE_SetEnableSpeedUp(int parts_no, bool enable)
+{
+	if (parts_no <= 0)
+		return;
+	parts_get(parts_no)->speed_up_disabled = !enable;
+}
+
+bool PE_IsEnableSpeedUp(int parts_no)
+{
+	if (parts_no <= 0)
+		return false;
+	return !parts_get(parts_no)->speed_up_disabled;
 }
 
 static void ctrl_stack_init(void)

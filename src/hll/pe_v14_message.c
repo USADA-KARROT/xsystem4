@@ -412,6 +412,55 @@ void pe_v14_message_replace(void)
 	pe_v14_link_message_string_getter(lib);
 }
 
+/* The message text fade and SetEnableSpeedUp take the place of the empty
+ * functions only under the declaration the original has: the library of
+ * another game may declare one of these names otherwise, and libffi builds
+ * the call from the declaration. An unknown shape, a missing declaration and
+ * a program before v14 keep the binding they had. */
+static void *message_fade_select_function(const struct ain_hll_function *f, void *fallback)
+{
+	static const struct {
+		const char *name;
+		enum ain_data_type ret;
+		int nr_args;
+		enum ain_data_type args[2];
+		void *fun;
+	} shapes[] = {
+		{ "SetMessageWindowTextSpeed", AIN_VOID, 2, { AIN_INT, AIN_INT }, PE_SetMessageWindowTextSpeed },
+		{ "GetMessageWindowTextSpeed", AIN_INT, 1, { AIN_INT }, PE_GetMessageWindowTextSpeed },
+		{ "FixMessageWindowText", AIN_VOID, 1, { AIN_INT }, PE_FixMessageWindowText },
+		{ "IsFixedMessageWindowText", AIN_BOOL, 1, { AIN_INT }, PE_IsFixedMessageWindowText },
+		{ "SetEnableSpeedUp", AIN_VOID, 2, { AIN_INT, AIN_BOOL }, PE_SetEnableSpeedUp },
+		{ "IsEnableSpeedUp", AIN_BOOL, 1, { AIN_INT }, PE_IsEnableSpeedUp },
+	};
+	if (ain->version < 14 || !f->name || (f->nr_arguments && !f->arguments))
+		return fallback;
+	for (unsigned i = 0; i < sizeof(shapes) / sizeof(shapes[0]); i++) {
+		if (strcmp(f->name, shapes[i].name))
+			continue;
+		if (f->nr_arguments != shapes[i].nr_args || f->return_type.data != shapes[i].ret)
+			return fallback;
+		for (int j = 0; j < f->nr_arguments; j++) {
+			if (f->arguments[j].type.data != shapes[i].args[j])
+				return fallback;
+		}
+		return shapes[i].fun;
+	}
+	return fallback;
+}
+
+/* static_library_register links the function it is given without going
+ * through the overload selection of the export table, so the choice by the
+ * game's declaration is made here. */
+static void *message_fade_binding(const char *name, void *fallback)
+{
+	int lib = ain_get_library(ain, "PartsEngine");
+	int fno = lib >= 0 ? ain_get_library_function(ain, lib, name) : -1;
+	if (fno < 0)
+		return fallback;
+	return message_fade_select_function(&ain->libraries[lib].functions[fno], fallback);
+}
+
 /* Register brand-new v14 functions (not in the upstream export table).
  * Must run at _PostLink: static_library_register writes into the runtime
  * library table, which only exists after link_libraries(). */
@@ -432,8 +481,21 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "GetSystemOverlayController", PE_v14_GetSystemOverlayController);
 	static_library_register(lib, "SetMessageWindowActive", PE_v14_SetMessageWindowActive);
 	static_library_register(lib, "SetMessageWindowText", PE_v14_SetMessageWindowText);
-	static_library_register(lib, "FixMessageWindowText", PE_v14_FixMessageWindowText);
-	static_library_register(lib, "IsFixedMessageWindowText", PE_v14_IsFixedMessageWindowText);
+	static_library_register(lib, "FixMessageWindowText",
+		message_fade_binding("FixMessageWindowText", PE_v14_FixMessageWindowText));
+	static_library_register(lib, "IsFixedMessageWindowText",
+		message_fade_binding("IsFixedMessageWindowText", PE_v14_IsFixedMessageWindowText));
+	// Ahead of the empty ones of pe_v14_prelink.h, which stay for a
+	// declaration of another shape: the first registration is the one kept.
+	static const char *const fade_names[] = {
+		"SetMessageWindowTextSpeed", "GetMessageWindowTextSpeed",
+		"SetEnableSpeedUp", "IsEnableSpeedUp",
+	};
+	for (unsigned i = 0; i < sizeof(fade_names) / sizeof(fade_names[0]); i++) {
+		void *fun = message_fade_binding(fade_names[i], NULL);
+		if (fun)
+			static_library_register(lib, fade_names[i], fun);
+	}
 	static_library_register(lib, "SetMessageWindowCGName", PE_v14_SetMessageWindowCGName);
 	static_library_register(lib, "SetMessageWindowTextArea", PE_v14_SetMessageWindowTextArea);
 	static_library_register(lib, "GetMessageWindowTextArea", PE_GetMessageWindowTextArea);

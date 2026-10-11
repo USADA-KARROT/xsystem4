@@ -993,7 +993,7 @@ static bool pe_v14_in_update = false;
 static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 		bool message_window_show, float mul_color_rate, float alpha_rate)
 {
-	(void)scaled_passed_time; (void)mul_color_rate; (void)alpha_rate;
+	(void)mul_color_rate; (void)alpha_rate;
 	if (pe_v14_in_update) {
 		handle_events();
 		PE_UpdateComponent(passed_time);
@@ -1003,7 +1003,7 @@ static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 	handle_events();
 	sprite_call_plugins();
 	PE_UpdateMotionTime(passed_time, false);
-	PE_Update(passed_time, message_window_show);
+	PE_UpdateScaled(passed_time, scaled_passed_time, message_window_show);
 	frame_pacing_parts_updated();
 	if (!frame_pacing_update_view_presents()) {
 		static uint32_t last_render_ms = 0;

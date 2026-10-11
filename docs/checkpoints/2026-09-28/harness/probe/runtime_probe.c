@@ -153,6 +153,7 @@ static void init_probe(const char *path) {
 #include "option_member_fixture.inc"
 #include "backlog_text_fixture.inc"
 #include "key_wait_fixture.inc"
+#include "dialogue_fade_fixture.inc"
 #include "array_construct_fixture.inc"
 #include "construction_cg_fixture.inc"
 #include "audio_init_fixture.inc"
@@ -233,6 +234,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"option-member"))return test_option_member();
     if(!strcmp(argv[2],"backlog-text"))return test_backlog_text();
     if(!strcmp(argv[2],"key-wait"))return test_key_wait();
+    if(!strcmp(argv[2],"dialogue-fade"))return test_dialogue_fade();
     if(!strcmp(argv[2],"array-construct"))return test_array_construct();
     if(!strcmp(argv[2],"construction-cg"))return test_construction_cg();
     if(!strcmp(argv[2],"audio-init"))return test_audio_init();

@@ -305,6 +305,7 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 
 	int x = position.x;
 	int y = position.y;
+	int glyph_index = 0;
 	for (int i = 0; i < t->nr_lines; i++) {
 		struct parts_text_line *line = &t->lines[i];
 		for (int j = 0; j < line->nr_chars; j++) {
@@ -315,7 +316,10 @@ static void parts_render_text(struct parts *parts, struct parts_text *t, Point p
 				y + ch->off.y - parts->global.pos.y, 0 });
 			glm_scale(mw_transform, (vec3){ ch->t.w, ch->t.h, 1.0f });
 			Rectangle r = { 0, 0, ch->t.w, ch->t.h };
-			parts_render_texture(parts, &ch->t, mw_transform, &r, blend_rate, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
+			// The fade of a message window's character multiplies
+			// the alpha the parts is drawn with (0x5bd920).
+			float alpha = blend_rate * parts_message_window_glyph_alpha(parts, t, glyph_index++);
+			parts_render_texture(parts, &ch->t, mw_transform, &r, alpha, add_color, multiply_color, 0, parts->alpha_clipper_parts_no);
 			x += ch->advance;
 		}
 		x = position.x;
