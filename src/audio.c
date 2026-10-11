@@ -15,6 +15,8 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "system4.h"
 
@@ -54,17 +56,39 @@ void audio_init(void)
 	audio_initialized = true;
 }
 
+// Trace (XSYS4_STAGE2_TRACE): the channels a reset closes, so that a run's
+// log shows what a restart (system.Reset) found open or still playing.
+static bool audio_trace(void)
+{
+	static int enabled = -1;
+	if (enabled < 0) {
+		const char *v = getenv("XSYS4_STAGE2_TRACE");
+		enabled = v && *v && strcmp(v, "0");
+	}
+	return enabled;
+}
+
 void audio_reset(void)
 {
+	bool trace = audio_trace();
+	int nr_wav = 0, nr_bgm = 0;
 	for (int i = id_pool_get_first(&wav); i >= 0; i = id_pool_get_next(&wav, i)) {
+		if (trace)
+			NOTICE("S2 sound reset wav id=%d playing=%d", i, wav_is_playing(i));
+		nr_wav++;
 		wav_unprepare(i);
 	}
 	for (int i = id_pool_get_first(&bgm); i >= 0; i = id_pool_get_next(&bgm, i)) {
+		if (trace)
+			NOTICE("S2 sound reset bgm id=%d playing=%d", i, bgm_is_playing(i));
+		nr_bgm++;
 		bgm_unprepare(i);
 	}
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
 		anonymous_channels[i] = -1;
 	}
+	if (trace)
+		NOTICE("S2 sound reset closed wav=%d bgm=%d", nr_wav, nr_bgm);
 }
 
 void audio_update(void)

@@ -90,6 +90,8 @@ void heap_grow(size_t new_size)
 	heap_size = new_size;
 }
 
+static void heap_restart(void);
+
 void heap_init(void)
 {
 	if (!heap) {
@@ -106,7 +108,7 @@ void heap_init(void)
 		}
 		heap_size = INITIAL_HEAP_SIZE;
 	} else {
-		memset(heap, 0, heap_size * sizeof(struct vm_pointer));
+		heap_restart();
 	}
 	delegate_targets_reset();
 
@@ -784,6 +786,45 @@ void exit_unref(int slot)
 	}
 	heap[slot].ref = 0;
 	heap_free_slot(slot);
+}
+
+/*
+ * The heap of a restart (vm_reset). vm_free() let go of the call stack only:
+ * the global page sits in a slot exit_unref() never frees, and whatever hangs
+ * off it is still here. The original drops its whole VM object at this point
+ * (0x4b5a60). Whether that runs script destructors was not traced; that it
+ * does not is inferred from the gate in its instruction handler (0x667ef0
+ * executes no instruction once system.Reset has cleared the run flag). So
+ * every page and string is freed here and no destructor is called. Programs
+ * before v14 keep their pages and strings: the slots still alive are
+ * forgotten, not freed (the counters below are put back for every version).
+ */
+static void heap_restart(void)
+{
+	if (ain->version >= 14) {
+		for (size_t i = 0; i < heap_size; i++) {
+			if (heap[i].ref <= 0)
+				continue;
+			switch (heap[i].type) {
+			case VM_PAGE:
+				if (heap[i].page)
+					free_page(heap[i].page);
+				break;
+			case VM_STRING:
+				if (heap[i].s)
+					free_string(heap[i].s);
+				break;
+			}
+		}
+	}
+	memset(heap, 0, heap_size * sizeof(struct vm_pointer));
+	heap_scan_limit = 2;
+	// The longjmp may have left from inside a drain, a destructor or a
+	// section that held the collector off.
+	deferred_count = 0;
+	deferred_processing = false;
+	gc_inhibit = 0;
+	page_reset_state();
 }
 
 uint32_t heap_get_seq(int slot)

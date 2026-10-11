@@ -257,6 +257,9 @@ static uint8_t *struct_flags = NULL;
 
 static void init_func_flags(void)
 {
+	// They depend on the program alone: a restart keeps them.
+	if (func_flags)
+		return;
 	func_flags = xcalloc(ain->nr_functions, sizeof(uint8_t));
 	for (int i = 0; i < ain->nr_functions; i++) {
 		const char *name = ain->functions[i].name;
@@ -440,6 +443,8 @@ struct ain *ain;
 size_t instr_ptr = 0;
 
 bool vm_reset_once = false;
+// Set by system.Reset; the CALLHLL handler takes the restart.
+bool vm_reset_pending = false;
 bool vm_in_alloc_phase = false;
 
 /* Optional, bounded call tracing for the stage-2 dialogue investigation. */
@@ -3324,6 +3329,11 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			// Push bool false (0) as ResumeSave's return value (= "loaded").
 			stack_push(0);
 		}
+		// system.Reset: the original runs no instruction after the call
+		// (its instruction handler 0x667ef0 only waits on the host once
+		// 0x693e80 has cleared the run flag; see system_Reset).
+		if (vm_reset_pending)
+			vm_reset();
 		break;
 	}
 	case RETURN: {
@@ -5777,8 +5787,41 @@ static jmp_buf reset_buf;
 
 _Noreturn void vm_reset(void)
 {
+	vm_reset_pending = false;
 	vm_free();
 	longjmp(reset_buf, 1);
+}
+
+/*
+ * What a restart has to put back by hand. vm_reset() leaves through a
+ * longjmp, so every C frame is dropped where it stands and nothing that
+ * counts its way in and out comes back down: vm_execute_depth would grow by
+ * one with each restart and stop the VM at the tenth. On the first start
+ * all of this already has these values. Exposed so the headless probe can
+ * run the real restart; nothing else calls it.
+ */
+void vm_reset_runtime_state(void)
+{
+	stack_ptr = 0;
+	call_stack_ptr = 0;
+	vm_call_depth = 0;
+	vm_execute_depth = 0;
+	vm_call_insn_limit = 0;
+	vm_in_alloc_phase = false;
+	function_call_args_borrowed = false;
+
+	memset(cas_timers, 0, sizeof(cas_timers));
+	cas_next_handle = 1;
+	cas_timer_rate = 1;
+
+	for (int i = 0; i < vm_msg_line_count; i++) {
+		free(vm_msg_lines[i]);
+		vm_msg_lines[i] = NULL;
+	}
+	vm_msg_line_count = 0;
+	vm_msg_idx = -1;
+	vm_msg_text = NULL;
+	vm_msg_a_was_called = false;
 }
 
 static volatile sig_atomic_t in_signal_handler = 0;
@@ -6029,9 +6072,7 @@ int vm_execute_ain(struct ain *program)
 		stack_size = INITIAL_STACK_SIZE;
 		stack = xmalloc(INITIAL_STACK_SIZE * sizeof(union vm_value));
 	}
-	stack_ptr = 0;
-	call_stack_ptr = 0;
-	vm_call_depth = 0;
+	vm_reset_runtime_state();
 
 	initialize_instructions(ain->version);
 

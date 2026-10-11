@@ -74,6 +74,8 @@ struct string *sjis_to_gbk_string(const char *src, size_t len)
 }
 
 static struct ex *ex;
+// AddEX or AddEXReader appended to the tables of `ex` since it was read.
+static bool ex_appended;
 
 /*
  * Helpers — cached resolve to avoid O(n) linear scan per EX call
@@ -191,6 +193,10 @@ static struct ex *load_ex_file(const char *path)
 
 static void MainEXFile_ModuleInit(void)
 {
+	// A restart (vm_reset) goes on with the file it has, unless something
+	// was appended to it: see _ModuleFini.
+	if (ex)
+		return;
 	if (!config.ex_path || !(ex = load_ex_file(config.ex_path)))
 		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
 	NOTICE("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
@@ -200,7 +206,19 @@ static void MainEXFile_ModuleFini(void)
 {
 	// Skip ex_free at shutdown — ex_free_tree crashes on some .ex structures.
 	// Process exit reclaims memory anyway.
-	ex = NULL;
+	// A restart (vm_reset) keeps the file while it is still what was read:
+	// reading it again would lose this copy every time (about 95 MB for
+	// one game's file). AddEX and AddEXReader append to the main tables
+	// and nothing takes that back (EraseEXReader does nothing), so after
+	// either of them the file is dropped as it was before and the next
+	// start reads it again: what the script appends is then there once,
+	// not once more with every restart. The cache points into the copy
+	// that goes.
+	if (ex_appended) {
+		ex = NULL;
+		ex_appended = false;
+		memset(resolve_cache, 0, sizeof(resolve_cache));
+	}
 }
 
 /*
@@ -225,6 +243,7 @@ static int MainEXFile_AddEXReader(struct string *path)
 	}
 	if (extra) {
 		ex_append(ex, extra);
+		ex_appended = true;
 		WARNING("MainEXFile.AddEXReader: loaded %u blocks", extra->nr_blocks);
 		return 1;  // Return non-zero ID
 	}
@@ -248,6 +267,7 @@ static bool MainEXFile_AddEX(struct string *path)
 	struct ex *extra = load_ex_file(path->text);
 	if (extra) {
 		ex_append(ex, extra);
+		ex_appended = true;
 		WARNING("MainEXFile.AddEX: loaded %u blocks", extra->nr_blocks);
 		return true;
 	}
@@ -256,6 +276,7 @@ static bool MainEXFile_AddEX(struct string *path)
 	extra = load_ex_file(full);
 	if (extra) {
 		ex_append(ex, extra);
+		ex_appended = true;
 		WARNING("MainEXFile.AddEX('%s'): loaded %u blocks",
 			game_charset_is_gbk() ? display_game0(path->text) : full, extra->nr_blocks);
 		free(full);

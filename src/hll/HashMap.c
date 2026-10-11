@@ -244,7 +244,20 @@ static bool HashMap_Load(int buf_slot)
 	return true;
 }
 
+// The script's maps go with the VM: a restart (system.Reset) runs no
+// destructor, so nothing would hand the 64 handles back.
+static void HashMap_ModuleFini(void)
+{
+	for (int i = 0; i < MAX_HASHMAPS; i++) {
+		if (!hashmaps[i].active)
+			continue;
+		free_map_entries(&hashmaps[i]);
+		hashmaps[i].active = false;
+	}
+}
+
 HLL_LIBRARY(HashMap,
+	    HLL_EXPORT(_ModuleFini, HashMap_ModuleFini),
 	    HLL_EXPORT(Create, HashMap_Create),
 	    HLL_EXPORT(Release, HashMap_Release),
 	    HLL_EXPORT(Free, HashMap_Free),

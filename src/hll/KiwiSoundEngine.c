@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "system4.h"
@@ -26,6 +27,7 @@
 #include "audio.h"
 #include "asset_manager.h"
 #include "mixer.h"
+#include "xsystem4.h"
 
 /*
  * KiwiSoundEngine — v14 unified sound API.
@@ -180,9 +182,23 @@ static bool KiwiSoundEngine_IsExistID(int id)
 	return wav_is_playing(id) || bgm_is_playing(id);
 }
 
+// Trace (XSYS4_STAGE2_TRACE): what the script does with its channels, so that
+// a run's log shows what a restart or a loaded save left playing.
+static bool kiwi_trace(void)
+{
+	static int enabled = -1;
+	if (enabled < 0) {
+		const char *v = getenv("XSYS4_STAGE2_TRACE");
+		enabled = v && *v && strcmp(v, "0");
+	}
+	return enabled;
+}
+
 static bool KiwiSoundEngine_Prepare(int id, struct string *name, struct string *filter, bool streaming)
 {
 	(void)filter; (void)streaming;
+	if (kiwi_trace())
+		NOTICE("S2 sound prepare id=%d name=%s", id, display_game0(name->text));
 	int no;
 	if (asset_exists_by_name(ASSET_SOUND, name->text, &no))
 		return wav_prepare(id, no);
@@ -200,6 +216,8 @@ static bool KiwiSoundEngine_Unprepare(int id)
 
 static bool KiwiSoundEngine_Play(int id)
 {
+	if (kiwi_trace())
+		NOTICE("S2 sound play id=%d", id);
 	if (wav_play(id))
 		return true;
 	return bgm_play(id);
@@ -207,6 +225,8 @@ static bool KiwiSoundEngine_Play(int id)
 
 static bool KiwiSoundEngine_Stop(int id)
 {
+	if (kiwi_trace())
+		NOTICE("S2 sound stop id=%d", id);
 	bool r = false;
 	if (wav_stop(id)) r = true;
 	if (bgm_stop(id)) r = true;
@@ -254,6 +274,8 @@ static bool KiwiSoundEngine_IsPause(int id)
 static bool KiwiSoundEngine_Fade(int id, int time, float volume, bool stop, int fade_type)
 {
 	(void)fade_type;
+	if (kiwi_trace())
+		NOTICE("S2 sound fade id=%d time=%d volume=%.2f stop=%d", id, time, volume, stop);
 	int vol = (int)(volume * 100.0f);
 	if (vol < 0) vol = 0;
 	if (vol > 100) vol = 100;

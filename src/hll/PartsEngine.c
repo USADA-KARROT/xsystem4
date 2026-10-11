@@ -42,9 +42,16 @@ static void PartsEngine_ModuleInit(void)
 	PE_Init();
 }
 
+static bool pe_v14_in_update;
+
 static void PartsEngine_ModuleFini(void)
 {
 	PE_Reset();
+	if (ain->version >= 14) {
+		// A restart can leave from inside an update (system.Reset).
+		pe_v14_in_update = false;
+		parts_v14_restart();
+	}
 }
 
 static void PartsEngine_Update(int passed_time, bool is_skip, bool message_window_show)
@@ -989,7 +996,6 @@ static bool PE_v14_Load(int buf_slot)
 // callbacks that call UpdateComponent again). When UpdateView is not
 // presenting (View_Update leaves it out while the ADV engine skips, or the
 // game never calls it), present here, at most every 16 ms.
-static bool pe_v14_in_update = false;
 static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 		bool message_window_show, float mul_color_rate, float alpha_rate)
 {

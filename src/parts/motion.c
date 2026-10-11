@@ -515,6 +515,16 @@ void PE_EndMotion(void)
 	parts_fini_all_motion();
 }
 
+// Drop the motion in progress where it stands (a restart; no parts are left).
+void parts_motion_reset(void)
+{
+	motion_t = 0;
+	motion_end_t = 0;
+	is_motion = false;
+	is_motion_paused = false;
+	parts_fini_all_motion();
+}
+
 void PE_SetMotionTime(int t)
 {
 	if (!is_motion)

@@ -117,6 +117,17 @@ void pe_v14_activity_parts_released(int parts_no)
 	controller_released[i] = 1;
 }
 
+// A restart (system.Reset). The original builds a new parts manager
+// (0x4b30f0, 0x4b4bf0): no activity name is taken and the numbers start over.
+void pe_v14_activity_reset(void)
+{
+	nr_activities = 0;
+	next_activity_parts_no = ACTIVITY_PARTS_BASE;
+	free(controller_released);
+	controller_released = NULL;
+	controller_released_size = 0;
+}
+
 bool pe_v14_activity_number_released(int parts_no)
 {
 	int i = parts_no - ACTIVITY_PARTS_BASE;

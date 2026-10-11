@@ -185,5 +185,6 @@ bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
 void delegate_page_register(int slot);
 void delegate_target_freed(int obj);
 void delegate_targets_reset(void);
+void page_reset_state(void);
 
 #endif /* SYSTEM4_PAGE_H */

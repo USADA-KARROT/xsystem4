@@ -140,8 +140,11 @@ void vm_stack_trace(void);
 _Noreturn void _vm_error(const char *fmt, ...);
 _Noreturn void vm_exit(int code);
 _Noreturn void vm_reset(void);
+void vm_reset_runtime_state(void);
 
 extern bool vm_reset_once;
+// system.Reset asks for a restart with this; the VM takes it after the call.
+extern bool vm_reset_pending;
 
 #if defined(__ANDROID__) || defined(RELEASE)
 // Report the error with a message box and exit.

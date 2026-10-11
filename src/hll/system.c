@@ -118,13 +118,29 @@ static void system_Exit(int result)
 }
 
 // [5] Reset() -> void
+// The original (0x693e80) clears the VM's run flag ([vm+0x2a8]) and asks the
+// host for a restart (0x4b5f00). 0x667ef0, the handler that executes one
+// instruction, does not get to its opcode table while that flag is clear:
+// it calls [vm+0x14]->vt[0](1) again and again (taken to be the host's
+// message pump; what makes it return 0 was not traced), and when that
+// returns 0 it sets the VM's state to finished ([vm+0x2a4] = 2), which is
+// what the main loop 0x667d90 ends on. So whatever the script wrote after
+// the call (a RETURN, or a loop around Peek) never runs; the host loop
+// 0x4b5a60 then releases the VM and every engine (0x4b30f0) and builds them
+// again (0x4b4bf0). The two nested loops (0x66a1a0, 0x667af0) watch another
+// field ([vm+0x2a0]), not that state: how the original leaves a reset made
+// inside a nested script call was not traced. What the script hands over to
+// the next run goes through SystemService.GameVariable_Set, which the host
+// keeps.
+//
+// The restart is taken by the CALLHLL handler when this call has returned,
+// not from in here: the VM is torn down under the caller otherwise.
 static void system_Reset(void)
 {
 	// The original writes the read-message table as the first step of a
-	// reset (0x4b5bc3 -> 0x4c12e0), before anything is released. The reset
-	// itself is not implemented here.
+	// reset (0x4b5bc3 -> 0x4c12e0), before anything is released.
 	msgskip_flush();
-	WARNING("system.Reset() stub");
+	vm_reset_pending = true;
 }
 
 // [6] IsDebugMode() -> bool

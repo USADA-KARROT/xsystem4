@@ -54,6 +54,12 @@ struct v14_parts_message {
 static struct v14_parts_message msg_queue[V14_MSG_QUEUE_SIZE];
 static int msg_head = 0, msg_tail = 0;
 
+// A restart (system.Reset): the messages nobody took name parts that are gone.
+void pe_v14_message_reset(void)
+{
+	msg_head = msg_tail = 0;
+}
+
 void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
                                 int nr_vars, const int *vars)
 {

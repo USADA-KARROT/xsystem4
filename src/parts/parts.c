@@ -1118,7 +1118,8 @@ bool parts_cg_set(struct parts *parts, struct parts_cg *parts_cg, struct string 
 	assert(cg_name && *(cg_name->text) != '\0');
 	int no;
 	struct cg *cg;
-	if (!memcmp(cg_name->text, "<save>", 6)) {
+	// strncmp: a name can be shorter than the prefix.
+	if (!strncmp(cg_name->text, "<save>", 6)) {
 		char *path = savedir_path(cg_name->text + 6);
 		cg = cg_load_file(path);
 		no = 0;
@@ -1847,6 +1848,9 @@ bool parts_message_window_show = true;
 /* scaled_passed_time is the second time of v14 UpdateComponent: the game's
  * frame time under its timer scale (3 while it skips) and capped at 150 ms
  * where the passed time is capped at 50 (view::detail::CalcPassedTime). */
+// The time of the last update that came without a delta (v14).
+static struct timespec pe_last_time;
+
 void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_window_show)
 {
 	// v14 (Dohna Dohna): the game computes passed_time with its own
@@ -1854,7 +1858,6 @@ void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_windo
 	// delta, motions and loop animations never advance. Fall back to
 	// wall-clock time when the game reports no progress.
 	if (ain->version >= 14 && passed_time == 0) {
-		static struct timespec pe_last_time;
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		if (pe_last_time.tv_sec > 0) {
@@ -3367,15 +3370,31 @@ bool PE_SetPartsCGDetectionSize(int parts_no, struct string *cg_name, int state)
 	return false;
 }
 
+// NOTE: per GUIEngine.dll (Rance 01)
+#define PARTS_FIRST_FREE_NUMBER 1000001000
+static int first_free = PARTS_FIRST_FREE_NUMBER;
+
 int PE_GetFreeNumber(void)
 {
-	// NOTE: per GUIEngine.dll (Rance 01)
-	static int first_free = 1000001000;
 	while (PE_IsExist(first_free)) {
 		first_free++;
 	}
 	// XXX: the ID is incremented even if the parts is not created
 	return first_free++;
+}
+
+// What PE_Reset leaves of the v14 engine, for a restart (system.Reset). The
+// original releases the parts manager with everything else (0x4b30f0) and
+// builds a new one (0x4b4bf0), so nothing of the old run carries over.
+void parts_v14_restart(void)
+{
+	root_pos = (Point){ 0, 0 };
+	parts_message_window_show = true;
+	first_free = PARTS_FIRST_FREE_NUMBER;
+	pe_last_time = (struct timespec){0};
+	parts_motion_reset();
+	pe_v14_message_reset();
+	pe_v14_activity_reset();
 }
 
 bool PE_IsExist(int parts_no)

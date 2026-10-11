@@ -780,6 +780,9 @@ void parts_controller_relink_roots(void);
 // component (a pactex part), remember that. The activity table keeps its
 // entries (and IsExistActivity its answer) when a controller releases parts.
 void pe_v14_activity_parts_released(int parts_no);
+void pe_v14_activity_reset(void);
+void parts_v14_restart(void);
+void pe_v14_message_reset(void);
 bool pe_v14_activity_number_released(int parts_no);
 
 struct parts *parts_try_get(int parts_no);
@@ -906,6 +909,7 @@ void parts_anchor_transform(struct parts *parts, float angle, bool rotate_scale,
 void parts_box_transform(struct parts *parts, struct parts_common *common, mat4 out);
 
 // motion.c
+void parts_motion_reset(void);
 void parts_clear_motion(struct parts *parts);
 void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 

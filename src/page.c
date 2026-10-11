@@ -1301,6 +1301,15 @@ static void dg_target_list_free(void *value)
 	free(value);
 }
 
+// The depth counters a restart (vm_reset) can leave above zero.
+void page_reset_state(void)
+{
+	copy_depth = 0;
+	copy_calls = 0;
+	alloc_struct_depth = 0;
+	destructor_depth = 0;
+}
+
 void delegate_targets_reset(void)
 {
 	if (!dg_targets)

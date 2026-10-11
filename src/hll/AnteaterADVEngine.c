@@ -15,6 +15,8 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 #include "system4/string.h"
 #include "system4/utfsjis.h"
 
@@ -44,6 +46,18 @@ struct adv_log {
 };
 
 static bool enabled = true;
+
+// Trace (XSYS4_STAGE2_TRACE): what the backlog holds, so that a run's log
+// shows what a restart (system.Reset) left in it.
+static bool adv_trace(void)
+{
+	static int on = -1;
+	if (on < 0) {
+		const char *v = getenv("XSYS4_STAGE2_TRACE");
+		on = v && *v && strcmp(v, "0");
+	}
+	return on;
+}
 
 // A circular buffer of logs.
 #define LOG_BUFFER_SIZE 1000
@@ -500,6 +514,19 @@ error:
 static void AnteaterADVEngine_ModuleFini(void)
 {
 	ADVSceneKeeper_Clear();
+	// v14 (AnteaterADVLogList): the backlog does not cross a restart
+	// (system.Reset). The original frees the log object with the other
+	// engines (0x4b3248 -> 0x447120, in 0x4b30f0) and the next run gets a
+	// new one (0x447086). The script clears the log itself only when it
+	// loads a save, so a new game after a return to the title would show,
+	// and save, the pages of the run before. Games before v14 keep the
+	// buffer over a restart, as they always did.
+	if (ain->version >= 14) {
+		if (adv_trace())
+			NOTICE("S2 backlog reset pages=%d", logs ? ADVLogList_GetNumofADVLog() : 0);
+		ADVLogList_Clear();
+		enabled = true;
+	}
 }
 
 static void AnteaterADVEngine_ADVLogList_AddText_with_window(struct string **text, possibly_unused int window_no)
@@ -547,15 +574,27 @@ static unsigned v14_log_lines(struct adv_log *log)
 	return n;
 }
 
-static int AnteaterADVEngine_v14_GetNumofADVLog(void)
+static int v14_num_of_adv_log(void)
 {
-	if (ain->version < 14)
-		return ADVLogList_GetNumofADVLog();
 	// Nothing logged yet, or cleared: the original's one new page.
 	if (!logs)
 		return 0;
 	int nr_logs = ADVLogList_GetNumofADVLog();
 	return v14_log_lines(&logs[log_last]) ? nr_logs : nr_logs - 1;
+}
+
+static int AnteaterADVEngine_v14_GetNumofADVLog(void)
+{
+	if (ain->version < 14)
+		return ADVLogList_GetNumofADVLog();
+	int n = v14_num_of_adv_log();
+	// Traced when the count the script is given changes.
+	static int traced = -1;
+	if (n != traced && adv_trace()) {
+		NOTICE("S2 backlog pages=%d", n);
+		traced = n;
+	}
+	return n;
 }
 
 // The page number is not checked by the original; log_entry's check stays,
