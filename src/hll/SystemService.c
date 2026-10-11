@@ -223,6 +223,112 @@ enum window_settings_id {
 	WINDOW_SETTINGS_CLOSE_GAME_CONFIRM = 6,
 };
 
+/*
+ * v14 (Dohna Dohna) numbers its window settings differently from the table
+ * above.  The original takes these five types and refuses every other one:
+ *
+ *   0  keep the aspect ratio                       0 or 1    starts as 1
+ *   1  scaling type (0 default, 1 bicubic)         a number  starts as 1
+ *   2  minimize a deactivated full-screen window   0 or 1    starts as 1
+ *   3  ask before "back to title" (window menu)    0 or 1    starts as 1
+ *   4  ask before closing the game                 0 or 1    starts as 1
+ *
+ * A setter keeps value != 0 for the four flags and the number itself for the
+ * scaling type; a getter returns what is kept.  Type 2 is not the vertical
+ * sync of the older table, and 3 and 4 are not its 5 and 6.
+ *
+ * All five are kept only and have no effect here: the view always keeps its
+ * aspect ratio and has one scaling filter, a full-screen window is not
+ * minimized when it is deactivated, there is no window menu, and closing the
+ * window does not ask the script, which is what reads type 4.
+ */
+enum window_settings_v14_id {
+	WINDOW_SETTINGS_V14_ASPECT_RATIO = 0,
+	WINDOW_SETTINGS_V14_SCALING_TYPE = 1,
+	WINDOW_SETTINGS_V14_MINIMIZE_BY_FULL_SCREEN_INACTIVE = 2,
+	WINDOW_SETTINGS_V14_BACK_TO_TITLE_CONFIRM = 3,
+	WINDOW_SETTINGS_V14_CLOSE_GAME_CONFIRM = 4,
+	NR_WINDOW_SETTINGS_V14
+};
+
+static int window_settings_v14[NR_WINDOW_SETTINGS_V14] = { 1, 1, 1, 1, 1 };
+
+static const char *const window_settings_v14_keys[NR_WINDOW_SETTINGS_V14] = {
+	[WINDOW_SETTINGS_V14_ASPECT_RATIO] = "aspect_ratio",
+	[WINDOW_SETTINGS_V14_SCALING_TYPE] = "scaling_type",
+	[WINDOW_SETTINGS_V14_MINIMIZE_BY_FULL_SCREEN_INACTIVE] = "minimize_by_full_screen_inactive",
+	[WINDOW_SETTINGS_V14_BACK_TO_TITLE_CONFIRM] = "back_to_title_confirm",
+	[WINDOW_SETTINGS_V14_CLOSE_GAME_CONFIRM] = "close_game_confirm",
+};
+
+static bool window_settings_is_v14(void)
+{
+	return ain->version >= 14;
+}
+
+/*
+ * The v14 values live in an object of their own, "v14", so that they are
+ * never mixed up with what the older table wrote.  A WindowSetting.json from
+ * before this table existed holds "wait_vsync", which in this game was the
+ * check box of type 2 and never a vertical sync setting: it is not read, and
+ * the next write leaves it out.
+ */
+#define WINDOW_SETTINGS_V14_KEY "v14"
+
+static void save_window_settings_v14(void)
+{
+	cJSON *root = cJSON_CreateObject();
+	cJSON *v14 = cJSON_AddObjectToObject(root, WINDOW_SETTINGS_V14_KEY);
+	for (int i = 0; i < NR_WINDOW_SETTINGS_V14; i++)
+		cJSON_AddNumberToObject(v14, window_settings_v14_keys[i], window_settings_v14[i]);
+	save_json("WindowSetting.json", root);
+	cJSON_Delete(root);
+}
+
+static void load_window_settings_v14(void)
+{
+	cJSON *root = load_json("WindowSetting.json");
+	if (!root)
+		return;
+	cJSON *v14 = cJSON_GetObjectItem(root, WINDOW_SETTINGS_V14_KEY);
+	for (int i = 0; cJSON_IsObject(v14) && i < NR_WINDOW_SETTINGS_V14; i++) {
+		cJSON *v = cJSON_GetObjectItem(v14, window_settings_v14_keys[i]);
+		if (!cJSON_IsNumber(v))
+			continue;
+		window_settings_v14[i] = i == WINDOW_SETTINGS_V14_SCALING_TYPE ? v->valueint : v->valueint != 0;
+	}
+	cJSON_Delete(root);
+}
+
+static bool window_setting_v14_set(int type, int value)
+{
+	if (type < 0 || type >= NR_WINDOW_SETTINGS_V14) {
+		WARNING("Invalid window setting type: %d", type);
+		return false;
+	}
+	if (type != WINDOW_SETTINGS_V14_SCALING_TYPE)
+		value = value != 0;
+	// The original writes its file when the window closes; here a setting
+	// is written when it changes, and the settings page setting the same
+	// value every frame writes nothing.
+	if (window_settings_v14[type] == value)
+		return true;
+	window_settings_v14[type] = value;
+	save_window_settings_v14();
+	return true;
+}
+
+static bool window_setting_v14_get(int type, int *value)
+{
+	if (type < 0 || type >= NR_WINDOW_SETTINGS_V14) {
+		WARNING("Invalid window setting type: %d", type);
+		return false;
+	}
+	if (value)
+		*value = window_settings_v14[type];
+	return true;
+}
+
 static void save_window_settings(void)
 {
 	cJSON *root = cJSON_CreateObject();
@@ -233,6 +339,10 @@ static void save_window_settings(void)
 
 static void load_window_settings(void)
 {
+	if (window_settings_is_v14()) {
+		load_window_settings_v14();
+		return;
+	}
 	cJSON *root = load_json("WindowSetting.json");
 	if (!root)
 		return;
@@ -246,6 +356,8 @@ static void load_window_settings(void)
 
 static bool SystemService_SetWindowSetting(int type, int value)
 {
+	if (window_settings_is_v14())
+		return window_setting_v14_set(type, value);
 	switch (type) {
 	case WINDOW_SETTINGS_ASPECT_RATIO:
 		window_settings.aspect_ratio = value;
@@ -280,6 +392,8 @@ static bool SystemService_SetWindowSetting(int type, int value)
 // v14: AIN declares arg[1] as AIN_WRAP — pointer-based interface
 static bool SystemService_GetWindowSetting(int type, int *value)
 {
+	if (window_settings_is_v14())
+		return window_setting_v14_get(type, value);
 	int v;
 	switch (type) {
 	case WINDOW_SETTINGS_ASPECT_RATIO:
@@ -305,12 +419,28 @@ static bool SystemService_GetWindowSetting(int type, int *value)
 }
 
 // XXX: Values for 'type' above 1 are invalid in Haru Urare, may be different in other games
-#define NR_MOUSE_CURSOR_CONFIG 1
+// v14 (Dohna Dohna): the settings' input page keeps three of them, 0 (hide a
+// cursor that does not move), 1 (hide it on key or pad input) and 2 (hide it
+// when the next message is shown), and writes each from its check box and
+// reads it back every frame (config::detail::SetHideUnmoveMouseCursor,
+// SetHideKeyOrJoypadInputMouseCursor, SetHideStepMessageMouseCursor): a type
+// that is refused unchecks its box at once. The original of that game takes
+// exactly these three types, keeps a flag for each (all start as 0), returns
+// 0 or 1 and refuses any other type. Two differences from it: the values are
+// only kept, the cursor is never hidden; and they are not saved (the original
+// has a settings file of its own for them), so all three are 0 again after a
+// restart. Engines before v14 keep the one type they had.
+#define NR_MOUSE_CURSOR_CONFIG 3
 static int mouse_cursor_config[NR_MOUSE_CURSOR_CONFIG] = {0};
+
+static int nr_mouse_cursor_config(void)
+{
+	return ain->version >= 14 ? NR_MOUSE_CURSOR_CONFIG : 1;
+}
 
 static bool SystemService_SetMouseCursorConfig(int type, int value)
 {
-	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
+	if (type < 0 || type >= nr_mouse_cursor_config()) {
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
@@ -321,7 +451,7 @@ static bool SystemService_SetMouseCursorConfig(int type, int value)
 // v14: AIN declares arg[1] as AIN_WRAP — pointer-based interface
 static bool SystemService_GetMouseCursorConfig(int type, int *value)
 {
-	if (type < 0 || type >= NR_MOUSE_CURSOR_CONFIG) {
+	if (type < 0 || type >= nr_mouse_cursor_config()) {
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
