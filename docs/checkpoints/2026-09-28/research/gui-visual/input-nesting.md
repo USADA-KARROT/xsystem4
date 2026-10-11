@@ -118,6 +118,7 @@ xsystem4 的 Control 快進另做獨立 50.351 秒 run：`RUN_HOLD_KEYS=13,17 RU
 1. **完整輸入事件尚不等價**：現有 v14 MouseLeave／KeyUp 派送沒有在本組補完。原版 End 所發 type `0x12` 事件推定為 KeyUp，但本組沒有以 AIN 型別名稱另證。
 2. **controller 規則仍有差異**：原版 `0x53e690` 只讓作用中的 controller 接收輸入；現碼仍掃描全部 parts。原版 controller ID 與 vector index 分開，Add 可插入中間、Remove 以 ID 查找，現碼仍有以 index 代替 ID 及 explicit index 的 VM_ERROR。配置／劇情回顧的 AddController 錯誤屬另一組。
 3. **ResumeLoad 輸入深度未驗證**：原版 manager save `0x53ea5c` 寫出深度，load `0x53ebe5` 還原。現有 XPE 沒有保存輸入範圍，本組未擴大格式。一般讀檔仍需要尚未實作的 `system.Reset`；開關讀取畫面成功不等於讀檔成功。
+   > 2026-10-12 更新：`system.Reset` 已經會重啟（`6267ed3`），一般讀檔走得通，見 [system-reset](../system-reset/README.md)。`ResumeLoad` 那條路沒有動，輸入深度仍未驗證。
 4. **手勢與座標暫存未完整還原**：本組只映射現碼已有的左鍵、hover、drag 與 click 暫存；原版右／中鍵、滑動與每個座標欄位尚未逐一對應。
 5. **其他可玩性卡點不在本組**：春銷 Start 的 `GetHGauge` 斷言、訊息視窗系統 UI、長時間穩定性仍須各自驗證。
 6. **系統選單的既有畫面差異**：本組基準與修正後第一次選單，以及修正後第二次選單的穩定影格 RGB 完全相同；選項文字缺失、左半背景黑色仍存在。恢復輸入不等於修好這些外觀問題。

@@ -90,4 +90,5 @@ v14 的腳本以 `CALLHLL Array <方法> <型別參數>` 操作泛型陣列，�
 1. 面板的半透明色與腳本的構築命令 6（對話框背景、戰鬥畫面的黑塊、地點標記）。
 2. 繼續實機往下走：戰鬥的指令與目標、戰鬥結果、回到據點。
 3. controller 的 ID（設定與劇情回顧）、`system.Reset`（讀檔）。
+   > 2026-10-12 更新：`system.Reset` 已經會重啟（`6267ed3`），讀檔與返回標題走得通，見 [system-reset](../system-reset/README.md)。
 4. 這一組留下的另案：`X_OP_SET` 加固、型別 87 的參照、陣列字面值的步幅、三槽 option 的回傳、`Array.Shuffle` 的種子。

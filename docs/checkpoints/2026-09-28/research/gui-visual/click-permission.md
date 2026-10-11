@@ -75,6 +75,7 @@ xsystem4 的輸入模型與原版不同：按下時就送；目標可點擊時�
 1. 元素是 option 的陣列（春銷成交、進地城）。
 2. 面板的半透明色與腳本的構築命令 6（對話框背景全黑、地點標記）。
 3. controller 的 ID（設定與劇情回顧）、`system.Reset`（讀檔）。
+   > 2026-10-12 更新：`system.Reset` 已經會重啟（`6267ed3`），讀檔與返回標題走得通，見 [system-reset](../system-reset/README.md)。
 4. 輸入模型：放開時送、每次都送全畫面點擊。
    > 2026-10-11 更新：全畫面點擊的部分已做，元件自己的點擊還沒有，見 [dialogue-fade](../dialogue-fade/README.md)。
    > 2026-10-12 更新：元件自己的點擊也做了（`aa541a7`，只有左鍵），見 [input-model](../input-model/README.md)。

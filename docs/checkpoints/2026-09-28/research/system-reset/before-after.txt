@@ -1,0 +1,98 @@
+before cd46ec3 system-reset (default rule; the probe of 6267ed3)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: the return to the title: system.Reset returned and the script waits in its Peek loop
+  FAIL: the return to the title: system.Peek ran 3 time(s) after the reset
+  FAIL: the return to the title: the request is still up after the restart
+  FAIL: ResetLoadManager::Run: system.Reset returned and the function went on to its RETURN
+  FAIL: ResetLoadManager::Run: the RETURN after the reset ran
+  FAIL: ResetLoadManager::Run: the request is still up after the restart
+  FAIL: the Game Over scene: system.Reset returned and the function went on to its RETURN
+  FAIL: the Game Over scene: the RETURN after the reset ran
+  FAIL: the Game Over scene: the request is still up after the restart
+  SR1 the three call sites restart the VM
+SR1 FAIL
+  FAIL: ResetLoadManager::Run did not restart the VM (2)
+  FAIL: IsResetOnce is false after the restart
+  FAIL: the script's check does not see the restart
+  SR2 the load target and IsResetOnce cross the restart
+SR2 FAIL
+  FAIL: restart 1 did not happen (2)
+  FAIL: after twelve restarts a call leaves 0 slot(s)
+  SR3 twelve restarts, the VM state is back each time
+SR3 FAIL
+  FAIL: restart 1 did not happen (2)
+SR4 FAIL
+  FAIL: the message window's show flag stays 0; a new engine starts with 1
+  FAIL: the activity parts numbers go on from 900003; a new engine starts at 900000
+  FAIL: a message of the old run is still queued (type 4, parts 18701)
+  FAIL: the motion of the old run is still in progress
+  FAIL: the free numbers go on from 1000001002; a new engine starts at 1000001000
+  SR5 the parts engine keeps nothing of the old run
+SR5 FAIL
+  FAIL: after the library stopped HashMap.Create returns -1, want 0
+  SR6 the 64 HashMap handles are handed back
+SR6 FAIL
+  FAIL: the engine has no vm_reset_pending
+SR7 FAIL
+  FAIL: three restarts of the library left 221611632 more bytes allocated (the file was read again)
+  FAIL: a restart after AddEX leaves the table with 22 rows, want 11 (the appended copy was kept)
+  FAIL: the restart after that one read the file once more (73870544 bytes)
+  FAIL: the table has 22 rows after that restart, want 11
+  SR8 a restart keeps the main EX file (221611632 bytes more after three; a table of 11 rows and an integer checked) and reads it again after AddEX (73870544 bytes)
+SR8 FAIL
+=================================================================
+  (sanitizer report omitted)
+SR9 FAIL
+  FAIL: the VM did not restart (2)
+  FAIL: the backlog still has 3 page(s) of the old run
+  FAIL: the backlog is still switched off
+  FAIL: a page written after the restart makes 3
+  SR10 the backlog of the old run is gone
+SR10 FAIL
+  FAIL: the VM did not restart (2)
+  FAIL: a sound of the old run is still playing (1, 1)
+  FAIL: a channel of the old run is still prepared
+  FAIL: a fade of the old run is still running
+  FAIL: the free sound IDs go on from 2; a new engine starts at 0
+  SR11 the restart leaves no sound channel of the old run
+SR11 FAIL
+  FAIL: the VM did not restart (2)
+  FAIL: the restart did not stop the parts engine: the parts is still there
+  FAIL: the restart did not stop HashMap: Create returns -1, want 0
+  SR12 the restart runs the libraries' _ModuleFini
+SR12 FAIL
+SYSTEM-RESET FAIL: 12 of 12 cases failed
+
+before cd46ec3 system-reset (XS4_PROBE_GBK=1)
+SYSTEM-RESET FAIL: 12 of 12 cases failed
+
+after system-reset at 6267ed3 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  SR1 the three call sites restart the VM
+SR1 ok
+  SR2 the load target and IsResetOnce cross the restart
+SR2 ok
+  SR3 twelve restarts, the VM state is back each time
+SR3 ok
+  SR4 the old heap is freed for v14 (0 bytes over four restarts) and left alone before it
+SR4 ok
+  SR5 the parts engine keeps nothing of the old run
+SR5 ok
+  SR6 the 64 HashMap handles are handed back
+SR6 ok
+  SR7 the request is raised by the call and taken by the VM only
+SR7 ok
+  SR8 a restart keeps the main EX file (0 bytes more after three; a table of 11 rows and an integer checked) and reads it again after AddEX (73870544 bytes)
+SR8 ok
+  SR9 a CG name shorter than the <save> prefix is compared safely
+SR9 ok
+  SR10 the backlog of the old run is gone
+SR10 ok
+  SR11 the restart leaves no sound channel of the old run
+SR11 ok
+  SR12 the restart runs the libraries' _ModuleFini
+SR12 ok
+SYSTEM-RESET PASS: 0 of 12 cases failed
+
+after system-reset (XS4_PROBE_GBK=1)
+SYSTEM-RESET PASS: 0 of 12 cases failed

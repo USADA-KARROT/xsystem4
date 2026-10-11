@@ -161,6 +161,7 @@ PE_Save／PE_Load 的部件狀態型別（`2914b40` 的 `component_type_from_sta
 
 - 原版引擎讀 xsystem4 寫出的檔案：只以格式推論（四個檔案重存後逐位元組相同），EXE 不可執行。
 - 從讀檔畫面讀一般存檔：需要 `system.Reset`，目前仍是 stub，GUI 無法走到。一般存檔只有 headless 讀入驗證（`save-localgame`），沒有驗證讀入後的遊戲行為。
+  > 2026-10-12 更新：`system.Reset` 已經會重啟（`6267ed3`），從讀取畫面讀一般存檔走得通：在 Day 1 據點存檔、讀檔回到同一個畫面，讀檔後再存的檔和讀檔前的只差時間，並和原版對過，見 [system-reset](../system-reset/README.md)。只在 Day 1 據點存讀過；第 2 天以後、有戰鬥進度的存檔沒有實機。
 - 存檔清單畫面的註解顯示、手動存檔與自動存檔的 GUI 路徑（150 秒內不會觸發；自動存檔第 1 回合跳過）。
 - 成就完成時的 Achievement.asd 寫出（150 秒內沒有觸發），以及讀檔後成就通知的 GetText（見上）。
 - rank ≥ 2 陣列、option 元素陣列、2 槽元素陣列的原版語義細節；戰鬥中存檔再讀回（`option<wrap<…>>` 與 `79<82<13>>`）。

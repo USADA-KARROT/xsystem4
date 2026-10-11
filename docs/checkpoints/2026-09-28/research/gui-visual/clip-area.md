@@ -81,3 +81,4 @@ AIN v14 的 XPE 版本升為 4，在各部件的 alpha clipper 編號之後保�
 - 原版額外 pivot 欄位 +0xa0/+0xa4、3D 相機及非標準 render-target 比例未驗證；不能把一般 2D 公式宣稱為全部場景完全相同。
 - 負尺寸原版後端行為未追到；本組保留 HLL 的原值，繪製時視為空矩形。矩形、alpha clipper 及其他部件屬性的完整存檔相容性仍有既有缺口。
 - 輸入卡死、春銷 Start 斷言、system.Reset 與長時間穩定性不屬於本組，尚未處理。
+  > 2026-10-12 更新：其中 `system.Reset` 已經會重啟（`6267ed3`），讀檔與返回標題走得通，見 [system-reset](../system-reset/README.md)。

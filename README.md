@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-12）：已推送程式為 `aa541a7`，預設／GBK各96模式PASS。滑鼠左鍵照原版在放開時才觸發元件：**用滑鼠點AUTO按鈕可以進自動模式了**，按按鈕後的第一句對白會逐字淡入，從設定頁返回遊戲時對白停在原頁，按住拖開再放開不觸發（都和Wine原版錄影對照過）。先前的已讀顏色、對白逐字淡入、設定畫面的核取方塊與單選群都在。存檔為XPE第11版，libsys4維持247f544。**
-> [輸入模型](docs/checkpoints/2026-09-28/research/input-model/README.md) · [對話文字的已讀顏色](docs/checkpoints/2026-09-28/research/read-color/README.md) · [對白逐字淡入與全畫面點擊](docs/checkpoints/2026-09-28/research/dialogue-fade/README.md) · [設定畫面的核取方塊、單選群與視窗設定](docs/checkpoints/2026-09-28/research/config-widgets/README.md)。**仍不能當作完整遊戲使用。** 右鍵與中鍵還沒有作用、設定畫面的橫桿把手與按鈕文字、回顧把手與滾輪、讀檔／返回標題、音訊聽測與長時穩定仍待修驗；拖放只有探針驗過。用舊版開過設定畫面的存檔資料夾，設定可能已被清掉，要進設定畫面重新設。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-12）：已推送程式為 `6267ed3`，預設／GBK各97模式PASS。**可以讀檔、可以返回標題了**：存檔後讀那個檔會回到存檔時的畫面並能繼續玩（和Wine原版同一串操作並排過；先前這幾條路都卡死，只能從新遊戲開始）。先前的滑鼠點AUTO、已讀顏色、對白逐字淡入、設定畫面的核取方塊都在。存檔為XPE第11版，libsys4維持247f544。**
+> [讀檔與返回標題](docs/checkpoints/2026-09-28/research/system-reset/README.md) · [輸入模型](docs/checkpoints/2026-09-28/research/input-model/README.md) · [對話文字的已讀顏色](docs/checkpoints/2026-09-28/research/read-color/README.md) · [對白逐字淡入與全畫面點擊](docs/checkpoints/2026-09-28/research/dialogue-fade/README.md) · [設定畫面的核取方塊、單選群與視窗設定](docs/checkpoints/2026-09-28/research/config-widgets/README.md)。**仍不能當作完整遊戲使用。** 設定頁的「返回標題畫面」不會問確認（沒存檔的進度會丟掉）、存檔沒有縮圖、存讀檔只在第1天的據點驗過；右鍵與中鍵還沒有作用、設定畫面的橫桿把手與按鈕文字、回顧把手與滾輪、音訊聽測與長時穩定仍待修驗。用舊版開過設定畫面的存檔資料夾，設定可能已被清掉，要進設定畫面重新設。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

@@ -73,4 +73,5 @@
 1. 戰鬥畫面與地城地圖看不到的東西（調查中）。
 2. 實機把第一場戰鬥打完。
 3. controller 的 ID（設定與劇情回顧）、`system.Reset`（讀檔）。
+   > 2026-10-12 更新：`system.Reset` 已經會重啟（`6267ed3`），讀檔與返回標題走得通，見 [system-reset](../system-reset/README.md)。
 4. 面板的漸層、命令 23 的 alpha、其餘構築命令。

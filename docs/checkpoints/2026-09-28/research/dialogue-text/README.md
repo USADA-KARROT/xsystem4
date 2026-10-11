@@ -60,6 +60,8 @@ At、ShallowCopy 第一份宣告皆無直接呼叫點。空頁查詢相容性涵
 
 最終峰值 RSS 為 1,898,332,160 bytes，記憶體成長仍未解決；不能由單次短測宣稱效能或洩漏已修好。存讀檔往返、據點所有互動、長時間遊玩、完整中文切字及逐字顯示效果仍未驗證。下一組應一併處理 GetStructPageList 與 DeserializeStruct 的持久化。
 > 2026-10-11 更新：逐字顯示已做並和原版的錄影對過，見 [dialogue-fade](../dialogue-fade/README.md)。
+>
+> 2026-10-12 更新：存讀檔往返已有實機（在 Day 1 據點存檔再讀回，`6267ed3`），見 [system-reset](../system-reset/README.md)。
 
 [GUI 量測與影像雜湊](gui-summary.json)。母片未修改、原版 EXE 未執行，libsys4 維持 `8c93946`。
 
