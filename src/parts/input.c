@@ -530,6 +530,15 @@ void PE_UpdateInputState(int passed_time)
 			parts_enqueue_message_vars(4, click_target->no,
 					click_target->delegate_index,
 					click_target->unique_id, 3, vars);
+			// A check box flips, after its MouseClick as in the
+			// original (0x52cdd0), at the next update of the parts
+			// (parts_checkbox_clicked). One that is not enabled was
+			// swallowed above. Only a parts that was made a check
+			// box has the values: the pactex loader's legacy guess
+			// also gives a parts type 1.
+			if (click_target->component_type == PARTS_COMPONENT_CHECKBOX
+					&& click_target->checkbox)
+				parts_checkbox_clicked(click_target);
 		} else {
 			v14_whole_click_armed = true;
 		}
@@ -653,6 +662,7 @@ void parts_reset_input(void)
 	if (ain->version >= 14) {
 		v14_input_depth = 0;
 		v14_reset_input_session(false);
+		parts_checkbox_reset_clicks();
 	}
 }
 

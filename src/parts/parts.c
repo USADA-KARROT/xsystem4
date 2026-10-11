@@ -1672,6 +1672,7 @@ void parts_release(int parts_no)
 	dirty_list_remove(parts);
 	free(parts->user_component_name);
 	free(parts->button_cg_name);
+	parts_widget_free(parts);
 	for (int i = 0; i < parts->nr_uc_data; i++)
 		free(parts->uc_data[i]);
 	free(parts->uc_data);
@@ -1874,6 +1875,9 @@ void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_windo
 	parts_update_animation(passed_time);
 	parts_message_window_update_times(passed_time, scaled_passed_time);
 	PE_UpdateInputState(passed_time);
+	// After the input: a check box that was clicked takes its other value
+	// here and is drawn again (see parts_checkbox_clicked for why here).
+	parts_checkbox_update();
 	parts_render_update();
 }
 
@@ -3154,7 +3158,11 @@ void PE_SetComponentType(int parts_no, int type, int state)
 			parts_dirty(parts);
 			return;
 		}
+		const int old_type = parts->component_type;
 		parts->component_type = type;
+		// A check box, a radio box or a 橫滾動條 that was another widget
+		// has its constructor's values (checkbox.c).
+		parts_widget_type_changed(parts, old_type);
 		// Preserve explicit raw setters over the loader's inferred state types.
 		memset(parts->component_state_type, 0, sizeof(parts->component_state_type));
 		// A box a script makes (AFL_Parts_CreateLayoutBox ->

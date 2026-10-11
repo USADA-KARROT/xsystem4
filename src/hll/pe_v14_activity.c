@@ -670,7 +670,9 @@ static void pactex_apply_default_text(struct ex_tree *state, int parts_no, int p
  * legacy structural guess. */
 enum {
 	PACTEX_EPT_BUTTON = 0,
+	PACTEX_EPT_CHECK_BOX = 1,
 	PACTEX_EPT_LAYOUT_BOX = 8,
+	PACTEX_EPT_RADIO_BOX = 9,
 	PACTEX_EPT_USER_COMPONENT = 17,
 	PACTEX_EPT_LOW_LEVEL = 18,
 	PACTEX_EPT_CG = 19,
@@ -1577,6 +1579,147 @@ static void pactex_resolve_scroll_links(struct activity *act)
 	pactex_nr_scroll_links = 0;
 }
 
+/* The keys of a 檢查ボックス and of a ラジオ按鈕ボックス that are theirs alone,
+ * as the CN executable spells them (0x7d8900 .. 0x7d8a1c, 0x7dbd7c). No SJIS
+ * pactex was read: an SJIS release's spellings are not known and none is
+ * guessed, so only a pactex with these names makes a check box. The font's
+ * keys and the two spacings are those of pactex_message_keys. */
+#define PACTEX_CB_BUTTON_COLOR "\xb0\xb4\xe2\x6f\xa4\xce\xc9\xab"	/* 按鈕の色 */
+#define PACTEX_CB_ENABLE "\xd3\xd0\x84\xbf\xa0\xee\x91\x42"		/* 有効狀態 */
+#define PACTEX_CB_CHECKED "\x99\x7a\xb2\xe9\xa0\xee\x91\x42"		/* 檢查狀態 */
+#define PACTEX_CB_OVER "\xb8\xb2\xc9\x77"				/* 覆蓋 */
+#define PACTEX_CB_OVER_CHECKED PACTEX_CB_OVER "\x99\x7a\xb2\xe9"	/* 覆蓋檢查 */
+#define PACTEX_CB_FLAT "\xa5\xd5\xa5\xe9\xa5\xc3\xa5\xc8\xc3\xfb"	/* フラット名 */
+#define PACTEX_CB_TEXT "\xce\xc4\xb1\xbe"				/* 文本 */
+#define PACTEX_CB_TEXT_POS PACTEX_CB_TEXT "\xce\xbb\xd6\xc3"		/* 文本位置 */
+#define PACTEX_CB_BUTTON_MODE "\xb0\xb4\xe2\x6f\xc4\xa3\xca\xbd"	/* 按鈕模式 */
+#define PACTEX_RADIO_LIST "\x99\x7a\xb2\xe9\xa5\xdc\xa5\xc3\xa5\xaf\xa5\xb9\xa5\xea\xa5\xb9\xa5\xc8" /* 檢查ボックスリスト */
+
+static struct ex_value *pactex_cn_value(struct ex_tree *node, const char *key)
+{
+	return pactex_leaf_value(node, key, key);
+}
+
+static int pactex_cn_item(struct ex_tree *node, const char *key, unsigned index, int fallback)
+{
+	struct ex_value *v = pactex_cn_value(node, key);
+	if (!v || v->type != EX_LIST || !v->list || index >= v->list->nr_items)
+		return fallback;
+	return pactex_value_number(&v->list->items[index].value, fallback);
+}
+
+static const char *pactex_cn_string(struct ex_tree *node, const char *key)
+{
+	struct ex_value *v = pactex_cn_value(node, key);
+	return v && v->type == EX_STRING && v->s ? v->s->text : "";
+}
+
+// A colour of the font as the loader keeps it (0x52c1c9 ..): within 0..255.
+static int pactex_color_byte(int v)
+{
+	return v < 0 ? 0 : v > 255 ? 255 : v;
+}
+
+/*
+ * 檢查ボックス: the native loader (0x52bd70) reads the widget's 21 keys, each
+ * with a default of its own for a key that is missing (サイズ 16 x 16, 有効
+ * 狀態 1, 檢查狀態 0, 按鈕の色 200, フォントサイズ 16, フォント色 255, 文本位
+ * 置 4, the rest 0 or ""), keeps 有効狀態, 檢查狀態 and 按鈕模式 as "== 1",
+ * and marks the widget to be built. 檢查狀態 is written as it is: no event,
+ * no radio box. The states are built here at once, so that the parts has its
+ * size when the activity is laid out (parts/checkbox.c).
+ */
+static void pactex_apply_check_box(struct ex_tree *type_info, struct parts *p)
+{
+	struct parts_checkbox *cb = parts_get_checkbox(p);
+	cb->w = pactex_cn_item(type_info, GBK_SIZE, 0, 16);
+	cb->h = pactex_cn_item(type_info, GBK_SIZE, 1, 16);
+	cb->enable = (int)pactex_value_number(pactex_cn_value(type_info, PACTEX_CB_ENABLE), 1) == 1;
+	cb->checked = (int)pactex_value_number(pactex_cn_value(type_info, PACTEX_CB_CHECKED), 0) == 1;
+	cb->r = pactex_cn_item(type_info, PACTEX_CB_BUTTON_COLOR, 0, 200);
+	cb->g = pactex_cn_item(type_info, PACTEX_CB_BUTTON_COLOR, 1, 200);
+	cb->b = pactex_cn_item(type_info, PACTEX_CB_BUTTON_COLOR, 2, 200);
+	cb->font.type = pactex_message_number(type_info, PACTEX_MW_FACE, 0);
+	cb->font.size = pactex_message_number(type_info, PACTEX_MW_SIZE, 16);
+	cb->font.r = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_COLOR, 0, 255));
+	cb->font.g = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_COLOR, 1, 255));
+	cb->font.b = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_COLOR, 2, 255));
+	cb->font.bold = pactex_message_number(type_info, PACTEX_MW_WEIGHT, 0);
+	cb->font.edge = pactex_message_number(type_info, PACTEX_MW_EDGE, 0);
+	cb->font.edge_r = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 0, 0));
+	cb->font.edge_g = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 1, 0));
+	cb->font.edge_b = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 2, 0));
+	parts_checkbox_set_string(p, &cb->cg_name, pactex_cn_string(type_info, GBK_CG_MEI));
+	parts_checkbox_set_string(p, &cb->over_cg_name,
+			pactex_cn_string(type_info, PACTEX_CB_OVER "\xa3\xc3\xa3\xc7\xc3\xfb"));
+	parts_checkbox_set_string(p, &cb->over_checked_cg_name,
+			pactex_cn_string(type_info, PACTEX_CB_OVER_CHECKED "\xa3\xc3\xa3\xc7\xc3\xfb"));
+	parts_checkbox_set_string(p, &cb->flat_name, pactex_cn_string(type_info, PACTEX_CB_FLAT));
+	parts_checkbox_set_string(p, &cb->over_flat_name,
+			pactex_cn_string(type_info, PACTEX_CB_OVER PACTEX_CB_FLAT));
+	parts_checkbox_set_string(p, &cb->over_checked_flat_name,
+			pactex_cn_string(type_info, PACTEX_CB_OVER_CHECKED PACTEX_CB_FLAT));
+	parts_checkbox_set_string(p, &cb->text, pactex_cn_string(type_info, PACTEX_CB_TEXT));
+	cb->text_pos = pactex_value_number(pactex_cn_value(type_info, PACTEX_CB_TEXT_POS), 4);
+	cb->button_mode = (int)pactex_value_number(pactex_cn_value(type_info, PACTEX_CB_BUTTON_MODE), 0) == 1;
+	cb->char_space = pactex_message_number(type_info, PACTEX_MW_CHAR_SPACE, 0);
+	cb->line_space = pactex_message_number(type_info, PACTEX_MW_LINE_SPACE, 0);
+	// The widget's inner parts take the click whatever 點擊許可 says
+	// (0x52e8a0 sets their +0x1a4), as a button's do.
+	PE_SetClickable(p->no, true);
+	parts_checkbox_rebuild(p);
+}
+
+/* 檢查ボックスリスト of the radio boxes seen while loading one activity (see
+ * pactex_apply_properties): the names of their check boxes, made numbers at
+ * the end of pactex_load, when every parts of the activity has its name. */
+#define PACTEX_MAX_RADIO_LINKS 256
+static struct { int parts_no; char name[256]; } pactex_radio_links[PACTEX_MAX_RADIO_LINKS];
+static int pactex_nr_radio_links;
+
+/* ラジオ按鈕ボックス (native loader 0x56c170): the list's names in their order. */
+static void pactex_apply_radio_box(struct ex_tree *type_info, struct parts *p)
+{
+	parts_get_radio_box(p);
+	struct ex_value *v = pactex_cn_value(type_info, PACTEX_RADIO_LIST);
+	if (!v || v->type != EX_LIST || !v->list)
+		return;
+	for (unsigned i = 0; i < v->list->nr_items; i++) {
+		struct ex_value *name = &v->list->items[i].value;
+		if (name->type != EX_STRING || !name->s)
+			continue;
+		if (pactex_nr_radio_links >= PACTEX_MAX_RADIO_LINKS) {
+			WARNING("pactex: too many radio box members");
+			return;
+		}
+		pactex_radio_links[pactex_nr_radio_links].parts_no = p->no;
+		snprintf(pactex_radio_links[pactex_nr_radio_links].name,
+			sizeof(pactex_radio_links[0].name), "%s", name->s->text);
+		pactex_nr_radio_links++;
+	}
+}
+
+/* A name that is no parts of the activity gives the box no member: the
+ * original's box takes the number its lookup gives for such a name and drops
+ * a member without a parts when it next tidies its list (0x56c7a0). */
+static void pactex_resolve_radio_links(struct activity *act)
+{
+	for (int i = 0; i < pactex_nr_radio_links; i++) {
+		int no = 0;
+		for (int j = 0; j < act->nr_parts && no <= 0; j++) {
+			if (act->parts[j].name[0] && !strcmp(act->parts[j].name, pactex_radio_links[i].name))
+				no = act->parts[j].number;
+		}
+		struct parts *box = parts_try_get(pactex_radio_links[i].parts_no);
+		if (no <= 0 || !box) {
+			WARNING("pactex: radio box member '%s' not found", display_game0(pactex_radio_links[i].name));
+			continue;
+		}
+		parts_radio_box_add(box, no);
+	}
+	pactex_nr_radio_links = 0;
+}
+
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
 	pactex_apply_pixel_decide(node, parts_no);
@@ -1746,8 +1889,21 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	 * 0, into the widget as they are (0x544802, 0x544869, 0x5448d0,
 	 * 0x544937 -> +0x110..+0x11c). BackLog's bar shows 16 lines (表示量), which
 	 * is how many CBackLogView@SetLineIndex builds. The SJIS key of the first
-	 * is a guess: no SJIS pactex was read. --- */
-	if (parts_get(parts_no)->component_type == PARTS_COMPONENT_VSCROLLBAR) {
+	 * is a guess: no SJIS pactex was read.
+	 * A 橫滾動條 is the same widget with the same loader (0x572fb0, then
+	 * 0x573610). The settings' bars are 100, 1, 99, 1.0: what the script
+	 * writes and reads each frame is their rate, and the sound page sets the
+	 * position of three of them (pe_v14_checkbox.h).
+	 * The loaded position and rate count as reported (0x574bc0), for both
+	 * kinds in the original. Here only for a 橫滾動條, whose event is new: a
+	 * slider loaded at 99 must not send 99 as a volume before the script has
+	 * placed it. The two 豎滾動條 that are loaded away from 0 (BackScene,
+	 * SceneStandViewer) still send one event on their first update, which
+	 * the original does not; they were left as they are because neither
+	 * screen could be looked at. --- */
+	const int widget_type = parts_get(parts_no)->component_type;
+	if (widget_type == PARTS_COMPONENT_VSCROLLBAR
+			|| (ain->version >= 14 && widget_type == PARTS_COMPONENT_HSCROLLBAR)) {
 		struct parts_scrollbar *sb = &parts_get(parts_no)->scrollbar;
 		sb->total = pactex_value_number(pactex_leaf_value(type_info,
 				"\x91\x53\x91\xcc\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x97\xca",
@@ -1760,6 +1916,8 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		sb->rate = pactex_value_number(pactex_leaf_value(type_info,
 				"\x83\x58\x83\x4e\x83\x8d\x81\x5b\x83\x8b\x83\x8c\x81\x5b\x83\x67",
 				"\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xa5\xec\xa9\x60\xa5\xc8"), 0);
+		if (widget_type == PARTS_COMPONENT_HSCROLLBAR)
+			parts_scrollbar_loaded(parts_get(parts_no));
 		/* 全體スクロール量サイズ連動 and 表示量サイズ連動 name the parts
 		 * whose size the two amounts follow (parts_scrollbar_total). The
 		 * native loader reads the two strings, "" when missing, and has
@@ -1775,6 +1933,21 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		pactex_add_scroll_link(parts_no, true, pactex_leaf_value(type_info,
 				"\x95\x5c\x8e\xa6\x97\xca\x83\x54\x83\x43\x83\x59\x98\x41\x93\xae",
 				"\xb1\xed\xca\xbe\xc1\xbf\xa5\xb5\xa5\xa4\xa5\xba\xdf\x42\x84\xd3"));
+	}
+
+	/* --- 檢查ボックス and ラジオ按鈕ボックス, by the widget type of the native
+	 * table and not by a legacy guess (which also gives 1). Before the button
+	 * below: a radio box's type name contains 按鈕. --- */
+	if (ain->version >= 14) {
+		const int native_type = pactex_native_type(ptype);
+		if (native_type == PACTEX_EPT_CHECK_BOX) {
+			pactex_apply_check_box(type_info, parts_get(parts_no));
+			return;
+		}
+		if (native_type == PACTEX_EPT_RADIO_BOX) {
+			pactex_apply_radio_box(type_info, parts_get(parts_no));
+			return;
+		}
 	}
 
 	/* --- Handle パネル (Panel) type: solid color rectangle --- */
@@ -2091,6 +2264,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 
 	pactex_nr_clippers = 0;
 	pactex_nr_scroll_links = 0;
+	pactex_nr_radio_links = 0;
 	int root_no = alloc_activity_parts_no();
 	struct parts *root = parts_get(root_no);
 	{
@@ -2159,6 +2333,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 
 	pactex_resolve_clippers(act);
 	pactex_resolve_scroll_links(act);
+	pactex_resolve_radio_links(act);
 	return true;
 }
 

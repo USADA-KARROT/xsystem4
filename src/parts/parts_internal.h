@@ -537,6 +537,52 @@ struct parts_scrollbar {
 	int view_link;
 };
 #define PARTS_COMPONENT_VSCROLLBAR 2
+// v14 橫滾動條 (component type 3): the same widget lying on its side (0x573610
+// clears its +0xc). Its amounts are kept, the library reads and writes its
+// rate and its position (pe_v14_checkbox.h), and it reports a move like the
+// vertical one (parts_scrollbar_update). Nothing is drawn for it yet.
+#define PARTS_COMPONENT_HSCROLLBAR 3
+
+// v14 檢查ボックス (component type 1): the widget's properties, as the
+// original keeps them from +0xe4 (constructor 0x529620, pactex 0x52bd70).
+// The original shows them through two inner parts, the box and the text;
+// here they are drawn into the parts' own three states (checkbox.c). Not
+// saved: the states are, the values come back when the activity is loaded.
+struct parts_checkbox {
+	int w, h;           // サイズ (+0xe8, +0xec): unused while there is a ＣＧ名
+	bool enable;        // 有効狀態 (+0xf0)
+	bool checked;       // 檢查狀態 (+0xf1)
+	int r, g, b;        // 按鈕の色 (+0xf4)
+	struct {            // +0x100
+		int type, size;
+		int r, g, b;
+		float bold, edge;
+		int edge_r, edge_g, edge_b;
+	} font;
+	char *cg_name;                // ＣＧ名 (+0x134)
+	char *over_cg_name;           // 覆蓋ＣＧ名 (+0x14c)
+	char *over_checked_cg_name;   // 覆蓋檢查ＣＧ名 (+0x164)
+	char *flat_name;              // フラット名 (+0x17c)
+	char *over_flat_name;         // 覆蓋フラット名 (+0x194)
+	char *over_checked_flat_name; // 覆蓋檢查フラット名 (+0x1ac)
+	char *text;                   // 文本 (+0x1c4)
+	int text_pos;       // 文本位置 (+0x1dc)
+	bool button_mode;   // 按鈕模式 (+0x1dd)
+	int char_space;     // 文字間隔 (+0x1e0)
+	int line_space;     // 行間隔 (+0x1e4)
+	bool dirty;         // +0x1e8: the states are to be rebuilt
+};
+#define PARTS_COMPONENT_CHECKBOX 1
+
+// v14 ラジオ按鈕ボックス (component type 9): the numbers of its check boxes
+// (+0x44) and the flag that keeps it from handling a change it made itself
+// (+0x5c). It shows nothing. Not saved.
+struct parts_radio_box {
+	int *children;
+	int nr_children;
+	bool busy;
+};
+#define PARTS_COMPONENT_RADIO_BOX 9
 
 TAILQ_HEAD(parts_list, parts);
 
@@ -661,6 +707,10 @@ struct parts {
 	int pactex_canvas_w, pactex_canvas_h;
 	struct parts_panel panel;
 	struct parts_scrollbar scrollbar;
+	// v14: what a 檢查ボックス and a ラジオ按鈕ボックス keep (checkbox.c); NULL
+	// until the parts is one and is first used as one.
+	struct parts_checkbox *checkbox;
+	struct parts_radio_box *radio_box;
 };
 
 #define PARTS_LIST_FOREACH(iter) TAILQ_FOREACH(iter, &parts_list, parts_list_entry)
@@ -822,6 +872,22 @@ void parts_scrollbar_set_rate(struct parts *parts, float rate);
 int parts_scrollbar_total(struct parts *parts);
 int parts_scrollbar_view(struct parts *parts);
 void parts_scrollbar_update(void);
+void parts_scrollbar_construct(struct parts *parts);
+void parts_scrollbar_loaded(struct parts *parts);
+
+// checkbox.c
+struct parts_checkbox *parts_get_checkbox(struct parts *parts);
+struct parts_radio_box *parts_get_radio_box(struct parts *parts);
+void parts_widget_type_changed(struct parts *parts, int old_type);
+void parts_widget_free(struct parts *parts);
+void parts_checkbox_set_string(struct parts *parts, char **field, const char *value);
+void parts_checkbox_rebuild(struct parts *parts);
+void parts_checkbox_update(void);
+void parts_checkbox_set_checked(struct parts *parts, bool checked);
+void parts_checkbox_set_enable(struct parts *parts, bool enable);
+void parts_checkbox_clicked(struct parts *parts);
+void parts_checkbox_reset_clicks(void);
+void parts_radio_box_add(struct parts *box, int child);
 
 // text.c
 void parts_text_free(struct parts_text *t);

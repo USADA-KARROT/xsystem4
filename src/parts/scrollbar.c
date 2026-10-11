@@ -32,6 +32,11 @@
  * the scripts read the amounts and move the position themselves (the wheel
  * and the keys of the backlog, CBackLogView@MouseWheelEvent), and are told
  * of the result by the event.
+ * A 橫滾動條 is the same widget lying on its side (0x536660 makes one with
+ * the 豎滾動條's constructor 0x572fb0 and then 0x573610, which clears +0xc):
+ * the same amounts, the same setters and the same update and event. The
+ * settings' sliders are its only use: nothing is drawn for them yet and they
+ * cannot be dragged, the scripts set and read their rate or their position.
  */
 
 // The largest position: 全體スクロール量 less 表示量, at least 0 (0x542360).
@@ -50,8 +55,17 @@ static float scrollbar_rate(float rate)
 	return rate > 0.0f ? rate : 0.0f;
 }
 
-/* SetVScrollbarScrollPos (0x591a90 -> 0x542360): the position is kept within
- * 0 and the largest position, and the rate is the position over that. */
+/* The amounts of a bar the engine makes (0x541e30: 全體スクロール量 100, 表示量
+ * 1, position and rate 0), for a parts that becomes a 橫滾動條 without a
+ * pactex. Nothing was scrolled, so nothing is to be reported. */
+void parts_scrollbar_construct(struct parts *parts)
+{
+	parts->scrollbar = (struct parts_scrollbar) { .total = 100, .view = 1 };
+}
+
+/* SetVScrollbarScrollPos and SetHScrollbarScrollPos (0x591a90, 0x5923b0 ->
+ * 0x542360): the position is kept within 0 and the largest position, and the
+ * rate is the position over that. */
 void parts_scrollbar_set_pos(struct parts *parts, int pos)
 {
 	struct parts_scrollbar *sb = &parts->scrollbar;
@@ -62,8 +76,10 @@ void parts_scrollbar_set_pos(struct parts *parts, int pos)
 	sb->rate = scrollbar_rate((float)pos / (float)max);
 }
 
-/* SetVScrollbarScrollRate (0x591ac0 -> 0x542400): the rate is kept within 0
- * and 1, and the position is the largest position times it, truncated. */
+/* SetVScrollbarScrollRate and SetHScrollbarScrollRate (0x591ac0, 0x5923e0 ->
+ * 0x542400): the rate is kept within 0 and 1, and the position is the
+ * largest position times it, truncated. The rate is kept as it was given:
+ * 0.5 of a bar that scrolls 99 reads back as 0.5, at position 49. */
 void parts_scrollbar_set_rate(struct parts *parts, float rate)
 {
 	struct parts_scrollbar *sb = &parts->scrollbar;
@@ -100,32 +116,43 @@ void parts_scrollbar_set_view(struct parts *parts, int view)
  * is. Else the amount is a size of the state that parts shows (its widget's
  * vtable +0x38): for a 豎滾動條, whose +0xc is 1 (0x572ff9), the height,
  * through the widget's vtable +0x28 as Parts_GetPartsHeight takes it
- * (0x58c6e0); for a 橫滾動條 (0x57363b clears +0xc; there is none here) the
- * other one, +0x24. SceneStandViewer's bar has both links: the standing
- * picture's height and its frame's.
+ * (0x58c6e0); for a 橫滾動條, whose +0xc is clear, the width, through +0x24
+ * as Parts_GetPartsWidth takes it (0x574a8b; 0x58c620). SceneStandViewer's
+ * bar has both links: the standing picture's height and its frame's. No
+ * 橫滾動條 of the game is linked, so the width was never seen at work.
  * Read for a linked 低等級部件 only (0x564ef0 -> 0x5b7e90, 0x564dd0 ->
  * 0x5b7d20: a state with nothing in it is 0 high). Which state another kind
  * of widget reports was not read, and the step back of 0x5b7e90 from a state
  * with nothing in it to an earlier one is not made.
  */
-static int scrollbar_linked(int link, int amount)
+static int scrollbar_linked(const struct parts *bar, int link, int amount)
 {
 	struct parts *linked = link ? parts_try_get(link) : NULL;
 	if (!linked)
 		return amount;
-	return linked->states[linked->state].common.h;
+	const struct parts_common *shown = &linked->states[linked->state].common;
+	return bar->component_type == PARTS_COMPONENT_HSCROLLBAR ? shown->w : shown->h;
 }
 
 // GetVScrollbarTotalSize and GetVScrollbarViewSize (0x591b30, 0x591b60) give
 // the linked size without keeping it.
 int parts_scrollbar_total(struct parts *parts)
 {
-	return scrollbar_linked(parts->scrollbar.total_link, parts->scrollbar.total);
+	return scrollbar_linked(parts, parts->scrollbar.total_link, parts->scrollbar.total);
 }
 
 int parts_scrollbar_view(struct parts *parts)
 {
-	return scrollbar_linked(parts->scrollbar.view_link, parts->scrollbar.view);
+	return scrollbar_linked(parts, parts->scrollbar.view_link, parts->scrollbar.view);
+}
+
+/* What a bar has when its activity was loaded counts as reported (0x574bc0
+ * after the loader 0x544630): the sliders of the settings are loaded at
+ * position 99 of 99 and send nothing until a script moves them. */
+void parts_scrollbar_loaded(struct parts *parts)
+{
+	parts->scrollbar.reported_pos = parts->scrollbar.pos;
+	parts->scrollbar.reported_rate = parts->scrollbar.rate;
 }
 
 /*
@@ -142,6 +169,11 @@ int parts_scrollbar_view(struct parts *parts)
  * flag is handed down the tree, the parent's and an argument of each parts
  * (0x579c81 .. 0x579cae); the argument was not traced and is taken to be
  * "shown". Here a bar that is not shown reports as well.
+ * A 橫滾動條 is updated by the same function. The settings' sound page
+ * depends on it: it adds the event to three sliders and then sets their
+ * position to a volume, and its 初始化 buttons set the default one; the
+ * volume is written by the event, from the position it carries
+ * (UserConfig::SetSoundEvent).
  */
 void parts_scrollbar_update(void)
 {
@@ -149,7 +181,8 @@ void parts_scrollbar_update(void)
 		return;
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
-		if (parts->component_type != PARTS_COMPONENT_VSCROLLBAR)
+		if (parts->component_type != PARTS_COMPONENT_VSCROLLBAR
+				&& parts->component_type != PARTS_COMPONENT_HSCROLLBAR)
 			continue;
 		struct parts_scrollbar *sb = &parts->scrollbar;
 		parts_scrollbar_set_total(parts, parts_scrollbar_total(parts));

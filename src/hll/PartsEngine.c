@@ -1915,6 +1915,7 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 #include "pe_v14_numeral.h"
 #include "pe_v14_upper_left.h"
 #include "pe_v14_backlog.h"
+#include "pe_v14_checkbox.h"
 #include "pe_v14_stubs.h"
 
 /* Fill the v14-only names into the runtime library table. Called from
@@ -1987,6 +1988,7 @@ static void pe_v14_register_batch(int libno)
 	pe_v14_register_numerals(libno);
 	pe_v14_register_upper_left(libno);
 	pe_v14_register_backlog();
+	pe_v14_register_checkbox(libno);
 #include "pe_v14_prelink.h"
 }
 
