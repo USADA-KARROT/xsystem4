@@ -75,6 +75,8 @@ PartsEngine dispatcher 為 `0x57b900`，跳表 `0x589714`。BeginInput 的 index
 | IN7 | v13 的兩次 Begin、一次 End 仍關閉 latch，維持舊行為 |
 | IN8 | manager reset 清除兩層深度，保留佇列與無關部件的腳本指定狀態；新的 Begin／End 不復活舊範圍 |
 
+> 2026-10-12 更新：元件的點擊改成放開時才送之後（`aa541a7`），IN1–IN6 與 IN8 的期望跟著改：點擊在放開時才有、全畫面點擊在前；開始或恢復外層時已經按著的左鍵（IN3、IN4）放開時只送全畫面點擊，不算點到元件。巢狀計數與取樣本身沒有變。見 [input-model](../input-model/README.md)。
+
 IN8 是在七個初版 case 之後補上的生命週期與狀態回歸檢查。IN7 預期舊版也通過，不應把 before-check 的「模式失敗」描述成每個 case 都必須失敗。IN6 不是完整 SceneContext.Join／WaitForClick 測試；完整巢狀 callback 由 GUI 驗證。
 
 既有 `third-review` 的 RV2／RV3 原本在 helper 先 EndInput，再檢查懸停。本組恢復原版 EndInput 清 hover 的語義後，這個觀察時機不再正確：呼叫端改為在輸入範圍內執行原有 hover／state assertions，最後才 EndInput。RV2 的遮擋元件移回按鈕、RV3 的目標移至空白處，各自在同一範圍連續測量，避免重設先清除舊懸停而掩蓋問題。所有原有 assertions 保留，Begin／End 仍成對。

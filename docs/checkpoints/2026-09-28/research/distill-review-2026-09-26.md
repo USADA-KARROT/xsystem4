@@ -212,6 +212,7 @@ wip 修改的既有檔（53 個）與上游同期修改的檔（55 個）交集 
 - **E3** `parts/message_window.c` + render.c 掛勾 + `PE_*MessageWindow*` / `src/parts/message_window.c`(242)、`render.c:114-141,614-633`、`include/parts.h:26-40` / 依賴 E2。
 - **E4** DOWN-transition click + whole-screen click + `g_EndPartsBusyLoop` global 寫入 / `src/parts/input.c:303-370` / 依賴 E2；global 寫入是 Dohna 專屬。
   > 2026-10-11 更新：這一項的後兩件已經改掉：全畫面點擊在放開時才送，引擎不再寫 `g_EndPartsBusyLoop`（`0a4cfdb`），見 [dialogue-fade](dialogue-fade/README.md)。
+  > 2026-10-12 更新：第一件也改掉了：元件自己的點擊在放開時才送，每次放開都先送全畫面點擊（`aa541a7`），見 [input-model](input-model/README.md)。
 - **E5** `PE_Update` 時間 fallback、`PE_Set/GetComponentType` v14 raw、`PE_SetPartsPixelDecide` / `src/parts/parts.c:1172-1188, 1990, 2059-2107` / 各自小；PE_Update fallback 依賴 F1（CASTimer 壞才需要）。
 - **E6** `pe_v14_activity.c` .pactex loader / 1170 行 / 依賴 E2、E3、C1。
 - **E7** `PartsEngine.c` +759 + `pe_v14_prelink.h`(594) + `pe_v14_stubs.h`(615) / 依賴 E2。兩個 header 是「讓遊戲不因 UNIMPL 中止」的 stub 表；上游慣例是 `HLL_TODO_EXPORT`/`HLL_WARN_UNIMPLEMENTED` 宏，需轉換。

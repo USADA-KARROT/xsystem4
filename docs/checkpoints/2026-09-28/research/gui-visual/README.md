@@ -30,6 +30,8 @@
 | 第三輪審查的修正（透過元件擋住按鈕、解構子黑名單、人材 → 返回 → 下一步的斷言） | `80db27d`：pactex loader 照原版讀 `オン指針透過`（`0x5547f4` → 元件 +0x1a5）；v14 懸停與點擊共用原版的輸入目標（`0x546890`／`0x545e10`／`0x546e20`：可點擊或不穿透游標的第一個命中元件，懸停只有一個目標）；刪除 v14 fork 依指令數把解構子永久列入黑名單的邏輯（巢狀解構讓 `CActivityWrap@1` 被略過，Footer 留在 `CUserComponentManager`） | 新模式 `third-review`：`7cb6ba3` 上 5/5 失敗，修正後全過；54 模式兩種組態 `VERDICT PASS`；格點比對在標題、鑑賞模式、據點、人材一覽、STATUS、環節選擇與 `ce5c75a` 的點擊規則 0 點不同；人材卡進 STATUS、標題色帶與環節卡小圖可點；人材 → 返回 → 下一步與春銷 Start 無黑名單與 Executer 斷言；150 秒 GUI MSG 88（對白不變）。系統選單／成就返回後輸入不再派送、春銷 Start 的 GetHGauge 斷言見 [base-ui.md](base-ui.md) §12.4 |
 | 開場 LOGO 光澤變成黃色光條（`logo-gloss.md`） | loader 讀中文版的 `描畫フィルタ`／`加算色`（GBK 鍵），CG 路徑沿用最近祖先的濾鏡；`SceneLogo` 的 `Light`（濾色）與標題背景三層的濾鏡因此生效 | Wine 逐幀：光澤只在深色部分、白底不留光條；標題背景配色與原版一致；新模式 `logo-gloss` |
 
+> 2026-10-12 更新：上表「據點審查的修正」一列的「停用按鈕吃掉點擊（不送 MouseClick 也不送全畫面點擊）」：元件的點擊改成放開時才送之後（`aa541a7`），停用按鈕仍不收自己的 MouseClick，但全畫面點擊每次放開都送。見 [input-model](../input-model/README.md)。
+
 ### 追蹤結果：站錯邊與不退場可能同源
 
 以臨時追蹤（未提交）跑 80 秒 GUI，`SetComponentReverseLR` 共收到 28 次呼叫，對象都是頂層元件（沒有父元件與子元件），型別為未初始化或組合型立繪（`PARTS_CONSTRUCTION_PROCESS`，繪製走 CG 路徑）。只有一組立繪收到「翻轉」，其餘 13 組都是「不翻轉」。

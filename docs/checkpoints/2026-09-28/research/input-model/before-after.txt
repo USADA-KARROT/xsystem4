@@ -1,0 +1,659 @@
+before 8a58add input-model (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: the press: 1 message(s): (4,18601,3,(150,140,1)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 0
+  FAIL: GetClickNumber after the press is 18601, want 0
+  FAIL: the release: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 2
+  FAIL: the first message is not the whole-screen click (4, 0, -1, (160,150,1))
+  FAIL: the second message is not the parts' own click (4, 18601, 3, (160,150,1))
+  FAIL: GetClickNumber after the next update is 18601, want 0
+  FAIL: GetClickNumber after a click beside everything is 18601
+  FAIL: the pressed blocker is in state 2, want the on-cursor state
+  IM1 the release sends the whole-screen click, then the pressed parts' own
+IM1 FAIL
+  FAIL: released off the parts: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 1
+  FAIL: the message is not the whole-screen click
+  FAIL: GetClickNumber after a release off the parts is 18601
+  FAIL: released on another parts: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 1
+  FAIL: the message is not the whole-screen click
+  FAIL: released back on the parts: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 2
+  FAIL: the second message is not the parts' own click
+  IM2 dragged off, the release is the whole-screen click alone; dragged back, a click
+IM2 FAIL
+  FAIL: GetActiveParts at a press beside everything is 18601, want 0
+  FAIL: GetActiveParts at a press on a blocker is 18601, want 18603
+  FAIL: GetActiveParts after the parts was released is 18601, want 0
+  IM3 GetActiveParts is the parts of the last press
+IM3 FAIL
+  FAIL: the left release after a right click: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 2
+  FAIL: want the whole-screen click and the parts' own, both with key 1
+  FAIL: the left release while the middle button is held: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 2
+  FAIL: want the whole-screen click and the parts' own, both with key 1
+  FAIL: left and right released together: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 2
+  FAIL: want the whole-screen click and the parts' own, both with key 1
+  IM4 the right and the middle button do nothing to the parts' input
+IM4 FAIL
+  FAIL: the release of a button held at BeginInput: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 1
+  FAIL: the message is not the whole-screen click
+  FAIL: a click on a disabled button: 0 message(s): (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 1
+  FAIL: the message is not the whole-screen click alone
+  FAIL: system.Peek pressed the parts (state 2)
+  FAIL: system.PeekAll queued a message of type 4
+  FAIL: the update after a click seen by system.Peek alone: 1 message(s): (4,18601,3,(150,140,1)) (-1,-1,-2,(0,0,0)) (-1,-1,-2,(0,0,0)); want 0
+  FAIL: a click seen by system.Peek alone: GetClickNumber 18601, GetActiveParts 18601
+  IM5 a button held at BeginInput, a disabled button and system.Peek
+IM5 FAIL
+  IM6 v13 unchanged
+IM6 ok
+  FAIL: the scene's button got its click at update 0, want 2 (the release)
+  FAIL: the button is still down when the scene ends
+  FAIL: back in the wait: 0 message(s) and 1 click(s) of the script's CASClick; want none
+  IM7 a scene's button ends the scene with the button up
+IM7 FAIL
+INPUT-MODEL FAIL: 6 of 7 cases failed
+
+before 8a58add input-model (XS4_PROBE_GBK=1)
+INPUT-MODEL FAIL: 6 of 7 cases failed
+
+before 8a58add click-permission (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CP1 pactex 點擊許可: ok
+  FAIL: ClickTarget: 1 messages (1 by the press): (type 4 parts 900002 delegate 7 unique 70 (600,340,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (600,340,1)), then the MouseClick of parts ClickTarget, 0
+  FAIL: the press on ClickTarget carries delegate -2 unique -2, want 7, 70
+  FAIL: the footer button above ClickTarget: 1 messages (1 by the press): (type 4 parts 9932 delegate -1 unique 0 (100,676,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (100,676,1)), then the MouseClick of parts the footer button above Click
+  FAIL: ClickGuard, which has no event: 1 messages (0 by the press): (type 4 parts 0 delegate -1 unique -1 (600,340,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (600,340,1)), then the MouseClick of parts ClickGuard, which has no event, 0
+  FAIL: the click on ClickGuard carries delegate -2, want -1 (no event)
+  FAIL: the button once both are hidden: 1 messages (1 by the press): (type 4 parts 9931 delegate -1 unique 0 (600,340,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (600,340,1)), then the MouseClick of parts the button once both are hidden,
+CP2 ClickTarget over ClickGuard: FAIL
+CP2 FAILED (exit 1)
+  FAIL: Area, alpha 1 in the box: 1 messages (1 by the press): (type 4 parts 900001 delegate 7 unique 70 (878,300,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (878,300,1)), then the MouseClick of parts Area, alpha 1 in the box, 0
+  FAIL: Area, alpha 1 in the name's box: 1 messages (1 by the press): (type 4 parts 900001 delegate 7 unique 70 (840,270,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (840,270,1)), then the MouseClick of parts Area, alpha 1 in the name's box
+  FAIL: the button behind Area, through alpha 0: 1 messages (1 by the press): (type 4 parts 9961 delegate -1 unique 0 (810,320,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (810,320,1)), then the MouseClick of parts the button behind Area, t
+  FAIL: the button behind AreaOff, through alpha 0: 1 messages (1 by the press): (type 4 parts 9962 delegate -1 unique 0 (310,320,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (310,320,1)), then the MouseClick of parts the button behind Area
+  FAIL: the Left panel: 1 messages (1 by the press): (type 4 parts 900003 delegate 8 unique 80 (40,360,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (40,360,1)), then the MouseClick of parts the Left panel, 0
+CP3 Area and side panel: FAIL
+CP3 FAILED (exit 1)
+  FAIL: ButtonNone: 1 messages (1 by the press): (type 4 parts 900001 delegate -1 unique 0 (1150,45,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (1150,45,1)), then the MouseClick of parts ButtonNone, 0
+  FAIL: Button0: 1 messages (1 by the press): (type 4 parts 900002 delegate -1 unique 0 (1150,145,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (1150,145,1)), then the MouseClick of parts Button0, 0
+  FAIL: DetectorNone: 1 messages (1 by the press): (type 4 parts 900003 delegate -1 unique 0 (1150,245,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (1150,245,1)), then the MouseClick of parts DetectorNone, 0
+  FAIL: Detector1: 1 messages (1 by the press): (type 4 parts 900004 delegate -1 unique 0 (1150,345,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (1150,345,1)), then the MouseClick of parts Detector1, 0
+  FAIL: ButtonNone: 0 messages (0 by the press; first type -1 parts -1), g_EndPartsBusyLoop 0; want the whole-screen click alone and 0
+  FAIL: ButtonNone: 1 messages (1 by the press): (type 4 parts 900001 delegate -1 unique 0 (1150,45,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (1150,45,1)), then the MouseClick of parts ButtonNone, 0
+  FAIL: Button0: 0 messages (0 by the press; first type -1 parts -1), g_EndPartsBusyLoop 0; want the whole-screen click alone and 0
+  FAIL: Button0: 1 messages (1 by the press): (type 4 parts 900002 delegate -1 unique 0 (1150,145,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (1150,145,1)), then the MouseClick of parts Button0, 0
+  FAIL: the button behind a pass-through decoration: 1 messages (1 by the press): (type 4 parts 9944 delegate -1 unique 0 (750,490,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (750,490,1)), then the MouseClick of parts the button behind a p
+CP4 guards: FAIL
+CP4 FAILED (exit 1)
+  FAIL: Target after loading: 1 messages (1 by the press): (type 4 parts 900001 delegate 7 unique 0 (250,200,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (250,200,1)), then the MouseClick of parts Target after loading, 0
+  FAIL: the press on Target after loading carries delegate -2, want 7
+CP5 save and load: FAIL
+CP5 FAILED (exit 1)
+  FAIL: Button, which has no event: 1 messages (0 by the press): (type 4 parts 0 delegate -1 unique -1 (700,290,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (700,290,1)), then the MouseClick of parts Button, which has no event, 0
+  FAIL: the click on Button carries delegate -2, want -1 (no event)
+  FAIL: a marked parts with an event: 1 messages (1 by the press): (type 4 parts 900003 delegate 5 unique 50 (200,290,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (200,290,1)), then the MouseClick of parts a marked parts with an event, 0
+  FAIL: its click carries delegate -2 unique -2, want 5, 50
+  FAIL: a parts made clickable by the script: 1 messages (1 by the press): (type 4 parts 900004 delegate -1 unique 0 (700,420,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (700,420,1)), then the MouseClick of parts a parts made clickable by
+  FAIL: Button after Parts_SetClickable(true): 1 messages (1 by the press): (type 4 parts 900002 delegate -1 unique 0 (700,290,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (700,290,1)), then the MouseClick of parts Button after Parts_SetCli
+  FAIL: a marked parts disabled as a button: 0 messages (0 by the press; first type -1 parts -1), g_EndPartsBusyLoop 0; want the whole-screen click alone and 0
+CP6 closing on the whole-screen click: FAIL
+CP6 FAILED (exit 1)
+CLICK-PERMISSION FAIL: 5 of 6 cases failed
+
+before 8a58add click-permission (XS4_PROBE_GBK=1)
+CLICK-PERMISSION FAIL: 5 of 6 cases failed
+
+before 8a58add base-ui-review (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: enabled button: 1 messages, last type 4 parts 9802; want 2, 4, 9802
+  FAIL: disabled button: 0 messages (last type -1 parts -1), g_EndPartsBusyLoop 0; want the whole-screen click alone and 0
+  FAIL: re-enabled button: 1 messages, last type 4 parts 9801; want 2, 4, 9801
+BR1 disabled button: FAIL
+BR1 FAILED (exit 1)
+  FAIL: detector click: 1 messages, last type 4 parts 9811; want 2, 4, 9811
+BR2 detector click: FAIL
+BR2 FAILED (exit 1)
+BR3 two-slot At/First/Last: ok
+BR4 two-slot First(pred)/EraseAll/Concat/Reverse/Insert: ok
+BR5 AnimateText@AdjustPos: ok
+BR6 rect/construction states: ok
+BR7 exits wait for the screenshot write: ok
+BASE-UI-REVIEW FAIL: 2 of 7 cases failed
+
+before 8a58add base-ui-review (XS4_PROBE_GBK=1)
+BASE-UI-REVIEW FAIL: 2 of 7 cases failed
+
+before 8a58add config-widgets (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+W1 checked
+W2 checked
+  FAIL: W3 a box loaded disabled: the whole-screen click alone: 0 message(s):; want 1: (4, 0, 110)
+  FAIL: W3 a click on a disabled box: the whole-screen click alone: 0 message(s):; want 1: (4, 0, 110)
+W3 checked
+W3 FAILED (exit 1)
+  FAIL: W4: the release did not check the box
+  FAIL: W4 a press and its release: 1 message(s): (4, 900001, 110); want 3: (4, 0, 110) (4, 900001, 110) (23, 900001, 1)
+  FAIL: W4 the update after a click: 1 message(s), the first of type 23 for parts 900001; want none
+  FAIL: W4 a click: 2 message(s): (4, 900001, 110) (23, 900001, 0); want 3: (4, 0, 110) (4, 900001, 110) (23, 900001, 0)
+  FAIL: W4 a click: 2 message(s): (4, 900001, 110) (23, 900001, 1); want 3: (4, 0, 110) (4, 900001, 110) (23, 900001, 1)
+  FAIL: W4 a second click: 2 message(s): (4, 900001, 122) (23, 900001, 0); want 3: (4, 0, 122) (4, 900001, 122) (23, 900001, 0)
+  FAIL: W4 a click on the caption: 2 message(s): (4, 900002, 380) (23, 900002, 1); want 3: (4, 0, 380) (4, 900002, 380) (23, 900002, 1)
+  FAIL: W4: the press under PE_Update checked the box before the release
+  FAIL: W4 held: the pictures of the value it has, state 1 (0,0) = (76,10,10,255), want (20,10,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 1 (1,0) = (76,19,10,255), want (20,19,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 1 (2,0) = (76,28,10,255), want (20,28,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 2 (0,0) = (90,10,10,255), want (34,10,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 2 (1,0) = (90,19,10,255), want (34,19,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 2 (2,0) = (90,28,10,255), want (34,28,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 3 (0,0) = (104,10,10,255), want (48,10,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 3 (1,0) = (104,19,10,255), want (48,19,10,255)
+  FAIL: W4 held: the pictures of the value it has, state 3 (2,0) = (104,28,10,255), want (48,28,10,255)
+  FAIL: W4 the click under PE_Update: 2 message(s): (4, 900001, 110) (23, 900001, 1); want 3: (4, 0, 110) (4, 900001, 110) (23, 900001, 1)
+W4 checked
+W4 FAILED (exit 1)
+  FAIL: W5 the frame of the press: 0 and 0.5, want 1 and 0.5
+  FAIL: W5 the frame of the press: 2 message(s), the first of type 4 for parts 900001; want none
+  FAIL: W5 the frame of the release: 0 message(s):; want 3: (4, 0, 110) (4, 900001, 110) (23, 900001, 0)
+  FAIL: W5: a press seen by system.Peek alone changed the box (0) or its state (2)
+  FAIL: W5 a click seen by system.Peek alone: 1 message(s), the first of type 4 for parts 900001; want none
+  FAIL: W5 after a click seen by system.Peek alone: 1, want 0
+  FAIL: W5 after a click seen by system.Peek alone: 1 message(s), the first of type 23 for parts 900001; want none
+  FAIL: W5 the box after a click seen by system.Peek alone, state 1 (0,0) = (76,10,10,255), want (20,10,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 1 (1,0) = (76,19,10,255), want (20,19,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 1 (2,0) = (76,28,10,255), want (20,28,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 2 (0,0) = (90,10,10,255), want (34,10,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 2 (1,0) = (90,19,10,255), want (34,19,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 2 (2,0) = (90,28,10,255), want (34,28,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 3 (0,0) = (104,10,10,255), want (48,10,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 3 (1,0) = (104,19,10,255), want (48,19,10,255)
+  FAIL: W5 the box after a click seen by system.Peek alone, state 3 (2,0) = (104,28,10,255), want (48,28,10,255)
+W5 checked
+W5 FAILED (exit 1)
+  FAIL: W6 a click on B: 3 message(s): (4, 900004, 210) (23, 900003, 0) (23, 900004, 1); want 4: (4, 0, 210) (4, 900004, 210) (23, 900003, 0) (23, 900004, 1)
+  FAIL: W6 a click on the checked B: 2 message(s): (4, 900004, 210) (23, 900004, 1); want 3: (4, 0, 210) (4, 900004, 210) (23, 900004, 1)
+  FAIL: W6 a click on A: 4 message(s): (4, 900003, 110) (22, 900001, 0) (23, 900005, 0) (23, 900003, 1); want 5: (4, 0, 110) (4, 900003, 110) (22, 900001, 0) (23, 900005, 0) (23, 900003, 1)
+  FAIL: W6 a click on the checked A: 2 message(s): (4, 900003, 110) (23, 900003, 1); want 3: (4, 0, 110) (4, 900003, 110) (23, 900003, 1)
+  FAIL: W6 a click on a box of no group: 2 message(s): (4, 900006, 410) (23, 900006, 1); want 3: (4, 0, 410) (4, 900006, 410) (23, 900006, 1)
+  FAIL: W6 a click on C while A is disabled: 3 message(s): (4, 900005, 310) (22, 900001, 0) (23, 900005, 1); want 4: (4, 0, 310) (4, 900005, 310) (22, 900001, 0) (23, 900005, 1)
+  FAIL: W6 a click on B once A is gone: 4 message(s): (4, 900004, 210) (22, 900001, 0) (23, 900005, 0) (23, 900004, 1); want 5: (4, 0, 210) (4, 900004, 210) (22, 900001, 0) (23, 900005, 0) (23, 900004, 1)
+  FAIL: W6 a click on C once the radio box is gone: 2 message(s): (4, 900005, 310) (23, 900005, 1); want 3: (4, 0, 310) (4, 900005, 310) (23, 900005, 1)
+W6 checked
+W6 FAILED (exit 1)
+W7 checked
+W8 checked
+W9 checked
+W10 checked
+W11 checked
+W12 checked
+  FAIL: W13 released off the box: 1 message(s): (4, 900001, 110); want 1: (4, 0, 600)
+  FAIL: W13 released back on the box: checked 0, state 1; want 1 and the on-cursor state
+  FAIL: W13 released back on the box: 1 message(s): (4, 900001, 110); want 3: (4, 0, 110) (4, 900001, 110) (23, 900001, 1)
+  FAIL: W13 the box released before the button: 1 message(s): (4, 900001, 110); want 1: (4, 0, 110)
+  FAIL: W13 the box disabled before the release: 1 message(s): (4, 900002, 310); want 1: (4, 0, 310)
+  FAIL: W13: nine clicks sent 19 message(s), want 9 whole-screen clicks, 9 MouseClick and 9 ChangedFlg
+  FAIL: W13: nine clicks left the box unchecked
+W13 checked
+W13 FAILED (exit 1)
+CONFIG-WIDGETS FAIL: 5 of 13 cases failed
+
+before 8a58add config-widgets (XS4_PROBE_GBK=1)
+CONFIG-WIDGETS FAIL: 5 of 13 cases failed
+
+before 8a58add dialogue-fade (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DF1 PASS
+DF2 PASS
+DF3 PASS
+DF4 PASS
+DF5 PASS
+DF6 sample100 helper=0.5,0 global=128 chars=2
+DF6 PASS
+DF7 PASS
+DF8 PASS
+DF9 PASS
+DF10 PASS
+DF11 PASS
+DF12 PASS
+DF13 PASS
+  FAIL: the release of a press from before the wait queued 0 message(s) (parts -1), g_EndPartsBusyLoop 0; want the whole-screen click and 0
+  FAIL: a press on a clickable parts queued 1 message(s), first type 4 parts 9820; want none
+  FAIL: its release queued 0 message(s), first type -1 parts -1, last parts -1; want 2, 4, 0 (the whole-screen click), 9820
+  FAIL: a scope opened while the button was down: 0 and 0 message(s) (parts -1); want 0 and the whole-screen click
+  FAIL: an inner scope ended while the button was down: 0 and 0 message(s) (parts -1) for the outer one; want 0 and the whole-screen click
+DF14 FAIL
+DF15 PASS
+DF16 PASS
+DIALOGUE-FADE FAIL: 1 of 16 cases failed
+
+before 8a58add dialogue-fade (XS4_PROBE_GBK=1)
+DIALOGUE-FADE FAIL: 1 of 16 cases failed
+
+before 8a58add input-nesting (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: inner scope: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: outer scope after inner EndInput: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN1 nested HLL scope returns input to its caller
+IN1 FAIL
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: depth three: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: depth two after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: depth one after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: fresh scope after unmatched EndInput: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN2 three levels, depth zero and unmatched EndInput checked
+IN2 FAIL
+  FAIL: the button held at the outer BeginInput released: messages=0 first=(-1,-1) last=(-1,-1), want count=1 first=(4,0) last type=4 parts=0
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real click after outer begin: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: the button held at the nested BeginInput released: messages=0 first=(-1,-1) last=(-1,-1), want count=1 first=(4,0) last type=4 parts=0
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real click after nested begin: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN3 outer/nested BeginInput snapshot held buttons without ghost DOWN
+IN3 FAIL
+  FAIL: the button held across the inner EndInput released: messages=0 first=(-1,-1) last=(-1,-1), want count=1 first=(4,0) last type=4 parts=0
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: parent gets a subsequent fresh press: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN4 inner EndInput snapshots held buttons while restoring parent input
+IN4 FAIL
+  FAIL: a press alone recorded a click number
+  FAIL: the click number outlived the update of the release
+  FAIL: the outer click: messages=1 first=(4,18501) last=(4,18501), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: queued parent message survives nested BeginInput: messages=1 first=(4,18501) last=(4,18501), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: inner click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: queued child message survives EndInput: messages=2 first=(4,18501) last=(4,18501), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: the child's press released in the parent: messages=0 first=(-1,-1) last=(-1,-1), want count=1 first=(4,0) last type=4 parts=0
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: parent new click after child state was cleared: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN5 Begin/End clear stale click state, preserve queued messages and accept new clicks
+IN5 FAIL
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper child click: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: real wrapper parent click after return: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN6 unchanged AIN wrappers survive eight open/return cycles
+IN6 FAIL
+  IN7 v13 Begin/End retain their non-nested latch contract
+IN7 ok
+  FAIL: session reset preserves an already queued HLL message: messages=1 first=(4,18501) last=(4,18501), want count=2 first=(4,0) last type=4 parts=18501
+  FAIL: a press queues nothing: messages=1 first=(4,18501) last=(4,18501), want count=0 parts=0
+  FAIL: another fresh scope still works after reset: messages=0 first=(-1,-1) last=(-1,-1), want count=2 first=(4,0) last type=4 parts=18501
+  IN8 manager reset discards nesting, preserves queue/manual state and starts afresh
+IN8 FAIL
+INPUT-NESTING FAIL: 7 of 8 cases failed
+
+before 8a58add input-nesting (XS4_PROBE_GBK=1)
+INPUT-NESTING FAIL: 7 of 8 cases failed
+
+before 8a58add construction (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CN1 count label base: ok
+CN2 sectors: ok
+CN3 fills: ok
+CN4 unbuilt states: ok
+CN5 empty step list: ok
+CN6 save and load: ok
+CN7 layout and cursor: ok
+  FAIL: CN8 click under the hidden masks: 1 messages, last type 4 parts 9901; want 2, 4, 9901
+  FAIL: CN8 click after loading: 1 messages, last type 4 parts 9901; want 2, 4, 9901
+CN8 hidden in the editor: FAIL
+CN8 FAILED (exit 1)
+CONSTRUCTION FAIL: 1 of 8 cases failed
+
+before 8a58add construction (XS4_PROBE_GBK=1)
+CONSTRUCTION FAIL: 1 of 8 cases failed
+
+before 8a58add controller-id (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CI1 AFL_Parts_AddTopLayer: ok
+CI2 CASPartsLayer: ok
+CI3 backlog shape: ok
+CI4 insert in the middle: ok
+CI5 erase a middle layer: ok
+CI6 erase the active layer: ok
+CI7 AddLayer(-1) above the active layer: ok
+CI8 SetActiveLayer with a missing ID: ok
+CI9 EraseLayer edges: ok
+CI10 queries and MoveLayer: ok
+CI11 save and load: ok
+  FAIL: click with B on top: 1 messages, last type 4 parts 19602; want 2, 4, 19602
+  FAIL: click after moving A on top: 1 messages, last type 4 parts 19601; want 2, 4, 19601
+  FAIL: click with a new layer at the bottom: 1 messages, last type 4 parts 19601; want 2, 4, 19601
+  FAIL: click with only the inserted layer left: 1 messages, last type 4 parts 19603; want 2, 4, 19603
+CI12 hit order: FAIL
+CI12 FAILED (exit 1)
+CI13 system overlay: ok
+  CI14 pushed-only save (as written): 338 words
+  CI14 pushed-only save: 337 words, hash 70d03dca
+CI14 push and pop as before: ok
+  CI15 legacy save: 303 words, hash 2a9865ba
+CI15 engines before v14: ok
+CONTROLLER-ID FAIL: 1 of 15 cases failed
+
+before 8a58add controller-id (XS4_PROBE_GBK=1)
+CONTROLLER-ID FAIL: 1 of 15 cases failed
+
+before 8a58add free-box (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FB1 user components: ok
+FB2 direct children only: ok
+FB3 a free box's own origin mode: ok
+FB4 the offset follows the size: ok
+FB5 a box below sets the size: ok
+FB6 user components in boxes: ok
+FB7 v13 unchanged: ok
+FB8 save and load: ok
+  FAIL: click at (1100,40): 1 messages, last type 4 parts 900003; want 2, 4, 900003
+FB9 the cursor follows: FAIL
+FB9 FAILED (exit 1)
+FB10 when the mode is passed on: ok
+FB11 scaled and mirrored: ok
+FB12 sizes through other layers: ok
+FREE-BOX FAIL: 1 of 12 cases failed
+
+before 8a58add free-box (XS4_PROBE_GBK=1)
+FREE-BOX FAIL: 1 of 12 cases failed
+
+before 8a58add panel (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+  FAIL: PN3 Area, alpha 1 in the box: 1 messages (1 by the press): (type 4 parts 900001 delegate 7 unique 70 (878,300,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (878,300,1)), then the MouseClick of parts PN3 Area, alpha 1 in the box, 0
+  FAIL: PN3 Area, alpha 1 in the name's box: 1 messages (1 by the press): (type 4 parts 900001 delegate 7 unique 70 (840,270,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (840,270,1)), then the MouseClick of parts PN3 Area, alpha 1 in the na
+  FAIL: PN3 the button behind Area, through alpha 0: 1 messages (1 by the press): (type 4 parts 9961 delegate -1 unique 0 (810,320,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (810,320,1)), then the MouseClick of parts PN3 the button behind
+  FAIL: PN3 the button behind Area, through its corner: 1 messages (1 by the press): (type 4 parts 9961 delegate -1 unique 0 (950,255,1)), (type -1 parts -1 (0,0,0)), g_EndPartsBusyLoop 0; want 2 (0): the whole-screen click (4, 0, -1, -1, (950,255,1)), then the MouseClick of parts PN3 the button beh
+PN3 the script's command 6: FAIL
+PN3 FAILED (exit 1)
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+PN9 alpha gradations from a pactex: ok
+PN10 alpha gradation calls: ok
+PN11 alpha gradations saved and loaded: ok
+PANEL FAIL: 1 of 11 cases failed
+
+before 8a58add panel (XS4_PROBE_GBK=1)
+PANEL FAIL: 1 of 11 cases failed
+
+before 8a58add third-review (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+RV1 pactex オン指針透過: ok
+  FAIL: button behind a pass-through decoration: 1 messages, last type 4 parts 9961; want 2, 4, 9961
+RV2 pass-through decorations: FAIL
+RV2 FAILED (exit 1)
+  FAIL: click: 1 messages, last type 4 parts 9971; want 2, 4, 9971
+RV3 one hover target: FAIL
+RV3 FAILED (exit 1)
+RV4 long nested teardown: ok
+RV5 activity wrap after a long teardown: ok
+THIRD-REVIEW FAIL: 2 of 5 cases failed
+
+before 8a58add third-review (XS4_PROBE_GBK=1)
+THIRD-REVIEW FAIL: 2 of 5 cases failed
+
+before 8a58add title-review (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+TR1 weak delegate target: ok
+TR2 nested destruction: ok
+TR3 erase lists hold delegate indices: ok
+TR4 A_REF copies arrays: ok
+  FAIL: system blocker: 1 messages, last type 4 parts 1000001500; want 2, 4, 1000001500
+  FAIL: cursor-passing parts: 1 messages, last type 4 parts 9901; want 2, 4, 9901
+TR5 click targets: FAIL
+TR5 FAILED (exit 1)
+TR6 empty hover state: ok
+TR7 CParts teardown: ok
+TITLE-REVIEW FAIL: 1 of 7 cases failed
+
+before 8a58add title-review (XS4_PROBE_GBK=1)
+TITLE-REVIEW FAIL: 1 of 7 cases failed
+
+after input-model at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  IM1 the release sends the whole-screen click, then the pressed parts' own
+IM1 ok
+  IM2 dragged off, the release is the whole-screen click alone; dragged back, a click
+IM2 ok
+  IM3 GetActiveParts is the parts of the last press
+IM3 ok
+  IM4 the right and the middle button do nothing to the parts' input
+IM4 ok
+  IM5 a button held at BeginInput, a disabled button and system.Peek
+IM5 ok
+  IM6 v13 unchanged
+IM6 ok
+  IM7 a scene's button ends the scene with the button up
+IM7 ok
+INPUT-MODEL PASS: 0 of 7 cases failed
+
+after input-model (XS4_PROBE_GBK=1)
+INPUT-MODEL PASS: 0 of 7 cases failed
+
+after click-permission at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CP1 pactex 點擊許可: ok
+CP2 ClickTarget over ClickGuard: ok
+CP3 Area and side panel: ok
+CP4 guards: ok
+CP5 save and load: ok
+CP6 closing on the whole-screen click: ok
+CLICK-PERMISSION PASS: 0 of 6 cases failed
+
+after click-permission (XS4_PROBE_GBK=1)
+CLICK-PERMISSION PASS: 0 of 6 cases failed
+
+after base-ui-review at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BR1 disabled button: ok
+BR2 detector click: ok
+BR3 two-slot At/First/Last: ok
+BR4 two-slot First(pred)/EraseAll/Concat/Reverse/Insert: ok
+BR5 AnimateText@AdjustPos: ok
+BR6 rect/construction states: ok
+BR7 exits wait for the screenshot write: ok
+BASE-UI-REVIEW PASS: 0 of 7 cases failed
+
+after base-ui-review (XS4_PROBE_GBK=1)
+BASE-UI-REVIEW PASS: 0 of 7 cases failed
+
+after config-widgets at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+W1 checked
+W2 checked
+W3 checked
+W4 checked
+W5 checked
+W6 checked
+W7 checked
+W8 checked
+W9 checked
+W10 checked
+W11 checked
+W12 checked
+W13 checked
+CONFIG-WIDGETS PASS: 0 of 13 cases failed
+
+after config-widgets (XS4_PROBE_GBK=1)
+CONFIG-WIDGETS PASS: 0 of 13 cases failed
+
+after dialogue-fade at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DF1 PASS
+DF2 PASS
+DF3 PASS
+DF4 PASS
+DF5 PASS
+DF6 sample100 helper=0.5,0 global=128 chars=2
+DF6 PASS
+DF7 PASS
+DF8 PASS
+DF9 PASS
+DF10 PASS
+DF11 PASS
+DF12 PASS
+DF13 PASS
+DF14 PASS
+DF15 PASS
+DF16 PASS
+DIALOGUE-FADE PASS: 0 of 16 cases failed
+
+after dialogue-fade (XS4_PROBE_GBK=1)
+DIALOGUE-FADE PASS: 0 of 16 cases failed
+
+after input-nesting at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  IN1 nested HLL scope returns input to its caller
+IN1 ok
+  IN2 three levels, depth zero and unmatched EndInput checked
+IN2 ok
+  IN3 outer/nested BeginInput snapshot held buttons without ghost DOWN
+IN3 ok
+  IN4 inner EndInput snapshots held buttons while restoring parent input
+IN4 ok
+  IN5 Begin/End clear stale click state, preserve queued messages and accept new clicks
+IN5 ok
+  IN6 unchanged AIN wrappers survive eight open/return cycles
+IN6 ok
+  IN7 v13 Begin/End retain their non-nested latch contract
+IN7 ok
+  IN8 manager reset discards nesting, preserves queue/manual state and starts afresh
+IN8 ok
+INPUT-NESTING PASS: 0 of 8 cases failed
+
+after input-nesting (XS4_PROBE_GBK=1)
+INPUT-NESTING PASS: 0 of 8 cases failed
+
+after construction at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CN1 count label base: ok
+CN2 sectors: ok
+CN3 fills: ok
+CN4 unbuilt states: ok
+CN5 empty step list: ok
+CN6 save and load: ok
+CN7 layout and cursor: ok
+CN8 hidden in the editor: ok
+CONSTRUCTION PASS: 0 of 8 cases failed
+
+after construction (XS4_PROBE_GBK=1)
+CONSTRUCTION PASS: 0 of 8 cases failed
+
+after controller-id at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CI1 AFL_Parts_AddTopLayer: ok
+CI2 CASPartsLayer: ok
+CI3 backlog shape: ok
+CI4 insert in the middle: ok
+CI5 erase a middle layer: ok
+CI6 erase the active layer: ok
+CI7 AddLayer(-1) above the active layer: ok
+CI8 SetActiveLayer with a missing ID: ok
+CI9 EraseLayer edges: ok
+CI10 queries and MoveLayer: ok
+CI11 save and load: ok
+CI12 hit order: ok
+CI13 system overlay: ok
+  CI14 pushed-only save (as written): 338 words
+  CI14 pushed-only save: 337 words, hash 70d03dca
+CI14 push and pop as before: ok
+  CI15 legacy save: 303 words, hash 2a9865ba
+CI15 engines before v14: ok
+CONTROLLER-ID PASS: 0 of 15 cases failed
+
+after controller-id (XS4_PROBE_GBK=1)
+CONTROLLER-ID PASS: 0 of 15 cases failed
+
+after free-box at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+FB1 user components: ok
+FB2 direct children only: ok
+FB3 a free box's own origin mode: ok
+FB4 the offset follows the size: ok
+FB5 a box below sets the size: ok
+FB6 user components in boxes: ok
+FB7 v13 unchanged: ok
+FB8 save and load: ok
+FB9 the cursor follows: ok
+FB10 when the mode is passed on: ok
+FB11 scaled and mirrored: ok
+FB12 sizes through other layers: ok
+FREE-BOX PASS: 0 of 12 cases failed
+
+after free-box (XS4_PROBE_GBK=1)
+FREE-BOX PASS: 0 of 12 cases failed
+
+after panel at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+PN1 panels from a pactex: ok
+PN2 panel calls: ok
+PN3 the script's command 6: ok
+PN4 the rectangle of the script's fills: ok
+PN5 the font of the text commands: ok
+PN6 the other commands: ok
+PN7 save and load: ok
+PN8 guards: ok
+PN9 alpha gradations from a pactex: ok
+PN10 alpha gradation calls: ok
+PN11 alpha gradations saved and loaded: ok
+PANEL PASS: 0 of 11 cases failed
+
+after panel (XS4_PROBE_GBK=1)
+PANEL PASS: 0 of 11 cases failed
+
+after third-review at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+RV1 pactex オン指針透過: ok
+RV2 pass-through decorations: ok
+RV3 one hover target: ok
+RV4 long nested teardown: ok
+RV5 activity wrap after a long teardown: ok
+THIRD-REVIEW PASS: 0 of 5 cases failed
+
+after third-review (XS4_PROBE_GBK=1)
+THIRD-REVIEW PASS: 0 of 5 cases failed
+
+after title-review at aa541a7 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+TR1 weak delegate target: ok
+TR2 nested destruction: ok
+TR3 erase lists hold delegate indices: ok
+TR4 A_REF copies arrays: ok
+TR5 click targets: ok
+TR6 empty hover state: ok
+TR7 CParts teardown: ok
+TITLE-REVIEW PASS: 0 of 7 cases failed
+
+after title-review (XS4_PROBE_GBK=1)
+TITLE-REVIEW PASS: 0 of 7 cases failed
