@@ -100,8 +100,8 @@
  * PN6 and PN8 pass before the fix. So do the pixels, sizes and operations of
  * PN1's opaque panels; their getters returned 0 there.
  *
- * PN3's four presses are checked against xsystem4's present dispatch, like
- * click-permission's (see that file): they change with it.
+ * PN3's four presses are checked by click-permission's cp_expect_press (see
+ * that file): the whole-screen click first, then the target's own.
  *
  * アルファグラデーション (2026-10-11; before, a panel's surface was flat and
  * the eight functions were empty):

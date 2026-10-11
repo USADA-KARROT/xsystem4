@@ -658,22 +658,24 @@ static void ci_hit_order(void)
 	ci_part(CI_PA);
 	int b = ci_add(-1);
 	ci_part(CI_PB);				/* the same rectangle, a layer above */
+	/* Each release queues the whole-screen click and then the click of the
+	 * parts on top (br_click returns the count and the last message). */
 	int n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 1 && type == 4 && no == CI_PB, "click with B on top: %d messages, type %d parts %d; want 1, 4, %d",
+	CI_CHECK(n == 2 && type == 4 && no == CI_PB, "click with B on top: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PB);
 	ci_move(a, 99);
 	n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 1 && type == 4 && no == CI_PA, "click after moving A on top: %d messages, type %d parts %d; want 1, 4, %d",
+	CI_CHECK(n == 2 && type == 4 && no == CI_PA, "click after moving A on top: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PA);
 	int c = ci_add(CI_ID(0));			/* [0, c, b, a] */
 	ci_part(CI_PC);
 	n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 1 && type == 4 && no == CI_PA, "click with a new layer at the bottom: %d messages, type %d parts %d; want 1, 4, %d",
+	CI_CHECK(n == 2 && type == 4 && no == CI_PA, "click with a new layer at the bottom: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PA);
 	ci_erase(a);
 	ci_erase(b);
 	n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 1 && type == 4 && no == CI_PC, "click with only the inserted layer left: %d messages, type %d parts %d; want 1, 4, %d",
+	CI_CHECK(n == 2 && type == 4 && no == CI_PC, "click with only the inserted layer left: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PC);
 	(void)c;
 	printf("CI12 hit order: %s\n", ci_failures ? "FAIL" : "ok");

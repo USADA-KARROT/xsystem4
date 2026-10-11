@@ -261,6 +261,7 @@ bool PE_SetClickMissSoundNumber(int sound_no);
 void PE_BeginInput(void);
 void PE_EndInput(void);
 int PE_GetClickPartsNumber(void);
+int PE_GetActivePartsNumber(void);
 bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state);
 
 // message.c

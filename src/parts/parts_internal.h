@@ -633,11 +633,6 @@ struct parts {
 	int delegate_index;
 	int sprite_deform;
 	bool clickable;
-	// v14: clickable only because its pactex says 點擊許可 1. The loader sets
-	// it after PE_SetClickable, which clears it: the script, a button or a
-	// ＣＧ判定部件 then owns the flag. Without an event such a parts leaves a
-	// press as the whole-screen click (v14_click_unclaimed). Not saved.
-	bool click_permission_only;
 	bool pass_cursor;
 	bool pixel_hittest;
 	bool lock_input_state;
@@ -887,8 +882,6 @@ void parts_checkbox_rebuild(struct parts *parts);
 void parts_checkbox_update(void);
 void parts_checkbox_set_checked(struct parts *parts, bool checked);
 void parts_checkbox_set_enable(struct parts *parts, bool enable);
-void parts_checkbox_clicked(struct parts *parts);
-void parts_checkbox_reset_clicks(void);
 void parts_radio_box_add(struct parts *box, int child);
 
 // text.c
@@ -919,7 +912,7 @@ void parts_add_motion(struct parts *parts, struct parts_motion *motion);
 // input.c
 extern bool parts_began_click;
 void parts_reset_input(void);
-void parts_input_reset_drag(struct parts *parts);
+void parts_input_release(struct parts *parts);
 bool parts_screen_to_box(struct parts *parts, struct parts_common *common, float sx, float sy,
 		float *bx, float *by);
 

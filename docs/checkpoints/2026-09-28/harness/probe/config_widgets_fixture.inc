@@ -496,8 +496,8 @@ static void cw_expect_scroll(const char *what, int no, int pos, int max)
 }
 
 /* The left button pressed at (x, y) after a released frame, and released
- * again, as the input sees it outside an update of the parts (system.Peek).
- * The messages stay queued. */
+ * again, by three input updates within an input scope. The messages stay
+ * queued. */
 static void cw_press(int x, int y)
 {
 	extern bool key_state[];
@@ -729,7 +729,7 @@ static void cw_values(void)
 	cw_click(110, 410);
 	cw_check(dis, false);
 	CW_CHECK(cw_checked(dis), "W3: the box loaded disabled was unchecked");
-	cw_expect_quiet("W3 a box loaded disabled");
+	CW_MESSAGES("W3 a box loaded disabled: the whole-screen click alone", { 4, 0, 110 });
 
 	/* the value it has: nothing */
 	cw_check(box, false);
@@ -784,7 +784,7 @@ static void cw_values(void)
 	cw_expect_quiet("W3 a disabled box and the script");
 	cw_click(110, 110);
 	CW_CHECK(!cw_checked(box), "W3: a disabled box was checked by a click");
-	cw_expect_quiet("W3 a click on a disabled box");
+	CW_MESSAGES("W3 a click on a disabled box: the whole-screen click alone", { 4, 0, 110 });
 	cw_enable(box, true);
 	cw_update();
 	cw_expect_cgs(box, CW_N, CW_ON, CW_DOWN, "W3 enabled again");
@@ -818,25 +818,24 @@ static void cw_clicks(void)
 	cp_register_event(box, 3, 30);
 	cp_register_event(cap, 4, 40);
 
-	/* MouseClick at the press; the value changes at the update of the
-	 * parts that follows, and ChangedFlg comes then */
+	/* The value changes at the release, with the cursor still on the box,
+	 * right after the box's MouseClick (0x52cdd0 -> 0x52f030), and
+	 * ChangedFlg comes then; the whole-screen click of the release goes
+	 * out before them (0x548064). The press changes nothing. */
 	cw_press(110, 110);
-	CW_CHECK(!cw_checked(box), "W4: the press changed the box before the update");
-	CW_MESSAGES("W4 a press", { 4, box, 110 });
+	CW_CHECK(cw_checked(box), "W4: the release did not check the box");
+	CW_MESSAGES("W4 a press and its release", { 4, 0, 110 }, { 4, box, 110 }, { 23, box, 1 });
 	cw_update();
-	CW_MESSAGES("W4 the update after a press", { 23, box, 1 });
-	CW_CHECK(cw_checked(box), "W4: a click did not check the box");
-	cw_update();
-	cw_expect_quiet("W4 a second update");
-	CW_CHECK(cw_checked(box), "W4: a second update changed the box again");
+	cw_expect_quiet("W4 the update after a click");
+	CW_CHECK(cw_checked(box), "W4: the update changed the box again");
 	cw_click(110, 110);
-	CW_MESSAGES("W4 a click", { 4, box, 110 }, { 23, box, 0 });
+	CW_MESSAGES("W4 a click", { 4, 0, 110 }, { 4, box, 110 }, { 23, box, 0 });
 	cw_click(110, 110);
-	CW_MESSAGES("W4 a click", { 4, box, 110 }, { 23, box, 1 });
+	CW_MESSAGES("W4 a click", { 4, 0, 110 }, { 4, box, 110 }, { 23, box, 1 });
 	cw_click(122, 122);
-	CW_MESSAGES("W4 a second click", { 4, box, 122 }, { 23, box, 0 });
+	CW_MESSAGES("W4 a second click", { 4, 0, 122 }, { 4, box, 122 }, { 23, box, 0 });
 	CW_CHECK(!cw_checked(box), "W4: a second click did not uncheck the box");
-	/* beside it: the whole-screen click, and nothing changes */
+	/* beside it: the whole-screen click alone, and nothing changes */
 	cw_click(123, 110);
 	CW_MESSAGES("W4 a click beside the box", { 4, 0, 123 });
 	CW_CHECK(!cw_checked(box), "W4: a click beside the box changed it");
@@ -844,13 +843,14 @@ static void cw_clicks(void)
 
 	/* the caption is the box: 90 wide */
 	cw_click(300 + 80, 110);
-	CW_MESSAGES("W4 a click on the caption", { 4, cap, 380 }, { 23, cap, 1 });
+	CW_MESSAGES("W4 a click on the caption", { 4, 0, 380 }, { 4, cap, 380 }, { 23, cap, 1 });
 	CW_CHECK(cw_checked(cap), "W4: a click on the caption did not check the box");
 	cw_click(300 + 90, 110);
 	CW_MESSAGES("W4 a click right of the caption", { 4, 0, 390 });
 	heap[global_page_slot].page->values[2].i = 0;
 
-	/* held: the down state; PE_Update draws the value the click gave */
+	/* held: the down state of the value it has; the release checks it and
+	 * PE_Update draws the new value in the same update */
 	extern bool key_state[];
 	mouse_set_pos(110, 110);
 	PE_BeginInput();
@@ -861,13 +861,15 @@ static void cw_clicks(void)
 	PE_Update(16, true);
 	struct parts *p = parts_try_get(box);
 	CW_CHECK(p->state == PARTS_STATE_CLICKED, "W4: the held box is in state %d, want the down state", p->state);
-	CW_CHECK(cw_checked(box), "W4: the press under PE_Update did not check the box");
-	cw_expect_cgs(box, CW_CN, CW_CON, CW_CDOWN, "W4 drawn by PE_Update");
+	CW_CHECK(!cw_checked(box), "W4: the press under PE_Update checked the box before the release");
+	cw_expect_cgs(box, CW_N, CW_ON, CW_DOWN, "W4 held: the pictures of the value it has");
 	key_state[VK_LBUTTON] = false;
 	PE_Update(16, true);
 	CW_CHECK(p->state == PARTS_STATE_HOVERED, "W4: the released box is in state %d, want the on-cursor state", p->state);
+	CW_CHECK(cw_checked(box), "W4: the release under PE_Update did not check the box");
+	cw_expect_cgs(box, CW_CN, CW_CON, CW_CDOWN, "W4 drawn by PE_Update at the release");
 	PE_EndInput();
-	CW_MESSAGES("W4 the press under PE_Update", { 4, box, 110 }, { 23, box, 1 });
+	CW_MESSAGES("W4 the click under PE_Update", { 4, 0, 110 }, { 4, box, 110 }, { 23, box, 1 });
 	printf("W4 checked\n");
 }
 
@@ -929,37 +931,41 @@ static void cw_loop(void)
 	CW_MESSAGES("W5 four frames", { 23, box, 1 }, { 21, bar, 49 });
 	cw_expect_cgs(box, CW_CN, CW_CON, CW_CDOWN, "W5 the box of a checked setting");
 
-	/* a click during a frame is what the end of the frame reads */
+	/* a click during a frame is what the end of the frame reads: the
+	 * release's, the press changes nothing */
 	mouse_set_pos(110, 110);
 	cw_frame(box, bar, &flag, &rate);
 	key_state[VK_LBUTTON] = true;
 	cw_frame(box, bar, &flag, &rate);
-	CW_CHECK(!flag && rate == 0.5f, "W5 the frame of the click: %d and %g, want 0 and 0.5", flag, rate);
-	CW_MESSAGES("W5 the frame of the click", { 4, box, 110 }, { 23, box, 0 });
+	CW_CHECK(flag && rate == 0.5f, "W5 the frame of the press: %d and %g, want 1 and 0.5", flag, rate);
+	cw_expect_quiet("W5 the frame of the press");
 	key_state[VK_LBUTTON] = false;
+	cw_frame(box, bar, &flag, &rate);
+	CW_CHECK(!flag && rate == 0.5f, "W5 the frame of the release: %d and %g, want 0 and 0.5", flag, rate);
+	CW_MESSAGES("W5 the frame of the release", { 4, 0, 110 }, { 4, box, 110 }, { 23, box, 0 });
 	for (int frame = 0; frame < 3; frame++)
 		cw_frame(box, bar, &flag, &rate);
 	CW_CHECK(!flag && rate == 0.5f, "W5 after the click: %d and %g, want 0 and 0.5", flag, rate);
 	cw_expect_quiet("W5 after the click");
 	cw_expect_cgs(box, CW_N, CW_ON, CW_DOWN, "W5 the box after the click");
 
-	/* The press seen before the frame, as system.Peek sees it: the box
-	 * keeps its value until the update, so the frame's first half does not
-	 * write the old configuration over the click, and its second half
-	 * reads the new value. */
+	/* system.Peek pumps the window events only, as the original's does
+	 * (the input update 0x547c90 is run by the parts update alone): a
+	 * press and a release that only Peek saw change nothing, and the
+	 * frames that follow find the button up. */
 	mouse_set_pos(110, 110);
 	key_state[VK_LBUTTON] = true;
-	PE_UpdateInputState(0);
-	CW_CHECK(!cw_checked(box), "W5: a press outside the frame changed the box at once");
-	cw_frame(box, bar, &flag, &rate);
-	CW_CHECK(flag, "W5: a press outside the frame is not what the frame reads (%d, want 1)", flag);
+	br_call("system", "Peek", 0, 0, 0, NULL, NULL, 0);
+	CW_CHECK(!cw_checked(box) && parts_try_get(box)->state != PARTS_STATE_CLICKED,
+		 "W5: a press seen by system.Peek alone changed the box (%d) or its state (%d)", cw_checked(box), parts_try_get(box)->state);
 	key_state[VK_LBUTTON] = false;
-	PE_UpdateInputState(0);
+	br_call("system", "Peek", 0, 0, 0, NULL, NULL, 0);
+	cw_expect_quiet("W5 a click seen by system.Peek alone");
 	for (int frame = 0; frame < 3; frame++)
 		cw_frame(box, bar, &flag, &rate);
-	CW_CHECK(flag && cw_checked(box), "W5 after a press outside the frame: %d, want 1", flag);
-	CW_MESSAGES("W5 a press outside the frame", { 4, box, 110 }, { 23, box, 1 });
-	cw_expect_cgs(box, CW_CN, CW_CON, CW_CDOWN, "W5 the box after a press outside the frame");
+	CW_CHECK(!flag && !cw_checked(box), "W5 after a click seen by system.Peek alone: %d, want 0", flag);
+	cw_expect_quiet("W5 after a click seen by system.Peek alone");
+	cw_expect_cgs(box, CW_N, CW_ON, CW_DOWN, "W5 the box after a click seen by system.Peek alone");
 
 	/* every rate comes back as it was written */
 	static const float rates[] = { 0.0f, 0.25f, 0.999f, 1.0f, 0.3f };
@@ -1008,7 +1014,7 @@ static void cw_radio(void)
 	/* another member: the checked one is unchecked first, then this one's
 	 * ChangedFlg */
 	cw_click(210, 110);
-	CW_MESSAGES("W6 a click on B", { 4, b, 210 }, { 23, a, 0 }, { 23, b, 1 });
+	CW_MESSAGES("W6 a click on B", { 4, 0, 210 }, { 4, b, 210 }, { 23, a, 0 }, { 23, b, 1 });
 	CW_RADIO_IS(0, 1, 0, "after a click on B");
 	cw_update();
 	cw_expect_cgs(a, CW_N, CW_ON, CW_DOWN, "W6 A unchecked by the box");
@@ -1016,7 +1022,7 @@ static void cw_radio(void)
 	/* the checked member: the box checks it again and the scripts hear
 	 * that, not the uncheck */
 	cw_click(210, 110);
-	CW_MESSAGES("W6 a click on the checked B", { 4, b, 210 }, { 23, b, 1 });
+	CW_MESSAGES("W6 a click on the checked B", { 4, 0, 210 }, { 4, b, 210 }, { 23, b, 1 });
 	CW_RADIO_IS(0, 1, 0, "after a click on the checked B");
 	cw_check(b, false);
 	CW_MESSAGES("W6 the script unchecking B", { 23, b, 1 });
@@ -1032,32 +1038,32 @@ static void cw_radio(void)
 	 * changes itself) */
 	cp_register_event(radio, 9, 90);
 	cw_click(110, 110);
-	CW_MESSAGES("W6 a click on A", { 4, a, 110 }, { 22, radio, 0 }, { 23, c, 0 }, { 23, a, 1 });
+	CW_MESSAGES("W6 a click on A", { 4, 0, 110 }, { 4, a, 110 }, { 22, radio, 0 }, { 23, c, 0 }, { 23, a, 1 });
 	CW_RADIO_IS(1, 0, 0, "after a click on A");
 	cw_click(110, 110);
-	CW_MESSAGES("W6 a click on the checked A", { 4, a, 110 }, { 23, a, 1 });
+	CW_MESSAGES("W6 a click on the checked A", { 4, 0, 110 }, { 4, a, 110 }, { 23, a, 1 });
 	CW_RADIO_IS(1, 0, 0, "after a click on the checked A");
 
 	/* a box of no group */
 	cw_click(410, 110);
-	CW_MESSAGES("W6 a click on a box of no group", { 4, lone, 410 }, { 23, lone, 1 });
+	CW_MESSAGES("W6 a click on a box of no group", { 4, 0, 410 }, { 4, lone, 410 }, { 23, lone, 1 });
 	CW_RADIO_IS(1, 0, 0, "after a click on a box of no group");
 
 	/* a member that is not enabled keeps its value: nothing unchecks it */
 	cw_enable(a, false);
 	cw_click(310, 110);
-	CW_MESSAGES("W6 a click on C while A is disabled", { 4, c, 310 }, { 22, radio, 0 }, { 23, c, 1 });
+	CW_MESSAGES("W6 a click on C while A is disabled", { 4, 0, 310 }, { 4, c, 310 }, { 22, radio, 0 }, { 23, c, 1 });
 	CW_RADIO_IS(1, 0, 1, "while A is disabled");
 	cw_enable(a, true);
 
 	/* a member that was released is passed over */
 	parts_release(a);
 	cw_click(210, 110);
-	CW_MESSAGES("W6 a click on B once A is gone", { 4, b, 210 }, { 22, radio, 0 }, { 23, c, 0 }, { 23, b, 1 });
+	CW_MESSAGES("W6 a click on B once A is gone", { 4, 0, 210 }, { 4, b, 210 }, { 22, radio, 0 }, { 23, c, 0 }, { 23, b, 1 });
 	CW_CHECK(cw_checked(b) && !cw_checked(c), "W6 once A is gone: B %d, C %d; want 1, 0", cw_checked(b), cw_checked(c));
 	parts_release(radio);
 	cw_click(310, 110);
-	CW_MESSAGES("W6 a click on C once the radio box is gone", { 4, c, 310 }, { 23, c, 1 });
+	CW_MESSAGES("W6 a click on C once the radio box is gone", { 4, 0, 310 }, { 4, c, 310 }, { 23, c, 1 });
 	CW_CHECK(cw_checked(b) && cw_checked(c), "W6 once the radio box is gone: B %d, C %d; want 1, 1", cw_checked(b),
 		 cw_checked(c));
 #undef CW_RADIO_IS
@@ -1676,86 +1682,97 @@ static void cw_window(void)
 }
 
 /* --- W13 --- */
-/* A click is applied at the next update of the parts (W4, W5). What it must
- * not do in between: reach another parts that took the number, a parts that
- * is no longer the check box it was, or survive a reset of the input. */
-static void cw_click_record(void)
+/* The click is the release with the cursor still on the box (0x52cdd0:
+ * 0x52ce03 .. 0x52ce1d return when no inner parts is under it, 0x52ce24
+ * flips the value), after the whole-screen click and the box's own
+ * MouseClick. A press dragged off the box and released there changes
+ * nothing, and the box shows its default picture meanwhile; dragged back,
+ * the release is a click. A box released (the parts) or disabled between
+ * the press and the release is not clicked. Nine clicks are nine changes. */
+static void cw_release_rules(void)
 {
 	cw_setup(true);
 	static const struct cw_box plain = { .cg = "cwbox", .text = "" };
 	struct ex_tree *kids;
-	struct ex *e = lb_activity("ConfigWidgetsRecord", 4, &kids);
-	static const char *names[4] = { "A", "B", "C", "D" };
-	for (int i = 0; i < 4; i++)
-		kids->children[i] = cw_box_node(names[i], 100 + 200 * i, 100, &plain);
-	int act = cw_load("ConfigWidgetsRecord", e);
-	int a = cw_no(act, "A"), b = cw_no(act, "B"), c = cw_no(act, "C"), d = cw_no(act, "D");
+	struct ex *e = lb_activity("ConfigWidgetsRelease", 2, &kids);
+	kids->children[0] = cw_box_node("A", 100, 100, &plain);
+	kids->children[1] = cw_box_node("B", 300, 100, &plain);
+	int act = cw_load("ConfigWidgetsRelease", e);
+	int a = cw_no(act, "A"), b = cw_no(act, "B");
 	heap_unref(act);
-	if (!a || !b || !c || !d)
+	if (!a || !b)
 		return;
 	cp_register_event(a, 3, 30);
 	cp_register_event(b, 4, 40);
-	cp_register_event(c, 5, 50);
-	cp_register_event(d, 6, 60);
+	extern bool key_state[];
+	struct parts *pa = parts_try_get(a);
 
-	/* released between the press and the update, and its number taken by
-	 * a new check box */
-	cw_press(110, 110);
-	CW_MESSAGES("W13 a press on the first box", { 4, a, 110 });
+	/* dragged off the box and released there */
+	mouse_set_pos(110, 110);
+	PE_UpdateComponent(0);
+	PE_BeginInput();
+	key_state[VK_LBUTTON] = false;
+	PE_UpdateInputState(0);
+	key_state[VK_LBUTTON] = true;
+	PE_UpdateInputState(0);
+	CW_CHECK(!cw_checked(a) && pa->state == PARTS_STATE_CLICKED, "W13 held: checked %d, state %d; want 0 and the down state", cw_checked(a), pa->state);
+	mouse_set_pos(600, 600);
+	PE_UpdateInputState(0);
+	CW_CHECK(!cw_checked(a) && pa->state == PARTS_STATE_DEFAULT, "W13 dragged off: checked %d, state %d; want 0 and the default state", cw_checked(a), pa->state);
+	key_state[VK_LBUTTON] = false;
+	PE_UpdateInputState(0);
+	CW_CHECK(!cw_checked(a), "W13: a press released off the box changed it");
+	CW_MESSAGES("W13 released off the box", { 4, 0, 600 });
+
+	/* dragged off and back */
+	mouse_set_pos(110, 110);
+	PE_UpdateInputState(0);
+	key_state[VK_LBUTTON] = true;
+	PE_UpdateInputState(0);
+	mouse_set_pos(600, 600);
+	PE_UpdateInputState(0);
+	mouse_set_pos(110, 110);
+	PE_UpdateInputState(0);
+	CW_CHECK(!cw_checked(a) && pa->state == PARTS_STATE_CLICKED, "W13 dragged back: checked %d, state %d; want 0 and the down state", cw_checked(a), pa->state);
+	key_state[VK_LBUTTON] = false;
+	PE_UpdateInputState(0);
+	CW_CHECK(cw_checked(a) && pa->state == PARTS_STATE_HOVERED, "W13 released back on the box: checked %d, state %d; want 1 and the on-cursor state", cw_checked(a), pa->state);
+	CW_MESSAGES("W13 released back on the box", { 4, 0, 110 }, { 4, a, 110 }, { 23, a, 1 });
+
+	/* the parts released between the press and the release of the button */
+	key_state[VK_LBUTTON] = true;
+	PE_UpdateInputState(0);
 	PE_ReleaseParts(a);
 	CW_CHECK(!parts_try_get(a), "W13: the box was not released");
-	cw_check(a, false);
-	CW_CHECK(parts_try_get(a) && cw_type(a) == 1 && !cw_checked(a), "W13: no new check box took the number");
-	/* the same event ID again, so that only the release can have dropped
-	 * the click (a parts with another ID is skipped by the update anyway) */
-	cp_register_event(a, 3, 30);
-	cw_update();
-	CW_CHECK(!cw_checked(a), "W13: the click on a released box checked the box that took its number");
+	key_state[VK_LBUTTON] = false;
+	PE_UpdateInputState(0);
+	CW_MESSAGES("W13 the box released before the button", { 4, 0, 110 });
 
-	/* no longer a check box, then one again: the constructor's values */
-	cw_press(310, 110);
-	CW_MESSAGES("W13 a press on the second box", { 4, b, 310 });
-	PE_SetComponentType(b, 0, 1);
-	PE_SetComponentType(b, 1, 1);
+	/* disabled between the press and the release */
+	mouse_set_pos(310, 110);
+	PE_UpdateComponent(0);
+	PE_UpdateInputState(0);
+	key_state[VK_LBUTTON] = true;
+	PE_UpdateInputState(0);
+	cw_enable(b, false);
+	key_state[VK_LBUTTON] = false;
+	PE_UpdateInputState(0);
+	CW_CHECK(!cw_checked(b), "W13: a box disabled while held was clicked");
+	CW_MESSAGES("W13 the box disabled before the release", { 4, 0, 310 });
+	PE_EndInput();
+	cw_enable(b, true);
 	cw_update();
-	CW_CHECK(cw_type(b) == 1 && !cw_checked(b), "W13: the click outlived the box's widget (type %d, checked %d)",
-		 cw_type(b), cw_checked(b));
-	cw_expect_quiet("W13 a box that was made again");
 
-	/* another event ID by the time of the update */
-	cw_press(510, 110);
-	CW_MESSAGES("W13 a press on the third box", { 4, c, 510 });
-	cp_register_event(c, 5, 51);
-	cw_update();
-	CW_CHECK(!cw_checked(c), "W13: the click was applied to a box with another event ID");
-	cw_expect_quiet("W13 a box with another event ID");
-
-	/* the input is reset (PE_Init, PE_Reset) */
-	cw_press(710, 110);
-	CW_MESSAGES("W13 a press on the fourth box", { 4, d, 710 });
-	parts_reset_input();
-	cw_update();
-	CW_CHECK(!cw_checked(d), "W13: the click outlived a reset of the input");
-	cw_expect_quiet("W13 after a reset of the input");
-
-	/* and a click nothing happened to is applied, once */
-	cw_click(710, 110);
-	CW_MESSAGES("W13 a click", { 4, d, 710 }, { 23, d, 1 });
-	cw_update();
-	cw_expect_quiet("W13 a second update");
-	CW_CHECK(cw_checked(d), "W13: the box is not checked");
-
-	/* Nine presses before one update: eight are kept. The ninth is
-	 * dropped with a warning, which leaves the value where it was. */
+	/* nine clicks are nine changes */
 	for (int i = 0; i < 9; i++)
-		cw_press(710, 110);
-	cw_update();
+		cw_click(310, 110);
 	struct cw_msg m[1];
 	int n = cw_drain(m, 1);
-	CW_CHECK(n == 17, "W13: nine presses and an update sent %d message(s), want 9 MouseClick and 8 ChangedFlg", n);
-	CW_CHECK(cw_checked(d), "W13: nine presses before an update left the box unchecked");
+	CW_CHECK(n == 27, "W13: nine clicks sent %d message(s), want 9 whole-screen clicks, 9 MouseClick and 9 ChangedFlg", n);
+	CW_CHECK(cw_checked(b), "W13: nine clicks left the box unchecked");
 	printf("W13 checked\n");
 }
+
 
 static void (*cw_case)(void);
 static void cw_case_body(void)
@@ -1769,7 +1786,7 @@ static int test_config_widgets(void)
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
 		{ "W1", cw_plain }, { "W2", cw_text }, { "W3", cw_values }, { "W4", cw_clicks }, { "W5", cw_loop },
 		{ "W6", cw_radio }, { "W7", cw_hbar }, { "W8", cw_missing }, { "W9", cw_save }, { "W10", cw_v13 },
-		{ "W11", cw_no_grid }, { "W12", cw_window }, { "W13", cw_click_record },
+		{ "W11", cw_no_grid }, { "W12", cw_window }, { "W13", cw_release_rules },
 	};
 	const int n = sizeof(cases) / sizeof(cases[0]);
 	int failed = 0, env = 0;

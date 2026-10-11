@@ -369,13 +369,26 @@ static void PE_v14_GetKeyWaitCGName(int parts_no, int name_slot, int *start_no,
 }
 
 /* --- click/input state queries (v14 WaitForClick contract) ---
- * GetActiveParts returns the clicked parts number: the game's
- * IsInputPartsActive checks its component type to decide whether the
- * click hit an input widget (keep waiting) or empty space (advance). */
+ * GetActiveParts (0x57bc90 -> 0x53c6c0) is the parts of the input scope
+ * whose widget reports itself active (+0x280, found anew by every parts
+ * update, 0x53c240 -> 0x538180): a widget is active while one of its
+ * elements is the focus of the input, the target of the last press (the
+ * element's +0x1b4; SpriteParts 0x564cb0, a button or a check box through
+ * its inner parts 0x4f2ff0). The game's IsClickableParts(GetActiveParts())
+ * keeps a release on a clickable parts from stepping the message, and
+ * IsInputPartsActive asks for a text box (types 4, 7, 11). This port's value
+ * follows the left button alone and is reset at other moments than the
+ * original's; see PE_GetActivePartsNumber.
+ *
+ * GetClickNumber is the parts that got the left button's MouseClick in the
+ * last input update, 0 otherwise (the element's +5, written at 0x5789cb in
+ * the key 1 branch of 0x5788d0 alone; see v14_update_buttons). A right or
+ * middle click of a parts does not set it in the original, and this port
+ * sends no such click at all. */
 
 static int PE_v14_GetActiveParts(void)
 {
-	return PE_GetClickPartsNumber();
+	return PE_GetActivePartsNumber();
 }
 
 static int PE_v14_GetClickNumber(void)

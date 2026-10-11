@@ -144,7 +144,7 @@ static void rv_decorations(void)
 	struct parts *b = br_box(B, 100, 100, 200, 80, true);
 	struct parts *d1 = rv_decoration(nums[0], 50, 50, 400, 300, 50);
 	int n = br_click(150, 140, &type, &no);
-	RV_CHECK(n == 1 && type == 4 && no == B, "button behind a pass-through decoration: %d messages, first type %d parts %d; want 1, 4, %d",
+	RV_CHECK(n == 2 && type == 4 && no == B, "button behind a pass-through decoration: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, B);
 	PE_BeginInput();
 	rv_hover(160, 150);
@@ -158,7 +158,7 @@ static void rv_decorations(void)
 	struct parts *d0 = rv_decoration(nums[1], 650, 50, 400, 300, 50);
 	heap[global_page_slot].page->values[2].i = 0;
 	n = br_click(750, 140, &type, &no);
-	RV_CHECK(n == 1 && type == 4 && no == 0, "button behind a blocking decoration: %d messages, first type %d parts %d; want 1, 4, 0",
+	RV_CHECK(n == 1 && type == 4 && no == 0, "button behind a blocking decoration: %d messages, last type %d parts %d; want 1, 4, 0 (whole screen alone)",
 		 n, type, no);
 	PE_BeginInput();
 	rv_hover(760, 150);
@@ -192,7 +192,7 @@ static void rv_one_hover(void)
 	RV_CHECK(k->state == PARTS_STATE_DEFAULT, "the parts behind the target entered state %d", k->state);
 	PE_EndInput();
 	int n = br_click(150, 130, &type, &no);
-	RV_CHECK(n == 1 && type == 4 && no == F, "click: %d messages, first type %d parts %d; want 1, 4, %d", n, type, no, F);
+	RV_CHECK(n == 2 && type == 4 && no == F, "click: %d messages, last type %d parts %d; want 2, 4, %d", n, type, no, F);
 	/* Not clickable and passing the cursor: the parts behind is the target. */
 	PE_SetClickable(F, false);
 	PE_BeginInput();

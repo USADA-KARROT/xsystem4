@@ -325,19 +325,16 @@ static void pactex_apply_speed_up(struct ex_tree *node, int parts_no)
  * 192 buttons are 0). Only the CN spelling is known, not the key's SJIS
  * name.
  *
- * click_permission_only marks the parts as clickable through this key
- * alone; the button and ＣＧ判定部件 code further down clears it again
- * (PE_SetClickable). Until the script registers an event for a marked
- * parts, a press on it stays the whole-screen click (v14_click_unclaimed in
- * parts/input.c). */
+ * A marked parts the script never gives an event (ClickGuard, InputGuard,
+ * PartySkillView's Button) gets its MouseClick as in the original, which
+ * the AIN drops (CPartsMessageManager@CallDelegate); the whole-screen click
+ * of the same release is sent in any case (parts/input.c). */
 static const char GBK_CN_CLICK_PERMISSION[] = "\xfc\x63\x93\xf4\xd4\x53\xbf\xc9"; /* 點擊許可 */
 
 static void pactex_apply_click_permission(struct ex_tree *node, int parts_no)
 {
-	if (pactex_get_int(node, GBK_CN_CLICK_PERMISSION, 0) == 1) {
+	if (pactex_get_int(node, GBK_CN_CLICK_PERMISSION, 0) == 1)
 		PE_SetClickable(parts_no, true);
-		parts_get(parts_no)->click_permission_only = true;
-	}
 }
 
 /* Extract a list leaf property by exact name match. Returns NULL if not found. */

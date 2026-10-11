@@ -77,16 +77,11 @@ struct parts_radio_box *parts_get_radio_box(struct parts *parts)
 	return parts->radio_box;
 }
 
-static void checkbox_forget_clicks(int no);
-
 static void checkbox_free(struct parts *parts)
 {
 	struct parts_checkbox *cb = parts->checkbox;
 	if (!cb)
 		return;
-	// A click that was not applied yet must not reach whatever takes the
-	// number next.
-	checkbox_forget_clicks(parts->no);
 	free(cb->cg_name);
 	free(cb->over_cg_name);
 	free(cb->over_checked_cg_name);
@@ -327,91 +322,22 @@ void parts_checkbox_rebuild(struct parts *parts)
  * The click of the left button on the box: the value becomes the other one.
  * The original does this when the button is released with the cursor still
  * on the widget (0x52cdd0, after the inner parts' MouseClick and KeyUp went
- * to the scripts); this port's v14 input sends the MouseClick on the press
- * and calls this right after it.
- *
- * The value does not change here but at the next update of the parts
- * (parts_checkbox_update, in PE_Update). The settings write the
- * configuration to every box before PartsEngine.UpdateComponent and read the
- * boxes back after it, so a click has to change the box between the two, as
- * the original's input update does; this port also looks at the mouse in
- * system.Peek, outside that bracket, and a value changed there would be
- * written over by the next frame's configuration before it was ever read.
- *
- * What this makes different from the original:
- *  - A press seen by system.Peek sends its MouseClick at once, and the
- *    script handles it in that frame, with the box still at its old value;
- *    the new value and ChangedFlg follow in the next frame's update. In the
- *    original all three belong to one input update, and a handler of the
- *    MouseClick already reads the new value. (A press seen by the update
- *    itself is like the original's.) None of the game's MouseClick handlers
- *    on a check box reads the box: they set a setting to a fixed value.
- *  - The value changes on the press, so while the button is held the box
- *    shows the pressed picture of the new value; the original shows the old
- *    value's until the release.
- *  - A press that is then dragged off the box and released there has
- *    already changed the value. In the original it changes nothing: the
- *    release looks at the cursor (0x52ce03 .. 0x52ce1d return when no inner
- *    parts is under it). This goes with sending a target's click on the
- *    press; when that moves to the release, this does too.
- *
- * A click is remembered with the number and the event ID the parts had, and
- * is dropped when the parts is released, stops being a check box or has
- * another event ID by the time of the update, and when the input is reset.
- * One press makes one click; the room for 8 is not expected to run out, and
- * a click beyond it is dropped with a warning.
+ * to the scripts: 0x52ce03 .. 0x52ce1d return when no inner parts is under
+ * the cursor, 0x52ce24 calls 0x52f030 with the other value). The input
+ * (v14_update_buttons in input.c) does the same with parts_checkbox_set_checked
+ * right after the MouseClick, within the update of the parts, so the
+ * settings, which write every box before PartsEngine.UpdateComponent and
+ * read them back after it, see the new value in the same frame as the
+ * original. While the button is held the box shows the pressed picture of
+ * the old value; a press dragged off the box changes nothing.
  */
-#define CHECKBOX_MAX_CLICKS 8
-static struct checkbox_click {
-	int no;
-	int unique_id;
-} checkbox_clicks[CHECKBOX_MAX_CLICKS];
-static int checkbox_nr_clicks;
 
-void parts_checkbox_clicked(struct parts *parts)
-{
-	if (checkbox_nr_clicks >= CHECKBOX_MAX_CLICKS) {
-		WARNING("check box %d: too many clicks before an update", parts->no);
-		return;
-	}
-	checkbox_clicks[checkbox_nr_clicks++] = (struct checkbox_click) {
-		.no = parts->no,
-		.unique_id = parts->unique_id,
-	};
-}
-
-static void checkbox_forget_clicks(int no)
-{
-	int n = 0;
-	for (int i = 0; i < checkbox_nr_clicks; i++) {
-		if (checkbox_clicks[i].no != no)
-			checkbox_clicks[n++] = checkbox_clicks[i];
-	}
-	checkbox_nr_clicks = n;
-}
-
-// With the input (parts_reset_input: PE_Init and PE_Reset).
-void parts_checkbox_reset_clicks(void)
-{
-	checkbox_nr_clicks = 0;
-}
-
-/* Once per update, after the input: the boxes that were clicked take their
- * other value, and the boxes whose values changed are drawn again. */
+/* Once per update, after the input: the boxes whose values changed are
+ * drawn again. */
 void parts_checkbox_update(void)
 {
 	if (ain->version < 14)
 		return;
-	// Setting a value neither records nor forgets a click.
-	const int nr_clicks = checkbox_nr_clicks;
-	checkbox_nr_clicks = 0;
-	for (int i = 0; i < nr_clicks; i++) {
-		const struct checkbox_click *click = &checkbox_clicks[i];
-		struct parts *clicked = parts_try_get(click->no);
-		if (clicked && clicked->component_type == PARTS_COMPONENT_CHECKBOX && clicked->checkbox
-				&& clicked->unique_id == click->unique_id)
-			parts_checkbox_set_checked(clicked, !clicked->checkbox->checked);
-	}
 	if (!checkbox_any_dirty)
 		return;
 	checkbox_any_dirty = false;

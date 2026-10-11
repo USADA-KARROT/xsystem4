@@ -1,6 +1,10 @@
 /* input-nesting: v14 BeginInput/EndInput are nested scopes, not a latch.
  * Native 0x58a720/0x58a750 maintain depth at +0x1fc and reset/restart the
- * current input session; restarting samples the current button state.
+ * current input session; restarting samples the current button state, so a
+ * button held then releases into the whole-screen click alone. A click is
+ * sent at the release: the whole-screen click (parts 0) first, then the
+ * pressed parts' own (0x547c90); GetClickNumber is that parts for the
+ * update of the release only (0x547610, cleared by the next update).
  *
  * IN1-5 use the real AIN HLL declarations with synthetic clickable boxes,
  * production PE_UpdateInputState, and the production v14 message queue.
@@ -51,32 +55,40 @@ static void in_button(bool down)
 	PE_UpdateInputState(0);
 }
 
+/* The queued messages: their number, and when some are expected, the first
+ * is the whole-screen click (type 4, parts 0) and the last is type 4 for
+ * expected_parts (0 when the whole-screen click is alone). */
 static void in_messages(const char *step, int expected_count, int expected_parts)
 {
-	int count = 0, first_type = -1, first_parts = -1;
+	int count = 0, first_type = -1, first_parts = -1, last_type = -1, last_parts = -1;
 	for (int t; (t = br_msg_type()) >= 0 && count < 64; br_msg_pop()) {
 		if (!count) {
 			first_type = t;
 			first_parts = br_msg_parts();
 		}
+		last_type = t;
+		last_parts = br_msg_parts();
 		count++;
 	}
 	bool ok = count == expected_count;
 	if (expected_count)
-		ok = ok && first_type == 4 && first_parts == expected_parts;
-	IN_CHECK(ok, "%s: messages=%d first=(%d,%d), want count=%d%s parts=%d",
-		step, count, first_type, first_parts, expected_count,
-		expected_count ? " type=4" : "", expected_parts);
+		ok = ok && first_type == 4 && first_parts == 0 && last_type == 4 && last_parts == expected_parts;
+	IN_CHECK(ok, "%s: messages=%d first=(%d,%d) last=(%d,%d), want count=%d%s parts=%d",
+		step, count, first_type, first_parts, last_type, last_parts, expected_count,
+		expected_count ? " first=(4,0) last type=4" : "", expected_parts);
 }
 
+/* A press and its release on IN_BOX: nothing for the press; for the
+ * release the whole-screen click and, when the scope is active, the box's
+ * own click. */
 static void in_fresh_click(const char *step, bool active)
 {
 	in_button(false);
 	in_messages("released before fresh click", 0, 0);
 	in_button(true);
-	in_messages(step, active ? 1 : 0, IN_BOX);
+	in_messages("a press queues nothing", 0, 0);
 	in_button(false);
-	in_messages("release must not duplicate DOWN click", 0, 0);
+	in_messages(step, active ? 2 : 0, IN_BOX);
 }
 
 static void in_two_levels(void)
@@ -126,12 +138,19 @@ static void in_begin_held(void)
 	PE_UpdateInputState(0);
 	in_messages("held before outer BeginInput is not a new DOWN", 0, 0);
 	IN_CHECK(in_click_number() == 0, "outer begin retained a ghost click number");
+	/* Its release is the whole-screen click alone: the begin sampled the
+	 * button as down (0x546030), and no parts was pressed in the scope. */
+	in_button(false);
+	in_messages("the button held at the outer BeginInput released", 1, 0);
+	IN_CHECK(in_click_number() == 0, "a button held at the begin clicked a parts on its release");
 	in_fresh_click("real click after outer begin", true);
 	key_state[VK_LBUTTON] = true;
 	in_hll_scope("BeginInput");
 	PE_UpdateInputState(0);
 	in_messages("held before nested BeginInput is not a new DOWN", 0, 0);
 	IN_CHECK(in_click_number() == 0, "nested begin did not reset clicked number");
+	in_button(false);
+	in_messages("the button held at the nested BeginInput released", 1, 0);
 	in_fresh_click("real click after nested begin", true);
 	in_hll_scope("EndInput");
 	in_hll_scope("EndInput");
@@ -151,6 +170,10 @@ static void in_end_held(void)
 	PE_UpdateInputState(0);
 	in_messages("held across inner EndInput is not a new parent DOWN", 0, 0);
 	IN_CHECK(in_click_number() == 0, "inner EndInput left a clicked number");
+	/* The end sampled the button for the parent (0x58a750 -> 0x53e830):
+	 * the release is the parent's whole-screen click, and no parts' click. */
+	in_button(false);
+	in_messages("the button held across the inner EndInput released", 1, 0);
 	in_fresh_click("parent gets a subsequent fresh press", true);
 	in_hll_scope("EndInput");
 	in_fresh_click("parent ended", false);
@@ -162,22 +185,37 @@ static void in_clicked_state(void)
 	in_setup();
 	in_hll_scope("BeginInput");
 	in_button(true);
-	IN_CHECK(in_click_number() == IN_BOX, "outer click number not recorded");
+	IN_CHECK(in_click_number() == 0, "a press alone recorded a click number");
+	in_button(false);
+	IN_CHECK(in_click_number() == IN_BOX, "outer click number not recorded at the release");
+	in_button(false);
+	IN_CHECK(in_click_number() == 0, "the click number outlived the update of the release");
+	in_messages("the outer click", 2, IN_BOX);
+	in_button(true);
+	in_button(false);
+	IN_CHECK(in_click_number() == IN_BOX, "second outer click number not recorded");
 	in_hll_scope("BeginInput");
 	IN_CHECK(in_click_number() == 0, "nested begin kept the parent's old click");
-	in_messages("queued parent message survives nested BeginInput", 1, IN_BOX);
+	in_messages("queued parent message survives nested BeginInput", 2, IN_BOX);
 	in_fresh_click("inner click", true);
+	in_button(true);
+	in_button(false);
 	IN_CHECK(in_click_number() == IN_BOX, "inner click number not recorded");
 	/* Leave with a press in progress, as the game's click callback does. */
 	in_button(true);
 	in_hll_scope("EndInput");
 	IN_CHECK(in_click_number() == 0, "return kept the child's old click");
-	in_messages("queued child message survives EndInput", 1, IN_BOX);
+	in_messages("queued child message survives EndInput", 2, IN_BOX);
 	mouse_set_pos(550, 140);
 	PE_UpdateInputState(0);
 	in_messages("moving held button after return cannot click another part", 0, 0);
 	IN_CHECK(in_click_number() == 0, "held movement restored stale clicked number");
 	mouse_set_pos(150, 140);
+	/* The press belonged to the child: the parent's release of it is the
+	 * whole-screen click alone. */
+	in_button(false);
+	in_messages("the child's press released in the parent", 1, 0);
+	IN_CHECK(in_click_number() == 0, "the child's press clicked a parts in the parent");
 	in_fresh_click("parent new click after child state was cleared", true);
 	in_hll_scope("EndInput");
 	IN_CHECK(in_click_number() == 0, "outer EndInput retained clicked number");
@@ -243,6 +281,7 @@ static void in_manager_reset(void)
 	in_hll_scope("BeginInput");
 	in_hll_scope("BeginInput");
 	in_button(true);
+	in_button(false);
 	IN_CHECK(in_click_number() == IN_BOX, "click before manager reset not recorded");
 	/* An unrelated part's script-selected state is not stale hover/press.
 	 * Read immediately, before any frame can legitimately update its state. */
@@ -255,7 +294,7 @@ static void in_manager_reset(void)
 		"manager reset retained an active session or clicked number");
 	IN_CHECK(BU_PE("Parts_GetInputState", BU_I(IN_OTHER)).i == 3,
 		"manager reset overwrote an unrelated script-selected state");
-	in_messages("session reset preserves an already queued HLL message", 1, IN_BOX);
+	in_messages("session reset preserves an already queued HLL message", 2, IN_BOX);
 	in_fresh_click("no input after manager reset", false);
 	in_hll_scope("BeginInput");
 	IN_CHECK(BU_PE("Parts_GetInputState", BU_I(IN_OTHER)).i == 3,

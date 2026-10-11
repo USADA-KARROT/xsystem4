@@ -618,8 +618,9 @@ static void fb_cursor(void)
 	int in_root = BU_PE("Parts_IsCursorIn", BU_I(n[1]), BU_I(1100), BU_I(40), BU_I(1)).i;
 	FB_CHECK(!in_uc && !in_root, "Parts_IsCursorIn at (1100,40): component %d, root %d; want 0, 0", in_uc, in_root);
 	int type, no;
+	/* The whole-screen click of the release, then Base's own (br_click). */
 	int count = br_click(1100, 40, &type, &no);
-	FB_CHECK(count == 1 && type == 4 && no == base, "click at (1100,40): %d messages, first type %d parts %d; want 1, 4, %d",
+	FB_CHECK(count == 2 && type == 4 && no == base, "click at (1100,40): %d messages, last type %d parts %d; want 2, 4, %d",
 		 count, type, no, base);
 	heap[global_page_slot].page->values[2].i = 0;
 	count = br_click(1270, 40, &type, &no);

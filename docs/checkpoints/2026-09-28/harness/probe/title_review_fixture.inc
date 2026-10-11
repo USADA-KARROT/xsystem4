@@ -299,7 +299,7 @@ static void tr_click_targets(void)
 	br_box(S, 0, 0, 1280, 720, true);
 	PE_SetZ(S, 50);
 	int n = br_click(150, 140, &type, &no);
-	TR_CHECK(n == 1 && type == 4 && no == S, "system blocker: %d messages, first type %d parts %d; want 1, 4, %d",
+	TR_CHECK(n == 2 && type == 4 && no == S, "system blocker: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, S);
 	PE_ReleaseParts(S);
 	/* a shown parts that only blocks the cursor (not clickable, オン指針透過 0) */
@@ -309,12 +309,12 @@ static void tr_click_targets(void)
 	PE_SetZ(N, 50);
 	heap[global_page_slot].page->values[2].i = 0;
 	n = br_click(150, 140, &type, &no);
-	TR_CHECK(n == 1 && type == 4 && no == 0, "cursor blocker: %d messages, first type %d parts %d; want 1, 4, 0 (whole screen)",
+	TR_CHECK(n == 1 && type == 4 && no == 0, "cursor blocker: %d messages, last type %d parts %d; want 1, 4, 0 (whole screen alone)",
 		 n, type, no);
 	/* the same parts passing the cursor lets the click through */
 	PE_SetPassCursor(N, true);
 	n = br_click(150, 140, &type, &no);
-	TR_CHECK(n == 1 && type == 4 && no == B, "cursor-passing parts: %d messages, first type %d parts %d; want 1, 4, %d",
+	TR_CHECK(n == 2 && type == 4 && no == B, "cursor-passing parts: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, B);
 	printf("TR5 click targets: %s\n", tr_failures ? "FAIL" : "ok");
 }

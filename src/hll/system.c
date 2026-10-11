@@ -85,17 +85,25 @@ static void system_ResumeLoad(struct string *keyName, struct string *fileName)
 }
 
 // [2] Peek() -> void — process one pending event
+// The original's Peek pumps the window messages only: the mouse buttons
+// are read by the input update 0x547c90, whose one caller is the parts
+// update 0x53c5b0 (PartsEngine.UpdateComponent). Running the input here as
+// well made the engine see a release one loop before the script's own key
+// check (CASClick) and dispatch the clicked parts' event first. Programs
+// before v14 keep the input update here.
 static void system_Peek(void)
 {
 	handle_events();
-	PE_UpdateInputState(0);
+	if (ain->version < 14)
+		PE_UpdateInputState(0);
 }
 
 // [3] PeekAll() -> void — process all pending events
 static void system_PeekAll(void)
 {
 	handle_events();
-	PE_UpdateInputState(0);
+	if (ain->version < 14)
+		PE_UpdateInputState(0);
 }
 
 // [4] Exit(result) -> void

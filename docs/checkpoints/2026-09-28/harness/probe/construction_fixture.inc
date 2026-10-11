@@ -975,8 +975,10 @@ static void cn_edit_hidden(void)
 	cn_expect_hidden(mask, true, "CN8 Mask");
 	cn_expect_hidden(guide_mask, false, "CN8 GuideMask");
 	int type, no;
+	/* The release queues the whole-screen click and then B's own
+	 * (br_click returns the count and the last message). */
 	int n = br_click(150, 140, &type, &no);
-	CN_CHECK(n == 1 && type == 4 && no == B, "CN8 click under the hidden masks: %d messages, first type %d parts %d; want 1, 4, %d",
+	CN_CHECK(n == 2 && type == 4 && no == B, "CN8 click under the hidden masks: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, B);
 
 	struct page *saved = NULL;
@@ -992,7 +994,7 @@ static void cn_edit_hidden(void)
 	cn_expect_hidden(guide_mask, false, "CN8 GuideMask after loading");
 	heap[global_page_slot].page->values[2].i = 0;
 	n = br_click(150, 140, &type, &no);
-	CN_CHECK(n == 1 && type == 4 && no == B, "CN8 click after loading: %d messages, first type %d parts %d; want 1, 4, %d",
+	CN_CHECK(n == 2 && type == 4 && no == B, "CN8 click after loading: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, B);
 	ca_free_buffer(saved);
 	printf("CN8 hidden in the editor: %s\n", cn_failures ? "FAIL" : "ok");

@@ -137,8 +137,14 @@ static struct parts *br_box(int no, int x, int y, int w, int h, bool all_states)
 	return p;
 }
 
-/* One press at (x, y) after a released frame; returns the number of queued
- * messages and the first one's type and parts number. */
+/* One press at (x, y) after a released frame, and its release; returns the
+ * number of queued messages and the last one's type and parts number. A
+ * release queues the whole-screen click (type 4, parts 0) first and then,
+ * when a clickable parts was pressed and is still under the cursor, that
+ * parts' own MouseClick (0x547c90: 0x548064, then 0x5788d0). The order is
+ * checked here for every caller: with two messages or more the first must
+ * be the whole-screen click, or a FAIL line is printed and the count comes
+ * back negative, which fails the caller's check of the count. */
 static int br_click(int x, int y, int *type, int *no)
 {
 	extern bool key_state[];
@@ -151,15 +157,23 @@ static int br_click(int x, int y, int *type, int *no)
 	PE_UpdateInputState(0);
 	key_state[VK_LBUTTON] = false;
 	PE_UpdateInputState(0);
-	int n = 0;
+	int n = 0, first_type = -1, first_no = -1;
 	*type = -1; *no = -1;
 	for (int t; (t = br_msg_type()) >= 0; br_msg_pop()) {
-		if (!n++) {
-			*type = t;
-			*no = br_msg_parts();
+		*type = t;
+		*no = br_msg_parts();
+		if (!n) {
+			first_type = *type;
+			first_no = *no;
 		}
+		n++;
 	}
 	PE_EndInput();
+	if (n >= 2 && (first_type != 4 || first_no != 0)) {
+		printf("  FAIL: br_click(%d, %d): the first of %d messages is type %d, parts %d; want the whole-screen click (4, 0)\n",
+		       x, y, n, first_type, first_no);
+		return -n;
+	}
 	return n;
 }
 
@@ -172,16 +186,21 @@ static void br_disabled_button(void)
 	br_box(E, 500, 100, 200, 80, true);
 	int type, no;
 	int n = br_click(600, 140, &type, &no);
-	BR_CHECK(n == 1 && type == 4 && no == E, "enabled button: %d messages, first type %d parts %d; want 1, 4, %d", n, type, no, E);
+	BR_CHECK(n == 2 && type == 4 && no == E, "enabled button: %d messages, last type %d parts %d; want 2, 4, %d", n, type, no, E);
+	/* A disabled button gets no MouseClick of its own; the whole-screen
+	 * click of the release goes out as for any release (0x548064). Not
+	 * sending the button's own click is the port's expedient: the
+	 * original's input update does not stop it (the inner parts is
+	 * clickable every frame, 0x528690), see v14_update_buttons. */
 	bu_call("PartsEngine", "SetButtonEnable", 2, 0, 2, (union vm_value[]){ BR_I(B), BR_I(0) });
 	heap[global_page_slot].page->values[2].i = 0;
 	n = br_click(150, 140, &type, &no);
 	int busy = heap[global_page_slot].page->values[2].i;
-	BR_CHECK(n == 0 && busy == 0, "disabled button: %d messages (first type %d parts %d), g_EndPartsBusyLoop %d; want none and 0",
+	BR_CHECK(n == 1 && type == 4 && no == 0 && busy == 0, "disabled button: %d messages (last type %d parts %d), g_EndPartsBusyLoop %d; want the whole-screen click alone and 0",
 		 n, type, no, busy);
 	bu_call("PartsEngine", "SetButtonEnable", 2, 0, 2, (union vm_value[]){ BR_I(B), BR_I(1) });
 	n = br_click(150, 140, &type, &no);
-	BR_CHECK(n == 1 && type == 4 && no == B, "re-enabled button: %d messages, first type %d parts %d; want 1, 4, %d", n, type, no, B);
+	BR_CHECK(n == 2 && type == 4 && no == B, "re-enabled button: %d messages, last type %d parts %d; want 2, 4, %d", n, type, no, B);
 	/* A click beside every parts is still the whole-screen click. The
 	 * engine leaves g_EndPartsBusyLoop to the script, as the original does
 	 * (see click-permission). */
@@ -205,7 +224,7 @@ static void br_detector(void)
 	parts_get_cg(d, 2);
 	int type, no;
 	int n = br_click(1180, 678, &type, &no);
-	BR_CHECK(n == 1 && type == 4 && no == D, "detector click: %d messages, first type %d parts %d; want 1, 4, %d", n, type, no, D);
+	BR_CHECK(n == 2 && type == 4 && no == D, "detector click: %d messages, last type %d parts %d; want 2, 4, %d", n, type, no, D);
 	printf("BR2 detector click: %s\n", br_failures ? "FAIL" : "ok");
 }
 

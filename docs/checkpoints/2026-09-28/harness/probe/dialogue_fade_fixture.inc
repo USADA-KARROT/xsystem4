@@ -398,16 +398,17 @@ static void df_update_fixes(void)
 	DF_CHECK(df_fixed(9810), "Fix did not fix the text");
 }
 
-/* The script reads the left button as it is, and a press no parts takes is
- * the whole-screen click when the button comes up, not before (0x547c90 at
- * 0x547f81 and 0x548064); the engine leaves g_EndPartsBusyLoop to the script
- * (EndWaitForClick). The script's CASClick, its bytecode run unchanged, so
- * ends a wait on the release, with the button up for the line that follows,
- * and takes a button held on entering a wait as the first click, which steps
- * nothing (CheckKeyClickStepMessage).
- * Not the original's: a button already down at BeginInput sends nothing when
- * it comes up (the original samples it there, 0x546030, and sends), and a
- * clickable parts gets its click on the press. */
+/* The script reads the left button as it is, and every release within the
+ * scope sends the whole-screen click when the button comes up, not before
+ * (0x547c90 at 0x547f81 and 0x548064); the engine leaves g_EndPartsBusyLoop
+ * to the script (EndWaitForClick). The script's CASClick, its bytecode run
+ * unchanged, so ends a wait on the release, with the button up for the line
+ * that follows, and takes a button held on entering a wait as the first
+ * click, which steps nothing (CheckKeyClickStepMessage).
+ * A button already down at BeginInput sends the whole-screen click when it
+ * comes up (0x546030 samples it there), and a clickable parts gets its own
+ * click after the whole-screen one, on the release (0x5788d0; see
+ * input-model). */
 static int df_key_is_down(int key)
 {
 	return key_is_down(key);
@@ -429,7 +430,7 @@ static int df_click_call(int click, const char *method, int nargs, const int *ar
 /* One input frame with the left button as given: how many messages it
  * queued and the first one's type, parts number and variables. */
 struct df_frame {
-	int n, type, no, x, y, key;
+	int n, type, no, x, y, key, last;
 };
 static struct df_frame df_input_frame(bool down)
 {
@@ -438,7 +439,7 @@ static struct df_frame df_input_frame(bool down)
 	assert(var);
 	key_state[VK_LBUTTON] = down;
 	PE_UpdateInputState(16);
-	struct df_frame f = { .type = -1, .no = -1 };
+	struct df_frame f = { .type = -1, .no = -1, .last = -1 };
 	for (int t; (t = br_msg_type()) >= 0; br_msg_pop()) {
 		if (!f.n++) {
 			f.type = t;
@@ -447,6 +448,7 @@ static struct df_frame df_input_frame(bool down)
 			f.y = var(1);
 			f.key = var(2);
 		}
+		f.last = br_msg_parts();
 	}
 	return f;
 }
@@ -500,7 +502,10 @@ static void df_click_release(void)
 
 	/* A press outside the scope, as while a line fades in: the script sees
 	 * it (and completes the line), nothing is sent for it, and the wait
-	 * that follows takes it as the first click, which is no click. */
+	 * that follows takes it as the first click, which is no click for the
+	 * script. The engine samples the held button at BeginInput (0x546030),
+	 * so its release is the whole-screen click (0x548064), which no parts
+	 * takes (there was no press in the scope). */
 	PE_EndInput();
 	f = df_input_frame(true);
 	DF_CHECK(!f.n && key_is_down(VK_LBUTTON), "a press outside the scope: %d message(s), down %d", f.n, key_is_down(VK_LBUTTON));
@@ -509,8 +514,8 @@ static void df_click_release(void)
 	f = df_input_frame(true);
 	DF_CHECK(!f.n && df_click_call(click, "IsFirstClick", 0, NULL) == 1, "a button held on entering the wait is not the first click");
 	f = df_input_frame(false);
-	DF_CHECK(!f.n && !*busy, "the release of a press from before the wait queued %d message(s), g_EndPartsBusyLoop %d; want none and 0",
-		 f.n, *busy);
+	DF_CHECK(f.n == 1 && f.no == 0 && !*busy, "the release of a press from before the wait queued %d message(s) (parts %d), g_EndPartsBusyLoop %d; want the whole-screen click and 0",
+		 f.n, f.no, *busy);
 	DF_CHECK(df_click_call(click, "IsFirstClick", 0, NULL) == 1 && !df_click_call(click, "IsClick", 1, &any),
 		 "the release of the first click is a click");
 	f = df_input_frame(true);
@@ -520,18 +525,21 @@ static void df_click_release(void)
 	DF_CHECK(f.n == 1 && f.no == 0 && df_click_call(click, "IsClick", 1, &any) == 1,
 		 "the next click: %d message(s) (parts %d), or no click for the script", f.n, f.no);
 
-	/* A clickable parts takes its click on the press; the release sends
-	 * nothing more. */
+	/* A clickable parts: the press sends nothing; its release sends the
+	 * whole-screen click first and the parts' own MouseClick after it
+	 * (0x548064, then 0x5788d0). */
 	mouse_set_pos(150, 140);
 	PE_UpdateComponent(0);
 	df_input_frame(false);
 	f = df_input_frame(true);
-	DF_CHECK(f.n == 1 && f.type == 4 && f.no == BOX, "a press on a clickable parts queued %d message(s), first type %d parts %d; want 1, 4, %d",
-		 f.n, f.type, f.no, BOX);
+	DF_CHECK(!f.n, "a press on a clickable parts queued %d message(s), first type %d parts %d; want none", f.n, f.type, f.no);
 	f = df_input_frame(false);
-	DF_CHECK(!f.n, "its release queued %d message(s) (parts %d)", f.n, f.no);
+	DF_CHECK(f.n == 2 && f.type == 4 && f.no == 0 && f.last == BOX,
+		 "its release queued %d message(s), first type %d parts %d, last parts %d; want 2, 4, 0 (the whole-screen click), %d",
+		 f.n, f.type, f.no, f.last, BOX);
 
-	/* The scope ends with the button down: its release sends nothing. */
+	/* The scope ends with the button down: its release sends nothing (the
+	 * input does nothing outside a scope, 0x547cba). */
 	mouse_set_pos(640, 300);
 	PE_UpdateComponent(0);
 	df_input_frame(false);
@@ -540,18 +548,22 @@ static void df_click_release(void)
 	struct df_frame g = df_input_frame(false);
 	DF_CHECK(!f.n && !g.n && !*busy, "a scope ended while the button was down: %d and %d message(s), g_EndPartsBusyLoop %d",
 		 f.n, g.n, *busy);
-	/* Nor does a scope opened while the button is down get anything of that
-	 * press, nor the outer scope when the inner one ends first. */
+	/* A scope opened while the button is down samples it (0x546030, into
+	 * +0x40): the release is the whole-screen click. So is it for the outer
+	 * scope when the inner one ends first (0x58a750 -> 0x53e830 samples
+	 * again). The press itself went to no scope: no parts is clicked. */
 	PE_BeginInput();
 	df_input_frame(false);
 	f = df_input_frame(true);
 	PE_BeginInput();
 	g = df_input_frame(false);
-	DF_CHECK(!f.n && !g.n, "a scope opened while the button was down: %d and %d message(s)", f.n, g.n);
+	DF_CHECK(!f.n && g.n == 1 && g.no == 0, "a scope opened while the button was down: %d and %d message(s) (parts %d); want 0 and the whole-screen click",
+		 f.n, g.n, g.no);
 	f = df_input_frame(true);
 	PE_EndInput();
 	g = df_input_frame(false);
-	DF_CHECK(!f.n && !g.n, "an inner scope ended while the button was down: %d and %d message(s) for the outer one", f.n, g.n);
+	DF_CHECK(!f.n && g.n == 1 && g.no == 0, "an inner scope ended while the button was down: %d and %d message(s) (parts %d) for the outer one; want 0 and the whole-screen click",
+		 f.n, g.n, g.no);
 	/* The outer scope takes the next click as before. */
 	f = df_input_frame(true);
 	g = df_input_frame(false);

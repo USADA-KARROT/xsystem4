@@ -1629,7 +1629,7 @@ void parts_release(int parts_no)
 		return;
 
 	struct parts *parts = slot->value;
-	parts_input_reset_drag(parts);
+	parts_input_release(parts);
 	parts_clear_motion(parts);
 	parts_message_window_free(parts->message);
 	for (int i = 0; i < PARTS_NR_STATES; i++) {
@@ -1875,8 +1875,7 @@ void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_windo
 	parts_update_animation(passed_time);
 	parts_message_window_update_times(passed_time, scaled_passed_time);
 	PE_UpdateInputState(passed_time);
-	// After the input: a check box that was clicked takes its other value
-	// here and is drawn again (see parts_checkbox_clicked for why here).
+	// After the input: a check box whose value changed is drawn again.
 	parts_checkbox_update();
 	parts_render_update();
 }

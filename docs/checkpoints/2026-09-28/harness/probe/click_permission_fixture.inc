@@ -1,6 +1,5 @@
 /* click-permission: the v14 pactex loader reads 點擊許可 into the parts'
- * clickable flag, and a press on a parts that is clickable through that key
- * alone and has no event stays the whole-screen click.
+ * clickable flag; which parts takes a click and what a click sends.
  *
  * Original (static disassembly): the component parser (0x553650, called with
  * the block at parts +0x84) reads the key at 0x5547be with the default 0 and
@@ -21,9 +20,9 @@
  *       hidden are read like the others; Parts_SetClickable still overrides.
  *   CP2 SceneWorkResult's shape: ClickGuard (z 606) under ClickTarget (z 607),
  *       both full-screen rects marked 1, the Footer's button above (z 608).
- *       ClickTarget, which the script gives an event, takes the press alone.
- *       Hidden, ClickGuard is the target: it has no event, so the press is
- *       the whole-screen click and nothing reaches the button under it.
+ *       ClickTarget, which the script gives an event, takes the click.
+ *       Hidden, ClickGuard is the target: it gets the click (which the AIN
+ *       drops, it has no event) and nothing reaches the button under it.
  *   CP3 DungeonSelector's Area as the script draws it (alpha 1 where it can
  *       be clicked, 0 elsewhere, pixel decision) and the CG mode's side
  *       panel: marked 1 they take the press, marked 0 they only block the
@@ -36,40 +35,33 @@
  *       loader again), as does a script's Parts_SetClickable(false).
  *   CP6 SceneFeelEventResultDialog's shape, which closes on the whole-screen
  *       click alone: over PartySkillView's Button (a CG parts marked 1 that
- *       the script never touches) the press is still the whole-screen click.
- *       With an event, or made clickable by the script itself, a parts takes
- *       the press. The case asserts what the engine queues for the script
+ *       the script never touches) the whole-screen click goes out as for
+ *       every release, and Button's own MouseClick, without an event ID,
+ *       after it. The case asserts what the engine queues for the script
  *       and g_EndPartsBusyLoop; the script's own dispatch of that message
  *       (Update, CallDelegate, LClickEvent, Close) is not run here.
  *
- * What a click sends is xsystem4's present dispatch (src/parts/input.c), and
- * every click of this file except the v13 ones is checked against it by
- * cp_expect_press or cp_expect_swallowed (CP2 5, CP3 7, CP4 12, CP5 3,
- * CP6 7):
- *   - a clickable target with an event, or one made clickable by the script
- *     or by a button or ＣＧ判定部件: its MouseClick (type 4) on the press,
- *     nothing else queued;
- *   - a target that only blocks the cursor, a target clickable through 點擊
- *     許可 alone without an event, or no target: the whole-screen click
- *     (parts 0), queued when the button comes up and not by the press;
- *   - a disabled button: nothing;
- *   - g_EndPartsBusyLoop is left at 0 by all of them.
- * The whole-screen click is the original's in its time and in leaving
- * g_EndPartsBusyLoop to the script: 0x547c90 sends it at 0x548064 for a
- * button that was down at the last update and is up now (0x547f81), into
- * the manager's own emitter, which masks other types but not 4 (0x54562a),
- * and only the script's EndWaitForClick sets the flag. The rest of the
- * original is not reproduced here: the whole-screen MouseClick goes out on
- * every release whatever is under the cursor, before the target's own,
- * which is sent on the release as well and only when the target is
- * clickable (0x5788d0). So the whole-screen click over ClickGuard and over
- * PartySkillView's Button is the original's result as well (they also get a
- * MouseClick nobody handles), while "on the press" and "nothing else
- * queued" for ClickTarget, Area and the buttons are not. When input.c
- * follows the original there too, the message counts and the order of those
- * clicks change with it, CP4's included. What does not change, and what CP4
- * guards as behaviour that must stay, is the flag of each parts, which
- * parts is the target, and the v13 path.
+ * What a click sends follows the original's input update 0x547c90 (see
+ * src/parts/input.c), and every click of this file except the v13 ones is
+ * checked against it by cp_expect_press or cp_expect_swallowed (CP2 5, CP3
+ * 7, CP4 12, CP5 3, CP6 7):
+ *   - nothing is queued by the press;
+ *   - the release queues the whole-screen MouseClick (type 4, parts 0, no
+ *     event ID, the cursor's position, key 1) first, whatever is under the
+ *     cursor (0x548064, into the manager's own emitter, which masks other
+ *     types but not 4, 0x54562a), for a button that was down at the last
+ *     update and is up now (0x547f81);
+ *   - then, when the press went to a clickable parts (with an event, or
+ *     clickable through 點擊許可 alone, or made clickable by the script, a
+ *     button or a ＣＧ判定部件) and the cursor is still on it, that parts'
+ *     own MouseClick (0x5788d0), with its event ID or without one;
+ *   - a target that only blocks the cursor, or no target: the whole-screen
+ *     click alone;
+ *   - a disabled button: the whole-screen click alone;
+ *   - g_EndPartsBusyLoop is left at 0 by all of them (only the script's
+ *     EndWaitForClick sets it).
+ * What CP4 guards as behaviour that must stay is the flag of each parts,
+ * which parts is the target, and the v13 path.
  *
  * CP3 uses the construction mode's GL setup and fork (environment failures
  * give the mode rc 2); the others need no GL. Each case runs in its own
@@ -261,10 +253,15 @@ static void cp_register_event(int no, int delegate, int unique)
 }
 
 /* One press at (x, y) after a released frame, and its release: the queued
- * messages, whether the press alone had queued one, the first one's fields
- * and g_EndPartsBusyLoop (cleared before the press). */
+ * messages, whether the press alone had queued one, the first two messages'
+ * fields and g_EndPartsBusyLoop (cleared before the press). */
+struct cp_msg {
+	int type, no, delegate, unique, x, y, key;
+};
 struct cp_press {
-	int n, down, type, no, delegate, unique, x, y, key, busy;
+	int n, down, busy;
+	struct cp_msg m[2];
+	int delegate, unique;	/* the target's (the second message's) */
 };
 static struct cp_press cp_press(int x, int y)
 {
@@ -280,45 +277,48 @@ static struct cp_press cp_press(int x, int y)
 	PE_UpdateInputState(0);
 	key_state[VK_LBUTTON] = true;
 	PE_UpdateInputState(0);
-	struct cp_press m = { .type = -1, .no = -1, .down = br_msg_type() >= 0 };
+	struct cp_press m = { .down = br_msg_type() >= 0, .delegate = -2, .unique = -2 };
+	for (int i = 0; i < 2; i++)
+		m.m[i] = (struct cp_msg){ .type = -1, .no = -1 };
 	key_state[VK_LBUTTON] = false;
 	PE_UpdateInputState(0);
 	for (int t; (t = br_msg_type()) >= 0; br_msg_pop()) {
-		if (!m.n++) {
-			m.type = t;
-			m.no = br_msg_parts();
-			m.delegate = delegate();
-			m.unique = cp_message_unique();
-			m.x = var(0);
-			m.y = var(1);
-			m.key = var(2);
-		}
+		if (m.n < 2)
+			m.m[m.n] = (struct cp_msg){ t, br_msg_parts(), delegate(), cp_message_unique(), var(0), var(1), var(2) };
+		m.n++;
 	}
 	PE_EndInput();
 	m.busy = heap[global_page_slot].page->values[2].i;
+	if (m.n >= 2) {
+		m.delegate = m.m[1].delegate;
+		m.unique = m.m[1].unique;
+	}
 	return m;
 }
-/* The shape of the present dispatch is defined by the next two functions and
- * nowhere else in this file (see the head comment for what the original
- * sends instead). The press went to one parts (no > 0): one MouseClick for
- * it, queued by the press. Or it is the whole-screen click (no 0): one
- * MouseClick for parts 0 without an event ID, queued by the release and not
- * before. The engine leaves g_EndPartsBusyLoop at 0 in both. */
+/* What a release sends, as the original does (see the head comment): the
+ * whole-screen click first, a MouseClick for parts 0 without an event ID,
+ * then, when the press went to a clickable parts (no > 0) still under the
+ * cursor, that parts' own MouseClick. Nothing is queued by the press, and
+ * the engine leaves g_EndPartsBusyLoop at 0. */
 static struct cp_press cp_expect_press(int x, int y, int no, const char *what)
 {
 	struct cp_press m = cp_press(x, y);
-	CP_CHECK(m.n == 1 && m.type == 4 && m.no == no && m.down == !!no && m.busy == 0 && m.x == x && m.y == y && m.key == 1
-		 && (no || (m.delegate == -1 && m.unique == -1)),
-		 "%s: %d messages (%d by the press), first type %d parts %d delegate %d unique %d (%d,%d,%d), g_EndPartsBusyLoop %d; want 1 (%d), 4, %d%s (%d,%d,1), 0",
-		 what, m.n, m.down, m.type, m.no, m.delegate, m.unique, m.x, m.y, m.key, m.busy, !!no, no, no ? "" : " -1 -1", x, y);
+	const struct cp_msg *w = &m.m[0], *t = &m.m[1];
+	bool whole = w->type == 4 && w->no == 0 && w->delegate == -1 && w->unique == -1 && w->x == x && w->y == y && w->key == 1;
+	bool target = !no || (t->type == 4 && t->no == no && t->x == x && t->y == y && t->key == 1);
+	CP_CHECK(m.n == (no ? 2 : 1) && !m.down && m.busy == 0 && whole && target,
+		 "%s: %d messages (%d by the press): (type %d parts %d delegate %d unique %d (%d,%d,%d)), (type %d parts %d (%d,%d,%d)), g_EndPartsBusyLoop %d; want %d (0): the whole-screen click (4, 0, -1, -1, (%d,%d,1))%s%s, 0",
+		 what, m.n, m.down, w->type, w->no, w->delegate, w->unique, w->x, w->y, w->key, t->type, t->no, t->x, t->y, t->key,
+		 m.busy, no ? 2 : 1, x, y, no ? ", then the MouseClick of parts " : "", no ? what : "");
 	return m;
 }
-/* A disabled button under the cursor: nothing is sent. */
+/* A disabled button under the cursor: the whole-screen click alone. */
 static void cp_expect_swallowed(int x, int y, const char *what)
 {
 	struct cp_press m = cp_press(x, y);
-	CP_CHECK(m.n == 0 && m.busy == 0, "%s: %d messages (first type %d parts %d), g_EndPartsBusyLoop %d; want none and 0",
-		 what, m.n, m.type, m.no, m.busy);
+	CP_CHECK(m.n == 1 && m.m[0].type == 4 && m.m[0].no == 0 && !m.down && m.busy == 0,
+		 "%s: %d messages (%d by the press; first type %d parts %d), g_EndPartsBusyLoop %d; want the whole-screen click alone and 0",
+		 what, m.n, m.down, m.m[0].type, m.m[0].no, m.busy);
 }
 /* The one hover target at (x, y), or none (NULL), among the given parts. */
 static void cp_expect_hover(int x, int y, struct parts *want, struct parts **all, int n, const char *what)
@@ -449,13 +449,13 @@ static void cp_result(void)
 	CP_CHECK(m.delegate == 7 && m.unique == 70, "the press on ClickTarget carries delegate %d unique %d, want 7, 70", m.delegate, m.unique);
 	cp_expect_hover(600, 340, t, all, 4, "over ClickTarget");
 	cp_expect_press(100, 676, FOOTER, "the footer button above ClickTarget");
-	/* ClickTarget hidden: ClickGuard is the target and keeps the press from
-	 * the button under it. It has no event, so the press is the whole-screen
-	 * click (the original sends that one for every release, and ClickGuard a
-	 * MouseClick the script drops). */
+	/* ClickTarget hidden: ClickGuard is the target and keeps the click from
+	 * the button under it. It has no event: its MouseClick carries no event
+	 * ID (the script drops it), after the whole-screen click. */
 	PE_SetShow(target, false);
 	cp_expect_hover(600, 340, g, all, 4, "over ClickGuard");
-	cp_expect_press(600, 340, 0, "ClickGuard, which has no event");
+	m = cp_expect_press(600, 340, guard, "ClickGuard, which has no event");
+	CP_CHECK(m.delegate == -1, "the click on ClickGuard carries delegate %d, want -1 (no event)", m.delegate);
 	PE_SetShow(guard, false);
 	cp_expect_press(600, 340, UNDER, "the button once both are hidden");
 	cp_expect_press(640, 600, 0, "beside every parts");
@@ -626,7 +626,7 @@ static void cp_guards(void)
 		cp_expect_flag(widget[i], true, widgets[i]);
 		cp_expect_press(1150, 45 + 100 * i, widget[i], widgets[i]);
 	}
-	/* A disabled button swallows the press. */
+	/* A disabled button gets no MouseClick of its own. */
 	for (int i = 0; i < 2 && widget[i] > 0; i++) {
 		BU_PE("SetButtonEnable", BU_I(widget[i]), BU_I(0));
 		cp_hit_area(widget[i], 142, 50);
@@ -740,19 +740,20 @@ static void cp_whole_screen(void)
 	struct parts *all[] = { parts_get(inside), parts_get(button) };
 	CP_CHECK(all[0]->global.z < all[1]->global.z, "z order: Inside %d, Button %d", all[0]->global.z, all[1]->global.z);
 	/* The script never refers to Button: it is clickable and the target, it
-	 * has no event, and the press is the whole-screen click, on which the
-	 * dialog closes (SceneContext's LClickEvent). */
+	 * has no event. The whole-screen click, on which the dialog closes
+	 * (SceneContext's LClickEvent), goes out first; Button's own MouseClick
+	 * follows without an event ID. */
 	cp_expect_flag(button, true, "Button");
 	CP_CHECK(all[1]->delegate_index < 0, "Button has delegate index %d", all[1]->delegate_index);
 	cp_expect_hover(700, 290, all[1], all, 2, "over Button");
-	cp_expect_press(700, 290, 0, "Button, which has no event");
+	struct cp_press m = cp_expect_press(700, 290, button, "Button, which has no event");
+	CP_CHECK(m.delegate == -1, "the click on Button carries delegate %d, want -1 (no event)", m.delegate);
 	cp_expect_press(1200, 480, 0, "the dialog's strip beside the rows");
-	/* With an event the parts takes the press (in the original the
-	 * whole-screen click is sent as well). */
+	/* With an event the parts' MouseClick carries it. */
 	cp_register_event(with_event, 5, 50);
-	struct cp_press m = cp_expect_press(200, 290, with_event, "a marked parts with an event");
-	CP_CHECK(m.delegate == 5 && m.unique == 50, "its press carries delegate %d unique %d, want 5, 50", m.delegate, m.unique);
-	/* A parts the script itself makes clickable takes the press as before,
+	m = cp_expect_press(200, 290, with_event, "a marked parts with an event");
+	CP_CHECK(m.delegate == 5 && m.unique == 50, "its click carries delegate %d unique %d, want 5, 50", m.delegate, m.unique);
+	/* A parts the script itself makes clickable takes the click as before,
 	 * with or without an event; so does a marked one after the script's
 	 * setter (which can also take the flag away). */
 	cp_expect_flag(by_script, false, "ButtonScript as loaded");
@@ -762,7 +763,7 @@ static void cp_whole_screen(void)
 	cp_expect_press(700, 290, 0, "Button after Parts_SetClickable(false)");
 	BU_PE("Parts_SetClickable", BU_I(button), BU_I(1));
 	cp_expect_press(700, 290, button, "Button after Parts_SetClickable(true)");
-	/* A disabled button swallows the press whatever made it clickable. */
+	/* A disabled button gets no MouseClick whatever made it clickable. */
 	BU_PE("SetButtonEnable", BU_I(disabled), BU_I(0));
 	cp_hit_area(disabled, 470, 90);
 	cp_expect_flag(disabled, true, "ButtonDisabled");

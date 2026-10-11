@@ -40,9 +40,14 @@ static bool prev_clicking = false;
 static int clicked_parts = 0;
 // the current (partially) clicked parts number
 static int click_down_parts = 0;
-// v14: the left button went down within the input scope on no clickable
-// target; its release is the whole-screen click (see PE_UpdateInputState)
-static bool v14_whole_click_armed = false;
+// v14: the parts under the cursor when the left button went down within the
+// scope, the one its release clicks; see v14_update_buttons
+static int v14_press_parts;
+// v14: the parts under the cursor at the last left press within the scope,
+// standing in for the original's focus (+0x1b4 of the element, set by
+// 0x546890 at a press only) that GetActiveParts reports; see
+// PE_GetActivePartsNumber
+static int v14_active_parts;
 void parts_enqueue_message_vars(int type, int parts_no, int delegate_index,
 		int unique_id, int nr_vars, const int *vars);
 
@@ -167,12 +172,23 @@ static void drag_state_reset(void)
 	drop_target = NULL;
 }
 
-void parts_input_reset_drag(struct parts *parts)
+/* The parts is being released: the input forgets it (v14: the original's
+ * 0x53c140 drops a released parts from the scope's active parts). */
+void parts_input_release(struct parts *parts)
 {
 	if (parts == drag_parts)
 		drag_state_reset();
 	else if (parts == drop_target)
 		drop_target = NULL;
+	// Programs before v14 keep a press on a released parts as it was.
+	if (ain->version < 14)
+		return;
+	if (parts->no == click_down_parts)
+		click_down_parts = 0;
+	if (parts->no == v14_press_parts)
+		v14_press_parts = 0;
+	if (parts->no == v14_active_parts)
+		v14_active_parts = 0;
 }
 
 /* A disabled v14 button has no cursor or click sound: native 0x5285b0 empties
@@ -225,36 +241,6 @@ static struct parts *v14_input_target(Point pos)
 			return parts;
 	}
 	return NULL;
-}
-
-/*
- * v14: a clickable target without any event, so that the
- * press stays the whole-screen click (see the dispatch in
- * PE_UpdateInputState): clickable through the pactex 點擊許可 alone, and
- * without an event. The script's first XxxEvent::add for a parts allocates
- * its index (CPartsMessageManager@GetFunctionSet, the only caller of
- * SetEventID); getting the parts or setting its properties does not, so
- * delegate_index stays -1 for ClickGuard, InputGuard and PartySkillView's
- * Button, which the script never gives an event. In the original such a
- * parts gets its MouseClick, which the AIN drops (CallDelegate), and the
- * whole-screen click is sent as for every release (0x548064).
- *
- * Only the pactex mark is treated this way. A parts made clickable by the
- * script, a button or a ＣＧ判定部件 keeps taking the click as before, with
- * or without an event: whether a flow relies on that was not established.
- * A disabled button swallows the click whatever made it clickable. The mark
- * is not saved, so after PE_Load such a parts takes the click again until
- * its activity is loaded anew.
- *
- * A parts with an event of another kind is not covered: the engine cannot
- * see which delegates its function set holds. BattleActionPanel's DragRange
- * has drag events and no click handler, so a press on it is neither handled
- * nor the whole-screen click (no scene there closes on one).
- */
-static bool v14_click_unclaimed(struct parts *parts)
-{
-	return parts->click_permission_only && parts->delegate_index < 0
-		&& !parts->button_disabled;
 }
 
 static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clicking,
@@ -331,7 +317,11 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 		parts_msg_push(parts, PARTS_MSG_KEY_DOWN, "i", VK_LBUTTON);
 	}
 
-	if (cur_clicking && click_down_parts == parts->no) {
+	// v14: only a clickable target shows its down state (0x578580 switches
+	// to state 3 only when the element is clickable, +0x1a4, and under the
+	// cursor); a parts that merely blocks the cursor stays on-cursor.
+	if (cur_clicking && click_down_parts == parts->no
+			&& (ain->version < 14 || parts->clickable)) {
 		parts_set_state(parts, PARTS_STATE_CLICKED);
 	} else {
 		if (!was_hovered) {
@@ -341,11 +331,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	}
 
 	// click event: only if the click down event had same parts number.
-	// v14 dispatches a target's click on the DOWN transition (see
-	// PE_UpdateInputState);
-	// the release-time path would set clicked_parts a second time after the
-	// title's WaitForClick already consumed it, and the stale value made
-	// every later WaitForClick exit immediately (dialogue auto-skipped).
+	// v14 sends a target's click from v14_update_buttons, with the
+	// whole-screen click before it and the original's conditions.
 	if (ain->version < 14 && parts->clickable && prev_clicking && !cur_clicking
 			&& click_down_parts == parts->no) {
 		audio_play_sound(parts_click_sound(parts));
@@ -355,6 +342,154 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 				"iii", cur_pos.x, cur_pos.y, VK_LBUTTON);
 		parts_msg_push(parts, PARTS_MSG_KEY_UP, "i", VK_LBUTTON);
 	}
+}
+
+/*
+ * v14 (Dohna Dohna): the left mouse button as the original's input update
+ * sees it (0x547c90, run by the parts update 0x53c5b0 alone; the update
+ * does nothing outside a BeginInput/EndInput scope, 0x547cba).
+ *
+ * A press (down now, up at the last update; 0x547f2d..0x547fb3) makes the
+ * parts under the cursor, v14_input_target, the pressed parts and the focus
+ * (0x546890, which looks for a target at a press only). Nothing is sent for
+ * a press; a clickable target only shows its down state (parts_update_mouse).
+ *
+ * A release sends, in this order:
+ *  1. the whole-screen MouseClick (x, y, key 1), whatever is under the
+ *     cursor, through the manager's own emitter (0x548064: its source is
+ *     null, so the message's parts number is 0, and its mask 0x54562a does
+ *     not include type 4). Also when the button was already down at
+ *     BeginInput: 0x546030 samples the buttons into +0x40..+0x42, and
+ *     EndInput samples them again for the outer scope (0x58a750 ->
+ *     0x53e830).
+ *  2. the pressed parts' own MouseClick (0x5788d0, key 1), only when it is
+ *     clickable (+0x1a4) and the cursor is still on it (+0x1ac; see the
+ *     note in the function); the click sound (0x5789bc: the state 3 sound,
+ *     as Parts_PlaySound(n, 3)) and GetClickNumber come with it.
+ *     GetClickNumber follows the left button's click of a parts and nothing
+ *     else: its source is the element's +5, written at 0x5789cb in the key
+ *     1 branch alone, which 0x547610 looks up (0x545d40) and stores at
+ *     +0x14, cleared at the start of every update. A parts the cursor left
+ *     gets nothing and returns to its default state (0x5789dd); dragged
+ *     back, it is clicked. A button already down at BeginInput is not a
+ *     press (and BeginInput clears the focus, 0x53e830 -> 0x53c750), so no
+ *     parts is clicked and only the whole-screen click goes out. A
+ *     pactex-clickable parts without an event gets its MouseClick as well,
+ *     which the AIN drops (CPartsMessageManager@CallDelegate); the
+ *     whole-screen click is what closes the dialog over PartySkillView's
+ *     Button. A check box flips here, after its MouseClick (0x52cdd0 ->
+ *     0x52f030: the cursor still on the widget, key 1).
+ *
+ * The original has no "pressed parts" for a click. It sends the parts'
+ * click to the focused element (0x548367 calls 0x578580 on it), which finds
+ * the released keys in the element's own key table (0x574d50 at 0x57861f)
+ * and runs 0x5788d0 for each. Its per-button slots (+0x1ec left, +0x200
+ * middle, +0x208 right; 0x546890 empties the three at a press and fills
+ * one, in that priority: 0x546988, 0x5469db, 0x5469fe) are the sources of
+ * a drag and drop. v14_press_parts stands for "the focus, with the left
+ * button gone down on it", the same parts as long as only the left button
+ * is used.
+ *
+ * The right and the middle button are not done: here their press and their
+ * release do nothing to the parts' input, as before the left button was
+ * reworked. In the original
+ *  - a release sends the whole-screen click with key 2 or 4 (0x5480be,
+ *    0x5480fb) and the focused element's MouseClick with that key (0x5788d0
+ *    from 0x5789e8: clickable and the cursor on it), with no sound and
+ *    without GetClickNumber (that branch does not write +5);
+ *  - a press of any of the three moves the focus (0x546a1f..0x546aa2);
+ *    here only a left press does;
+ *  - a right or middle press with a parts in the left slot calls 0x5462b0
+ *    (0x54816d), which cancels the drag and drop: it puts a draggable
+ *    parts back where it was (0x5462d8), sends the drag's events (0x5781b0,
+ *    and 0x80ffa8 for an element being dragged, +0x1e0), leaves the drop
+ *    target (0x5784b0), empties the slot and sets +0x1fc (0x5463ad). While
+ *    +0x1fc is set, until all three buttons are up (0x548206), the update
+ *    skips 0x546890 (0x548278), so no new press is taken. 0x5462b0 writes
+ *    neither the focus nor the element's key table, so, read statically,
+ *    the left button's click of the focused parts still goes out (not
+ *    compared with the original running).
+ * Doing them right takes the focus and the key table as the model and a
+ * comparison with the original; that is left to a later round.
+ *
+ * A disabled button (SetButtonEnable false) gets no MouseClick, no
+ * GetClickNumber and no sound here. This is the port's expedient and has no
+ * counterpart in the original's input update: the button's per-frame update
+ * makes its inner parts clickable whatever the enable flag (0x528690, ahead
+ * of the read of +0xb0 at 0x5286df), and a disabled button only has its two
+ * sound names emptied (the branch at 0x528787), so 0x5788d0 still sends
+ * that parts its MouseClick and sets its +5. The original does not react to
+ * its greyed buttons (成员/商店 on the base screen) while the AIN click
+ * handlers do not check Enable, so the click is presumably stopped in
+ * another layer; which one was not looked up. The whole-screen click is
+ * sent as for any release.
+ *
+ * Not done: the KeyTrigger/KeyDown/KeyPress/KeyUp messages (types 15-18)
+ * and the double click (0x4e6bd0); the original also sends no mouse
+ * message when the cursor is outside the window (0x548024).
+ */
+static void v14_update_buttons(Point cur_pos, bool cur_clicking, struct parts *v14_target)
+{
+	if (!parts_began_click)
+		return;
+	// GetClickNumber is this update's (0x547c90 clears +0x14 first).
+	clicked_parts = 0;
+	if (cur_clicking && !prev_clicking) {
+		v14_press_parts = v14_target ? v14_target->no : 0;
+		v14_active_parts = v14_press_parts;
+		if (getenv("XSYS4_STAGE2_TRACE")) {
+			unsigned candidates = 0;
+			struct parts *parts;
+			NOTICE("S2 parts press ms=%u key=%d pos=%d,%d target=%d", SDL_GetTicks(),
+					VK_LBUTTON, cur_pos.x, cur_pos.y, v14_press_parts);
+			PARTS_LIST_FOREACH_REVERSE(parts) {
+				if (!parts->clickable || !parts->global.show || !parts->global.alpha || candidates++ >= 32)
+					continue;
+				Rectangle box = parts->states[PARTS_STATE_DEFAULT].common.hitbox;
+				NOTICE("S2 candidate no=%d state=%d pass=%d pixel=%d hit=%d default_hit=%d box=%d,%d,%d,%d global=%d,%d scale=%.3f,%.3f parent=%d",
+					parts->no, parts->state, parts->pass_cursor, parts->pixel_hittest,
+					parts_hittest(parts, parts->state, cur_pos), parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos),
+					box.x, box.y, box.w, box.h, parts->global.pos.x, parts->global.pos.y,
+					parts->global.scale.x, parts->global.scale.y, parts->parent ? parts->parent->no : 0);
+			}
+		}
+	}
+	if (cur_clicking || !prev_clicking)
+		return;
+	int vars[3] = { cur_pos.x, cur_pos.y, VK_LBUTTON };
+	parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
+	struct parts *target = v14_press_parts ? parts_try_get(v14_press_parts) : NULL;
+	v14_press_parts = 0;
+	// "The cursor is still on it" is the element's +0x1ac in the original,
+	// kept by the cursor walk at the end of 0x546890 (0x5471d0: an element
+	// it enters gets 1 at 0x577cd9, one it leaves 0 at 0x577d91). From the
+	// front, every shown element the point hits is entered, up to and
+	// including the first that does not pass the cursor (+0x1a5 0, or
+	// +0x1dc not negative); all the others are left. Here it is "the
+	// pressed parts is the frontmost target now" (v14_input_target). The
+	// two differ when a parts that is clickable and passes the cursor comes
+	// in front of the pressed one after the press: the original still
+	// clicks the pressed parts, this does not.
+	bool on_target = target && target == v14_target && target->clickable;
+	if (getenv("XSYS4_STAGE2_TRACE"))
+		NOTICE("S2 click ms=%u key=%d pos=%d,%d target=%d%s%s", SDL_GetTicks(), VK_LBUTTON,
+				cur_pos.x, cur_pos.y, target ? target->no : 0,
+				target && !on_target ? " (left)" : "",
+				on_target && target->button_disabled ? " (disabled)" : "");
+	if (!on_target || target->button_disabled)
+		return;
+	if (parts_click_sound(target) >= 0)
+		audio_play_sound(parts_click_sound(target));
+	clicked_parts = target->no;
+	// type 4 = MouseClick (CallEvent3: x,y,keyCode) in
+	// CPartsMessageManager's SWITCH (bytecode-verified; type 5
+	// is DoubleClick/CallEvent0 and dispatches an empty slot)
+	parts_enqueue_message_vars(4, target->no, target->delegate_index,
+			target->unique_id, 3, vars);
+	// Only a parts that was made a check box has the values: the
+	// pactex loader's legacy guess also gives a parts type 1.
+	if (target->component_type == PARTS_COMPONENT_CHECKBOX && target->checkbox)
+		parts_checkbox_set_checked(target, !target->checkbox->checked);
 }
 
 void PE_UpdateInputState(int passed_time)
@@ -420,6 +555,9 @@ void PE_UpdateInputState(int passed_time)
 		}
 	}
 
+	if (ain->version >= 14)
+		v14_update_buttons(cur_pos, cur_clicking, v14_target);
+
 	// Release handling
 	if (prev_clicking && !cur_clicking) {
 		if (is_dragging && drag_parts && drag_parts->draggable) {
@@ -438,121 +576,6 @@ void PE_UpdateInputState(int passed_time)
 		click_down_parts = 0;
 	}
 
-	// v14 (Dohna Dohna): a clickable target's click is detected on the
-	// mouse DOWN transition. Front-to-back hit test; a miss becomes a
-	// whole-screen click message (parts_no=0), which drives scene navigation
-	// (WholeMouseLClickEvent) and is sent when the button comes up.
-	//
-	// A disabled button (SetButtonEnable false) takes the click and sends
-	// nothing, neither its MouseClick nor the whole-screen click: the
-	// original does not react to its greyed buttons (成员/商店 on the base
-	// screen), while the AIN click handlers and SceneHome@Exit do not check
-	// Enable. How the original drops the click is not known: the widget
-	// flag +0xb0 is only read by the rebuild (0x528870/0x529280), the
-	// per-frame sound reset (0x5285b0), a CG size lookup (0x529490), save
-	// (0x526ab0) and the HLL getter/setter (0x590b70/0x590ba0).
-	//
-	// The target is the hover's (v14_input_target). A clickable one gets the
-	// MouseClick; one that only blocks the cursor (a CG image, a panel,
-	// オン指針透過 0) keeps the click from the parts behind it and the click
-	// becomes the whole-screen click.
-	//
-	// The original sends more than this. On every release of the left
-	// button, whatever is under the cursor, 0x547c90 sends a MouseClick
-	// (x, y, 1) through the manager's own emitter (0x548064: its source is
-	// null, so the message's parts number is 0, and its mask, 0x54562a,
-	// does not include type 4): the whole-screen click. Separately the
-	// target element gets its own MouseClick, only when it is clickable
-	// (0x5788d0; one that is not gets KeyUp alone, 0x578917). So "a blocker
-	// makes it the whole-screen click" is what the original does, while "a
-	// clickable target gets no whole-screen click" is this port's model, as
-	// is sending the target's click on the press. Sending both messages,
-	// and the target's on the release, is left for the input model.
-	//
-	// The whole-screen click itself follows the original: it goes out when
-	// the button comes up (0x547f81: down at the last update, +0x40, and up
-	// now), with the cursor's position then, and the engine does not write
-	// g_EndPartsBusyLoop (only the script does: WaitForClick clears it and
-	// EndWaitForClick sets it). A wait for a message so ends where the
-	// script's CASClick sees the release (CheckKeyClickStepMessage), with the
-	// button up for the line that follows, and a click that releases the
-	// auto or the skip mode does not step the message
-	// (CheckReleaseModeByClick). One difference is kept: the original also
-	// sends it for a button that was already down at BeginInput (0x546030
-	// samples the buttons into +0x40). Here only a press seen within the
-	// scope counts, since a target's click still goes out on the press and
-	// the scope it opens would otherwise get the release of that same
-	// click.
-	//
-	// One case of that difference is closed here: a clickable target that
-	// has no event and is clickable only through its pactex 點擊許可
-	// (v14_click_unclaimed) is handled as a blocker. It would otherwise
-	// swallow the click of a scene that closes on the whole-screen click
-	// (SceneFeelEventResultDialog over PartySkillView's Button). System parts
-	// (1000001000 and up) are not skipped: InputDisabler's and the dialogs'
-	// full-screen blockers are clickable rects that must stop a click
-	// reaching the buttons behind them. (They used to be skipped because a
-	// leaked InputDisabler, kept alive by a delegate, covered the screen for
-	// good; delegates no longer own their objects, see
-	// delegate_page_register.)
-	if (ain->version >= 14 && cur_clicking && !prev_clicking && parts_began_click) {
-		struct parts *click_target = NULL;
-		if (getenv("XSYS4_STAGE2_TRACE")) {
-			unsigned candidates = 0;
-			NOTICE("S2 parts press ms=%u pos=%d,%d began=%d", SDL_GetTicks(), cur_pos.x, cur_pos.y, parts_began_click);
-			PARTS_LIST_FOREACH_REVERSE(parts) {
-				if (!parts->clickable || !parts->global.show || !parts->global.alpha || candidates++ >= 32)
-					continue;
-				Rectangle box = parts->states[PARTS_STATE_DEFAULT].common.hitbox;
-				NOTICE("S2 candidate no=%d state=%d pass=%d pixel=%d hit=%d default_hit=%d box=%d,%d,%d,%d global=%d,%d scale=%.3f,%.3f parent=%d",
-					parts->no, parts->state, parts->pass_cursor, parts->pixel_hittest,
-					parts_hittest(parts, parts->state, cur_pos), parts_hittest(parts, PARTS_STATE_DEFAULT, cur_pos),
-					box.x, box.y, box.w, box.h, parts->global.pos.x, parts->global.pos.y,
-					parts->global.scale.x, parts->global.scale.y, parts->parent ? parts->parent->no : 0);
-			}
-		}
-		if (v14_target && v14_target->clickable && !v14_click_unclaimed(v14_target))
-			click_target = v14_target;
-		int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-		if (getenv("XSYS4_STAGE2_TRACE"))
-			NOTICE("S2 click target=%d%s blocked_by=%d", click_target ? click_target->no : 0,
-				click_target && click_target->button_disabled ? " (disabled)" : "",
-				v14_target && !click_target ? v14_target->no : 0);
-		if (click_target && click_target->button_disabled) {
-			// swallowed (see above)
-		} else if (click_target) {
-			if (parts_click_sound(click_target) >= 0)
-				audio_play_sound(parts_click_sound(click_target));
-			clicked_parts = click_target->no;
-			// type 4 = MouseClick (CallEvent3: x,y,keyCode) in
-			// CPartsMessageManager's SWITCH (bytecode-verified; type 5
-			// is DoubleClick/CallEvent0 and dispatches an empty slot)
-			parts_enqueue_message_vars(4, click_target->no,
-					click_target->delegate_index,
-					click_target->unique_id, 3, vars);
-			// A check box flips, after its MouseClick as in the
-			// original (0x52cdd0), at the next update of the parts
-			// (parts_checkbox_clicked). One that is not enabled was
-			// swallowed above. Only a parts that was made a check
-			// box has the values: the pactex loader's legacy guess
-			// also gives a parts type 1.
-			if (click_target->component_type == PARTS_COMPONENT_CHECKBOX
-					&& click_target->checkbox)
-				parts_checkbox_clicked(click_target);
-		} else {
-			v14_whole_click_armed = true;
-		}
-	}
-	// The whole-screen click of a press that no target took (see above).
-	if (ain->version >= 14 && prev_clicking && !cur_clicking) {
-		if (v14_whole_click_armed && parts_began_click) {
-			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
-			if (getenv("XSYS4_STAGE2_TRACE"))
-				NOTICE("S2 whole click ms=%u pos=%d,%d", SDL_GetTicks(), cur_pos.x, cur_pos.y);
-			parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
-		}
-		v14_whole_click_armed = false;
-	}
 
 	prev_clicking = cur_clicking;
 	parts_prev_pos = cur_pos;
@@ -570,10 +593,7 @@ bool PE_GetPartsPassCursor(int parts_no)
 
 void PE_SetClickable(int parts_no, bool clickable)
 {
-	struct parts *parts = parts_get(parts_no);
-	parts->clickable = !!clickable;
-	// The caller owns the flag from here on (see click_permission_only).
-	parts->click_permission_only = false;
+	parts_get(parts_no)->clickable = !!clickable;
 }
 
 bool PE_GetPartsClickable(int parts_no)
@@ -650,9 +670,14 @@ static void v14_reset_input_session(bool begin)
 	}
 	clicked_parts = 0;
 	click_down_parts = 0;
-	v14_whole_click_armed = false;
+	v14_press_parts = 0;
+	v14_active_parts = 0;
 	drag_state_reset();
 	parts_prev_pos = (Point){0};
+	// The left button held here is up at a later update: that release sends
+	// the whole-screen click, as the original's sampled buttons make it
+	// (0x546030 samples all three into +0x40..+0x42; only the left one is
+	// followed here, see v14_update_buttons).
 	prev_clicking = begin && key_is_down(VK_LBUTTON);
 	parts_began_click = begin;
 }
@@ -662,7 +687,6 @@ void parts_reset_input(void)
 	if (ain->version >= 14) {
 		v14_input_depth = 0;
 		v14_reset_input_session(false);
-		parts_checkbox_reset_clicks();
 	}
 }
 
@@ -700,6 +724,30 @@ void PE_SetDrag(int parts_no, bool enable)
 int PE_GetClickPartsNumber(void)
 {
 	return clicked_parts;
+}
+
+/* v14 GetActiveParts: the parts under the cursor at the last left press
+ * within the scope (see v14_update_buttons and pe_v14_message.c), 0 after a
+ * press beside everything, after a reset of the input and when that parts
+ * was released. That is the original's meaning too (there the press of any
+ * button counts). The timing differs in three ways, which are this port's
+ * choice and not taken from the original:
+ *  - the outermost EndInput clears it here. In the original BeginInput and
+ *    a nested EndInput walk the widgets to clear the focus (0x53e830 ->
+ *    0x53c750 -> 0x538060), while the outermost EndInput (0x58a750 at depth
+ *    1) runs 0x53e8b0 alone, which resets only the elements still in the
+ *    manager's five slots (0x5461a0 -> 0x577af0, their +0x1b4 with them).
+ *  - it changes at once here. The original reports the scope object's
+ *    +0x280 (0x53c6c0), which the parts update refreshes after its input
+ *    update (0x53c240 at 0x53c654, after 0x547c90 at 0x53c64d), so a focus
+ *    cleared by BeginInput or EndInput shows at the next parts update.
+ *  - there is one value here. The original keeps one in every scope object
+ *    and reads the object at +0x94 or, without one, the last of the array
+ *    (0x57bc90 -> 0x53e640); which parts belong to which object was not
+ *    looked up. */
+int PE_GetActivePartsNumber(void)
+{
+	return v14_active_parts;
 }
 
 bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)
