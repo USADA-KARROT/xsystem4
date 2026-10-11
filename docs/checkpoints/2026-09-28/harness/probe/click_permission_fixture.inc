@@ -42,30 +42,34 @@
  *       and g_EndPartsBusyLoop; the script's own dispatch of that message
  *       (Update, CallDelegate, LClickEvent, Close) is not run here.
  *
- * What a press sends is xsystem4's present dispatch (src/parts/input.c), and
- * every press of this file except the v13 ones is checked against it by
+ * What a click sends is xsystem4's present dispatch (src/parts/input.c), and
+ * every click of this file except the v13 ones is checked against it by
  * cp_expect_press or cp_expect_swallowed (CP2 5, CP3 7, CP4 12, CP5 3,
  * CP6 7):
  *   - a clickable target with an event, or one made clickable by the script
  *     or by a button or ＣＧ判定部件: its MouseClick (type 4) on the press,
- *     nothing else queued, g_EndPartsBusyLoop left at 0;
+ *     nothing else queued;
  *   - a target that only blocks the cursor, a target clickable through 點擊
  *     許可 alone without an event, or no target: the whole-screen click
- *     (parts 0) and g_EndPartsBusyLoop set to 1;
- *   - a disabled button: nothing.
- * The original differs and that is not reproduced here: it sends on the
- * release; the whole-screen MouseClick goes out on every release whatever is
- * under the cursor (0x547c90 at 0x548064, into the manager's own emitter,
- * which masks other types but not 4: 0x54562a), before the target's own,
- * which is sent only when the target is clickable (0x5788d0); and the engine
- * does not write g_EndPartsBusyLoop. So the whole-screen click over
- * ClickGuard and over PartySkillView's Button is the original's result as
- * well (they also get a MouseClick nobody handles), while "nothing else
- * queued" for ClickTarget, Area and the buttons is not. When input.c follows
- * the original, the message counts, the order and g_EndPartsBusyLoop of all
- * those presses change with it, CP4's included. What does not change, and
- * what CP4 guards as behaviour that must stay, is the flag of each parts,
- * which parts is the target, and the v13 path.
+ *     (parts 0), queued when the button comes up and not by the press;
+ *   - a disabled button: nothing;
+ *   - g_EndPartsBusyLoop is left at 0 by all of them.
+ * The whole-screen click is the original's in its time and in leaving
+ * g_EndPartsBusyLoop to the script: 0x547c90 sends it at 0x548064 for a
+ * button that was down at the last update and is up now (0x547f81), into
+ * the manager's own emitter, which masks other types but not 4 (0x54562a),
+ * and only the script's EndWaitForClick sets the flag. The rest of the
+ * original is not reproduced here: the whole-screen MouseClick goes out on
+ * every release whatever is under the cursor, before the target's own,
+ * which is sent on the release as well and only when the target is
+ * clickable (0x5788d0). So the whole-screen click over ClickGuard and over
+ * PartySkillView's Button is the original's result as well (they also get a
+ * MouseClick nobody handles), while "on the press" and "nothing else
+ * queued" for ClickTarget, Area and the buttons are not. When input.c
+ * follows the original there too, the message counts and the order of those
+ * clicks change with it, CP4's included. What does not change, and what CP4
+ * guards as behaviour that must stay, is the flag of each parts, which
+ * parts is the target, and the v13 path.
  *
  * CP3 uses the construction mode's GL setup and fork (environment failures
  * give the mode rc 2); the others need no GL. Each case runs in its own
@@ -256,10 +260,11 @@ static void cp_register_event(int no, int delegate, int unique)
 		BU_PE("SetEventID", BU_I(no), BU_I(delegate), BU_I(unique));
 }
 
-/* One press at (x, y) after a released frame: the queued messages, the
- * first one's fields and g_EndPartsBusyLoop (cleared before the press). */
+/* One press at (x, y) after a released frame, and its release: the queued
+ * messages, whether the press alone had queued one, the first one's fields
+ * and g_EndPartsBusyLoop (cleared before the press). */
 struct cp_press {
-	int n, type, no, delegate, unique, x, y, key, busy;
+	int n, down, type, no, delegate, unique, x, y, key, busy;
 };
 static struct cp_press cp_press(int x, int y)
 {
@@ -275,9 +280,9 @@ static struct cp_press cp_press(int x, int y)
 	PE_UpdateInputState(0);
 	key_state[VK_LBUTTON] = true;
 	PE_UpdateInputState(0);
+	struct cp_press m = { .type = -1, .no = -1, .down = br_msg_type() >= 0 };
 	key_state[VK_LBUTTON] = false;
 	PE_UpdateInputState(0);
-	struct cp_press m = { .type = -1, .no = -1 };
 	for (int t; (t = br_msg_type()) >= 0; br_msg_pop()) {
 		if (!m.n++) {
 			m.type = t;
@@ -296,16 +301,16 @@ static struct cp_press cp_press(int x, int y)
 /* The shape of the present dispatch is defined by the next two functions and
  * nowhere else in this file (see the head comment for what the original
  * sends instead). The press went to one parts (no > 0): one MouseClick for
- * it, g_EndPartsBusyLoop 0. Or it is the whole-screen click (no 0): one
- * MouseClick for parts 0 without an event ID, g_EndPartsBusyLoop 1. */
+ * it, queued by the press. Or it is the whole-screen click (no 0): one
+ * MouseClick for parts 0 without an event ID, queued by the release and not
+ * before. The engine leaves g_EndPartsBusyLoop at 0 in both. */
 static struct cp_press cp_expect_press(int x, int y, int no, const char *what)
 {
 	struct cp_press m = cp_press(x, y);
-	int busy = no ? 0 : 1;
-	CP_CHECK(m.n == 1 && m.type == 4 && m.no == no && m.busy == busy && m.x == x && m.y == y && m.key == 1
+	CP_CHECK(m.n == 1 && m.type == 4 && m.no == no && m.down == !!no && m.busy == 0 && m.x == x && m.y == y && m.key == 1
 		 && (no || (m.delegate == -1 && m.unique == -1)),
-		 "%s: %d messages, first type %d parts %d delegate %d unique %d (%d,%d,%d), g_EndPartsBusyLoop %d; want 1, 4, %d%s (%d,%d,1), %d",
-		 what, m.n, m.type, m.no, m.delegate, m.unique, m.x, m.y, m.key, m.busy, no, no ? "" : " -1 -1", x, y, busy);
+		 "%s: %d messages (%d by the press), first type %d parts %d delegate %d unique %d (%d,%d,%d), g_EndPartsBusyLoop %d; want 1 (%d), 4, %d%s (%d,%d,1), 0",
+		 what, m.n, m.down, m.type, m.no, m.delegate, m.unique, m.x, m.y, m.key, m.busy, !!no, no, no ? "" : " -1 -1", x, y);
 	return m;
 }
 /* A disabled button under the cursor: nothing is sent. */

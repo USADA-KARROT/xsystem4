@@ -40,7 +40,9 @@ static bool prev_clicking = false;
 static int clicked_parts = 0;
 // the current (partially) clicked parts number
 static int click_down_parts = 0;
-static bool v14_background_click_pending = false;
+// v14: the left button went down within the input scope on no clickable
+// target; its release is the whole-screen click (see PE_UpdateInputState)
+static bool v14_whole_click_armed = false;
 void parts_enqueue_message_vars(int type, int parts_no, int delegate_index,
 		int unique_id, int nr_vars, const int *vars);
 
@@ -339,7 +341,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 	}
 
 	// click event: only if the click down event had same parts number.
-	// v14 dispatches clicks on the DOWN transition (see PE_UpdateInputState);
+	// v14 dispatches a target's click on the DOWN transition (see
+	// PE_UpdateInputState);
 	// the release-time path would set clicked_parts a second time after the
 	// title's WaitForClick already consumed it, and the stale value made
 	// every later WaitForClick exit immediately (dialogue auto-skipped).
@@ -435,12 +438,10 @@ void PE_UpdateInputState(int passed_time)
 		click_down_parts = 0;
 	}
 
-	// v14 (Dohna Dohna): click detection happens on the mouse DOWN
-	// transition — WaitForClick's bytecode key-check exits on DOWN and
-	// calls PE_EndInput before UP arrives, so release-time detection
-	// never fires. Front-to-back hit test; a miss becomes a whole-screen
-	// click message (parts_no=0) which drives scene navigation
-	// (WholeMouseLClickEvent), plus the g_EndPartsBusyLoop global.
+	// v14 (Dohna Dohna): a clickable target's click is detected on the
+	// mouse DOWN transition. Front-to-back hit test; a miss becomes a
+	// whole-screen click message (parts_no=0), which drives scene navigation
+	// (WholeMouseLClickEvent) and is sent when the button comes up.
 	//
 	// A disabled button (SetButtonEnable false) takes the click and sends
 	// nothing, neither its MouseClick nor the whole-screen click: the
@@ -465,10 +466,23 @@ void PE_UpdateInputState(int passed_time)
 	// (0x5788d0; one that is not gets KeyUp alone, 0x578917). So "a blocker
 	// makes it the whole-screen click" is what the original does, while "a
 	// clickable target gets no whole-screen click" is this port's model, as
-	// are sending on the press and setting g_EndPartsBusyLoop (in the
-	// original only the script writes it: WaitForClick clears it and
-	// EndWaitForClick sets it). Sending both
-	// messages is left for the input model.
+	// is sending the target's click on the press. Sending both messages,
+	// and the target's on the release, is left for the input model.
+	//
+	// The whole-screen click itself follows the original: it goes out when
+	// the button comes up (0x547f81: down at the last update, +0x40, and up
+	// now), with the cursor's position then, and the engine does not write
+	// g_EndPartsBusyLoop (only the script does: WaitForClick clears it and
+	// EndWaitForClick sets it). A wait for a message so ends where the
+	// script's CASClick sees the release (CheckKeyClickStepMessage), with the
+	// button up for the line that follows, and a click that releases the
+	// auto or the skip mode does not step the message
+	// (CheckReleaseModeByClick). One difference is kept: the original also
+	// sends it for a button that was already down at BeginInput (0x546030
+	// samples the buttons into +0x40). Here only a press seen within the
+	// scope counts, since a target's click still goes out on the press and
+	// the scope it opens would otherwise get the release of that same
+	// click.
 	//
 	// One case of that difference is closed here: a clickable target that
 	// has no event and is clickable only through its pactex 點擊許可
@@ -517,16 +531,18 @@ void PE_UpdateInputState(int passed_time)
 					click_target->delegate_index,
 					click_target->unique_id, 3, vars);
 		} else {
-			parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
-			global_set(2, (union vm_value){.i = 1}, false);
-			v14_background_click_pending = true;
+			v14_whole_click_armed = true;
 		}
 	}
-	// Re-fire a pending background click once a new input frame begins
-	// (the game may re-enter WaitForClick after consuming the first).
-	if (ain->version >= 14 && v14_background_click_pending && parts_began_click
-			&& !cur_clicking && !prev_clicking) {
-		v14_background_click_pending = false;
+	// The whole-screen click of a press that no target took (see above).
+	if (ain->version >= 14 && prev_clicking && !cur_clicking) {
+		if (v14_whole_click_armed && parts_began_click) {
+			int vars[3] = { cur_pos.x, cur_pos.y, 1 };
+			if (getenv("XSYS4_STAGE2_TRACE"))
+				NOTICE("S2 whole click ms=%u pos=%d,%d", SDL_GetTicks(), cur_pos.x, cur_pos.y);
+			parts_enqueue_message_vars(4, 0, -1, -1, 3, vars);
+		}
+		v14_whole_click_armed = false;
 	}
 
 	prev_clicking = cur_clicking;
@@ -625,7 +641,7 @@ static void v14_reset_input_session(bool begin)
 	}
 	clicked_parts = 0;
 	click_down_parts = 0;
-	v14_background_click_pending = false;
+	v14_whole_click_armed = false;
 	drag_state_reset();
 	parts_prev_pos = (Point){0};
 	prev_clicking = begin && key_is_down(VK_LBUTTON);
@@ -662,7 +678,6 @@ void PE_EndInput(void)
 		return;
 	}
 	parts_began_click = false;
-	v14_background_click_pending = false;
 	clicked_parts = 0;
 	drag_state_reset();
 }

@@ -182,11 +182,13 @@ static void br_disabled_button(void)
 	bu_call("PartsEngine", "SetButtonEnable", 2, 0, 2, (union vm_value[]){ BR_I(B), BR_I(1) });
 	n = br_click(150, 140, &type, &no);
 	BR_CHECK(n == 1 && type == 4 && no == B, "re-enabled button: %d messages, first type %d parts %d; want 1, 4, %d", n, type, no, B);
-	/* A click beside every parts is still the whole-screen click. */
+	/* A click beside every parts is still the whole-screen click. The
+	 * engine leaves g_EndPartsBusyLoop to the script, as the original does
+	 * (see click-permission). */
 	heap[global_page_slot].page->values[2].i = 0;
 	n = br_click(1000, 600, &type, &no);
 	busy = heap[global_page_slot].page->values[2].i;
-	BR_CHECK(n == 1 && type == 4 && no == 0 && busy == 1, "background: %d messages, type %d parts %d, busy %d; want 1, 4, 0, 1",
+	BR_CHECK(n == 1 && type == 4 && no == 0 && busy == 0, "background: %d messages, type %d parts %d, busy %d; want 1, 4, 0, 0",
 		 n, type, no, busy);
 	printf("BR1 disabled button: %s\n", br_failures ? "FAIL" : "ok");
 }
