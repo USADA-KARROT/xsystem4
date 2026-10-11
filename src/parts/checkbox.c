@@ -349,6 +349,11 @@ void parts_checkbox_rebuild(struct parts *parts)
  *  - The value changes on the press, so while the button is held the box
  *    shows the pressed picture of the new value; the original shows the old
  *    value's until the release.
+ *  - A press that is then dragged off the box and released there has
+ *    already changed the value. In the original it changes nothing: the
+ *    release looks at the cursor (0x52ce03 .. 0x52ce1d return when no inner
+ *    parts is under it). This goes with sending a target's click on the
+ *    press; when that moves to the release, this does too.
  *
  * A click is remembered with the number and the event ID the parts had, and
  * is dropped when the parts is released, stops being a check box or has

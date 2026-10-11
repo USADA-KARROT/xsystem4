@@ -1706,6 +1706,9 @@ static void cw_click_record(void)
 	CW_CHECK(!parts_try_get(a), "W13: the box was not released");
 	cw_check(a, false);
 	CW_CHECK(parts_try_get(a) && cw_type(a) == 1 && !cw_checked(a), "W13: no new check box took the number");
+	/* the same event ID again, so that only the release can have dropped
+	 * the click (a parts with another ID is skipped by the update anyway) */
+	cp_register_event(a, 3, 30);
 	cw_update();
 	CW_CHECK(!cw_checked(a), "W13: the click on a released box checked the box that took its number");
 

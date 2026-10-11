@@ -81,6 +81,10 @@ struct parts_message_window {
 	bool dirty;
 	struct message_glyph_time *glyph_times;
 	int nr_glyph_times;
+	// Whether SetMessageWindowTextFont was called, and the edge weight it
+	// was last given (the style keeps only the widths made from it).
+	bool font_set;
+	float font_edge_weight;
 	struct string *raw_text;
 	struct string *cg_name;
 	struct parts_text text;
@@ -490,13 +494,28 @@ void PE_SetMessageWindowTextFont(int parts_no, int type, int size,
 		int edge_r, int edge_g, int edge_b, float edge_weight)
 {
 	struct parts *parts = parts_get(parts_no);
-	struct text_style *ts = &message_window_get(parts)->text.ts;
+	struct parts_message_window *mw = message_window_get(parts);
+	struct text_style *ts = &mw->text.ts;
+	// 0x595840 -> 0x4eeb60: a font that differs in nothing (type, size,
+	// colour, the two weights, edge colour) is not stored and the window
+	// is not marked changed (0x4eec00 is skipped), so text whose fade Fix
+	// has ended is not laid out again.
+	const SDL_Color color = {r, g, b, 255};
+	const SDL_Color edge_color = {edge_r, edge_g, edge_b, 255};
+	if (mw->font_set && ts->face == (unsigned)type && ts->size == size
+			&& !memcmp(&ts->color, &color, sizeof(color))
+			&& ts->bold_weight == bold_weight
+			&& !memcmp(&ts->edge_color, &edge_color, sizeof(edge_color))
+			&& mw->font_edge_weight == edge_weight)
+		return;
+	mw->font_set = true;
+	mw->font_edge_weight = edge_weight;
 	ts->face = type;
 	ts->size = size;
-	ts->color = (SDL_Color){r, g, b, 255};
+	ts->color = color;
 	ts->weight = bold_weight * 1000;
 	ts->bold_weight = bold_weight;
-	ts->edge_color = (SDL_Color){edge_r, edge_g, edge_b, 255};
+	ts->edge_color = edge_color;
 	text_style_set_edge_width(ts, edge_weight);
 	message_window_rebuild(parts);
 }
@@ -505,6 +524,10 @@ void PE_SetMessageWindowTextSpace(int parts_no, int letter_space, int line_space
 {
 	struct parts *parts = parts_get(parts_no);
 	struct parts_message_window *mw = message_window_get(parts);
+	// 0x5959b0: the same two values again store nothing and do not mark
+	// the window changed (0x5959cd, 0x5959d5).
+	if (mw->text.ts.font_spacing == letter_space && mw->text.line_space == line_space)
+		return;
 	mw->text.ts.font_spacing = letter_space;
 	mw->text.line_space = line_space;
 	message_window_rebuild(parts);

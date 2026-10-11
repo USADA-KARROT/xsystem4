@@ -294,6 +294,28 @@ static void df_dirty(void)
 	DF_CHECK(!df_fixed(9810), "fixed although the mark moved");
 	BU_PE("FixMessageWindowText", BU_I(9810));
 	DF_CHECK(df_fixed(9810), "Fix did not clear the move of the mark");
+	/* The font and the spacing (0x4eeb60, 0x5959b0): values that differ make
+	 * the window dirty, the same values again change nothing, and text that
+	 * Fix has ended is still fixed after the update that follows. */
+	PE_SetMessageWindowTextFont(9810, 0, 22, 255, 255, 255, 0, 1, 2, 3, 1);
+	DF_CHECK(!df_fixed(9810), "fixed although the font changed");
+	BU_PE("FixMessageWindowText", BU_I(9810));
+	DF_CHECK(df_fixed(9810), "Fix did not clear the change of the font");
+	PE_SetMessageWindowTextFont(9810, 0, 22, 255, 255, 255, 0, 1, 2, 3, 1);
+	DF_CHECK(df_fixed(9810), "the same font again made the window dirty");
+	parts_message_window_update(0);
+	DF_CHECK(df_fixed(9810), "the same font again let the fixed text fade once more");
+	PE_SetMessageWindowTextFont(9810, 0, 22, 255, 255, 255, 0, 1, 2, 3, 2);
+	DF_CHECK(!df_fixed(9810), "fixed although the edge weight of the font changed");
+	BU_PE("FixMessageWindowText", BU_I(9810));
+	PE_SetMessageWindowTextSpace(9810, 2, 3);
+	DF_CHECK(!df_fixed(9810), "fixed although the spacing changed");
+	BU_PE("FixMessageWindowText", BU_I(9810));
+	DF_CHECK(df_fixed(9810), "Fix did not clear the change of the spacing");
+	PE_SetMessageWindowTextSpace(9810, 2, 3);
+	DF_CHECK(df_fixed(9810), "the same spacing again made the window dirty");
+	parts_message_window_update(0);
+	DF_CHECK(df_fixed(9810), "the same spacing again let the fixed text fade once more");
 }
 
 /* The window's text runs on the time its parts selects (0x5352b1): the

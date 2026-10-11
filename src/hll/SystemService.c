@@ -237,6 +237,10 @@ enum window_settings_id {
  * scaling type; a getter returns what is kept.  Type 2 is not the vertical
  * sync of the older table, and 3 and 4 are not its 5 and 6.
  *
+ * This table was read from Dohna Dohna's executable only.  Whether another
+ * v14 game uses it or still the older one is not known; the older one was
+ * written from the games before it.
+ *
  * All five are kept only and have no effect here: the view always keeps its
  * aspect ratio and has one scaling filter, a full-screen window is not
  * minimized when it is deactivated, there is no window menu, and closing the

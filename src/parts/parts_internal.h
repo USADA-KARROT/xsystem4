@@ -663,7 +663,9 @@ struct parts {
 	// == 1 by 0x554b75, default 1; native +0x22d, on in a new parts
 	// 0x550a9c), stored inverted so a new parts starts enabled: its update
 	// takes the scaled passed time of UpdateComponent instead of the passed
-	// time (0x5352b1). Only the message window reads it so far. Not saved.
+	// time (0x5352b1). Only the message window reads it so far. Not saved
+	// here; the original's parts block carries it (+0x1a9, read back at
+	// 0x551ee9), as its message window block carries the text speed.
 	bool speed_up_disabled;
 	bool message_window;
 	struct parts_message_window *message;
