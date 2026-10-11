@@ -59,6 +59,7 @@ At、ShallowCopy 第一份宣告皆無直接呼叫點。空頁查詢相容性涵
 只修 typed clear 的中間版本曾於 115.575 秒出現 PlayerCollection 第 19/20 行斷言；補上已由原版和 fixture 確認的 ShallowCopy owner 後，完整 150 秒沒有再出現。這驗證了組合修正的結果；沒有對每次角色 ID 查找做完整追蹤，不能把所有角色集合問題都宣稱已解決。
 
 最終峰值 RSS 為 1,898,332,160 bytes，記憶體成長仍未解決；不能由單次短測宣稱效能或洩漏已修好。存讀檔往返、據點所有互動、長時間遊玩、完整中文切字及逐字顯示效果仍未驗證。下一組應一併處理 GetStructPageList 與 DeserializeStruct 的持久化。
+> 2026-10-11 更新：逐字顯示已做並和原版的錄影對過，見 [dialogue-fade](../dialogue-fade/README.md)。
 
 [GUI 量測與影像雜湊](gui-summary.json)。母片未修改、原版 EXE 未執行，libsys4 維持 `8c93946`。
 

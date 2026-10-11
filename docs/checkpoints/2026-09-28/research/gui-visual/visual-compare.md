@@ -41,6 +41,8 @@
 | D14 | 字距與行距（對照實機）：xsystem4 每字前進量約多 1 px（實機 22.5–23.5 px，xsystem4 23.4–24.4 px，整行寬 +3～5%）。行距約少 1.5 px，第 1、2、3 行上緣分別比實機高 3、4、5 px。對照 Wine（SimSun）時字前進量幾乎相同（±1%），行上緣高 2、3、4 px。起首引號「“」比 Wine 右移 4 px（字形差異） | 全部對話框頁 | 細微 | 未驗證。可能與 VL Gothic 對 MS Gothic 的字形 metrics 及字格計算有關（另一位代理正在處理的 `text-metrics` CN GDI 字格） | `07_實機C_game_009_字型字距.jpg`、`data/vc1/text_metrics.csv`、`data/hw-vs-vc1/text_metrics.csv` |
 | D15 | 字型：xsystem4 用 VL Gothic，實機是 MS Gothic 類黑體，Wine 是 SimSun 明體。名牌與 Episode 標題卡也一樣（Wine 明體，xsystem4 黑體） | 全部 | 細微；**和 Wine 的差異不算 xsystem4 的問題** | Wine prefix 的字型替換（已知）。標題卡沒有實機截圖可對照，未驗證 | `03_s025_名牌放大.jpg`、`13_標題卡_Episode1.jpg` |
 
+> 2026-10-11 更新：D11（對白沒有逐字顯示）已處理，見 [dialogue-fade](../dialogue-fade/README.md)。
+
 ### 已確認一致（沒有差異）
 
 - **立繪數量、位置、朝向、表情與背景**：49 組對白配對的上半畫面（y<480）平均絕對差最大 2.3/255，中位數 2.2，是 JPEG 雜訊的水準。熱圖（`sbs/diff/`）上只有文字與 UI 有差。
@@ -62,6 +64,7 @@
 2. **`PartsEngine.SetButtonEnable`（D3）**：原因明確、範圍小。實作停用狀態（灰階加上不可點擊）。
 3. **訊息視窗系統 UI（D8、D9、D10）**：KeyWait（NEXT）的 CG 與動畫、AUTO／LOG 鈕、左下兩鈕的位置。三者都屬於同一個訊息視窗的 UI 群組，建議一起查。
 4. **逐字顯示與訊息速度（D11）**：依 `GetMessageSpeedRate` 逐字淡入，並讓 `IsFixed`／`Fix` 回報真實狀態。這會影響點擊補完文字與推進的行為，要搭配現有的 WaitForClick 回歸測試。
+   > 2026-10-11 更新：已做，見 [dialogue-fade](../dialogue-fade/README.md)。
 5. **據點轉場與背景效果（D7、D6、D13）**：「據點環節」橫幅與等待點擊、背景模糊與色調、黑幕中的異常條帶。
 6. **已讀文字色（D12）**：需要已讀紀錄與存讀檔持久化（目前的已知卡點）。完成後用有已讀紀錄的存檔重比。
 7. **字距與行距微調（D14）**：和 text-metrics 的工作一起做，以實機截圖為基準（不要以 Wine 為準）。

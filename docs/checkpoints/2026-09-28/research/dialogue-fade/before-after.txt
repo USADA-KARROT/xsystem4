@@ -1,0 +1,183 @@
+before f350109 click-permission (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CP1 pactex 點擊許可: ok
+  FAIL: ClickGuard, which has no event: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (600,340,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (600,340,1), 0
+  FAIL: beside every parts: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (640,600,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (640,600,1), 0
+CP2 ClickTarget over ClickGuard: FAIL
+CP2 FAILED (exit 1)
+  FAIL: AreaOff, alpha 1: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (378,300,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (378,300,1), 0
+  FAIL: the panel marked 0, in front of a button: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (1240,360,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (1240,360,1), 0
+CP3 Area and side panel: FAIL
+CP3 FAILED (exit 1)
+  FAIL: Block0: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (150,140,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (150,140,1), 0
+  FAIL: Block2: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (750,140,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (750,140,1), 0
+  FAIL: BlockNone: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (150,490,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (150,490,1), 0
+CP4 guards: FAIL
+CP4 FAILED (exit 1)
+  FAIL: SwitchedOff after loading: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (650,200,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (650,200,1), 0
+  FAIL: Plain after loading: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (1050,200,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (1050,200,1), 0
+CP5 save and load: FAIL
+CP5 FAILED (exit 1)
+  FAIL: Button, which has no event: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (700,290,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (700,290,1), 0
+  FAIL: the dialog's strip beside the rows: 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (1200,480,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (1200,480,1), 0
+  FAIL: Button after Parts_SetClickable(false): 1 messages (1 by the press), first type 4 parts 0 delegate -1 unique -1 (700,290,1), g_EndPartsBusyLoop 1; want 1 (0), 4, 0 -1 -1 (700,290,1), 0
+CP6 closing on the whole-screen click: FAIL
+CP6 FAILED (exit 1)
+CLICK-PERMISSION FAIL: 5 of 6 cases failed
+
+before f350109 click-permission (XS4_PROBE_GBK=1)
+CLICK-PERMISSION FAIL: 5 of 6 cases failed
+
+before f350109 base-ui-review (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: background: 1 messages, type 4 parts 0, busy 1; want 1, 4, 0, 0
+BR1 disabled button: FAIL
+BR1 FAILED (exit 1)
+BR2 detector click: ok
+BR3 two-slot At/First/Last: ok
+BR4 two-slot First(pred)/EraseAll/Concat/Reverse/Insert: ok
+BR5 AnimateText@AdjustPos: ok
+BR6 rect/construction states: ok
+BR7 exits wait for the screenshot write: ok
+BASE-UI-REVIEW FAIL: 1 of 7 cases failed
+
+before f350109 base-ui-review (XS4_PROBE_GBK=1)
+BASE-UI-REVIEW FAIL: 1 of 7 cases failed
+
+before 0a4cfdb dialogue-fade (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: a window the query made is fixed before its first update
+  FAIL: IsFixedMessageWindowText made no window
+  FAIL: GetMessageWindowTextSpeed of a new number: 0, window 0; want 23 and a window
+  FAIL: SetMessageWindowTextSpeed of a new number: window 0, speed 0; want a window and 77
+  FAIL: FixMessageWindowText of a new number: window 0, fixed 1; want a fixed window
+  FAIL: another kind of parts: window 0, speed 0; want a window and 50
+  FAIL: number 0: fixed 1, speed 0, parts 0; want no object
+  FAIL: number -5: fixed 1, speed 0, parts 0; want no object
+DF1 FAIL
+  FAIL: speed round trip
+  FAIL: dirty window fixed before build
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF2 NO SYMBOL
+  FAIL: new text fixed
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF3 NO SYMBOL
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF4 NO SYMBOL
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF5 NO SYMBOL
+  FAIL: frame zero not transparent
+  FAIL: frame zero completed
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF6 NO SYMBOL
+  FAIL: geometry query cleared pending speed
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF7 NO SYMBOL
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF8 NO SYMBOL
+  NO SYMBOL: PE_SetMessageWindowTextSpeed
+DF9 NO SYMBOL
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF10 NO SYMBOL
+  FAIL: fixed although the key wait mark changed
+  FAIL: fixed although the text area changed
+  FAIL: fixed although the origin mode changed
+  FAIL: fixed although the mark moved
+DF11 FAIL
+  NO SYMBOL: parts_message_window_update_times
+DF12 NO SYMBOL
+  FAIL: fixed at time 0
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF13 NO SYMBOL
+DF14 PASS
+  FAIL: WinSpeed: text speed 0, speed-up 0; want 31, 1
+  FAIL: WinNoKeys: text speed 0, speed-up 0; want 0, 1
+  FAIL: WinOff: text speed 0, speed-up 0; want 23, 0
+  FAIL: WinTwo: text speed 0, speed-up 0; want 23, 0
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF15 NO SYMBOL
+  NO SYMBOL: parts_message_window_glyph_alpha
+DF16 NO SYMBOL
+DIALOGUE-FADE FAIL: 15 of 16 cases failed (13 of them for a missing function)
+
+before 0a4cfdb dialogue-fade (XS4_PROBE_GBK=1)
+DIALOGUE-FADE FAIL: 15 of 16 cases failed (13 of them for a missing function)
+
+before 537d3ec dialogue-fade (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DF1 PASS
+DF2 PASS
+DF3 PASS
+DF4 PASS
+DF5 PASS
+DF6 sample100 helper=0.5,0 global=128 chars=2
+DF6 PASS
+DF7 PASS
+DF8 PASS
+DF9 PASS
+DF10 PASS
+  FAIL: the same font again made the window dirty
+  FAIL: the same font again let the fixed text fade once more
+  FAIL: the same spacing again made the window dirty
+  FAIL: the same spacing again let the fixed text fade once more
+DF11 FAIL
+DF12 PASS
+DF13 PASS
+DF14 PASS
+DF15 PASS
+DF16 PASS
+DIALOGUE-FADE FAIL: 1 of 16 cases failed
+
+before 537d3ec dialogue-fade (XS4_PROBE_GBK=1)
+DIALOGUE-FADE FAIL: 1 of 16 cases failed
+
+after click-permission at 5cbaafa (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+CP1 pactex 點擊許可: ok
+CP2 ClickTarget over ClickGuard: ok
+CP3 Area and side panel: ok
+CP4 guards: ok
+CP5 save and load: ok
+CP6 closing on the whole-screen click: ok
+CLICK-PERMISSION PASS: 0 of 6 cases failed
+
+after click-permission (XS4_PROBE_GBK=1)
+CLICK-PERMISSION PASS: 0 of 6 cases failed
+
+after base-ui-review at 5cbaafa (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+BR1 disabled button: ok
+BR2 detector click: ok
+BR3 two-slot At/First/Last: ok
+BR4 two-slot First(pred)/EraseAll/Concat/Reverse/Insert: ok
+BR5 AnimateText@AdjustPos: ok
+BR6 rect/construction states: ok
+BR7 exits wait for the screenshot write: ok
+BASE-UI-REVIEW PASS: 0 of 7 cases failed
+
+after base-ui-review (XS4_PROBE_GBK=1)
+BASE-UI-REVIEW PASS: 0 of 7 cases failed
+
+after dialogue-fade at 5cbaafa (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+DF1 PASS
+DF2 PASS
+DF3 PASS
+DF4 PASS
+DF5 PASS
+DF6 sample100 helper=0.5,0 global=128 chars=2
+DF6 PASS
+DF7 PASS
+DF8 PASS
+DF9 PASS
+DF10 PASS
+DF11 PASS
+DF12 PASS
+DF13 PASS
+DF14 PASS
+DF15 PASS
+DF16 PASS
+DIALOGUE-FADE PASS: 0 of 16 cases failed
+
+after dialogue-fade (XS4_PROBE_GBK=1)
+DIALOGUE-FADE PASS: 0 of 16 cases failed

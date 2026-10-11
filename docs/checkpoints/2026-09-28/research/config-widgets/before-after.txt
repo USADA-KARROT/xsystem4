@@ -1,0 +1,616 @@
+before 58eda8d config-widgets (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: W1 Plain cannot be clicked
+  FAIL: W1 Plain is not enabled
+  FAIL: W1 Checked cannot be clicked
+  FAIL: W1 Checked is not enabled
+  FAIL: W1 Checked: IsCheckBoxChecked 0, want 1
+  FAIL: W1 Over cannot be clicked
+  FAIL: W1 Over is not enabled
+  FAIL: W1 OverChecked cannot be clicked
+  FAIL: W1 OverChecked is not enabled
+  FAIL: W1 OverChecked: IsCheckBoxChecked 0, want 1
+  FAIL: W1 OverOnly cannot be clicked
+  FAIL: W1 OverOnly is not enabled
+  FAIL: W1 NoKeys cannot be clicked
+  FAIL: W1 NoKeys is not enabled
+  FAIL: W1 Two cannot be clicked
+  FAIL: W1 Two is not enabled
+  FAIL: W1 Missing cannot be clicked
+  FAIL: W1 Missing is not enabled
+  FAIL: W1 a box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the override of a box that is not checked, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the override of a box that is not checked, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the override of a box that is not checked, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the checked override, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the checked override, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the checked override, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked key of 2, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked key of 2, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked key of 2, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1: the box is 0x0, want 23x23
+W1 checked
+W1 FAILED (exit 1)
+  FAIL: W2 a caption, state 1: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a caption, state 2: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a caption, state 3: state 3 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a caption: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2: the text does not start at row 5 (0 pixels in row 4, 0 in row 5)
+  FAIL: W2: the last row has nothing of the text
+  FAIL: W2 a high text, state 1: state 1 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2 a high text, state 2: state 2 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2 a high text, state 3: state 3 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2 a high text: state 1 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2: a high text does not start at row 0
+  FAIL: W2 an odd difference, state 1: state 1 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2 an odd difference, state 2: state 2 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2 an odd difference, state 3: state 3 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2 an odd difference: state 1 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2: the text does not start at row 4
+  FAIL: W2 two lines, state 1: state 1 is 0x0 with a 0x0 texture, want 57x36
+  FAIL: W2 two lines, state 2: state 2 is 0x0 with a 0x0 texture, want 57x36
+  FAIL: W2 two lines, state 3: state 3 is 0x0 with a 0x0 texture, want 57x36
+  FAIL: W2 the button mode, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W2 the button mode, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W2 the button mode, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W2 a checked caption, state 1: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a checked caption, state 2: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a checked caption, state 3: state 3 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 the default font size, state 1: state 1 is 0x0 with a 0x0 texture, want 39x23
+  FAIL: W2 the default font size, state 2: state 2 is 0x0 with a 0x0 texture, want 39x23
+  FAIL: W2 the default font size, state 3: state 3 is 0x0 with a 0x0 texture, want 39x23
+  FAIL: W2 a dialog's box, state 1: state 1 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2 a dialog's box, state 2: state 2 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2 a dialog's box, state 3: state 3 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2 a dialog's box: state 1 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2: the dialog's text has no pixel from row 4 on
+W2 checked
+W2 FAILED (exit 1)
+  FAIL: W3: the box loaded disabled is enabled 0, checked 0; want 0, 1
+  FAIL: W3 a box loaded disabled, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a box loaded disabled, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a box loaded disabled, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W3: the box loaded disabled was unchecked
+  FAIL: W3 a box loaded disabled: 1 message(s), the first of type 4 for parts 0; want none
+  FAIL: W3 the same value, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 the same value, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 the same value, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3: CheckBoxChecked(true) is not read back
+  FAIL: W3 ChangedFlg: 0 message(s), type 1838064416, parts 1, delegate 150234976, unique 1, value 150491768; want 1, 23, 900001, 3, 30, 1
+  FAIL: W3 before the update, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 before the update, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 before the update, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 after the update, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 after the update, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 after the update, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 unchecked by the script: 0 message(s):; want 1: (23, 900001, 0)
+  FAIL: W3 unchecked, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 unchecked, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 unchecked, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3: a box without an event does not keep its value
+  FAIL: W3 a caption checked: 0 message(s):; want 1: (23, 900002, 1)
+  FAIL: W3 a caption checked, state 1: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W3 a caption checked, state 2: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W3 a caption checked, state 3: state 3 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W3: a loaded box is not enabled
+  FAIL: W3 a disabled box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a disabled box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a disabled box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a click on a disabled box: 1 message(s), the first of type 4 for parts 0; want none
+  FAIL: W3 enabled again, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 enabled again, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 enabled again, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a checked box disabled, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a checked box disabled, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a checked box disabled, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3: a disabled box was unchecked by the script
+W3 checked
+W3 FAILED (exit 1)
+  FAIL: W4 a press: 1 message(s): (4, 0, 110); want 1: (4, 900001, 110)
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W4 the update after a press: 0 message(s):; want 1: (23, 900001, 1)
+  FAIL: W4: a click did not check the box
+  FAIL: W4: a second update changed the box again
+  FAIL: W4 a click: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 0)
+  FAIL: W4 a click: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 1)
+  FAIL: W4 a second click: 1 message(s): (4, 0, 122); want 2: (4, 900001, 122) (23, 900001, 0)
+  FAIL: W4 a click on the caption: 1 message(s): (4, 0, 380); want 2: (4, 900002, 380) (23, 900002, 1)
+  FAIL: W4: a click on the caption did not check the box
+  FAIL: W4 before the press, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 before the press, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 before the press, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4: the held box is in state 0, want the down state
+  FAIL: W4: the press under PE_Update did not check the box
+  FAIL: W4 drawn by PE_Update, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 drawn by PE_Update, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 drawn by PE_Update, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4: the released box is in state 0, want the on-cursor state
+  FAIL: W4 the press under PE_Update: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 1)
+W4 checked
+W4 FAILED (exit 1)
+  FAIL: W5 frame 0: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 frame 1: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 frame 2: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 frame 3: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 four frames: 0 message(s):; want 2: (23, 900001, 1) (21, 900002, 49)
+  FAIL: W5 the box of a checked setting, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box of a checked setting, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box of a checked setting, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the frame of the click: 0 and 0, want 0 and 0.5
+  FAIL: W5 the frame of the click: 0 message(s):; want 2: (4, 900001, 110) (23, 900001, 0)
+  FAIL: W5 after the click: 0 and 0, want 0 and 0.5
+  FAIL: W5 after the click: 1 message(s), the first of type 4 for parts 0; want none
+  FAIL: W5 the box after the click, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after the click, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after the click, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5: a press outside the frame is not what the frame reads (0, want 1)
+  FAIL: W5 after a press outside the frame: 0, want 1
+  FAIL: W5 a press outside the frame: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 1)
+  FAIL: W5 the box after a press outside the frame, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after a press outside the frame, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after a press outside the frame, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5: a rate of 0.25 became 0
+  FAIL: W5: a rate of 0.999 became 0
+  FAIL: W5: a rate of 1 became 0
+  FAIL: W5: a rate of 0.3 became 0
+  FAIL: W5 the rates: 0 message(s):; want 5: (21, 900002, 0) (21, 900002, 24) (21, 900002, 98) (21, 900002, 99) (21, 900002, 29)
+W5 checked
+W5 FAILED (exit 1)
+  FAIL: W6 as loaded: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W6 a click on B: 1 message(s): (4, 0, 210); want 3: (4, 900004, 210) (23, 900003, 0) (23, 900004, 1)
+  FAIL: W6 after a click on B: A 0, B 0, C 0; want 0, 1, 0
+  FAIL: W6 A unchecked by the box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 A unchecked by the box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 A unchecked by the box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 B checked, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 B checked, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 B checked, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 a click on the checked B: 1 message(s): (4, 0, 210); want 2: (4, 900004, 210) (23, 900004, 1)
+  FAIL: W6 after a click on the checked B: A 0, B 0, C 0; want 0, 1, 0
+  FAIL: W6 the script unchecking B: 0 message(s):; want 1: (23, 900004, 1)
+  FAIL: W6 after the script unchecked B: A 0, B 0, C 0; want 0, 1, 0
+  FAIL: W6 the script checking C: 0 message(s):; want 2: (23, 900004, 0) (23, 900005, 1)
+  FAIL: W6 after the script checked C: A 0, B 0, C 0; want 0, 0, 1
+  FAIL: W6 a click on A: 1 message(s): (4, 0, 110); want 4: (4, 900003, 110) (22, 900001, 0) (23, 900005, 0) (23, 900003, 1)
+  FAIL: W6 after a click on A: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: W6 a click on the checked A: 1 message(s): (4, 0, 110); want 2: (4, 900003, 110) (23, 900003, 1)
+  FAIL: W6 after a click on the checked A: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: W6 a click on a box of no group: 1 message(s): (4, 0, 410); want 2: (4, 900006, 410) (23, 900006, 1)
+  FAIL: W6 after a click on a box of no group: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: W6 a click on C while A is disabled: 1 message(s): (4, 0, 310); want 3: (4, 900005, 310) (22, 900001, 0) (23, 900005, 1)
+  FAIL: W6 while A is disabled: A 0, B 0, C 0; want 1, 0, 1
+  FAIL: W6 a click on B once A is gone: 1 message(s): (4, 0, 210); want 4: (4, 900004, 210) (22, 900001, 0) (23, 900005, 0) (23, 900004, 1)
+  FAIL: W6 once A is gone: B 0, C 0; want 1, 0
+  FAIL: W6 a click on C once the radio box is gone: 1 message(s): (4, 0, 310); want 2: (4, 900005, 310) (23, 900005, 1)
+  FAIL: W6 once the radio box is gone: B 0, C 0; want 1, 1
+W6 checked
+W6 FAILED (exit 1)
+  FAIL: W7 as loaded: total 0, view 0, position 0, rate 0; want 100, 1, 99, 1
+  FAIL: W7 a rate of 0.5: total 0, view 0, position 0, rate 0; want 100, 1, 49, 0.5
+  FAIL: W7 a rate that is truncated: total 0, view 0, position 0, rate 0; want 100, 1, 98, 0.999
+  FAIL: W7 a rate above 1: total 0, view 0, position 0, rate 0; want 100, 1, 99, 1
+  FAIL: W7 a rate below 0: total 0, view 0, position 0, rate 0; want 100, 1, 0, 0
+  FAIL: W7 a rate without the keys: total 0, view 0, position 0, rate 0; want 0, 0, 0, 0.5
+  FAIL: W7 a rate of 0: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900001, 0, 99)
+  FAIL: W7 a rate of 0.3: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900001, 29, 99)
+  FAIL: W7: the loaded position reads as 0, want 99
+  FAIL: W7 a position of 80: total 0, view 0, position 0, rate 0; want 100, 1, 80, 0.808081
+  FAIL: W7: GetHScrollbarScrollPos gives 0, want 80
+  FAIL: W7 a position of 80: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 80, 99)
+  FAIL: W7 the default position: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 60, 99)
+  FAIL: W7 a position above the largest: total 0, view 0, position 0, rate 0; want 100, 1, 99, 1
+  FAIL: W7 a position above the largest: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 99, 99)
+  FAIL: W7 a position below 0: total 0, view 0, position 0, rate 0; want 100, 1, 0, 0
+  FAIL: W7 a position below 0: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 0, 99)
+  FAIL: W7 a position of 49: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 49, 99)
+  FAIL: W7 a rate of 0.5 at 49: total 0, view 0, position 0, rate 0; want 100, 1, 49, 0.5
+  FAIL: W7 another rate at the same position: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 49, 99)
+  FAIL: W7 a move after the event was added: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900006, 31, 99)
+  FAIL: W7: a horizontal bar's linked total is 0, want the width 90
+  FAIL: W7: a vertical bar's linked total is 0, want the height 23
+  FAIL: W7 a linked total: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900006, 31, 89)
+W7 checked
+W7 FAILED (exit 1)
+  FAIL: W8: IsCheckBoxChecked did not make parts 9801 a check box (type -1)
+  FAIL: W8: a new check box is not enabled
+  FAIL: W8: CheckBoxChecked did not make and check parts 9802
+  FAIL: W8: SetCheckBoxEnable did not make and disable parts 9803
+  FAIL: W8: IsCheckBoxEnable did not make parts 9804 an enabled check box
+  FAIL: W8: a user component is type 17, checked 0; want 1, 1
+  FAIL: W8: a box that was a button is checked 0, type 0; want 0, 1
+  FAIL: W8: GetHScrollbarScrollRate did not make parts 9805 a bar
+  FAIL: W8: SetHScrollbarScrollRate did not make parts 9806
+  FAIL: W8 a bar made by SetComponentType: total 0, view 0, position 0, rate 0; want 100, 1, 49, 0.5
+  FAIL: W8: GetHScrollbarScrollPos did not make parts 9808 a bar
+  FAIL: W8: SetHScrollbarScrollPos did not make parts 9809
+  FAIL: W8: a vertical bar gives 0 and is type 2; want 0, 3
+  FAIL: W8 a vertical bar made horizontal: total 40, view 10, position 7, rate 0; want 100, 1, 0, 0
+  FAIL: W8: SystemService.SetMouseCursorConfig refuses one of the types 0, 1, 2
+W8 checked
+W8 FAILED (exit 1)
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W9 before the save, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W9 before the save, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W9 before the save, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W9 before the save: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W9 before the save: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W9 before the save: state 3 is 0x0 with a 0x0 texture, want 90x23
+W9 FAILED (exit 1)
+W10 checked
+  FAIL: W11 a caption: state 1 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 2 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 3 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W11 a caption: state 1 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 2 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 3 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11: the box is not checked
+W11 checked
+W11 FAILED (exit 1)
+  FAIL: W12 at the start: the window settings are 0, 0, 0, 0, 1; want 1, 1, 1, 1, 1
+  FAIL: W12: setting the values they have wrote the file
+  FAIL: W12: type 0 set to 0 again wrote the file
+  FAIL: W12: type 1 set to 0 again wrote the file
+  FAIL: W12: type 2 set to 0 again wrote the file
+  FAIL: W12: type 3 set to 0 again wrote the file
+  FAIL: W12: type 4 set to 0 again wrote the file
+  FAIL: W12: the older table's vertical sync flag is 1 before type 2 is set
+  FAIL: W12: setting type 2 set the older table's vertical sync flag
+  FAIL: W12: setting type 2 wrote a vertical sync setting: {
+	"wait_vsync":	true
+}
+  FAIL: W12 values other than 0 and 1: the window settings are 7, 7, 1, 1, 1; want 1, 7, 1, 1, 1
+  FAIL: W12: SetWindowSetting took type 5
+  FAIL: W12: GetWindowSetting(5) answered, with 1
+  FAIL: W12: SetWindowSetting took type 6
+  FAIL: W12: GetWindowSetting(6) answered, with 1
+  FAIL: W12 after the refused types: the window settings are 7, 7, 1, 1, 1; want 1, 7, 1, 1, 1
+  FAIL: W12: the file has no "v14" object: {
+	"wait_vsync":	false
+}
+  FAIL: W12 read back: the window settings are 1, 1, 0, 0, 1; want 0, 2, 0, 1, 0
+  FAIL: W12 an older file: the window settings are 1, 1, 1, 0, 1; want 0, 2, 0, 1, 0
+  FAIL: W12: an older file's wait_vsync was read as the vertical sync flag
+  FAIL: W12: the file written over an older one is {
+	"wait_vsync":	true
+}
+  FAIL: W12 a file with two of the values: the window settings are 1, 1, 1, 0, 1; want 0, 3, 1, 1, 1
+  FAIL: W12 a file that is not one: the window settings are 1, 1, 1, 0, 1; want 0, 3, 1, 1, 1
+W12 checked
+W12 FAILED (exit 1)
+  FAIL: W13 a press on the first box: 1 message(s): (4, 0, 110); want 1: (4, 900001, 110)
+  FAIL: W13: no new check box took the number
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W13 a press on the second box: 1 message(s): (4, 0, 310); want 1: (4, 900002, 310)
+  FAIL: W13 a press on the third box: 1 message(s): (4, 0, 510); want 1: (4, 900003, 510)
+  FAIL: W13 a press on the fourth box: 1 message(s): (4, 0, 710); want 1: (4, 900004, 710)
+  FAIL: W13 a click: 1 message(s): (4, 0, 710); want 2: (4, 900004, 710) (23, 900004, 1)
+  FAIL: W13: the box is not checked
+  FAIL: W13: nine presses and an update sent 9 message(s), want 9 MouseClick and 8 ChangedFlg
+  FAIL: W13: nine presses before an update left the box unchecked
+W13 checked
+W13 FAILED (exit 1)
+CONFIG-WIDGETS FAIL: 12 of 13 cases failed
+
+before 58eda8d config-widgets (XS4_PROBE_GBK=1)
+CONFIG-WIDGETS FAIL: 12 of 13 cases failed
+
+before 705aac6 config-widgets (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: W1 Plain cannot be clicked
+  FAIL: W1 Plain is not enabled
+  FAIL: W1 Checked cannot be clicked
+  FAIL: W1 Checked is not enabled
+  FAIL: W1 Checked: IsCheckBoxChecked 0, want 1
+  FAIL: W1 Over cannot be clicked
+  FAIL: W1 Over is not enabled
+  FAIL: W1 OverChecked cannot be clicked
+  FAIL: W1 OverChecked is not enabled
+  FAIL: W1 OverChecked: IsCheckBoxChecked 0, want 1
+  FAIL: W1 OverOnly cannot be clicked
+  FAIL: W1 OverOnly is not enabled
+  FAIL: W1 NoKeys cannot be clicked
+  FAIL: W1 NoKeys is not enabled
+  FAIL: W1 Two cannot be clicked
+  FAIL: W1 Two is not enabled
+  FAIL: W1 Missing cannot be clicked
+  FAIL: W1 Missing is not enabled
+  FAIL: W1 a box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the override of a box that is not checked, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the override of a box that is not checked, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the override of a box that is not checked, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the checked override, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the checked override, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 the checked override, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked key of 2, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked key of 2, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1 a checked key of 2, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W1: the box is 0x0, want 23x23
+W1 checked
+W1 FAILED (exit 1)
+  FAIL: W2 a caption, state 1: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a caption, state 2: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a caption, state 3: state 3 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a caption: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2: the text does not start at row 5 (0 pixels in row 4, 0 in row 5)
+  FAIL: W2: the last row has nothing of the text
+  FAIL: W2 a high text, state 1: state 1 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2 a high text, state 2: state 2 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2 a high text, state 3: state 3 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2 a high text: state 1 is 0x0 with a 0x0 texture, want 23x14
+  FAIL: W2: a high text does not start at row 0
+  FAIL: W2 an odd difference, state 1: state 1 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2 an odd difference, state 2: state 2 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2 an odd difference, state 3: state 3 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2 an odd difference: state 1 is 0x0 with a 0x0 texture, want 37x23
+  FAIL: W2: the text does not start at row 4
+  FAIL: W2 two lines, state 1: state 1 is 0x0 with a 0x0 texture, want 57x36
+  FAIL: W2 two lines, state 2: state 2 is 0x0 with a 0x0 texture, want 57x36
+  FAIL: W2 two lines, state 3: state 3 is 0x0 with a 0x0 texture, want 57x36
+  FAIL: W2 the button mode, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W2 the button mode, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W2 the button mode, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W2 a checked caption, state 1: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a checked caption, state 2: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 a checked caption, state 3: state 3 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W2 the default font size, state 1: state 1 is 0x0 with a 0x0 texture, want 39x23
+  FAIL: W2 the default font size, state 2: state 2 is 0x0 with a 0x0 texture, want 39x23
+  FAIL: W2 the default font size, state 3: state 3 is 0x0 with a 0x0 texture, want 39x23
+  FAIL: W2 a dialog's box, state 1: state 1 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2 a dialog's box, state 2: state 2 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2 a dialog's box, state 3: state 3 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2 a dialog's box: state 1 is 0x0 with a 0x0 texture, want 178x23
+  FAIL: W2: the dialog's text has no pixel from row 4 on
+W2 checked
+W2 FAILED (exit 1)
+  FAIL: W3: the box loaded disabled is enabled 0, checked 0; want 0, 1
+  FAIL: W3 a box loaded disabled, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a box loaded disabled, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a box loaded disabled, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W3: the box loaded disabled was unchecked
+  FAIL: W3 a box loaded disabled: 1 message(s), the first of type 4 for parts 0; want none
+  FAIL: W3 the same value, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 the same value, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 the same value, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3: CheckBoxChecked(true) is not read back
+  FAIL: W3 ChangedFlg: 0 message(s), type 1864229664, parts 1, delegate 123889504, unique 1, value 124146296; want 1, 23, 900001, 3, 30, 1
+  FAIL: W3 before the update, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 before the update, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 before the update, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 after the update, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 after the update, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 after the update, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 unchecked by the script: 0 message(s):; want 1: (23, 900001, 0)
+  FAIL: W3 unchecked, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 unchecked, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 unchecked, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3: a box without an event does not keep its value
+  FAIL: W3 a caption checked: 0 message(s):; want 1: (23, 900002, 1)
+  FAIL: W3 a caption checked, state 1: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W3 a caption checked, state 2: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W3 a caption checked, state 3: state 3 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W3: a loaded box is not enabled
+  FAIL: W3 a disabled box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a disabled box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a disabled box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a click on a disabled box: 1 message(s), the first of type 4 for parts 0; want none
+  FAIL: W3 enabled again, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 enabled again, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 enabled again, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a checked box disabled, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a checked box disabled, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3 a checked box disabled, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W3: a disabled box was unchecked by the script
+W3 checked
+W3 FAILED (exit 1)
+  FAIL: W4 a press: 1 message(s): (4, 0, 110); want 1: (4, 900001, 110)
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W4 the update after a press: 0 message(s):; want 1: (23, 900001, 1)
+  FAIL: W4: a click did not check the box
+  FAIL: W4: a second update changed the box again
+  FAIL: W4 a click: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 0)
+  FAIL: W4 a click: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 1)
+  FAIL: W4 a second click: 1 message(s): (4, 0, 122); want 2: (4, 900001, 122) (23, 900001, 0)
+  FAIL: W4 a click on the caption: 1 message(s): (4, 0, 380); want 2: (4, 900002, 380) (23, 900002, 1)
+  FAIL: W4: a click on the caption did not check the box
+  FAIL: W4 before the press, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 before the press, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 before the press, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4: the held box is in state 0, want the down state
+  FAIL: W4: the press under PE_Update did not check the box
+  FAIL: W4 drawn by PE_Update, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 drawn by PE_Update, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4 drawn by PE_Update, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W4: the released box is in state 0, want the on-cursor state
+  FAIL: W4 the press under PE_Update: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 1)
+W4 checked
+W4 FAILED (exit 1)
+  FAIL: W5 frame 0: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 frame 1: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 frame 2: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 frame 3: the configuration became 0 and 0, want 1 and 0.5
+  FAIL: W5 four frames: 0 message(s):; want 2: (23, 900001, 1) (21, 900002, 49)
+  FAIL: W5 the box of a checked setting, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box of a checked setting, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box of a checked setting, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the frame of the click: 0 and 0, want 0 and 0.5
+  FAIL: W5 the frame of the click: 0 message(s):; want 2: (4, 900001, 110) (23, 900001, 0)
+  FAIL: W5 after the click: 0 and 0, want 0 and 0.5
+  FAIL: W5 after the click: 1 message(s), the first of type 4 for parts 0; want none
+  FAIL: W5 the box after the click, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after the click, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after the click, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5: a press outside the frame is not what the frame reads (0, want 1)
+  FAIL: W5 after a press outside the frame: 0, want 1
+  FAIL: W5 a press outside the frame: 1 message(s): (4, 0, 110); want 2: (4, 900001, 110) (23, 900001, 1)
+  FAIL: W5 the box after a press outside the frame, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after a press outside the frame, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5 the box after a press outside the frame, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W5: a rate of 0.25 became 0
+  FAIL: W5: a rate of 0.999 became 0
+  FAIL: W5: a rate of 1 became 0
+  FAIL: W5: a rate of 0.3 became 0
+  FAIL: W5 the rates: 0 message(s):; want 5: (21, 900002, 0) (21, 900002, 24) (21, 900002, 98) (21, 900002, 99) (21, 900002, 29)
+W5 checked
+W5 FAILED (exit 1)
+  FAIL: W6 as loaded: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W6 a click on B: 1 message(s): (4, 0, 210); want 3: (4, 900004, 210) (23, 900003, 0) (23, 900004, 1)
+  FAIL: W6 after a click on B: A 0, B 0, C 0; want 0, 1, 0
+  FAIL: W6 A unchecked by the box, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 A unchecked by the box, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 A unchecked by the box, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 B checked, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 B checked, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 B checked, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W6 a click on the checked B: 1 message(s): (4, 0, 210); want 2: (4, 900004, 210) (23, 900004, 1)
+  FAIL: W6 after a click on the checked B: A 0, B 0, C 0; want 0, 1, 0
+  FAIL: W6 the script unchecking B: 0 message(s):; want 1: (23, 900004, 1)
+  FAIL: W6 after the script unchecked B: A 0, B 0, C 0; want 0, 1, 0
+  FAIL: W6 the script checking C: 0 message(s):; want 2: (23, 900004, 0) (23, 900005, 1)
+  FAIL: W6 after the script checked C: A 0, B 0, C 0; want 0, 0, 1
+  FAIL: W6 a click on A: 1 message(s): (4, 0, 110); want 4: (4, 900003, 110) (22, 900001, 0) (23, 900005, 0) (23, 900003, 1)
+  FAIL: W6 after a click on A: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: W6 a click on the checked A: 1 message(s): (4, 0, 110); want 2: (4, 900003, 110) (23, 900003, 1)
+  FAIL: W6 after a click on the checked A: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: W6 a click on a box of no group: 1 message(s): (4, 0, 410); want 2: (4, 900006, 410) (23, 900006, 1)
+  FAIL: W6 after a click on a box of no group: A 0, B 0, C 0; want 1, 0, 0
+  FAIL: W6 a click on C while A is disabled: 1 message(s): (4, 0, 310); want 3: (4, 900005, 310) (22, 900001, 0) (23, 900005, 1)
+  FAIL: W6 while A is disabled: A 0, B 0, C 0; want 1, 0, 1
+  FAIL: W6 a click on B once A is gone: 1 message(s): (4, 0, 210); want 4: (4, 900004, 210) (22, 900001, 0) (23, 900005, 0) (23, 900004, 1)
+  FAIL: W6 once A is gone: B 0, C 0; want 1, 0
+  FAIL: W6 a click on C once the radio box is gone: 1 message(s): (4, 0, 310); want 2: (4, 900005, 310) (23, 900005, 1)
+  FAIL: W6 once the radio box is gone: B 0, C 0; want 1, 1
+W6 checked
+W6 FAILED (exit 1)
+  FAIL: W7 as loaded: total 0, view 0, position 0, rate 0; want 100, 1, 99, 1
+  FAIL: W7 a rate of 0.5: total 0, view 0, position 0, rate 0; want 100, 1, 49, 0.5
+  FAIL: W7 a rate that is truncated: total 0, view 0, position 0, rate 0; want 100, 1, 98, 0.999
+  FAIL: W7 a rate above 1: total 0, view 0, position 0, rate 0; want 100, 1, 99, 1
+  FAIL: W7 a rate below 0: total 0, view 0, position 0, rate 0; want 100, 1, 0, 0
+  FAIL: W7 a rate without the keys: total 0, view 0, position 0, rate 0; want 0, 0, 0, 0.5
+  FAIL: W7 a rate of 0: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900001, 0, 99)
+  FAIL: W7 a rate of 0.3: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900001, 29, 99)
+  FAIL: W7: the loaded position reads as 0, want 99
+  FAIL: W7 a position of 80: total 0, view 0, position 0, rate 0; want 100, 1, 80, 0.808081
+  FAIL: W7: GetHScrollbarScrollPos gives 0, want 80
+  FAIL: W7 a position of 80: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 80, 99)
+  FAIL: W7 the default position: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 60, 99)
+  FAIL: W7 a position above the largest: total 0, view 0, position 0, rate 0; want 100, 1, 99, 1
+  FAIL: W7 a position above the largest: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 99, 99)
+  FAIL: W7 a position below 0: total 0, view 0, position 0, rate 0; want 100, 1, 0, 0
+  FAIL: W7 a position below 0: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 0, 99)
+  FAIL: W7 a position of 49: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 49, 99)
+  FAIL: W7 a rate of 0.5 at 49: total 0, view 0, position 0, rate 0; want 100, 1, 49, 0.5
+  FAIL: W7 another rate at the same position: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900004, 49, 99)
+  FAIL: W7 a move after the event was added: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900006, 31, 99)
+  FAIL: W7: a horizontal bar's linked total is 0, want the width 90
+  FAIL: W7: a vertical bar's linked total is 0, want the height 23
+  FAIL: W7 a linked total: 0 message(s), the first (-1, -1, -1, -1); want one (21, 900006, 31, 89)
+W7 checked
+W7 FAILED (exit 1)
+  FAIL: W8: IsCheckBoxChecked did not make parts 9801 a check box (type -1)
+  FAIL: W8: a new check box is not enabled
+  FAIL: W8: CheckBoxChecked did not make and check parts 9802
+  FAIL: W8: SetCheckBoxEnable did not make and disable parts 9803
+  FAIL: W8: IsCheckBoxEnable did not make parts 9804 an enabled check box
+  FAIL: W8: a user component is type 17, checked 0; want 1, 1
+  FAIL: W8: a box that was a button is checked 0, type 0; want 0, 1
+  FAIL: W8: GetHScrollbarScrollRate did not make parts 9805 a bar
+  FAIL: W8: SetHScrollbarScrollRate did not make parts 9806
+  FAIL: W8 a bar made by SetComponentType: total 0, view 0, position 0, rate 0; want 100, 1, 49, 0.5
+  FAIL: W8: GetHScrollbarScrollPos did not make parts 9808 a bar
+  FAIL: W8: SetHScrollbarScrollPos did not make parts 9809
+  FAIL: W8: a vertical bar gives 0 and is type 2; want 0, 3
+  FAIL: W8 a vertical bar made horizontal: total 40, view 10, position 7, rate 0; want 100, 1, 0, 0
+W8 checked
+W8 FAILED (exit 1)
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W9 before the save, state 1: state 1 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W9 before the save, state 2: state 2 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W9 before the save, state 3: state 3 is 0x0 with a 0x0 texture, want 23x23
+  FAIL: W9 before the save: state 1 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W9 before the save: state 2 is 0x0 with a 0x0 texture, want 90x23
+  FAIL: W9 before the save: state 3 is 0x0 with a 0x0 texture, want 90x23
+W9 FAILED (exit 1)
+W10 checked
+  FAIL: W11 a caption: state 1 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 2 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 3 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W11 a caption: state 1 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 2 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11 a caption: state 3 is 0x0 with a 0x0 texture, want 55x23
+  FAIL: W11: the box is not checked
+W11 checked
+W11 FAILED (exit 1)
+W12 checked
+  FAIL: W13 a press on the first box: 1 message(s): (4, 0, 110); want 1: (4, 900001, 110)
+  FAIL: W13: no new check box took the number
+  FAIL: no check box update (parts_checkbox_update)
+  FAIL: W13 a press on the second box: 1 message(s): (4, 0, 310); want 1: (4, 900002, 310)
+  FAIL: W13 a press on the third box: 1 message(s): (4, 0, 510); want 1: (4, 900003, 510)
+  FAIL: W13 a press on the fourth box: 1 message(s): (4, 0, 710); want 1: (4, 900004, 710)
+  FAIL: W13 a click: 1 message(s): (4, 0, 710); want 2: (4, 900004, 710) (23, 900004, 1)
+  FAIL: W13: the box is not checked
+  FAIL: W13: nine presses and an update sent 9 message(s), want 9 MouseClick and 8 ChangedFlg
+  FAIL: W13: nine presses before an update left the box unchecked
+W13 checked
+W13 FAILED (exit 1)
+CONFIG-WIDGETS FAIL: 11 of 13 cases failed
+
+before 705aac6 config-widgets (XS4_PROBE_GBK=1)
+CONFIG-WIDGETS FAIL: 11 of 13 cases failed
+
+before 537d3ec config-widgets (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+W1 checked
+W2 checked
+W3 checked
+W4 checked
+W5 checked
+W6 checked
+W7 checked
+W8 checked
+W9 checked
+W10 checked
+W11 checked
+W12 checked
+W13 checked
+CONFIG-WIDGETS PASS: 0 of 13 cases failed
+
+before 537d3ec config-widgets (XS4_PROBE_GBK=1)
+CONFIG-WIDGETS PASS: 0 of 13 cases failed
+
+after config-widgets at 5cbaafa (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+W1 checked
+W2 checked
+W3 checked
+W4 checked
+W5 checked
+W6 checked
+W7 checked
+W8 checked
+W9 checked
+W10 checked
+W11 checked
+W12 checked
+W13 checked
+CONFIG-WIDGETS PASS: 0 of 13 cases failed
+
+after config-widgets (XS4_PROBE_GBK=1)
+CONFIG-WIDGETS PASS: 0 of 13 cases failed

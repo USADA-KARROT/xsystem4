@@ -20,6 +20,7 @@
    - MSG 88（一般遊玩 83→86）、assertion 0、堆疊溢位 0。測試模式在約 80 秒進入據點並顯示底列（修正前約 125 秒才講完開場 88 句）。（已驗證：GUI 量測）
 4. fps 是 58.7 而不是 60：原版的算式在「睡眠結束於 1 ms 計時刻度」的平台上每幀是 17 個刻度（§1.4）。這是照原版算式的結果，不是誤差；原版在 Windows 上實際多少 fps 未驗證。
 5. 沒修的：立繪 DCF 重複解碼、`heap_grow`、`SetWindowSetting` type 2 的對應、vsync、`PE_Update` 的零時間後備（§6、§7，HANDOFF 第 4 項）。
+   > 2026-10-11 更新：`SetWindowSetting` type 2 的對應已修（`705aac6`），見 [config-widgets](../config-widgets/README.md)。
 
 ---
 
@@ -177,6 +178,7 @@ AIN 的 passedTime 以毫秒計，每幀在 `CalcPassedTime` 的讀取之間丟�
 - **立繪 DCF 重複解碼**：換表情時 libsys4 的 `dcf_extract` 每次都重新解碼底圖（1481×1935，約 21–25 ms），150 秒內 CG 解碼 200 次、只有 80 張不同，重複解碼共 291 ms（診斷 D4）。底圖快取要改 libsys4（`dcf_get_base_cg`），本組不改 submodule；在 xsystem4 端可以對「名稱→解碼後的 cg」做 LRU（每張 11.5 MB），或把解碼移到背景執行緒（`SetPartsCG` 的同步語義會變）。
 - **`heap_grow`**：一次觸碰全部新 slot（約 21 ms，偶發）。
 - **`SetWindowSetting` type 2**：AIN 的 type 2 是「全螢幕失焦時最小化」，xsystem4 當成 `WAIT_VSYNC`。原本寫「在設定畫面切換會打開 vsync」沒有 AIN 證據：審查者靜態確認 type 2 唯一的呼叫者 `config::detail::SetMinimizeByFullScreenInactive` 只被 `AFL_Config_SetMinimizeByFullScreenInactive` 呼叫，而後者在 AIN 內沒有呼叫者，推定遊戲不會打開 vsync，只有 WindowSetting.json 的 `wait_vsync` 能開。SDL 2.32 的 macOS vsync 在螢幕休眠時會卡住（診斷 E/E2：一次 swap 阻塞 159 秒）。依 AIN 函式名推定，未反組譯確認。
+  > 2026-10-11 更新：v14 的視窗設定已改成原版的型別表（型別 2 是全螢幕非作用中時最小化，不接垂直同步），v14 也不再讀 `WindowSetting.json` 的 `wait_vsync`（`705aac6`）。見 [config-widgets](../config-widgets/README.md)。
 - 其他：事件處理偶發 23.8 ms、貼圖上傳。
 
 ---

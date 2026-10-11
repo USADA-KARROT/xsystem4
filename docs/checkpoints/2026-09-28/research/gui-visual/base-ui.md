@@ -188,6 +188,7 @@ visual-compare D4 提到的上方中央頁籤點，所有 pactex 都沒有對應
 - **AIN**：`SceneHome@RegisterEvent` 的點擊 lambda（FUNC 36795–36798）直接呼叫 `SceneHome@Exit`，`CPartsMessageManager@CallDelegate` 與 `CPartsFunctionSet@CallFunctionMouseClick` 都不看 Enable；`SceneHome@SetMenuState` 對停用狀態只呼叫 `IButtonParts` 的 Enable::set(false)。所以只能由引擎不送點擊。（已驗證：AIN）
 - **原版位置未找到**：按鈕 widget 的 +0xb0 只有這些讀取點：重建 `0x528870`／`0x529280`（選 `／無効` CG）、每幀 `0x5285b0`（清空內部元件的游標、點擊音效字串）、`0x529490`（依啟用與否取 CG 尺寸，推定）、存檔 `0x526ab0`（資料子物件 +0xa4 起的 +0xc）、HLL `0x590b70`／`0x590ba0`。輸入處理 `0x547c90` 一帶沒有直接讀它。原版實際在哪裡擋**未驗證**。
 - **修法**：v14 點擊派送找到的最前方目標若是停用按鈕，就吃掉這次點擊：不送 MouseClick、不播音效、也不改送全畫面點擊與 `g_EndPartsBusyLoop`（`src/parts/input.c`）。只看目標自己（按鈕 widget 在 xsystem4 沒有內部子元件；SceneHome 的 ButtonStatus 沒有子元件）。
+  > 2026-10-11 更新：引擎已不再寫 `g_EndPartsBusyLoop`，全畫面點擊改在放開時送（`0a4cfdb`）；停用按鈕照舊吞掉點擊。見 [dialogue-fade](../dialogue-fade/README.md)。
 
 ### 10.2 中：ＣＧ判定部件的點擊判定
 
@@ -326,6 +327,7 @@ visual-compare D4 提到的上方中央頁籤點，所有 pactex 都沒有對應
 
 - 修正前 v14 派送一律略過 1000001000 以上與不可點擊的元件，對話框的全螢幕遮擋層擋不住點擊。略過系統元件的起因是 §11.1.5 的 `InputDisabler` 洩漏；原版 `InputDisabler@SetPartsParam` 把兩個 1280×720 的矩形設成 `EnableInputProcess` = 1、`Clickable` = 1、`Transparent` = 0（AIN），也就是要擋住並接收點擊。
 - 修正：由前往後，第一個顯示中、命中、可點擊或不透過游標（オン指針透過 0）的元件決定結果：可點擊的收到 MouseClick；只擋游標的（圖片、面板）讓點擊不再往後傳，改送全畫面點擊。與懸停選擇游標下元件的規則相同。原版派送本身沒有逐指令追到，「擋游標的元件把點擊變成全畫面點擊」是推定（ADV 以全畫面點擊推進，背景圖不能吞掉點擊）。
+  > 2026-10-11 更新：這筆全畫面點擊已改成放開時才送（`0a4cfdb`）。原版的依據是輸入更新 `0x547c90`：每次放開左鍵都送一筆，不看游標下面是什麼。見 [dialogue-fade](../dialogue-fade/README.md)。
 
 ### 11.5 驗證
 
