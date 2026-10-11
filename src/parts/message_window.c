@@ -11,7 +11,10 @@
 #include "system4/cg.h"
 #include "system4/string.h"
 #include "asset_manager.h"
+#include "msgskip.h"
 #include "vm.h"
+#include "vm/heap.h"
+#include "vm/page.h"
 #include "parts.h"
 #include "parts_internal.h"
 
@@ -62,9 +65,12 @@ struct message_glyph_time {
  * exclusive DEFAULT states. The sidecar dies with its owning parts object. */
 struct parts_message_window {
 	// Tells this window from one made later under the same number: the
-	// script's speed rate runs while the windows are updated.
+	// script's speed rate and read colour run while the windows are updated.
 	uint64_t identity;
 	int msg_num;                   // +0x204
+	// The message of the text was read before, as SetMessageWindowText
+	// found it (+0x201): the text is drawn in the script's read colour.
+	bool is_read;
 	int text_speed;                // +0x1b8
 	// The time of the text (text state +0xc8) and when its last fading
 	// character is at full alpha.
@@ -74,9 +80,11 @@ struct parts_message_window {
 	// fade_end (0x5bd371 clears the intervals of the runs, 0x566160 tests
 	// them).
 	bool fixed;
-	// The text is laid out with a placeholder rate; the script's rate is
-	// taken by the next update or Fix, and the characters stay hidden.
-	bool rate_pending;
+	// The text is not built yet: the script's rate and read colour are
+	// taken by the next update or Fix, and until then the characters stay
+	// hidden, whatever is laid out for a drawing or a size query (the
+	// original has emptied the text it shows, 0x4f2b44).
+	bool build_pending;
 	// A property changed since the last update or Fix (+0x208).
 	bool dirty;
 	struct message_glyph_time *glyph_times;
@@ -106,6 +114,7 @@ static struct parts_message_window *message_window_get(struct parts *parts)
 		mw->text_origin_mode = 1;
 		static uint64_t next_identity;
 		mw->identity = ++next_identity;
+		mw->msg_num = -1;     // 0x4ee714
 		mw->text_speed = 23;  // 0x4ee657
 		mw->fixed = true;
 		// A new window counts as changed until its first update or Fix
@@ -267,14 +276,71 @@ static float message_speed_rate(void)
 	return isfinite(rate) ? rate : 1;
 }
 
+/* The colour of text whose message was read before (0x4f2110 at 0x4f2236
+ * hands a copy of the text font to 0x4f24e0, which calls back through
+ * 0x6837d0): message::detail::GetReadMessageTextColor gets the font's red,
+ * green and blue by reference and changes them, or leaves them when the
+ * game's setting is off. A value outside 0..255 then becomes 0 when it is
+ * negative and 255 otherwise, the alpha is 255 and the edge colour stays
+ * (0x4f255b .. 0x4f25a6). Called from an update or Fix only, like the rate.
+ * Returns false and leaves the colour when the program has no such function
+ * of that shape (0x6835d0 registers it by name: no return value, three
+ * references to int).
+ * The original calls back once more for the ruby font (0x4f22ee); ruby is
+ * not drawn here. */
+static bool message_read_color(SDL_Color *color)
+{
+	static bool busy;
+	if (busy || ain->version < 14)
+		return false;
+	int fno = ain_get_function(ain, "message::detail::GetReadMessageTextColor");
+	if (fno < 0)
+		return false;
+	// A reference to int takes two slots of the local page.
+	struct ain_function *f = &ain->functions[fno];
+	if (f->nr_args != 6 || f->nr_vars < 6 || f->return_type.data != AIN_VOID
+			|| f->address >= ain->code_size)
+		return false;
+	for (int i = 0; i < 6; i += 2) {
+		if (f->vars[i].type.data != AIN_REF_INT)
+			return false;
+	}
+	// The three integers are in a page of their own during the call. Once
+	// the call has returned only this function holds the page, so the
+	// collector is kept off until the values are read back.
+	union vm_value size = { .i = 3 };
+	heap_gc_inhibit();
+	int slot = heap_alloc_page(alloc_array(1, &size, AIN_ARRAY_INT, -1, false));
+	const int rgb[3] = { color->r, color->g, color->b };
+	for (int i = 0; i < 3; i++) {
+		heap[slot].page->values[i].i = rgb[i];
+		stack_push(slot);
+		stack_push(i);
+	}
+	busy = true;
+	vm_call(fno, -1);
+	busy = false;
+	uint8_t out[3];
+	for (int i = 0; i < 3; i++) {
+		int v = heap[slot].page->values[i].i;
+		out[i] = v == (v & 0xff) ? v : v < 0 ? 0 : 255;
+	}
+	heap_unref(slot);
+	heap_gc_allow();
+	*color = (SDL_Color){ out[0], out[1], out[2], 255 };
+	return true;
+}
+
 /* Lays the text out (one texture per glyph). Only the drawing reads the
  * result, so the setters just mark it changed: the dialogue text model
  * sets the text three to four times per line (GetMessageWindowText + append +
  * SetMessageWindowText), and laying the whole text out on every call took
  * about 1 ms each, up to 5 ms (research/gui-visual/pacing.md).
  * The interval between two characters is the speed times the rate,
- * truncated (0x4f21a3); 0 or less shows the text at once. */
-static void message_window_layout(struct parts *parts, float rate)
+ * truncated (0x4f21a3); 0 or less shows the text at once.
+ * With a colour the glyphs are drawn in it; the window's font keeps its own
+ * (0x4f2244: the read colour goes into a copy of the font). */
+static void message_window_layout(struct parts *parts, float rate, const SDL_Color *color)
 {
 	struct parts_message_window *mw = parts->message;
 	struct text_style style = mw->text.ts;
@@ -282,6 +348,8 @@ static void message_window_layout(struct parts *parts, float rate)
 	parts_text_free(&mw->text);
 	memset(&mw->text, 0, sizeof(mw->text));
 	mw->text.ts = style;
+	if (color)
+		mw->text.ts.color = *color;
 	mw->text.line_space = line_space;
 	double speed = (double)mw->text_speed * rate;
 	int interval = 0;
@@ -291,8 +359,9 @@ static void message_window_layout(struct parts *parts, float rate)
 	mw->plain_bytes = plain->size;
 	parts_text_append(parts, &mw->text, plain);
 	free_string(plain);
+	mw->text.ts.color = style.color;
 	mw->text_changed = false;
-	mw->rate_pending = false;
+	mw->build_pending = false;
 }
 
 /* A property of the window differs: the original sets +0x208 and builds the
@@ -304,19 +373,30 @@ static void message_window_dirty(struct parts *parts)
 	parts_dirty(parts);
 }
 
+/* The text has to be laid out again. In v14 it is hidden until the next
+ * update or Fix has built it, whatever its speed: text of speed 0 needs no
+ * rate, but a message that was read needs its colour from the script.
+ * Not the original's: it empties the text it shows only when the text is
+ * set (0x4f2b44); after a change of the font, the speed or the spacing it
+ * goes on showing what it had built, where this hides the text as well. */
 static void message_window_rebuild(struct parts *parts)
 {
 	parts->message->text_changed = true;
-	parts->message->rate_pending = ain->version >= 14 && parts->message->text_speed != 0;
+	parts->message->build_pending = ain->version >= 14;
 	message_window_dirty(parts);
 }
 
 /* 0x595610 -> 0x4f2a60: the same text under the same message number changes
  * nothing. Otherwise the time of the text starts again from 0 (0x5bfa10) and
- * the old text is gone at once; the new one is built by the next update. */
+ * the old text is gone at once; the new one is built by the next update.
+ * Whether the message was read before is decided here and kept with the
+ * window (0x4eea50): a number above 0 is looked up in the read table
+ * (0x4eeada calls MsgSkip's GetFlag), a function name takes the ADV flags
+ * instead (0x4eeaee: recorded with this version and a step of at least this
+ * one), and a number of 0 or less without a name leaves what the window
+ * had, as when the script clears it with ("", 0, "", 0, 0). */
 void PE_SetMessageWindowText(int parts_no, struct string *text,
-		int msg_num, possibly_unused struct string *func_name,
-		possibly_unused int ver, possibly_unused int step)
+		int msg_num, struct string *func_name, int ver, int step)
 {
 	struct parts *parts = parts_get(parts_no);
 	struct parts_message_window *mw = message_window_get(parts);
@@ -325,6 +405,12 @@ void PE_SetMessageWindowText(int parts_no, struct string *text,
 			&& !memcmp(mw->raw_text->text, text ? text->text : "", mw->raw_text->size))
 		return;
 	mw->msg_num = msg_num;
+	if (ain->version >= 14) {
+		if (msg_num > 0)
+			mw->is_read = msgskip_get_flag(msg_num);
+		if (func_name && func_name->size)
+			mw->is_read = msgskip_get_adv_flag(func_name->text, ver, step);
+	}
 	mw->elapsed = 0;
 	mw->fixed = false;
 	struct string *copy = text ? string_dup(text) : string_ref(&EMPTY_STRING);
@@ -353,22 +439,47 @@ int PE_GetMessageWindowTextSpeed(int parts_no)
 
 static void key_wait_build(struct parts_key_wait *kw);
 
-/* Takes the script's rate and lays the text out with it, when the text is
- * waiting for that. The script can free or replace the window meanwhile:
- * returns the window of that number and identity, or NULL. */
-static struct parts *message_window_prepare(int parts_no, uint64_t identity)
+static struct parts *message_window_find(int parts_no, uint64_t identity)
 {
 	struct parts *parts = parts_try_get(parts_no);
 	if (!parts || !parts->message || parts->message->identity != identity)
 		return NULL;
+	return parts;
+}
+
+/* Builds the text when it is waiting for that (0x4f2110): takes the script's
+ * rate, then for a message that was read the script's colour, and lays the
+ * text out with them. The script can free or replace the window in either
+ * call: returns the window of that number and identity, or NULL.
+ * The original asks for the colour whenever the window's flag is set; here
+ * a window without text does not ask.
+ * The original also builds, and so asks again, after any change of a
+ * property (the key wait mark among them, 0x5955d9), on every Fix and after
+ * a load; here only a change of the text, the font, the speed or the spacing
+ * builds. The colour follows the game's setting all the same because the
+ * script sets the texts again, cleared first, when the settings close and
+ * after a load (its DrawAll). */
+static struct parts *message_window_prepare(int parts_no, uint64_t identity)
+{
+	struct parts *parts = message_window_find(parts_no, identity);
+	if (!parts)
+		return NULL;
 	struct parts_message_window *mw = parts->message;
-	if (!mw->text_changed && !mw->rate_pending)
+	if (!mw->text_changed && !mw->build_pending)
 		return parts;
 	float rate = mw->raw_text && mw->text_speed ? message_speed_rate() : 1;
-	parts = parts_try_get(parts_no);
-	if (!parts || !parts->message || parts->message->identity != identity)
+	parts = message_window_find(parts_no, identity);
+	if (!parts)
 		return NULL;
-	message_window_layout(parts, rate);
+	mw = parts->message;
+	SDL_Color color = mw->text.ts.color;
+	bool read = mw->is_read && mw->raw_text && mw->raw_text->size
+		&& message_read_color(&color);
+	parts = message_window_find(parts_no, identity);
+	if (!parts)
+		return NULL;
+	// The flag as it is now: the callback may have set other text.
+	message_window_layout(parts, rate, read && parts->message->is_read ? &color : NULL);
 	return parts;
 }
 
@@ -381,12 +492,13 @@ bool PE_IsFixedMessageWindowText(int parts_no)
 	if (!parts)
 		return false;
 	struct parts_message_window *mw = parts->message;
-	return !mw->dirty && !mw->text_changed && !mw->rate_pending && mw->fixed;
+	return !mw->dirty && !mw->text_changed && !mw->build_pending && mw->fixed;
 }
 
 /* 0x5956b0: builds the window as an update would (0x4f1f80) and ends the
  * fade of every run (0x5660d0). The original builds unconditionally, asking
- * the script for its rate every time; here only what changed is built. */
+ * the script for its rate and, for a read message, its colour every time;
+ * here only what changed is built. */
 void PE_FixMessageWindowText(int parts_no)
 {
 	struct parts *parts = message_window_parts(parts_no);
@@ -410,7 +522,7 @@ float parts_message_window_glyph_alpha(struct parts *parts, struct parts_text *t
 	struct parts_message_window *mw = parts->message;
 	if (!mw || text != &mw->text)
 		return 1;
-	if (mw->rate_pending)
+	if (mw->build_pending)
 		return 0;
 	if (mw->fixed || index < 0 || index >= mw->nr_glyph_times)
 		return 1;
@@ -770,8 +882,8 @@ static bool key_wait_advance(struct parts_key_wait *kw, int passed_time)
  * its own time (0x564c80 -> 0x565376 -> 0x5bfa00). */
 void parts_message_window_update_times(int passed_time, int scaled_passed_time)
 {
-	// The script's rate callback can free, replace or create a window:
-	// walk a snapshot of numbers and identities, not the list.
+	// The script's rate and colour callbacks can free, replace or create
+	// a window: walk a snapshot of numbers and identities, not the list.
 	struct {
 		int no;
 		uint64_t identity;
@@ -843,12 +955,12 @@ struct parts_text *parts_message_window_render_text(struct parts *parts, Point *
 	struct parts_message_window *mw = parts->message;
 	if (mw && mw->text_changed) {
 		// A drawing or a size query can come before the update. The
-		// script's rate is not asked for here: the text is laid out with
-		// a placeholder and stays hidden until an update or Fix lays it
-		// out again.
-		bool pending = mw->rate_pending;
-		message_window_layout(parts, 1);
-		mw->rate_pending = pending;
+		// script's rate and read colour are not asked for here: the text
+		// is laid out with a placeholder and stays hidden until an update
+		// or Fix lays it out again.
+		bool pending = mw->build_pending;
+		message_window_layout(parts, 1, NULL);
+		mw->build_pending = pending;
 	}
 	if (!mw || !mw->text.nr_lines)
 		return NULL;

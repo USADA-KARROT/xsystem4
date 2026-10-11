@@ -161,6 +161,7 @@ static void init_probe(const char *path) {
 #include "array_primitive_fixture.inc"
 #include "msgskip_msk_fixture.inc"
 #include "config_widgets_fixture.inc"
+#include "read_color_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -244,6 +245,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"msgskip-msk"))return test_msgskip_msk();
     if(!strcmp(argv[2],"msgskip-msk-file"))return test_msgskip_msk_file();
     if(!strcmp(argv[2],"config-widgets"))return test_config_widgets();
+    if(!strcmp(argv[2],"read-color"))return test_read_color();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

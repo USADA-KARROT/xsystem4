@@ -1052,6 +1052,9 @@ static void ts_drawn_unchanged(void)
 	/* Geometry-only sample: choose instant text through the real HLL.
 	 * On the old engine this was already always instantaneous. */
 	BU_PE("SetMessageWindowTextSpeed", BU_I(M), BU_I(0));
+	/* New text is shown once an update or Fix has built it, whatever its
+	 * speed (0x4f2b44, 0x4f1f80). */
+	BU_PE("FixMessageWindowText", BU_I(M));
 	ts_fill_glyphs(parts_message_window_render_text(parts_get(M), &pos));
 	ts_expect_drawn(parts_get(M), 0, 52, 10, 39, 20, 47, 1, "TS11 message window first line");
 	ts_expect_drawn(parts_get(M), 53, TS_VIEW_H - 1, 10, 26, 58, 85, 1, "TS11 message window second line");
