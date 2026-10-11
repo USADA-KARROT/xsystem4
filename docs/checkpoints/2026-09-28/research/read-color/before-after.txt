@@ -1,0 +1,151 @@
+before cebc334 read-color (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+== RC1 read and unread
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 203: a read message: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL rc_read_unread:209: the script's colour function ran 0 time(s) for one read and one unread window, want 1
+  FAIL rc_read_unread:213: updates without a change asked for the colour again (0)
+  FAIL line 214: the read message after two more updates: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL rc_read_unread:220: the colour was asked for an unread message
+  FAIL line 223: a read message after an unread one: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+  FAIL rc_read_unread:240: 40 read texts asked for the colour 0 time(s)
+  FAIL line 243: the read message after 40 rounds: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+RC1 read and unread                                  FAIL
+== RC2 the setting and the script's defaults
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL rc_setting:261: the colour function ran 0 time(s) with the setting off, want 1
+  FAIL line 265: the setting on, the page shown again: 0 opaque pixel(s) of (200,150,50), 43 of (100,110,120); want at least 20 and 0
+  FAIL line 275: no EX entry: 0 opaque pixel(s) of (255,127,127), 43 of (100,110,120); want at least 20 and 0
+RC2 the setting and the script's defaults            FAIL
+== RC3 numbers that keep the flag
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 286: a read message: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 292: text under number 0 after a read message: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 295: text under number -1 after a read message: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+  FAIL line 313: an unread line followed by a read one: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+RC3 numbers that keep the flag                       FAIL
+== RC4 the same text again
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 340: another text under the number read meanwhile: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+  FAIL line 349: the same text under a read number: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+RC4 the same text again                              FAIL
+== RC5 ADV flags
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 378: the recorded step: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+  FAIL line 378: a step before the recorded one: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 378: an unread number with the recorded step: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+  FAIL line 378: a read number without a name: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 386: number 0 without a name after an ADV step that was read: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+RC5 ADV flags                                        FAIL
+== RC6 values outside 0..255
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 403: EX colour (-5,300,128): 0 opaque pixel(s) of (0,255,128), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 403: EX colour (256,-1,255): 0 opaque pixel(s) of (255,0,255), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 403: EX colour (0,255,1): 0 opaque pixel(s) of (0,255,1), 43 of (255,255,255); want at least 20 and 0
+  FAIL line 403: EX colour (-2147483648,2147483647,77): 0 opaque pixel(s) of (0,255,77), 43 of (255,255,255); want at least 20 and 0
+RC6 values outside 0..255                            FAIL
+== RC7 nothing is shown before the build
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL rc_draw_before_update:422: speed 0: new read text is drawn with alpha 1 before it is built, want 0
+  FAIL rc_draw_before_update:427: speed 0: the update asked for the colour 0 time(s), want 1
+  FAIL line 428: read text after its update: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL rc_draw_before_update:433: speed 0: new unread text is drawn before it is built (alpha 1)
+  FAIL rc_draw_before_update:437: speed 0: read text set again is drawn before it is built
+  FAIL rc_draw_before_update:439: speed 0: Fix asked for the colour 0 time(s), want 1
+  FAIL line 442: read text after Fix: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL rc_draw_before_update:427: speed 23: the update asked for the colour 0 time(s), want 1
+  FAIL line 428: read text after its update: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+  FAIL rc_draw_before_update:439: speed 23: Fix asked for the colour 0 time(s), want 1
+  FAIL line 442: read text after Fix: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+RC7 nothing is shown before the build                FAIL
+== RC8 with the fade
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 470: the first frame of the fade: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+  RC8 half faded: (128,128,128,128)
+  FAIL rc_fade:484: half faded: colour (128,128,128) is not the read colour's hue
+  FAIL rc_fade:494: fully faded: (255,255,255,255), want the read colour, opaque
+  FAIL line 509: fixed text after the same text was set again: 0 opaque pixel(s) of (200,150,50), 86 of (255,255,255); want at least 20 and 0
+RC8 with the fade                                    FAIL
+== RC9 guard: AIN v13
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC9 guard: AIN v13                                   PASS
+== RC10 the callback frees the window
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL rc_release:577: the callback did not run, or the window is still there
+  FAIL line 578: the window after the freed one: 0 opaque pixel(s) of (255,127,127), 43 of (255,255,255); want at least 20 and 0
+  FAIL rc_release:584: Fix: the callback did not run, or the window is still there
+  FAIL rc_release:593: the callback did not run, or made no window
+  FAIL rc_release:594: the new window's text was built by the old one's update (alpha 1)
+  FAIL rc_release:598: the colour function ran 0 time(s), want 1 (the old window's)
+  FAIL rc_release:607: the callback did not run
+  FAIL rc_release:609: the text the callback set is not the one laid out
+RC10 the callback frees the window                   FAIL
+== RC11 across runs
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 627: first run, shown again: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+MsgSkip: saved 1 of 57532 messages read (MsgSkip.msk)
+MsgSkip: 1 of 57532 messages read (MsgSkip.msk)
+  FAIL line 638: second run, the message read in the first: 0 opaque pixel(s) of (200,150,50), 43 of (255,255,255); want at least 20 and 0
+RC11 across runs                                     FAIL
+== RC12 guard: another shape of the script function
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 674: the function as the game declares it: 0 opaque pixel(s) of (200,150,50), 129 of (255,255,255); want at least 20 and 0
+  FAIL rc_shape_guard:675: the function as the game declares it was not called once
+RC12 guard: another shape of the script function     FAIL
+== RC13 the game's EX file
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  FAIL line 703: the game's EX file: 0 opaque pixel(s) of (255,203,57), 43 of (255,255,255); want at least 20 and 0
+RC13 the game's EX file                              FAIL
+READ-COLOR FAIL: 12 of 13 cases failed
+
+before cebc334 read-color (XS4_PROBE_GBK=1)
+READ-COLOR FAIL: 12 of 13 cases failed
+
+after read-color at dcf0b18 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+== RC1 read and unread
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC1 read and unread                                  PASS
+== RC2 the setting and the script's defaults
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC2 the setting and the script's defaults            PASS
+== RC3 numbers that keep the flag
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC3 numbers that keep the flag                       PASS
+== RC4 the same text again
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC4 the same text again                              PASS
+== RC5 ADV flags
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC5 ADV flags                                        PASS
+== RC6 values outside 0..255
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC6 values outside 0..255                            PASS
+== RC7 nothing is shown before the build
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC7 nothing is shown before the build                PASS
+== RC8 with the fade
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+  RC8 half faded: (100,75,25,128)
+RC8 with the fade                                    PASS
+== RC9 guard: AIN v13
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC9 guard: AIN v13                                   PASS
+== RC10 the callback frees the window
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC10 the callback frees the window                   PASS
+== RC11 across runs
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+MsgSkip: saved 1 of 57532 messages read (MsgSkip.msk)
+MsgSkip: 1 of 57532 messages read (MsgSkip.msk)
+RC11 across runs                                     PASS
+== RC12 guard: another shape of the script function
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC12 guard: another shape of the script function     PASS
+== RC13 the game's EX file
+MsgSkip: 0 of 57532 messages read (MsgSkip.msk)
+RC13 the game's EX file                              PASS
+READ-COLOR PASS: 0 of 13 cases failed
+
+after read-color (XS4_PROBE_GBK=1)
+READ-COLOR PASS: 0 of 13 cases failed
