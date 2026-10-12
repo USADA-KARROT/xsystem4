@@ -2,7 +2,7 @@
 
 **最新狀態（2026-10-12）：已推送程式為 `a90f39d`，預設／GBK各99模式PASS、san0；十條實機路線、四條存讀檔路線與確認框的六條無錯誤，對白與基準相同（`noskip` 與基準互為前段）。`be9ae7c`：v14 的 `PartsEngine.SaveThumbnail` 照原版（`0x56d140`）寫出存檔縮圖——先前綁在空函式上，讀取清單是灰塊；縮圖檔的尺寸與格式和原版的檔一致，清單和原版截圖並排過。`a90f39d`：舊版引擎的系統呼叫 `SYS_PEEK` 恢復成上游的行為（這個分支曾讓它每次多畫一次並換頁）。前幾輪的確認框與結束遊戲（`ed595ae`）、讀檔與返回標題、輸入模型、已讀顏色、逐字淡入與設定畫面不變。**
 
-[存檔縮圖](research/save-thumbnail/README.md) · [確認框與結束遊戲](research/confirm-exit/README.md) · [讀檔與返回標題](research/system-reset/README.md) · [輸入模型](research/input-model/README.md) · [對話文字的已讀顏色](research/read-color/README.md) · [對白逐字淡入與全畫面點擊](research/dialogue-fade/README.md) · [設定畫面的核取方塊、單選群與視窗設定](research/config-widgets/README.md)。**仍不能當作完整遊戲使用。** 各場景中途的存讀檔實機、右鍵與中鍵、設定畫面的橫桿把手／按鈕文字／說明框、回顧把手與滾輪、「元件不存在時取得或建立」的其餘函式、混音器的其餘聲道、`system.MsgBox`、音訊聽測與長時穩定仍待修驗；舊版引擎相對於上游的等價性只看過系統呼叫一個函式，其餘沒有稽核，也沒有舊遊戲實跑過。逐項清單見 [HANDOFF](HANDOFF.md) 最上節。
+[存檔縮圖](research/save-thumbnail/README.md) · [確認框與結束遊戲](research/confirm-exit/README.md) · [讀檔與返回標題](research/system-reset/README.md) · [輸入模型](research/input-model/README.md) · [對話文字的已讀顏色](research/read-color/README.md) · [對白逐字淡入與全畫面點擊](research/dialogue-fade/README.md) · [設定畫面的核取方塊、單選群與視窗設定](research/config-widgets/README.md)。**仍不能當作完整遊戲使用。** 各場景中途的存讀檔實機、右鍵與中鍵、設定畫面的橫桿把手／按鈕文字／說明框、回顧把手與滾輪、「元件不存在時取得或建立」的其餘函式、混音器的其餘聲道、`system.MsgBox`、音訊聽測與長時穩定仍待修驗；舊版引擎相對於上游的等價性稽核過一輪（唯讀）：列出 17 條會改變 v14 之前遊戲行為的改動，只恢復了兩條（[報告](research/v13-audit/README.md)）；沒有舊遊戲實跑過。逐項清單見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
