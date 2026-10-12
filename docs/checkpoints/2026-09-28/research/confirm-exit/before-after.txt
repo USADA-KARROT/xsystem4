@@ -1,0 +1,161 @@
+before c87e265 confirm-exit (default rule; the probe of ed595ae)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+line two
+ANSWER=1
+  FAIL: MsgBoxOkCancel with no setting: the box's text was not converted from the game's encoding
+  FAIL: MsgBoxOkCancel with no setting: not logged as answered (ok) without asking
+line two
+ANSWER=1
+  FAIL: MsgBoxOkCancel with ok: the box's text was not converted from the game's encoding
+  FAIL: MsgBoxOkCancel with ok: not logged as answered (ok) without asking
+line two
+ANSWER=1
+  FAIL: MsgBoxOkCancel with cancel: the answer is not 0
+  FAIL: MsgBoxOkCancel with cancel: the box's text was not converted from the game's encoding
+  FAIL: MsgBoxOkCancel with cancel: not logged as answered (cancel) without asking
+line two
+ANSWER=1
+  FAIL: MsgBoxOkCancel with yes: the box's text was not converted from the game's encoding
+  FAIL: MsgBoxOkCancel with yes: not logged as answered (ok) without asking
+  FAIL: MsgBoxOkCancel with yes: the unknown value was not reported
+line two
+ANSWER=1
+  FAIL: MsgBoxOkCancel with an empty setting: the box's text was not converted from the game's encoding
+  FAIL: MsgBoxOkCancel with an empty setting: not logged as answered (ok) without asking
+  FAIL: NO SYMBOL vm_ask
+  FAIL: the quit question, cancel: a check failed in the child
+  FAIL: the quit question was not answered no
+  FAIL: NO SYMBOL vm_ask
+  FAIL: the quit question, no window: a check failed in the child
+  FAIL: the quit question without a window was not answered yes
+  CE1 the answer follows XSYS4_AUTO_MSGBOX and is OK without a window
+CE1 FAIL
+��δ����Ĕ������Gʧ
+PEEK reached
+  FAIL: quit, cancel: the child ended with 51, want 50
+  FAIL: quit, cancel: want "RETURNED wait=1 reset=0 keys=2 pending=0"
+  FAIL: quit, cancel: the loop after system.Exit ran
+  FAIL: quit, cancel: nobody was asked
+��δ����Ĕ������Gʧ
+PEEK reached
+  FAIL: quit, ok: the child ended with 51, want 0
+  FAIL: quit, ok: the loop after system.Exit ran
+��δ����Ĕ������Gʧ
+PEEK reached
+  FAIL: quit, no window: the child ended with 51, want 0
+  FAIL: quit, no window: the loop after system.Exit ran
+PEEK reached
+  FAIL: quit, setting 4 off: the child ended with 51, want 0
+  FAIL: quit, setting 4 off: the loop after system.Exit ran
+��δ����Ĕ������Gʧ
+PEEK reached
+  FAIL: quit, setting 4 off and on: the child ended with 51, want 50
+  FAIL: quit, setting 4 off and on: want "RETURNED wait=1 reset=0 keys=2 pending=0"
+  FAIL: quit, setting 4 off and on: the loop after system.Exit ran
+��δ����Ĕ������Gʧ
+PEEK reached
+  FAIL: quit, setting 3 off: the child ended with 51, want 50
+  FAIL: quit, setting 3 off: want "RETURNED wait=1 reset=0 keys=2 pending=0"
+  FAIL: quit, setting 3 off: the loop after system.Exit ran
+��δ����Ĕ������Gʧ
+PEEK reached
+  FAIL: quit, ok, Exit(5): the child ended with 51, want 0
+  FAIL: quit, ok, Exit(5): the loop after system.Exit ran
+  CE2 the game's quit function: cancel returns, ok ends the program
+CE2 FAIL
+��δ����Ĕ������Gʧ
+RETURNED wait=0 reset=1 keys=0 pending=-1
+  FAIL: title, cancel: want "RETURNED wait=1 reset=0 keys=2 pending=0"
+��δ����Ĕ������Gʧ
+RETURNED wait=0 reset=1 keys=0 pending=-1
+  FAIL: title, ok: want "RETURNED wait=0 reset=1 keys=0 pending=0"
+��δ����Ĕ������Gʧ
+RETURNED wait=0 reset=1 keys=0 pending=-1
+  FAIL: title, no window: want "RETURNED wait=0 reset=1 keys=0 pending=0"
+RETURNED wait=0 reset=1 keys=0 pending=-1
+  FAIL: title, setting 3 off: want "RETURNED wait=0 reset=1 keys=0 pending=0"
+��δ����Ĕ������Gʧ
+RETURNED wait=0 reset=1 keys=0 pending=-1
+  FAIL: title, setting 3 off and on: want "RETURNED wait=1 reset=0 keys=2 pending=0"
+��δ����Ĕ������Gʧ
+RETURNED wait=0 reset=1 keys=0 pending=-1
+  FAIL: title, setting 4 off: want "RETURNED wait=1 reset=0 keys=2 pending=0"
+  CE3 the game's back-to-title function: cancel does not reset, ok does
+CE3 FAIL
+  FAIL: NO SYMBOL vm_exit_pending
+  FAIL: system.Exit through the ffi: a check failed in the child
+  FAIL: system.Exit through the ffi ended the program
+  CE4 through the ffi alone system.Exit only raises the flag
+CE4 FAIL
+  FAIL: NO SYMBOL input_modal_closed
+  ... (275 more lines)
+CONFIRM-EXIT FAIL: 12 of 12 cases failed
+
+before c87e265 confirm-exit (XS4_PROBE_GBK=1)
+CONFIRM-EXIT FAIL: 12 of 12 cases failed
+
+after confirm-exit at ed595ae (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+Message box answered without asking (ok): 確認框 line two
+ANSWER=1
+Message box answered without asking (ok): 確認框 line two
+ANSWER=1
+Message box answered without asking (cancel): 確認框 line two
+ANSWER=0
+Message box answered without asking (ok): 確認框 line two
+ANSWER=1
+Message box answered without asking (ok): 確認框 line two
+ANSWER=1
+Message box answered without asking (cancel): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+ANSWER=0
+Message box answered without asking (ok): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+ANSWER=1
+  CE1 the answer follows XSYS4_AUTO_MSGBOX and is OK without a window
+CE1 ok
+Message box answered without asking (cancel): ﾒｪｽYﾊ・[沢・｣ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=1 reset=0 keys=2 pending=0
+Message box answered without asking (ok): ﾒｪｽYﾊ・[沢・｣ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+Message box answered without asking (ok): ﾒｪｽYﾊ・[沢・｣ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+Message box answered without asking (cancel): ﾒｪｽYﾊ・[沢・｣ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=1 reset=0 keys=2 pending=0
+Message box answered without asking (cancel): ﾒｪｽYﾊ・[沢・｣ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=1 reset=0 keys=2 pending=0
+Message box answered without asking (ok): ﾒｪｽYﾊ・[沢・｣ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+  CE2 the game's quit function: cancel returns, ok ends the program
+CE2 ok
+Message box answered without asking (cancel): ﾒｪｻﾘｵｽ侏蕓ｽ酖諞皀ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=1 reset=0 keys=2 pending=0
+Message box answered without asking (ok): ﾒｪｻﾘｵｽ侏蕓ｽ酖諞皀ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=0 reset=1 keys=0 pending=0
+Message box answered without asking (ok): ﾒｪｻﾘｵｽ侏蕓ｽ酖諞皀ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=0 reset=1 keys=0 pending=0
+RETURNED wait=0 reset=1 keys=0 pending=0
+Message box answered without asking (cancel): ﾒｪｻﾘｵｽ侏蕓ｽ酖諞皀ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=1 reset=0 keys=2 pending=0
+Message box answered without asking (cancel): ﾒｪｻﾘｵｽ侏蕓ｽ酖諞皀ｿ  ｡・ｴｱ｣ｴ豬ﾄ鳩?・｢；ﾊｧ
+RETURNED wait=1 reset=0 keys=2 pending=0
+  CE3 the game's back-to-title function: cancel does not reset, ok does
+CE3 ok
+STILL RUNNING
+  CE4 through the ffi alone system.Exit only raises the flag
+CE4 ok
+  CE5 nothing stays held after a modal box
+CE5 ok
+Message box answered without asking (cancel): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+STILL RUNNING
+Message box answered without asking (ok): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+Message box answered without asking (ok): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+Message box answered without asking (cancel): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+STILL RUNNING
+Message box answered without asking (ok): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+Message box answered without asking (cancel): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+STILL RUNNING
+Message box answered without asking (cancel): The game is about to close.  Progress that has not been saved will not be kept. Close it?
+STILL RUNNING
+STILL RUNNING
+  CE6 SDL_QUIT asks only for the user, only with the v14 setting on
+  ... (189 more lines)
+CONFIRM-EXIT PASS: 0 of 12 cases failed
+
+after confirm-exit (XS4_PROBE_GBK=1)
+CONFIRM-EXIT PASS: 0 of 12 cases failed
