@@ -145,6 +145,17 @@ void vm_reset_runtime_state(void);
 extern bool vm_reset_once;
 // system.Reset asks for a restart with this; the VM takes it after the call.
 extern bool vm_reset_pending;
+// system.Exit asks for the end of the program with this, in the same way.
+extern bool vm_exit_pending;
+
+enum vm_ask_type {
+	VM_ASK_OK_CANCEL,
+	VM_ASK_YES_NO,
+};
+// A modal question with two buttons; true for OK or Yes. A NULL text asks
+// whether to quit the game. unshown is the answer when the box cannot be
+// shown. See vm.c for when nobody is asked.
+bool vm_ask(enum vm_ask_type type, const char *text, bool unshown);
 
 #if defined(__ANDROID__) || defined(RELEASE)
 // Report the error with a message box and exit.

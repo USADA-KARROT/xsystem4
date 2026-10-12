@@ -15,6 +15,7 @@
  */
 
 #include <stdbool.h>
+#include <signal.h>
 #include <time.h>
 #include <SDL.h>
 #include "system4.h"
@@ -22,6 +23,7 @@
 #include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "input.h"
+#include "msgskip.h"
 #include "scene.h"
 #include "vm.h"
 #include "xsystem4.h"
@@ -274,6 +276,34 @@ static void release_pending_mouse_buttons(uint32_t now)
 			mouse_hold_until[btn] = 0;
 		}
 	}
+}
+
+/*
+ * A modal box (vm_ask) had the keyboard and the mouse while it was open:
+ * what was held when it opened may have come up inside it, and what was
+ * pressed for it was not for the game. Nothing stays held and the events of
+ * that time are dropped.
+ *
+ * This differs from the original, whose key query reads the system's key
+ * state at the time of each call (IbisInputEngine.Key_IsDown, 0x498bf0, ends
+ * in GetKeyState): there a key that is still down when the box closes is
+ * still down for the script, and the wait the script runs after a box it
+ * cancelled lasts until Return and Escape have really come up. Here both
+ * read as up, so that wait passes at once, and a key that is still held
+ * physically comes back as a new press with its next repeat event (a
+ * modifier, which does not repeat, with its next press).
+ */
+void input_modal_closed(void)
+{
+	SDL_PumpEvents();
+	SDL_FlushEvents(SDL_KEYDOWN, SDL_TEXTINPUT);
+	SDL_FlushEvents(SDL_MOUSEBUTTONDOWN, SDL_MOUSEWHEEL);
+	key_clear_flag(false);
+	memset(mouse_hold_until, 0, sizeof(mouse_hold_until));
+	memset(mouse_release_pending, 0, sizeof(mouse_release_pending));
+	deferred_synthetic_mouse_event.timestamp = 0;
+	long_touch_start_timestamp = 0;
+	wheel_dir = 0;
 }
 
 static void mouse_event(SDL_MouseButtonEvent *e)
@@ -654,6 +684,106 @@ static void handle_window_event(SDL_Event *e)
 	}
 }
 
+// Whether the user is asked before the game is closed from outside the
+// script. Only the v14 window settings turn this on (SystemService).
+static bool close_confirm;
+
+void input_set_close_confirm(bool on)
+{
+#ifdef __ANDROID__
+	// Never on Android, where SDL_QUIT ends the program as before: SDL
+	// sends it when the activity is destroyed and then waits on the UI
+	// thread for this thread to end, while a message box is shown by the
+	// UI thread and waited for here. (SDLActivity.java of SDL 2.32,
+	// onDestroy and messageboxShowMessageBox; not tried.)
+	(void)on;
+#else
+	close_confirm = on;
+#endif
+}
+
+/*
+ * SDL turns SIGINT and SIGTERM into the SDL_QUIT that the window's close
+ * button gives. They are noted here, on top of SDL's own handlers, so that
+ * only the user's requests are confirmed.
+ */
+static volatile sig_atomic_t quit_signal;
+
+#ifndef _WIN32
+static void (*sdl_signal_handler[2])(int);
+
+static void quit_signal_handler(int sig)
+{
+	quit_signal = 1;
+	void (*next)(int) = sdl_signal_handler[sig == SIGTERM];
+	if (next)
+		next(sig);
+}
+
+// True once a handler is watched; until then there was none to put this on.
+static bool watch_quit_signals(void)
+{
+	static const int signals[2] = { SIGINT, SIGTERM };
+	bool watched = false;
+	for (int i = 0; i < 2; i++) {
+		struct sigaction action;
+		if (sigaction(signals[i], NULL, &action) < 0 || (action.sa_flags & SA_SIGINFO))
+			continue;
+		if (action.sa_handler == SIG_DFL || action.sa_handler == SIG_IGN)
+			continue;
+		if (action.sa_handler != quit_signal_handler) {
+			sdl_signal_handler[i] = action.sa_handler;
+			action.sa_handler = quit_signal_handler;
+			if (sigaction(signals[i], &action, NULL) < 0)
+				continue;
+		}
+		watched = true;
+	}
+	return watched;
+}
+#else
+// Signals are not told apart on Windows: an SDL_QUIT that SDL makes of a
+// Ctrl+C on the console there would be confirmed like the close button
+// (not built, not tried).
+static bool watch_quit_signals(void) { return true; }
+#endif
+
+/*
+ * SDL_QUIT: the window's close button, the application's Quit, or a signal.
+ *
+ * The original's window procedure asks before it closes while the window
+ * setting "confirm closing the game" is on: 0x4be920 (WM_CLOSE) reads
+ * [wnd+0x86], which SystemService.SetWindowSetting(4) writes (0x4c10c0),
+ * and shows a yes/no box; the answer no leaves the game running. The script
+ * has no part in it unless it hooked the closing with
+ * SystemService.SetHookCloseApp. The script turns the hook on where it
+ * registers a closing handler and keeps it on only while one is registered,
+ * and a single function of it registers one (not implemented: the hook is
+ * never on here).
+ *
+ * A signal is not the user closing the window: the program ends at once,
+ * also when it arrives while the box is open and the answer is no.
+ *
+ * The read-message table is written before the box opens. Otherwise it is
+ * written when the program ends (MsgSkip's _ModuleFini), which a program
+ * that is killed while it waits for the answer does not reach.
+ */
+static void close_requested(void)
+{
+	if (close_confirm && !quit_signal) {
+		msgskip_flush();
+		// A box that cannot be shown must not keep the window from
+		// closing (the original would not close then).
+		if (!vm_ask(VM_ASK_YES_NO, NULL, true) && !quit_signal) {
+			// One answer is for every request made so far: the
+			// SDL_QUITs still queued do not ask again.
+			SDL_FlushEvent(SDL_QUIT);
+			return;
+		}
+	}
+	vm_exit(0);
+}
+
 void handle_window_events(void)
 {
 	// NOTE: This function only processes QUIT and WINDOWEVENT.
@@ -664,9 +794,8 @@ void handle_window_events(void)
 	int n;
 	// Process QUIT events
 	n = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_QUIT, SDL_QUIT);
-	for (int i = 0; i < n; i++) {
-		vm_exit(0);
-	}
+	if (n > 0)
+		close_requested();
 	// Process WINDOWEVENT
 	n = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_WINDOWEVENT, SDL_WINDOWEVENT);
 	for (int i = 0; i < n; i++) {
@@ -790,11 +919,16 @@ void handle_events(void)
 	// A button still physically held must remain down until its actual UP.
 	release_pending_mouse_buttons(SDL_GetTicks());
 
+	// Tried again until SDL's handlers are there to be watched.
+	static bool quit_signals_watched;
+	if (close_confirm && !quit_signals_watched)
+		quit_signals_watched = watch_quit_signals();
+
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 		case SDL_QUIT:
-			vm_exit(0);
+			close_requested();
 			break;
 		case SDL_WINDOWEVENT:
 			handle_window_event(&e);

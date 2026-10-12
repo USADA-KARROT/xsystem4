@@ -397,6 +397,14 @@ bool gfx_window_active(void)
 	return gfx_initialized && (SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_INPUT_FOCUS);
 }
 
+// The window a modal box belongs to; NULL while there is none on the screen.
+SDL_Window *gfx_dialog_window(void)
+{
+	if (!gfx_initialized || !sdl.window || (SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_HIDDEN))
+		return NULL;
+	return sdl.window;
+}
+
 void gfx_set_clear_color(int r, int g, int b, int a)
 {
 	clear_color.r = max(0, min(255, r));

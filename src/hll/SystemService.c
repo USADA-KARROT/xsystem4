@@ -241,10 +241,12 @@ enum window_settings_id {
  * v14 game uses it or still the older one is not known; the older one was
  * written from the games before it.
  *
- * All five are kept only and have no effect here: the view always keeps its
- * aspect ratio and has one scaling filter, a full-screen window is not
- * minimized when it is deactivated, there is no window menu, and closing the
- * window does not ask the script, which is what reads type 4.
+ * Types 0 to 3 are kept only and have no effect here: the view always keeps
+ * its aspect ratio and has one scaling filter, a full-screen window is not
+ * minimized when it is deactivated, and there is no window menu. Type 4 is
+ * read by the script before its own "quit the game" and, as in the original
+ * (0x4be920 reads the byte that type 4 sets, [wnd+0x86]), by the window
+ * when it is closed: input_set_close_confirm.
  */
 enum window_settings_v14_id {
 	WINDOW_SETTINGS_V14_ASPECT_RATIO = 0,
@@ -318,6 +320,8 @@ static bool window_setting_v14_set(int type, int value)
 	if (window_settings_v14[type] == value)
 		return true;
 	window_settings_v14[type] = value;
+	if (type == WINDOW_SETTINGS_V14_CLOSE_GAME_CONFIRM)
+		input_set_close_confirm(value);
 	save_window_settings_v14();
 	return true;
 }
@@ -345,6 +349,7 @@ static void load_window_settings(void)
 {
 	if (window_settings_is_v14()) {
 		load_window_settings_v14();
+		input_set_close_confirm(window_settings_v14[WINDOW_SETTINGS_V14_CLOSE_GAME_CONFIRM]);
 		return;
 	}
 	cJSON *root = load_json("WindowSetting.json");

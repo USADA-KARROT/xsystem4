@@ -107,14 +107,28 @@ static void system_PeekAll(void)
 }
 
 // [4] Exit(result) -> void
+// The original (0x693e30) does not use the argument. It calls the host
+// through [vm+0x18], clears [vm+0x2a0] and moves the VM's state from 0 to 1.
+// [vm+0x18] is the proxy whose first function is 0x4c2290: the VM's
+// initialization (0x666fe0) stores there, at 0x66700c, what the host returns
+// for an interface ID, and the window object answers that ID (0x4c0930) with
+// its member at +0x20, whose vtable (0x80e65c) starts with 0x4c2290. That
+// function backs up the registered save files (0x696640), clears the flag
+// of the host's message pump and posts the window the message it closes on:
+// the handler 0x4be9b0 writes the window settings, the mouse cursor
+// settings, the common system data and the read-message table and destroys
+// the window. The main loop 0x667d90 then stays in 0x667e80, which executes
+// no instruction while [vm+0x2a0] is clear and ends the VM when the host's
+// message pump returns 0. So the loop around Peek that the script writes
+// after the call never runs.
+//
+// The program is ended by the CALLHLL handler when this call has returned,
+// as with Reset; vm_exit() runs the libraries' _ModuleFini, which is where
+// the read-message table is written here.
 static void system_Exit(int result)
 {
-	static int exit_calls = 0;
-	exit_calls++;
-	if (exit_calls <= 5)
-		WARNING("system.Exit(%d) — suppressing (call #%d)", result, exit_calls);
-	// Don't actually exit — game assertions call Exit(1) for non-fatal errors.
-	// Let the game continue and recover if possible.
+	(void)result;
+	vm_exit_pending = true;
 }
 
 // [5] Reset() -> void
@@ -667,10 +681,15 @@ static struct string *system_MsgBox(struct string *text)
 }
 
 // [25] MsgBoxOkCancel(text) -> int
+// The original (0x693beb -> 0x728810) shows an OK/Cancel box on the game
+// window, with the game's name as its caption, and returns 1 for OK and 0
+// for anything else, a box that could not be shown included.
 static int system_MsgBoxOkCancel(struct string *text)
 {
-	WARNING("system.MsgBoxOkCancel: %s", display_game0(text->text));
-	return 1; // OK
+	char *utf = game_to_utf8(text->text, text->size);
+	bool ok = vm_ask(VM_ASK_OK_CANCEL, utf, false);
+	free(utf);
+	return ok;
 }
 
 // [26] Error(text) -> string

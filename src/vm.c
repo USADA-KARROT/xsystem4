@@ -445,6 +445,8 @@ size_t instr_ptr = 0;
 bool vm_reset_once = false;
 // Set by system.Reset; the CALLHLL handler takes the restart.
 bool vm_reset_pending = false;
+// Set by system.Exit; the CALLHLL handler ends the program.
+bool vm_exit_pending = false;
 bool vm_in_alloc_phase = false;
 
 /* Optional, bounded call tracing for the stage-2 dialogue investigation. */
@@ -2333,6 +2335,156 @@ static const SDL_MessageBoxButtonData stop_continue_buttons[] = {
 	{ 0, 0, "Continue" },
 };
 
+/*
+ * For the headless probe, which has no window and must not depend on the
+ * machine's language; never set otherwise (the probe finds it by name).
+ * show stands in for SDL_ShowMessageBox in show_two_button_box(), and with
+ * it set vm_ask() asks without a window as well. language and country stand
+ * in for the first of the system's preferred locales.
+ */
+struct {
+	int (*show)(const SDL_MessageBoxData *box, int *button);
+	const char *language, *country;
+} vm_ask_test;
+
+// Shows a modal box with two buttons and stores the ID of the chosen one in
+// *button; false when the box could not be shown, which is not an answer.
+static bool show_two_button_box(SDL_Window *window, const char *title, const char *text,
+		const SDL_MessageBoxButtonData *buttons, int *button)
+{
+	const SDL_MessageBoxData mbox = {
+		SDL_MESSAGEBOX_INFORMATION,
+		window,
+		title,
+		text,
+		2,
+		buttons,
+		NULL
+	};
+	if (vm_ask_test.show)
+		return !vm_ask_test.show(&mbox, button);
+	return !SDL_ShowMessageBox(&mbox, button);
+}
+
+/*
+ * The words of vm_ask() in the user's language. The original shows Windows'
+ * own boxes, whose buttons follow the language of the system, and has the
+ * question it asks when its window is closed in the executable, in the
+ * game's language whatever the system's is. The questions here are ours
+ * and are worded differently from the game's own on purpose.
+ */
+struct ask_words {
+	const char *ok, *cancel, *yes, *no, *quit;
+};
+
+static const struct ask_words *ask_words_for(const char *lang, const char *country)
+{
+	static const struct ask_words en = { "OK", "Cancel", "Yes", "No",
+		"The game is about to close.\n\nProgress that has not been saved will not be kept. Close it?" };
+	static const struct ask_words ja = { "OK", "キャンセル", "はい", "いいえ",
+		"ゲームを閉じようとしています。\n\nセーブしていない進行状況は保持されません。閉じますか？" };
+	static const struct ask_words zh_hant = { "確定", "取消", "是", "否",
+		"即將關閉遊戲。\n\n還沒有存檔的進度不會保留，是否關閉？" };
+	static const struct ask_words zh_hans = { "确定", "取消", "是", "否",
+		"即将关闭游戏。\n\n还没有存档的进度不会保留，是否关闭？" };
+	if (!strncmp(lang, "ja", 2))
+		return &ja;
+	if (strncmp(lang, "zh", 2))
+		return &en;
+	// The script decides where the locale names one, the region otherwise.
+	// SDL 2.32 on macOS gives "zh-Hant-TW" as "zh-Hant" and "TW", and
+	// "zh-Hant" as "zh" and "Hant".
+	if (strstr(lang, "Hans") || !strcmp(country, "Hans"))
+		return &zh_hans;
+	if (strstr(lang, "Hant") || !strcmp(country, "Hant") || !strcmp(country, "TW")
+			|| !strcmp(country, "HK") || !strcmp(country, "MO"))
+		return &zh_hant;
+	return &zh_hans;
+}
+
+static const struct ask_words *ask_words(void)
+{
+	if (vm_ask_test.language)
+		return ask_words_for(vm_ask_test.language, vm_ask_test.country ? vm_ask_test.country : "");
+	const struct ask_words *words = ask_words_for("en", "");
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	SDL_Locale *locales = SDL_GetPreferredLocales();
+	if (locales && locales->language)
+		words = ask_words_for(locales->language, locales->country ? locales->country : "");
+	SDL_free(locales);
+#endif
+	return words;
+}
+
+/*
+ * Asks the user a question with two buttons and waits for the answer: true
+ * for OK (or Yes). A NULL text asks whether to quit the game.
+ *
+ * The original's system.MsgBoxOkCancel (0x728810) is a MessageBoxA on the
+ * game window with the game's name as the caption, and so is the question
+ * its window procedure asks before it closes (0x4be920).
+ *
+ * Nobody is asked when XSYS4_AUTO_MSGBOX is "ok" or "cancel", which is then
+ * the answer, and when there is no window to put the box on: the answer is
+ * OK (SDL would still show a box of its own without a window). The original
+ * has such a mode as well: started with the option "C" it shows no box and
+ * answers OK (0x4b54af sets the flag that 0x7288be reads).
+ *
+ * A box that SDL could not show is not an answer either: the caller says
+ * what it is taken as. The original takes a failed MessageBoxA, which
+ * returns 0, as Cancel and as "do not close".
+ */
+bool vm_ask(enum vm_ask_type type, const char *text, bool unshown)
+{
+	const struct ask_words *words = ask_words();
+	if (!text)
+		text = words->quit;
+
+	// the text on one line, for the log
+	char *line = xstrdup(text);
+	for (char *p = line; *p; p++) {
+		if (*p == '\n')
+			*p = ' ';
+	}
+
+	const char *automatic = getenv("XSYS4_AUTO_MSGBOX");
+	if (automatic && !*automatic)
+		automatic = NULL;
+	if (automatic && strcmp(automatic, "ok") && strcmp(automatic, "cancel")) {
+		WARNING("XSYS4_AUTO_MSGBOX=%s is neither \"ok\" nor \"cancel\"", automatic);
+		automatic = NULL;
+	}
+	SDL_Window *window = gfx_dialog_window();
+	if (!automatic && !window && !vm_ask_test.show)
+		automatic = "ok";
+	if (automatic) {
+		NOTICE("Message box answered without asking (%s): %s", automatic, line);
+		free(line);
+		return !strcmp(automatic, "ok");
+	}
+
+	const SDL_MessageBoxButtonData buttons[] = {
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, type == VM_ASK_YES_NO ? words->yes : words->ok },
+		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, type == VM_ASK_YES_NO ? words->no : words->cancel },
+	};
+	char *title = game_to_utf8(config.game_name, strlen(config.game_name));
+	int button = 0;
+	bool shown = show_two_button_box(window, title, text, buttons, &button);
+	free(title);
+	if (!shown) {
+		WARNING("Message box could not be shown (%s), taken as %s: %s", SDL_GetError(),
+				unshown ? "ok" : "cancel", line);
+		free(line);
+		return unshown;
+	}
+	bool ok = button == 1;
+	// The box had the keyboard and the mouse while it was open.
+	input_modal_closed();
+	NOTICE("Message box answered (%s): %s", ok ? "ok" : "cancel", line);
+	free(line);
+	return ok;
+}
+
 static struct string *get_func_stack_name(int index)
 {
 	int i = call_stack_ptr - (1 + index);
@@ -2405,17 +2557,7 @@ static void system_call(enum syscall_code code)
 		int result = 0;
 		struct string *str = stack_peek_string(0);
 		char *utf = game_to_utf8(str->text, str->size);
-
-		const SDL_MessageBoxData mbox = {
-			SDL_MESSAGEBOX_INFORMATION,
-			NULL,
-			"xsystem4",
-			utf,
-			SDL_arraysize(ok_cancel_buttons),
-			ok_cancel_buttons,
-			NULL
-		};
-		if (SDL_ShowMessageBox(&mbox, &result)) {
+		if (!show_two_button_box(NULL, "xsystem4", utf, ok_cancel_buttons, &result)) {
 			WARNING("Error displaying message box");
 		}
 		free(utf);
@@ -3334,6 +3476,13 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		// 0x693e80 has cleared the run flag; see system_Reset).
 		if (vm_reset_pending)
 			vm_reset();
+		// system.Exit: nothing runs after the call either (0x693e30
+		// clears [vm+0x2a0], and 0x667e80 executes no instruction while
+		// that is clear; see system_Exit).
+		if (vm_exit_pending) {
+			vm_exit_pending = false;
+			vm_exit(0);
+		}
 		break;
 	}
 	case RETURN: {
@@ -5802,6 +5951,9 @@ _Noreturn void vm_reset(void)
  */
 void vm_reset_runtime_state(void)
 {
+	// system.Exit's request is taken where it is made; it is not for the
+	// run after a restart.
+	vm_exit_pending = false;
 	stack_ptr = 0;
 	call_stack_ptr = 0;
 	vm_call_depth = 0;

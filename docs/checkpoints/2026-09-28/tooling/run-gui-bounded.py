@@ -26,6 +26,10 @@ variables are dropped so a run is reproducible; use the RUN_* variables instead:
                             (frame timing can change that). Never set by default.
   RUN_TRACE_OUTPUTLINE=1    log every system.OutputLine text as a NOTICE (XSYS4_TRACE_OUTPUTLINE=1;
                             e.g. the battle action order "Id:Speed(boost:N)" lines)
+  RUN_AUTO_MSGBOX=ok|cancel|ask  the answer to the engine's two-button boxes (the script's
+                            confirmations, closing the window; XSYS4_AUTO_MSGBOX). Default ok: nobody
+                            is there to press a button. ask shows the real, modal box, which stops the
+                            run until somebody answers it (SIGTERM does not close it).
 """
 import sys, os, subprocess, signal, time, json, hashlib, datetime, shutil
 from pathlib import Path
@@ -69,6 +73,11 @@ if os.environ.get('RUN_RANDOM_SEED'):
     env['XSYS4_RANDOM_SEED'] = os.environ['RUN_RANDOM_SEED']
 if os.environ.get('RUN_TRACE_OUTPUTLINE'):
     env['XSYS4_TRACE_OUTPUTLINE'] = '1'
+auto_msgbox = os.environ.get('RUN_AUTO_MSGBOX') or 'ok'
+if auto_msgbox not in ('ok', 'cancel', 'ask'):
+    sys.exit(f'RUN_AUTO_MSGBOX={auto_msgbox}: expected ok, cancel or ask')
+if auto_msgbox != 'ask':
+    env['XSYS4_AUTO_MSGBOX'] = auto_msgbox
 if os.environ.get('RUN_FRAMEBUFFER_SHOTS'):
     (run / 'framebuffer').mkdir()
     env['XSYS4_SCREENSHOT_DIR'] = str(run / 'framebuffer')

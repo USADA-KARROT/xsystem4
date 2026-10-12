@@ -85,6 +85,7 @@ void gfx_set_wait_vsync(bool wait);
 void gfx_flush(void);
 bool gfx_vsync_active(void);
 bool gfx_window_active(void);
+SDL_Window *gfx_dialog_window(void);
 float gfx_get_frame_rate(void);
 
 void gfx_load_shader(struct shader *dst, const char *vertex_shader_path, const char *fragment_shader_path);

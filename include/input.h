@@ -139,6 +139,10 @@ extern bool keyboard_focus;
 
 void handle_window_events(void);
 void handle_events(void);
+// A modal box of the system has just closed: nothing stays held.
+void input_modal_closed(void);
+// Ask the user before SDL_QUIT ends the program (the v14 window setting).
+void input_set_close_confirm(bool on);
 bool key_is_down(enum sact_keycode code);
 void key_clear_flag(bool no_ctrl);
 bool joy_key_is_down(uint8_t code);
