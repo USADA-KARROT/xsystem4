@@ -34,7 +34,8 @@
  * CE6 SDL_QUIT: asks only while the v14 window setting 4 is on (set by the
  *     script, read from the file at start-up), never before v14, never for a
  *     signal; the answer no leaves the program running
- * CE7 guard: the system call SYS_EXIT of the older VM is left as it was
+ * CE7 the system call SYS_EXIT of the older VM ends the program with its
+ *     argument, as upstream: at once and without a question
  * CE8 a box that is shown: what it is given (caption, text, buttons in the
  *     user's language), OK and Cancel, and the input reset after it; a set
  *     XSYS4_AUTO_MSGBOX still answers first, an empty one is no setting
@@ -618,19 +619,22 @@ static void ce_close_window(void)
 /* --- CE7 --- */
 static void ce7_scenario(void)
 {
-	stack_push(1);
+	ce_apply_auto();
+	stack_push(3);
 	system_call(SYS_EXIT);
-	CE_CHECK(stack_ptr == 0, "SYS_EXIT left %d values on the stack", stack_ptr);
-	bool *pending = ce_exit_pending();
-	CE_CHECK(!pending || !*pending, "SYS_EXIT raised system.Exit's flag");
 	printf("STILL RUNNING\n");
 }
 
 static void ce_old_syscall(void)
 {
-	ce_expect("SYS_EXIT", ce7_scenario, CE_ALIVE);
-	CE_CHECK(strstr(ce_out, "STILL RUNNING"), "SYS_EXIT ended the program");
-	printf("  CE7 guard: SYS_EXIT is left as it was\n");
+	/* the system.Exit of the VMs before v14: no question, the argument is
+	 * the exit status */
+	ce_auto = "cancel";
+	ce_expect("SYS_EXIT", ce7_scenario, 3);
+	CE_CHECK(!strstr(ce_out, "STILL RUNNING") && !strstr(ce_out, "suppressed") && !strstr(ce_out, "Message box"),
+		 "SYS_EXIT did not end the program at once");
+	ce_auto = NULL;
+	printf("  CE7 the older VM's SYS_EXIT ends the program with its argument\n");
 }
 
 

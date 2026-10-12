@@ -2500,18 +2500,7 @@ static void system_call(enum syscall_code code)
 {
 	switch (code) {
 	case SYS_EXIT: {// system.Exit(int nResult)
-		int exit_code = stack_pop().i;
-		static int sys_exit_count = 0;
-		sys_exit_count++;
-		if (sys_exit_count <= 5)
-			WARNING("SYS_EXIT(%d) suppressed (call #%d): caller fno=%d '%s'",
-				exit_code, sys_exit_count,
-				(call_stack_ptr > 0) ? call_stack[call_stack_ptr-1].fno : -1,
-				(call_stack_ptr > 0 && call_stack[call_stack_ptr-1].fno >= 0
-				 && call_stack[call_stack_ptr-1].fno < ain->nr_functions
-				 && ain->functions[call_stack[call_stack_ptr-1].fno].name)
-				? display_game0(ain->functions[call_stack[call_stack_ptr-1].fno].name) : "?");
-		// Don't actually exit — game may recover from assertion failures
+		vm_exit(stack_pop().i);
 		break;
 	}
 	case SYS_GLOBAL_SAVE: { // system.GlobalSave(string szKeyName, string szFileName)
