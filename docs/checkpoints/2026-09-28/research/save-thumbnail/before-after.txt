@@ -1,0 +1,51 @@
+before 313ecf2 save-thumbnail (default rule; the probe of a90f39d)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: ST1: Thumb0000.qnt was not written
+  FAIL: the main surface does not hold the scene after the call
+  FAIL: ST1 again: Thumb0000.qnt was not written
+ST1 FAILED (exit 1)
+  FAIL: ST2 1280x720 width 300: Size0.qnt was not written
+  FAIL: ST2 1280x720 width 1: Size1.qnt was not written
+  FAIL: ST2 1280x720 width 0: not true
+  FAIL: ST2 1280x720 width 0: Size2.qnt was not written
+  FAIL: ST2 1280x720 width -5: Size3.qnt was not written
+  FAIL: ST2 1280x720 width 2: Size4.qnt was not written
+  FAIL: ST2 1280x720 width 4: Size5.qnt was not written
+  FAIL: ST2 1280x720 width 1280: not true
+  FAIL: ST2 1280x720 width 1280: Size6.qnt was not written
+  FAIL: ST2 800x600 width 124: Size7.qnt was not written
+  FAIL: ST2 1000x300 width 3: Size8.qnt was not written
+  FAIL: ST2 333x217 width 50: Size9.qnt was not written
+ST2 FAILED (exit 1)
+  FAIL: ST3 forward slash: Slash.qnt was not written
+  FAIL: ST3 no folder: Bare.qnt was not written
+ST3 FAILED (exit 1)
+  FAIL: Parts_SetPartsCG with the picture: not true
+  FAIL: the parts is 0x0, want 124x69
+  FAIL: the parts has no 124x69 texture
+  FAIL: Parts_SetPartsCG again: not true
+  FAIL: the parts has no 124x69 texture after the second picture
+ST4 FAILED (exit 1)
+  FAIL: IsExistThumbnail(0) after the picture
+  FAIL: CopyThumbnail(1000, 0): not true
+  FAIL: Thumb1000.qnt is not a copy of Thumb0000.qnt
+  FAIL: ST5 the copy: Thumb1000.qnt was not written
+  FAIL: CopyThumbnail(1001, 0): not true
+  FAIL: ST5 the second save: Thumb1001.qnt was not written
+  FAIL: the first save's picture changed with the second
+  FAIL: CopyThumbnail(1000, 0) over a picture: not true
+  FAIL: ST5 the number taken again: Thumb1000.qnt was not written
+  FAIL: DeleteSaveFile on the picture: not true
+  FAIL: the delete took another picture
+ST5 FAILED (exit 1)
+SAVE-THUMBNAIL FAIL: 5 of 7 cases failed
+
+before 313ecf2 save-thumbnail (XS4_PROBE_GBK=1)
+SAVE-THUMBNAIL FAIL: 5 of 7 cases failed
+
+after save-thumbnail at a90f39d (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+SAVE-THUMBNAIL PASS: 0 of 7 cases failed
+
+after save-thumbnail (XS4_PROBE_GBK=1)
+SAVE-THUMBNAIL PASS: 0 of 7 cases failed
