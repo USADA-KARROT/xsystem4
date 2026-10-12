@@ -165,6 +165,7 @@ static void init_probe(const char *path) {
 #include "input_model_fixture.inc"
 #include "system_reset_fixture.inc"
 #include "confirm_exit_fixture.inc"
+#include "save_thumbnail_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -252,6 +253,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"input-model"))return test_input_model();
     if(!strcmp(argv[2],"system-reset"))return test_system_reset();
     if(!strcmp(argv[2],"confirm-exit"))return test_confirm_exit();
+    if(!strcmp(argv[2],"save-thumbnail"))return test_save_thumbnail();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

@@ -411,6 +411,22 @@ static void PE_v14_SetWantSaveBackScene(possibly_unused int n, possibly_unused b
 static bool PE_v14_IsWantSaveBackScene(possibly_unused int n) { return false; }
 static void PE_v14_SaveThumbnail(possibly_unused struct string *name, possibly_unused int width) {}
 
+/* PartsEngine.SaveThumbnail(string SaveFileName, int ThumbnailWidth) -> bool
+ * (original 0x56d140) under the declaration the original has; any other
+ * shape keeps the empty function. */
+static void *save_thumbnail_binding(void)
+{
+	int lib = ain_get_library(ain, "PartsEngine");
+	int fno = lib >= 0 ? ain_get_library_function(ain, lib, "SaveThumbnail") : -1;
+	if (fno < 0 || ain->version < 14)
+		return PE_v14_SaveThumbnail;
+	const struct ain_hll_function *f = &ain->libraries[lib].functions[fno];
+	if (f->return_type.data != AIN_BOOL || f->nr_arguments != 2 || !f->arguments
+	    || f->arguments[0].type.data != AIN_STRING || f->arguments[1].type.data != AIN_INT)
+		return PE_v14_SaveThumbnail;
+	return PE_SaveThumbnail;
+}
+
 /* Replace existing bindings with v14 semantics. Must run at _PreLink:
  * static_library_replace edits the static export table, which
  * link_libraries() copies into the runtime table — replacing after the
@@ -541,5 +557,5 @@ void pe_v14_message_register(void)
 	static_library_register(lib, "IsEnableInput", PE_v14_IsEnableInput);
 	static_library_register(lib, "SetWantSaveBackScene", PE_v14_SetWantSaveBackScene);
 	static_library_register(lib, "IsWantSaveBackScene", PE_v14_IsWantSaveBackScene);
-	static_library_register(lib, "SaveThumbnail", PE_v14_SaveThumbnail);
+	static_library_register(lib, "SaveThumbnail", save_thumbnail_binding());
 }

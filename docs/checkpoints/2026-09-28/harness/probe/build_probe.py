@@ -64,7 +64,15 @@ compiled += [compile_as('src/font_freetype.c', ft_shadow, ftobj)]
 # it loads the default shader, creates the quad buffers and reads the maximum texture size (0 until
 # then, which makes every new texture 0x0).
 video_shadow=here/'probe-video.c'
-video_shadow.write_text((source/'src/video.c').read_text()+"\nvoid probe_gl_initialize(void) { gl_initialize(); }\n")
+# save_thumbnail_fixture.inc draws the scene: the main surface as gfx_set_window_logical_size makes it,
+# without the window that function asks for its drawable size. The engine's surface has no alpha; this
+# one has, like the textures the other fixtures draw into (which draws the windowless context drops
+# is in save_thumbnail_fixture.inc).
+video_shadow.write_text((source/'src/video.c').read_text()+"\nvoid probe_gl_initialize(void) { gl_initialize(); }\n"
+    "void probe_main_surface_init(int w, int h) { sdl.w = sdl.viewport.w = w; sdl.h = sdl.viewport.h = h; sdl.viewport.x = sdl.viewport.y = 0;"
+    " world_view_transform[0][0] = 2.0 / w; world_view_transform[1][1] = 2.0 / h; gfx_delete_texture(&main_surface);"
+    " gfx_init_texture_blank(&main_surface, w, h); glGenFramebuffers(1, &main_surface_fb); glBindFramebuffer(GL_FRAMEBUFFER, main_surface_fb);"
+    " glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, main_surface.handle, 0); glViewport(0, 0, w, h); }\n")
 videoobj=here/('video-'+a.variant+'.o')
 compiled += [compile_as('src/video.c', video_shadow, videoobj)]
 # construction_cg_fixture.inc needs CGs and the probe has no archives: cg_assets_shadow.inc serves

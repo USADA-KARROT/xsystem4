@@ -74,6 +74,7 @@ xsystem4 = [version_h,
             'parts/render.c',
             'parts/scrollbar.c',
             'parts/text.c',
+            'parts/thumbnail.c',
             'parts/save.c',
 
             'hll/ACXLoader.c',
