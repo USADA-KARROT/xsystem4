@@ -1,0 +1,79 @@
+before f23883c v13-heap (default rule; the probe of 4ebd153)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+  FAIL: version 14, string array, push 1: the slot named by the stale bits of the new element has 1 reference(s), want 2 (it was released as the element's old value)
+  FAIL: version 14, struct array, push 1: the slot named by the stale bits of the new element has 1 reference(s), want 2 (it was released as the element's old value)
+  FAIL: version 14, delegate array, push 1: the slot named by the stale bits of the new element has 1 reference(s), want 2 (it was released as the element's old value)
+  FAIL: version 13, string array, push 1: the slot named by the stale bits of the new element has 1 reference(s), want 2 (it was released as the element's old value)
+  FAIL: version 13, struct array, push 1: the slot named by the stale bits of the new element has 1 reference(s), want 2 (it was released as the element's old value)
+  FAIL: version 13, delegate array, push 1: the slot named by the stale bits of the new element has 1 reference(s), want 2 (it was released as the element's old value)
+VA1 the stale bits past the end of string, struct and delegate arrays name a live slot: three pushes each, versions 14 and 13
+VA1 FAIL (exit 1)
+VA2 guard: 100 pushes from no array, a PopBack and one more push, versions 14 and 13
+VA2 ok
+VA3 guard: int, float and bool arrays with a live slot number past the end, versions 14 and 13
+VA3 ok
+  FAIL: version 14, released through exit_unref(): the temporary string was not freed (count word 0x40000000, 2 owner(s) of its text; want 0 and 1)
+  FAIL: version 14, released through exit_unref(): slot 2 did not go back to the free list (the next one handed out is 3)
+  FAIL: version 14, released through variable_fini() without destructors: the temporary string was not freed (count word 0x40000000, 2 owner(s) of its text; want 0 and 1)
+  FAIL: version 14, released through variable_fini() without destructors: slot 3 did not go back to the free list (the next one handed out is 4)
+  FAIL: version 14, released through the page that holds it: the temporary string was not freed (count word 0x40000000, 2 owner(s) of its text; want 0 and 1)
+  FAIL: version 13, released through exit_unref(): the temporary string was not freed (count word 0x40000000, 2 owner(s) of its text; want 0 and 1)
+  FAIL: version 13, released through exit_unref(): slot 6 did not go back to the free list (the next one handed out is 5)
+  FAIL: version 13, released through variable_fini() without destructors: the temporary string was not freed (count word 0x40000000, 2 owner(s) of its text; want 0 and 1)
+  FAIL: version 13, released through variable_fini() without destructors: slot 5 did not go back to the free list (the next one handed out is 7)
+  FAIL: version 13, released through the page that holds it: the temporary string was not freed (count word 0x40000000, 2 owner(s) of its text; want 0 and 1)
+VB1 a marked string with one owner, released through exit_unref(), through variable_fini() without destructors and through its page, versions 14 and 13
+VB1 FAIL (exit 1)
+VB2 guard: a marked string with two owners keeps its mark, an unmarked one is counted as before, a released slot is left alone, versions 14 and 13
+VB2 ok
+  FAIL: version 13, ASSIGN to a string: the new value has 2 reference(s) and the old one 0, want 1 and 1 (stored: 1)
+  FAIL: version 13, ASSIGN to a string: +1 live slot(s) left
+  FAIL: version 13, ASSIGN to a struct: the new value has 2 reference(s) and the old one 0, want 1 and 1 (stored: 1)
+  FAIL: version 13, ASSIGN to a struct: +1 live slot(s) left
+  FAIL: version 13, ASSIGN to a delegate: the new value has 2 reference(s) and the old one 0, want 1 and 1 (stored: 1)
+  FAIL: version 13, ASSIGN to a delegate: +1 live slot(s) left
+  FAIL: version 13, F_ASSIGN to a string: the new value has 2 reference(s) and the old one 0, want 1 and 1 (stored: 1)
+  FAIL: version 13, F_ASSIGN to a string: +1 live slot(s) left
+  FAIL: version 13, F_ASSIGN to a struct: the new value has 2 reference(s) and the old one 0, want 1 and 1 (stored: 1)
+  FAIL: version 13, F_ASSIGN to a struct: +1 live slot(s) left
+  FAIL: version 13, F_ASSIGN to a delegate: the new value has 2 reference(s) and the old one 0, want 1 and 1 (stored: 1)
+  FAIL: version 13, F_ASSIGN to a delegate: +1 live slot(s) left
+VC1 ASSIGN and F_ASSIGN to a string, a struct and a delegate variable: version 13 leaves the counts alone, version 14 (guard) counts for the variable
+VC1 FAIL (exit 1)
+  FAIL: version 13: the initial value of a functype variable is 2 with +1 slot(s), want function number 0 and no slot
+  FAIL: version 13: finalizing two functype variables that hold number 2 left 1 reference(s) on the slot of that number, want 3
+  FAIL: version 13: ASSIGN of function number 2 and the end of the variable left 4 and then 3 reference(s) on the slot of that number, want 3 and 3
+  FAIL: version 13: a new array of three functypes is not three zeros without a slot (+3 slot(s))
+  FAIL: version 13: X_ASSIGN of function number 2 and the end of the variable left 4 and then 3 reference(s) on the slot of that number, want 3 and 3
+VC2 functype: version 13 starts at function number 0 without a slot and never counts (finalizing, ASSIGN, X_ASSIGN, a new array); version 14 (guard) starts at a new slot and counts
+VC2 FAIL (exit 1)
+  FAIL: version 13: a string argument without the stack's mark has count word 0x2 once the function has it, want 1
+VC3 a string argument: version 13 hands it over as it is, version 14 (guard) adds a reference unless the stack marked it
+VC3 FAIL (exit 1)
+V13-HEAP FAIL: 5 of 8 cases failed, 0 environment error(s)
+
+before f23883c v13-heap (XS4_PROBE_GBK=1)
+V13-HEAP FAIL: 5 of 8 cases failed, 0 environment error(s)
+
+after v13-heap at 4ebd153 (default rule)
+PROBE initialized real VM/AIN, 37742 functions, live slots 0
+VA1 the stale bits past the end of string, struct and delegate arrays name a live slot: three pushes each, versions 14 and 13
+VA1 ok
+VA2 guard: 100 pushes from no array, a PopBack and one more push, versions 14 and 13
+VA2 ok
+VA3 guard: int, float and bool arrays with a live slot number past the end, versions 14 and 13
+VA3 ok
+VB1 a marked string with one owner, released through exit_unref(), through variable_fini() without destructors and through its page, versions 14 and 13
+VB1 ok
+VB2 guard: a marked string with two owners keeps its mark, an unmarked one is counted as before, a released slot is left alone, versions 14 and 13
+VB2 ok
+VC1 ASSIGN and F_ASSIGN to a string, a struct and a delegate variable: version 13 leaves the counts alone, version 14 (guard) counts for the variable
+VC1 ok
+VC2 functype: version 13 starts at function number 0 without a slot and never counts (finalizing, ASSIGN, X_ASSIGN, a new array); version 14 (guard) starts at a new slot and counts
+VC2 ok
+VC3 a string argument: version 13 hands it over as it is, version 14 (guard) adds a reference unless the stack marked it
+VC3 ok
+V13-HEAP PASS: 0 of 8 cases failed, 0 environment error(s)
+
+after v13-heap (XS4_PROBE_GBK=1)
+V13-HEAP PASS: 0 of 8 cases failed, 0 environment error(s)
