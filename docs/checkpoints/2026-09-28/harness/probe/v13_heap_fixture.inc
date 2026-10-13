@@ -9,6 +9,13 @@
  *     to variable_set(), which released them as a heap reference whenever
  *     the element type is one.
  *
+ * VB  exit_unref() must count a slot the way heap_unref() does. A string an
+ *     expression leaves on the stack carries HEAP_TEMP_FLAG in its count
+ *     (stack_push_string) until a function takes it as an argument;
+ *     exit_unref() compared the whole word with 1, so such a string was
+ *     decremented and never freed. hll_call() releases its arguments this
+ *     way (variable_fini without destructors).
+ *
  * Everything here is synthetic: pages, slots and strings made by the
  * fixture. No game bytecode and no game data. Every case runs in a child.
  */
@@ -172,10 +179,101 @@ static void vh_pushback_scalar(void)
 	puts("VA3 guard: int, float and bool arrays with a live slot number past the end, versions 14 and 13");
 }
 
+/* --- VB1: a temporary string with one owner --- */
+
+/* A string the way an expression leaves it on the stack. */
+static int vh_temp_string(struct string *s)
+{
+	stack_push_string(s);
+	return stack_pop().i;
+}
+
+static void vh_exit_unref_temp(void)
+{
+	static const char *const how_names[] = { "exit_unref()", "variable_fini() without destructors", "the page that holds it" };
+	const int version = ain->version;
+	for (unsigned k = 0; k < sizeof(vh_versions) / sizeof(vh_versions[0]); k++) {
+		ain->version = vh_versions[k];
+		for (int how = 0; how < 3; how++) {
+			size_t live = live_slots();
+			struct string *text = make_string("temporary", 9);
+			int s = vh_temp_string(string_ref(text));
+			VH_CHECK(heap[s].ref == (HEAP_TEMP_FLAG | 1) && text->ref == 2,
+				"setup: a string pushed on the stack has count word %#x, want the mark and 1", (unsigned)heap[s].ref);
+			if (how == 0) {
+				exit_unref(s);
+			} else if (how == 1) {
+				/* what hll_call() does with a string argument after the call */
+				variable_fini((union vm_value) { .i = s }, AIN_STRING, false);
+			} else {
+				struct page *p = alloc_page(ARRAY_PAGE, AIN_ARRAY_STRING, 2);
+				p->array.struct_type = -1;
+				p->array.rank = 1;
+				p->values[0].i = s;
+				p->values[1].i = vh_string("plain");
+				exit_unref(heap_alloc_page(p));
+			}
+			VH_CHECK(heap[s].ref == 0 && text->ref == 1,
+				"version %d, released through %s: the temporary string was not freed (count word %#x, %u owner(s) of its "
+				"text; want 0 and 1)", ain->version, how_names[how], (unsigned)heap[s].ref, (unsigned)text->ref);
+			if (how < 2) {
+				int next = heap_alloc_slot(VM_STRING);
+				heap[next].s = string_ref(&EMPTY_STRING);
+				VH_CHECK(next == s, "version %d, released through %s: slot %d did not go back to the free list (the next "
+					"one handed out is %d)", ain->version, how_names[how], s, next);
+				heap_unref(next);
+			}
+			VH_CHECK(live_slots() == live, "version %d, released through %s: %+ld live slot(s) left", ain->version,
+				how_names[how], (long)live_slots() - (long)live);
+			free_string(text);
+		}
+	}
+	ain->version = version;
+	puts("VB1 a marked string with one owner, released through exit_unref(), through variable_fini() without destructors "
+	     "and through its page, versions 14 and 13");
+}
+
+/* --- VB2 (guard): other owners, no mark, already released --- */
+
+static void vh_exit_unref_guards(void)
+{
+	const int version = ain->version;
+	for (unsigned k = 0; k < sizeof(vh_versions) / sizeof(vh_versions[0]); k++) {
+		ain->version = vh_versions[k];
+		size_t live = live_slots();
+		struct string *text = make_string("shared", 6);
+		int s = vh_temp_string(string_ref(text));
+		heap_ref(s);
+		exit_unref(s);
+		VH_CHECK(heap[s].ref == (HEAP_TEMP_FLAG | 1) && text->ref == 2,
+			"version %d: a marked string with two owners has count word %#x after exit_unref(), want the mark and 1",
+			ain->version, (unsigned)heap[s].ref);
+		heap_unref(s);
+		VH_CHECK(heap[s].ref == 0 && text->ref == 1, "version %d: heap_unref() did not free the marked string", ain->version);
+		int u = heap_alloc_slot(VM_STRING);
+		heap[u].s = string_ref(text);
+		heap_ref(u);
+		exit_unref(u);
+		VH_CHECK(heap[u].ref == 1 && text->ref == 2, "version %d: an unmarked string with two owners has count word %#x "
+			"after exit_unref(), want 1", ain->version, (unsigned)heap[u].ref);
+		exit_unref(u);
+		VH_CHECK(heap[u].ref == 0 && text->ref == 1, "version %d: exit_unref() did not free an unmarked string",
+			ain->version);
+		exit_unref(u); /* released already: a warning and nothing else */
+		VH_CHECK(heap[u].ref == 0 && text->ref == 1, "version %d: exit_unref() of a released slot changed it", ain->version);
+		VH_CHECK(live_slots() == live, "version %d: %+ld live slot(s) left", ain->version, (long)live_slots() - (long)live);
+		free_string(text);
+	}
+	ain->version = version;
+	puts("VB2 guard: a marked string with two owners keeps its mark, an unmarked one is counted as before, a released "
+	     "slot is left alone, versions 14 and 13");
+}
+
 static int test_v13_heap(void)
 {
 	static const struct { const char *name; void (*run)(void); } cases[] = {
 		{ "VA1", vh_pushback_stale }, { "VA2", vh_pushback_growth }, { "VA3", vh_pushback_scalar },
+		{ "VB1", vh_exit_unref_temp }, { "VB2", vh_exit_unref_guards },
 	};
 	int failed = 0, environment = 0;
 	for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {

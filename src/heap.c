@@ -747,11 +747,16 @@ void exit_unref(int slot)
 	if (slot <= 1 || (size_t)slot >= heap_size) {
 		return;
 	}
-	if (heap[slot].ref <= 0) {
+	// A string that came off the stack may still carry HEAP_TEMP_FLAG
+	// (stack_push_string): count without it, as heap_unref() does.
+	// Compared as a whole word, such a string was decremented and
+	// never freed.
+	int actual_ref = HEAP_REF(slot);
+	if (actual_ref <= 0) {
 		heap_double_free(slot);
 		return;
 	}
-	if (heap[slot].ref > 1) {
+	if (actual_ref > 1) {
 #ifdef DEBUG_HEAP
 		heap[slot].deref_addr[heap[slot].deref_nr++ % 16] = 0xDEADC0DE;
 #endif
