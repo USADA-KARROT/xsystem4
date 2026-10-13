@@ -128,6 +128,10 @@ union vm_value variable_initval(enum ain_data_type type)
 		return (union vm_value) { .i = slot };
 	}
 	case AIN_FUNC_TYPE:
+		// Before v14 a functype variable holds a function number.
+		if (ain->version < 14)
+			return (union vm_value) { .i = 0 };
+		// fallthrough
 	case AIN_IFACE_WRAP:
 	case AIN_OPTION:
 		// v14 types that need heap slots (like delegate/array)
@@ -151,6 +155,9 @@ union vm_value variable_initval(enum ain_data_type type)
 
 void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 {
+	// Before v14 a functype variable holds a function number, not a slot.
+	if (type == AIN_FUNC_TYPE && ain->version < 14)
+		return;
 	switch (type) {
 	case AIN_STRING:
 	case AIN_STRUCT:

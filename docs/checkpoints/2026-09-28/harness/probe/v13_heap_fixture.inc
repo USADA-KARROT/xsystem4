@@ -16,6 +16,13 @@
  *     decremented and never freed. hll_call() releases its arguments this
  *     way (variable_fini without destructors).
  *
+ * VC  Before v14 ASSIGN and F_ASSIGN store a value and nothing else (the
+ *     bytecode keeps the counts with SP_INC and DELETE), and a functype
+ *     variable holds a function number: 0 at first, never released. This
+ *     branch counted for the variable by its type in every version and made
+ *     functype a heap reference; a game older than v14 then kept one more
+ *     reference each time it bound a ref variable again. v14 is as it was.
+ *
  * Everything here is synthetic: pages, slots and strings made by the
  * fixture. No game bytecode and no game data. Every case runs in a child.
  */
@@ -269,11 +276,226 @@ static void vh_exit_unref_guards(void)
 	     "slot is left alone, versions 14 and 13");
 }
 
+/* --- VC1: ASSIGN and F_ASSIGN to a variable whose type is a reference --- */
+
+/* Run an instruction that takes no operand. */
+static void vh_op(enum opcode op)
+{
+	size_t saved = instr_ptr;
+	instr_ptr = 0;
+	execute_instruction(op);
+	instr_ptr = saved;
+}
+
+static void vh_assign_case(enum opcode op, enum ain_data_type a_type, const char *what)
+{
+	const bool strings = a_type == AIN_ARRAY_STRING;
+	const char *name = op == ASSIGN ? "ASSIGN" : "F_ASSIGN";
+	size_t live = live_slots();
+	int sp = stack_ptr;
+	int old = strings ? vh_string("old") : vh_witness();
+	int val = strings ? vh_string("new") : vh_witness();
+	uint32_t old_seq = heap[old].seq;
+	struct page *p = alloc_page(ARRAY_PAGE, a_type, 1);
+	p->array.struct_type = -1;
+	p->array.rank = 1;
+	p->values[0].i = old;
+	int a = heap_alloc_page(p);
+	stack_push(a);
+	stack_push(0);
+	stack_push(val);
+	vh_op(op);
+	int top = stack_pop().i;
+	bool stored = top == val && stack_ptr == sp && heap[a].page == p && p->values[0].i == val;
+	int old_refs = vh_alive(old, old_seq) ? HEAP_REF(old) : 0;
+	if (ain->version >= 14) {
+		VH_CHECK(stored && HEAP_REF(val) == 2 && old_refs == 0, "version 14 guard, %s to a %s: the new value has %d "
+			"reference(s) and the old one %d, want 2 and 0 (stored: %d)", name, what, HEAP_REF(val), old_refs, stored);
+		heap_unref(val);
+	} else {
+		VH_CHECK(stored && HEAP_REF(val) == 1 && old_refs == 1, "version %d, %s to a %s: the new value has %d "
+			"reference(s) and the old one %d, want 1 and 1 (stored: %d)", ain->version, name, what, HEAP_REF(val),
+			old_refs, stored);
+		if (old_refs)
+			heap_unref(old);
+	}
+	heap_unref(a);
+	VH_CHECK(live_slots() == live, "version %d, %s to a %s: %+ld live slot(s) left", ain->version, name, what,
+		(long)live_slots() - (long)live);
+}
+
+static void vh_assign(void)
+{
+	const int version = ain->version;
+	for (unsigned k = 0; k < sizeof(vh_versions) / sizeof(vh_versions[0]); k++) {
+		ain->version = vh_versions[k];
+		for (int o = 0; o < 2; o++) {
+			enum opcode op = o ? F_ASSIGN : ASSIGN;
+			vh_assign_case(op, AIN_ARRAY_STRING, "string");
+			vh_assign_case(op, AIN_ARRAY_STRUCT, "struct");
+			vh_assign_case(op, AIN_ARRAY_DELEGATE, "delegate");
+		}
+	}
+	ain->version = version;
+	puts("VC1 ASSIGN and F_ASSIGN to a string, a struct and a delegate variable: version 13 leaves the counts alone, "
+	     "version 14 (guard) counts for the variable");
+}
+
+/* --- VC2: a functype variable --- */
+
+static struct page *vh_functype_array(int value)
+{
+	struct page *p = alloc_page(ARRAY_PAGE, AIN_ARRAY_FUNC_TYPE, 1);
+	p->array.struct_type = -1;
+	p->array.rank = 1;
+	p->values[0].i = value;
+	return p;
+}
+
+static void vh_functype(void)
+{
+	const int version = ain->version;
+	for (unsigned k = 0; k < sizeof(vh_versions) / sizeof(vh_versions[0]); k++) {
+		ain->version = vh_versions[k];
+		const bool v14 = ain->version >= 14;
+		size_t live = live_slots();
+
+		union vm_value init = variable_initval(AIN_FUNC_TYPE);
+		if (v14) {
+			VH_CHECK(init.i > 1 && live_slots() == live + 1 && heap[init.i].type == VM_PAGE && !heap[init.i].page,
+				"version 14 guard: the initial value of a functype variable (%d) is not a new slot without a page", init.i);
+			variable_fini(init, AIN_FUNC_TYPE, true);
+		} else {
+			VH_CHECK(init.i == 0 && live_slots() == live, "version %d: the initial value of a functype variable is %d "
+				"with %+ld slot(s), want function number 0 and no slot", ain->version, init.i,
+				(long)live_slots() - (long)live);
+			if (live_slots() > live)
+				heap_unref(init.i);
+		}
+		VH_CHECK(live_slots() == live, "version %d: %+ld live slot(s) after the initial value was finalized", ain->version,
+			(long)live_slots() - (long)live);
+
+		/* A function number that is also the number of a live slot. */
+		int w = vh_witness();
+		uint32_t wseq = heap[w].seq;
+		heap_ref(w);
+		heap_ref(w);
+		variable_fini((union vm_value) { .i = w }, AIN_FUNC_TYPE, true);
+		variable_fini((union vm_value) { .i = w }, AIN_FUNC_TYPE, false);
+		int refs = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
+		VH_CHECK(refs == (v14 ? 1 : 3), "version %d%s: finalizing two functype variables that hold number %d left %d "
+			"reference(s) on the slot of that number, want %d", ain->version, v14 ? " guard" : "", w, refs, v14 ? 1 : 3);
+		if (!vh_alive(w, wseq))
+			return;
+		while (HEAP_REF(w) < 3)
+			heap_ref(w);
+
+		struct page *p = vh_functype_array(variable_initval(AIN_FUNC_TYPE).i);
+		int a = heap_alloc_page(p);
+		stack_push(a);
+		stack_push(0);
+		stack_push(w);
+		vh_op(ASSIGN);
+		stack_pop();
+		int after_assign = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
+		bool stored = p->values[0].i == w;
+		heap_unref(a);
+		int after_delete = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
+		VH_CHECK(stored && after_assign == (v14 ? 4 : 3) && after_delete == 3, "version %d%s: ASSIGN of function number %d "
+			"and the end of the variable left %d and then %d reference(s) on the slot of that number, want %d and 3",
+			ain->version, v14 ? " guard" : "", w, after_assign, after_delete, v14 ? 4 : 3);
+		if (!vh_alive(w, wseq))
+			return;
+
+		if (!v14) {
+			union vm_value dim = { .i = 3 };
+			size_t before = live_slots();
+			struct page *arr = alloc_array(1, &dim, AIN_ARRAY_FUNC_TYPE, -1, false);
+			VH_CHECK(arr && arr->nr_vars == 3 && !arr->values[0].i && !arr->values[1].i && !arr->values[2].i
+				&& live_slots() == before, "version %d: a new array of three functypes is not three zeros without a slot "
+				"(%+ld slot(s))", ain->version, (long)live_slots() - (long)before);
+			heap_unref(heap_alloc_page(arr));
+
+			/* X_ASSIGN of one value (v11 to v13 have the instruction); the operand is made here. */
+			uint8_t code[8] = { X_ASSIGN & 0xff, X_ASSIGN >> 8, 1, 0, 0, 0, 0, 0 };
+			uint8_t *saved_code = ain->code;
+			size_t saved_ip = instr_ptr;
+			p = vh_functype_array(0);
+			a = heap_alloc_page(p);
+			stack_push(a);
+			stack_push(0);
+			stack_push(w);
+			ain->code = code;
+			instr_ptr = 0;
+			execute_instruction(X_ASSIGN);
+			ain->code = saved_code;
+			instr_ptr = saved_ip;
+			stack_pop();
+			after_assign = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
+			stored = p->values[0].i == w;
+			heap_unref(a);
+			after_delete = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
+			VH_CHECK(stored && after_assign == 3 && after_delete == 3, "version %d: X_ASSIGN of function number %d and the "
+				"end of the variable left %d and then %d reference(s) on the slot of that number, want 3 and 3",
+				ain->version, w, after_assign, after_delete);
+		}
+		while (vh_alive(w, wseq))
+			heap_unref(w);
+		VH_CHECK(live_slots() == live, "version %d: %+ld live slot(s) left", ain->version, (long)live_slots() - (long)live);
+	}
+	ain->version = version;
+	puts("VC2 functype: version 13 starts at function number 0 without a slot and never counts (finalizing, ASSIGN, "
+	     "X_ASSIGN, a new array); version 14 (guard) starts at a new slot and counts");
+}
+
+/* --- VC3: a string argument without the stack's mark. The declaration of one
+ * function of the loaded AIN is borrowed for its shape (one string, no other
+ * local); its code never runs, and the frames are left to the child's end. --- */
+
+static void vh_string_arg(void)
+{
+	int fno = -1;
+	for (int f = 1; f < ain->nr_functions && fno < 0; f++) {
+		struct ain_function *fn = &ain->functions[f];
+		if (fn->nr_args == 1 && fn->nr_vars == 1 && fn->vars[0].type.data == AIN_STRING && !strchr(fn->name, '@')
+		    && !strchr(fn->name, '<'))
+			fno = f;
+	}
+	if (fno < 0) {
+		puts("VC3 the AIN has no function that takes one string and has no other local");
+		fflush(stdout);
+		_exit(2);
+	}
+	const int version = ain->version;
+	for (unsigned k = 0; k < sizeof(vh_versions) / sizeof(vh_versions[0]); k++) {
+		ain->version = vh_versions[k];
+		for (int marked = 0; marked < 2; marked++) {
+			int s;
+			if (marked) {
+				stack_push_string(make_string("argument", 8));
+				s = stack_peek(0).i;
+			} else {
+				s = vh_string("argument");
+				stack_push(s);
+			}
+			function_call(fno, VM_RETURN);
+			unsigned want = !marked && ain->version >= 14 ? 2 : 1;
+			VH_CHECK((unsigned)heap[s].ref == want, "version %d%s: a string argument %s the stack's mark has count word %#x "
+				"once the function has it, want %u", ain->version, ain->version >= 14 || marked ? " guard" : "",
+				marked ? "with" : "without", (unsigned)heap[s].ref, want);
+		}
+	}
+	ain->version = version;
+	puts("VC3 a string argument: version 13 hands it over as it is, version 14 (guard) adds a reference unless the stack "
+	     "marked it");
+}
+
 static int test_v13_heap(void)
 {
 	static const struct { const char *name; void (*run)(void); } cases[] = {
 		{ "VA1", vh_pushback_stale }, { "VA2", vh_pushback_growth }, { "VA3", vh_pushback_scalar },
 		{ "VB1", vh_exit_unref_temp }, { "VB2", vh_exit_unref_guards },
+		{ "VC1", vh_assign }, { "VC2", vh_functype }, { "VC3", vh_string_arg },
 	};
 	int failed = 0, environment = 0;
 	for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
@@ -296,6 +518,9 @@ static int test_v13_heap(void)
 			failed++;
 		} else if (WEXITSTATUS(st) == 0) {
 			printf("%s ok\n", cases[i].name);
+		} else if (WEXITSTATUS(st) == 2) {
+			printf("%s ENVIRONMENT (the AIN lacks something this case looks up)\n", cases[i].name);
+			environment++;
 		} else {
 			printf("%s FAIL (exit %d)\n", cases[i].name, WEXITSTATUS(st));
 			failed++;
