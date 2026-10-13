@@ -911,6 +911,11 @@ struct page *array_pushback(struct page *dst, union vm_value v, enum ain_data_ty
 			dst = xrealloc(dst, sizeof(struct page) + sizeof(union vm_value) * grow_to);
 			dst->nr_vars = index + 1;
 		}
+		// The new element holds whatever that memory held before, and
+		// variable_set() finalizes the old value: a stale slot number
+		// was released. Upstream gets an initial value from
+		// realloc_array(); -1 is what variable_fini() leaves alone.
+		dst->values[index].i = -1;
 		variable_set(dst, index, array_type(data_type), v);
 	} else {
 		union vm_value dims[1] = { (union vm_value) { .i = 1 } };
