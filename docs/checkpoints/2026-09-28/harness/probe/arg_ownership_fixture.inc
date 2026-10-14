@@ -53,9 +53,11 @@
  *        nothing else shows a value released once too often: heap_unref
  *        returns silently on a slot that is already free, so neither the
  *        sanitizer nor the log reports it.
- *   G1   An AIN before version 14 keeps the older rule: function_call
+ *   G1   Version 13 keeps this branch's rule at f23883c (before C): function_call
  *        retains the struct argument (two references on entry, the caller's
- *        one after the return).
+ *        one after the return). This is not a v13 native-game comparison.
+ *   G2   Synthetic versions 5 and 10 use the older upstream value-argument
+ *        path: one reference on entry and none after the return.
  *
  * Where the expectations are xsystem4's, not the original's:
  *   - A string argument is told apart by this VM's temporary flag, not by
@@ -463,7 +465,7 @@ static void ao_rounds(void)
 		l.records, l.empty_delegates);
 }
 
-/* --- G1: before version 14 --- */
+/* --- G1: version 13 keeps the branch behavior at f23883c (before C) --- */
 
 static void ao_guard_v13(void)
 {
@@ -487,10 +489,49 @@ static void ao_guard_v13(void)
 		heap_unref(pos);
 }
 
+/* --- G2: the legacy handoff, with synthetic declarations and no game code --- */
+
+static void ao_guard_legacy(void)
+{
+	struct ain *saved_ain = ain;
+	uint8_t code[2] = { RETURN & 0xff, RETURN >> 8 };
+	struct ain_variable arg = { .name = "value", .type = AIN_MKTYPE(AIN_STRUCT, -1, 0) };
+	struct ain_function fn = {
+		.name = "synthetic_value", .address = 0, .return_type = AIN_VOID_TYPE,
+		.nr_args = 1, .nr_vars = 1, .vars = &arg,
+	};
+	struct ain model = { .code = code, .code_size = sizeof(code), .nr_functions = 1, .functions = &fn };
+	static const int versions[] = { 5, 10 };
+	size_t ip = instr_ptr;
+	ain = &model;
+	for (unsigned k = 0; k < sizeof(versions) / sizeof(versions[0]); k++) {
+		ain->version = versions[k];
+		size_t live = live_slots();
+		int pos = heap_alloc_slot(VM_PAGE);
+		heap[pos].page = NULL;
+		unsigned seq = heap[pos].seq;
+		int sp = stack_ptr, csp = call_stack_ptr;
+		stack_push(pos);
+		function_call(0, VM_RETURN);
+		int entered = HEAP_REF(pos);
+		execute_instruction(RETURN);
+		int left = ao_alive(pos, seq) ? HEAP_REF(pos) : 0;
+		printf("G2 version %d: %d reference(s) on entry, %d after the return\n", ain->version, entered, left);
+		AO_CHECK(entered == 1 && left == 0 && stack_ptr == sp && call_stack_ptr == csp,
+			"version %d: synthetic struct argument had %d references on entry and %d after return; want 1 and 0",
+			ain->version, entered, left);
+		while (ao_alive(pos, seq))
+			heap_unref(pos);
+		AO_CHECK(live_slots() == live, "version %d: synthetic call left live slots", ain->version);
+	}
+	ain = saved_ain;
+	instr_ptr = ip;
+}
+
 static int test_arg_ownership(void)
 {
 	static const struct { const char *name; void (*run)(void); } cases[] = {
-		{ "AO1", ao_join }, { "AO2", ao_handed_over }, { "AO3", ao_borrowed }, { "AO4", ao_rounds }, { "G1", ao_guard_v13 },
+		{ "AO1", ao_join }, { "AO2", ao_handed_over }, { "AO3", ao_borrowed }, { "AO4", ao_rounds }, { "G1", ao_guard_v13 }, { "G2", ao_guard_legacy },
 	};
 	int failed = 0, environment = 0;
 	for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {

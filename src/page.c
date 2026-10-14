@@ -128,8 +128,9 @@ union vm_value variable_initval(enum ain_data_type type)
 		return (union vm_value) { .i = slot };
 	}
 	case AIN_FUNC_TYPE:
-		// Before v14 a functype variable holds a function number.
-		if (ain->version < 14)
+		// Match upstream below the v11 format boundary; retain v11-v13
+		// behavior until those games can be checked.
+		if (ain->version < 11)
 			return (union vm_value) { .i = 0 };
 		// fallthrough
 	case AIN_IFACE_WRAP:
@@ -155,8 +156,8 @@ union vm_value variable_initval(enum ain_data_type type)
 
 void variable_fini(union vm_value v, enum ain_data_type type, bool call_dtor)
 {
-	// Before v14 a functype variable holds a function number, not a slot.
-	if (type == AIN_FUNC_TYPE && ain->version < 14)
+	// Keep this paired with variable_initval's version boundary.
+	if (type == AIN_FUNC_TYPE && ain->version < 11)
 		return;
 	switch (type) {
 	case AIN_STRING:

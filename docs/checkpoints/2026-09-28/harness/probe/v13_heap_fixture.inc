@@ -13,15 +13,18 @@
  *     expression leaves on the stack carries HEAP_TEMP_FLAG in its count
  *     (stack_push_string) until a function takes it as an argument;
  *     exit_unref() compared the whole word with 1, so such a string was
- *     decremented and never freed. hll_call() releases its arguments this
- *     way (variable_fini without destructors).
+ *     decremented without being freed here (a later GC may reclaim it).
+ *     hll_call() releases its arguments this way (variable_fini without
+ *     destructors).
  *
- * VC  Before v14 ASSIGN and F_ASSIGN store a value and nothing else (the
- *     bytecode keeps the counts with SP_INC and DELETE), and a functype
- *     variable holds a function number: 0 at first, never released. This
- *     branch counted for the variable by its type in every version and made
- *     functype a heap reference; a game older than v14 then kept one more
- *     reference each time it bound a ref variable again. v14 is as it was.
+ * VC  Before the v11 format boundary, ASSIGN/F_ASSIGN and functype use
+ *     the older upstream path: assignment only stores, and functype starts
+ *     at function number 0 and is not released as a slot. This is an upstream
+ *     code observation, not proof of every older compiler's ownership
+ *     sequence. The measured growth in a v5 game motivated the investigation;
+ *     attributing a reference to each rebinding is a code-based inference.
+ *     v11-v13 retain the behavior at f23883c (before C) (heap-version-boundary checks
+ *     that separately); no v11-v13 game is available. v14 is as it was.
  *
  * Everything here is synthetic: pages, slots and strings made by the
  * fixture. No game bytecode and no game data. Every case runs in a child.
@@ -32,7 +35,7 @@
 static int vh_failures;
 #define VH_CHECK(c, ...) do { if (!(c)) { printf("  FAIL: "); printf(__VA_ARGS__); printf("\n"); fflush(stdout); vh_failures++; } } while (0)
 
-static const int vh_versions[] = { 14, 13 };
+static const int vh_versions[] = { 14, 5, 10 };
 
 /* A live slot that no page refers to: a page slot without a page. */
 static int vh_witness(void)
@@ -111,7 +114,7 @@ static void vh_pushback_stale(void)
 	}
 	ain->version = version;
 	puts("VA1 the stale bits past the end of string, struct and delegate arrays name a live slot: three pushes each, "
-	     "versions 14 and 13");
+	     "versions 14, 5 and 10");
 }
 
 /* --- VA2 (guard): growth from nothing, and a push after a pop --- */
@@ -141,6 +144,8 @@ static void vh_pushback_growth(void)
 		VH_CHECK(p && p->nr_vars == N - 1 && !vh_alive(e[N - 1], last_seq), "version %d: PopBack kept the last element",
 			ain->version);
 		int again = vh_string("again");
+		VH_CHECK(again == e[N - 1] && heap[again].seq != last_seq,
+			"version %d: the next string did not reuse the popped slot with a new generation", ain->version);
 		p = array_pushback(p, (union vm_value) { .i = again }, AIN_ARRAY_STRING, -1);
 		VH_CHECK(p && p->nr_vars == N && p->values[N - 1].i == again && HEAP_REF(again) == 1,
 			"version %d: the element pushed after a PopBack has %d reference(s), want 1", ain->version, HEAP_REF(again));
@@ -149,7 +154,7 @@ static void vh_pushback_growth(void)
 			(long)live_slots() - (long)live);
 	}
 	ain->version = version;
-	printf("VA2 guard: %d pushes from no array, a PopBack and one more push, versions 14 and 13\n", N);
+	printf("VA2 guard: %d pushes from no array, a PopBack and one more push, versions 14, 5 and 10\n", N);
 }
 
 /* --- VA3 (guard): the bits of a number are never a reference --- */
@@ -183,7 +188,7 @@ static void vh_pushback_scalar(void)
 		}
 	}
 	ain->version = version;
-	puts("VA3 guard: int, float and bool arrays with a live slot number past the end, versions 14 and 13");
+	puts("VA3 guard: int, float and bool arrays with a live slot number past the end, versions 14, 5 and 10");
 }
 
 /* --- VB1: a temporary string with one owner --- */
@@ -237,7 +242,7 @@ static void vh_exit_unref_temp(void)
 	}
 	ain->version = version;
 	puts("VB1 a marked string with one owner, released through exit_unref(), through variable_fini() without destructors "
-	     "and through its page, versions 14 and 13");
+	     "and through its page, versions 14, 5 and 10");
 }
 
 /* --- VB2 (guard): other owners, no mark, already released --- */
@@ -273,7 +278,7 @@ static void vh_exit_unref_guards(void)
 	}
 	ain->version = version;
 	puts("VB2 guard: a marked string with two owners keeps its mark, an unmarked one is counted as before, a released "
-	     "slot is left alone, versions 14 and 13");
+	     "slot is left alone, versions 14, 5 and 10");
 }
 
 /* --- VC1: ASSIGN and F_ASSIGN to a variable whose type is a reference --- */
@@ -337,7 +342,7 @@ static void vh_assign(void)
 		}
 	}
 	ain->version = version;
-	puts("VC1 ASSIGN and F_ASSIGN to a string, a struct and a delegate variable: version 13 leaves the counts alone, "
+	puts("VC1 ASSIGN and F_ASSIGN to a string, a struct and a delegate variable: versions 5 and 10 leave the counts alone, "
 	     "version 14 (guard) counts for the variable");
 }
 
@@ -415,61 +420,36 @@ static void vh_functype(void)
 				&& live_slots() == before, "version %d: a new array of three functypes is not three zeros without a slot "
 				"(%+ld slot(s))", ain->version, (long)live_slots() - (long)before);
 			heap_unref(heap_alloc_page(arr));
-
-			/* X_ASSIGN of one value (v11 to v13 have the instruction); the operand is made here. */
-			uint8_t code[8] = { X_ASSIGN & 0xff, X_ASSIGN >> 8, 1, 0, 0, 0, 0, 0 };
-			uint8_t *saved_code = ain->code;
-			size_t saved_ip = instr_ptr;
-			p = vh_functype_array(0);
-			a = heap_alloc_page(p);
-			stack_push(a);
-			stack_push(0);
-			stack_push(w);
-			ain->code = code;
-			instr_ptr = 0;
-			execute_instruction(X_ASSIGN);
-			ain->code = saved_code;
-			instr_ptr = saved_ip;
-			stack_pop();
-			after_assign = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
-			stored = p->values[0].i == w;
-			heap_unref(a);
-			after_delete = vh_alive(w, wseq) ? HEAP_REF(w) : 0;
-			VH_CHECK(stored && after_assign == 3 && after_delete == 3, "version %d: X_ASSIGN of function number %d and the "
-				"end of the variable left %d and then %d reference(s) on the slot of that number, want 3 and 3",
-				ain->version, w, after_assign, after_delete);
 		}
 		while (vh_alive(w, wseq))
 			heap_unref(w);
 		VH_CHECK(live_slots() == live, "version %d: %+ld live slot(s) left", ain->version, (long)live_slots() - (long)live);
 	}
 	ain->version = version;
-	puts("VC2 functype: version 13 starts at function number 0 without a slot and never counts (finalizing, ASSIGN, "
-	     "X_ASSIGN, a new array); version 14 (guard) starts at a new slot and counts");
+	puts("VC2 functype: versions 5 and 10 start at function number 0 without a slot and never count (finalizing, ASSIGN, "
+	     "a new array); version 14 (guard) starts at a new slot and counts");
 }
 
-/* --- VC3: a string argument without the stack's mark. The declaration of one
- * function of the loaded AIN is borrowed for its shape (one string, no other
- * local); its code never runs, and the frames are left to the child's end. --- */
+/* --- VC3: synthetic string declaration and a real return. No game function
+ * shape or body is used. X_REF sharing in v11-v13 has its own boundary case. --- */
 
 static void vh_string_arg(void)
 {
-	int fno = -1;
-	for (int f = 1; f < ain->nr_functions && fno < 0; f++) {
-		struct ain_function *fn = &ain->functions[f];
-		if (fn->nr_args == 1 && fn->nr_vars == 1 && fn->vars[0].type.data == AIN_STRING && !strchr(fn->name, '@')
-		    && !strchr(fn->name, '<'))
-			fno = f;
-	}
-	if (fno < 0) {
-		puts("VC3 the AIN has no function that takes one string and has no other local");
-		fflush(stdout);
-		_exit(2);
-	}
-	const int version = ain->version;
+	struct ain *saved_ain = ain;
+	uint8_t code[2] = { RETURN & 0xff, RETURN >> 8 };
+	struct ain_variable arg = { .name = "argument", .type = AIN_STRING_TYPE };
+	struct ain_function fn = {
+		.name = "synthetic_string", .address = 0, .return_type = AIN_VOID_TYPE,
+		.nr_args = 1, .nr_vars = 1, .vars = &arg,
+	};
+	struct ain model = { .code = code, .code_size = sizeof(code), .nr_functions = 1, .functions = &fn };
+	size_t saved_ip = instr_ptr;
+	ain = &model;
 	for (unsigned k = 0; k < sizeof(vh_versions) / sizeof(vh_versions[0]); k++) {
 		ain->version = vh_versions[k];
 		for (int marked = 0; marked < 2; marked++) {
+			size_t live = live_slots();
+			int sp = stack_ptr, csp = call_stack_ptr;
 			int s;
 			if (marked) {
 				stack_push_string(make_string("argument", 8));
@@ -478,16 +458,25 @@ static void vh_string_arg(void)
 				s = vh_string("argument");
 				stack_push(s);
 			}
-			function_call(fno, VM_RETURN);
-			unsigned want = !marked && ain->version >= 14 ? 2 : 1;
-			VH_CHECK((unsigned)heap[s].ref == want, "version %d%s: a string argument %s the stack's mark has count word %#x "
-				"once the function has it, want %u", ain->version, ain->version >= 14 || marked ? " guard" : "",
-				marked ? "with" : "without", (unsigned)heap[s].ref, want);
+			uint32_t seq = heap[s].seq;
+			function_call(0, VM_RETURN);
+			unsigned want = !marked && ain->version >= 11 ? 2 : 1;
+			VH_CHECK((unsigned)heap[s].ref == want, "version %d: a string argument %s the stack's mark has count word %#x "
+				"on entry, want %u", ain->version, marked ? "with" : "without", (unsigned)heap[s].ref, want);
+			execute_instruction(RETURN);
+			int after = vh_alive(s, seq) ? HEAP_REF(s) : 0;
+			VH_CHECK(after == (int)want - 1 && stack_ptr == sp && call_stack_ptr == csp,
+				"version %d: returning left %d string refs (want %u), stack delta %d, frame delta %d",
+				ain->version, after, want - 1, stack_ptr - sp, call_stack_ptr - csp);
+			while (vh_alive(s, seq))
+				heap_unref(s);
+			VH_CHECK(live_slots() == live, "version %d: string call left live slots", ain->version);
 		}
 	}
-	ain->version = version;
-	puts("VC3 a string argument: version 13 hands it over as it is, version 14 (guard) adds a reference unless the stack "
-	     "marked it");
+	ain = saved_ain;
+	instr_ptr = saved_ip;
+	puts("VC3 synthetic string call and return: versions 5/10 hand over an owned argument; version 14 retains an "
+	     "unmarked argument; all versions consume a marked temporary");
 }
 
 static int test_v13_heap(void)

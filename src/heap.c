@@ -749,8 +749,8 @@ void exit_unref(int slot)
 	}
 	// A string that came off the stack may still carry HEAP_TEMP_FLAG
 	// (stack_push_string): count without it, as heap_unref() does.
-	// Compared as a whole word, such a string was decremented and
-	// never freed.
+	// Compared as a whole word, such a string was decremented without
+	// being freed here; later heap collection could reclaim it.
 	int actual_ref = HEAP_REF(slot);
 	if (actual_ref <= 0) {
 		heap_double_free(slot);
@@ -786,7 +786,8 @@ void exit_unref(int slot)
 		}
 		break;
 	case VM_STRING:
-		free_string(heap[slot].s);
+		if (heap[slot].s)
+			free_string(heap[slot].s);
 		break;
 	}
 	heap[slot].ref = 0;

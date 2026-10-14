@@ -1517,7 +1517,10 @@ static void function_call(int fno, int return_address)
 {
 	// v14: a struct, delegate or array argument comes with its own
 	// reference (see above), unless C code pushed it for vm_call.
-	bool handed_over = ain->version >= 14 && !function_call_args_borrowed;
+	// Upstream e8bd5ab transfers by-value arguments. Keep that rule
+	// below v11 only: v11-v13 have X_REF and lack a tested game baseline.
+	bool handed_over = ain->version < 11 ||
+		(ain->version >= 14 && !function_call_args_borrowed);
 	function_call_args_borrowed = false;
 	int slot = _function_call(fno, return_address);
 	if (unlikely(slot < 0))
@@ -1535,8 +1538,11 @@ static void function_call(int fno, int return_address)
 			if (!handed_over && heap[slot].page->values[i].i != -1)
 				heap_ref(heap[slot].page->values[i].i);
 			break;
-		case AIN_REF_TYPE:
 		case AIN_ARRAY_TYPE:
+			if (ain->version < 11)
+				break;
+			// fallthrough
+		case AIN_REF_TYPE:
 		case AIN_WRAP:
 			if (heap[slot].page->values[i].i != -1)
 				heap_ref(heap[slot].page->values[i].i);
@@ -1558,9 +1564,9 @@ static void function_call(int fno, int return_address)
 			if (vi > 0 && (size_t)vi < heap_size) {
 				if (heap[vi].ref & HEAP_TEMP_FLAG) {
 					heap[vi].ref &= ~HEAP_TEMP_FLAG;
-				} else if (ain->version >= 14) {
-					// Before v14 a string argument is the
-					// callee's as it comes, as upstream has it.
+				} else if (ain->version >= 11) {
+					// Preserve borrowed X_REF strings in v11-v13 too.
+					// Below v11, follow upstream's argument transfer.
 					heap_ref(vi);
 				}
 			}
@@ -2890,10 +2896,10 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 	case ASSIGN:
 	case F_ASSIGN: {
 		union vm_value val = stack_pop();
-		if (ain->version < 14) {
-			// Before v14 the bytecode keeps the counts itself
-			// (SP_INC, DELETE) and a functype variable holds a
-			// function number: store the value, as upstream does.
+		if (ain->version < 11) {
+			// Match upstream e8bd5ab's store-only assignment. AIN v5
+			// measurements support this; v11-v13 remain on the prior
+			// path because their X_ instruction ownership is unverified.
 			stack_pop_var()[0] = val;
 			stack_push(val);
 			break;
@@ -5322,8 +5328,10 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 				if (ain->version < 14 && xa_page) {
 					enum ain_data_type vtype = variable_type(xa_page, xa_page_index + i, NULL, NULL);
 					switch (vtype) {
-					// (not AIN_FUNC_TYPE: a function number
-					// before v14, see variable_fini)
+					case AIN_FUNC_TYPE:
+						if (ain->version < 11)
+							break;
+						// fallthrough: preserve the v11-v13 path
 					case AIN_STRING:
 					case AIN_STRUCT:
 					case AIN_DELEGATE:

@@ -167,6 +167,7 @@ static void init_probe(const char *path) {
 #include "confirm_exit_fixture.inc"
 #include "save_thumbnail_fixture.inc"
 #include "v13_heap_fixture.inc"
+#include "heap_version_boundary_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -256,6 +257,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"confirm-exit"))return test_confirm_exit();
     if(!strcmp(argv[2],"save-thumbnail"))return test_save_thumbnail();
     if(!strcmp(argv[2],"v13-heap"))return test_v13_heap();
+    if(!strcmp(argv[2],"heap-version-boundary"))return test_heap_version_boundary();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
