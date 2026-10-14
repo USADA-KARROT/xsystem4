@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-14）：已推送程式為 `0830b29`。完成第四件堆積修正，將舊式所有權界線縮至 `<11`，避免把上游舊路徑誤套到 v11–v13；新增版本邊界探針與 NULL 字串防禦。提交前後預設／GBK 各101模式PASS、各20條實機路線完成。戰鬥與個別輸入紀錄仍有未歸因差異，不能當成畫面完全一致。libsys4維持247f544。**
-> [本次堆積與版本界線修正](docs/checkpoints/2026-09-28/research/heap-version-boundary/README.md) · [前一輪三處堆積修正](docs/checkpoints/2026-09-28/research/v13-heap/README.md) · [舊版稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步是開場動畫的實機確認、APEG影像解碼與繪製，再準備兩款遊戲的操作筆記與存讀檔檢查點。v11–v13真遊戲、各場景中途存讀檔、右／中鍵、設定與回顧把手、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-14）：已推送程式為 `0830b29`。完成第四件堆積修正，將舊式所有權界線縮至 `<11`，避免把上游舊路徑誤套到 v11–v13；新增版本邊界探針與 NULL 字串防禦。提交前後預設／GBK 各101模式PASS、各20條實機路線完成，另補兩條戰鬥對照，皆MSG681、exit0。戰鬥與個別輸入紀錄仍有未歸因差異，不能當成畫面完全一致。libsys4維持247f544。**
+> [本次堆積與版本界線修正](docs/checkpoints/2026-09-28/research/heap-version-boundary/README.md) · [追加戰鬥對照](docs/checkpoints/2026-09-28/research/heap-version-boundary/extra-controls.md) · [前一輪三處堆積修正](docs/checkpoints/2026-09-28/research/v13-heap/README.md) · [舊版稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步是開場動畫的實機確認、APEG影像解碼與繪製，再準備兩款遊戲的操作筆記與存讀檔檢查點。v11–v13真遊戲、各場景中途存讀檔、右／中鍵、設定與回顧把手、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
