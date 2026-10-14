@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-13）：已推送程式為 `4ebd153`，預設／GBK各100模式PASS、san0；多娜多娜的二十條路線無錯誤，對白與基準相同（`noskip` 與基準互為前段）。`7f74d3a`：`array_pushback()` 擴張後的新位置先給初值（原本拿未初始化的記憶體去減參考，會弄壞堆積；不分版本）。`89c2b75`：`exit_unref()` 去掉暫存旗標再數（帶旗標的字串當函式庫引數時不釋放；不分版本）。`4ebd153`：v14 之前 `ASSIGN`／`F_ASSIGN` 與 `functype` 回到上游的寫法（v14 之前的遊戲每句對白都洩漏），v14 不變。依據是用一款 AIN v5 的遊戲把上游 `e8bd5ab` 和這個分支並排跑的實測。**
+**最新狀態（2026-10-14）：已推送程式 `0830b29`，完成堆積D與審查M1/L1/L2/L5：`<11`傳值複合參數轉交，v11–v13恢復前身行為，v14所有權保持原樣，補NULL字串防禦與VA2斷言。修前新探針失敗；提交前後預設／GBK各101模式PASS、san0，各20條實機路線完成，normal150 MSG88。`fightr`的target／敵序差異未歸因，沒有宣稱與原版完全同狀態。libsys4固定247f544。**
 
-[堆積的三處修正](research/v13-heap/README.md) · [舊版引擎等價性的稽核](research/v13-audit/README.md) · [存檔縮圖](research/save-thumbnail/README.md) · [確認框與結束遊戲](research/confirm-exit/README.md) · [讀檔與返回標題](research/system-reset/README.md) · [輸入模型](research/input-model/README.md) · [對話文字的已讀顏色](research/read-color/README.md) · [對白逐字淡入與全畫面點擊](research/dialogue-fade/README.md) · [設定畫面的核取方塊、單選群與視窗設定](research/config-widgets/README.md)。**仍不能當作完整遊戲使用。** 開場動畫（APEG）的影像還解不了，沒有畫面；傳值參數在 v14 之前多加的一次參考還沒修（修正已寫好、待補驗證）；各場景中途的存讀檔實機、右鍵與中鍵、設定畫面的橫桿把手／按鈕文字／說明框、回顧把手與滾輪、「元件不存在時取得或建立」的其餘函式、混音器的其餘聲道、`system.MsgBox`、音訊聽測與長時穩定仍待修驗；稽核清單的其餘條目沒有動。逐項清單見 [HANDOFF](HANDOFF.md) 最上節。
+[本次研究與驗證](research/heap-version-boundary/README.md) · [前一輪堆積修正](research/v13-heap/README.md) · [舊版稽核](research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步依序為APEG實機確認與影像解碼／繪製、試玩操作筆記及存讀檔檢查點。沒有v11–v13真遊戲可驗；此輪未重跑戰國蘭斯長路線，未新啟動Wine；原版並排沿用既有擷取。其他缺口見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 

@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-13）：已推送程式為 `4ebd153`，預設／GBK各100模式PASS。修掉一處會弄壞堆積的缺陷（往陣列尾端加入元素時讀未初始化的記憶體）與兩處洩漏，其中兩處只影響 v14 之前的遊戲；第一次用一款 v14 之前的遊戲和上游並排跑過。存檔有縮圖、設定頁的返回標題與結束遊戲會先問、可以存檔讀檔返回標題，先前的各項都在。存檔為XPE第11版，libsys4維持247f544。**
-> [堆積的三處修正](docs/checkpoints/2026-09-28/research/v13-heap/README.md) · [舊版引擎等價性的稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md) · [存檔縮圖](docs/checkpoints/2026-09-28/research/save-thumbnail/README.md) · [確認框與結束遊戲](docs/checkpoints/2026-09-28/research/confirm-exit/README.md) · [讀檔與返回標題](docs/checkpoints/2026-09-28/research/system-reset/README.md) · [輸入模型](docs/checkpoints/2026-09-28/research/input-model/README.md)。**仍不能當作完整遊戲使用。** 開場動畫沒有畫面（影片是遊戲自己的格式，影像還解不了；依程式碼只會有聲音，尚未實機確認）；存讀檔只在第1、2天的據點驗過；右鍵與中鍵還沒有作用、設定畫面的橫桿把手與按鈕文字、回顧把手與滾輪、音訊聽測與長時穩定仍待修驗；v14 之前的遊戲相對於上游還有多處沒有修的差異。 詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-14）：已推送程式為 `0830b29`。完成第四件堆積修正，將舊式所有權界線縮至 `<11`，避免把上游舊路徑誤套到 v11–v13；新增版本邊界探針與 NULL 字串防禦。提交前後預設／GBK 各101模式PASS、各20條實機路線完成。戰鬥與個別輸入紀錄仍有未歸因差異，不能當成畫面完全一致。libsys4維持247f544。**
+> [本次堆積與版本界線修正](docs/checkpoints/2026-09-28/research/heap-version-boundary/README.md) · [前一輪三處堆積修正](docs/checkpoints/2026-09-28/research/v13-heap/README.md) · [舊版稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步是開場動畫的實機確認、APEG影像解碼與繪製，再準備兩款遊戲的操作筆記與存讀檔檢查點。v11–v13真遊戲、各場景中途存讀檔、右／中鍵、設定與回顧把手、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
