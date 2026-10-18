@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-19）：已推送程式為 `d85df67`。元件的 X／Y 旋轉照原版的矩陣與透視相機畫出：戰鬥結算的「Knock Out!」卡片不再發灰（背面不再疊在正面上），和原版截圖一致；試玩時報未實作的四個函式都處理了。10/18 另推送：`a244d24` 第二場戰鬥技能欄、`76fceaa` 捲軸把手、`4f2c7cd` 開場動畫畫面。提交前後預設／GBK各106模式PASS。libsys4維持247f544。**
-> [本次 X／Y 旋轉](docs/checkpoints/2026-09-28/research/parts-rotate-xy/README.md) · [技能欄](docs/checkpoints/2026-09-28/research/activity-release/README.md) · [捲軸把手](docs/checkpoints/2026-09-28/research/scrollbar-knob/README.md) · [APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是按鈕自己的文字（設定「初始化」）、成就橫幅的標題字、混音器與音量，並繼續試玩。v11–v13真遊戲、右／中鍵、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-19，早）：已推送程式為 `d93928b`。按鈕會畫自己的文字了：設定第 3、4 頁的「初始化」照原版的位置與合成方式畫出，和原版截圖對得上；盤點過遊戲 94 個帶文字的按鈕，沒有字畫兩次。之前：`d85df67` X／Y 旋轉（KO 卡片不再發灰）、`a244d24` 第二場戰鬥技能欄、`76fceaa` 捲軸把手、`4f2c7cd` 開場動畫畫面。提交前後預設／GBK各107模式PASS。libsys4維持247f544。**
+> [本次按鈕文字](docs/checkpoints/2026-09-28/research/button-text/README.md) · [X／Y 旋轉](docs/checkpoints/2026-09-28/research/parts-rotate-xy/README.md) · [技能欄](docs/checkpoints/2026-09-28/research/activity-release/README.md) · [捲軸把手](docs/checkpoints/2026-09-28/research/scrollbar-knob/README.md) · [APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是成就橫幅的標題字、混音器與音量、按鈕的設定函式，並繼續試玩。v11–v13真遊戲、右／中鍵、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like
