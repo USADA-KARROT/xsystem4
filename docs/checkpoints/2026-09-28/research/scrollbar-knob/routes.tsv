@@ -1,0 +1,6 @@
+phase	route	seconds	exit	stop	MSG	baseline_MSG	dialogue_comparison	clicks	target_diffs_vs_baseline	errors	binary_sha256
+post-commit	normal150	150.305	0	duration	88	88	equal	0	0	0	7ab6fda00cc5e033bf3f39536fdcb893db52535ca454a4901285728af2263088
+post-commit	haruuri	182.351	0	duration	629	629	equal	15	0	0	7ab6fda00cc5e033bf3f39536fdcb893db52535ca454a4901285728af2263088
+post-commit	fightr	350.249	0	duration	681	681	equal	171	4	0	7ab6fda00cc5e033bf3f39536fdcb893db52535ca454a4901285728af2263088
+post-commit	config	45.236	0	duration	88	88	equal	4	0	0	7ab6fda00cc5e033bf3f39536fdcb893db52535ca454a4901285728af2263088
+post-commit	backlog	45.272	0	duration	88	88	equal	5	0	0	7ab6fda00cc5e033bf3f39536fdcb893db52535ca454a4901285728af2263088
