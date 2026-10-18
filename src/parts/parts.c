@@ -1647,10 +1647,15 @@ void parts_release(int parts_no)
 	// v14: a child left behind was placed through the released parts'
 	// matrix, and so were its own children. It hangs under its controller's
 	// root again, like every parts without a parent, and the update places
-	// its subtree from there. (What the original does with the children of
-	// a released parts was not read.) Not when everything goes, nor when the
-	// released parts is that root: its matrix is the one a parts without a
-	// parent is placed with, and a root must not be made in passing.
+	// its subtree from there. The original hangs each child under the root
+	// at the top of the released parts' tree (0x53b270 -> 0x53b180, root
+	// from 0x534f00); a subtree's controller_no follows its parent
+	// (parts_set_controller), so the child's own controller gives the same
+	// root. Not when everything goes, nor when the released parts is that
+	// root: its matrix is the one a parts without a parent is placed with,
+	// and a root must not be made in passing. (The original also leaves the
+	// children alone when the released parts is a root and when the tree has
+	// no root at the top; here they then have no parent.)
 	const bool replace_children = ain->version >= 14 && !releasing_all
 		&& !parts_is_controller_root(parts);
 	while (!TAILQ_EMPTY(&parts->children)) {

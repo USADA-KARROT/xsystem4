@@ -2424,15 +2424,34 @@ void pe_v14_append_int_list(int out_slot, const struct page *list);
 
 /* The erase list returns the released parts' delegate indices (0x540050 ->
  * 0x55e400 reads them with 0x56d620, as RemoveController does), which
- * activity::detail::Release hands to ReleaseFunctionSetList. */
+ * activity::detail::Release hands to ReleaseFunctionSetList.
+ *
+ * Only the parts the activity's table names go (0x55e450..0x55e4ed: one
+ * number at a time, 0x53d660 skipping a controller root, 0x579160 releasing
+ * that number alone). A parts somebody else hung under one of them -- the
+ * root of another activity, a parts the script made -- stays and moves under
+ * the root of its tree with its own subtree (0x579160 -> 0x53aa80 ->
+ * 0x53b270 -> 0x53b180; parts_release does the same on v14). Releasing the
+ * subtrees took the skill panel the battle hangs under its action panel:
+ * the panel's own release then walked an empty tree, removed none of its
+ * user components, and the next battle's panel, loaded under the name that
+ * had become free again, got none (SetComponent skips a registered
+ * activity and parts name), so its buttons hung at the layer's origin. */
 static bool PartsEngine_ReleaseActivity(struct string *name, int erase_list)
 {
 	int idx = find_activity(name);
 	if (idx < 0) return false;
 	struct activity *act = &activities[idx];
 	struct page *delegate_indices = NULL;
-	for (int i = 0; i < act->nr_parts; i++)
-		release_parts_recursive(act->parts[i].number, &delegate_indices);
+	for (int i = 0; i < act->nr_parts; i++) {
+		struct parts *p = parts_try_get(act->parts[i].number);
+		if (!p)
+			continue;	// an alias of a released number, or gone with its layer
+		delegate_indices = array_pushback(delegate_indices,
+				(union vm_value){.i = p->delegate_index}, AIN_ARRAY_INT, -1);
+		if (!parts_is_controller_root(p))
+			parts_release(p->no);
+	}
 	pe_v14_append_int_list(erase_list, delegate_indices);
 	if (delegate_indices) {
 		delete_page_vars(delegate_indices);
