@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-18，夜）：已推送程式為 `76fceaa`。設定畫面的橫桿與回顧的捲軸有把手了：照原版畫出把手與軌道，點軌道與拖曳會改值並送捲動訊息；設定第 1、3 頁與回顧的把手位置和原版截圖一樣。前一步 `4f2c7cd` 讓開場動畫有畫面（片頭 50 張畫面與參考解碼器逐像素相同）。提交前後預設／GBK 各104模式PASS。拖曳沒有實機驗；設定第 4 頁的把手位置受混音器的值影響、仍和原版不同。libsys4維持247f544。**
-> [本次捲軸把手](docs/checkpoints/2026-09-28/research/scrollbar-knob/README.md) · [APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md) · [純音訊止崩](docs/checkpoints/2026-09-28/research/movie-audio-only/README.md) · [舊版稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是第二場戰鬥技能欄的位置、遊戲有呼叫但未實作的函式（元件 3D 旋轉等）、設定第 3、4 頁「初始化」的字，並繼續試玩。v11–v13真遊戲、右／中鍵、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-18，深夜）：已推送程式為 `a244d24`。第二場戰鬥的技能欄不再跑到左上、按得到了：activity 釋放時照原版只釋放自己表上的元件，不再連帶拆掉掛在底下的技能面板。之前同一天：`76fceaa` 設定橫桿與回顧捲軸有把手；`4f2c7cd` 開場動畫有畫面。提交前後預設／GBK各105模式PASS；八條路線與片頭重播對白不變、片頭畫面仍逐像素正確。libsys4維持247f544。**
+> [本次技能欄](docs/checkpoints/2026-09-28/research/activity-release/README.md) · [捲軸把手](docs/checkpoints/2026-09-28/research/scrollbar-knob/README.md) · [APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md) · [純音訊止崩](docs/checkpoints/2026-09-28/research/movie-audio-only/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是遊戲有呼叫但未實作的函式（元件 3D 旋轉等）、按鈕自己的文字（設定「初始化」）、成就橫幅的標題字，並繼續試玩。v11–v13真遊戲、右／中鍵、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

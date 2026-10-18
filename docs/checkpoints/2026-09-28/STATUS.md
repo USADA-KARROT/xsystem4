@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-18，夜）：已推送程式 `76fceaa`，v14 捲軸照原版畫出把手與軌道（0x573bf0 等），點軌道與拖曳改值並送訊息 21，`PE_Update` 改為先輸入後捲軸更新（原版順序，所有 v14 都適用）。修前新探針 `scrollbar-knob` 8/11 失敗（K9–K11 是守衛）；提交前後預設／GBK各104模式PASS、san0；設定第1、3頁與回顧的把手和原版截圖同位置同大小；五條路線對白不變。前一步 `4f2c7cd`：APEG 影像解碼，片頭有畫面。libsys4固定247f544。**
+**最新狀態（2026-10-18，深夜）：已推送程式 `a244d24`，`PartsEngine.ReleaseActivity` 照原版（0x540050 → 0x55e400）只釋放 activity 表上的號碼、子元件改掛到樹根，不再連帶拆掉別的 activity 掛在下面的樹；第二場戰鬥的技能欄因此不再殘留上一場的選擇器、不再跑到左上。所有 v14 都適用（不分編碼）。修前新探針 `activity-release` 2/4 失敗；提交前後預設／GBK各105模式PASS、san0；八條路線與片頭重播對白不變，片頭畫面仍逐像素正確。libsys4固定247f544。**
 
-[本次研究與驗證](research/scrollbar-knob/README.md) · [APEG 影像解碼](research/apeg-video/README.md) · [純音訊止崩](research/movie-audio-only/README.md) · [舊版稽核](research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 拖曳沒有實機驗；設定第 4 頁把手受混音器的值影響；清單等其他有捲軸的畫面沒看過。下一步見 [HANDOFF](HANDOFF.md) 最上節。
+[本次研究與驗證](research/activity-release/README.md) · [捲軸把手](research/scrollbar-knob/README.md) · [APEG 影像解碼](research/apeg-video/README.md) · [純音訊止崩](research/movie-audio-only/README.md)。**仍不能當作完整遊戲使用。** 第三場以後的戰鬥、巢狀使用者元件的各畫面「第二次進入」沒有逐一實測。下一步見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
