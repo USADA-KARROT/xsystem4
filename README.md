@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-19，早）：已推送程式為 `d93928b`。按鈕會畫自己的文字了：設定第 3、4 頁的「初始化」照原版的位置與合成方式畫出，和原版截圖對得上；盤點過遊戲 94 個帶文字的按鈕，沒有字畫兩次。之前：`d85df67` X／Y 旋轉（KO 卡片不再發灰）、`a244d24` 第二場戰鬥技能欄、`76fceaa` 捲軸把手、`4f2c7cd` 開場動畫畫面。提交前後預設／GBK各107模式PASS。libsys4維持247f544。**
-> [本次按鈕文字](docs/checkpoints/2026-09-28/research/button-text/README.md) · [X／Y 旋轉](docs/checkpoints/2026-09-28/research/parts-rotate-xy/README.md) · [技能欄](docs/checkpoints/2026-09-28/research/activity-release/README.md) · [捲軸把手](docs/checkpoints/2026-09-28/research/scrollbar-knob/README.md) · [APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是成就橫幅的標題字、混音器與音量、按鈕的設定函式，並繼續試玩。v11–v13真遊戲、右／中鍵、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-19）：已推送程式為 `4b367fe`。成就通知橫幅的標題字恢復成原版的橘色漸層加描邊：pactex 構築命令 9（逐列漸層填色）與 24（只複製字的 alpha）照原版建構，逐列顏色與原版截圖相同。之前：`d93928b` 按鈕文字、`d85df67` X／Y 旋轉、`a244d24` 第二場戰鬥技能欄、`76fceaa` 捲軸把手、`4f2c7cd` 開場動畫畫面。提交前後預設／GBK各108模式PASS。libsys4維持247f544。**
+> [本次成就橫幅](docs/checkpoints/2026-09-28/research/gradation-text/README.md) · [按鈕文字](docs/checkpoints/2026-09-28/research/button-text/README.md) · [X／Y 旋轉](docs/checkpoints/2026-09-28/research/parts-rotate-xy/README.md) · [技能欄](docs/checkpoints/2026-09-28/research/activity-release/README.md) · [捲軸把手](docs/checkpoints/2026-09-28/research/scrollbar-knob/README.md) · [APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是撤退結果的物品框、仍不建構的 21 個構築狀態、混音器與音量、按鈕的設定函式，並繼續試玩。v11–v13真遊戲、右／中鍵、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

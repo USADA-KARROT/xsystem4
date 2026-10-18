@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-19，早）：已推送程式 `d93928b`，v14 按鈕照原版（0x528870、0x528d80、0x5288f0、0x528aa0）以各狀態的 CG 為底、命令 7 畫出 pactex 的文本；設定第 3、4 頁的「初始化」和原版截圖同位置。94 個帶文字的按鈕盤點過，沒有重複的字。修前新探針 `button-text` 6/8 失敗；提交前後預設／GBK各107模式PASS、san0；十條路線對白不變。libsys4固定247f544。**
+**最新狀態（2026-10-19）：已推送程式 `4b367fe`，pactex 載入器照原版建構構築命令 9（0x4fdbf0，逐列「色１+i·Δ/H」向零截斷）與 24（0x4fd720，字格只複製 alpha）；成就橫幅的標題恢復成橘色漸層加描邊，逐列顏色與原版截圖相同。命令 9 不分編碼，命令 24 只在 GBK 字格建構。修前新探針 `gradation-text` 6/7 失敗；提交前後預設／GBK各108模式PASS、san0；十條路線（含片頭重播、成就橫幅）對白不變、錯誤 0。libsys4固定247f544。**
 
-[本次研究與驗證](research/button-text/README.md) · [X／Y 旋轉](research/parts-rotate-xy/README.md) · [技能欄](research/activity-release/README.md) · [捲軸把手](research/scrollbar-knob/README.md) · [APEG 影像解碼](research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 按鈕的設定函式仍是空殼（派遣鈕滑過時不變黑字、館選單複製後會畫佔位字）。下一步見 [HANDOFF](HANDOFF.md) 最上節。
+[本次研究與驗證](research/gradation-text/README.md) · [按鈕文字](research/button-text/README.md) · [X／Y 旋轉](research/parts-rotate-xy/README.md) · [技能欄](research/activity-release/README.md) · [捲軸把手](research/scrollbar-knob/README.md) · [APEG 影像解碼](research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 同機制的升級字樣與 GAME OVER 標題只有探針驗過。下一步見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
