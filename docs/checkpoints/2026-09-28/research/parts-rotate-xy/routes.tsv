@@ -1,0 +1,10 @@
+phase	route	seconds	exit	MSG	baseline_MSG	dialogue_comparison	clicks	target_diffs_vs_baseline	errors	unimplemented_lines	binary_sha256
+post-commit	normal150	150.323	0	88	88	equal	0	0	0	0	2bf93396fd45775d358c359bbce6c7d5b7c49363228d152ef76254ceff94d9c1
+post-commit	haruuri	182.371	0	629	629	equal	15	0	0	0	2bf93396fd45775d358c359bbce6c7d5b7c49363228d152ef76254ceff94d9c1
+post-commit	fightr	350.354	0	681	681	equal	171	2	0	0	2bf93396fd45775d358c359bbce6c7d5b7c49363228d152ef76254ceff94d9c1
+post-commit	config	45.263	0	88	88	equal	4	0	0	0	2bf93396fd45775d358c359bbce6c7d5b7c49363228d152ef76254ceff94d9c1
+post-commit	backlog	45.242	0	88	88	equal	5	0	0	0	a55ad3322f7c32b082bf8f1190425f62296aab6a4c73b53921778e2b4ba325e4
+post-commit	savedialog	148.389	0	629	629	equal	16	0	0	0	a55ad3322f7c32b082bf8f1190425f62296aab6a4c73b53921778e2b4ba325e4
+post-commit	garage	35.305	0	88	88	equal	3	0	0	0	a55ad3322f7c32b082bf8f1190425f62296aab6a4c73b53921778e2b4ba325e4
+post-commit	sysmenu	30.279	0	88	88	equal	3	0	0	0	a55ad3322f7c32b082bf8f1190425f62296aab6a4c73b53921778e2b4ba325e4
+post-commit	movie	760.329	0	451	451	equal	49	0	0	0	a55ad3322f7c32b082bf8f1190425f62296aab6a4c73b53921778e2b4ba325e4
