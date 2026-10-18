@@ -1,0 +1,8 @@
+phase	route	seconds	exit	stop	MSG	baseline_MSG	dialogue_comparison	clicks	target_diffs_vs_baseline	errors	movie_loads	binary_sha256
+pre-commit	movie (Day2 to Day3)	864.181	0	operator	451					0	1	2590538b09d1629b37187ed0143bbe891bd7304844c94b37d4f3b62dcd46cc5f
+pre-commit	normal150	150.27	0	duration	88	88	equal	0	0	0	0	2590538b09d1629b37187ed0143bbe891bd7304844c94b37d4f3b62dcd46cc5f
+pre-commit	haruuri	182.349	0	duration	629	629	equal	15	0	0	0	2590538b09d1629b37187ed0143bbe891bd7304844c94b37d4f3b62dcd46cc5f
+pre-commit	fightr	350.319	0	duration	681	681	equal	171	5	0	0	2590538b09d1629b37187ed0143bbe891bd7304844c94b37d4f3b62dcd46cc5f
+post-commit	normal150	150.311	0	duration	88	88	equal	0	0	0	0	434ffffc6c35a27f0c65ea12f9fb895a00047c2d275c5568bd2077e9f0209668
+post-commit	haruuri	182.305	0	duration	629	629	equal	15	0	0	0	434ffffc6c35a27f0c65ea12f9fb895a00047c2d275c5568bd2077e9f0209668
+post-commit	fightr	350.287	0	duration	681	681	equal	171	63	0	0	434ffffc6c35a27f0c65ea12f9fb895a00047c2d275c5568bd2077e9f0209668

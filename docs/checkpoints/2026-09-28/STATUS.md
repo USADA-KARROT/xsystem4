@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-14）：已推送程式 `0830b29`，完成堆積D與審查M1/L1/L2/L5：`<11`傳值複合參數轉交，v11–v13恢復前身行為，v14所有權保持原樣，補NULL字串防禦與VA2斷言。修前新探針失敗；提交前後預設／GBK各101模式PASS、san0，各20條實機路線完成，normal150 MSG88。另完成兩條額外戰鬥對照，皆MSG681、exit0；`fightr`的target／狀態差異未歸因，修後自動重建也限制了同binary比較，沒有宣稱與原版完全同狀態。libsys4固定247f544。**
+**最新狀態（2026-10-18）：已推送程式 `b31bc51`，走到開場動畫不再當機：`movie_load()` 接受只有音訊的檔（APEG目前只抽出音訊），預讀卻去讀NULL的影像佇列；改為沒有影像佇列時以0計。修前新探針`movie-audio-only` 5/7失敗；提交前後預設／GBK各102模式PASS、san0。片頭實機（提交前的執行檔，與提交後只差版本字串等，已逐位元組比對）黑畫面約102秒後接到第3天；原版同一條路片頭有影像。三條例行路線提交後對白不變；`fightr`點擊目標的差異根因仍未確認。libsys4固定247f544。**
 
-[本次研究與驗證](research/heap-version-boundary/README.md) · [追加戰鬥對照](research/heap-version-boundary/extra-controls.md) · [前一輪堆積修正](research/v13-heap/README.md) · [舊版稽核](research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步依序為APEG實機確認與影像解碼／繪製、試玩操作筆記及存讀檔檢查點。沒有v11–v13真遊戲可驗；此輪未重跑戰國蘭斯長路線，未新啟動Wine；原版並排沿用既有擷取。其他缺口見 [HANDOFF](HANDOFF.md) 最上節。
+[本次研究與驗證](research/movie-audio-only/README.md) · [前一輪堆積與版本界線](research/heap-version-boundary/README.md) · [三處堆積修正](research/v13-heap/README.md) · [舊版稽核](research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步依序為APEG影像解碼與繪製、第二場戰鬥技能欄位置、試玩操作筆記及存讀檔檢查點。片頭聲音沒有錄音或聽測；沒有片頭前可讀的存檔。其他缺口見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
