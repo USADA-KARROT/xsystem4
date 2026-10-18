@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 101 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 102 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
 RUN_FROM_TITLE=1 RUN_AUTO_CLICK_SEQ="4000,640,700;8000,640,700;14000,152,130" RUN_CLICK_TRACE=1 RUN_SHOTS=9000,500,60 \
@@ -54,6 +54,14 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 本組實測約 7 秒到據點教學，50 秒內 MSG 88 雜湊與正常 run 相同，assertion／overflow 0。`RUN_AUTO_CLICK=` 明確關掉預設週期點擊，避免提早到據點後持續點中畫面；測教學與選單時，要先確認目前頁面再給座標／時間表，不能套用未快進的抵達秒數。run 名稱必須未使用過。
 
 `RUN_HOLD_KEYS` 在整個 run 持續按住指定鍵；不能在執行途中改 shell 環境變數放開。若需要到據點後放開 Control，應使用實際按下／放開操作。這個快進組態適合快速到場景診斷，**不取代固定 150 秒正常回歸**，也不能用來宣稱動畫、文字等待與 Wine 原版逐幀時序相同。
+
+## 純音訊影片回歸探針
+
+`movie-audio-only`（2026-10-16）直接呼叫正式 FFmpeg 的 `movie_load`／`movie_play`／`movie_draw`／`movie_is_end`／`movie_free`。七案各自 fork，12 秒 alarm、EOF 等待上限 5 秒：MA1 純音訊載入與未播放釋放；MA2 少於十個封包的 mono 短音訊（封包數少於預載門檻是生成時檢查的前置條件，執行時不另外斷言）；MA3 超過十個封包的 stereo 串流到 EOF；MA4 播放途中反覆提前釋放；MA5 合成 APEG 的 SOND 音訊擷取、尺寸與 EOF；MA6 正常影音的對照：讀回 sprite 貼圖，先後看到全紅與全藍後到 EOF；MA7 不存在、空白、損壞與只有影像的檔案失敗清理。`ba493bd` 上 MA1–MA5 在預載時因 `av_fifo_can_read(NULL)` 失敗（ASan SEGV），MA6、MA7 原本就通過（對照）。沒有修改任何既有模式的斷言。
+
+`generate_movie_fixtures.py` 透過既有 libsndfile（Python ctypes 與 pkg-config 定位）把合成波形編為 mono／stereo Vorbis；ffmpeg 只做 RGB 色塊的 FFV1 編碼與音訊原樣封裝，ffprobe 查串流，另外生成 APEG 外殼，每次建置使用 `$XS4_PROBE_DIR` 內新建的專屬目錄，不覆寫其他測試資料（舊目錄不會自動清掉）。manifest 記錄生成器 hash、工具版本、命令、串流資料與每個產物 hash；`build-asan.json` 記錄該 manifest 的路徑/hash，另納入正式 `movie_ffmpeg.c` 的 hash。生成產物均在 repo 外，不提交。**相依**：ffmpeg 與 ffprobe 指令、pkg-config、能寫 Ogg Vorbis 的 libsndfile，以及 FFmpeg 影片後端；缺任一項時整個探針建置失敗（所以所有模式都跑不了，包含用 `before-check.sh` 驗舊模式），不會跳過後回 PASS。
+
+音訊走真 SDL dummy mixer，正常影音走無視窗 CGL 與合成 sprite 貼圖，沒有桌面點擊。**沒有涵蓋**：dummy 通過不代表真實聽測；`movie_get_position` 大於 0 只證明時鐘前進，音訊確實解到結尾的證據是 EOF（純音訊時只有音訊 callback 會設結束）；MA4 的 30 ms 不保證釋放前已經進入過 callback，只證明排程播放後提前清理；預載的封包數不由探針驗證；MA6 不驗影格順序、逐格顯示、與音訊時鐘的同步，也不走 `movie_draw(NULL)` 直接畫主畫面的路徑——一般影音的計數不變靠讀程式（兩個佇列都存在時算式與原本相同）。此探針不解 APEG 影像、不取代遊戲片頭或 Wine 對照，也不等於完整漏記憶體檢查（既有 runner 的 leak detection 關閉）。新模式只用修正前已有的 movie 公開函式，`before-check.sh` 可在舊版上建置。CGL 初始化／貼圖自檢失敗會使模式失敗（rc 1），不會略過。
 
 ## 探針結構
 
@@ -179,3 +187,5 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
   HB5 對值 struct／delegate／泛型 array／兩種舊式 array，檢查入口與真 RETURN：5／10 為 1→0，11–13 為 2→1；14 的 struct／delegate／泛型 array 依 C borrowed 旗標為 1→0 或 2→1，舊式 array 仍 2→1。ref struct／ref array／wrap 全版本守 2→1；字串有 TEMP 全版本清標記並 1→0，無 TEMP 在 5／10 為 1→0、11 以上為 2→1。舊版本號的泛型 array／wrap 只是保留現有分支分派的合成守衛，不主張那些格式存在此型別。HB6 驗 `exit_unref()` 遇到一般與 TEMP 標記的 NULL 字串 payload，槽都回到釋放清單。
 
   **證據界線**：`<11` 是依 v11 型別／指令格式變更採取的保守相容措施，未獨立驗證每個 v10 以前的編譯器都沒有 X 指令。上游没有 `X_REF`／`X_ASSIGN`，不能拿上游當作 v11–v13 的語義基準；這三版回到 `f23883c` 的相關行為。沒有 v11–v13 真遊戲可驗，合成探針不能證明原生相容性。尚未涵蓋的既有 functype 路徑包含 `FT_ASSIGNS`、`vm_copy()`、GC 標記與 `exit_unref()` 對頁成員的型別清單；這次未改這些機制。
+
+- `probe/movie_audio_only_fixture.inc`、`probe/generate_movie_fixtures.py`：`movie-audio-only`（2026-10-16），見上面〈純音訊影片回歸探針〉。

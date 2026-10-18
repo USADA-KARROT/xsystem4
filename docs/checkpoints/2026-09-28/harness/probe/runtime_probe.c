@@ -157,6 +157,7 @@ static void init_probe(const char *path) {
 #include "array_construct_fixture.inc"
 #include "construction_cg_fixture.inc"
 #include "audio_init_fixture.inc"
+#include "movie_audio_only_fixture.inc"
 #include "parts_upper_left_fixture.inc"
 #include "array_primitive_fixture.inc"
 #include "msgskip_msk_fixture.inc"
@@ -246,6 +247,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"array-construct"))return test_array_construct();
     if(!strcmp(argv[2],"construction-cg"))return test_construction_cg();
     if(!strcmp(argv[2],"audio-init"))return test_audio_init();
+    if(!strcmp(argv[2],"movie-audio-only"))return test_movie_audio_only();
     if(!strcmp(argv[2],"parts-upper-left"))return test_parts_upper_left();
     if(!strcmp(argv[2],"array-primitive"))return test_array_primitive();
     if(!strcmp(argv[2],"msgskip-msk"))return test_msgskip_msk();

@@ -138,7 +138,9 @@ static void read_packet(struct movie_context *mc)
 static void preload_packets(struct movie_context *mc)
 {
 	SDL_LockMutex(mc->format_mutex);
-	while (!mc->format_eof && (av_fifo_can_read(mc->video.queue) + av_fifo_can_read(mc->audio.queue) < PRELOAD_PACKETS))
+	// Audio-only movies have no video decoder or packet queue.
+	while (!mc->format_eof && ((mc->video.queue ? av_fifo_can_read(mc->video.queue) : 0)
+				  + av_fifo_can_read(mc->audio.queue) < PRELOAD_PACKETS))
 		read_packet(mc);
 	SDL_UnlockMutex(mc->format_mutex);
 }
