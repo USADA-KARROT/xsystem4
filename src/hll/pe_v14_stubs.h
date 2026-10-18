@@ -41,6 +41,11 @@ static void PE_stub_SetButtonCGName(possibly_unused int number, possibly_unused 
 static struct string * PE_stub_GetButtonCGName(possibly_unused int number) { return string_ref(&EMPTY_STRING); }
 static void PE_stub_SetButtonFlatName(possibly_unused int number, possibly_unused struct string * name) { }
 static struct string * PE_stub_GetButtonFlatName(possibly_unused int number) { return string_ref(&EMPTY_STRING); }
+/* Still a stub. The pactex text of a button is drawn (pactex_apply_button_text),
+ * so a script that sets the text at run time shows the pactex text instead:
+ * SceneYakataMenu clones a template button whose pactex text is a placeholder
+ * and sets each clone's caption with this call. Implement it together with
+ * SaveParts / clone support. */
 static void PE_stub_SetButtonText(possibly_unused int number, possibly_unused struct string * text) { }
 static struct string * PE_stub_GetButtonText(possibly_unused int number) { return string_ref(&EMPTY_STRING); }
 static void PE_stub_SetButtonTextOriginPosMode(possibly_unused int number, possibly_unused int originposmode) { }

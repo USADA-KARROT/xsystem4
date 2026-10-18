@@ -3435,7 +3435,8 @@ bool PE_SetPartsRectangleDetectionSize(int parts_no, int w, int h, int state)
  * -> 0x529280). The suffixes follow the base name's encoding (GBK ／ is
  * A3 AF, SJIS ／ is 81 5E). A missing disabled CG keeps the enabled CGs;
  * the native falls back to a generated panel there (0x528c80), which is
- * not implemented. */
+ * not implemented. A button with a text has it drawn on each state's CG
+ * (parts_button_build_text_state, 0x528d80). */
 static void parts_button_apply_cg(struct parts *parts)
 {
 	static const char *const gbk[] = {
@@ -3457,6 +3458,8 @@ static void parts_button_apply_cg(struct parts *parts)
 	for (int st = 0; st < PARTS_NR_STATES; st++) {
 		if (!disabled)
 			snprintf(name, sizeof(name), "%s%s", base, suffix[st]);
+		if (parts_button_build_text_state(parts, st, name))
+			continue;
 		struct string *cg = cstr_to_string(name);
 		PE_SetPartsCG(parts->no, cg, 0, st + 1);
 		free_string(cg);

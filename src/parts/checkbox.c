@@ -102,11 +102,21 @@ static void radio_box_free(struct parts *parts)
 	parts->radio_box = NULL;
 }
 
+static void button_text_free(struct parts *parts)
+{
+	if (!parts->button_text)
+		return;
+	free(parts->button_text->text);
+	free(parts->button_text);
+	parts->button_text = NULL;
+}
+
 void parts_widget_free(struct parts *parts)
 {
 	checkbox_free(parts);
 	radio_box_free(parts);
 	parts_scrollbar_look_free(parts);
+	button_text_free(parts);
 }
 
 /*
@@ -178,27 +188,28 @@ static void checkbox_cg_name(const struct parts_checkbox *cb, bool checked, int 
 		snprintf(out, size, "%s\xa3\xaf\x99\x7a\xb2\xe9%s", cb->cg_name, suffix[state]); // ／檢查
 }
 
-static struct text_style checkbox_text_style(const struct parts_checkbox *cb)
+static struct text_style widget_text_style(const struct parts_widget_font *font, int char_space)
 {
 	return (struct text_style) {
-		.face = cb->font.type,
-		.size = cb->font.size,
-		.bold_width = cb->font.bold,
-		.edge_left = cb->font.edge,
-		.edge_up = cb->font.edge,
-		.edge_right = cb->font.edge,
-		.edge_down = cb->font.edge,
-		.color = { cb->font.r, cb->font.g, cb->font.b, 255 },
-		.edge_color = { cb->font.edge_r, cb->font.edge_g, cb->font.edge_b, 255 },
+		.face = font->type,
+		.size = font->size,
+		.bold_width = font->bold,
+		.edge_left = font->edge,
+		.edge_up = font->edge,
+		.edge_right = font->edge,
+		.edge_down = font->edge,
+		.color = { font->r, font->g, font->b, 255 },
+		.edge_color = { font->edge_r, font->edge_g, font->edge_b, 255 },
 		.scale_x = 1.0f,
 		.space_scale_x = 1.0f,
-		.font_spacing = cb->char_space,
+		.font_spacing = char_space,
 	};
 }
 
 /*
- * The size of the text (0x528aa0), 0 x 0 for no text. A line is the font's
- * size made even plus 2e high, e as for every text on the CN glyph grid
+ * The size of a widget's text (0x528aa0; the check box's and the button's),
+ * 0 x 0 for no text. A line is the font's size made even plus 2e high, e as
+ * for every text on the CN glyph grid
  * (gfx_text_cn_edge); a "\n" adds the line spacing and a line; a character
  * adds the character spacing and its cell (0x69da70), a byte of 0x81 .. 0xFE
  * taking the next one with it. At the end one character spacing is taken off
@@ -209,34 +220,35 @@ static struct text_style checkbox_text_style(const struct parts_checkbox *cb)
  * library) the original still runs this with those glyphs' widths; here it
  * is the one line construction command 8 draws there, and was not verified.
  */
-static void checkbox_measure_text(const struct parts_checkbox *cb, int *w, int *h)
+void parts_widget_measure_text(const struct parts_widget_font *font, const char *text,
+		int char_space, int line_space, int *w, int *h)
 {
 	*w = *h = 0;
-	if (!cb->text)
+	if (!text || !text[0])
 		return;
 	if (!gfx_text_cn_gdi()) {
-		struct text_style ts = checkbox_text_style(cb);
-		*w = ceilf(gfx_size_text(&ts, cb->text));
+		struct text_style ts = widget_text_style(font, char_space);
+		*w = ceilf(gfx_size_text(&ts, text));
 		*h = ceilf(ts.size + ts.edge_up + ts.edge_down);
 		return;
 	}
-	const int size = cb->font.size;
-	const int e = gfx_text_cn_edge(size, cb->font.bold, cb->font.edge);
+	const int size = font->size;
+	const int e = gfx_text_cn_edge(size, font->bold, font->edge);
 	const int line = size + (size & 1) + 2 * e;
 	int width = 0, row = 0, height = line;
-	for (const uint8_t *p = (const uint8_t *)cb->text; *p; p++) {
+	for (const uint8_t *p = (const uint8_t *)text; *p; p++) {
 		if (*p == '\n') {
-			height += cb->line_space + line;
+			height += line_space + line;
 			width = max(width, row);
 			row = 0;
 			continue;
 		}
-		row += cb->char_space + gfx_text_cn_width(size, *p) + 2 * e;
+		row += char_space + gfx_text_cn_width(size, *p) + 2 * e;
 		if (*p >= 0x81 && *p <= 0xfe && p[1])
 			p++;
 	}
-	*w = max(width, row) - cb->char_space;
-	*h = height - cb->line_space;
+	*w = max(width, row) - char_space;
+	*h = height - line_space;
 }
 
 /* One state of a box with a text: the surface of the original's text parts
@@ -305,7 +317,7 @@ void parts_checkbox_rebuild(struct parts *parts)
 
 	int tw = 0, th = 0;
 	if (!cb->button_mode)
-		checkbox_measure_text(cb, &tw, &th);
+		parts_widget_measure_text(&cb->font, cb->text, cb->char_space, cb->line_space, &tw, &th);
 	if (tw <= 0 || th <= 0) {
 		for (int i = 0; i < PARTS_NR_STATES; i++) {
 			struct string *name = cstr_to_string(names[i]);
@@ -463,4 +475,96 @@ void parts_checkbox_set_enable(struct parts *parts, bool enable)
 	cb->dirty = true;
 	checkbox_any_dirty = true;
 	parts->button_disabled = !enable;
+}
+
+/*
+ * v14 按鈕: the button's own text. The original keeps it beside the button's
+ * CG names (0x5260c0 makes it "", 文本位置 5, both spacings 0, the font of
+ * 0x69f1d0 in black; the pactex loader 0x527910 then writes every key, a
+ * missing one as 0) and draws it on each state when the widget is rebuilt
+ * (0x528870, from the update 0x528510 while +0x218 is set).
+ */
+struct parts_button_text *parts_get_button_text(struct parts *parts)
+{
+	if (!parts->button_text) {
+		struct parts_button_text *bt = xcalloc(1, sizeof(struct parts_button_text));
+		bt->font = (struct parts_widget_font) { .size = 16 };
+		bt->text_pos = 5;
+		parts->button_text = bt;
+	}
+	return parts->button_text;
+}
+
+void parts_button_text_set(struct parts *parts, const char *text)
+{
+	struct parts_button_text *bt = parts_get_button_text(parts);
+	free(bt->text);
+	bt->text = text && text[0] ? xstrdup(text) : NULL;
+}
+
+/*
+ * Where the text goes on a CG of W x H (0x5288f0): with the text tw x th
+ * (0x528aa0) and a margin of 3 on each side, 文本位置 1 .. 9 is the place on
+ * a 3 x 3 grid, left to right and top to bottom; x is 3, (W - tw - 6) / 2 + 3
+ * or W - tw - 3, y is 3, (H - th - 6) / 2 + 3 or H - th - 3 (cdq; sub; sar 1:
+ * the halves are rounded towards 0). Any other value leaves (0, 0).
+ */
+static void button_text_place(int text_pos, int w, int h, int tw, int th, int *x, int *y)
+{
+	const int dx = w - tw - 6, dy = h - th - 6;
+	*x = *y = 0;
+	if (text_pos < 1 || text_pos > 9)
+		return;
+	const int col = (text_pos - 1) % 3, row = (text_pos - 1) / 3;
+	*x = col == 0 ? 3 : col == 1 ? dx / 2 + 3 : dx + 3;
+	*y = row == 0 ? 3 : row == 1 ? dy / 2 + 3 : dy + 3;
+}
+
+/*
+ * One state of a button with a text (0x528d80): the state's CG becomes the
+ * surface (command 2: 0x569060 -> 0x5a6ac0) and the text is drawn on it by
+ * command 7 (0x569410 -> 0x4f4b10: the colours blend by the glyphs' alpha
+ * and the CG keeps its own) at the place button_text_place gives it on that
+ * CG's size (0x4642a0). The rebuild runs this for the three states with
+ * ／普通, ／オン and ／ダウン (0x528e90, 0x528fe0, 0x529130) or, for a button
+ * that is not enabled, for all three with ／無効 (0x529280), so the text
+ * moves with the size of each state's CG and keeps one colour in all of
+ * them.
+ *
+ * The original draws the text whatever it is; an empty one, or the "\n" most
+ * of the game's buttons have (their captions are inner parts of their own),
+ * draws nothing. Here a state is built only for a text with something other
+ * than "\n" in it, and any other keeps its CG, which is the same picture.
+ * Returns false when nothing was built: the caller sets the CG.
+ *
+ * Not the original's: a state whose CG is not there gets no text here; the
+ * original draws a panel in 按鈕の色 with the text on it (0x528c80, the
+ * pressed one with the text 1 px right and down), which is not implemented,
+ * as for a button without a text. フラット名 is not read.
+ */
+bool parts_button_build_text_state(struct parts *parts, int state, const char *cg_name)
+{
+	const struct parts_button_text *bt = parts->button_text;
+	if (!bt || !bt->text || !bt->text[strspn(bt->text, "\n")])
+		return false;
+	struct cg_metrics cg;
+	if (!cg_name[0] || !asset_cg_get_metrics_by_name(cg_name, &cg))
+		return false;
+	int tw, th, x, y;
+	parts_widget_measure_text(&bt->font, bt->text, bt->char_space, bt->line_space, &tw, &th);
+	button_text_place(bt->text_pos, cg.w, cg.h, tw, th, &x, &y);
+
+	const int no = parts->no;
+	const struct parts_widget_font *f = &bt->font;
+	parts_clear_construction_process(parts_get_construction_process(parts, state));
+	struct string *name = cstr_to_string(cg_name);
+	struct string *text = cstr_to_string(bt->text);
+	PE_AddCreateCGToProcess(no, name, state + 1);
+	PE_AddDrawTextToPartsConstructionProcess(no, x, y, text, f->type, f->size, f->r, f->g, f->b,
+			f->bold, f->edge_r, f->edge_g, f->edge_b, f->edge,
+			bt->char_space, bt->line_space, state + 1);
+	PE_BuildPartsConstructionProcess(no, state + 1);
+	free_string(name);
+	free_string(text);
+	return true;
 }

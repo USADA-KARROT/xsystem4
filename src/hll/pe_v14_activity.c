@@ -1678,6 +1678,39 @@ static void pactex_apply_check_box(struct ex_tree *type_info, struct parts *p)
 	parts_checkbox_rebuild(p);
 }
 
+/*
+ * 按鈕: the text the button draws on its states and its font (the native
+ * loader 0x527910 reads them with the button's other keys: フォントタイプ,
+ * フォントサイズ, フォント色, フォント太さ, フォント縁取り, フォント縁取り色,
+ * 文本 (+0x1e4), 文本位置 (an int kept as a byte, +0x1fc), 文字間隔 (+0x200)
+ * and 行間隔 (+0x204); a key that is missing is 0, a colour is kept within
+ * 0..255). Only a pactex with the GBK 文本 key gets a text (the SJIS spelling
+ * is not known). The states are drawn when the CG name is set
+ * (parts_button_build_text_state).
+ */
+static void pactex_apply_button_text(struct ex_tree *type_info, int parts_no)
+{
+	struct ex_value *text = pactex_cn_value(type_info, PACTEX_CB_TEXT);
+	if (!text || text->type != EX_STRING || !text->s)
+		return;
+	struct parts *p = parts_get(parts_no);
+	struct parts_button_text *bt = parts_get_button_text(p);
+	parts_button_text_set(p, text->s->text);
+	bt->font.type = pactex_message_number(type_info, PACTEX_MW_FACE, 0);
+	bt->font.size = pactex_message_number(type_info, PACTEX_MW_SIZE, 0);
+	bt->font.r = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_COLOR, 0, 0));
+	bt->font.g = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_COLOR, 1, 0));
+	bt->font.b = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_COLOR, 2, 0));
+	bt->font.bold = pactex_message_number(type_info, PACTEX_MW_WEIGHT, 0);
+	bt->font.edge = pactex_message_number(type_info, PACTEX_MW_EDGE, 0);
+	bt->font.edge_r = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 0, 0));
+	bt->font.edge_g = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 1, 0));
+	bt->font.edge_b = pactex_color_byte(pactex_message_item(type_info, PACTEX_MW_EDGE_COLOR, 2, 0));
+	bt->text_pos = (uint8_t)(int)pactex_value_number(pactex_cn_value(type_info, PACTEX_CB_TEXT_POS), 0);
+	bt->char_space = pactex_message_number(type_info, PACTEX_MW_CHAR_SPACE, 0);
+	bt->line_space = pactex_message_number(type_info, PACTEX_MW_LINE_SPACE, 0);
+}
+
 /* 檢查ボックスリスト of the radio boxes seen while loading one activity (see
  * pactex_apply_properties): the names of their check boxes, made numbers at
  * the end of pactex_load, when every parts of the activity has its name. */
@@ -2037,6 +2070,8 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 		const char *cg_base = pactex_get_string(type_info, SJIS_CG_MEI);
 		if (!cg_base)
 			cg_base = pactex_get_string(type_info, GBK_CG_MEI);
+		if (ain->version >= 14)
+			pactex_apply_button_text(type_info, parts_no);
 		if (cg_base) {
 			parts_button_set_cg_name(parts_get(parts_no), cg_base);
 			/* Mark as clickable */

@@ -578,6 +578,16 @@ struct parts_scrollbar_look {
 	bool hovered;         // the cursor is on the knob
 };
 
+// v14: the font of a widget's text (the original's font object, constructor
+// 0x69f1d0: +4 type, +8 size, +0xc colour, +0x1c 太さ, +0x20 縁取り, +0x24
+// 縁取り色), which the check box and the button measure with 0x528aa0.
+struct parts_widget_font {
+	int type, size;
+	int r, g, b;
+	float bold, edge;
+	int edge_r, edge_g, edge_b;
+};
+
 // v14 檢查ボックス (component type 1): the widget's properties, as the
 // original keeps them from +0xe4 (constructor 0x529620, pactex 0x52bd70).
 // The original shows them through two inner parts, the box and the text;
@@ -588,12 +598,7 @@ struct parts_checkbox {
 	bool enable;        // 有効狀態 (+0xf0)
 	bool checked;       // 檢查狀態 (+0xf1)
 	int r, g, b;        // 按鈕の色 (+0xf4)
-	struct {            // +0x100
-		int type, size;
-		int r, g, b;
-		float bold, edge;
-		int edge_r, edge_g, edge_b;
-	} font;
+	struct parts_widget_font font; // +0x100
 	char *cg_name;                // ＣＧ名 (+0x134)
 	char *over_cg_name;           // 覆蓋ＣＧ名 (+0x14c)
 	char *over_checked_cg_name;   // 覆蓋檢查ＣＧ名 (+0x164)
@@ -608,6 +613,19 @@ struct parts_checkbox {
 	bool dirty;         // +0x1e8: the states are to be rebuilt
 };
 #define PARTS_COMPONENT_CHECKBOX 1
+
+// v14 按鈕 (component type 0): the text the button draws on each of its
+// states, as the original keeps it beside the CG names (pactex 0x527910:
+// 文本 +0x1e4, font +0xc0, 文本位置 +0x1fc, 文字間隔 +0x200, 行間隔 +0x204).
+// NULL until a pactex gives the button a 文本 (only the GBK spelling of the
+// key is read). Not saved: the states are, as the constructions they are.
+struct parts_button_text {
+	char *text;         // NULL for ""
+	struct parts_widget_font font;
+	int text_pos;       // a byte: 1 .. 9 place the text, others put it at (0, 0)
+	int char_space;
+	int line_space;
+};
 
 // v14 ラジオ按鈕ボックス (component type 9): the numbers of its check boxes
 // (+0x44) and the flag that keeps it from handling a change it made itself
@@ -725,6 +743,7 @@ struct parts {
 	// starts enabled.
 	char *button_cg_name;
 	bool button_disabled;
+	struct parts_button_text *button_text;
 	// v14 user component data: key/value strings from the pactex 數據 list
 	// (Get/SetUserComponentData), stored as key0, value0, key1, value1, ...
 	char **uc_data;
@@ -942,6 +961,11 @@ void parts_checkbox_update(void);
 void parts_checkbox_set_checked(struct parts *parts, bool checked);
 void parts_checkbox_set_enable(struct parts *parts, bool enable);
 void parts_radio_box_add(struct parts *box, int child);
+void parts_widget_measure_text(const struct parts_widget_font *font, const char *text,
+		int char_space, int line_space, int *w, int *h);
+struct parts_button_text *parts_get_button_text(struct parts *parts);
+void parts_button_text_set(struct parts *parts, const char *text);
+bool parts_button_build_text_state(struct parts *parts, int state, const char *cg_name);
 
 // text.c
 void parts_text_free(struct parts_text *t);
