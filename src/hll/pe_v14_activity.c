@@ -40,6 +40,7 @@
 
 #include "asset_manager.h"
 #include "gfx/gfx.h"
+#include "gfx/font.h"
 #include "parts.h"
 #include "../parts/parts_internal.h"
 #include "hll.h"
@@ -797,12 +798,17 @@ static bool pactex_construction_has_steps(struct ex_tree *state)
  * +0x1c..+0x30, 色１ at +0x34..+0x40, 色２ at +0x44..+0x50, ＣＧ名 at +0xac,
  * 全體 at +0xc4, 半徑 at +0xc8/+0xcc, 丸め's two flags at +0xd4/+0xd5,
  * 旋轉角度 at +0xd8, 円弧角度 (start, sweep) at +0xdc/+0xe0 and the ints of
- * 座標總覽 (x0, y0, x1, y1, ...; 0x4f9410) at +0xe4. */
+ * 座標總覽 (x0, y0, x1, y1, ...; 0x4f9410) at +0xe4. The text commands'
+ * fields: 文字間隔 at +0x58, 行間隔 at +0x5c, the font from +0x60
+ * (フォントタイプ +0x64, フォントサイズ +0x68, フォント色 +0x6c..+0x78,
+ * フォント太さ +0x7c and フォント縁取り +0x80 as floats, フォント縁取り色
+ * +0x84..+0x90) and 文本 at +0x94. */
 struct pactex_cp_step {
 	int command;
 	int x, y, w, h;
 	int color[4];
 	int alpha2;		// 色２'s alpha
+	int color2[3];		// 色２'s RGB (command 9)
 	bool full;
 	int rx, ry;
 	int rotate;
@@ -810,6 +816,12 @@ struct pactex_cp_step {
 	int blur;		// ブラー (+0x54)
 	const char *cg_name;	// in the pactex tree
 	struct ex_list *points;	// 座標總覽, in the pactex tree
+	// command 24
+	const char *text;	// 文本, in the pactex tree
+	int font_type, font_size;
+	int font_rgb[3], edge_rgb[3];
+	float bold, edge;
+	int char_space, line_space;
 };
 
 enum {
@@ -819,7 +831,9 @@ enum {
 	PACTEX_CP_BLEND_FILL = 4,
 	PACTEX_CP_FILL_AMAP = 5,
 	PACTEX_CP_FILL_WITH_ALPHA = 6,
+	PACTEX_CP_FILL_GRADATION_HORIZON = 9,
 	PACTEX_CP_GRAY_SCALE = 15,
+	PACTEX_CP_ONLY_ALPHA_TEXT = 24,
 	PACTEX_CP_MUL_AMAP_GRADATION_ROWS = 25,
 	PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS = 26,
 	PACTEX_CP_BLUR_H = 27,
@@ -931,12 +945,15 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	// one that replaces the surface does not occur in the game.
 	if (first != (s->command == PACTEX_CP_CREATE || s->command == PACTEX_CP_CREATE_CG))
 		return false;
-	// The states that start with a CG, the commands only they have and the
-	// polygon fills are built for v14 alone.
+	// The states that start with a CG, the commands only they have, the
+	// polygon fills, the row gradation and the alpha text are built for v14
+	// alone.
 	if (ain->version < 14 && (s->command == PACTEX_CP_CREATE_CG || s->command == PACTEX_CP_BLEND_FILL
 			|| s->command == PACTEX_CP_GRAY_SCALE || s->command == PACTEX_CP_BLUR_H
 			|| s->command == PACTEX_CP_BLUR_V || s->command == PACTEX_CP_FILL_POLYGON_PIXEL_AMAP
-			|| s->command == PACTEX_CP_FILL_POLYGON_AMAP))
+			|| s->command == PACTEX_CP_FILL_POLYGON_AMAP
+			|| s->command == PACTEX_CP_FILL_GRADATION_HORIZON
+			|| s->command == PACTEX_CP_ONLY_ALPHA_TEXT))
 		return false;
 	if (!pactex_step_item(node, dest_sjis, dest_gbk, 0, &s->x)
 			|| !pactex_step_item(node, dest_sjis, dest_gbk, 1, &s->y)
@@ -1030,6 +1047,92 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		return pactex_clip_span(&s->x, &s->w, surface_w)
 			&& pactex_clip_span(&s->y, &s->h, surface_h)
 			&& s->w > 0 && s->h > 0;
+	}
+	case PACTEX_CP_FILL_GRADATION_HORIZON: {
+		// 0x4fdbf0: row i of the rectangle's H rows (全體: the whole
+		// surface, 0x4fdc2d) is filled as command 3 fills (0x5ac230: the
+		// RGB replaced, the alpha kept, the row normalized and clipped by
+		// 0x5abed0) in 色１ + i * (色２ - 色１) / H, each channel's
+		// quotient truncated (idiv, 0x4fdcb1..0x4fdccb); 色２'s alpha is
+		// not read. A row with nothing left after clipping fails the step
+		// (0x5abde0; 0x4fdcea -> 0x4fdd29) with the rows above it drawn:
+		// such a state is not built here. With no row (H <= 0; 先矩形's H
+		// is not normalized) the loop does not run and the step succeeds
+		// (0x4fdca4 -> 0x4fdd09).
+		for (int i = 0; i < 3; i++) {
+			if (!pactex_step_item(node, color_sjis, color_gbk, i, &s->color[i])
+					|| !pactex_step_item(node, "\x90\x46\x82\x51", "\xc9\xab\xa3\xb2", i,
+						&s->color2[i])) /* 色２ */
+				return false;
+		}
+		if (!pactex_step_int(node, "\x91\x53\x91\xcc", "\xc8\xab\xf3\x77", &full)) /* 全体 / 全體 */
+			return false;
+		// Command 3 clamps what it writes to 0..255 (0x5ac2a4); as for
+		// command 3, a state with a colour outside that (none in the game)
+		// is not built.
+		for (int i = 0; i < 3; i++) {
+			if (!pactex_byte(s->color[i]) || !pactex_byte(s->color2[i]))
+				return false;
+		}
+		s->full = full == 1;
+		if (s->full) {
+			s->x = 0;
+			s->y = 0;
+			s->w = surface_w;
+			s->h = surface_h;
+		}
+		if (s->h <= 0)
+			return true;
+		return pactex_clip_span(&s->x, &s->w, surface_w) && s->w > 0
+			&& s->y >= 0 && (int64_t)s->y + s->h <= surface_h;
+	}
+	case PACTEX_CP_ONLY_ALPHA_TEXT: {
+		// 0x4fd720: the loop of the text commands 7, 8, 23 and 24 (see
+		// build_text_grid in construction.c) with the step's font (+0x60,
+		// copied at 0x4fd7de..0x4fd81d), 文字間隔 and 行間隔 (+0x58,
+		// +0x5c; 0x4fd766, 0x4fd771), at 先矩形 X,Y; each cell's alpha is
+		// copied onto the surface, the colours left (0x5acea0 ->
+		// 0x494270). The step parser (0x4f82a0) reads a missing key as 0
+		// or "" and clamps the font's two colours to 0..255.
+		// Built only as far as build_text_grid reproduces it: a 文本 under
+		// its GBK spelling (the SJIS one is not known; the CN executable's
+		// key is 0x7d2dc0), on the CN glyph grid, a font size above 0 (what
+		// the original draws with 0 was not read), no negative weight or
+		// edge, a pen within the surface's top-left (build_text_grid cuts
+		// a cell left of or above it otherwise than the original) and no
+		// 0x81 0x5C (the SJIS dash the original joins, 0x4fd8bf). The
+		// numbers must be ints (the floats may be either); a colour item
+		// that is missing is 0.
+		static const char text_gbk[] = "\xce\xc4\xb1\xbe";		/* 文本 */
+		struct ex_value *t = pactex_leaf_value(node, text_gbk, text_gbk);
+		if (!t || t->type != EX_STRING || !t->s || !gfx_text_cn_gdi())
+			return false;
+		s->text = t->s->text;
+		if (strstr(s->text, "\x81\x5c"))
+			return false;
+		static const enum pactex_message_key int_keys[] = {
+			PACTEX_MW_FACE, PACTEX_MW_SIZE, PACTEX_MW_CHAR_SPACE, PACTEX_MW_LINE_SPACE };
+		int *const int_out[] = { &s->font_type, &s->font_size, &s->char_space, &s->line_space };
+		for (int i = 0; i < 4; i++) {
+			struct ex_value *v = pactex_message_value(node, int_keys[i]);
+			if (v && v->type != EX_INT)
+				return false;
+			*int_out[i] = v ? v->i : 0;
+		}
+		s->bold = pactex_message_number(node, PACTEX_MW_WEIGHT, 0);
+		s->edge = pactex_message_number(node, PACTEX_MW_EDGE, 0);
+		for (int i = 0; i < 3; i++) {
+			s->font_rgb[i] = min(max(pactex_message_item(node, PACTEX_MW_COLOR, i, 0), 0), 255);
+			s->edge_rgb[i] = min(max(pactex_message_item(node, PACTEX_MW_EDGE_COLOR, i, 0), 0), 255);
+		}
+		if (s->font_size <= 0 || s->font_size > PACTEX_CP_MAX_SIZE || !(s->bold >= 0) || !(s->edge >= 0))
+			return false;
+		const int e = gfx_text_cn_edge(s->font_size, s->bold, s->edge);
+		// Only the start of the text is checked: with a spacing below minus
+		// a cell or a negative line spacing, later cells can still fall
+		// left of or above the surface (not in the game's data).
+		return e >= 0 && (int64_t)s->font_size + 3 * (int64_t)e <= PACTEX_CP_MAX_SIZE
+			&& s->x >= 0 && s->y >= 0;
 	}
 	case PACTEX_CP_MUL_AMAP_GRADATION_ROWS:
 	case PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS:
@@ -1145,15 +1248,16 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 
 /* The steps of a construction state, when the loader can run them as the
  * original does: every command is one of 0 (create), 2 (the surface from a
- * CG), 3, 4, 5, 6 (fills), 15 (gray scale), 25, 26 (alpha gradations), 27, 28
- * (blurs), 94, 95 (polygons), 102 (disc alpha), 122 (sector alpha) and 129
- * (CG tiles), the first step makes the surface and none would fail.
+ * CG), 3, 4, 5, 6 (fills), 9 (a gradation of the rows' colour), 15 (gray
+ * scale), 24 (a text's alpha), 25, 26 (alpha gradations), 27, 28 (blurs), 94,
+ * 95 (polygons), 102 (disc alpha), 122 (sector alpha) and 129 (CG tiles), the
+ * first step makes the surface and none would fail.
  * A list whose first step is command 2 is narrower: every step must be one
  * of 2, 3, 4, 15, 27 and 28, and a list with any other step is not built
  * (the state keeps the CG it had). A CG's texture does not say whether its
  * source had an alpha channel, and natively command 5 skips a surface
- * without one (0x4fc378); 6, 25, 26, 102, 122 and 129 after a CG were not
- * checked against the original and are left out with it.
+ * without one (0x4fc378); 6, 9, 24, 25, 26, 102, 122 and 129 after a CG were
+ * not checked against the original and are left out with it.
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;
@@ -1245,6 +1349,25 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 			PE_AddFillWithAlphaToPartsConstructionProcess(parts_no, s->x, s->y, s->w, s->h,
 				s->color[0], s->color[1], s->color[2], s->color[3], pe_state);
 			break;
+		case PACTEX_CP_FILL_GRADATION_HORIZON:
+			// One command 3 fill per row, as 0x4fdbf0 does it.
+			for (int row = 0; row < s->h; row++) {
+				int c[3];
+				for (int k = 0; k < 3; k++)
+					c[k] = s->color[k] + row * (s->color2[k] - s->color[k]) / s->h;
+				PE_AddFillToPartsConstructionProcess(parts_no, s->x, s->y + row, s->w, 1,
+					c[0], c[1], c[2], pe_state);
+			}
+			break;
+		case PACTEX_CP_ONLY_ALPHA_TEXT: {
+			struct string *text = cstr_to_string(s->text);
+			PE_AddOnlyAlphaTextToPartsConstructionProcess(parts_no, s->x, s->y, text,
+				s->font_type, s->font_size, s->font_rgb[0], s->font_rgb[1], s->font_rgb[2],
+				s->bold, s->edge_rgb[0], s->edge_rgb[1], s->edge_rgb[2], s->edge,
+				s->char_space, s->line_space, pe_state);
+			free_string(text);
+			break;
+		}
 		case PACTEX_CP_FILL_PIE_AMAP:
 			PE_AddFillPieAMapToPartsConstructionProcess(parts_no, s->x, s->y, s->rx, s->ry,
 				s->start, s->sweep, s->color[3], s->rotate, pe_state);
