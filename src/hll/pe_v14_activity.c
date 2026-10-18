@@ -1926,6 +1926,33 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 				"\xa5\xb9\xa5\xaf\xa5\xed\xa9\x60\xa5\xeb\xa5\xec\xa9\x60\xa5\xc8"), 0);
 		if (widget_type == PARTS_COMPONENT_HSCROLLBAR)
 			parts_scrollbar_loaded(parts_get(parts_no));
+		/* The knob and the track (parts/scrollbar.c): 長さ, 幅, 前サイズ,
+		 * 次サイズ and 按鈕點擊移動量, 0 when missing (0x5446a9, the 幅
+		 * that follows, 0x544777, 0x5447de, 0x5449fa: the reader's
+		 * default is 0), and ＣＧ名, 覆蓋バーＣＧ名, 覆蓋背景ＣＧ名, ""
+		 * when missing (+0x58, +0xa0, +0xb8 of the properties). The GBK
+		 * spellings of the CN executable (0x7d9ed4 .. 0x7d9f9c) alone:
+		 * no SJIS pactex was read, and a bar named otherwise shows
+		 * nothing, as it did. Not read: the names of the two buttons and
+		 * every フラット名 (the game's are all empty). */
+		if (ain->version >= 14) {
+			sb->length = pactex_value_number(pactex_cn_value(type_info,
+					"\xe9\x4c\xa4\xb5"), 0);				/* 長さ */
+			sb->width = pactex_value_number(pactex_cn_value(type_info,
+					"\xb7\xf9"), 0);					/* 幅 */
+			sb->prev_size = pactex_value_number(pactex_cn_value(type_info,
+					"\xc7\xb0\xa5\xb5\xa5\xa4\xa5\xba"), 0);		/* 前サイズ */
+			sb->next_size = pactex_value_number(pactex_cn_value(type_info,
+					"\xb4\xce\xa5\xb5\xa5\xa4\xa5\xba"), 0);		/* 次サイズ */
+			sb->button_move = pactex_value_number(pactex_cn_value(type_info,
+					"\xb0\xb4\xe2\x6f\xfc\x63\x93\xf4\xd2\xc6\x84\xd3\xc1\xbf"), 0); /* 按鈕點擊移動量 */
+			parts_scrollbar_set_names(parts_get(parts_no),
+					pactex_cn_string(type_info, "\xa3\xc3\xa3\xc7\xc3\xfb"),	/* ＣＧ名 */
+					pactex_cn_string(type_info,
+						"\xb8\xb2\xc9\x77\xa5\xd0\xa9\x60\xa3\xc3\xa3\xc7\xc3\xfb"),	/* 覆蓋バーＣＧ名 */
+					pactex_cn_string(type_info,
+						"\xb8\xb2\xc9\x77\xb1\xb3\xbe\xb0\xa3\xc3\xa3\xc7\xc3\xfb"));	/* 覆蓋背景ＣＧ名 */
+		}
 		/* 全體スクロール量サイズ連動 and 表示量サイズ連動 name the parts
 		 * whose size the two amounts follow (parts_scrollbar_total). The
 		 * native loader reads the two strings, "" when missing, and has

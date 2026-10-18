@@ -371,6 +371,43 @@ static int parts_effective_draw_filter(struct parts *parts)
 	return PARTS_DRAW_FILTER_NORMAL;
 }
 
+/* A v14 scroll bar's track and knob (scrollbar.c): the original's inner
+ * parts, made after the bar and drawn over it, the knob last. Each is a
+ * texture at a point of the bar's anchor frame, with the bar's scale, alpha,
+ * colours and filter. */
+static void parts_render_scrollbar(struct parts *parts)
+{
+	Texture *bar;
+	Point pos[2];
+	Texture *textures[2];
+	textures[0] = parts_scrollbar_render_textures(parts, &bar, &pos[0], &pos[1]);
+	textures[1] = bar;
+	if (!textures[0] && !textures[1])
+		return;
+	const int draw_filter = parts_effective_draw_filter(parts);
+	set_draw_filter_blend_func(draw_filter);
+	vec3 add_color;
+	parts_shader_add_color(parts, add_color);
+	vec3 multiply_color = {
+		parts->global.multiply_color.r / 255.0f,
+		parts->global.multiply_color.g / 255.0f,
+		parts->global.multiply_color.b / 255.0f,
+	};
+	for (int i = 0; i < 2; i++) {
+		Texture *t = textures[i];
+		if (!t)
+			continue;
+		mat4 mw_transform;
+		parts_anchor_transform(parts, glm_rad(parts->local.rotation.z), true, mw_transform);
+		glm_translate(mw_transform, (vec3){ pos[i].x, pos[i].y, 0 });
+		glm_scale(mw_transform, (vec3){ t->w, t->h, 1.0f });
+		Rectangle r = { 0, 0, t->w, t->h };
+		parts_render_texture(parts, t, mw_transform, &r, parts->global.alpha / 255.0,
+				add_color, multiply_color, draw_filter, parts->alpha_clipper_parts_no);
+	}
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+}
+
 static void parts_render_cg(struct parts *parts, struct parts_common *common)
 {
 	int draw_filter = parts_effective_draw_filter(parts);
@@ -890,6 +927,8 @@ void parts_render(struct parts *parts)
 		parts_render_3dlayer(parts, &state->layer3d);
 		break;
 	}
+	if (parts->scrollbar_look)
+		parts_render_scrollbar(parts);
 	// Message text shares the owning window's visibility, color, alpha and z.
 	// Render it after the background, including when that background is empty.
 	Point position;

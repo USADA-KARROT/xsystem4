@@ -106,6 +106,7 @@ void parts_widget_free(struct parts *parts)
 {
 	checkbox_free(parts);
 	radio_box_free(parts);
+	parts_scrollbar_look_free(parts);
 }
 
 /*
@@ -113,9 +114,10 @@ void parts_widget_free(struct parts *parts)
  * the widget it had and makes the new one with its constructor's values
  * (0x535e20), so a check box or a radio box that became something else has
  * lost its values when it becomes one again, and a parts that becomes a
- * 橫滾動條 scrolls 100 by 1 (parts_scrollbar_construct). What the parts
- * shows is kept here, where the original's new widget shows nothing of the
- * old one.
+ * 橫滾動條 scrolls 100 by 1 (parts_scrollbar_construct). A scroll bar that
+ * becomes another widget loses its knob and its track. What the parts shows
+ * is kept here, where the original's new widget shows nothing of the old
+ * one.
  */
 void parts_widget_type_changed(struct parts *parts, int old_type)
 {
@@ -126,6 +128,8 @@ void parts_widget_type_changed(struct parts *parts, int old_type)
 		checkbox_free(parts);
 	if (old_type == PARTS_COMPONENT_RADIO_BOX)
 		radio_box_free(parts);
+	if (old_type == PARTS_COMPONENT_VSCROLLBAR || old_type == PARTS_COMPONENT_HSCROLLBAR)
+		parts_scrollbar_look_free(parts);
 	if (type == PARTS_COMPONENT_CHECKBOX)
 		parts_get_checkbox(parts);
 	if (type == PARTS_COMPONENT_RADIO_BOX)

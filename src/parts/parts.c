@@ -1879,12 +1879,14 @@ void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_windo
 	}
 	parts_message_window_show = message_window_show;
 	PE_UpdateComponent(passed_time);
-	parts_scrollbar_update();
 	audio_update();
 	parts_update_animation(passed_time);
 	parts_message_window_update_times(passed_time, scaled_passed_time);
 	PE_UpdateInputState(passed_time);
-	// After the input: a check box whose value changed is drawn again.
+	// After the input, as the original updates its widgets (0x53c5b0): a
+	// scroll bar the input moved reports it in this update, and a check box
+	// whose value changed is drawn again.
+	parts_scrollbar_update();
 	parts_checkbox_update();
 	parts_render_update();
 }

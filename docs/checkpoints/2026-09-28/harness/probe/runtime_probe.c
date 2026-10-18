@@ -163,6 +163,7 @@ static void init_probe(const char *path) {
 #include "array_primitive_fixture.inc"
 #include "msgskip_msk_fixture.inc"
 #include "config_widgets_fixture.inc"
+#include "scrollbar_knob_fixture.inc"
 #include "read_color_fixture.inc"
 #include "input_model_fixture.inc"
 #include "system_reset_fixture.inc"
@@ -255,6 +256,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"msgskip-msk"))return test_msgskip_msk();
     if(!strcmp(argv[2],"msgskip-msk-file"))return test_msgskip_msk_file();
     if(!strcmp(argv[2],"config-widgets"))return test_config_widgets();
+    if(!strcmp(argv[2],"scrollbar-knob"))return test_scrollbar_knob();
     if(!strcmp(argv[2],"read-color"))return test_read_color();
     if(!strcmp(argv[2],"input-model"))return test_input_model();
     if(!strcmp(argv[2],"system-reset"))return test_system_reset();

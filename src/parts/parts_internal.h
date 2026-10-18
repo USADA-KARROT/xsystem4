@@ -532,7 +532,10 @@ struct parts_state {
 // レート), the position and rate it last reported to its observers (+0xc4,
 // +0xc8), and the numbers of the parts whose height the two amounts follow
 // (+0x214 全體スクロール量サイズ連動, +0x218 表示量サイズ連動; 0 for none).
-// The bar is not drawn (scrollbar.c). Not saved.
+// Its geometry (+0x100 長さ along the bar, +0x104 幅 across it, +0x108
+// 前サイズ, +0x10c 次サイズ, +0x120 按鈕點擊移動量); the names, the
+// pictures and the drag of its knob and track are in parts->scrollbar_look
+// (scrollbar.c). Not saved.
 struct parts_scrollbar {
 	int total;
 	int view;
@@ -542,13 +545,38 @@ struct parts_scrollbar {
 	float reported_rate;
 	int total_link;
 	int view_link;
+	int length;
+	int width;
+	int prev_size;
+	int next_size;
+	int button_move;
 };
 #define PARTS_COMPONENT_VSCROLLBAR 2
 // v14 橫滾動條 (component type 3): the same widget lying on its side (0x573610
 // clears its +0xc). Its amounts are kept, the library reads and writes its
 // rate and its position (pe_v14_checkbox.h), and it reports a move like the
-// vertical one (parts_scrollbar_update). Nothing is drawn for it yet.
+// vertical one (parts_scrollbar_update); its knob is drawn and dragged the
+// same way, along x.
 #define PARTS_COMPONENT_HSCROLLBAR 3
+
+// v14: the knob (バー, native +0xb0) and the track (背景, +0xa4) of a scroll
+// bar of either kind, which the original makes as two inner parts
+// (0x5743f0, 0x574470); here they are drawn by the bar's parts itself
+// (parts_render) and its input finds them (scrollbar.c). NULL until a
+// pactex gives the bar a ＣＧ名.
+struct parts_scrollbar_look {
+	char *cg_name;        // ＣＧ名 (+0x124)
+	char *over_bar_name;  // 覆蓋バーＣＧ名 (+0x16c)
+	char *over_bg_name;   // 覆蓋背景ＣＧ名 (+0x184)
+	bool dirty;           // the names changed: the pictures are loaded again
+	Texture bar[3];       // the knob's ／普通, ／オン, ／ダウン
+	Texture bg;           // the track
+	int bar_cg_length;    // the knob's CG along the bar; -1 without one
+	bool dragging;        // between the press on the knob or the track and its release
+	int drag_cursor;      // +0xb8: the cursor along the bar at the press
+	float drag_rate;      // +0xc0: the rate after the press
+	bool hovered;         // the cursor is on the knob
+};
 
 // v14 檢查ボックス (component type 1): the widget's properties, as the
 // original keeps them from +0xe4 (constructor 0x529620, pactex 0x52bd70).
@@ -711,6 +739,7 @@ struct parts {
 	int pactex_canvas_w, pactex_canvas_h;
 	struct parts_panel panel;
 	struct parts_scrollbar scrollbar;
+	struct parts_scrollbar_look *scrollbar_look;
 	// v14: what a 檢查ボックス and a ラジオ按鈕ボックス keep (checkbox.c); NULL
 	// until the parts is one and is first used as one.
 	struct parts_checkbox *checkbox;
@@ -881,6 +910,20 @@ int parts_scrollbar_view(struct parts *parts);
 void parts_scrollbar_update(void);
 void parts_scrollbar_construct(struct parts *parts);
 void parts_scrollbar_loaded(struct parts *parts);
+void parts_scrollbar_set_names(struct parts *parts, const char *cg_name,
+		const char *over_bar_name, const char *over_bg_name);
+void parts_scrollbar_look_free(struct parts *parts);
+enum parts_scrollbar_hit {
+	PARTS_SCROLLBAR_MISS,
+	PARTS_SCROLLBAR_BAR,
+	PARTS_SCROLLBAR_TRACK,
+};
+bool parts_scrollbar_has_look(struct parts *parts);
+enum parts_scrollbar_hit parts_scrollbar_hittest(struct parts *parts, Point pos);
+void parts_scrollbar_input(Point pos, bool down, bool was_down, struct parts *target);
+void parts_scrollbar_reset_input(void);
+Texture *parts_scrollbar_render_textures(struct parts *parts, Texture **bar, Point *bg_pos,
+		Point *bar_pos);
 
 // checkbox.c
 struct parts_checkbox *parts_get_checkbox(struct parts *parts);

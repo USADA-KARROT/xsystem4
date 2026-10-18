@@ -233,6 +233,15 @@ static struct parts *v14_input_target(Point pos)
 {
 	struct parts *parts;
 	PARTS_LIST_FOREACH_REVERSE(parts) {
+		// A scroll bar stands for its knob and its track, the original's
+		// inner parts, which the bar's own flags do not decide alone: the
+		// track can always be clicked (scrollbar.c).
+		if (parts_scrollbar_has_look(parts)) {
+			if (parts_takes_input(parts)
+					&& parts_scrollbar_hittest(parts, pos) != PARTS_SCROLLBAR_MISS)
+				return parts;
+			continue;
+		}
 		if (!parts->clickable && parts->pass_cursor)
 			continue;
 		if (!parts_takes_input(parts))
@@ -555,8 +564,13 @@ void PE_UpdateInputState(int passed_time)
 		}
 	}
 
-	if (ain->version >= 14)
+	if (ain->version >= 14) {
+		// The knob of a scroll bar moves in the input update, before
+		// the widgets' update that reports it (parts_scrollbar_update).
+		if (parts_began_click)
+			parts_scrollbar_input(cur_pos, cur_clicking, prev_clicking, v14_target);
 		v14_update_buttons(cur_pos, cur_clicking, v14_target);
+	}
 
 	// Release handling
 	if (prev_clicking && !cur_clicking) {
@@ -673,6 +687,7 @@ static void v14_reset_input_session(bool begin)
 	v14_press_parts = 0;
 	v14_active_parts = 0;
 	drag_state_reset();
+	parts_scrollbar_reset_input();
 	parts_prev_pos = (Point){0};
 	// The left button held here is up at a later update: that release sends
 	// the whole-screen click, as the original's sampled buttons make it
