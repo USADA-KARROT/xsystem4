@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-18）：已推送程式 `b31bc51`，走到開場動畫不再當機：`movie_load()` 接受只有音訊的檔（APEG目前只抽出音訊），預讀卻去讀NULL的影像佇列；改為沒有影像佇列時以0計。修前新探針`movie-audio-only` 5/7失敗；提交前後預設／GBK各102模式PASS、san0。片頭實機（提交前的執行檔，與提交後只差版本字串等，已逐位元組比對）黑畫面約102秒後接到第3天；原版同一條路片頭有影像。三條例行路線提交後對白不變；`fightr`點擊目標的差異根因仍未確認。libsys4固定247f544。**
+**最新狀態（2026-10-18，晚）：已推送程式 `4f2c7cd`，開場動畫有畫面：新增 `src/apeg.c`，依原版（0x4484f0..0x45e170）的整數運算解 APEG 的 I／P／B 影格，照原版著色器轉色，依音訊時鐘挑格（不退格）畫到 PartsEngine 的影片元件。全片 3078 格與獨立參考解碼器逐位元相同；參考解碼器對原版 44 張截圖只差 681 個 GPU 平手點像素。修前新探針 `apeg-video` 15/15 失敗；提交前後預設／GBK 各103模式PASS、san0；三條例行路線對白不變；片頭重播 50 張畫面逐像素相同並接到第3天。libsys4固定247f544。**
 
-[本次研究與驗證](research/movie-audio-only/README.md) · [前一輪堆積與版本界線](research/heap-version-boundary/README.md) · [三處堆積修正](research/v13-heap/README.md) · [舊版稽核](research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步依序為APEG影像解碼與繪製、第二場戰鬥技能欄位置、試玩操作筆記及存讀檔檢查點。片頭聲音沒有錄音或聽測；沒有片頭前可讀的存檔。其他缺口見 [HANDOFF](HANDOFF.md) 最上節。
+[本次研究與驗證](research/apeg-video/README.md) · [前一步：純音訊止崩](research/movie-audio-only/README.md) · [堆積與版本界線](research/heap-version-boundary/README.md) · [舊版稽核](research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 片頭聲音沒有聽測、音量群組未接、沒有音軌的 APEG 打不開。試玩已到第 4 天。下一步見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 

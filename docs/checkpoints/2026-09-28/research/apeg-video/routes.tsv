@@ -1,0 +1,6 @@
+phase	route	seconds	exit	stop	MSG	baseline_MSG	dialogue_comparison	clicks	target_diffs_vs_baseline	errors	movie_loads	binary_sha256
+post-commit	normal150	150.285	0	duration	88	88	equal	0	0	0	0	6257f1336b7fd3ce31bbb0bb957072b63dd2016f052ae254806231d0613bc428
+post-commit	haruuri	182.389	0	duration	629	629	equal	15	0	0	0	6257f1336b7fd3ce31bbb0bb957072b63dd2016f052ae254806231d0613bc428
+post-commit	fightr	350.301	0	duration	681	681	equal	171	63	0	0	6257f1336b7fd3ce31bbb0bb957072b63dd2016f052ae254806231d0613bc428
+implementation (before review fixes)	movie replay	760.252	0	duration	451	451	equal	49 auto		0	1	eb0d7e49d6bdee67…
+post-commit	movie replay	760.389	0	duration	451	451	equal	49 auto		0	1	6257f1336b7fd3ce31bbb0bb957072b63dd2016f052ae254806231d0613bc428

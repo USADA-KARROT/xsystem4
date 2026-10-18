@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-10-18）：已推送程式為 `b31bc51`。修好走到開場動畫時的當機：影片只抽出音訊時，預讀封包去讀不存在的影像佇列。現在片頭以黑畫面播完，劇情接到第 3 天；APEG 影像仍未解碼，聲音未聽測。修前新探針 5/7 失敗；提交前後預設／GBK 各102模式PASS，三條例行路線對白不變。libsys4維持247f544。**
-> [本次片頭止崩](docs/checkpoints/2026-09-28/research/movie-audio-only/README.md) · [前一輪堆積與版本界線](docs/checkpoints/2026-09-28/research/heap-version-boundary/README.md) · [三處堆積修正](docs/checkpoints/2026-09-28/research/v13-heap/README.md) · [舊版稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 下一步是APEG影像解碼與繪製、第二場戰鬥技能欄的位置，再準備兩款遊戲的操作筆記與存讀檔檢查點。v11–v13真遊戲、各場景中途存讀檔、右／中鍵、設定與回顧把手、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> **最新狀態（2026-10-18，晚）：已推送程式為 `4f2c7cd`。開場動畫有畫面了：自己寫的 APEG 解碼器照原版的整數運算解 I／P／B 影格，依音訊時鐘挑格畫到元件上。全片 3078 格和獨立的參考解碼器逐位元相同，參考解碼器和原版截圖只差 GPU 取整的平手點；實機重播時片頭 50 張畫面逐像素相同、時間對得上，劇情接到第 3 天。修前新探針 15/15 失敗；提交前後預設／GBK 各103模式PASS。片頭聲音仍未聽測、音量群組未接。libsys4維持247f544。**
+> [本次 APEG 影像解碼](docs/checkpoints/2026-09-28/research/apeg-video/README.md) · [前一步：純音訊止崩](docs/checkpoints/2026-09-28/research/movie-audio-only/README.md) · [堆積與版本界線](docs/checkpoints/2026-09-28/research/heap-version-boundary/README.md) · [舊版稽核](docs/checkpoints/2026-09-28/research/v13-audit/README.md)。**仍不能當作完整遊戲使用。** 試玩已從片頭後玩到第 4 天（錯誤 0）。下一步是設定畫面的橫桿把手、第二場戰鬥技能欄的位置、遊戲有呼叫但未實作的函式（元件 3D 旋轉等），並繼續試玩。v11–v13真遊戲、右／中鍵、回顧捲軸、音訊聽測及長時穩定仍未完成；詳見[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

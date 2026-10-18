@@ -1,0 +1,63 @@
+capture	seconds_from_first_capture	matched_picture_ms	picture_type	differing_pixels	note
+t295	0.0				not a movie picture
+t296	2.0				not a movie picture
+t297	4.019				not a movie picture
+t298	5.995				not a movie picture
+t299					all black (movie start or end)
+t300	10.039	1933	B	0	
+t301	12.051	3900	P	0	
+t302	13.903	5900	B	0	
+t303	15.94	7900	P	0	
+t304	17.91	9900	B	0	
+t305	19.903	11900	B	0	
+t306	21.882	13900	B	0	
+t307	23.963	15900	B	0	
+t308	25.89	17900	B	0	
+t309	27.924	19900	B	0	
+t310	29.914	21900	P	0	
+t311	31.903	23900	B	0	thumbnail match picked the neighbour 23866; compared in full against 23900
+t312	34.053	25900	B	0	
+t313	35.981	27900	B	0	
+t314	37.917	29900	P	0	
+t315	39.972	31900	P	0	
+t316	42.049	33900	B	0	
+t317	44.055	35900	B	0	
+t318	45.976	37900	P	0	
+t319	48.045	39900	B	0	
+t320	50.049	41900	B	0	
+t321	52.025	43900	B	0	
+t322	54.031	45900	B	0	
+t323	55.971	47900	I	0	
+t324	58.021	49900	P	0	
+t325	60.034	51900	P	0	
+t326	62.095	53900	B	0	
+t327	64.009	55900	B	0	
+t328	65.933	57900	B	0	
+t329	68.059	59900	B	0	
+t330	69.997	61900	I	0	
+t331	71.924	63900	B	0	
+t332	73.979	65900	P	0	
+t333	76.08	67900	B	0	
+t334	78.085	69900	B	0	
+t335	80.007	71900	B	0	
+t336	82.009	73900	B	0	
+t337	84.035	75900	B	0	
+t338	86.028	77900	P	0	
+t339	88.023	79900	P	0	
+t340	90.042	81900	P	0	
+t341	92.101	83900	B	0	
+t342	93.965	85900	P	0	
+t343	96.04	87933	P	0	
+t344	98.021	89900	B	0	
+t345	100.006	91900	B	0	
+t346	102.064	93900	B	0	
+t347	103.999	95900	B	0	
+t348	106.011	97900	P	0	
+t349	107.962	99900	B	0	
+t350					all black (movie start or end)
+t351	111.982				not a movie picture
+t352	113.972				not a movie picture
+t353	115.895				not a movie picture
+t354	118.058				not a movie picture
+t355	120.015				not a movie picture
+t356	121.895				not a movie picture
