@@ -16,19 +16,33 @@
 
 uniform mat4 world_transform;
 uniform mat4 view_transform;
+// The camera on screen pixels (parts_perspective), or the identity.
+uniform mat4 persp_transform;
+uniform int use_persp;
 uniform mat4 inv_clipper_transform;
 uniform mat4 inv_clip_area_transform;
 
 in vec4 vertex_pos;
 in vec2 vertex_uv;
 out vec2 tex_coord;
-out vec2 clip_coord;
-out vec2 clip_area_coord;
+// The clipper and clip area are rectangles on the screen: with the camera,
+// their coordinates come from the projected point and carry w, so that the
+// fragment shader gets them interpolated linearly on the screen.
+out vec3 clip_coord;
+out vec3 clip_area_coord;
 
 void main() {
 	vec4 world_pos = world_transform * vertex_pos;
-	gl_Position = view_transform * world_pos;
 	tex_coord = vertex_uv;
-	clip_coord = (inv_clipper_transform * world_pos).xy;
-	clip_area_coord = (inv_clip_area_transform * world_pos).xy;
+	if (use_persp != 0) {
+		vec4 screen_pos = persp_transform * world_pos;
+		gl_Position = view_transform * screen_pos;
+		vec4 flat_pos = vec4(screen_pos.xy / screen_pos.w, 0.0, 1.0);
+		clip_coord = vec3((inv_clipper_transform * flat_pos).xy * screen_pos.w, screen_pos.w);
+		clip_area_coord = vec3((inv_clip_area_transform * flat_pos).xy * screen_pos.w, screen_pos.w);
+	} else {
+		gl_Position = view_transform * world_pos;
+		clip_coord = vec3((inv_clipper_transform * world_pos).xy, 1.0);
+		clip_area_coord = vec3((inv_clip_area_transform * world_pos).xy, 1.0);
+	}
 }

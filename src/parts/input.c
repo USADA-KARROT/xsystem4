@@ -15,6 +15,7 @@
  */
 
 #include <math.h>
+#include <cglm/cglm.h>
 
 #include "system4.h"
 
@@ -99,6 +100,34 @@ bool parts_screen_to_box(struct parts *parts, struct parts_common *c, float sx, 
 	}
 	mat4 m;
 	parts_box_transform(parts, c, m);
+	if (!parts_matrix_is_flat(m)) {
+		// With depth (an X or Y rotation along the chain) the box reaches
+		// the screen through the camera (parts_perspective): the plane of
+		// the box maps to the screen by the homography H made of the
+		// columns x, y and w of persp * m, and a screen point goes back by
+		// its inverse.
+		mat4 persp, f;
+		parts_perspective(persp);
+		glm_mat4_mul(persp, m, f);
+		mat3 h = {
+			{ f[0][0], f[0][1], f[0][3] },
+			{ f[1][0], f[1][1], f[1][3] },
+			{ f[3][0], f[3][1], f[3][3] },
+		};
+		if (!isfinite(glm_mat3_det(h)) || glm_mat3_det(h) == 0.0f)
+			return false;
+		mat3 inv;
+		glm_mat3_inv(h, inv);
+		vec3 q;
+		glm_mat3_mulv(inv, (vec3){ sx, sy, 1.0f }, q);
+		// q is (u, v, 1) / w: a point behind the eye (w <= 0) is none of
+		// the box's.
+		if (!isfinite(q[2]) || !(q[2] > 0.0f))
+			return false;
+		*bx = q[0] / q[2];
+		*by = q[1] / q[2];
+		return true;
+	}
 	// The 2D affine part: screen = (a c; b d) * box + (tx, ty).
 	float a = m[0][0], b = m[0][1], cc = m[1][0], d = m[1][1];
 	float det = a * d - b * cc;
@@ -111,6 +140,67 @@ bool parts_screen_to_box(struct parts *parts, struct parts_common *c, float sx, 
 	return true;
 }
 
+/*
+ * The original's point-in-triangle test (0x57aa60): the point is on the
+ * centroid's side of each edge, or on the edge. Three equal points hold
+ * nothing; three points on one line hold every point (each side value of
+ * the centroid is 0).
+ */
+static bool parts_point_in_triangle(const float p1[2], const float p2[2], const float p3[2],
+		float mx, float my)
+{
+	if (p1[0] == p2[0] && p1[1] == p2[1] && p1[0] == p3[0] && p1[1] == p3[1])
+		return false;
+	float gx = (p2[0] + p1[0] + p3[0]) * (1.0f / 3.0f);
+	float gy = (p2[1] + p1[1] + p3[1]) * (1.0f / 3.0f);
+	float e = p1[1] - p2[1];
+	if (((p1[0] - gx) * e + (gy - p1[1]) * (p1[0] - p2[0]))
+			* ((p1[0] - mx) * e + (my - p1[1]) * (p1[0] - p2[0])) < 0.0f)
+		return false;
+	e = p2[1] - p3[1];
+	if (((gy - p2[1]) * (p2[0] - p3[0]) + (p2[0] - gx) * e)
+			* ((my - p2[1]) * (p2[0] - p3[0]) + (p2[0] - mx) * e) < 0.0f)
+		return false;
+	e = p3[1] - p1[1];
+	return ((gy - p3[1]) * (p3[0] - p1[0]) + (p3[0] - gx) * e)
+		* ((my - p3[1]) * (p3[0] - p1[0]) + (p3[0] - mx) * e) >= 0.0f;
+}
+
+/*
+ * The rectangle hit test of a box with depth (an X or Y rotation along the
+ * chain): the four corners of the box through its matrix and the camera
+ * used for drawing, and the point in the triangle of the first three
+ * corners or in the one of the last three (top-left, top-right,
+ * bottom-left; bottom-left, top-right, bottom-right), with the triangle
+ * test of 0x57aa60. This is the port's choice for every kind of parts. The
+ * original differs by kind: text (21) and hit-rectangle (25) parts go
+ * through 0x57a6b0 -> 0x5c3910, which projects without the drawing's
+ * centre shift, so their vanishing point is pixel (0,0); CG parts (19)
+ * take the bounding rectangle of the stored drawn corners (0x59c460 ->
+ * 0x5b11d0 -> 0x5b13d0). The game has no clickable parts that turn, so
+ * the difference was not seen. Boxes without depth keep the upright box at
+ * the anchor (parts_screen_hitbox).
+ */
+static bool parts_projected_box_hit(struct parts *parts, struct parts_common *c, mat4 m, Point pos)
+{
+	if (c->w <= 0 || c->h <= 0)
+		return false;
+	// The box of the hit rectangle in the box frame of parts_box_transform
+	// (the rectangle may be set apart from the texture's size).
+	float x0 = c->hitbox.x - parts->local.pos.x - c->origin_offset.x;
+	float y0 = c->hitbox.y - parts->local.pos.y - c->origin_offset.y;
+	float x1 = x0 + c->hitbox.w, y1 = y0 + c->hitbox.h;
+	const float corner_box[4][2] = { { x0, y0 }, { x1, y0 }, { x0, y1 }, { x1, y1 } };
+	float corner[4][2];
+	for (int i = 0; i < 4; i++) {
+		vec4 p;
+		glm_mat4_mulv(m, (vec4){ corner_box[i][0], corner_box[i][1], 0.0f, 1.0f }, p);
+		parts_project_point(p, &corner[i][0], &corner[i][1]);
+	}
+	return parts_point_in_triangle(corner[0], corner[1], corner[2], pos.x, pos.y)
+		|| parts_point_in_triangle(corner[2], corner[1], corner[3], pos.x, pos.y);
+}
+
 static bool parts_hittest(struct parts *parts, int state, Point pos)
 {
 	// v14: a layout box is never under the cursor (its widget's hit test,
@@ -119,9 +209,18 @@ static bool parts_hittest(struct parts *parts, int state, Point pos)
 	if (ain->version >= 14 && parts->states[0].type == PARTS_LAYOUT_BOX)
 		return false;
 	struct parts_common *c = &parts->states[state].common;
+	bool use_pixels = parts->pixel_hittest && c->texture.handle && c->texture.w > 0
+		&& c->texture.h > 0 && c->w > 0 && c->h > 0;
+	if (ain->version >= 14) {
+		mat4 m;
+		parts_box_transform(parts, c, m);
+		if (!parts_matrix_is_flat(m) && !parts_projected_box_hit(parts, c, m, pos))
+			return false;
+		if (!parts_matrix_is_flat(m) && !use_pixels)
+			return true;
+	}
 	Rectangle hitbox = parts_screen_hitbox(parts, c);
-	if (!parts->pixel_hittest || !c->texture.handle || c->texture.w <= 0
-			|| c->texture.h <= 0 || c->w <= 0 || c->h <= 0)
+	if (!use_pixels)
 		return SDL_PointInRect(&pos, &hitbox);
 
 	// Use the full image origin: surface_area clips pixels rather than

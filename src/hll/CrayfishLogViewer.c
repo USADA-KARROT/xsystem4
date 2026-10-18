@@ -50,8 +50,17 @@ static bool CrayfishLogViewer_AddText(struct string *text)
 }
 
 HLL_QUIET_UNIMPLEMENTED(true, bool, CrayfishLogViewer, ClearText);
-HLL_WARN_UNIMPLEMENTED( , void, CrayfishLogViewer, SetSaveFolderName,
-			possibly_unused struct string *save_folder_name);
+
+/*
+ * The original (0x6d8b65) keeps the name in the viewer object (+0x44);
+ * OpenViewer (0x6d8e10) hands it to the debug log window it creates
+ * (0x6d9900), which reads and writes its window position in a file in that
+ * folder (0x6da900 / 0x6da720). Nothing else reads it. This viewer has no
+ * window (AddText goes to the log), so the folder has no use here.
+ */
+static void CrayfishLogViewer_SetSaveFolderName(possibly_unused struct string *save_folder_name)
+{
+}
 
 HLL_LIBRARY(CrayfishLogViewer,
 	    HLL_EXPORT(OpenViewer, CrayfishLogViewer_OpenViewer),

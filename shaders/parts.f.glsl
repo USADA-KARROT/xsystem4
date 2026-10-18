@@ -28,10 +28,12 @@ uniform int add_after_multiply;
 uniform int use_clipper;
 uniform int use_clip_area;
 uniform sampler2D clipper_tex;
+uniform int use_persp;
 
 in vec2 tex_coord;
-in vec2 clip_coord;
-in vec2 clip_area_coord;
+// xy, and w when the camera is used (see parts.v.glsl)
+in vec3 clip_coord;
+in vec3 clip_area_coord;
 out vec4 frag_color;
 
 const int DRAW_FILTER_MULTIPLY = 2;
@@ -42,7 +44,9 @@ bool inside_rect(vec2 p, vec2 bl, vec2 tr) {
 }
 
 void main() {
-	if (use_clip_area != 0 && !inside_rect(clip_area_coord, vec2(0.0), vec2(1.0)))
+	vec2 clip_xy = use_persp != 0 ? clip_coord.xy / clip_coord.z : clip_coord.xy;
+	vec2 clip_area_xy = use_persp != 0 ? clip_area_coord.xy / clip_area_coord.z : clip_area_coord.xy;
+	if (use_clip_area != 0 && !inside_rect(clip_area_xy, vec2(0.0), vec2(1.0)))
 		discard;
 	vec2 size = vec2(textureSize(tex, 0));
 	if (!inside_rect(tex_coord, bot_left / size, top_right / size))
@@ -57,9 +61,9 @@ void main() {
 	float alpha = tex_color.a * blend_rate;
 
 	if (use_clipper != 0) {
-		if (!inside_rect(clip_coord, vec2(0.0), vec2(1.0)))
+		if (!inside_rect(clip_xy, vec2(0.0), vec2(1.0)))
 			discard;
-		alpha *= texture(clipper_tex, clip_coord).a;
+		alpha *= texture(clipper_tex, clip_xy).a;
 	}
 
 	if (draw_filter == DRAW_FILTER_MULTIPLY) {

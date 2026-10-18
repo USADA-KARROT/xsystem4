@@ -637,8 +637,9 @@ struct parts_params {
 	// global only: the accumulated transform of the parts' anchor frame, as
 	// the original keeps one per parts (+0x250, written by 0x535260 ->
 	// 0x579bb0 -> 0x4e6d80): the parent's matrix, then this level's
-	// T(pos) * Rz * S(scale) * S(reverse) (column vectors; the original's
-	// row-vector product is S(reverse) * S(scale) * R * T(pos) * parent).
+	// T(pos) * Rz * Rx * Ry * S(scale) * S(reverse) (column vectors; the
+	// original's row-vector product is S(reverse) * S(scale) * Ry * Rx * Rz
+	// * T(pos) * parent).
 	// `pos` is the matrix applied to the origin. Not saved: rebuilt from
 	// the local parameters along the parent chain.
 	mat4 matrix;
@@ -848,6 +849,11 @@ void parts_set_reverse(struct parts *parts, bool lr, bool tb);
 void parts_set_sub_color_mode(struct parts *parts, bool enable);
 Point parts_placed_pos(const struct parts *parts);
 void parts_parent_transform(struct parts *parts, mat4 out);
+void parts_rotate_xy(mat4 m, const struct parts_params *local);
+bool parts_matrix_is_flat(mat4 m);
+void parts_perspective(mat4 out);
+bool parts_box_faces_away(mat4 m);
+void parts_project_point(vec4 p, float *sx, float *sy);
 void parts_load_transform(struct parts *parts);
 Rectangle parts_screen_hitbox(struct parts *parts, struct parts_common *common);
 Point parts_screen_upper_left(struct parts *parts, struct parts_common *common);

@@ -48,6 +48,8 @@ static struct {
 	GLint inv_clipper_transform;
 	GLint use_clip_area;
 	GLint inv_clip_area_transform;
+	GLint persp_transform;
+	GLint use_persp;
 } parts_shader;
 
 static void set_draw_filter_blend_func(int draw_filter)
@@ -76,7 +78,9 @@ static void parts_reverse_scale(mat4 m, bool lr, bool tb)
 /*
  * The transform around a parts' anchor:
  *
- *   parent's matrix * T(placed pos) * Rz(angle) * S(own scale) * own reverse
+ *   parent's matrix * T(placed pos) * Rz(angle) * Rx * Ry * S(own scale) * own reverse
+ *
+ * (Rx and Ry: the parts' own X and Y rotations, parts_rotate_xy.)
  *
  * The original builds each level as S(reverse) * T(-origin) * S(scale) * R *
  * T(pos) (0x4e6d80, row vectors; 0x5c3ae0 builds S * Ry * Rx * Rz and
@@ -118,9 +122,11 @@ void parts_anchor_transform(struct parts *parts, float angle, bool rotate_scale,
 	Point pos = parts_placed_pos(parts);
 	glm_translate(out, (vec3) { pos.x, pos.y, 0 });
 	if (rotate_scale) {
-		// FIXME: need perspective for 3D rotate
 		if (angle != 0.0f)
 			glm_rotate_z(out, angle, out);
+		// The X and Y rotations follow the Z one (parts_rotate_xy); the
+		// depth they give is projected when drawn (parts_render_texture).
+		parts_rotate_xy(out, &parts->local);
 		glm_scale(out, (vec3){ parts->local.scale.x, parts->local.scale.y, 1.0 });
 	}
 	parts_reverse_scale(out, parts->local.reverse_lr, parts->local.reverse_tb);
@@ -221,6 +227,13 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 	int clip_area = parts_clip_area_transform(parts, clip_area_inverse);
 	if (clip_area < 0)
 		return;
+	// v14: a box with depth (an X or Y rotation along the chain) goes
+	// through the original's camera (parts_perspective), and its back is
+	// not drawn (parts_box_faces_away); without depth the projection would
+	// change nothing and is left out.
+	bool use_persp = ain->version >= 14 && !parts_matrix_is_flat(mw_transform);
+	if (use_persp && parts_box_faces_away(mw_transform))
+		return;
 	mat4 wv_transform = WV_TRANSFORM(config.view_width, config.view_height);
 
 	struct gfx_render_job job = {
@@ -233,6 +246,11 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 	};
 
 	gfx_prepare_job(&job);
+	mat4 persp = GLM_MAT4_IDENTITY_INIT;
+	if (use_persp)
+		parts_perspective(persp);
+	glUniformMatrix4fv(parts_shader.persp_transform, 1, GL_FALSE, persp[0]);
+	glUniform1i(parts_shader.use_persp, use_persp);
 	glUniform1f(parts_shader.blend_rate, blend_rate);
 	glUniform2f(parts_shader.bot_left, rect->x, rect->y);
 	glUniform2f(parts_shader.top_right, rect->x + rect->w, rect->y + rect->h);
@@ -1008,4 +1026,6 @@ void parts_render_init(void)
 	parts_shader.inv_clipper_transform = glGetUniformLocation(parts_shader.shader.program, "inv_clipper_transform");
 	parts_shader.use_clip_area = glGetUniformLocation(parts_shader.shader.program, "use_clip_area");
 	parts_shader.inv_clip_area_transform = glGetUniformLocation(parts_shader.shader.program, "inv_clip_area_transform");
+	parts_shader.persp_transform = glGetUniformLocation(parts_shader.shader.program, "persp_transform");
+	parts_shader.use_persp = glGetUniformLocation(parts_shader.shader.program, "use_persp");
 }

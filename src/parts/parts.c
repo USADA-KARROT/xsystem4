@@ -540,8 +540,10 @@ Point parts_placed_pos(const struct parts *parts)
  *   S(reverse) * T(-pivot) * S(scale) * R * T(pos) * parent
  *
  * (0x5c3ae0 makes S * Ry * Rx * Rz and writes the translation last; the
- * pivot +0xa0/+0xa4 has no setter and is 0.) In column-vector form, with
- * the Z rotation only: parent * T(pos) * Rz * S(scale) * S(reverse). A
+ * pivot +0xa0/+0xa4 has no setter and is 0.) In column-vector form:
+ * parent * T(pos) * Rz * Rx * Ry * S(scale) * S(reverse) (parts_rotate_xy
+ * for the X and Y rotations, which give the matrix a depth that the
+ * drawing and the hit test project, parts_perspective). A
  * parts' anchor is the matrix applied to the origin, so a child follows its
  * parent's rotation, scale and flips: the fill bar and number under a
  * battle GaugeBase rotated 315 degrees lie along it, and a MapNodeView name
@@ -565,10 +567,133 @@ static void parts_level_transform(const struct parts_params *parent,
 	glm_translate(out, (vec3){ pos.x, pos.y, 0 });
 	if (local->rotation.z != 0.0f)
 		glm_rotate_z(out, glm_rad(local->rotation.z), out);
+	parts_rotate_xy(out, local);
 	if (local->scale.x != 1.0f || local->scale.y != 1.0f)
 		glm_scale(out, (vec3){ local->scale.x, local->scale.y, 1.0f });
 	if (local->reverse_lr || local->reverse_tb)
 		glm_scale(out, (vec3){ local->reverse_lr ? -1.0f : 1.0f, local->reverse_tb ? -1.0f : 1.0f, 1.0f });
+}
+
+/*
+ * v14 SetComponentRotateX / SetComponentRotateY (degrees, stored as they
+ * are at +0xe0 / +0xe4 of the native parts by 0x58d7a0 / 0x58d840 and read
+ * back by 0x58d980 / 0x58da20). The per-frame update passes them with the Z
+ * angle (+0xe8) to 0x579bb0 -> 0x4e6d80 -> 0x5c3ae0, which multiplies the
+ * scale by Ry, then Rx, then Rz (D3DX row-vector matrices 0x5c3e70,
+ * 0x5c3de0, 0x5c3d60; each angle is the degrees times -pi/180, 0x81338c)
+ * in a view space whose y points up (0x5c3ae0 and 0x5c3910 negate the y of
+ * a pixel position). In screen pixels, y down and z away from the viewer,
+ * that is Rz(z) * Rx(x) * Ry(y) in column vectors with
+ *   Rx(x): y' = y cos x - z sin x, z' = y sin x + z cos x
+ *   Ry(y): x' = x cos y - z sin y, z' = x sin y + z cos y
+ * (the Z rotation keeps the sense it has here). A positive X angle turns the
+ * lower edge away from the viewer, a positive Y angle the right edge.
+ */
+void parts_rotate_xy(mat4 m, const struct parts_params *local)
+{
+	if (local->rotation.x != 0.0f)
+		glm_rotate_x(m, glm_rad(local->rotation.x), m);
+	if (local->rotation.y != 0.0f)
+		glm_rotate_y(m, -glm_rad(local->rotation.y), m);
+}
+
+/* Whether the matrix keeps every point of the z = 0 plane at depth 0 (no X
+ * or Y rotation along the chain): then the projection changes nothing. */
+bool parts_matrix_is_flat(mat4 m)
+{
+	return m[0][2] == 0.0f && m[1][2] == 0.0f && m[3][2] == 0.0f;
+}
+
+/*
+ * The original draws and hit-tests the parts through a perspective camera
+ * (0x579970 -> 0x5b93f0, made with the screen size and 30.0; 0x5b9130 builds
+ * the projection: cot(15 degrees) on x, the same scale per pixel on y, depth
+ * 1.5 z - 15 over w = z, so near 10 and far 30 in view units). A parts is
+ * placed on the plane at 20 (0x5b93f0 stores 20, 0x5c3910 adds it to the
+ * transformed depth), where a view unit is (view width / 2) / (20 tan 15)
+ * pixels. The drawing projects around the centre of the default view:
+ * 0x5aac60 hands 0x57aea0 a shift s of half the default view size (set by
+ * 0x4e6c30 from SystemService.GetDefaultViewWidth/Height times 0.5), which
+ * moves the point by -s before the projection and back by s after it.
+ * (The original's hit test, 0x57a6b0 -> 0x5c3910, has no such shift; see
+ * parts_projected_box_hit.) In screen pixels, with D = (view width / 2) /
+ * tan(15 degrees), a point at depth z is drawn at
+ *   centre + (p - centre) * D / (D + z)
+ * and the planes z = -D / 2 and z = D / 2 clip it. out is that projection
+ * as a matrix on screen pixels: x and y over w = 1 + z / D, and a depth
+ * that, after the view transform's z - 1, maps the near plane to -1 and the
+ * far one to 1. A point at depth 0 is unchanged.
+ */
+void parts_perspective(mat4 out)
+{
+	const float cx = config.view_width / 2.0f, cy = config.view_height / 2.0f;
+	const float d = (config.view_width / 2.0f) / tanf(15.0f * (float)M_PI / 180.0f);
+	glm_mat4_identity(out);
+	out[2][0] = cx / d;
+	out[2][1] = cy / d;
+	out[2][2] = 3.0f / d;
+	out[3][2] = 1.5f;
+	out[2][3] = 1.0f / d;
+	out[3][3] = 1.0f;
+}
+
+/*
+ * Whether a box with depth shows its back to the camera. As far as it was
+ * read, the original sets no cull mode for the parts' quads (0x46a460 ->
+ * the renderer's 0xb8 sets only the blend state), and the renderer's
+ * default, mode 2, binds no rasterizer state, so the device culls back
+ * faces; only the batched quad drawing (0x5fb760 / 0x6a4080) turns culling
+ * off (mode 0) and back to mode 2 (0x6e3d40 binds the states 0x6e90e0
+ * made). The battle result's caption shows it: a child turned 180 degrees
+ * in Y under a parent that spins three turns is the back of a card, not
+ * seen at rest in the original (drawn over the front, mirrored, when it is
+ * not culled). How the original keeps a flipped parts (ReverseLR/TB,
+ * whose quad winds the other way) visible was not found; here the side is
+ * that of the box's own front, the normal (0, 0, -1) of the box frame
+ * through the inverse transpose of the matrix, against the eye at
+ * (centre, -D) (parts_perspective), so flips and negative scales do not
+ * change which side is seen. A degenerate matrix (a scale of 0) is not
+ * culled; it draws nothing anyway.
+ */
+bool parts_box_faces_away(mat4 m)
+{
+	mat3 a = {
+		{ m[0][0], m[0][1], m[0][2] },
+		{ m[1][0], m[1][1], m[1][2] },
+		{ m[2][0], m[2][1], m[2][2] },
+	};
+	float det = glm_mat3_det(a);
+	if (!isfinite(det) || det == 0.0f)
+		return false;
+	mat3 inv;
+	glm_mat3_inv(a, inv);
+	// (inv^T) * (0, 0, -1) is minus the third row of inv.
+	vec3 n = { -inv[0][2], -inv[1][2], -inv[2][2] };
+	const float d = (config.view_width / 2.0f) / tanf(15.0f * (float)M_PI / 180.0f);
+	// The centre of the unit box the quad is drawn from.
+	vec3 p = {
+		m[0][0] * 0.5f + m[1][0] * 0.5f + m[3][0],
+		m[0][1] * 0.5f + m[1][1] * 0.5f + m[3][1],
+		m[0][2] * 0.5f + m[1][2] * 0.5f + m[3][2],
+	};
+	vec3 to_eye = { config.view_width / 2.0f - p[0], config.view_height / 2.0f - p[1], -d - p[2] };
+	return glm_vec3_dot(n, to_eye) < 0.0f;
+}
+
+/* A point of the screen-pixel space through parts_perspective, divided by w
+ * unless w is 0, as 0x5c3910 does for the hit test's corners. */
+void parts_project_point(vec4 p, float *sx, float *sy)
+{
+	mat4 persp;
+	parts_perspective(persp);
+	vec4 q;
+	glm_mat4_mulv(persp, p, q);
+	if (q[3] != 0.0f) {
+		q[0] /= q[3];
+		q[1] /= q[3];
+	}
+	*sx = q[0];
+	*sy = q[1];
 }
 
 // The anchor: the transform applied to the origin, rounded to the pixel.
@@ -1027,6 +1152,10 @@ void parts_set_rotation_x(struct parts *parts, float rot)
 {
 	parts->local.rotation.x = rot;
 	parts_update_global_rotate_x(parts, parts->parent ? parts->parent->global.rotation.x : 0.0f);
+	// v14: the rotation is part of the matrix (parts_rotate_xy) and the
+	// children turn with it, as with the Z rotation.
+	if (ain->version >= 14)
+		parts_update_transform(parts);
 	parts_dirty(parts);
 }
 
@@ -1044,6 +1173,8 @@ void parts_set_rotation_y(struct parts *parts, float rot)
 {
 	parts->local.rotation.y = rot;
 	parts_update_global_rotate_y(parts, parts->parent ? parts->parent->global.rotation.y : 0.0f);
+	if (ain->version >= 14)
+		parts_update_transform(parts);
 	parts_dirty(parts);
 }
 
@@ -3040,16 +3171,30 @@ float PE_GetPartsMagY(int parts_no)
 	return parts_get(parts_no)->local.scale.y;
 }
 
+// v14 draws them (parts_rotate_xy); the engines before it store them only.
 void PE_SetPartsRotateX(int parts_no, float rot_x)
 {
-	UNIMPLEMENTED("(%d, %f)", parts_no, rot_x);
+	if (ain->version < 14)
+		UNIMPLEMENTED("(%d, %f)", parts_no, rot_x);
 	parts_set_rotation_x(parts_get(parts_no), rot_x);
 }
 
 void PE_SetPartsRotateY(int parts_no, float rot_y)
 {
-	UNIMPLEMENTED("(%d, %f)", parts_no, rot_y);
+	if (ain->version < 14)
+		UNIMPLEMENTED("(%d, %f)", parts_no, rot_y);
 	parts_set_rotation_y(parts_get(parts_no), rot_y);
+}
+
+// GetComponentRotateX / Y: the stored degrees (0x58d980 / 0x58da20).
+float PE_GetPartsRotateX(int parts_no)
+{
+	return parts_get(parts_no)->local.rotation.x;
+}
+
+float PE_GetPartsRotateY(int parts_no)
+{
+	return parts_get(parts_no)->local.rotation.y;
 }
 
 void PE_SetPartsRotateZ(int parts_no, float rot_z)

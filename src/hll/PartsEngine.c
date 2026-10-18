@@ -362,7 +362,21 @@ static int PartsEngine_PartsFunc(int func_id, struct page **array_int,
 #undef REQUIRE_INTS
 }
 
-HLL_WARN_UNIMPLEMENTED(, void, PartsEngine, StopSoundWithoutSystemSound);
+/*
+ * The original (0x57bdb6) stops KiwiSoundEngine's SE channel 2 (0x4998c0(2):
+ * every sound playing on that SE ID is stopped and released, 0x49a9b0 ->
+ * 0x4a01e0). The parts engine owns SE IDs 2 and 3 (its constructor sets
+ * both up, 0x5ba980; its destructor 0x53eef0 stops both): 2 carries the
+ * sounds of FLAT parts (0x5baa20 / 0x5bab20, from 0x523b70 / 0x51fa30;
+ * Parts_ChangeFlatSound goes there too), 3 the buttons' sounds (0x5bac00,
+ * from 0x5b7590), which keep playing. The scripts' own SEs use IDs from 5
+ * up (sound::detail::InitSystemSE). This engine plays no FLAT sound, so
+ * there is nothing on that channel to stop. Only the v14 executable was
+ * read; older engines' originals may stop other sounds (flash, for one).
+ */
+static void PartsEngine_StopSoundWithoutSystemSound(void)
+{
+}
 
 static void PartsEngine_PreLink(void);
 static void PartsEngine_PostLink(void);
@@ -608,8 +622,8 @@ HLL_LIBRARY(PartsEngine,
 	    HLL_EXPORT(SetComponentRotateX, PE_SetPartsRotateX),
 	    HLL_EXPORT(SetComponentRotateY, PE_SetPartsRotateY),
 	    HLL_EXPORT(SetComponentRotateZ, PE_SetPartsRotateZ),
-	    HLL_TODO_EXPORT(GetComponentRotateX, PartsEngine_GetComponentRotateX),
-	    HLL_TODO_EXPORT(GetComponentRotateY, PartsEngine_GetComponentRotateY),
+	    HLL_EXPORT(GetComponentRotateX, PE_GetPartsRotateX),
+	    HLL_EXPORT(GetComponentRotateY, PE_GetPartsRotateY),
 	    HLL_EXPORT(GetComponentRotateZ, PE_GetPartsRotateZ),
 	    HLL_EXPORT(SetComponentMargin, PE_SetComponentMargin),
 	    HLL_EXPORT(GetComponentMarginTop, PE_GetComponentMarginTop),
