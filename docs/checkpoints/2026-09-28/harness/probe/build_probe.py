@@ -18,6 +18,9 @@ if not any(c['file'].endswith('/movie_ffmpeg.c') for c in commands):
     raise SystemExit('movie-audio-only requires the real FFmpeg movie backend')
 from generate_movie_fixtures import generate as generate_movie_fixtures
 movie_fixture_dir=generate_movie_fixtures(here)
+# apeg-video: synthetic APEG movies, their sound is the movie fixtures' Vorbis.
+from generate_apeg_fixtures import generate as generate_apeg_fixtures
+apeg_fixture_dir=generate_apeg_fixtures(here,movie_fixture_dir/'long-stereo.ogg')
 def compile_as(original,newfile,out,extra=[]):
     entry=next(c for c in commands if c['file'].endswith('/'+original))
     args=shlex.split(entry['command']);clean=[];i=0
@@ -33,7 +36,7 @@ def compile_as(original,newfile,out,extra=[]):
     if run.returncode:raise SystemExit(run.stderr)
     return clean
 vmobj=here/('probe-'+a.variant+'.o');sysobj=here/('system-'+a.variant+'.o')
-compiled=[compile_as('vm.c',here/'runtime_probe.c',vmobj,['-DFFI_SOURCE="'+str(source/'src/ffi.c')+'"','-I'+str(source/'src/parts'),'-DXS4_MOVIE_FIXTURE_DIR='+json.dumps(str(movie_fixture_dir))]),compile_as('system4.c',source/'src/system4.c',sysobj,['-Dmain=xsystem4_original_main'])]
+compiled=[compile_as('vm.c',here/'runtime_probe.c',vmobj,['-DFFI_SOURCE="'+str(source/'src/ffi.c')+'"','-I'+str(source/'src/parts'),'-DXS4_MOVIE_FIXTURE_DIR='+json.dumps(str(movie_fixture_dir)),'-DXS4_APEG_FIXTURE_DIR='+json.dumps(str(apeg_fixture_dir))]),compile_as('system4.c',source/'src/system4.c',sysobj,['-Dmain=xsystem4_original_main'])]
 # Probe-only entry points expose existing static initialization/loader functions.
 # Never patch production behavior or initialize GL for synthetic empty text.
 parts_shadow = here/'probe-parts.c'
@@ -107,6 +110,9 @@ result={'variant':a.variant,'vm_sha256':hashlib.sha256((source/'src/vm.c').read_
 result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h',source/'src/parts/parts.c',source/'src/hll/pe_v14_activity.c',source/'src/parts/parts_internal.h',source/'src/text.c',source/'src/parts/text.c',source/'src/font_freetype.c',source/'src/hll/MainEXFile.c',source/'src/video.c']}
 result['source_sha256']['src/movie_ffmpeg.c']=hashlib.sha256((source/'src/movie_ffmpeg.c').read_bytes()).hexdigest()
 result['movie_fixture_manifest']={'path':str(movie_fixture_dir/'manifest.json'),'sha256':hashlib.sha256((movie_fixture_dir/'manifest.json').read_bytes()).hexdigest()}
+result['apeg_fixture_manifest']={'path':str(apeg_fixture_dir/'manifest.json'),'sha256':hashlib.sha256((apeg_fixture_dir/'manifest.json').read_bytes()).hexdigest()}
+for f in ['src/apeg.c','include/apeg.h']:
+    if (source/f).exists():result['source_sha256'][f]=hashlib.sha256((source/f).read_bytes()).hexdigest()
 result['fixture_sha256']={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in here.iterdir() if p.is_file() and p.suffix in ['.c','.inc','.py'] and p.name!='instrumented-vm.inc'}
 result['source_sha256']['include/vm.h']=hashlib.sha256((source/'include/vm.h').read_bytes()).hexdigest()
 (here/('build-'+a.variant+'.json')).write_text(json.dumps(result,indent=2)+'\n')

@@ -19,6 +19,7 @@
 
 struct movie_context;
 struct sact_sprite;
+struct texture;
 
 struct movie_context *movie_load(const char *filename);
 void movie_free(struct movie_context *mc);
@@ -28,5 +29,13 @@ bool movie_is_end(struct movie_context *mc);
 int movie_get_position(struct movie_context *mc);
 bool movie_set_volume(struct movie_context *mc, int volume /* 0-100 */);
 void movie_get_video_size(struct movie_context *mc, int *out_w, int *out_h);
+// The total length in ms (an APEG's header value); 0 when unknown.
+int movie_get_duration(struct movie_context *mc);
+// Makes the next movie_play start at msec. Only an APEG's audio track can
+// start elsewhere than 0; returns false (and plays from 0) otherwise.
+bool movie_seek(struct movie_context *mc, int msec);
+// After movie_play: puts the picture due at the current position into tex,
+// which has the video's size (a parts movie). Returns true when tex changed.
+bool movie_update_texture(struct movie_context *mc, struct texture *tex);
 
 #endif /* SYSTEM4_MOVIE_H */

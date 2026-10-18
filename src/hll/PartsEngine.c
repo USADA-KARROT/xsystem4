@@ -29,6 +29,7 @@
 #include "parts.h"
 #include "../parts/parts_internal.h"
 #include "movie.h"
+#include "apeg.h"
 #include "hll.h"
 #include "input.h"
 #include <SDL.h>
@@ -1002,6 +1003,8 @@ static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 	(void)mul_color_rate; (void)alpha_rate;
 	if (pe_v14_in_update) {
 		handle_events();
+		// Parts movies follow their clock here too (no VM callbacks).
+		PE_update_parts_movies();
 		PE_UpdateComponent(passed_time);
 		return;
 	}
@@ -1009,6 +1012,7 @@ static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 	handle_events();
 	sprite_call_plugins();
 	PE_UpdateMotionTime(passed_time, false);
+	PE_update_parts_movies();
 	PE_UpdateScaled(passed_time, scaled_passed_time, message_window_show);
 	frame_pacing_parts_updated();
 	if (!frame_pacing_update_view_presents()) {
@@ -1438,105 +1442,141 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 	}
 #undef V14_CP_INT
 }
-// Parts movie implementation (APEG audio playback via movie.h)
-#define PARTS_MOVIE_MAX 16
-static struct { int number; struct movie_context *mc; } parts_movies[PARTS_MOVIE_MAX];
+/* Parts movies: v14 CreatePartsMovie .. GetPartsMovieCurrentTime (HLL
+ * 0x59b090 .. 0x59b1c0, movie component 0x575870, player 0x449b30). The movie
+ * belongs to the parts state (parts_movie.mc), so PartsEngine.Release -- how
+ * the game's CDrawMovie disposes of it -- also stops it. pe_movies lists the
+ * states that have one for the per-frame update; an entry whose parts or movie
+ * has gone just drops out. */
+#define PE_MOVIES_MAX 16
+static struct { int parts_no, state; bool used; } pe_movies[PE_MOVIES_MAX];
 
-static struct movie_context **parts_movie_get(int number)
+static struct parts_movie *pe_movie(int parts_no, int state)
 {
-	for (int i = 0; i < PARTS_MOVIE_MAX; i++)
-		if (parts_movies[i].number == number)
-			return &parts_movies[i].mc;
-	return NULL;
+	if (!parts_state_valid(state))
+		return NULL;
+	struct parts *p = parts_try_get(parts_no);
+	if (!p || p->states[state].type != PARTS_MOVIE || !p->states[state].movie.mc)
+		return NULL;
+	return &p->states[state].movie;
 }
 
+static void pe_movies_add(int parts_no, int state)
+{
+	int slot = -1;
+	for (int i = 0; i < PE_MOVIES_MAX; i++) {
+		if (pe_movies[i].used && pe_movies[i].parts_no == parts_no && pe_movies[i].state == state)
+			return;
+		if (slot < 0 && (!pe_movies[i].used || !pe_movie(pe_movies[i].parts_no, pe_movies[i].state)))
+			slot = i;
+	}
+	if (slot < 0) {
+		WARNING("CreatePartsMovie: more than %d movies; parts %d is not drawn", PE_MOVIES_MAX, parts_no);
+		return;
+	}
+	pe_movies[slot].parts_no = parts_no;
+	pe_movies[slot].state = state;
+	pe_movies[slot].used = true;
+}
+
+/* Once per frame (UpdateComponent): every playing parts movie shows the
+ * picture due at its audio clock (the original picks it when drawing,
+ * 0x44a1b0). */
+void PE_update_parts_movies(void)
+{
+	for (int i = 0; i < PE_MOVIES_MAX; i++) {
+		if (!pe_movies[i].used)
+			continue;
+		struct parts_movie *m = pe_movie(pe_movies[i].parts_no, pe_movies[i].state);
+		if (!m) {
+			pe_movies[i].used = false;
+			continue;
+		}
+		if (movie_update_texture(m->mc, &m->common.texture))
+			parts_dirty(parts_try_get(pe_movies[i].parts_no));
+	}
+}
+
+/* Red, Green and Blue are the back colour's Y, Cb and Cr (the game's
+ * CDrawMovie@SetBackColor converts its RGB): the surface, of the movie's
+ * size, shows that colour through the movie shader until the first picture.
+ * SoundID and SoundGroup are not used: the sound plays on its own stream. */
 static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
 	possibly_unused int soundid, possibly_unused int soundgroup,
 	int red, int green, int blue, int state)
 {
-	// Free any existing context for this number.
-	struct movie_context **slot = parts_movie_get(number);
-	if (slot && *slot) {
-		movie_free(*slot);
-		*slot = NULL;
-	}
-	// Find a free slot.
-	if (!slot) {
-		for (int i = 0; i < PARTS_MOVIE_MAX; i++) {
-			if (!parts_movies[i].mc && parts_movies[i].number == 0) {
-				parts_movies[i].number = number;
-				slot = &parts_movies[i].mc;
-				break;
-			}
-		}
-	}
-	if (!slot)
+	if (!parts_state_valid(--state))
 		return false;
 	struct movie_context *mc = movie_load(filename->text);
 	if (!mc)
 		return false;
-	*slot = mc;
+	struct parts *p = parts_get(number);
+	// A movie already there is replaced (the original reopens it only for a
+	// different file name; either way it starts again at 0).
+	parts_state_reset(&p->states[state], PARTS_MOVIE);
+	struct parts_movie *m = &p->states[state].movie;
+	m->mc = mc;
+	int w = 0, h = 0;
+	movie_get_video_size(mc, &w, &h);
+	if (w > 0 && h > 0) {
+		uint8_t rgb[3];
+		apeg_ycbcr_to_rgb(red, green, blue, rgb);
+		gfx_init_texture_rgba(&m->common.texture, w, h, (SDL_Color){ rgb[0], rgb[1], rgb[2], 255 });
+		parts_set_dims(p, &m->common, w, h);
+	}
+	pe_movies_add(number, state);
+	parts_dirty(p);
+	return true;
+}
 
-	// Fill the parts texture with the background color (shows when video not decoded).
-	struct parts *p = parts_try_get(number);
-	if (p && parts_state_valid(state - 1)) {
-		struct parts_common *common = &p->states[state - 1].common;
-		int tw = common->w, th = common->h;
-		// If parts has no size yet, use the movie's native dimensions.
-		if (tw <= 0 || th <= 0)
-			movie_get_video_size(mc, &tw, &th);
-		if (tw > 0 && th > 0) {
-			// Colors are in YCbCr; just use black (0,0,0) for simplicity.
-			SDL_Color bg = { 0, 0, 0, 255 };
-			(void)red; (void)green; (void)blue;
-			gfx_init_texture_rgba(&common->texture, tw, th, bg);
-			if (common->w <= 0) {
-				common->w = tw;
-				common->h = th;
-			}
-			parts_dirty(p);
-		}
+static bool PE_stub_ReleasePartsMovie(int number, int state)
+{
+	struct parts_movie *m = pe_movie(number, state - 1);
+	if (m) {
+		movie_free(m->mc);
+		m->mc = NULL;
+		m->playing = false;
 	}
 	return true;
 }
 
-static bool PE_stub_ReleasePartsMovie(int number, possibly_unused int state)
+/* MSec is where to start (the game passes 0). */
+static bool PE_stub_PlayPartsMovie(int number, int msec, int state)
 {
-	struct movie_context **slot = parts_movie_get(number);
-	if (slot && *slot) {
-		movie_free(*slot);
-		*slot = NULL;
-	}
-	return true;
-}
-
-static bool PE_stub_PlayPartsMovie(int number, int msec, possibly_unused int state)
-{
-	struct movie_context **slot = parts_movie_get(number);
-	if (!slot || !*slot)
+	struct parts_movie *m = pe_movie(number, state - 1);
+	if (!m)
 		return false;
-	(void)msec;
-	return movie_play(*slot);
+	if (m->playing)
+		return true;
+	if (msec && !movie_seek(m->mc, msec))
+		WARNING("PlayPartsMovie: cannot start at %d ms; playing from the start", msec);
+	if (!movie_play(m->mc))
+		return false;
+	m->playing = true;
+	return true;
 }
 
 static void PE_stub_SetMovieTime(possibly_unused int number, possibly_unused int msec, possibly_unused int state) { }
 
-static bool PE_stub_IsEndPartsMovie(int number, possibly_unused int state)
+/* The end is the end of the sound (0x44aa50). A parts without a movie has
+ * ended; so has a missing parts here, where the original says false. */
+static bool PE_stub_IsEndPartsMovie(int number, int state)
 {
-	struct movie_context **slot = parts_movie_get(number);
-	if (!slot || !*slot)
-		return true;
-	return movie_is_end(*slot);
+	struct parts_movie *m = pe_movie(number, state - 1);
+	return !m || movie_is_end(m->mc);
 }
 
-static int PE_stub_GetPartsMovieEndTime(possibly_unused int number, possibly_unused int state) { return 0; }
-
-static int PE_stub_GetPartsMovieCurrentTime(int number, possibly_unused int state)
+/* The header's total length. */
+static int PE_stub_GetPartsMovieEndTime(int number, int state)
 {
-	struct movie_context **slot = parts_movie_get(number);
-	if (!slot || !*slot)
-		return 0;
-	return movie_get_position(*slot);
+	struct parts_movie *m = pe_movie(number, state - 1);
+	return m ? movie_get_duration(m->mc) : 0;
+}
+
+static int PE_stub_GetPartsMovieCurrentTime(int number, int state)
+{
+	struct parts_movie *m = pe_movie(number, state - 1);
+	return m ? movie_get_position(m->mc) : 0;
 }
 
 /* ======================================================================

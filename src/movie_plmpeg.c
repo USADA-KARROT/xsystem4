@@ -265,3 +265,25 @@ bool movie_set_volume(struct movie_context *mc, int volume)
 		mixer_stream_set_volume(mc->voice, volume);
 	return true;
 }
+
+void movie_get_video_size(struct movie_context *mc, int *out_w, int *out_h)
+{
+	if (out_w) *out_w = plm_get_width(mc->plm);
+	if (out_h) *out_h = plm_get_height(mc->plm);
+}
+
+int movie_get_duration(struct movie_context *mc)
+{
+	return (int)(plm_get_duration(mc->plm) * 1000);
+}
+
+// This backend plays MPEG-1 only: no APEG pictures, no start position.
+bool movie_seek(possibly_unused struct movie_context *mc, int msec)
+{
+	return msec == 0;
+}
+
+bool movie_update_texture(possibly_unused struct movie_context *mc, possibly_unused struct texture *tex)
+{
+	return false;
+}

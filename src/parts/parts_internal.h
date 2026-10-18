@@ -468,9 +468,16 @@ struct parts_flat {
 	struct flat_stop_motion_frames *stop_motion_frames;
 };
 
+struct movie_context;
+
 struct parts_movie {
 	struct parts_common common;
 	int sprite_no;  // SACT sprite number used as movie render target
+	// v14 CreatePartsMovie: the movie, owned by this state (freed with it, as
+	// the original's movie component is), drawn into common.texture, which
+	// it owns when sprite_no < 0.
+	struct movie_context *mc;
+	bool playing;   // PlayPartsMovie was called
 };
 
 enum parts_layout_type {

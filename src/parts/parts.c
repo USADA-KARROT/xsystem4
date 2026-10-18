@@ -25,6 +25,7 @@
 
 #include "asset_manager.h"
 #include "audio.h"
+#include "movie.h"
 #include "vm/page.h"
 #include "xsystem4.h"
 #include "sact.h"
@@ -253,10 +254,15 @@ static void parts_state_free(struct parts_state *state)
 		parts_flat_free(&state->flat);
 		break;
 	case PARTS_MOVIE:
-		// The texture is owned by the SACT sprite.
-		state->common.texture.handle = 0;
-		if (state->movie.sprite_no >= 0)
+		if (state->movie.mc)
+			movie_free(state->movie.mc);
+		if (state->movie.sprite_no >= 0) {
+			// The texture is owned by the SACT sprite.
+			state->common.texture.handle = 0;
 			sact_SP_Delete(state->movie.sprite_no);
+		} else {
+			gfx_delete_texture(&state->common.texture);
+		}
 		break;
 	case PARTS_3DLAYER:
 		state->common.texture.handle = 0;

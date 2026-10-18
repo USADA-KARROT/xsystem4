@@ -181,6 +181,7 @@ bool PE_save_thumbnail(struct string *filename, int reduction_factor);
 bool PE_SaveThumbnail(struct string *filename, int width);
 bool PE_init_parts_movie(int parts_no, int width, int height, int bg_r, int bg_g, int bg_b, int state);
 int PE_get_movie_sprite(int parts_no, int state);
+void PE_update_parts_movies(void);
 float PE_parts_get_absolute_x(int parts_no);
 float PE_parts_get_absolute_y(int parts_no);
 int PE_parts_get_absolute_z(int parts_no);

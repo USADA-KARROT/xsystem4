@@ -5,6 +5,7 @@ version_h = vcs_tag(command : ['git', 'describe', 'HEAD'],
 
 # sources for xsystem4
 xsystem4 = [version_h,
+            'apeg.c',
             'audio.c',
             'audio_meta.c',
             'audio_mixer.c',

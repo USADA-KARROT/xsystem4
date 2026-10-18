@@ -26,7 +26,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 102 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 103 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
 RUN_FROM_TITLE=1 RUN_AUTO_CLICK_SEQ="4000,640,700;8000,640,700;14000,152,130" RUN_CLICK_TRACE=1 RUN_SHOTS=9000,500,60 \
@@ -62,6 +62,57 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 `generate_movie_fixtures.py` 透過既有 libsndfile（Python ctypes 與 pkg-config 定位）把合成波形編為 mono／stereo Vorbis；ffmpeg 只做 RGB 色塊的 FFV1 編碼與音訊原樣封裝，ffprobe 查串流，另外生成 APEG 外殼，每次建置使用 `$XS4_PROBE_DIR` 內新建的專屬目錄，不覆寫其他測試資料（舊目錄不會自動清掉）。manifest 記錄生成器 hash、工具版本、命令、串流資料與每個產物 hash；`build-asan.json` 記錄該 manifest 的路徑/hash，另納入正式 `movie_ffmpeg.c` 的 hash。生成產物均在 repo 外，不提交。**相依**：ffmpeg 與 ffprobe 指令、pkg-config、能寫 Ogg Vorbis 的 libsndfile，以及 FFmpeg 影片後端；缺任一項時整個探針建置失敗（所以所有模式都跑不了，包含用 `before-check.sh` 驗舊模式），不會跳過後回 PASS。
 
 音訊走真 SDL dummy mixer，正常影音走無視窗 CGL 與合成 sprite 貼圖，沒有桌面點擊。**沒有涵蓋**：dummy 通過不代表真實聽測；`movie_get_position` 大於 0 只證明時鐘前進，音訊確實解到結尾的證據是 EOF（純音訊時只有音訊 callback 會設結束）；MA4 的 30 ms 不保證釋放前已經進入過 callback，只證明排程播放後提前清理；預載的封包數不由探針驗證；MA6 不驗影格順序、逐格顯示、與音訊時鐘的同步，也不走 `movie_draw(NULL)` 直接畫主畫面的路徑——一般影音的計數不變靠讀程式（兩個佇列都存在時算式與原本相同）。此探針不解 APEG 影像、不取代遊戲片頭或 Wine 對照，也不等於完整漏記憶體檢查（既有 runner 的 leak detection 關閉）。新模式只用修正前已有的 movie 公開函式，`before-check.sh` 可在舊版上建置。CGL 初始化／貼圖自檢失敗會使模式失敗（rc 1），不會略過。
+
+## APEG 影像探針
+
+`apeg-video`（2026-10-18）測 `src/apeg.c` 的 APEG 解碼器與 v14 parts movie 的畫面。`generate_apeg_fixtures.py` 依巨集區塊參數合成 48×32（3×2 個巨集區塊）的 APEG，自帶一份格式碼表做編碼，SOND 放影片探針自己合成的 Vorbis（`long-stereo.ogg`），沒有遊戲資料。期望值由 `apeg_video_fixture.inc` 用同一組參數另寫的簡單模型算出：只有 DC 的 intra 區塊＝它的 DC 預測值、整數與半像素的平均（往零截斷）、色度向量先除 2 往零截斷、雙向平均、跳過的語意、殘差的反量化；唯一帶 AC 係數的區塊用浮點 IDCT（容差 1），轉色用浮點的限幅矩陣與雙線性色度（容差 1）；不拿解碼器的輸出當期望。
+
+**這個探針證明的是「產生器與解碼器一致」**：兩者的語法順序、碼表與預測規則出自同一份對格式的理解，兩邊同時錯時探針照樣通過。與原版一致靠的是私人的全片比對（解碼器對參考解碼器逐位元相同，參考解碼器再對原版截圖），不在 repo 裡。
+
+十五案各自 fork、25 秒 alarm：
+- AV1 檔頭、I 影格索引、SOND 位置、解碼順序，正常檔沒有警告。
+- AV2 I 影格（只有 DC、量化尺度位元）；AV3 P 影格（intra、整數向量、水平＋垂直半像素、跳過複製、只有 CBP 加量化尺度、向量加殘差）；AV4 B 影格（雙向加殘差、跳過沿用型別與向量、只有前向、只有後向、intra、跳到影格尾向量歸零）；AV5 帶 AC 係數與 escape 的 I 影格。
+- AV6 依時間挑格（時間戳 ≤ t 的最新一格，含往回跳與 rewind；同一格再要一次不再解碼）。
+- AV7 轉 RGBA（夾值、奇數尺寸裁切、pitch）與底色。
+- AV8 打不開的檔八種，各自比對錯誤字串的關鍵字（魔術字、版本兩種、檔頭截斷、資料起點超出檔案、區塊截斷、寬度 0、檔案不存在）；打得開但有警告的三種（索引項數放不進檔頭、索引偏移超出檔案、檔尾不到一個區塊頭的零星位元組）：索引視為空的、五格照樣解出；整檔截斷（前 1 KB 與最後 512 bytes 逐位元組，中間每 29 bytes，另外每個區塊邊界與其後 7 bytes）：剛好在區塊邊界或其後不到 8 bytes 才打得開（後者有警告），影格數＝邊界前的影格數；最後一格逐位元組截短（長度欄位改成相符）一律解不出，之後 `picture_at` 直接回「解不了」。
+- AV9 解不了的影格（沒有參考、位元流截斷、無效 CBP、係數位置超過 63、跳過超出影格尾）安全失敗，錯誤字串比對關鍵字，之後 `picture_at` 不再重解；壞 I 之後的 P 失敗而下一個 I 恢復；1500 次隨機位元組翻轉不當機。
+- AV10 經真 AIN 宣告呼叫 `CreatePartsMovie`（底色）／`GetPartsMovieEndTime`（檔頭總長）／`PlayPartsMovie`／`IsEndPartsMovie`／`GetPartsMovieCurrentTime`，以 `PE_update_parts_movies` 依音訊時鐘挑格：每次更新後的畫面都要是「更新前讀到的時鐘」到「到目前為止讀到的最大時鐘」之間該顯示的那格（容許 5 ms 抖動），五格都要出現，畫面不得倒退，聲音播完時 `IsEnd` 為真、時間＝總長、畫面停在最後一格，`ReleasePartsMovie` 之後畫面保留。
+- AV11 播放中 `PartsEngine.Release`（遊戲 `CDrawMovie` 的釋放方式）停掉影片，同一 parts 重建。
+- AV12 `PlayPartsMovie` 的起始位置（600 ms 起播時第一次讀到的時間 ≥ 600、畫面是 400 那格、聲音提早結束）。
+- AV13 `movie_draw` 畫到 sprite（`DrawMovie` 那條路；播放前先畫一次黑畫面；sprite 與影片大小不同時畫黑畫面，和解碼器加入前相同）與真的 v14 `UpdateComponent` HLL（先 `frame_pacing_update_view`，所以不呈現；無視窗時先設主畫面尺寸）會更新 parts movie。
+- AV14 開放 GOP：`open-gop.apeg` 的解碼順序是 I0 P300 B100 B200 I600 B400 B500 P900 B700 B800，B400／B500 接在 I600 後面、卻比它早顯示，前向參考是前一個 GOP 的 P300。逐格對模型；先要 600 再要 599（從 I600 起解之後要前一個 GOP 的參考）、再往前走並往回跳到這兩張 B 與第一個 GOP；直接冷啟動到 400、500；`apeg_rewind` 之後再要。另外以 `apeg_stats` 斷言：解過 B500 之後再要同一對參考之間的前一張 B（B400），只解它自己，不從 I 重解。
+- AV15 時鐘倒退不退格：`clockback.apeg` 與 `video.apeg` 同樣的影格與聲音、檔頭總長 250，所以聲音播完時時鐘從約 1.2–1.5 秒退回 250；畫面要停在 400 那格，不退回 200 那格。
+
+新函式一律以 dlsym 取得，`apeg.h` 以 `__has_include` 判斷，所以 `before-check.sh` 能在修正前建置：`b31bc51` 上 15／15 案失敗（AV1–AV9、AV14 找不到解碼器；AV10、AV15 parts 沒有影片狀態與表面；AV11 `PartsEngine.Release` 之後影片還在、`IsEnd` 為假；AV12 起始位置被忽略、時間從 0 起；AV13 sprite 一格都沒有畫），`movie-audio-only` 照樣通過（對照）。**相依**：與 `movie-audio-only` 相同（產生器只用標準 Python，但 SOND 用的是影片探針產生的 Vorbis）。
+
+**期望值裡屬於移植版的選擇或未證實的推論**（照原版修正時要一起改探針，不是回歸）：
+- AV10：找不到的 parts，`IsEndPartsMovie` 為真——**移植版的選擇**。原版（0x59b160）回假；回真是為了不讓腳本在不存在的 parts 上無限等待。
+- AV10：`ReleasePartsMovie` 之後畫面保留最後一格——**未證實的推論**，原版的 `ReleasePartsMovie` 沒有讀。
+- AV7：底色的 Y／Cb／Cr 超出 0..255 時先夾到 0..255——**未證實的推論**。原版把值寫進位元組，也可能是取低 8 位元（300→44、−5→251）。遊戲只傳黑色 (0,128,128)。
+- AV8：索引或檔尾的問題只發警告、照樣打開——**移植版的選擇**（影格表本來就靠走訪區塊建立，不用索引）。區塊長度超出檔案仍然拒絕。
+- AV10：播放前 `IsEndPartsMovie` 為假——**未證實的推論**，原版（0x44aa50）播放前回什麼沒有讀。
+- AV8／AV9：解不了的影格不顯示、畫面保留上一格——**移植版的選擇**；原版不檢查，解到一半的影格照樣送去顯示。
+
+**限制**（已知，不在這次修）：
+- 沒有 SOND 的 APEG 整個打不開（`CreatePartsMovie`／`PlayPartsMovie` 回假）；原版沒有音軌時用計時器播、`IsEnd`＝時間 ≥ 總長。
+- 挑格的時鐘是「已交給混音器的音訊量＋牆鐘」，比聽到的聲音超前約 23–46 ms（一到兩個 1024 取樣的混音器 chunk），再加上輸出裝置的延遲（沒量）；原版用的是聲音的播放位置。
+- `SoundID`／`SoundGroup` 沒接：片頭聲音自己一條音訊流、音量固定 100，不跟遊戲的音量群組。
+- 音訊 callback 沿用既有的「以 `linesize` 算取樣數」：frame 的有效取樣比緩衝區少時（例如 Vorbis 第一個 frame）會多送緩衝區裡的內容，時鐘也多走；起始位置的裁切分支改用 `nb_samples`，兩條路的算法不一致。
+- 解碼與轉色在主執行緒同步做：最佳化建置換格約 4–5 ms，隨機往回跳最壞約 23–35 ms；ASan／debug 建置每次換格約 0.1 秒，所以 GUI 上看片頭要用最佳化建置。
+- 挑格的時鐘是單調的，而牆鐘外插沒有上限：音訊 callback 停住 S 毫秒時，恢復後畫面約凍結 S 毫秒等聲音追上（原版跟著聲音的位置走）。實機沒量。
+- 讀檔錯誤不記成壞格：之後每次挑格都從 I 重解到讀不到的那一格（最壞約 20 ms，在主執行緒）。只有開檔後檔案被截斷或 I/O 錯誤才會發生。
+- `PlayMovie`（`movie_draw(mc, NULL)` 直接畫主畫面）的 APEG 不縮放、貼在左上角；一般影片在這條路會縮放到畫面大小。多娜多娜不走這條。
+- 起始位置（`movie_seek`）的條件是「沒有影像串流」，不只 APEG；裁切假設時間基準是 1／取樣率。起始位置不是 0 時，片頭的起點會差約 23 ms（SOND 第一格的時間戳是 1024）。遊戲只傳 0。
+
+**沒有涵蓋**：
+- 真的 `Op.apeg`（全片逐位元驗收在私人工具，不進 repo）；GPU 在 .5 平手點的取整與 Windows 原版的差異。
+- AV7 的容差 1 擋不住轉色失去逐位元一致（例如拿掉禁止融合乘加的 pragma、改取整方式，差異只有 ±1）；這只有私人全片比對抓得到。
+- 產生器的碼字只是子集（係數 111 碼用了 6 碼、CBP 64 碼用了 29 碼、skip 只用 0–8 與 escape）；碼表本身與私人的格式碼表逐項比對過，但公開探針不守其餘的碼字。
+- 解碼路徑：`full_pel`、指到畫面外的向量、`sat()` 把 0 變 −1、反量化飽和到 ±2047、escape 的 16 位元 level（|level| ≥ 128）、動態向量的環繞、B 影格在 intra 巨集區塊之後的跳過（真片都不走或探針沒造）；版本 3 與 5 的差異（同樣解析）。
+- parts movie：`movie_draw(mc, NULL)` 直接畫主畫面的路徑、超過 16 個影片、state ≠ 1、對 `CreatePartsMovie` 建的 parts 存讀檔、巢狀 `UpdateComponent` 的分支（也會更新影片，只讀過程式）、紋理大小不符的警告分支（走不到）、`SetMovieTime`（沒做）。
+- 「從足夠的起點解起仍缺參考就記成壞格」這條規則（移植版自己的判斷，真片不走）沒有案。
+- 起始位置：AV12 的界限很寬（第一次讀到的時間只要求在 [600, 900)、聲音縮短只要求 > 300 ms），量不到起始位置的精度；`av_seek_frame` 失敗時改從頭播的分支沒測。
+- dummy 音訊的時鐘不等於實際聽到的時間；AV10–AV15 只辨認是哪一格（容差 3），數值由 AV2–AV7、AV14 守；`movie_plmpeg.c`（非 FFmpeg 後端）只以手動替換目標檔確認能連結，探針不建那個後端。
 
 ## 探針結構
 
@@ -189,3 +240,4 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
   **證據界線**：`<11` 是依 v11 型別／指令格式變更採取的保守相容措施，未獨立驗證每個 v10 以前的編譯器都沒有 X 指令。上游没有 `X_REF`／`X_ASSIGN`，不能拿上游當作 v11–v13 的語義基準；這三版回到 `f23883c` 的相關行為。沒有 v11–v13 真遊戲可驗，合成探針不能證明原生相容性。尚未涵蓋的既有 functype 路徑包含 `FT_ASSIGNS`、`vm_copy()`、GC 標記與 `exit_unref()` 對頁成員的型別清單；這次未改這些機制。
 
 - `probe/movie_audio_only_fixture.inc`、`probe/generate_movie_fixtures.py`：`movie-audio-only`（2026-10-16），見上面〈純音訊影片回歸探針〉。
+- `probe/apeg_video_fixture.inc`、`probe/generate_apeg_fixtures.py`：`apeg-video`（2026-10-18），見上面〈APEG 影像探針〉。
