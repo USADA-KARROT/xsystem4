@@ -282,10 +282,24 @@ static void parts_render_texture(struct parts *parts, struct texture *texture, m
 				|| clipper->global.scale.x == 0.0f || clipper->global.scale.y == 0.0f)
 			return;
 
-		// Calculate the inverse of the clipper's world matrix.
+		// Calculate the inverse of the clipper's world matrix. v14: a
+		// clipper's flipped CG masks flipped, as it would be drawn (the
+		// original flips the CG's surface itself, parts_cg_deform).
 		mat4 clip_mw;
 		parts_box_transform(clipper, c_common, clip_mw);
-		glm_scale(clip_mw, (vec3){ c_common->w, c_common->h, 1.0 });
+		switch (ain->version >= 14 ? parts_cg_deform(clipper, clipper->state) : 0) {
+		case 1:
+			glm_translate(clip_mw, (vec3){ c_common->w, 0.0f, 0.0f });
+			glm_scale(clip_mw, (vec3){ -c_common->w, c_common->h, 1.0f });
+			break;
+		case 2:
+			glm_translate(clip_mw, (vec3){ 0.0f, c_common->h, 0.0f });
+			glm_scale(clip_mw, (vec3){ c_common->w, -c_common->h, 1.0f });
+			break;
+		default:
+			glm_scale(clip_mw, (vec3){ c_common->w, c_common->h, 1.0 });
+			break;
+		}
 		mat4 clip_inv;
 		glm_mat4_inv(clip_mw, clip_inv);
 
@@ -426,7 +440,7 @@ static void parts_render_scrollbar(struct parts *parts)
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
-static void parts_render_cg(struct parts *parts, struct parts_common *common)
+static void parts_render_cg(struct parts *parts, struct parts_common *common, int deform)
 {
 	int draw_filter = parts_effective_draw_filter(parts);
 	set_draw_filter_blend_func(draw_filter);
@@ -434,9 +448,9 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 	mat4 mw_transform;
 	parts_box_transform(parts, common, mw_transform);
 
-	// sprite_deform flips the CG within its own box (PE_SetPartsCG*); the
+	// The deform flips the CG within its own box (parts_cg_deform); the
 	// reverse flags are part of parts_box_transform.
-	switch (parts->sprite_deform) {
+	switch (deform) {
 	// Flip horizontally
 	case 1:
 		glm_translate(mw_transform, (vec3){ common->w, 0.0f, 0.0f });
@@ -448,7 +462,7 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common)
 		glm_scale(mw_transform, (vec3){ common->w, -common->h, 1.0f });
 		break;
 	default:
-		WARNING("Invalid sprite_deform: %d", parts->sprite_deform);
+		WARNING("Invalid sprite_deform: %d", deform);
 	// No deform
 	case 0:
 		glm_scale(mw_transform, (vec3){ common->w, common->h, 1.0 });
@@ -756,7 +770,7 @@ static void parts_render_3dlayer(struct parts *parts, struct parts_3dlayer *l)
 	l->common.texture = *tex;
 	l->common.w = tex->w;
 	l->common.h = tex->h;
-	parts_render_cg(parts, &l->common);
+	parts_render_cg(parts, &l->common, parts_cg_deform(parts, parts->state));
 }
 
 static void parts_render_flash_shape(struct parts *parts, struct parts_flash *f, struct parts_flash_object *obj, struct swf_tag_define_shape *tag)
@@ -921,14 +935,14 @@ void parts_render(struct parts *parts)
 	case PARTS_CONSTRUCTION_PROCESS:
 	case PARTS_MOVIE:
 		if (state->common.texture.handle)
-			parts_render_cg(parts, &state->common);
+			parts_render_cg(parts, &state->common, parts_cg_deform(parts, parts->state));
 		break;
 	case PARTS_HGAUGE:
 	case PARTS_VGAUGE:
 		if (ain->version >= 14)
 			parts_render_v14_gauge(parts, &state->gauge, state->type == PARTS_VGAUGE);
 		else if (state->common.texture.handle)
-			parts_render_cg(parts, &state->common);
+			parts_render_cg(parts, &state->common, parts_cg_deform(parts, parts->state));
 		break;
 	case PARTS_TEXT:
 		parts_render_text(parts, &state->text, (Point){

@@ -693,6 +693,15 @@ struct parts {
 	int no;
 	int delegate_index;
 	int sprite_deform;
+	// v14: each state's CG flip (SpriteDeform: 1 left-right, 2 top-bottom).
+	// The original keeps it on the state's CG object (byte +0x20; set by
+	// 0x59c5b0 from Parts_SetPartsCG and from the pactex 変形, read back by
+	// Parts_GetPartsCGDeform 0x565540) and flips only that CG; a state that
+	// becomes a CG has a new object, with 0 (parts_get_cg). Written by
+	// PE_SetPartsCG and the v14 loader; drawn through parts_cg_deform.
+	// sprite_deform stays the last value set, which engines before v14 draw
+	// every state with.
+	int cg_deform[PARTS_NR_STATES];
 	bool clickable;
 	bool pass_cursor;
 	bool pixel_hittest;
@@ -1121,5 +1130,7 @@ static inline bool parts_state_valid(int state)
 {
 	return state >= 0 && state <= 2;
 }
+
+int parts_cg_deform(struct parts *parts, int state);
 
 #endif /* SYSTEM4_PARTS_INTERNAL_H */

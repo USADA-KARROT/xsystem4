@@ -181,6 +181,8 @@ static const char GBK_SHOW[]        = "\xb1\xed\xca\xbe";         /* 表示 (GBK
 static const char GBK_ALPHA[]       = "\xa5\xa2\xa5\xeb\xa5\xd5\xa5\xa1"; /* アルファ (GBK) */
 static const char GBK_ORIGIN_MODE[] = "\xd4\xad\xfc\x63\xd7\xf9\x98\xcb\xc4\xa3\xca\xbd"; /* 原點座標模式 (GBK) */
 static const char GBK_CG_MEI[]      = "\xa3\xc3\xa3\xc7\xc3\xfb"; /* ＣＧ名 (GBK) */
+static const char GBK_DEFORM[]      = "\x89\xe4\xd0\xce";     /* 変形 (GBK, native key 0x7dd09c) */
+static const char SJIS_DEFORM[]     = "\x95\xcf\x8c\x60";     /* 変形 (SJIS; no SJIS pactex was read) */
 /* static const char GBK_MUL_COLOR[]   = "\x81\x5c\xcb\xe3\xc9\xab"; */ /* 乗算色 (GBK) — unused */
 static const char GBK_DRAW_FILTER[] = "\xc3\xe8\xae\x8b\xa5\xd5\xa5\xa3\xa5\xeb\xa5\xbf"; /* 描畫フィルタ (GBK) */
 static const char GBK_ADD_COLOR[]   = "\xbc\xd3\xcb\xe3\xc9\xab"; /* 加算色 (GBK) */
@@ -278,6 +280,20 @@ static int pactex_get_int(struct ex_tree *node, const char *name, int def)
 		break;
 	}
 	return def;
+}
+
+/* The integer leaf pactex_get_int reads, into *v; false when there is none. */
+static bool pactex_find_int(struct ex_tree *node, const char *name, int *v)
+{
+	if (node->is_leaf) return false;
+	for (unsigned i = 0; i < node->nr_children; i++) {
+		struct ex_tree *c = &node->children[i];
+		if (!c->is_leaf || !c->name || strcmp(c->name->text, name) != 0) continue;
+		if (c->leaf.value.type != EX_INT) return false;
+		*v = c->leaf.value.i;
+		return true;
+	}
+	return false;
 }
 
 static void pactex_apply_pixel_decide(struct ex_tree *node, int parts_no)
@@ -766,6 +782,23 @@ static int pactex_low_level_type(struct ex_tree *state)
 	case PACTEX_EPT_CG_DETECTION: return PACTEX_EPT_CG_DETECTION;
 	default: return -1;
 	}
+}
+
+/* 変形 of a ＣＧ部件 state: the CG part's loader (0x59cd70) reads it beside
+ * ＣＧ名, 0 when it is missing, and hands both to the CG's setter
+ * (0x59c5b0), which keeps it with the CG (PE_SetPartsCG). 1 flips the CG
+ * left-right, 2 top-bottom. Only a ＣＧ部件 has one: the key (0x7dd09c) is
+ * read there only, and a ＣＧ判定部件 is another kind of object (type 0x1b,
+ * 0x59b600, without the deform byte) whose loader (0x59bd90) reads ＣＧ名
+ * and サーフェイスエリア only. Engines before v14 read none: their
+ * SetPartsCG is given 0, as it was before the states had their own deform.
+ * Returns whether the state has the key; *deform is 0 without it. */
+static bool pactex_cg_deform(struct ex_tree *state, int *deform)
+{
+	*deform = 0;
+	if (ain->version < 14 || pactex_low_level_type(state) != PACTEX_EPT_CG)
+		return false;
+	return pactex_find_int(state, GBK_DEFORM, deform) || pactex_find_int(state, SJIS_DEFORM, deform);
 }
 
 /* 構築部件 with a non-empty 手順リスト. The native state loader (0x5a64e0)
@@ -1875,10 +1908,18 @@ static bool pactex_apply_low_level_state(struct ex_tree *state, int parts_no, in
 		// ＣＧ部件, or ＣＧ判定部件: a CG kept for hit testing, not drawn.
 		parts_get_cg(parts, pe_state - 1);
 		const char *cg_name = pactex_find_cg_name(state, 0);
+		// (0 for a ＣＧ判定部件, and before v14.)
+		int deform;
+		pactex_cg_deform(state, &deform);
 		if (cg_name) {
 			struct string *s = cstr_to_string(cg_name);
-			PE_SetPartsCG(parts_no, s, 0, pe_state);
+			PE_SetPartsCG(parts_no, s, deform, pe_state);
 			free_string(s);
+		} else {
+			// No CG yet: the original's setter keeps the deform with the
+			// empty CG all the same, and the script's CGName::set reads it
+			// back for the CG it gives the state.
+			parts->cg_deform[pe_state - 1] = deform;
 		}
 		if (type == PACTEX_EPT_CG_DETECTION)
 			PE_SetClickable(parts_no, true);
@@ -2490,10 +2531,21 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 
 		/* Search for ＣＧ名 (CG name) leaf — may be nested in 素材リスト/素材N/ */
 		const char *cg_name = pactex_find_cg_name(state, 0);
+		int deform;
+		const bool has_deform = pactex_cg_deform(state, &deform);
 		if (cg_name) {
 			struct string *s = cstr_to_string(cg_name);
-			PE_SetPartsCG(parts_no, s, 0, pe_state);
+			PE_SetPartsCG(parts_no, s, deform, pe_state);
 			free_string(s);
+		} else if (has_deform && pe_state <= PARTS_NR_STATES) {
+			// v14, a ＣＧ部件 with a 変形 but no CG, as on the low-level
+			// path: the original's setter (0x59c5b0) keeps the deform with
+			// the empty CG. A branch without the key is left as it was.
+			// (The game's ＣＧ部件 states are all named states of
+			// 低等級部件, which the low-level path loads.)
+			struct parts *parts = parts_get(parts_no);
+			parts_get_cg(parts, pe_state - 1);
+			parts->cg_deform[pe_state - 1] = deform;
 		}
 
 		/* Apply サーフェイスエリア (surface area / clip rect) if present */

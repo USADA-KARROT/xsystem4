@@ -49,8 +49,19 @@
  * pixel and the alpha, or the alpha; the fields of 14..22).
  * Version 12 has the operation 29 (the scaled copy of a CG of the v14
  * command 14; the fields of 7 and 8).
+ *
+ * A v14 save can also have the CG deform section (SAVE_CG_DEFORMS) after
+ * the lists, before the controller ID section: its mark, a count, and for
+ * each parts whose states' CG deforms (parts->cg_deform) are not all its
+ * last one (sprite_deform), the number and the three deforms. It is only
+ * written when there is such a parts, so other saves are what they were,
+ * and a reader that does not know it stops before it (the controller IDs
+ * are taken from the end). Without it, every state of a loaded parts has
+ * the parts' last deform, which is what was drawn before the states had
+ * their own.
  */
 #define CURRENT_SAVE_VERSION 12
+#define SAVE_CG_DEFORMS 0x46444350 /* "PCDF" */
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -876,6 +887,10 @@ static void load_parts(struct iarray_reader *r, int version)
 	parts->pending_parent = iarray_read(r);
 	parts->delegate_index = iarray_read(r);
 	parts->sprite_deform = iarray_read(r);
+	// v14: the states' own deforms come with the CG deform section, if
+	// the save has one for this parts (load_cg_deforms).
+	for (int i = 0; i < PARTS_NR_STATES; i++)
+		parts->cg_deform[i] = parts->sprite_deform;
 	parts->clickable = iarray_read(r);
 	parts->on_cursor_sound = iarray_read(r);
 	parts->on_click_sound = iarray_read(r);
@@ -967,6 +982,59 @@ static void load_numeral_fonts(struct iarray_reader *r)
 	}
 }
 
+static bool cg_deforms_differ(struct parts *parts)
+{
+	for (int i = 0; i < PARTS_NR_STATES; i++) {
+		if (parts->cg_deform[i] != parts->sprite_deform)
+			return true;
+	}
+	return false;
+}
+
+// The CG deform section (see CURRENT_SAVE_VERSION), for the parts the
+// parts list has.
+static void save_cg_deforms(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, count = 0;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!save_hidden && !parts->global.show)
+			continue;
+		if (!parts->want_save || parts_is_controller_root(parts) || !cg_deforms_differ(parts))
+			continue;
+		if (!count) {
+			iarray_write(w, SAVE_CG_DEFORMS);
+			count_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+		}
+		iarray_write(w, parts->no);
+		for (int i = 0; i < PARTS_NR_STATES; i++)
+			iarray_write(w, parts->cg_deform[i]);
+		count++;
+	}
+	if (count)
+		iarray_write_at(w, count_pos, count);
+}
+
+static void load_cg_deforms(struct iarray_reader *r)
+{
+	if (r->error || r->pos >= r->size || r->data[r->pos].i != SAVE_CG_DEFORMS)
+		return;
+	iarray_read(r);
+	int nr = iarray_read(r);
+	for (int i = 0; i < nr && !r->error; i++) {
+		int no = iarray_read(r);
+		int deform[PARTS_NR_STATES];
+		for (int s = 0; s < PARTS_NR_STATES; s++)
+			deform[s] = iarray_read(r);
+		if (r->error)
+			break;
+		struct parts *parts = parts_try_get(no);
+		if (parts)
+			memcpy(parts->cg_deform, deform, sizeof deform);
+	}
+}
+
 static bool parts_engine_save(struct page **buffer, bool save_hidden)
 {
 	// get parts into clean state first
@@ -1046,6 +1114,9 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 		}
 		iarray_write_at(&w, sub_pos, sub);
 	}
+
+	if (ain->version >= 14)
+		save_cg_deforms(&w, save_hidden);
 
 	// The controller ID section is the end of the save, after every list
 	// (load_controller_ids takes it from there).
@@ -1147,6 +1218,8 @@ bool PE_Load(struct page **buffer)
 				parts_set_sub_color_mode(parts, true);
 		}
 	}
+	if (ain->version >= 14)
+		load_cg_deforms(&r);
 	// (the controller ID section follows the lists; it was read first)
 	if (parts_multi_controller && ain->version >= 14) {
 		load_controller_finish(active, ids != NULL);

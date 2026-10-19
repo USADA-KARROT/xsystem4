@@ -346,6 +346,10 @@ struct parts_cg *parts_get_cg(struct parts *parts, int state)
 {
 	if (parts->states[state].type != PARTS_CG) {
 		parts_state_reset(&parts->states[state], PARTS_CG);
+		// v14 0x5b77f0 (type 0x13): a state that becomes a CG gets a new
+		// CG object (0x59c1d0), whose deform (+0x20) is 0; the old one's
+		// went with it. (Only v14 reads cg_deform, parts_cg_deform.)
+		parts->cg_deform[state] = 0;
 	}
 	return &parts->states[state].cg;
 }
@@ -2052,6 +2056,27 @@ int PE_GetDelegateIndex(int parts_no)
 	return parts ? parts->delegate_index : -1;
 }
 
+/*
+ * The flip a state's texture is drawn and hit-tested with. Before v14: the
+ * parts' last SpriteDeform, whatever the state, as it always was here. v14:
+ * the state's own, and only while the state is a CG; the original applies
+ * it to the CG's surface when the CG is set (0x59c5b0 -> 0x5aa250: 1 ->
+ * 0x5aa2d0, 2 -> 0x5aa540), so the other kinds of state are not flipped.
+ */
+int parts_cg_deform(struct parts *parts, int state)
+{
+	if (ain->version < 14)
+		return parts->sprite_deform;
+	if (!parts_state_valid(state) || parts->states[state].type != PARTS_CG)
+		return 0;
+	return parts->cg_deform[state];
+}
+
+/*
+ * v14 (0x59c5b0, the setter of the state's CG object): the deform is kept
+ * with the CG when the CG is set or cleared (an empty name); a CG that
+ * cannot be loaded changes neither.
+ */
 bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int state)
 {
 	if (!parts_state_valid(--state))
@@ -2061,6 +2086,7 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int 
 	parts->sprite_deform = sprite_deform;
 	if (!cg_name || *(cg_name->text) == '\0') {
 		parts_state_reset(&parts->states[state], PARTS_CG);
+		parts->cg_deform[state] = sprite_deform;
 		parts_dirty(parts);
 		// A layout box sizes the parts by its normal state, now 0x0.
 		if (!state)
@@ -2069,7 +2095,10 @@ bool PE_SetPartsCG(int parts_no, struct string *cg_name, int sprite_deform, int 
 	}
 
 	struct parts_cg *cg = parts_get_cg(parts, state);
-	return parts_cg_set(parts, cg, cg_name);
+	if (!parts_cg_set(parts, cg, cg_name))
+		return false;
+	parts->cg_deform[state] = sprite_deform;
+	return true;
 }
 
 bool PE_SetPartsCG_by_index(int parts_no, int cg_no, int sprite_deform, int state)
@@ -2929,12 +2958,35 @@ void PE_GetPartsSize(int parts_no, int *width, int *height, int state)
 	*height = parts->states[state].common.h;
 }
 
+/*
+ * v14 Parts_GetPartsCGDeform (0x585b89 -> 0x598120 -> 0x565540): the deform
+ * of the state's CG object. The parts comes from the lookup SetPartsCG
+ * (0x598070) takes as well, 0x53e510: a number of 0 or less has none
+ * (0x539c80) and reads 0; any other number gets its parts made when it has
+ * none (0x53a0b0 -> 0x578ee0 -> 0x578cb0). Like 0x565400, 0x565540 then
+ * makes the state a CG (0x5b77f0 with type 0x13): a state of another type
+ * is replaced by a new CG object (0x59c1d0), whose deform (+0x20) is 0, so
+ * it reads 0 and is an empty CG afterwards; a CG state reads its own. (The
+ * lookup also makes the parts' widget a 低等級部件, 0x5373b0; the component
+ * type is left as it is here, as for the other getters.) The script's
+ * CCGParts reads it for ReverseLR (== 1) and ReverseTB (== 2), and
+ * CGName::set passes both back to SetPartsCG, so a CG that the pactex (変形)
+ * or the script flipped stays flipped when the script changes the picture.
+ * Engines before v14 read 0, as they always did here.
+ */
 int PE_GetPartsCGDeform(int parts_no, int state)
 {
-	// SpriteDeform: 0 = normal (no deformation)
-	// PE_SetPartsCG receives this but ignores it.
-	(void)parts_no; (void)state;
-	return 0;
+	if (ain->version < 14 || parts_no <= 0 || !parts_state_valid(--state))
+		return 0;
+	struct parts *parts = parts_get(parts_no);
+	if (parts->states[state].type != PARTS_CG) {
+		parts_get_cg(parts, state);
+		parts_dirty(parts);
+		// A layout box sizes the parts by its normal state, now 0x0.
+		if (!state)
+			parts_layout_size_changed(parts);
+	}
+	return parts->cg_deform[state];
 }
 
 /* v14 0x58bf80 / 0x58c020 / 0x58c0e0 -> 0x534bb0: retain float precision,

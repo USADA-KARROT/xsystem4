@@ -237,9 +237,10 @@ static bool parts_hittest(struct parts *parts, int state, Point pos)
 		return false;
 	int tx = (int)((double)x * c->texture.w / c->w);
 	int ty = (int)((double)y * c->texture.h / c->h);
-	if (parts->sprite_deform == 1)
+	const int deform = parts_cg_deform(parts, state);
+	if (deform == 1)
 		tx = c->texture.w - 1 - tx;
-	else if (parts->sprite_deform == 2)
+	else if (deform == 2)
 		ty = c->texture.h - 1 - ty;
 	if (c->surface_area.w || c->surface_area.h) {
 		Point texel = { tx, ty };
