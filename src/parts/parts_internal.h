@@ -339,6 +339,9 @@ struct parts_cp_pie {
 // Larger circles and polygons are not built (xsystem4's limits).
 #define PARTS_CP_CIRCLE_MAX_RADIUS 1024
 #define PARTS_CP_POLYGON_MAX_POINTS 1024
+// The run of a disc's row dy that has a coverage (construction.c): 1 one
+// run, 0 none, -1 not one run.
+int parts_cp_circle_cells(int r, int dy, int *dx0, int *dx1);
 struct parts_cp_pixel {
 	int x, y, w, h;
 	bool full;

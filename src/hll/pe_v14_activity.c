@@ -817,9 +817,12 @@ struct pactex_cp_step {
 	int blur;		// ブラー (+0x54)
 	int interp;		// 補間タイプ (command 14)
 	int src[4];		// 元矩形 X,Y,W,H (command 14)
+	bool round;		// 丸め's second flag (command 90)
+	int rect_points[16];	// command 90's polygon (pactex_rect_polygon)
+	int nr_rect_points;
 	const char *cg_name;	// in the pactex tree
 	struct ex_list *points;	// 座標總覽, in the pactex tree
-	// command 24
+	// commands 7 and 24
 	const char *text;	// 文本, in the pactex tree
 	int font_type, font_size;
 	int font_rgb[3], edge_rgb[3];
@@ -834,6 +837,7 @@ enum {
 	PACTEX_CP_BLEND_FILL = 4,
 	PACTEX_CP_FILL_AMAP = 5,
 	PACTEX_CP_FILL_WITH_ALPHA = 6,
+	PACTEX_CP_DRAW_TEXT = 7,
 	PACTEX_CP_FILL_GRADATION_HORIZON = 9,
 	PACTEX_CP_CUT_CG_SCALE_COPY = 14,
 	PACTEX_CP_GRAY_SCALE = 15,
@@ -842,9 +846,13 @@ enum {
 	PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS = 26,
 	PACTEX_CP_BLUR_H = 27,
 	PACTEX_CP_BLUR_V = 28,
+	PACTEX_CP_FILL_RECT_AMAP = 90,
 	PACTEX_CP_FILL_POLYGON_PIXEL_AMAP = 94,
 	PACTEX_CP_FILL_POLYGON_AMAP = 95,
+	PACTEX_CP_FILL_CIRCLE = 100,
+	PACTEX_CP_FILL_CIRCLE_IN_RECT = 101,
 	PACTEX_CP_FILL_CIRCLE_AMAP = 102,
+	PACTEX_CP_FILL_CIRCLE_BLEND = 106,
 	PACTEX_CP_FILL_PIE_AMAP = 122,
 	PACTEX_CP_TILE_CG = 129,
 };
@@ -908,26 +916,96 @@ static bool pactex_byte(int v)
  * what the steps before it drew, and for what is not reproduced: an item
  * that is no int (what the original's list gives for one was not read) and
  * more vertices than PARTS_CP_POLYGON_MAX_POINTS (xsystem4's limit). */
-static bool pactex_polygon_points(const struct ex_list *l, int w, int h)
+static bool pactex_polygon_reaches(const int *v, unsigned nr_ints, int w, int h)
 {
-	if (!l || l->nr_items / 2 > PARTS_CP_POLYGON_MAX_POINTS)
-		return false;
-	const unsigned nr_items = l->nr_items & ~1u;
 	int nr = 0;
 	int min_x = INT32_MAX, min_y = INT32_MAX, max_x = INT32_MIN, max_y = INT32_MIN;
-	for (unsigned i = 0; i < nr_items; i += 2) {
-		const struct ex_value *vx = &l->items[i].value, *vy = &l->items[i + 1].value;
-		if (vx->type != EX_INT || vy->type != EX_INT)
-			return false;
-		if (i && vx->i == l->items[i - 2].value.i && vy->i == l->items[i - 1].value.i)
+	for (unsigned i = 0; i + 1 < nr_ints; i += 2) {
+		if (i && v[i] == v[i - 2] && v[i + 1] == v[i - 1])
 			continue;
 		// v + 0.5 truncated towards zero: -1 lands on 0.
-		const int x = vx->i < 0 ? vx->i + 1 : vx->i, y = vy->i < 0 ? vy->i + 1 : vy->i;
+		const int x = v[i] < 0 ? v[i] + 1 : v[i], y = v[i + 1] < 0 ? v[i + 1] + 1 : v[i + 1];
 		min_x = min(min_x, x); max_x = max(max_x, x);
 		min_y = min(min_y, y); max_y = max(max_y, y);
 		nr++;
 	}
 	return nr >= 3 && max(min_x, 0) <= min(max_x, w - 1) && max(min_y, 0) <= min(max_y, h - 1);
+}
+
+static bool pactex_polygon_points(const struct ex_list *l, int w, int h)
+{
+	if (!l || l->nr_items / 2 > PARTS_CP_POLYGON_MAX_POINTS)
+		return false;
+	const unsigned nr_items = l->nr_items & ~1u;
+	int *v = xmalloc((nr_items + 1) * sizeof(int));
+	for (unsigned i = 0; i < nr_items; i++) {
+		if (l->items[i].value.type != EX_INT) {
+			free(v);
+			return false;
+		}
+		v[i] = l->items[i].value.i;
+	}
+	const bool reaches = pactex_polygon_reaches(v, nr_items, w, h);
+	free(v);
+	return reaches;
+}
+
+/* The polygon command 90 fills (0x506ae0), as int vertices that the polygon
+ * operation puts at their pixels' centres (adding 0.5). 0x4e97b0 makes the
+ * rectangle's corners (x0, y0), (x1, y0), (x1, y1), (x0, y1), with x1 = X +
+ * W - 1 and y1 = Y + H - 1. Without 丸め, 0x4e98a0 puts each at its pixel's
+ * centre (0x4e9400), as command 95's vertices are. With it, every edge gives
+ * two vertices (0x4ea2e0): its ends moved towards each other by d = min(4,
+ * (int)(length * 0.25)) (0x8131a8), along cos and sin of the edge's atan2,
+ * and offset by +0.5 on an axis the edge goes forward along and -0.5 on the
+ * others, 0 included (0x4e5cf0; 0x8131c8, 0x8133b0). On the rectangle that
+ * is (x0+d+.5, y0-.5), (x1-d-.5, y0-.5), (x1-.5, y0+d+.5), (x1-.5,
+ * y1-d-.5), (x1-d-.5, y1-.5), (x0+d+.5, y1-.5), (x0-.5, y1-d-.5), (x0-.5,
+ * y0+d+.5), d being the horizontal edges' or the vertical ones': the int
+ * vertices below. So the rounded rectangle lies one pixel up and left of the
+ * plain one. A vertex equal to the one before it is left out by both
+ * (0x4e9400, 0x4ea2e0) and by the operation.
+ * False for what is not reproduced: with 丸め, an edge shorter than 4 (d is 0
+ * and 0x4e5cf0 leaves the end at the integer itself) and a corner nearer
+ * than 16 to 0 (cos(pi/2) and sin(pi) are not 0: times d they stay below half
+ * a unit in the last place from 8 on); a corner beyond int. */
+static bool pactex_rect_polygon(int x, int y, int w, int h, bool round, int *out, int *nr)
+{
+	if ((int64_t)x + w - 1 > INT32_MAX || (int64_t)y + h - 1 > INT32_MAX)
+		return false;
+	const int x1 = x + w - 1, y1 = y + h - 1;
+	if (!round) {
+		const int v[8] = { x, y, x1, y, x1, y1, x, y1 };
+		memcpy(out, v, sizeof v);
+		*nr = 4;
+		return true;
+	}
+	if (w - 1 < 4 || h - 1 < 4 || x < 16 || y < 16)
+		return false;
+	const int dh = min(4, (w - 1) / 4), dv = min(4, (h - 1) / 4);
+	const int v[16] = {
+		x + dh, y - 1, x1 - dh - 1, y - 1,
+		x1 - 1, y + dv, x1 - 1, y1 - dv - 1,
+		x1 - dh - 1, y1 - 1, x + dh, y1 - 1,
+		x - 1, y1 - dv - 1, x - 1, y + dv,
+	};
+	memcpy(out, v, sizeof v);
+	*nr = 8;
+	return true;
+}
+
+/* Whether every row of a disc of radius r has its covered cells in one run,
+ * as pactex_add_disc colours them (a radius that is not drawn has none). */
+static bool pactex_disc_rows(int r)
+{
+	int dx0, dx1;
+	if (r <= 0)
+		return true;
+	for (int dy = -r; dy <= r; dy++) {
+		if (parts_cp_circle_cells(r, dy, &dx0, &dx1) < 0)
+			return false;
+	}
+	return true;
 }
 
 /* Reads one step and checks it against the surface (w x h) the steps before
@@ -950,15 +1028,18 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	if (first != (s->command == PACTEX_CP_CREATE || s->command == PACTEX_CP_CREATE_CG))
 		return false;
 	// The states that start with a CG, the commands only they have, the
-	// polygon fills, the row gradation and the alpha text are built for v14
-	// alone.
+	// polygon and rectangle fills, the row gradation, the texts and the
+	// discs but 102's are built for v14 alone.
 	if (ain->version < 14 && (s->command == PACTEX_CP_CREATE_CG || s->command == PACTEX_CP_BLEND_FILL
 			|| s->command == PACTEX_CP_GRAY_SCALE || s->command == PACTEX_CP_BLUR_H
 			|| s->command == PACTEX_CP_BLUR_V || s->command == PACTEX_CP_FILL_POLYGON_PIXEL_AMAP
 			|| s->command == PACTEX_CP_FILL_POLYGON_AMAP
 			|| s->command == PACTEX_CP_FILL_GRADATION_HORIZON
 			|| s->command == PACTEX_CP_ONLY_ALPHA_TEXT
-			|| s->command == PACTEX_CP_CUT_CG_SCALE_COPY))
+			|| s->command == PACTEX_CP_CUT_CG_SCALE_COPY
+			|| s->command == PACTEX_CP_DRAW_TEXT || s->command == PACTEX_CP_FILL_RECT_AMAP
+			|| s->command == PACTEX_CP_FILL_CIRCLE || s->command == PACTEX_CP_FILL_CIRCLE_IN_RECT
+			|| s->command == PACTEX_CP_FILL_CIRCLE_BLEND))
 		return false;
 	if (!pactex_step_item(node, dest_sjis, dest_gbk, 0, &s->x)
 			|| !pactex_step_item(node, dest_sjis, dest_gbk, 1, &s->y)
@@ -1091,14 +1172,18 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		return pactex_clip_span(&s->x, &s->w, surface_w) && s->w > 0
 			&& s->y >= 0 && (int64_t)s->y + s->h <= surface_h;
 	}
+	case PACTEX_CP_DRAW_TEXT:
 	case PACTEX_CP_ONLY_ALPHA_TEXT: {
 		// 0x4fd720: the loop of the text commands 7, 8, 23 and 24 (see
 		// build_text_grid in construction.c) with the step's font (+0x60,
 		// copied at 0x4fd7de..0x4fd81d), 文字間隔 and 行間隔 (+0x58,
 		// +0x5c; 0x4fd766, 0x4fd771), at 先矩形 X,Y; each cell's alpha is
 		// copied onto the surface, the colours left (0x5acea0 ->
-		// 0x494270). The step parser (0x4f82a0) reads a missing key as 0
-		// or "" and clamps the font's two colours to 0..255.
+		// 0x494270). Command 7 (0x4fc7e0) is the same code up to how a
+		// cell is put: its colours are blended by the cell's alpha and the
+		// surface's alpha is left (0x5aca90 at 0x4fca8e and 0x4fcb58). The
+		// step parser (0x4f82a0) reads a missing key as 0 or "" and clamps
+		// the font's two colours to 0..255.
 		// Built only as far as build_text_grid reproduces it: a 文本 under
 		// its GBK spelling (the SJIS one is not known; the CN executable's
 		// key is 0x7d2dc0), on the CN glyph grid, a font size above 0 (what
@@ -1207,6 +1292,85 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		s->points = v && v->type == EX_LIST ? v->list : NULL;
 		return pactex_polygon_points(s->points, surface_w, surface_h);
 	}
+	case PACTEX_CP_FILL_RECT_AMAP: {
+		// 0x506ae0 (矩形塗りつぶし（アルファのみ）): on a surface with an
+		// alpha (0x5abb80, a command 0 surface has one), 先矩形 W,H not
+		// positive succeed with nothing drawn (0x506b2b); otherwise the
+		// rectangle's polygon (pactex_rect_polygon), turned by 旋轉角度
+		// (0x4e9940), is scanned as command 95's (0x5af970, the scan
+		// 0x4d0820 with the writer 0x4d1420 -> 0x5b0a10): the alpha of each
+		// pixel it covers becomes 色１.A * coverage / 255.
+		// A scan with no row or fewer than three vertices fails the step
+		// (0x506bbf). 色１, 丸め and 旋轉角度 are read as for 95; a turn
+		// that is not a multiple of 360 is not built.
+		int item = 0;
+		struct ex_value *v;
+		memset(s->color, 0, sizeof s->color);
+		if (pactex_leaf_value(node, color_sjis, color_gbk)
+				&& !pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3]))
+			return false;
+		if (s->color[3] > INT32_MAX / 255 || s->color[3] < INT32_MIN / 255)
+			return false;
+		if ((v = pactex_leaf_value(node, "\x8a\xdb\x82\xdf", "\xcd\xe8\xa4\xe1")) /* 丸め */
+				&& !pactex_step_item(node, "\x8a\xdb\x82\xdf", "\xcd\xe8\xa4\xe1", 1, &item))
+			return false;
+		s->round = item == 1;
+		s->rotate = 0;
+		if (pactex_leaf_value(node, "\x89\xf1\x93\x5d\x8a\x70\x93\x78",
+				"\xd0\xfd\xde\x44\xbd\xc7\xb6\xc8") /* 回転角度 / 旋轉角度 */
+				&& !pactex_step_int(node, "\x89\xf1\x93\x5d\x8a\x70\x93\x78",
+					"\xd0\xfd\xde\x44\xbd\xc7\xb6\xc8", &s->rotate))
+			return false;
+		if (s->rotate % 360)
+			return false;
+		s->nr_rect_points = 0;
+		if (s->w <= 0 || s->h <= 0)
+			return true;
+		return pactex_rect_polygon(s->x, s->y, s->w, s->h, s->round, s->rect_points, &s->nr_rect_points)
+			&& pactex_polygon_reaches(s->rect_points, s->nr_rect_points * 2, surface_w, surface_h);
+	}
+	case PACTEX_CP_FILL_CIRCLE:
+	case PACTEX_CP_FILL_CIRCLE_IN_RECT:
+	case PACTEX_CP_FILL_CIRCLE_BLEND:
+		// 0x507350 (円塗りつぶし（ピクセル＆アルファ）) and 0x507d60
+		// (（アルファブレンド）): 102's disc of 半徑[0] (+0xc8) around
+		// 先矩形 X,Y in 色１'s colour and alpha (+0x34..+0x40), written on
+		// the surface (pactex_add_disc) or staged and blended
+		// (build_fill_circle). A radius that is not positive succeeds with
+		// nothing drawn (0x507395, 0x507da8). 0x5074b0
+		// (円塗りつぶし：矩形指定) takes the disc whose diameter is the
+		// larger of 先矩形 W and H (0x50753a), at X,Y: its centre X + 0.5 +
+		// D / 2, its radius D / 2 (0x507565..0x5075a9); W or H not positive
+		// succeed with nothing drawn (0x5074f5). 106 fails when its disc
+		// writes no pixel (0x507eee).
+		// Built here: colours within 0..255 (0x5b0b80 clamps; none in the
+		// game is outside), an even D (with an odd one the centre and the
+		// radius are not whole), for 100 and 101 a disc whose covered cells
+		// are one run in each row (pactex_disc_rows; a disc's are), and for
+		// 106 a centre within the surface.
+		for (int i = 0; i < 4; i++) {
+			if (!pactex_step_item(node, color_sjis, color_gbk, i, &s->color[i]) || !pactex_byte(s->color[i]))
+				return false;
+		}
+		if (s->command == PACTEX_CP_FILL_CIRCLE_IN_RECT) {
+			s->rx = 0;
+			if (s->w <= 0 || s->h <= 0)
+				return true;
+			const int d = max(s->w, s->h);
+			if (d & 1 || d / 2 > PARTS_CP_CIRCLE_MAX_RADIUS
+					|| (int64_t)s->x + d / 2 > INT32_MAX || (int64_t)s->y + d / 2 > INT32_MAX)
+				return false;
+			s->rx = d / 2;
+			s->x += s->rx;
+			s->y += s->rx;
+			return pactex_disc_rows(s->rx);
+		}
+		if (!pactex_step_item(node, "\x94\xbc\x8c\x61", "\xb0\xeb\x8f\xbd", 0, &s->rx) /* 半径 / 半徑 */
+				|| s->rx > PARTS_CP_CIRCLE_MAX_RADIUS)
+			return false;
+		if (s->command == PACTEX_CP_FILL_CIRCLE_BLEND && s->rx > 0)
+			return s->x >= 0 && s->x < surface_w && s->y >= 0 && s->y < surface_h;
+		return s->command == PACTEX_CP_FILL_CIRCLE_BLEND || pactex_disc_rows(s->rx);
 	case PACTEX_CP_FILL_CIRCLE_AMAP:
 		// 0x507640: the alpha of a disc of 半徑[0] around 先矩形 X,Y.
 		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
@@ -1287,17 +1451,19 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 
 /* The steps of a construction state, when the loader can run them as the
  * original does: every command is one of 0 (create), 2 (the surface from a
- * CG), 3, 4, 5, 6 (fills), 9 (a gradation of the rows' colour), 14 (a CG
- * scaled to a rectangle), 15 (gray scale), 24 (a text's alpha), 25, 26
- * (alpha gradations), 27, 28 (blurs), 94, 95 (polygons), 102 (disc alpha),
- * 122 (sector alpha) and 129 (CG tiles), the first step makes the surface
- * and none would fail.
+ * CG), 3, 4, 5, 6 (fills), 7 (a text), 9 (a gradation of the rows' colour),
+ * 14 (a CG scaled to a rectangle), 15 (gray scale), 24 (a text's alpha), 25,
+ * 26 (alpha gradations), 27, 28 (blurs), 90 (a rectangle's alpha), 94, 95
+ * (polygons), 100, 101 (discs), 102 (disc alpha), 106 (a blended disc), 122
+ * (sector alpha) and 129 (CG tiles), the first step makes the surface and
+ * none would fail.
  * A list whose first step is command 2 is narrower: every step must be one
  * of 2, 3, 4, 15, 27 and 28, and a list with any other step is not built
  * (the state keeps the CG it had). A CG's texture does not say whether its
  * source had an alpha channel, and natively command 5 skips a surface
- * without one (0x4fc378); 6, 9, 14, 24, 25, 26, 102, 122 and 129 after a CG
- * were not checked against the original and are left out with it.
+ * without one (0x4fc378); 6, 7, 9, 14, 24, 25, 26, 90, 100, 101, 102, 106,
+ * 122 and 129 after a CG were not checked against the original and are left
+ * out with it.
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;
@@ -1342,6 +1508,36 @@ static struct pactex_cp_step *pactex_construction_plan(struct ex_tree *state, in
 	}
 	*nr_steps = list->nr_children;
 	return steps;
+}
+
+/* Command 100's disc, or 101's: 0x4cfb40 scans the 2r + 1 rows and columns
+ * from the centre - r (as positions + 0.5, truncated towards zero, so that -1
+ * lands on 0 and what lies further out is left), and 0x4cbb20 -> 0x5b0b80
+ * replaces the colour and the alpha, A * coverage / 255, of each cell with a
+ * coverage. Here: command 3's fill of the colour over each row's run of such
+ * cells (the RGB replaced, the alpha left), then 102's operation, which
+ * writes the alpha of the same cells in the same order. */
+static void pactex_add_disc(int parts_no, int pe_state, const struct pactex_cp_step *s, int tw, int th)
+{
+	const int r = s->rx;
+	if (r <= 0)
+		return;
+	for (int dy = -r; dy <= r; dy++) {
+		int dx0, dx1;
+		int64_t row = (int64_t)s->y + dy;
+		if (row == -1)
+			row = 0;
+		if (row < 0 || row >= th || parts_cp_circle_cells(r, dy, &dx0, &dx1) != 1)
+			continue;
+		int64_t c0 = (int64_t)s->x + dx0, c1 = (int64_t)s->x + dx1;
+		if (c1 < -1 || c0 >= tw)
+			continue;
+		c0 = max(c0, 0);
+		c1 = min(max(c1, 0), tw - 1);
+		PE_AddFillToPartsConstructionProcess(parts_no, c0, row, c1 - c0 + 1, 1,
+			s->color[0], s->color[1], s->color[2], pe_state);
+	}
+	PE_AddFillCircleToPartsConstructionProcess(parts_no, false, s->x, s->y, r, 0, 0, 0, s->color[3], pe_state);
 }
 
 static bool pactex_construction_build(struct ex_tree *state, int parts_no, int pe_state)
@@ -1399,9 +1595,11 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 					c[0], c[1], c[2], pe_state);
 			}
 			break;
+		case PACTEX_CP_DRAW_TEXT:
 		case PACTEX_CP_ONLY_ALPHA_TEXT: {
 			struct string *text = cstr_to_string(s->text);
-			PE_AddOnlyAlphaTextToPartsConstructionProcess(parts_no, s->x, s->y, text,
+			(s->command == PACTEX_CP_DRAW_TEXT ? PE_AddDrawTextToPartsConstructionProcess
+				: PE_AddOnlyAlphaTextToPartsConstructionProcess)(parts_no, s->x, s->y, text,
 				s->font_type, s->font_size, s->font_rgb[0], s->font_rgb[1], s->font_rgb[2],
 				s->bold, s->edge_rgb[0], s->edge_rgb[1], s->edge_rgb[2], s->edge,
 				s->char_space, s->line_space, pe_state);
@@ -1433,6 +1631,21 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 		case PACTEX_CP_FILL_CIRCLE_AMAP:
 			PE_AddFillCircleToPartsConstructionProcess(parts_no, false, s->x, s->y, s->rx,
 				0, 0, 0, s->color[3], pe_state);
+			break;
+		case PACTEX_CP_FILL_RECT_AMAP:
+			// Nothing for W or H not positive.
+			if (s->nr_rect_points)
+				PE_AddFillPolygonWriteToPartsConstructionProcess(parts_no, true, s->nr_rect_points,
+					s->rect_points, 0, 0, 0, s->color[3], pe_state);
+			break;
+		case PACTEX_CP_FILL_CIRCLE:
+		case PACTEX_CP_FILL_CIRCLE_IN_RECT:
+			pactex_add_disc(parts_no, pe_state, s, steps[0].w, steps[0].h);
+			break;
+		case PACTEX_CP_FILL_CIRCLE_BLEND:
+			if (s->rx > 0)
+				PE_AddFillCircleToPartsConstructionProcess(parts_no, true, s->x, s->y, s->rx,
+					s->color[0], s->color[1], s->color[2], s->color[3], pe_state);
 			break;
 		case PACTEX_CP_TILE_CG: {
 			struct string *name = cstr_to_string(s->cg_name);

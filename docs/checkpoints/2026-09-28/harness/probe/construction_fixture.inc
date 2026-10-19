@@ -660,9 +660,13 @@ static void cn_fills(void)
 static void cn_unbuilt(void)
 {
 	cn_gl_setup();
-	/* 90 is a command the loader does not build (26, which stood here, is
-	 * built since construction-cmds; these two had no rectangle). */
-	static const struct cn_step unsupported[] = { CN_CREATE(30, 12), { 90 }, { 90 }, CN_FILL_ALL(3, 1, 2, 3, 0), CN_FILL_ALL(3, 4, 5, 6, 0) };
+	/* 200 is a command the loader does not build: the original has no
+	 * handler past 0x84 and skips such a step, running the others
+	 * (0x4fa366 -> 0x4fb67c); what is checked here is the port's choice of
+	 * not building the state. 26, which stood here, is built since
+	 * construction-cmds, and 90 since construction-shapes; these two had no
+	 * rectangle. */
+	static const struct cn_step unsupported[] = { CN_CREATE(30, 12), { 200 }, { 200 }, CN_FILL_ALL(3, 1, 2, 3, 0), CN_FILL_ALL(3, 4, 5, 6, 0) };
 	static const struct cn_step missing_cg[] = { { 2, .cg = "ConstructionMissingCg" }, { 28 }, { 27 } };
 	static const struct cn_step rotated[] = { CN_CREATE(40, 40), CN_FILL_ALL(6, 0, 0, 0, 0),
 		{ 122, { 20, 20 }, { 0, 0, 0, 255 }, 0, { 16, 16 }, { 0, 90 }, 30 } };
@@ -809,9 +813,10 @@ static void cn_empty(void)
 static void cn_save(void)
 {
 	cn_gl_setup();
-	/* A command the loader does not build (102, which stood here, is built
-	 * since construction-cmds). */
-	static const struct cn_step unsupported[] = { CN_CREATE(30, 12), { 90 } };
+	/* A command the loader does not build (see cn_unbuilt; 102, which stood
+	 * here, is built since construction-cmds, and 90 since
+	 * construction-shapes). */
+	static const struct cn_step unsupported[] = { CN_CREATE(30, 12), { 200 } };
 	struct ex_tree *kids;
 	struct lb_place pl = { 5, 6, 1 };
 	/* Version 6 had the create and fill operations. This page is made from
@@ -887,7 +892,7 @@ static void cn_save(void)
 static void cn_layout(void)
 {
 	cn_gl_setup();
-	static const struct cn_step unsupported[] = { CN_CREATE(128, 40), { 90 } };	/* not built; was 102 */
+	static const struct cn_step unsupported[] = { CN_CREATE(128, 40), { 200 } };	/* not built; was 102, then 90 */
 	struct ex_tree *kids;
 	struct ex *e = lb_activity("ConstructionLayout", 2, &kids);
 	struct lb_place p0 = { 100, 50, 1 }, px = { 33, 44, 1 };
