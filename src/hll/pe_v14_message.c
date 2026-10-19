@@ -28,8 +28,12 @@
  *  - PopMessage removes one message; ReleaseMessage clears the pending queue.
  *  - CallDelegate compares the message's uniqueID against the parts'
  *    registered event ID (SetEventID) and silently drops mismatches.
- *  - Message types (bytecode SWITCH): 4=mouse click, 5=double click.
- *    MouseClick's keyCode distinguishes left (1), right (2), middle (4).
+ *  - Message types (bytecode SWITCH): 0=mouse enter, 1=mouse move,
+ *    2=mouse leave (x, y), 4=mouse click (x, y, keyCode), 5=double click,
+ *    6=on cursor (x, y, time since entered), 19=focus, 20=lost focus (no
+ *    variables). MouseClick's keyCode distinguishes left (1), right (2),
+ *    middle (4). The input update sends 0, 1, 2, 4, 6, 19 and 20
+ *    (src/parts/input.c, v14_update_input).
  */
 
 #include "system4/ain.h"
@@ -42,7 +46,14 @@
 
 extern struct static_library lib_PartsEngine;
 
-#define V14_MSG_QUEUE_SIZE 64
+/* The original's queue is a vector without a bound (+0x110..+0x114 of the
+ * engine, 0x58b0c0; PopMessage 0x58aff0 moves the rest forward): every
+ * input update queues the hover's messages (0, 1, 2, 6) for each parts the
+ * cursor is on, and a loop of the game that runs the parts update without
+ * taking its messages finds them all later. So this ring grows (from 64);
+ * the hard bound only keeps a runaway from taking all the memory. */
+#define V14_MSG_QUEUE_INITIAL 64
+#define V14_MSG_QUEUE_MAX (1 << 20)
 struct v14_parts_message {
 	int type;
 	int parts_no;
@@ -51,7 +62,8 @@ struct v14_parts_message {
 	int vars[4];
 	int nr_vars;
 };
-static struct v14_parts_message msg_queue[V14_MSG_QUEUE_SIZE];
+static struct v14_parts_message *msg_queue;
+static int msg_size;	// the ring's slots; one is always free
 static int msg_head = 0, msg_tail = 0;
 
 // A restart (system.Reset): the messages nobody took name parts that are gone.
@@ -60,14 +72,40 @@ void pe_v14_message_reset(void)
 	msg_head = msg_tail = 0;
 }
 
+static bool msg_queue_grow(void)
+{
+	int size = msg_size ? msg_size * 2 : V14_MSG_QUEUE_INITIAL;
+	if (size > V14_MSG_QUEUE_MAX)
+		return false;
+	struct v14_parts_message *q = xcalloc(size, sizeof(*q));
+	int n = 0;
+	for (int i = msg_head; i != msg_tail; i = (i + 1) % msg_size)
+		q[n++] = msg_queue[i];
+	free(msg_queue);
+	msg_queue = q;
+	msg_size = size;
+	msg_head = 0;
+	msg_tail = n;
+	// Past the first growths, a log line for each (a loop that does not take
+	// its messages shows here).
+	if (size > 4 * V14_MSG_QUEUE_INITIAL)
+		WARNING("parts message queue: %d messages pending, grown to %d", n, size);
+	return true;
+}
+
 void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int unique_id,
                                 int nr_vars, const int *vars)
 {
-	int next = (msg_tail + 1) % V14_MSG_QUEUE_SIZE;
-	if (next == msg_head) {
-		WARNING("parts message queue full, dropping message type=%d parts=%d", type, parts_no);
-		return;
+	if (!msg_size || (msg_tail + 1) % msg_size == msg_head) {
+		if (!msg_queue_grow()) {
+			static bool warned;
+			if (!warned)
+				WARNING("parts message queue full, dropping message type=%d parts=%d", type, parts_no);
+			warned = true;
+			return;
+		}
 	}
+	int next = (msg_tail + 1) % msg_size;
 	msg_queue[msg_tail].type = type;
 	msg_queue[msg_tail].parts_no = parts_no;
 	msg_queue[msg_tail].delegate_index = delegate_index;
@@ -87,7 +125,7 @@ void parts_enqueue_message(int type, int parts_no, int delegate_index, int uniqu
 static void PE_v14_PopMessage(void)
 {
 	if (msg_head != msg_tail)
-		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
+		msg_head = (msg_head + 1) % msg_size;
 }
 
 static void PE_v14_ReleaseMessage(void)
@@ -134,7 +172,7 @@ static void PE_v14_SeekMessage(int target_parts_no)
 	while (msg_head != msg_tail) {
 		if (msg_queue[msg_head].parts_no == target_parts_no)
 			return;
-		msg_head = (msg_head + 1) % V14_MSG_QUEUE_SIZE;
+		msg_head = (msg_head + 1) % msg_size;
 	}
 }
 
@@ -388,7 +426,7 @@ static void PE_v14_GetKeyWaitCGName(int parts_no, int name_slot, int *start_no,
  *
  * GetClickNumber is the parts that got the left button's MouseClick in the
  * last input update, 0 otherwise (the element's +5, written at 0x5789cb in
- * the key 1 branch of 0x5788d0 alone; see v14_update_buttons). A right or
+ * the key 1 branch of 0x5788d0 alone; see v14_update_input). A right or
  * middle click of a parts does not set it in the original, and this port
  * sends no such click at all. */
 

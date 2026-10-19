@@ -11,12 +11,21 @@
  *       clickable || swiping || !pass); one marked 0 still blocks and the
  *       click becomes the whole-screen click. Before: the title characters,
  *       the worker card's texts and the choice cards' portraits swallowed
- *       the clicks of the buttons behind them.
- *   RV3 One hover target: the original's input update (0x546890) keeps the
- *       element found by 0x545e10 as the only hovered one, so a clickable
- *       parts that passes the cursor takes the hover and the click from the
- *       clickable parts behind it. Before: every parts under the cursor up
- *       to the first one blocking it was hovered.
+ *       the clicks of the buttons behind them. Since G3 (2026-10-20) the
+ *       decoration is hovered too: the cursor walk (0x5471d0) enters every
+ *       parts under the cursor up to and including the first one that does
+ *       not pass it.
+ *   RV3 The click target and the hover: a clickable parts that passes the
+ *       cursor takes the click from the clickable parts behind it (the
+ *       element 0x545e10 finds at a press); both are hovered. This case
+ *       said "one hover target" before G3 (2026-10-20), which took the
+ *       press target for the hover; the hover is the cursor walk at the end
+ *       of 0x546890 (0x5471d0, called at 0x546dc7): from the front, every
+ *       shown, not transparent parts under the cursor is entered (0x577b90),
+ *       and the walk stops after one that does not pass the cursor
+ *       (0x5472e9..0x547305; it does not ask for +0x1a4, clickable). So a
+ *       non-clickable parts that passes the cursor is hovered with the
+ *       parts behind it as well.
  *   RV4 A destructor is not blacklisted for being long. Frees during a
  *       destructor are nested (heap_set_defer_frees), so the old
  *       "> 400K instructions" count included the nested destructors; after
@@ -120,7 +129,8 @@ static struct parts *rv_decoration(int no, int x, int y, int w, int h, int z)
 }
 
 /* Moves the cursor to (x, y) and runs one input frame without a press.
- * Callers own the input scope: native Begin/End reset hover (0x5461a0 ->
+ * Callers own the input scope: native Begin/End reset the hover of the
+ * parts in the manager's slots, the pressed one and the focus (0x5461a0 ->
  * 0x577af0). Check before End and move between targets in the same scope
  * so resetting a session cannot hide a stale hover target. */
 static void rv_hover(int x, int y)
@@ -150,7 +160,7 @@ static void rv_decorations(void)
 	rv_hover(160, 150);
 	RV_CHECK(b->is_hovered && b->state == PARTS_STATE_HOVERED,
 		 "button behind a pass-through decoration: hovered %d state %d; want 1, %d", b->is_hovered, b->state, PARTS_STATE_HOVERED);
-	RV_CHECK(!d1->is_hovered, "the pass-through decoration is hovered");
+	RV_CHECK(d1->is_hovered, "the pass-through decoration is not hovered (the cursor walk enters it)");
 	PE_EndInput();
 	/* A decoration marked 0 blocks the cursor: the click becomes the
 	 * whole-screen click and the button behind it is not hovered. */
@@ -166,8 +176,8 @@ static void rv_decorations(void)
 		 c->is_hovered, d0->is_hovered);
 	/* Moving back over the first button leaves the blocker. */
 	rv_hover(160, 150);
-	RV_CHECK(b->is_hovered && !d0->is_hovered && !c->is_hovered, "after moving back: %d %d %d; want 1 0 0",
-		 b->is_hovered, d0->is_hovered, c->is_hovered);
+	RV_CHECK(b->is_hovered && d1->is_hovered && !d0->is_hovered && !c->is_hovered, "after moving back: %d %d %d %d; want 1 1 0 0",
+		 b->is_hovered, d1->is_hovered, d0->is_hovered, c->is_hovered);
 	PE_EndInput();
 	printf("RV2 pass-through decorations: %s\n", rv_failures ? "FAIL" : "ok");
 }
@@ -187,9 +197,10 @@ static void rv_one_hover(void)
 	PE_SetPassCursor(F, true);
 	PE_BeginInput();
 	rv_hover(150, 130);
-	RV_CHECK(f->is_hovered && !k->is_hovered, "clickable pass-cursor parts in front: front hovered %d, back hovered %d; want 1, 0",
+	RV_CHECK(f->is_hovered && k->is_hovered, "clickable pass-cursor parts in front: front hovered %d, back hovered %d; want 1, 1",
 		 f->is_hovered, k->is_hovered);
-	RV_CHECK(k->state == PARTS_STATE_DEFAULT, "the parts behind the target entered state %d", k->state);
+	RV_CHECK(f->state == PARTS_STATE_HOVERED && k->state == PARTS_STATE_HOVERED, "states front %d, back %d; want both on-cursor (%d)",
+		 f->state, k->state, PARTS_STATE_HOVERED);
 	PE_EndInput();
 	int n = br_click(150, 130, &type, &no);
 	RV_CHECK(n == 2 && type == 4 && no == F, "click: %d messages, last type %d parts %d; want 2, 4, %d", n, type, no, F);
@@ -197,13 +208,13 @@ static void rv_one_hover(void)
 	PE_SetClickable(F, false);
 	PE_BeginInput();
 	rv_hover(150, 130);
-	RV_CHECK(!f->is_hovered && k->is_hovered, "non-clickable pass-cursor parts in front: front hovered %d, back hovered %d; want 0, 1",
+	RV_CHECK(f->is_hovered && k->is_hovered, "non-clickable pass-cursor parts in front: front hovered %d, back hovered %d; want 1, 1",
 		 f->is_hovered, k->is_hovered);
 	/* Beside both: nothing is hovered. */
 	rv_hover(1000, 600);
 	RV_CHECK(!f->is_hovered && !k->is_hovered, "beside both: %d %d", f->is_hovered, k->is_hovered);
 	PE_EndInput();
-	printf("RV3 one hover target: %s\n", rv_failures ? "FAIL" : "ok");
+	printf("RV3 the click target and the hover: %s\n", rv_failures ? "FAIL" : "ok");
 }
 
 /* --- RV4 / RV5 --- */

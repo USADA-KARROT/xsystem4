@@ -102,6 +102,26 @@ static int br_pairs(int n, const int *pairs)
 static int (*br_msg_type)(void), (*br_msg_parts)(void);
 static void (*br_msg_pop)(void), (*br_msg_release)(void);
 
+/* Since G3 (2026-10-20) the v14 input update also queues the hover's
+ * messages for every parts the cursor walk enters or leaves (MouseEnter 0,
+ * MouseMove 1, MouseLeave 2, OnCursor 6), the whole-screen MouseMove (1)
+ * and the focus' (19, 20); hover-events checks them through
+ * br_msg_type_raw. The fixtures that count the clicks, the scroll and the
+ * check boxes read the queue through br_msg_type, which takes those off the
+ * head first: their counts and orders stay those of the other messages. */
+static int (*br_msg_type_raw)(void);
+static bool br_msg_is_hover(int type)
+{
+	return type == 0 || type == 1 || type == 2 || type == 6 || type == 19 || type == 20;
+}
+static int br_msg_type_skip_hover(void)
+{
+	int t;
+	while ((t = br_msg_type_raw()) >= 0 && br_msg_is_hover(t))
+		br_msg_pop();
+	return t;
+}
+
 static void *br_pe_fn(const char *name)
 {
 	extern struct static_library lib_PartsEngine;
@@ -116,11 +136,12 @@ static void br_input_setup(void)
 	bu_postlink();
 	extern void pe_v14_message_replace(void);
 	pe_v14_message_replace();
-	br_msg_type = (int (*)(void))br_pe_fn("GetMessageType");
+	br_msg_type_raw = (int (*)(void))br_pe_fn("GetMessageType");
+	br_msg_type = br_msg_type_skip_hover;
 	br_msg_parts = (int (*)(void))br_pe_fn("GetMessagePartsNumber");
 	br_msg_pop = (void (*)(void))br_pe_fn("PopMessage");
 	br_msg_release = (void (*)(void))br_pe_fn("ReleaseMessage");
-	assert(br_msg_type && br_msg_parts && br_msg_pop && br_msg_release);
+	assert(br_msg_type_raw && br_msg_parts && br_msg_pop && br_msg_release);
 	sdl.w = 1280; sdl.h = 720;
 	sdl.viewport = (SDL_Rect){ 0, 0, 1280, 720 };
 	heap[global_page_slot].page->values[2].i = 0;	/* g_EndPartsBusyLoop */

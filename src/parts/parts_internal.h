@@ -714,8 +714,15 @@ struct parts {
 	int pending_parent;
 	int linked_to;
 	int linked_from;
+	// v14: is_hovered is the original's +0x1ac (the cursor walk entered the
+	// element), hover_time its +0x1b0 (the time since it was entered: every
+	// input update adds the passed time to it, 0x546620, entering sets 0)
+	// and hover_pos its +0x1b8/+0x1bc (where the element last saw the
+	// cursor; a MouseMove goes out when the cursor is elsewhere, 0x577c7f).
+	// See v14_cursor_walk in input.c.
 	bool is_hovered;
 	int hover_time;
+	Point hover_pos;
 	int draw_filter;
 	// v14 減算色モード (SetComponentSubColorMode; pactex 減算色模式, stored as
 	// == 1 by 0x554020, native +0xc4): the parts' own add colour counts
@@ -1017,6 +1024,9 @@ bool parts_screen_to_box(struct parts *parts, struct parts_common *common, float
 		float *bx, float *by);
 
 // message.c
+// The message types of programs before v14 (Rance 9 and later): from 1.
+// v14 (Dohna Dohna) numbers them from 0, as CPartsMessageManager@CallDelegate
+// (FUNC 8724) switches on them: see enum parts_v14_message_type.
 enum parts_message_type {
 	PARTS_MSG_MOUSE_ENTER    = 1,
 	PARTS_MSG_MOUSE_MOVE     = 2,
@@ -1034,6 +1044,21 @@ enum parts_message_type {
 	PARTS_MSG_KEY_TRIGGER    = 14,
 	PARTS_MSG_KEY_DOWN       = 15,
 	PARTS_MSG_KEY_UP         = 17,
+};
+
+// v14: the types the input update sends, by the type function of each
+// message's vtable (0x80f1dc -> 0x426ae0 returns 0, 0x80f6f0 -> 0x43a600
+// returns 1, 0x80f1e8 -> 0x426f70 returns 2, 0x80f794 -> 0x426b40 returns 4,
+// 0x80f208 -> 0x429a10 returns 6, 0x80f580 -> 0x533d80 returns 19,
+// 0x80f5a4 -> 0x533d90 returns 20).
+enum parts_v14_message_type {
+	PARTS_V14_MSG_MOUSE_ENTER = 0,	// x, y
+	PARTS_V14_MSG_MOUSE_MOVE  = 1,	// x, y
+	PARTS_V14_MSG_MOUSE_LEAVE = 2,	// x, y
+	PARTS_V14_MSG_MOUSE_CLICK = 4,	// x, y, key
+	PARTS_V14_MSG_ON_CURSOR   = 6,	// x, y, time since entered
+	PARTS_V14_MSG_FOCUS       = 19,
+	PARTS_V14_MSG_LOST_FOCUS  = 20,
 };
 
 void parts_msg_push(struct parts* parts, int type, const char *fmt, ...);

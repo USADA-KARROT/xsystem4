@@ -6,7 +6,6 @@ static bool PE_stub_IsFocus(possibly_unused int number) { return false; }
 static bool PE_stub_Parts_IsResizable(possibly_unused int number) { return false; }
 static void PE_stub_Parts_GetPartsUpperLeftPos(possibly_unused int number, possibly_unused int posx, possibly_unused int posy, possibly_unused int state) { }
 static int PE_stub_Parts_GetOnCursorShowLinkPartsNumber(possibly_unused int number) { return 0; }
-static bool PE_stub_Parts_GetPartsPassCursor(possibly_unused int number) { return false; }
 static void PE_stub_Parts_SetDrag(possibly_unused int number, possibly_unused bool drag) { }
 static bool PE_stub_Parts_GetPartsDrag(possibly_unused int number) { return false; }
 static void PE_stub_Parts_SetSwipeType(possibly_unused int number, possibly_unused int swipetype) { }

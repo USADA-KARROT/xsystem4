@@ -59,6 +59,10 @@
  *      nothing moves (the SJIS keys are not known).
  *   K11 a bar released while dragged, a bar made another widget and back: no
  *      knob, no event, no crash.
+ *   K12 the cursor walk (0x5471d0) stops at a bar the cursor is on (its knob
+ *      or its track, the original's inner elements, which do not pass the
+ *      cursor): a clickable parts behind the track or the knob is not
+ *      entered, beside the bar it is (G3, 2026-10-20).
  * Functions the fix adds are not called: the file builds before the fix.
  */
 static int sk_failures;
@@ -783,6 +787,36 @@ static void sk_release(void)
 	printf("K11 checked\n");
 }
 
+/* --- K12 --- */
+static void sk_walk(void)
+{
+	sk_setup();
+	const char *names[] = { "Slider" };
+	const struct sk_bar *bars[] = { &sk_hbar };
+	int no[1];
+	if (!sk_load("ScrollbarKnobWalk", 1, names, bars, no))
+		return;
+	const int h = no[0], B = 9896;
+	cw_set_rate(h, 0.0f);
+	/* a clickable parts behind the whole bar (20..411 x 30..62) */
+	br_box(B, 0, 0, 600, 120, true);
+	PE_SetZ(B, -1000);
+	PE_UpdateComponent(0);
+	struct parts *bar = parts_get(h), *b = parts_get(B);
+	sk_begin(170, 46);
+	sk_frame(170, 46, false);
+	SK_CHECK(bar->is_hovered && !b->is_hovered, "K12 on the track: bar entered %d, the parts behind %d (want 1, 0)",
+		 bar->is_hovered, b->is_hovered);
+	sk_frame(170, 100, false);
+	SK_CHECK(!bar->is_hovered && b->is_hovered, "K12 below the bar: bar entered %d, the parts behind %d (want 0, 1)",
+		 bar->is_hovered, b->is_hovered);
+	sk_frame(30, 46, false);
+	SK_CHECK(bar->is_hovered && !b->is_hovered, "K12 on the knob: bar entered %d, the parts behind %d (want 1, 0)",
+		 bar->is_hovered, b->is_hovered);
+	PE_EndInput();
+	printf("K12 checked\n");
+}
+
 static void (*sk_case)(void);
 static void sk_case_body(void)
 {
@@ -795,7 +829,7 @@ static int test_scrollbar_knob(void)
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
 		{ "K1", sk_hdraw }, { "K2", sk_vdraw }, { "K3", sk_origin }, { "K4", sk_track }, { "K5", sk_drag },
 		{ "K6", sk_backlog }, { "K7", sk_loop }, { "K8", sk_blocked }, { "K9", sk_v13 }, { "K10", sk_sjis },
-		{ "K11", sk_release },
+		{ "K11", sk_release }, { "K12", sk_walk },
 	};
 	const int n = sizeof(cases) / sizeof(cases[0]);
 	int failed = 0, env = 0;

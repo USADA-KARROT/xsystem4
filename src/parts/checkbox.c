@@ -340,7 +340,7 @@ void parts_checkbox_rebuild(struct parts *parts)
  * on the widget (0x52cdd0, after the inner parts' MouseClick and KeyUp went
  * to the scripts: 0x52ce03 .. 0x52ce1d return when no inner parts is under
  * the cursor, 0x52ce24 calls 0x52f030 with the other value). The input
- * (v14_update_buttons in input.c) does the same with parts_checkbox_set_checked
+ * (v14_release in input.c) does the same with parts_checkbox_set_checked
  * right after the MouseClick, within the update of the parts, so the
  * settings, which write every box before PartsEngine.UpdateComponent and
  * read them back after it, see the new value in the same frame as the
