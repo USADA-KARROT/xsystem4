@@ -611,6 +611,19 @@ void PE_UpdateInputState(int passed_time)
 	bool click_consumed = false;
 	struct parts *parts;
 	struct parts *v14_target = ain->version >= 14 ? v14_input_target(cur_pos) : NULL;
+	// Trace (XSYS4_STAGE2_TRACE): the v14 input target whenever it
+	// changes, so that a run's log shows what the cursor is on also where
+	// nothing is clicked (a scheduled move, see src/input.c).
+	if (ain->version >= 14) {
+		static int traced_no = -1;
+		static unsigned traced;
+		int no = v14_target ? v14_target->no : 0;
+		if (input_stage2_trace() && no != traced_no && traced < 5000) {
+			traced++;
+			traced_no = no;
+			NOTICE("S2 hover ms=%u pos=%d,%d target=%d", SDL_GetTicks(), cur_pos.x, cur_pos.y, no);
+		}
+	}
 	// Iterate front-to-back (highest z first) for proper cursor consumption
 	PARTS_LIST_FOREACH_REVERSE(parts) {
 		parts_update_mouse(parts, cur_pos, cur_clicking, passed_time,
@@ -693,6 +706,8 @@ void PE_UpdateInputState(int passed_time)
 
 	prev_clicking = cur_clicking;
 	parts_prev_pos = cur_pos;
+	// The scheduled input (src/input.c) learns that the input was read.
+	input_auto_read();
 }
 
 void PE_SetPassCursor(int parts_no, bool pass)

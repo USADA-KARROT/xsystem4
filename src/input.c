@@ -14,8 +14,13 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <SDL.h>
 #include "system4.h"
@@ -200,29 +205,649 @@ void key_clear_flag(bool no_ctrl)
 	}
 }
 
-static int override_mouse_x = -1, override_mouse_y = -1;
+/*
+ * The pointer position the program reads (mouse_get_pos).
+ *
+ * It is the pointer as SDL reports it, as upstream, except while a position
+ * the program set stands in front of it:
+ *  - MOUSE_POS_WARP, from mouse_set_pos: the HLLs that move the cursor
+ *    (IbisInputEngine.Mouse_MovePosImmediately, SystemService, SACT2,
+ *    InputDevice, vmCursor). The original moves the system cursor and reads
+ *    the system cursor back: Mouse_MovePosImmediately calls its mouse
+ *    object (0x498856), and the window's move, presumably what that
+ *    reaches, is SetCursorPos (0x4c0e00 -> 0x4c1200, only while the window
+ *    is not minimized and for a point in its client area), the read
+ *    GetCursorPos (0x4c0ce0); the real mouse goes on moving the cursor
+ *    afterwards. So a read right after the move gets the new position.
+ *    Here SDL warps the desktop cursor, as upstream does, but may report
+ *    the new position only later, or not at all while the window is not
+ *    focused (the reason a3eabb4 gave for the override), so the position
+ *    asked for is read until the mouse reports again.
+ *  - MOUSE_POS_AUTO, from the scheduled input (XSYS4_AUTO_CLICK_SEQ and
+ *    XSYS4_AUTO_CLICK, a test facility, see auto_input below): a pointer of
+ *    its own, which never moves the desktop cursor, since somebody may be
+ *    working at the same desktop while a run goes on. A move the HLLs ask
+ *    for during such a run moves this pointer and not the cursor; so does
+ *    one while XSYS4_NO_DESKTOP_WARP is set (to anything but "" and "0";
+ *    the bounded GUI runs of the harness always set it), or while
+ *    XSYS4_AUTO_CLICK_SEQ is set, even if none of its steps is understood.
+ *    This pointer counts as in the window (mouse_in_window): the HLLs that
+ *    report whether the cursor is in the window say it is, as they did when
+ *    every scheduled click warped the cursor and SDL gave the window the
+ *    mouse focus with it.
+ * Either ends at the next real event of the mouse, a motion, a button or
+ * the wheel, that SDL timestamped after the position was set (an event SDL
+ * had taken in before does not count; on macOS SDL timestamps a motion when
+ * it pumps it, so one made just before may still count): from then on the
+ * real pointer is read again, until a move or a scheduled step sets a
+ * position again. A motion does not end it while the schedule holds a
+ * button down, nor after the schedule released one until the release has
+ * been read (auto_input_guards), so that a scheduled click or drag is seen
+ * where it was told whatever passes over the window meanwhile; a real
+ * button or the wheel does.
+ *
+ * Before, a position once set was read for ever (a3eabb4): the real mouse
+ * did nothing to the program after a scheduled click or a move (no hover,
+ * no drag in a window a schedule had clicked), and the hover a run's
+ * screenshots showed was where its last click had been.
+ */
+static struct {
+	enum mouse_pos_source source;
+	int x, y;		// game coordinates, while source is not MOUSE_POS_SDL
+	uint32_t set_at;	// SDL_GetTicks() when they were set
+} pointer;
 
-void mouse_get_pos(int *x, int *y)
+// The scheduled input's SDL events (the wheel) carry this as their mouse.
+#define AUTO_INPUT_MOUSEID ((Uint32)-2)
+
+static bool auto_input_guards(uint32_t timestamp);
+
+static void pointer_set(enum mouse_pos_source source, int x, int y)
 {
-	if (override_mouse_x >= 0) {
-		*x = override_mouse_x;
-		*y = override_mouse_y;
+	pointer.source = source;
+	pointer.x = x;
+	pointer.y = y;
+	pointer.set_at = SDL_GetTicks();
+}
+
+// A real event of the mouse: the real pointer is read again.
+static void pointer_real_event(uint32_t timestamp, bool motion)
+{
+	if (motion && auto_input_guards(timestamp))
 		return;
+	if (pointer.source != MOUSE_POS_SDL && SDL_TICKS_PASSED(timestamp, pointer.set_at + 1))
+		pointer.source = MOUSE_POS_SDL;
+}
+
+bool mouse_in_window(void)
+{
+	return pointer.source == MOUSE_POS_AUTO || mouse_focus;
+}
+
+bool input_stage2_trace(void)
+{
+	static int on = -1;
+	if (on < 0) {
+		const char *v = getenv("XSYS4_STAGE2_TRACE");
+		on = v && *v && strcmp(v, "0");
 	}
+	return on;
+}
+
+static void sdl_mouse_pos(int *x, int *y)
+{
 	int wx, wy;
-	SDL_PumpEvents();
 	SDL_GetMouseState(&wx, &wy);
 	*x = (wx - sdl.viewport.x) * sdl.w / sdl.viewport.w;
 	*y = (wy - sdl.viewport.y) * sdl.h / sdl.viewport.h;
 }
 
+const char *mouse_pos_source_name(enum mouse_pos_source source)
+{
+	switch (source) {
+	case MOUSE_POS_SDL:  return "sdl";
+	case MOUSE_POS_WARP: return "warp";
+	case MOUSE_POS_AUTO: return "auto";
+	}
+	return "?";
+}
+
+enum mouse_pos_source mouse_peek_pos(int *x, int *y)
+{
+	if (pointer.source != MOUSE_POS_SDL) {
+		*x = pointer.x;
+		*y = pointer.y;
+	} else {
+		sdl_mouse_pos(x, y);
+	}
+	return pointer.source;
+}
+
+/*
+ * Scheduled input, a test facility: XSYS4_AUTO_CLICK_SEQ is a list of steps
+ * separated by ';' or line breaks; a '#' starts a comment that runs to the end
+ * of its line.
+ * T is a time in ms of SDL_GetTicks(), X and Y are game coordinates, B is a
+ * button, L (the default), R or M, MS a time in ms.
+ *   T,X,Y                    a left click at (X,Y): pressed at T, released
+ *                            100 ms later (the only form before the others)
+ *   click,T,X,Y[,B[,MS]]     a click of B held MS ms (default 100)
+ *   rclick,T,X,Y[,MS]        a click of the right button
+ *   mclick,T,X,Y[,MS]        a click of the middle button
+ *   move,T,X,Y[,MS]          moves the pointer and presses nothing (a hover);
+ *                            with MS it goes in a straight line from where
+ *                            the program reads it to (X,Y), there MS ms later
+ *   down,T,X,Y[,B]           moves to (X,Y) and presses B, which stays down
+ *   up,T,X,Y[,B]             moves to (X,Y) and releases B
+ *   drag,T,X,Y,T2,X2,Y2[,B]  down at (X,Y) at T; from T+100 a straight line
+ *                            to (X2,Y2), there at T2; up there at T2+100
+ *                            (made into a down, a move and an up)
+ *   wheel,T,X,Y,N            moves to (X,Y) and turns the wheel N notches,
+ *                            forward (up) for N > 0, back (down) for N < 0,
+ *                            one notch per input update (below)
+ * The steps run in their order: a step starts at its T, or when the one
+ * before it is over if that is later (a click when its button is up again,
+ * a move with MS when it has arrived, a wheel when its last notch has been
+ * read), and never in the handle_events that ended the one before. The
+ * pointer is the schedule's own (MOUSE_POS_AUTO, see the pointer above):
+ * the desktop cursor does not move. A button is pressed and released in
+ * the key state directly, as the first form always was; a notch goes
+ * through SDL's event queue, as a real one does, marked as the schedule's
+ * so that it does not end the schedule's pointer.
+ *
+ * An input update is a run of PE_UpdateInputState (input_auto_read), where
+ * the parts input reads the buttons and the pointer once a frame (v14 from
+ * PartsEngine.Update, older programs also from system.Peek). A notch is
+ * queued, and handled, in one handle_events; the next one waits for an
+ * input update after it, so that each input update sees one notch, as a
+ * wheel turned notch by notch is seen, whether the engine keeps the
+ * direction of the last notch (wheel_dir, now) or adds them up. After the
+ * schedule released a button, a real motion leaves the schedule's pointer
+ * until an input update has read the release (or the next step starts), so
+ * that the release is read where the step was. A program without input
+ * updates gets each of these AUTO_INPUT_READ_WAIT ms later instead.
+ *
+ * Out of the first form, which is read as it always was, a coordinate is
+ * at most AUTO_INPUT_COORD_MAX away from 0 and a wheel turns at most
+ * AUTO_INPUT_NOTCHES_MAX notches; beyond that the step is not understood.
+ *
+ * XSYS4_AUTO_CLICK=<ms>, when there is no XSYS4_AUTO_CLICK_SEQ, clicks every
+ * <ms> at XSYS4_AUTO_CLICK_X/Y (default 350,180), at most
+ * XSYS4_AUTO_CLICK_COUNT times if that is given.
+ */
+enum auto_step_kind { AUTO_CLICK, AUTO_MOVE, AUTO_DOWN, AUTO_UP, AUTO_WHEEL };
+
+#define AUTO_INPUT_READ_WAIT 500
+#define AUTO_INPUT_COORD_MAX 1000000
+#define AUTO_INPUT_NOTCHES_MAX 1000
+
+struct auto_step {
+	enum auto_step_kind kind;
+	bool first_form;		// "T,X,Y": logged as it always was
+	uint32_t t;
+	int x, y;
+	enum sact_keycode button;
+	uint32_t ms;			// a click: held; a move: on its way
+	int notches;
+};
+
+static struct {
+	bool loaded;
+	bool given;			// a schedule was given (understood or not)
+	struct auto_step *steps;
+	int nr_steps;
+	int next;			// the next step to start
+	bool busy;			// steps[next - 1] is going on
+	uint32_t started;
+	int from_x, from_y;		// where a move with MS set out from
+	int notches_left;		// a wheel: the notches still to queue
+	int notches_done;
+	uint32_t notch_at;		// a wheel: its last notch, then
+	unsigned notch_reads;		// and input_reads then
+	// XSYS4_AUTO_CLICK
+	int interval, max, count, x, y;
+	bool down;
+	uint32_t last;
+	unsigned held;			// the buttons it holds down now (auto_button_bit)
+	bool guard;			// a release not read yet: released_at, released_reads
+	uint32_t released_at;
+	unsigned released_reads;
+} auto_input;
+
+// The input updates so far (input_auto_read).
+static unsigned input_reads;
+
+// XSYS4_NO_DESKTOP_WARP
+static bool no_desktop_warp;
+
+// Whether a move of the HLLs moves the program's own pointer and not the
+// desktop cursor: during a schedule, or when it was asked for.
+static bool desktop_warp_off(void)
+{
+	return auto_input.given || auto_input.interval > 0 || no_desktop_warp;
+}
+
+static unsigned auto_button_bit(enum sact_keycode b)
+{
+	return b == VK_RBUTTON ? 2 : b == VK_MBUTTON ? 4 : 1;
+}
+
+// Whether a real motion at `timestamp` leaves the schedule's pointer: while
+// the schedule holds a button, or released one that no input update has read
+// yet (at most AUTO_INPUT_READ_WAIT ms).
+static bool auto_input_guards(uint32_t timestamp)
+{
+	if (auto_input.held != 0)
+		return true;
+	return auto_input.guard && input_reads == auto_input.released_reads
+		&& !SDL_TICKS_PASSED(timestamp, auto_input.released_at + AUTO_INPUT_READ_WAIT);
+}
+
+static void auto_input_button(enum sact_keycode b, bool down)
+{
+	key_state[b] = down;
+	if (down) {
+		auto_input.held |= auto_button_bit(b);
+	} else {
+		auto_input.held &= ~auto_button_bit(b);
+		auto_input.guard = true;
+		auto_input.released_at = SDL_GetTicks();
+		auto_input.released_reads = input_reads;
+	}
+}
+
+void input_auto_read(void)
+{
+	input_reads++;
+}
+
+static char auto_button_name(enum sact_keycode b)
+{
+	return b == VK_RBUTTON ? 'R' : b == VK_MBUTTON ? 'M' : 'L';
+}
+
+static const char *auto_step_describe(const struct auto_step *s, char *buf, size_t size)
+{
+	switch (s->kind) {
+	case AUTO_CLICK: snprintf(buf, size, "click %c %ums", auto_button_name(s->button), s->ms); break;
+	case AUTO_MOVE:  snprintf(buf, size, "move %ums", s->ms); break;
+	case AUTO_DOWN:  snprintf(buf, size, "down %c", auto_button_name(s->button)); break;
+	case AUTO_UP:    snprintf(buf, size, "up %c", auto_button_name(s->button)); break;
+	case AUTO_WHEEL: snprintf(buf, size, "wheel %d", s->notches); break;
+	}
+	return buf;
+}
+
+static void auto_input_add(struct auto_step s)
+{
+	int i = auto_input.nr_steps++;
+	auto_input.steps = xrealloc(auto_input.steps, auto_input.nr_steps * sizeof(struct auto_step));
+	auto_input.steps[i] = s;
+	if (s.first_form) {
+		WARNING("Auto-click seq[%d]: t=%dms pos=(%d,%d)", i, (int)s.t, s.x, s.y);
+	} else {
+		char d[32];
+		WARNING("Auto-input seq[%d]: %s t=%ums pos=(%d,%d)", i,
+				auto_step_describe(&s, d, sizeof(d)), s.t, s.x, s.y);
+	}
+}
+
+static bool auto_parse_int(const char *s, int *out)
+{
+	char *end;
+	errno = 0;
+	long v = strtol(s, &end, 10);
+	while (*end == ' ' || *end == '\t')
+		end++;
+	if (end == s || *end || errno || v < INT_MIN || v > INT_MAX)
+		return false;
+	*out = v;
+	return true;
+}
+
+static bool auto_coord_ok(int v)
+{
+	return v >= -AUTO_INPUT_COORD_MAX && v <= AUTO_INPUT_COORD_MAX;
+}
+
+static bool auto_parse_button(const char *s, enum sact_keycode *out)
+{
+	if (!strcasecmp(s, "L")) *out = VK_LBUTTON;
+	else if (!strcasecmp(s, "R")) *out = VK_RBUTTON;
+	else if (!strcasecmp(s, "M")) *out = VK_MBUTTON;
+	else return false;
+	return true;
+}
+
+// One step of the schedule; false if it is not understood.
+static bool auto_input_parse_step(char *tok)
+{
+	if (isdigit((unsigned char)*tok) || *tok == '-' || *tok == '+') {
+		// The first form, read as it always was.
+		int t, x, y;
+		if (sscanf(tok, "%d,%d,%d", &t, &x, &y) != 3)
+			return false;
+		auto_input_add((struct auto_step) { .kind = AUTO_CLICK, .first_form = true,
+				.t = t, .x = x, .y = y, .button = VK_LBUTTON, .ms = 100 });
+		return true;
+	}
+	char *f[9];
+	int n = 0;
+	for (char *p = tok; n < 9; n++) {
+		f[n] = p;
+		p = strchr(p, ',');
+		if (!p) {
+			n++;
+			break;
+		}
+		*p++ = '\0';
+	}
+	for (int i = 0; i < n; i++) {
+		while (*f[i] == ' ' || *f[i] == '\t')
+			f[i]++;
+		char *e = f[i] + strlen(f[i]);
+		while (e > f[i] && (e[-1] == ' ' || e[-1] == '\t'))
+			*--e = '\0';
+	}
+	int v[8];
+	// The numbers after the verb, up to the first field that is not one.
+	int nr_ints = 0;
+	while (1 + nr_ints < n && nr_ints < 8 && auto_parse_int(f[1 + nr_ints], &v[nr_ints]))
+		nr_ints++;
+	int rest = n - 1 - nr_ints;		// fields after the numbers
+	if (nr_ints < 3 || v[0] < 0 || !auto_coord_ok(v[1]) || !auto_coord_ok(v[2]))
+		return false;
+	struct auto_step s = { .t = v[0], .x = v[1], .y = v[2], .button = VK_LBUTTON };
+	const char *verb = f[0];
+	if (!strcasecmp(verb, "click")) {
+		// click,T,X,Y[,B[,MS]]
+		if (nr_ints != 3 || rest > 2)
+			return false;
+		if (rest >= 1 && !auto_parse_button(f[4], &s.button))
+			return false;
+		int ms = 100;
+		if (rest == 2 && (!auto_parse_int(f[5], &ms) || ms < 0))
+			return false;
+		s.kind = AUTO_CLICK;
+		s.ms = ms;
+	} else if (!strcasecmp(verb, "rclick") || !strcasecmp(verb, "mclick")) {
+		// rclick,T,X,Y[,MS]
+		if (rest || nr_ints > 4 || (nr_ints == 4 && v[3] < 0))
+			return false;
+		s.kind = AUTO_CLICK;
+		s.button = tolower((unsigned char)verb[0]) == 'r' ? VK_RBUTTON : VK_MBUTTON;
+		s.ms = nr_ints == 4 ? v[3] : 100;
+	} else if (!strcasecmp(verb, "move")) {
+		// move,T,X,Y[,MS]
+		if (rest || nr_ints > 4 || (nr_ints == 4 && v[3] < 0))
+			return false;
+		s.kind = AUTO_MOVE;
+		s.ms = nr_ints == 4 ? v[3] : 0;
+	} else if (!strcasecmp(verb, "down") || !strcasecmp(verb, "up")) {
+		// down,T,X,Y[,B]
+		if (nr_ints != 3 || rest > 1 || (rest && !auto_parse_button(f[4], &s.button)))
+			return false;
+		s.kind = tolower((unsigned char)verb[0]) == 'd' ? AUTO_DOWN : AUTO_UP;
+	} else if (!strcasecmp(verb, "drag")) {
+		// drag,T,X,Y,T2,X2,Y2[,B]
+		if (nr_ints != 6 || rest > 1 || (rest && !auto_parse_button(f[7], &s.button)))
+			return false;
+		if (v[3] < v[0] || !auto_coord_ok(v[4]) || !auto_coord_ok(v[5]))
+			return false;
+		uint32_t t2 = v[3], move_at = s.t + 100;
+		s.kind = AUTO_DOWN;
+		auto_input_add(s);
+		auto_input_add((struct auto_step) { .kind = AUTO_MOVE, .t = move_at, .x = v[4], .y = v[5],
+				.button = s.button, .ms = t2 > move_at ? t2 - move_at : 0 });
+		auto_input_add((struct auto_step) { .kind = AUTO_UP, .t = t2 + 100, .x = v[4], .y = v[5],
+				.button = s.button });
+		return true;
+	} else if (!strcasecmp(verb, "wheel")) {
+		// wheel,T,X,Y,N
+		if (nr_ints != 4 || rest || v[3] == 0 || v[3] < -AUTO_INPUT_NOTCHES_MAX || v[3] > AUTO_INPUT_NOTCHES_MAX)
+			return false;
+		s.kind = AUTO_WHEEL;
+		s.notches = v[3];
+	} else {
+		return false;
+	}
+	auto_input_add(s);
+	return true;
+}
+
+int input_auto_load(const char *spec)
+{
+	free(auto_input.steps);
+	memset(&auto_input, 0, sizeof(auto_input));
+	auto_input.loaded = true;
+	auto_input.x = 350;
+	auto_input.y = 180;
+	if (!spec)
+		return 0;
+	auto_input.given = *spec != '\0';
+	char *buf = xstrdup(spec);
+	for (char *c = buf; (c = strchr(c, '#')); ) {
+		while (*c && *c != '\n')
+			*c++ = ' ';
+	}
+	char *saveptr;
+	for (char *tok = strtok_r(buf, ";\n", &saveptr); tok; tok = strtok_r(NULL, ";\n", &saveptr)) {
+		while (*tok == ' ' || *tok == '\t' || *tok == '\r')
+			tok++;
+		char *e = tok + strlen(tok);
+		while (e > tok && e[-1] == '\r')
+			*--e = '\0';
+		if (!*tok)
+			continue;
+		char copy[128];
+		snprintf(copy, sizeof(copy), "%s", tok);
+		if (!auto_input_parse_step(tok))
+			WARNING("Auto-input: step not understood, skipped: %s", copy);
+	}
+	free(buf);
+	return auto_input.nr_steps;
+}
+
+static void auto_input_load_env(void)
+{
+	if (auto_input.loaded)
+		return;
+	const char *nw = getenv("XSYS4_NO_DESKTOP_WARP");
+	no_desktop_warp = nw && *nw && strcmp(nw, "0");
+	if (no_desktop_warp)
+		WARNING("Auto-input: XSYS4_NO_DESKTOP_WARP: a move of the HLLs moves the program's pointer, not the desktop cursor");
+	const char *senv = getenv("XSYS4_AUTO_CLICK_SEQ");
+	if (senv && *senv) {
+		if (!input_auto_load(senv))
+			WARNING("Auto-input: no step understood; the desktop cursor is not moved all the same");
+		return;
+	}
+	input_auto_load(NULL);
+	const char *env = getenv("XSYS4_AUTO_CLICK");
+	auto_input.interval = env ? atoi(env) : 0;
+	const char *cx = getenv("XSYS4_AUTO_CLICK_X");
+	const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
+	const char *cn = getenv("XSYS4_AUTO_CLICK_COUNT");
+	if (cx) auto_input.x = atoi(cx);
+	if (cy) auto_input.y = atoi(cy);
+	if (cn) auto_input.max = atoi(cn);
+	if (auto_input.interval > 0)
+		WARNING("Auto-click enabled: interval=%dms pos=(%d,%d) max=%d", auto_input.interval,
+				auto_input.x, auto_input.y, auto_input.max);
+}
+
+// One notch of a wheel step, steps[i]: through SDL's queue, so that the
+// handle_events that queued it handles it.
+static void auto_input_notch(const struct auto_step *s, int i, uint32_t now)
+{
+	SDL_Event e = { .type = SDL_MOUSEWHEEL };
+	e.wheel.windowID = sdl.window ? SDL_GetWindowID(sdl.window) : 0;
+	e.wheel.which = AUTO_INPUT_MOUSEID;
+	e.wheel.y = s->notches > 0 ? 1 : -1;
+	e.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	e.wheel.preciseY = e.wheel.y;
+#endif
+#if SDL_VERSION_ATLEAST(2, 26, 0)
+	if (sdl.w > 0 && sdl.h > 0) {
+		e.wheel.mouseX = (int)((int64_t)s->x * sdl.viewport.w / sdl.w + sdl.viewport.x);
+		e.wheel.mouseY = (int)((int64_t)s->y * sdl.viewport.h / sdl.h + sdl.viewport.y);
+	}
+#endif
+	pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+	if (SDL_PushEvent(&e) < 0)
+		WARNING("Auto-input: wheel event not queued: %s", SDL_GetError());
+	auto_input.notches_left--;
+	auto_input.notches_done++;
+	auto_input.notch_at = now;
+	auto_input.notch_reads = input_reads;
+	WARNING("Auto-input #%d notch %d of %d at %ums (input update %u)", i, auto_input.notches_done,
+			abs(s->notches), now, input_reads);
+}
+
+static void auto_input_sequence(uint32_t now)
+{
+	char d[32];
+	if (auto_input.busy) {
+		struct auto_step *s = &auto_input.steps[auto_input.next - 1];
+		uint32_t elapsed = now - auto_input.started;
+		if (s->kind == AUTO_CLICK) {
+			if (elapsed >= s->ms) {
+				auto_input_button(s->button, false);
+				auto_input.busy = false;
+				if (!s->first_form)
+					WARNING("Auto-input #%d released %c at %ums", auto_input.next - 1,
+							auto_button_name(s->button), now);
+			}
+			return;
+		}
+		if (s->kind == AUTO_WHEEL) {
+			// The last notch is read by an input update, or it is late.
+			if (input_reads == auto_input.notch_reads
+					&& !SDL_TICKS_PASSED(now, auto_input.notch_at + AUTO_INPUT_READ_WAIT))
+				return;
+			if (auto_input.notches_left > 0) {
+				auto_input_notch(s, auto_input.next - 1, now);
+			} else {
+				auto_input.busy = false;
+				WARNING("Auto-input #%d wheel read at %ums (input update %u)", auto_input.next - 1,
+						now, input_reads);
+			}
+			return;
+		}
+		// a move on its way
+		if (elapsed >= s->ms) {
+			pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+			auto_input.busy = false;
+			WARNING("Auto-input #%d arrived at %ums game=(%d,%d)", auto_input.next - 1, now, s->x, s->y);
+		} else {
+			// In 64 bits: the first form takes any int as a coordinate.
+			int64_t dx = (int64_t)s->x - auto_input.from_x, dy = (int64_t)s->y - auto_input.from_y;
+			pointer_set(MOUSE_POS_AUTO,
+				(int)(auto_input.from_x + dx * elapsed / s->ms),
+				(int)(auto_input.from_y + dy * elapsed / s->ms));
+		}
+		return;
+	}
+	if (auto_input.next >= auto_input.nr_steps || now < auto_input.steps[auto_input.next].t)
+		return;
+	int i = auto_input.next++;
+	struct auto_step *s = &auto_input.steps[i];
+	// A new step: the pointer is where it says from now on.
+	auto_input.guard = false;
+	switch (s->kind) {
+	case AUTO_CLICK:
+		pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+		auto_input_button(s->button, true);
+		auto_input.busy = true;
+		auto_input.started = now;
+		break;
+	case AUTO_MOVE:
+		if (s->ms) {
+			mouse_peek_pos(&auto_input.from_x, &auto_input.from_y);
+			auto_input.busy = true;
+			auto_input.started = now;
+		} else {
+			pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+		}
+		break;
+	case AUTO_DOWN:
+		pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+		auto_input_button(s->button, true);
+		break;
+	case AUTO_UP:
+		pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+		auto_input_button(s->button, false);
+		break;
+	case AUTO_WHEEL:
+		pointer_set(MOUSE_POS_AUTO, s->x, s->y);
+		auto_input.notches_left = abs(s->notches);
+		auto_input.notches_done = 0;
+		auto_input.busy = true;
+		break;
+	}
+	if (s->first_form) {
+		WARNING("Auto-click seq #%d at %ums game=(%d,%d)", i, now, s->x, s->y);
+	} else if (s->kind == AUTO_MOVE && s->ms) {
+		WARNING("Auto-input #%d %s at %ums from=(%d,%d) to=(%d,%d)", i, auto_step_describe(s, d, sizeof(d)),
+				now, auto_input.from_x, auto_input.from_y, s->x, s->y);
+	} else {
+		WARNING("Auto-input #%d %s at %ums game=(%d,%d)", i, auto_step_describe(s, d, sizeof(d)),
+				now, s->x, s->y);
+	}
+	if (s->kind == AUTO_WHEEL)
+		auto_input_notch(s, i, now);
+}
+
+void input_auto_update(uint32_t now)
+{
+	if (auto_input.nr_steps > 0) {
+		auto_input_sequence(now);
+		return;
+	}
+	if (auto_input.interval <= 0)
+		return;
+	if (auto_input.down) {
+		if (now - auto_input.last >= 100) {
+			auto_input_button(VK_LBUTTON, false);
+			auto_input.down = false;
+		}
+	} else if ((auto_input.max <= 0 || auto_input.count < auto_input.max)
+			&& now - auto_input.last >= (uint32_t)auto_input.interval) {
+		auto_input.count++;
+		pointer_set(MOUSE_POS_AUTO, auto_input.x, auto_input.y);
+		auto_input_button(VK_LBUTTON, true);
+		auto_input.down = true;
+		if (auto_input.count <= 10 || auto_input.count % 100 == 0)
+			WARNING("Auto-click #%d DOWN at %ums game=(%d,%d)", auto_input.count, now,
+					auto_input.x, auto_input.y);
+		auto_input.last = now;
+	}
+}
+
+void mouse_get_pos(int *x, int *y)
+{
+	if (pointer.source != MOUSE_POS_SDL) {
+		*x = pointer.x;
+		*y = pointer.y;
+		return;
+	}
+	SDL_PumpEvents();
+	sdl_mouse_pos(x, y);
+}
+
 void mouse_set_pos(int x, int y)
 {
-	override_mouse_x = x;
-	override_mouse_y = y;
+	auto_input_load_env();
+	if (desktop_warp_off()) {
+		pointer_set(MOUSE_POS_AUTO, x, y);
+		return;
+	}
 	int wx = x * sdl.viewport.w / sdl.w + sdl.viewport.x;
 	int wy = y * sdl.viewport.h / sdl.h + sdl.viewport.y;
 	SDL_WarpMouseInWindow(sdl.window, wx, wy);
+	// After the warp, so that the motion SDL sends for it is not later.
+	pointer_set(MOUSE_POS_WARP, x, y);
 }
 
 static int wheel_dir = 0;
@@ -309,16 +934,17 @@ void input_modal_closed(void)
 static void mouse_event(SDL_MouseButtonEvent *e)
 {
 	static unsigned trace_count;
-	const char *trace = getenv("XSYS4_STAGE2_TRACE");
-	if (trace && *trace && strcmp(trace, "0") && trace_count++ < 40) {
+	if (input_stage2_trace() && trace_count++ < 40) {
 		int ww, wh, dw, dh, mx, my;
 		SDL_GetWindowSize(sdl.window, &ww, &wh);
 		SDL_GL_GetDrawableSize(sdl.window, &dw, &dh);
 		SDL_GetMouseState(&mx, &my);
-		WARNING("S2 mouse t=%u state=%d event=(%d,%d) polled=(%d,%d) override=(%d,%d) window=%dx%d drawable=%dx%d logical=%dx%d viewport=%d,%d,%d,%d",
+		bool set = pointer.source != MOUSE_POS_SDL;
+		WARNING("S2 mouse t=%u state=%d event=(%d,%d) polled=(%d,%d) override=(%d,%d) window=%dx%d drawable=%dx%d logical=%dx%d viewport=%d,%d,%d,%d pointer=%s",
 			SDL_GetTicks(), e->state, e->x, e->y, mx, my,
-			override_mouse_x, override_mouse_y, ww, wh, dw, dh, sdl.w, sdl.h,
-			sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h);
+			set ? pointer.x : -1, set ? pointer.y : -1, ww, wh, dw, dh, sdl.w, sdl.h,
+			sdl.viewport.x, sdl.viewport.y, sdl.viewport.w, sdl.viewport.h,
+			mouse_pos_source_name(pointer.source));
 	}
 	enum sact_keycode code = sdl_to_sact_button(e->button);
 	if (code) {
@@ -838,82 +1464,9 @@ void handle_events(void)
 			key_state[hold_keys[i]] = true;
 	}
 
-	/* Auto-click mode: two modes supported.
-	 * 1) XSYS4_AUTO_CLICK_SEQ="time,x,y;time,x,y;..." — click sequence at absolute ms times
-	 * 2) XSYS4_AUTO_CLICK=<ms> — periodic clicks (legacy mode)
-	 *    Uses XSYS4_AUTO_CLICK_X/Y for position, XSYS4_AUTO_CLICK_COUNT for max. */
-	{
-		struct auto_click_step { uint32_t time_ms; int gx, gy; };
-		static struct auto_click_step seq[256];
-		static int seq_len = 0;
-		static int seq_idx = 0;
-		static int auto_interval = -1;
-		static uint32_t last_auto_click = 0;
-		static int auto_count = 0;
-		static int auto_max = 0;
-		static bool auto_click_down = false;
-		static int click_gx = 350, click_gy = 180;
-		if (auto_interval < 0) {
-			const char *senv = getenv("XSYS4_AUTO_CLICK_SEQ");
-			if (senv && *senv) {
-				char buf[4096];
-				strncpy(buf, senv, sizeof(buf)-1);
-				buf[sizeof(buf)-1] = 0;
-				char *saveptr;
-				char *tok = strtok_r(buf, ";", &saveptr);
-				while (tok && seq_len < 256) {
-					int t, x, y;
-					if (sscanf(tok, "%d,%d,%d", &t, &x, &y) == 3) {
-						seq[seq_len].time_ms = t;
-						seq[seq_len].gx = x;
-						seq[seq_len].gy = y;
-						WARNING("Auto-click seq[%d]: t=%dms pos=(%d,%d)", seq_len, t, x, y);
-						seq_len++;
-					}
-					tok = strtok_r(NULL, ";", &saveptr);
-				}
-				auto_interval = seq_len > 0 ? 1 : 0;
-			} else {
-				const char *env = getenv("XSYS4_AUTO_CLICK");
-				auto_interval = env ? atoi(env) : 0;
-				const char *cx = getenv("XSYS4_AUTO_CLICK_X");
-				const char *cy = getenv("XSYS4_AUTO_CLICK_Y");
-				const char *cn = getenv("XSYS4_AUTO_CLICK_COUNT");
-				if (cx) click_gx = atoi(cx);
-				if (cy) click_gy = atoi(cy);
-				if (cn) auto_max = atoi(cn);
-				if (auto_interval > 0)
-					WARNING("Auto-click enabled: interval=%dms pos=(%d,%d) max=%d", auto_interval, click_gx, click_gy, auto_max);
-			}
-		}
-		uint32_t now = SDL_GetTicks();
-		if (seq_len > 0) {
-			if (auto_click_down && now - last_auto_click >= 100) {
-				key_state[VK_LBUTTON] = false;
-				auto_click_down = false;
-			} else if (!auto_click_down && seq_idx < seq_len && now >= seq[seq_idx].time_ms) {
-				mouse_set_pos(seq[seq_idx].gx, seq[seq_idx].gy);
-				key_state[VK_LBUTTON] = true;
-				auto_click_down = true;
-				WARNING("Auto-click seq #%d at %ums game=(%d,%d)", seq_idx, now, seq[seq_idx].gx, seq[seq_idx].gy);
-				last_auto_click = now;
-				seq_idx++;
-			}
-		} else if (auto_interval > 0 && (auto_max <= 0 || auto_count < auto_max)) {
-			if (auto_click_down && now - last_auto_click >= 100) {
-				key_state[VK_LBUTTON] = false;
-				auto_click_down = false;
-			} else if (!auto_click_down && now - last_auto_click >= (uint32_t)auto_interval) {
-				auto_count++;
-				mouse_set_pos(click_gx, click_gy);
-				key_state[VK_LBUTTON] = true;
-				auto_click_down = true;
-				if (auto_count <= 10 || auto_count % 100 == 0)
-					WARNING("Auto-click #%d DOWN at %ums game=(%d,%d)", auto_count, now, click_gx, click_gy);
-				last_auto_click = now;
-			}
-		}
-	}
+	// The scheduled input (see auto_input above).
+	auto_input_load_env();
+	input_auto_update(SDL_GetTicks());
 
 	// Delay an early UP long enough for polling clients to observe the press.
 	// A button still physically held must remain down until its actual UP.
@@ -964,8 +1517,12 @@ void handle_events(void)
 			key_event(&e.key, e.type == SDL_KEYDOWN);
 #endif
 			break;
+		case SDL_MOUSEMOTION:
+			pointer_real_event(e.motion.timestamp, true);
+			break;
 		case SDL_MOUSEBUTTONUP:
 		case SDL_MOUSEBUTTONDOWN:
+			pointer_real_event(e.button.timestamp, false);
 			if (e.button.which == SDL_TOUCH_MOUSEID) {
 				if (deferred_synthetic_mouse_event.timestamp)
 					synthetic_mouse_event(&deferred_synthetic_mouse_event);
@@ -975,7 +1532,17 @@ void handle_events(void)
 			}
 			break;
 		case SDL_MOUSEWHEEL:
+			if (e.wheel.which != AUTO_INPUT_MOUSEID)
+				pointer_real_event(e.wheel.timestamp, false);
 			wheel_dir = e.wheel.y;
+			// Trace (XSYS4_STAGE2_TRACE): every wheel event the engine
+			// takes, the schedule's (auto) or the mouse's (real).
+			{
+				static unsigned traced;
+				if (input_stage2_trace() && traced++ < 2000)
+					NOTICE("S2 wheel ms=%u y=%d (%s)", SDL_GetTicks(), e.wheel.y,
+							e.wheel.which == AUTO_INPUT_MOUSEID ? "auto" : "real");
+			}
 			break;
 		case SDL_FINGERDOWN:
 			if (SDL_GetNumTouchFingers(e.tfinger.touchId) >= 2) {

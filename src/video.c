@@ -31,6 +31,7 @@
 #include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "icon.h"
+#include "input.h"
 #include "xsystem4.h"
 
 struct sdl_private sdl;
@@ -560,6 +561,14 @@ void gfx_swap(void)
 			// Read back here; compress and write on a worker thread.
 			Texture *t = gfx_main_surface();
 			gfx_write_pixels_async(gfx_get_pixels(t), t->w, t->h, path, ALCG_PNG);
+			// The cursor is not in the shot: where the program read it
+			// then, so that the hover a shot shows can be told apart
+			// (a scheduled pointer, a move, or the real mouse).
+			int mx, my;
+			enum mouse_pos_source source = mouse_peek_pos(&mx, &my);
+			NOTICE("S2 shot xsys4_t%02d.png ms=%u cursor=%d,%d (%s%s)", shot_count, SDL_GetTicks(),
+					mx, my, mouse_pos_source_name(source),
+					source == MOUSE_POS_SDL && !mouse_focus ? ", outside the window" : "");
 			shot_count++;
 			next_shot += shot_step;
 		}

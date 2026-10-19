@@ -49,14 +49,14 @@ static int InputDevice_GetCsrPos(int *x, int *y)
 {
 	handle_events_throttled();
 	mouse_get_pos(x, y);
-	return mouse_focus && keyboard_focus;
+	return mouse_in_window() && keyboard_focus;
 }
 
 static int InputDevice_SetCsrPos(int x, int y)
 {
 	handle_events_throttled();
 	mouse_set_pos(x, y);
-	return mouse_focus && keyboard_focus;
+	return mouse_in_window() && keyboard_focus;
 }
 
 static void InputDevice_ClearWheelCount(void)

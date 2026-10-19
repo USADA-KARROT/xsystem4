@@ -7,7 +7,9 @@
 # the SerializeStruct family (see ../tooling/run-gui-bounded.py).
 # RUN_FROM_TITLE=1 starts at the logo and title instead (no --skip-title, no held key, no periodic
 # click unless RUN_HOLD_KEYS/RUN_AUTO_CLICK are given); drive it with RUN_AUTO_CLICK_SEQ.
-# RUN_AUTO_CLICK_SEQ, RUN_CLICK_TRACE and RUN_SHOTS are passed through (see run-gui-bounded.py).
+# RUN_AUTO_CLICK_SEQ (clicks, moves, drags, right and middle clicks, the wheel), RUN_CLICK_TRACE and
+# RUN_SHOTS are passed through (see run-gui-bounded.py). Nothing in such a run moves the desktop cursor
+# (run-gui-bounded.py sets XSYS4_NO_DESKTOP_WARP=1).
 source "$(dirname "$0")/env.sh" || exit 1
 NAME=${1:?usage: gui-run.sh <name> [seconds] [engine args...]}; SECS=${2:-150}; shift; shift
 RUN=$XS4_WORK/runs/$NAME

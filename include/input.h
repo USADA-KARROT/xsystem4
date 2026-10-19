@@ -150,6 +150,28 @@ void joy_clear_flag(void);
 bool joy_get_stick_status(int controller, int type, float *deg, float *pow);
 void mouse_get_pos(int *x, int *y);
 void mouse_set_pos(int x, int y);
+// Where the position mouse_get_pos returns comes from (see src/input.c).
+enum mouse_pos_source {
+	MOUSE_POS_SDL,	// the real pointer, as SDL reports it
+	MOUSE_POS_WARP,	// mouse_set_pos, until the mouse reports again
+	MOUSE_POS_AUTO,	// the scheduled input's own pointer
+};
+// The position mouse_get_pos would return now, without pumping events (logs).
+enum mouse_pos_source mouse_peek_pos(int *x, int *y);
+const char *mouse_pos_source_name(enum mouse_pos_source source);
+// Whether the pointer the program reads is in the window, for the HLLs that
+// report it: the scheduled input's own pointer always is (src/input.c).
+bool mouse_in_window(void);
+// The scheduled input (XSYS4_AUTO_CLICK_SEQ, a test facility): replaces the
+// schedule with `spec` (NULL: none) and returns the number of steps;
+// handle_events runs it at SDL_GetTicks().
+int input_auto_load(const char *spec);
+void input_auto_update(uint32_t now);
+// The input update (PE_UpdateInputState) has read the input: a release of the
+// scheduled input has been seen, and its next wheel notch may come.
+void input_auto_read(void);
+// XSYS4_STAGE2_TRACE is set to something other than "" and "0".
+bool input_stage2_trace(void);
 void mouse_get_wheel(int *forward, int *back);
 void mouse_clear_wheel(void);
 bool mouse_show_cursor(bool show);

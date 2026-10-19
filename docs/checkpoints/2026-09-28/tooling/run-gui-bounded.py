@@ -4,12 +4,24 @@
 usage: run-gui-bounded.py <binary> <source_dir> <game_dir> <run_dir> <seconds> [engine args...]
 
 source_dir is the cwd (fonts/ and shaders/ are read from it). Existing XSYS4_*/XSYSTEM4_*
-variables are dropped so a run is reproducible; use the RUN_* variables instead:
+variables are dropped so a run is reproducible; use the RUN_* variables instead. Every run gets
+XSYS4_NO_DESKTOP_WARP=1: nobody may be at the desktop, or somebody else is working there, so a
+move of the game's HLLs moves the engine's own pointer and never the desktop cursor.
   RUN_HOLD_KEYS=13          hold Return (passes the notice screen)
   RUN_FRAMEBUFFER_SHOTS=1   engine framebuffer PNG every 2 s into <run_dir>/framebuffer/
   RUN_AUTO_CLICK=1200        engine auto-click every N ms at RUN_AUTO_CLICK_X/Y (default 640,400)
-  RUN_AUTO_CLICK_SEQ="ms,x,y;..."  click at these absolute times instead (XSYS4_AUTO_CLICK_SEQ)
-  RUN_CLICK_TRACE=1         log each v14 click's target ("S2 click target=...", XSYS4_STAGE2_TRACE)
+  RUN_AUTO_CLICK_SEQ="ms,x,y;..."  scheduled input instead (XSYS4_AUTO_CLICK_SEQ, passed as it is):
+                            steps separated by ';' or line breaks, '#' starts a comment to the end of the line; "ms,x,y" is a
+                            left click (pressed at ms, released 100 ms later); also click,ms,x,y[,L|R|M[,hold]],
+                            rclick,ms,x,y, mclick,ms,x,y, move,ms,x,y[,duration] (a hover, optionally along a
+                            straight line), down,ms,x,y[,B] and up,ms,x,y[,B], drag,ms,x,y,ms2,x2,y2[,B] and
+                            wheel,ms,x,y,notches (> 0 forward, one notch per input update); see auto_input in
+                            src/input.c. The schedule's pointer (and RUN_AUTO_CLICK's) is the engine's own: the
+                            desktop cursor does not move
+  RUN_CLICK_TRACE=1         log each v14 click's target ("S2 click target=...", XSYS4_STAGE2_TRACE) and each
+                            change of the v14 input target ("S2 hover ... target=...") and each wheel event the
+                            engine takes ("S2 wheel ... (auto|real)"); every framebuffer PNG
+                            logs where the program read the cursor ("S2 shot ... cursor=x,y (auto|warp|sdl)")
   RUN_SHOTS=start,step,count  framebuffer PNG schedule in ms (default 2000,2000,40;
                             XSYS4_SCREENSHOT_SCHEDULE; needs RUN_FRAMEBUFFER_SHOTS=1)
   RUN_WINDOW_SHOTS=15,35,55 capture only the game window at these seconds into <run_dir>/window-NNs.png
@@ -50,7 +62,7 @@ if seed:
         if f.is_file():
             shutil.copy2(f, run / 'saves' / f.name)
 env = {k: v for k, v in os.environ.items() if not k.startswith(('XSYS4_', 'XSYSTEM4_', 'RUN_'))}
-env.update(XSYSTEM4_HOME=str(run / 'home'), XSYS4_STAGE2_PERF='1')
+env.update(XSYSTEM4_HOME=str(run / 'home'), XSYS4_STAGE2_PERF='1', XSYS4_NO_DESKTOP_WARP='1')
 if os.environ.get('RUN_HOLD_KEYS'):
     env['XSYS4_HOLD_KEYS'] = os.environ['RUN_HOLD_KEYS']
 if os.environ.get('RUN_AUTO_CLICK'):

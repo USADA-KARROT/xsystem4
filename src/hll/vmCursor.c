@@ -28,7 +28,7 @@ static int vmCursor_GetPos(int *x, int *y)
 {
 	handle_events();
 	mouse_get_pos(x, y);
-	return mouse_focus && keyboard_focus;
+	return mouse_in_window() && keyboard_focus;
 }
 
 //void vmCursor_SetShow(int nShow);

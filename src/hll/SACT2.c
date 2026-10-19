@@ -773,14 +773,14 @@ int sact_Mouse_GetPos(int *x, int *y)
 {
 	handle_events();
 	mouse_get_pos(x, y);
-	return mouse_focus && keyboard_focus;
+	return mouse_in_window() && keyboard_focus;
 }
 
 int sact_Mouse_SetPos(int x, int y)
 {
 	handle_events();
 	mouse_set_pos(x, y);
-	return mouse_focus && keyboard_focus;
+	return mouse_in_window() && keyboard_focus;
 }
 
 void sact_Joypad_ClearKeyDownFlag(int n)
