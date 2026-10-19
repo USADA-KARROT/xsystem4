@@ -794,7 +794,8 @@ static bool pactex_construction_has_steps(struct ex_tree *state)
 }
 
 /* One 手順, as far as the commands built here read it. The native step
- * parser (0x4f82a0) stores コマンド at +4, 先矩形 X,Y,X2,Y2,W,H at
+ * parser (0x4f82a0) stores コマンド at +4, 補間タイプ's low byte at +8,
+ * 元矩形 X,Y,W,H at +0xc..+0x18, 先矩形 X,Y,X2,Y2,W,H at
  * +0x1c..+0x30, 色１ at +0x34..+0x40, 色２ at +0x44..+0x50, ＣＧ名 at +0xac,
  * 全體 at +0xc4, 半徑 at +0xc8/+0xcc, 丸め's two flags at +0xd4/+0xd5,
  * 旋轉角度 at +0xd8, 円弧角度 (start, sweep) at +0xdc/+0xe0 and the ints of
@@ -814,6 +815,8 @@ struct pactex_cp_step {
 	int rotate;
 	int start, sweep;
 	int blur;		// ブラー (+0x54)
+	int interp;		// 補間タイプ (command 14)
+	int src[4];		// 元矩形 X,Y,W,H (command 14)
 	const char *cg_name;	// in the pactex tree
 	struct ex_list *points;	// 座標總覽, in the pactex tree
 	// command 24
@@ -832,6 +835,7 @@ enum {
 	PACTEX_CP_FILL_AMAP = 5,
 	PACTEX_CP_FILL_WITH_ALPHA = 6,
 	PACTEX_CP_FILL_GRADATION_HORIZON = 9,
+	PACTEX_CP_CUT_CG_SCALE_COPY = 14,
 	PACTEX_CP_GRAY_SCALE = 15,
 	PACTEX_CP_ONLY_ALPHA_TEXT = 24,
 	PACTEX_CP_MUL_AMAP_GRADATION_ROWS = 25,
@@ -953,7 +957,8 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 			|| s->command == PACTEX_CP_BLUR_V || s->command == PACTEX_CP_FILL_POLYGON_PIXEL_AMAP
 			|| s->command == PACTEX_CP_FILL_POLYGON_AMAP
 			|| s->command == PACTEX_CP_FILL_GRADATION_HORIZON
-			|| s->command == PACTEX_CP_ONLY_ALPHA_TEXT))
+			|| s->command == PACTEX_CP_ONLY_ALPHA_TEXT
+			|| s->command == PACTEX_CP_CUT_CG_SCALE_COPY))
 		return false;
 	if (!pactex_step_item(node, dest_sjis, dest_gbk, 0, &s->x)
 			|| !pactex_step_item(node, dest_sjis, dest_gbk, 1, &s->y)
@@ -1223,6 +1228,40 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		return s->full || (s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
 			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y);
 	}
+	case PACTEX_CP_CUT_CG_SCALE_COPY: {
+		// 0x4fe5a0: ＣＧ名 scaled to 先矩形 W x H and copied to X,Y
+		// (build_scale_copy_cg). Only what that reproduces: 補間タイプ 2
+		// (0x5aa9c0), the whole CG (元矩形 without a positive width and
+		// height, 0x5ab3b0), a rectangle within the surface and sizes whose
+		// fixed-point products 0x4929e0 holds in 32 bits. A CG that cannot
+		// be loaded fails the step (0x4fe691); one without an alpha is not
+		// built either: the copy writes the scaled surface's fourth byte
+		// (0x4918e0), which was not read for such a surface.
+		int cg_no;
+		struct cg_metrics metrics;
+		s->cg_name = pactex_get_string(node, SJIS_CG_MEI);
+		if (!s->cg_name)
+			s->cg_name = pactex_get_string(node, GBK_CG_MEI);
+		if (!s->cg_name || !asset_exists_by_name(ASSET_CG, s->cg_name, &cg_no)
+				|| !asset_cg_get_metrics(cg_no, &metrics) || !metrics.has_alpha
+				|| !pactex_step_int(node, "\x95\xe2\x8a\xd4\x83\x5e\x83\x43\x83\x76",
+					"\xd1\x61\xe9\x67\xa5\xbf\xa5\xa4\xa5\xd7", &s->interp)) /* 補間タイプ */
+			return false;
+		// The parser keeps 補間タイプ's low byte (0x4f87e4).
+		s->interp &= 0xff;
+		for (int i = 0; i < 4; i++) {
+			if (!pactex_step_item(node, "\x8c\xb3\x8b\xe9\x8c\x60", "\xd4\xaa\xbe\xd8\xd0\xce",
+					i, &s->src[i])) /* 元矩形 */
+				return false;
+		}
+		return s->interp == 2 && (s->src[2] <= 0 || s->src[3] <= 0)
+			&& metrics.w > 0 && metrics.h > 0 && metrics.w <= PACTEX_CP_MAX_SIZE
+			&& metrics.h <= PACTEX_CP_MAX_SIZE
+			&& s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
+			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y
+			&& (int64_t)(s->w - 1) * metrics.w * 256 <= INT32_MAX
+			&& (int64_t)(s->h - 1) * metrics.h * 256 <= INT32_MAX;
+	}
 	case PACTEX_CP_FILL_PIE_AMAP:
 		if (!pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3])
 				|| !pactex_step_item(node, "\x94\xbc\x8c\x61", "\xb0\xeb\x8f\xbd", 0, &s->rx) /* 半径 / 半徑 */
@@ -1248,16 +1287,17 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 
 /* The steps of a construction state, when the loader can run them as the
  * original does: every command is one of 0 (create), 2 (the surface from a
- * CG), 3, 4, 5, 6 (fills), 9 (a gradation of the rows' colour), 15 (gray
- * scale), 24 (a text's alpha), 25, 26 (alpha gradations), 27, 28 (blurs), 94,
- * 95 (polygons), 102 (disc alpha), 122 (sector alpha) and 129 (CG tiles), the
- * first step makes the surface and none would fail.
+ * CG), 3, 4, 5, 6 (fills), 9 (a gradation of the rows' colour), 14 (a CG
+ * scaled to a rectangle), 15 (gray scale), 24 (a text's alpha), 25, 26
+ * (alpha gradations), 27, 28 (blurs), 94, 95 (polygons), 102 (disc alpha),
+ * 122 (sector alpha) and 129 (CG tiles), the first step makes the surface
+ * and none would fail.
  * A list whose first step is command 2 is narrower: every step must be one
  * of 2, 3, 4, 15, 27 and 28, and a list with any other step is not built
  * (the state keeps the CG it had). A CG's texture does not say whether its
  * source had an alpha channel, and natively command 5 skips a surface
- * without one (0x4fc378); 6, 9, 24, 25, 26, 102, 122 and 129 after a CG were
- * not checked against the original and are left out with it.
+ * without one (0x4fc378); 6, 9, 14, 24, 25, 26, 102, 122 and 129 after a CG
+ * were not checked against the original and are left out with it.
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;
@@ -1398,6 +1438,13 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 			struct string *name = cstr_to_string(s->cg_name);
 			PE_AddTileCGToPartsConstructionProcess(parts_no, name, s->x, s->y, s->w, s->h,
 				s->full, pe_state);
+			free_string(name);
+			break;
+		}
+		case PACTEX_CP_CUT_CG_SCALE_COPY: {
+			struct string *name = cstr_to_string(s->cg_name);
+			PE_AddScaleCopyCGToPartsConstructionProcess(parts_no, name, s->x, s->y, s->w, s->h,
+				s->src[0], s->src[1], s->src[2], s->src[3], s->interp, pe_state);
 			free_string(name);
 			break;
 		}

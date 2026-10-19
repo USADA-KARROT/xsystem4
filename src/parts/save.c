@@ -34,7 +34,7 @@
  *   the controller ID section          (version 7 and later, see below).
  *
  * Each list is a count and then the numbers; a parts record has the same
- * layout in versions 6 to 11. The controller ID section is always the
+ * layout in versions 6 to 12. The controller ID section is always the
  * last nr + 3 words, whatever precedes it, so a version 7 save with or
  * without it is read as well (and so is a later save without it).
  *
@@ -47,8 +47,10 @@
  * scale on the surface's pixels; the fields of 14..22).
  * Version 11 has the operations 27 and 28 (the polygon fills that write the
  * pixel and the alpha, or the alpha; the fields of 14..22).
+ * Version 12 has the operation 29 (the scaled copy of a CG of the v14
+ * command 14; the fields of 7 and 8).
  */
-#define CURRENT_SAVE_VERSION 11
+#define CURRENT_SAVE_VERSION 12
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -345,6 +347,7 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 		break;
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
+	case PARTS_CP_SCALE_COPY_CG:
 		iarray_write(w, op->cut_cg.cg_no);
 		iarray_write(w, op->cut_cg.dx);
 		iarray_write(w, op->cut_cg.dy);
@@ -450,6 +453,7 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 		break;
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
+	case PARTS_CP_SCALE_COPY_CG:
 		op->cut_cg.cg_no = iarray_read(r);
 		op->cut_cg.dx = iarray_read(r);
 		op->cut_cg.dy = iarray_read(r);

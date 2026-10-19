@@ -133,6 +133,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_GRAY_SCALE] = "gray_scale",
 		[PARTS_CP_FILL_POLYGON_PIXEL_AMAP] = "fill_polygon_pixel_amap",
 		[PARTS_CP_FILL_POLYGON_AMAP] = "fill_polygon_amap",
+		[PARTS_CP_SCALE_COPY_CG] = "scale_copy_cg",
 	};
 
 	cJSON *ops, *tmp;
@@ -176,6 +177,7 @@ static void parts_construction_process_to_json(struct parts_construction_process
 			break;
 		case PARTS_CP_DRAW_CUT_CG:
 		case PARTS_CP_COPY_CUT_CG:
+		case PARTS_CP_SCALE_COPY_CG:
 			cJSON_AddNumberToObject(obj, "no", op->cut_cg.cg_no);
 			cJSON_AddItemToObjectCS(obj, "dst", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->cut_cg.dx);
@@ -672,6 +674,9 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_FILL_POLYGON_AMAP:
 				sys_message(" fill-polygon-amap");
+				break;
+			case PARTS_CP_SCALE_COPY_CG:
+				sys_message(" scale-copy-cg");
 				break;
 			}
 		}

@@ -40,7 +40,7 @@
  *       ／無効 the enabled CGs keep their text (this port's choice).
  *   BX5 a 文本 without the font's keys: size 0 draws nothing; with only
  *       フォントサイズ the text is black at (0, 0).
- *   BX6 PE_Save / PE_Load keep the pixels (XPE version 11).
+ *   BX6 PE_Save / PE_Load keep the pixels (XPE version 12).
  *   BX7 engines before v14 (guard): no text.
  *   BX8 a 文本 key spelled in SJIS (a guess; no SJIS pactex was read): no
  *       text (guard).
@@ -531,7 +531,7 @@ static void bx_save(void)
 	BX_CHECK(PE_Save(&saved) && saved, "BX6: PE_Save failed");
 	if (!saved)
 		return;
-	BX_CHECK(ca_save_version(saved) == 11, "BX6: the save is XPE v%d, want 11", ca_save_version(saved));
+	BX_CHECK(ca_save_version(saved) == 12, "BX6: the save is XPE v%d, want 12", ca_save_version(saved));
 	BX_CHECK(PE_Load(&saved), "BX6: PE_Load failed");
 	PE_UpdateComponent(0);
 	ca_free_buffer(saved);

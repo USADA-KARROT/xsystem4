@@ -92,7 +92,7 @@
  *   W8 what is not there: numbers of 0 and below do nothing; another number
  *       is made a check box or a bar with the constructor's values (by a
  *       value, a rate or a position); a parts of another type becomes one.
- *   W9 PE_Save / PE_Load keep the pixels (XPE version 11); the values are
+ *   W9 PE_Save / PE_Load keep the pixels (XPE version 12); the values are
  *       not saved, and a click after loading does no harm.
  *   W10 engines before v14: the loader builds no check box, keeps no bar's
  *       amounts and no radio box's members, a bar's position is not set and
@@ -1439,7 +1439,7 @@ static void cw_save(void)
 	CW_CHECK(PE_Save(&saved) && saved, "W9: PE_Save failed");
 	if (!saved || !before[0] || !before[1] || !before[2])
 		return;
-	CW_CHECK(ca_save_version(saved) == 11, "W9: the save is XPE v%d, want 11", ca_save_version(saved));
+	CW_CHECK(ca_save_version(saved) == 12, "W9: the save is XPE v%d, want 12", ca_save_version(saved));
 	CW_CHECK(PE_Load(&saved), "W9: PE_Load failed");
 	PE_UpdateComponent(0);
 	ca_free_buffer(saved);
