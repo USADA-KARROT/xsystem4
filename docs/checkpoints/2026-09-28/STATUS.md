@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-10-19）：已推送程式 `0bf82e6`，pactex 載入器照原版建構構築命令 7、90、100、101、106（跳表 0x4fb7d8）：100／101 是 102 的圓但連顏色一起寫（0x4cbb20 → 0x5b0b80），101 的直徑取 W、H 較大者；90 是矩形的多邊形只寫 alpha，`丸め` 時整個往左上偏一個像素（0x4e5cf0）；106、7 用既有操作。原本什麼都沒畫的 11 個狀態全部建構，戰鬥結算與換人面板的頭像底、城市地圖的新地點記號和原版截圖差 1 px 以內。沒有新增操作型別，存檔仍是 XPE 第 12 版。修前新探針 `construction-shapes` 10/11 失敗；提交前後預設／GBK各110模式PASS、san0；九條路線（含片頭重播）對白不變、錯誤 0。libsys4固定247f544。**
+**最新狀態（2026-10-19）：已推送程式 `ac2356e`，照原版保留每個 CG 狀態的翻轉：pactex 的 `変形`（0x59cd70 → 0x59c5b0，存在狀態 CG 物件的 +0x20）與讀回函式（0x565540，先以 0x5b77f0(0x13) 把狀態變成 CG）。戰鬥結算的頭像不再左右相反，系統選單的斜切白底恢復原版方向；設定檔裡 `変形` 1 的 9 處都照資料翻轉。存檔仍是 XPE 第 12 版（翻轉值放在選用資料段，舊建置實測會略過）。不分編碼，v14 之前不變。修前新探針 `cg-deform` 8/9 失敗；提交前後預設／GBK各111模式PASS、san0；九條路線（含片頭重播）對白不變、錯誤 0。libsys4固定247f544。**
 
-[本次研究與驗證](research/construction-shapes/README.md) · [物品框](research/cg-scale-copy/README.md) · [成就橫幅](research/gradation-text/README.md) · [按鈕文字](research/button-text/README.md) · [X／Y 旋轉](research/parts-rotate-xy/README.md) · [技能欄](research/activity-release/README.md) · [捲軸把手](research/scrollbar-knob/README.md) · [APEG 影像解碼](research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 據點日程的提示記號與一種按鈕陰影在畫面上看不到（已用真的遊戲資料確認會建構）；兩個圓角暗幕沒有原版截圖；戰鬥結算的頭像和原版左右相反（既有問題，正在查）。下一步見 [HANDOFF](HANDOFF.md) 最上節。
+[本次研究與驗證](research/cg-deform/README.md) · [構築命令](research/construction-shapes/README.md) · [物品框](research/cg-scale-copy/README.md) · [成就橫幅](research/gradation-text/README.md) · [按鈕文字](research/button-text/README.md) · [X／Y 旋轉](research/parts-rotate-xy/README.md) · [技能欄](research/activity-release/README.md) · [捲軸把手](research/scrollbar-knob/README.md) · [APEG 影像解碼](research/apeg-video/README.md)。**仍不能當作完整遊戲使用。** 派遣結算的立繪沒有走到（只在特殊顧客的派遣時出現）；標題卡背面、成員畫面的底色沒有原版畫面可比。使用者回報的設定、聲音、滑過互動與游標卡住正在盤點。下一步見 [HANDOFF](HANDOFF.md) 最上節。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 
