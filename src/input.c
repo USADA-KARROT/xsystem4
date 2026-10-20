@@ -345,10 +345,16 @@ enum mouse_pos_source mouse_peek_pos(int *x, int *y)
  *   wheel,T,X,Y,N            moves to (X,Y) and turns the wheel N notches,
  *                            forward (up) for N > 0, back (down) for N < 0,
  *                            one notch per input update (below)
+ *   key,T,VK[,MS]            presses the key with the engine's code VK (as
+ *                            in include/input.h: 27 Esc, 32 space, 13
+ *                            Return) for MS ms (default 100); the pointer
+ *                            does not move; not the mouse buttons (1, 2, 4),
+ *                            which have the steps above
  * The steps run in their order: a step starts at its T, or when the one
  * before it is over if that is later (a click when its button is up again,
  * a move with MS when it has arrived, a wheel when its last notch has been
- * read), and never in the handle_events that ended the one before. The
+ * read, a key when it is up again), and never in the handle_events that
+ * ended the one before. The
  * pointer is the schedule's own (MOUSE_POS_AUTO, see the pointer above):
  * the desktop cursor does not move. A button is pressed and released in
  * the key state directly, as the first form always was; a notch goes
@@ -375,7 +381,7 @@ enum mouse_pos_source mouse_peek_pos(int *x, int *y)
  * <ms> at XSYS4_AUTO_CLICK_X/Y (default 350,180), at most
  * XSYS4_AUTO_CLICK_COUNT times if that is given.
  */
-enum auto_step_kind { AUTO_CLICK, AUTO_MOVE, AUTO_DOWN, AUTO_UP, AUTO_WHEEL };
+enum auto_step_kind { AUTO_CLICK, AUTO_MOVE, AUTO_DOWN, AUTO_UP, AUTO_WHEEL, AUTO_KEY };
 
 #define AUTO_INPUT_READ_WAIT 500
 #define AUTO_INPUT_COORD_MAX 1000000
@@ -387,8 +393,9 @@ struct auto_step {
 	uint32_t t;
 	int x, y;
 	enum sact_keycode button;
-	uint32_t ms;			// a click: held; a move: on its way
+	uint32_t ms;			// a click, a key: held; a move: on its way
 	int notches;
+	int key;			// a key: its code
 };
 
 static struct {
@@ -474,6 +481,7 @@ static const char *auto_step_describe(const struct auto_step *s, char *buf, size
 	case AUTO_DOWN:  snprintf(buf, size, "down %c", auto_button_name(s->button)); break;
 	case AUTO_UP:    snprintf(buf, size, "up %c", auto_button_name(s->button)); break;
 	case AUTO_WHEEL: snprintf(buf, size, "wheel %d", s->notches); break;
+	case AUTO_KEY:   snprintf(buf, size, "key %d %ums", s->key, s->ms); break;
 	}
 	return buf;
 }
@@ -485,6 +493,9 @@ static void auto_input_add(struct auto_step s)
 	auto_input.steps[i] = s;
 	if (s.first_form) {
 		WARNING("Auto-click seq[%d]: t=%dms pos=(%d,%d)", i, (int)s.t, s.x, s.y);
+	} else if (s.kind == AUTO_KEY) {
+		char d[32];
+		WARNING("Auto-input seq[%d]: %s t=%ums", i, auto_step_describe(&s, d, sizeof(d)), s.t);
 	} else {
 		char d[32];
 		WARNING("Auto-input seq[%d]: %s t=%ums pos=(%d,%d)", i,
@@ -555,6 +566,16 @@ static bool auto_input_parse_step(char *tok)
 	while (1 + nr_ints < n && nr_ints < 8 && auto_parse_int(f[1 + nr_ints], &v[nr_ints]))
 		nr_ints++;
 	int rest = n - 1 - nr_ints;		// fields after the numbers
+	if (!strcasecmp(f[0], "key")) {
+		// key,T,VK[,MS]
+		if (rest || nr_ints < 2 || nr_ints > 3 || v[0] < 0 || v[1] <= 0 || v[1] >= VK_NR_KEYCODES
+				|| v[1] == VK_LBUTTON || v[1] == VK_RBUTTON || v[1] == VK_MBUTTON
+				|| (nr_ints == 3 && v[2] < 0))
+			return false;
+		auto_input_add((struct auto_step) { .kind = AUTO_KEY, .t = v[0], .key = v[1],
+				.ms = nr_ints == 3 ? v[2] : 100 });
+		return true;
+	}
 	if (nr_ints < 3 || v[0] < 0 || !auto_coord_ok(v[1]) || !auto_coord_ok(v[2]))
 		return false;
 	struct auto_step s = { .t = v[0], .x = v[1], .y = v[2], .button = VK_LBUTTON };
@@ -711,6 +732,14 @@ static void auto_input_sequence(uint32_t now)
 	if (auto_input.busy) {
 		struct auto_step *s = &auto_input.steps[auto_input.next - 1];
 		uint32_t elapsed = now - auto_input.started;
+		if (s->kind == AUTO_KEY) {
+			if (elapsed >= s->ms) {
+				key_state[s->key] = false;
+				auto_input.busy = false;
+				WARNING("Auto-input #%d released key %d at %ums", auto_input.next - 1, s->key, now);
+			}
+			return;
+		}
 		if (s->kind == AUTO_CLICK) {
 			if (elapsed >= s->ms) {
 				auto_input_button(s->button, false);
@@ -785,9 +814,17 @@ static void auto_input_sequence(uint32_t now)
 		auto_input.notches_done = 0;
 		auto_input.busy = true;
 		break;
+	case AUTO_KEY:
+		// The key alone: the pointer stays where it is.
+		key_state[s->key] = true;
+		auto_input.busy = true;
+		auto_input.started = now;
+		break;
 	}
 	if (s->first_form) {
 		WARNING("Auto-click seq #%d at %ums game=(%d,%d)", i, now, s->x, s->y);
+	} else if (s->kind == AUTO_KEY) {
+		WARNING("Auto-input #%d %s at %ums", i, auto_step_describe(s, d, sizeof(d)), now);
 	} else if (s->kind == AUTO_MOVE && s->ms) {
 		WARNING("Auto-input #%d %s at %ums from=(%d,%d) to=(%d,%d)", i, auto_step_describe(s, d, sizeof(d)),
 				now, auto_input.from_x, auto_input.from_y, s->x, s->y);

@@ -65,6 +65,10 @@ struct activity_part {
 
 #define MAX_ACTIVITY_PARTS 512
 #define MAX_ACTIVITIES 128
+/* The original's end keys are a std::set<int> without a limit; the scripts
+ * give an activity at most three (the pactex block, and the activity
+ * editor's SetEndKey of 2, 32 and 27). */
+#define MAX_ACTIVITY_END_KEYS 256
 
 struct activity {
 	char name[256];
@@ -72,6 +76,9 @@ struct activity {
 	int nr_parts;
 	char close_parts[MAX_ACTIVITY_PARTS][256];
 	int nr_close_parts;
+	/* The end keys (see end_key_insert): unique, in ascending order. */
+	int end_keys[MAX_ACTIVITY_END_KEYS];
+	int nr_end_keys;
 };
 
 static struct activity activities[MAX_ACTIVITIES];
@@ -2741,9 +2748,95 @@ static void pactex_create_component(struct activity *act, struct ex_tree *node,
 
 // pactex_dump_components removed (Session 51)
 
+/* --- End keys ---
+ *
+ * The keys that end an activity (Esc, space, the right button on the
+ * settings and the backlogs). The original keeps them in a std::set<int>
+ * at activity +0x38 (its size at +0x3c): SetActivityEndKey (0x57c8b4 ->
+ * 0x58ae30) inserts (0x562920), EraseActivityEndKey (0x57c8ee -> 0x55e5f0)
+ * erases (0x561960), IsExistActivityEndKey (0x57c95a -> 0x58ae90) finds,
+ * NumofActivityEndKey (0x57c9af -> 0x58aef0) is the size, and
+ * GetActivityEndKey (0x57c9e6 -> 0x58af30) walks index steps from the
+ * smallest, 0 when the index is negative or not below the size. Each of them
+ * looks the activity up by its name (0x446650 in the table at manager
+ * +0x128) and does nothing (false, 0) without it.
+ *
+ * The script reads them once an activity is loaded
+ * (activity::detail::CActivity@BindEndType through GetEndKeyList: one
+ * CASClick per key, in this order) and polls them every frame of its loop
+ * (CActivity@UpdateActivity -> IsClickEndKey: CASClick@IsClick, that is
+ * IbisInputEngine.Key_IsDown, true when a key comes up; the space is skipped
+ * while an input parts is active, and Esc reset while the IME converts or
+ * takes input). */
+static int end_key_lower_bound(const struct activity *act, int key)
+{
+	int lo = 0, hi = act->nr_end_keys;
+	while (lo < hi) {
+		int mid = lo + (hi - lo) / 2;
+		if (act->end_keys[mid] < key)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return lo;
+}
+
+static bool end_key_exists(const struct activity *act, int key)
+{
+	int i = end_key_lower_bound(act, key);
+	return i < act->nr_end_keys && act->end_keys[i] == key;
+}
+
+static void end_key_insert(struct activity *act, int key)
+{
+	int i = end_key_lower_bound(act, key);
+	if (i < act->nr_end_keys && act->end_keys[i] == key)
+		return;
+	if (act->nr_end_keys >= MAX_ACTIVITY_END_KEYS) {
+		WARNING("activity '%s': more than %d end keys, %d not kept",
+			display_game0(act->name), MAX_ACTIVITY_END_KEYS, key);
+		return;
+	}
+	memmove(&act->end_keys[i + 1], &act->end_keys[i], (act->nr_end_keys - i) * sizeof(int));
+	act->end_keys[i] = key;
+	act->nr_end_keys++;
+}
+
+static void end_key_erase(struct activity *act, int key)
+{
+	int i = end_key_lower_bound(act, key);
+	if (i >= act->nr_end_keys || act->end_keys[i] != key)
+		return;
+	memmove(&act->end_keys[i], &act->end_keys[i + 1], (act->nr_end_keys - i - 1) * sizeof(int));
+	act->nr_end_keys--;
+}
+
+/* 結束キー (GBK; the original's key 0x7db894). */
+static const char GBK_END_KEY[] = "\xbd\x59\xca\xf8\xa5\xad\xa9\x60";
+
+/* The end key block: the activity loader 0x560210 reads the list block
+ * 結束キー (0x5603df..0x56046f), before the activity tree, and inserts each
+ * item into the set; without the block there are none. An item is read as
+ * an int with the default 0 (the list's vtable +0xc with (i, 0)); that a
+ * non-int item reads as that 0 is inferred from the default. The pactex of
+ * the game have (2, 27, 32) on the settings and the backlog, (2, 27) on the
+ * scene backlog, and no block anywhere else. */
+static void pactex_read_end_keys(struct activity *act, struct ex *ex)
+{
+	struct ex_list *keys = ex_get_list(ex, GBK_END_KEY);
+	if (!keys)
+		return;
+	for (unsigned i = 0; i < keys->nr_items; i++) {
+		struct ex_value *v = &keys->items[i].value;
+		end_key_insert(act, v->type == EX_INT ? v->i : 0);
+	}
+}
+
 /* Parse pactex EX data and populate activity with parts entries. */
 static bool pactex_load(struct activity *act, struct ex *ex)
 {
+	pactex_read_end_keys(act, ex);
+
 	/* Find the tree block — should be block 0 ("アクティビティ") */
 	struct ex_tree *tree = NULL;
 	for (unsigned i = 0; i < ex->nr_blocks; i++) {
@@ -2873,6 +2966,7 @@ static bool PartsEngine_CreateActivity(struct string *name)
 	snprintf(act->name, sizeof(act->name), "%s", name->text);
 	act->nr_parts = 0;
 	act->nr_close_parts = 0;
+	act->nr_end_keys = 0;
 	nr_activities++;
 	return true;
 }
@@ -3200,11 +3294,40 @@ static bool PartsEngine_IsExistActivityCloseParts(struct string *name, struct st
 static void PartsEngine_AddActivityLockedParts(struct string *name, struct string *parts) {}
 static bool PartsEngine_IsExistActivityLockedParts(struct string *name, struct string *parts) { return false; }
 
-static void PartsEngine_SetActivityEndKey(struct string *name, int key) {}
-static void PartsEngine_EraseActivityEndKey(struct string *name, int key) {}
-static bool PartsEngine_IsExistActivityEndKey(struct string *name, int key) { return false; }
-static int PartsEngine_NumofActivityEndKey(struct string *name) { return 0; }
-static int PartsEngine_GetActivityEndKey(struct string *name, int index) { return 0; }
+/* The end keys: see end_key_insert. */
+static void PartsEngine_SetActivityEndKey(struct string *name, int key)
+{
+	int idx = find_activity(name);
+	if (idx >= 0)
+		end_key_insert(&activities[idx], key);
+}
+
+static void PartsEngine_EraseActivityEndKey(struct string *name, int key)
+{
+	int idx = find_activity(name);
+	if (idx >= 0)
+		end_key_erase(&activities[idx], key);
+}
+
+static bool PartsEngine_IsExistActivityEndKey(struct string *name, int key)
+{
+	int idx = find_activity(name);
+	return idx >= 0 && end_key_exists(&activities[idx], key);
+}
+
+static int PartsEngine_NumofActivityEndKey(struct string *name)
+{
+	int idx = find_activity(name);
+	return idx >= 0 ? activities[idx].nr_end_keys : 0;
+}
+
+static int PartsEngine_GetActivityEndKey(struct string *name, int index)
+{
+	int idx = find_activity(name);
+	if (idx < 0 || index < 0 || index >= activities[idx].nr_end_keys)
+		return 0;
+	return activities[idx].end_keys[index];
+}
 
 // v14 stubs for input/wheel configuration
 static void PartsEngine_SetEnableInputProcess(possibly_unused int parts_no,
