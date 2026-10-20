@@ -1,0 +1,2 @@
+revision	scope	result	reason
+04c1f34	key-inventory	N/A	No engine or probe change; no before-failure claim. Existing default and GBK baseline results are in verify.tsv.

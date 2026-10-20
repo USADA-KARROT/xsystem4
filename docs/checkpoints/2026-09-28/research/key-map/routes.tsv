@@ -1,0 +1,10 @@
+phase	route	seconds	exit	MSG	baseline_MSG	dialogue_comparison	clicks	target_diffs_vs_baseline	errors	binary_sha256	cursor_unchanged
+inventory-baseline	normal150	150.224	0	88	88	equal	0	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	haruuri	182.23	0	629	629	equal	15	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	fightr	350.367	0	681	681	equal	171	58	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	config	45.253	0	88	88	equal	4	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	backlog	45.388	0	88	88	equal	5	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	savedialog	148.245	0	629	629	equal	16	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	garage	35.275	0	88	88	equal	3	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	sysmenu	30.361	0	88	88	equal	3	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
+inventory-baseline	movie	760.391	0	451	451	equal	49	0	0	74ebc3b5c72cb664567f9f64e656161ff5eb4774d25384858eb899184d205461	True
