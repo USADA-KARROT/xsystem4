@@ -1,0 +1,2 @@
+phase	revision	mode	exit	sanitizer	failed_cases	status	scope
+final-parent-check	d9d13e8e7e37f86d410c08c7b9b7bd9c0283a0cb	wheel-events	1	0	14/15	EXPECTED_FAILURE	Final committed fixture; WE12 legacy defense passes; successful build; semantic failures
