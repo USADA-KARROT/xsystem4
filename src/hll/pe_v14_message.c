@@ -29,10 +29,11 @@
  *  - CallDelegate compares the message's uniqueID against the parts'
  *    registered event ID (SetEventID) and silently drops mismatches.
  *  - Message types (bytecode SWITCH): 0=mouse enter, 1=mouse move,
- *    2=mouse leave (x, y), 4=mouse click (x, y, keyCode), 5=double click,
+ *    2=mouse leave (x, y), 3=mouse wheel (forward, back),
+ *    4=mouse click (x, y, keyCode), 5=double click,
  *    6=on cursor (x, y, time since entered), 19=focus, 20=lost focus (no
  *    variables). MouseClick's keyCode distinguishes left (1), right (2),
- *    middle (4). The input update sends 0, 1, 2, 4, 6, 19 and 20
+ *    middle (4). The input update sends 0, 1, 2, 3, 4, 6, 19 and 20
  *    (src/parts/input.c, v14_update_input).
  */
 

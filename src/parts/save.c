@@ -59,9 +59,18 @@
  * are taken from the end). Without it, every state of a loaded parts has
  * the parts' last deform, which is what was drawn before the states had
  * their own.
+ *
+ * The optional wheel flag section (SAVE_WHEELABLE) follows CG deforms and
+ * precedes controller IDs: its mark, a count and the numbers whose own
+ * wheel flag is true. It is absent when all saved flags are false. The
+ * effective eligibility is not saved. Controller roots carry their
+ * own flag here even though they have no parts record. Older readers stop
+ * before this section and still find CG deforms before it and IDs at the
+ * end; none of the version 12 records change.
  */
 #define CURRENT_SAVE_VERSION 12
 #define SAVE_CG_DEFORMS 0x46444350 /* "PCDF" */
+#define SAVE_WHEELABLE 0x45485750 /* "PWHE" */
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -1035,6 +1044,60 @@ static void load_cg_deforms(struct iarray_reader *r)
 	}
 }
 
+/* Native 0x551648 and 0x551e4e persist the component's own flag. XPE uses
+ * an optional section instead of changing its existing parts records. */
+static void save_wheelable(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, count = 0;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!parts->wheelable)
+			continue;
+		if (parts_is_controller_root(parts)) {
+			// Controller roots survive independently of parts records,
+			// whose want_save and visibility filters do not describe them.
+			if (parts_controller_index(parts->no) < 0)
+				continue;
+		} else if (!parts->want_save || (!save_hidden && !parts->global.show)) {
+			continue;
+		}
+		if (!count) {
+			iarray_write(w, SAVE_WHEELABLE);
+			count_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+		}
+		iarray_write(w, parts->no);
+		count++;
+	}
+	if (count)
+		iarray_write_at(w, count_pos, count);
+}
+
+static bool load_wheelable(struct iarray_reader *r)
+{
+	if (r->error || r->pos >= r->size || r->data[r->pos].i != SAVE_WHEELABLE)
+		return true;
+	iarray_read(r);
+	int nr = iarray_read(r);
+	if (r->error || nr < 0 || (unsigned)nr > r->size - r->pos) {
+		WARNING("invalid wheel flag section");
+		return false;
+	}
+	// Multi-controller loads already rebuilt these from PCID. A single
+	// controller with no saved child has no load_parts call to recreate its
+	// root, so rebuild only the roots named by the existing controller stack.
+	// Entries in this optional section must never create arbitrary parts.
+	for (int i = 0; i < ctrl_stack.nr_controllers; i++)
+		parts_controller_root(ctrl_stack.ids[i]);
+	for (int i = 0; i < nr; i++) {
+		int no = iarray_read(r);
+		struct parts *parts = no > 0 ? parts_try_get(no) : NULL;
+		if (parts)
+			parts->wheelable = true;
+	}
+	return true;
+}
+
 static bool parts_engine_save(struct page **buffer, bool save_hidden)
 {
 	// get parts into clean state first
@@ -1115,8 +1178,10 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 		iarray_write_at(&w, sub_pos, sub);
 	}
 
-	if (ain->version >= 14)
+	if (ain->version >= 14) {
 		save_cg_deforms(&w, save_hidden);
+		save_wheelable(&w, save_hidden);
+	}
 
 	// The controller ID section is the end of the save, after every list
 	// (load_controller_ids takes it from there).
@@ -1218,8 +1283,13 @@ bool PE_Load(struct page **buffer)
 				parts_set_sub_color_mode(parts, true);
 		}
 	}
-	if (ain->version >= 14)
+	if (ain->version >= 14) {
 		load_cg_deforms(&r);
+		if (!load_wheelable(&r)) {
+			free(ids);
+			return false;
+		}
+	}
 	// (the controller ID section follows the lists; it was read first)
 	if (parts_multi_controller && ain->version >= 14) {
 		load_controller_finish(active, ids != NULL);

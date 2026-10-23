@@ -23,6 +23,7 @@
 #include "asset_manager.h"
 #include "audio.h"
 #include "input.h"
+#include "parts.h"
 #include "xsystem4.h"
 #include "parts_internal.h"
 #include "system4/ain.h"
@@ -462,12 +463,13 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  *     GetClickNumber is cleared (+0x14 at 0x547e23).
  *  2. The cursor's position is read through the same call as the HLL
  *     Mouse_GetPos (0x547e50; 0x498b95). When it gives none, the update goes
- *     on with the last position it stored (+0x18/+0x1c, 0x547e5f) and sends
- *     no mouse message: no whole-screen message (0x548024), no press, no
- *     cursor walk (0x5482a7 skips 0x546890); only the left slot's parts is
+ *     on with the last position it stored (+0x18/+0x1c, 0x547e5f). It sends
+ *     no whole-screen move/click (0x548024), takes no press and runs no
+ *     cursor walk (0x5482a7 skips 0x546890). Wheel events still go out;
+ *     only the left slot's parts is
  *     left (0x548339 -> 0x5476b0 -> 0x577cf0) when it is the focus, that is
  *     while the left button is still held on the parts it went down on. The
- *     slot is empty after the release (5. below), and a release without a
+ *     slot is empty after the release (6. below), and a release without a
  *     position empties it before (0x5481cb -> 0x5462b0), so a parts clicked
  *     or released is not left here: it stays entered, as the other parts do,
  *     until the pointer is back. Here the position counts as given while
@@ -476,18 +478,22 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  *     followed (it is behind an interface); the port's Mouse_GetPos also asks
  *     for the keyboard focus, which is not asked here, so that a window in
  *     the background shows the hover as before.
- *  3. With a position, when it is not the one stored: the whole-screen
+ *  3. Wheel counts read from the input interface (0x547fd1): when either
+ *     is nonzero, the whole-screen MouseWheel (forward, back), through
+ *     the manager's own emitter at 0x54800f. It precedes the check for a
+ *     position and is sent even when the two nonzero counts are equal.
+ *  4. With a position, when it is not the one stored: the whole-screen
  *     MouseMove (x, y), through the manager's own emitter (0x548054; its
  *     source is null, so the message's parts number is 0, and its mask
  *     0x54562a leaves type 1 through: of the types 0..29 it lets 1, 3, 4, 5,
  *     9 and 15..18 through). The game hooks it only in its debugging tools
  *     (AFL_Parts_AddWholeMouseMoveEvent).
- *  4. With a position, a release: the whole-screen MouseClick (x, y, key 1),
+ *  5. With a position, a release: the whole-screen MouseClick (x, y, key 1),
  *     whatever is under the cursor (0x548064, the same emitter). Also when the
  *     button was already down at BeginInput: 0x546030 samples the buttons
  *     into +0x40..+0x42, and EndInput samples them again for the outer scope
  *     (0x58a750 -> 0x53e830).
- *  5. With a position, 0x546890 (at 0x5482f9): at a press (down now, up at
+ *  6. With a position, 0x546890 (at 0x5482f9): at a press (down now, up at
  *     the last update; 0x547f2d..0x547fb3) the parts under the cursor,
  *     v14_input_target, becomes the pressed parts (the left slot) and the
  *     focus; when the focus changes, the old one gets LostFocus and the new
@@ -495,9 +501,13 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  *     element's +0x1b4 says so). Without a press and with the left button
  *     up, the update of the release included, the left slot is emptied
  *     (0x5468d6..0x5468fb -> 0x547460: +0x1ec and the drop target +0x210),
- *     before the click of 6. goes out. Then the cursor walk
+ *     before the click of 8. goes out. Then the cursor walk
  *     (v14_cursor_walk), every update.
- *  6. The focused element's keys (0x578580 at 0x54836a): at the press a
+ *  7. Local MouseWheel (0x547000 at 0x548362): the first eligible element
+ *     under the cursor in reverse order, or the updated focus/root
+ *     fallback, receives the same two counts. This also uses the stored
+ *     position when the position query failed; see v14_dispatch_wheel.
+ *  8. The focused element's keys (0x578580 at 0x54836a): at the press a
  *     clickable entered element goes to its down state (0x5785f8); at the
  *     release the pressed parts' own MouseClick (0x5788d0, key 1), only when
  *     it is clickable (+0x1a4), entered (+0x1ac, this update's walk) and the
@@ -516,7 +526,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  *     whole-screen click is what closes the dialog over PartySkillView's
  *     Button. A check box flips here, after its MouseClick (0x52cdd0 ->
  *     0x52f030: the cursor still on the widget, key 1).
- *  7. The position is stored (+0x18/+0x1c) when this update and the last one
+ *  9. The position is stored (+0x18/+0x1c) when this update and the last one
  *     both had one (0x548381..0x548395; +0x43).
  *
  * The original has no "pressed parts" for a click. It sends the parts'
@@ -567,8 +577,7 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  * sent as for any release. The hover of a disabled button is sent as for
  * any parts (0x577b90 does not ask).
  *
- * Not done: the whole-screen wheel (0x80f6e4) and the element's own
- * (0x547000), the KeyTrigger/KeyDown/KeyPress/KeyUp messages (types 15-18,
+ * Not done: the KeyTrigger/KeyDown/KeyPress/KeyUp messages (types 15-18,
  * 0x578580), the double click (0x4e6bd0), the drag and drop messages and
  * the swipe (an element in a swipe, +0x1dc not negative, stops the walk and
  * keeps its focus out of it: 0x5472e9, 0x548294).
@@ -771,6 +780,65 @@ static void v14_release(int pressed_no, Point cur_pos, bool have_pos)
 		parts_checkbox_set_checked(target, !target->checkbox->checked);
 }
 
+/*
+ * Native 0x5350c0: types 5/7/15 accept wheel input; 2/3/6/11/12/13 do
+ * when focused. The next source is an internal component owner (+0x7c),
+ * then the parts' own flag. That owner is not the visual parent set at
+ * 0x53b098 (+0x13c): ordinary named parts are constructed with a null owner
+ * (0x578cb0 -> 0x4f3c20 -> 0x533da0). Do not walk parts->parent here.
+ * The port has one input element per parts, so its active ID is the focus
+ * here; native composite widgets' internal owner and focus are not rebuilt.
+ */
+static bool v14_wheelable(struct parts *parts)
+{
+	switch (parts->component_type) {
+	case 5: case 7: case 15:
+		return true;
+	case 2: case 3: case 6: case 11: case 12: case 13:
+		if (parts->no == v14_active_parts)
+			return true;
+		break;
+	}
+	return parts->wheelable;
+}
+
+/*
+ * Native 0x547000: the first wheelable, shown, nontransparent element hit
+ * in reverse order receives one event. Cursor blocking, click permission
+ * and disabled-button state do not take part in this walk. A scrollbar
+ * stands for its inner track and knob, as in the existing input walk.
+ * Without a hit, the updated focus receives it, otherwise the manager's
+ * root. Here the active controller's root represents that fallback; the
+ * system overlay has no root and cannot supply such an element.
+ */
+static void v14_dispatch_wheel(Point pos, const int *counts)
+{
+	struct parts *target = NULL, *parts;
+	PARTS_LIST_FOREACH_REVERSE(parts) {
+		if (!v14_wheelable(parts) || !parts_takes_input(parts))
+			continue;
+		bool hit = parts_scrollbar_has_look(parts)
+			? parts_scrollbar_hittest(parts, pos) != PARTS_SCROLLBAR_MISS
+			: parts_hittest(parts, PARTS_STATE_DEFAULT, pos);
+		if (hit) {
+			target = parts;
+			break;
+		}
+	}
+	bool fallback = !target;
+	if (!target && v14_active_parts)
+		target = parts_try_get(v14_active_parts);
+	if (!target)
+		target = parts_controller_root(PE_get_active_controller());
+	if (target)
+		v14_send(target, PARTS_V14_MSG_MOUSE_WHEEL, 2, counts);
+	static unsigned traced;
+	if (input_stage2_trace() && traced++ < 2000)
+		NOTICE("S2 wheel-dispatch ms=%u pos=%d,%d forward=%d back=%d target=%d fallback=%d",
+				SDL_GetTicks(), pos.x, pos.y, counts[0], counts[1],
+				target ? target->no : 0, fallback);
+}
+
 static void v14_update_input(int passed_time)
 {
 	bool cur_clicking = key_is_down(VK_LBUTTON);
@@ -806,6 +874,15 @@ static void v14_update_input(int passed_time)
 	// The parts whose own click this release sends (the focus' key table,
 	// 0x578580): the left slot's, taken before the slot is emptied.
 	int released_no = release ? v14_press_parts : 0;
+
+	// Native 0x547fd1..0x54800f: Whole wheel precedes Whole move/click
+	// and does not require a current position. Keep both counts: equal
+	// nonzero counts still produce an event, consumed differently by scripts.
+	int wheel[2];
+	mouse_get_wheel(&wheel[0], &wheel[1]);
+	bool have_wheel = wheel[0] || wheel[1];
+	if (have_wheel)
+		parts_enqueue_message_vars(PARTS_V14_MSG_MOUSE_WHEEL, 0, -1, -1, 2, wheel);
 
 	if (have_pos) {
 		int vars[3] = { cur_pos.x, cur_pos.y, VK_LBUTTON };
@@ -852,6 +929,10 @@ static void v14_update_input(int passed_time)
 		last_target_no = target ? target->no : 0;
 	parts_scrollbar_input(cur_pos, cur_clicking, prev_clicking,
 			last_target_no ? parts_try_get(last_target_no) : NULL);
+	// 0x548362: after hover/focus processing, before the focus' release.
+	// A failed position query still uses the manager's previous position.
+	if (have_wheel)
+		v14_dispatch_wheel(cur_pos, wheel);
 	if (release) {
 		v14_release(released_no, cur_pos, have_pos);
 		drag_state_reset();

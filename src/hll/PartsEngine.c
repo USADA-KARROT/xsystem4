@@ -1978,6 +1978,28 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 #include "pe_v14_checkbox.h"
 #include "pe_v14_stubs.h"
 
+/* Native 0x590770: positive numbers use the get-or-create lookup; only
+ * the component's own flag is changed, not its effective eligibility. */
+static void PE_v14_SetWheelable(int parts_no, bool enable)
+{
+	if (ain->version >= 14 && parts_no > 0)
+		parts_get(parts_no)->wheelable = enable;
+}
+
+static void pe_v14_register_wheel(int libno)
+{
+	if (ain->version < 14)
+		return;
+	struct ain_hll_function *fun = get_fun(libno, "Parts_SetWheelable");
+	if (!fun || fun->nr_arguments != 2 || !fun->arguments
+			|| !pe_v14_numeral_arg_shape(&fun->return_type, 'v')
+			|| !pe_v14_numeral_arg_shape(&fun->arguments[0].type, 'i')
+			|| !pe_v14_numeral_arg_shape(&fun->arguments[1].type, 'b'))
+		return;
+	// Before the activity stub; unknown declarations keep their binding.
+	static_library_register(&lib_PartsEngine, "Parts_SetWheelable", PE_v14_SetWheelable);
+}
+
 /* Fill the v14-only names into the runtime library table. Called from
  * PartsEngine_PostLink, gated on the v14 declaration set; register only
  * fills entries that are still NULL after link_libraries(). */
@@ -2116,6 +2138,7 @@ static void PartsEngine_PostLink(void)
 	int libno = ain_get_library(ain, "PartsEngine");
 	if (libno < 0)
 		return;
+	pe_v14_register_wheel(libno);
 	// v14 Activity system + pactex loader (declaration-driven)
 	if (get_fun(libno, "CreateActivity")) {
 		extern void pe_v14_activity_prelink(void);

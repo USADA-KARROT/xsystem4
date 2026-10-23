@@ -181,6 +181,7 @@ static void init_probe(const char *path) {
 #include "auto_input_fixture.inc"
 #include "hover_events_fixture.inc"
 #include "end_keys_fixture.inc"
+#include "wheel_events_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -284,6 +285,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"auto-input"))return test_auto_input();
     if(!strcmp(argv[2],"hover-events"))return test_hover_events();
     if(!strcmp(argv[2],"end-keys"))return test_end_keys();
+    if(!strcmp(argv[2],"wheel-events"))return test_wheel_events();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

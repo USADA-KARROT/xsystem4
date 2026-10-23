@@ -22,7 +22,7 @@
  * child links; the loader creates parts entries with the correct raw
  * component types and parent-child relationships.
  *
- * Registered from PartsEngine's _PreLink when the AIN declares the
+ * Registered from PartsEngine's _PostLink when the AIN declares the
  * Activity API (v14 games); see pe_v14_activity_prelink().
  */
 
@@ -324,6 +324,17 @@ static const char GBK_CN_PASS_CURSOR[] = "\xa5\xaa\xa5\xf3\xd6\xb8\xe1\x98\xcd\x
 static void pactex_apply_pass_cursor(struct ex_tree *node, int parts_no)
 {
 	PE_SetPassCursor(parts_no, pactex_get_int(node, GBK_CN_PASS_CURSOR, 0) == 1);
+}
+
+/* Native 0x5549cf: the component's own wheel flag is true only for the
+ * integer 1 (default 0). These are the verified CN key bytes; no SJIS
+ * spelling is inferred here. */
+static const char GBK_CN_WHEELABLE[] = "\xa5\xdb\xa5\xa4\xa9\x60\xa5\xeb\xd3\xd0\x84\xbf";
+
+static void pactex_apply_wheelable(struct ex_tree *node, int parts_no)
+{
+	if (ain->version >= 14)
+		parts_get(parts_no)->wheelable = pactex_get_int(node, GBK_CN_WHEELABLE, 0) == 1;
 }
 
 /* スピードアップ有効 (speed-up enabled), the last field the same parser reads:
@@ -2197,6 +2208,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	pactex_apply_pixel_decide(node, parts_no);
 	pactex_apply_click_permission(node, parts_no);
 	pactex_apply_pass_cursor(node, parts_no);
+	pactex_apply_wheelable(node, parts_no);
 	pactex_apply_speed_up(node, parts_no);
 
 	/* ClipArea is stored even when disabled. The pactex loader writes the
@@ -3329,7 +3341,7 @@ static int PartsEngine_GetActivityEndKey(struct string *name, int index)
 	return activities[idx].end_keys[index];
 }
 
-// v14 stubs for input/wheel configuration
+// Existing fallbacks for input configuration and unrecognized wheel declarations.
 static void PartsEngine_SetEnableInputProcess(possibly_unused int parts_no,
 	possibly_unused bool enable) {}
 static void PartsEngine_Parts_SetWheelable(possibly_unused int parts_no,
@@ -3342,7 +3354,7 @@ static bool PartsEngine_Parts_IsPartsPixelDecide(int parts_no)
 }
 
 /* Register the Activity API into lib_PartsEngine. Called from
- * PartsEngine's _PreLink when the AIN declares CreateActivity (v14). */
+ * PartsEngine's _PostLink when the AIN declares CreateActivity (v14). */
 void pe_v14_activity_prelink(void)
 {
 	struct static_library *lib = &lib_PartsEngine;

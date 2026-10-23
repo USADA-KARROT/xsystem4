@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <math.h>
 #include <stdbool.h>
 #include <signal.h>
 #include <string.h>
@@ -24,6 +25,7 @@
 #include <time.h>
 #include <SDL.h>
 #include "system4.h"
+#include "system4/ain.h"
 #include "queue.h"
 #include "gfx/gfx.h"
 #include "gfx/private.h"
@@ -889,14 +891,85 @@ void mouse_set_pos(int x, int y)
 
 static int wheel_dir = 0;
 
+/*
+ * v14's native wheel handler (0x4be830) accumulates signed delta in units
+ * of 120, keeping its signed remainder and two independent notch counts.
+ * The port can pump SDL midway through a script's input cycle, so its first
+ * GetCount takes a snapshot until ClearCount. Events received after that
+ * read stay pending for the next cycle. This snapshot is a port adaptation:
+ * the native getters themselves simply read the current counts.
+ */
+static struct {
+	double remainder;
+	int pending_forward, pending_back;
+	int forward, back;
+	bool snapshot;
+} v14_wheel;
+
+static bool wheel_is_v14(void)
+{
+	return ain && ain->version >= 14;
+}
+
+static void wheel_add_notches(double notches)
+{
+	if (!isfinite(notches) || notches == 0)
+		return;
+	double delta = v14_wheel.remainder + notches * 120.0;
+	double whole = trunc(delta / 120.0);
+	v14_wheel.remainder = fmod(delta, 120.0);
+	int *count = whole >= 0 ? &v14_wheel.pending_forward : &v14_wheel.pending_back;
+	double added = fabs(whole);
+	// An oversized SDL event must not overflow an integer or a float-to-int
+	// conversion. Saturation is the port's boundary for such input.
+	if (added >= INT_MAX - *count)
+		*count = INT_MAX;
+	else
+		*count += (int)added;
+}
+
+static void wheel_event(const SDL_MouseWheelEvent *event)
+{
+	if (!wheel_is_v14()) {
+		wheel_dir = event->y;
+		return;
+	}
+	double notches = event->y;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+	// Older synthetic producers fill only y. A genuine horizontal-only
+	// event has both y values zero and leaves all wheel state untouched.
+	if (event->preciseY != 0 || event->y == 0)
+		notches = event->preciseY;
+#endif
+	if (event->direction == SDL_MOUSEWHEEL_FLIPPED)
+		notches = -notches;
+	wheel_add_notches(notches);
+}
+
 void mouse_get_wheel(int *forward, int *back)
 {
+	if (wheel_is_v14()) {
+		if (!v14_wheel.snapshot) {
+			v14_wheel.forward = v14_wheel.pending_forward;
+			v14_wheel.back = v14_wheel.pending_back;
+			v14_wheel.pending_forward = v14_wheel.pending_back = 0;
+			v14_wheel.snapshot = true;
+		}
+		*forward = v14_wheel.forward;
+		*back = v14_wheel.back;
+		return;
+	}
 	*forward = wheel_dir > 0;
 	*back = wheel_dir < 0;
 }
 
 void mouse_clear_wheel(void)
 {
+	if (wheel_is_v14()) {
+		v14_wheel.forward = v14_wheel.back = 0;
+		v14_wheel.snapshot = false;
+		return;
+	}
 	wheel_dir = 0;
 }
 
@@ -966,6 +1039,7 @@ void input_modal_closed(void)
 	deferred_synthetic_mouse_event.timestamp = 0;
 	long_touch_start_timestamp = 0;
 	wheel_dir = 0;
+	memset(&v14_wheel, 0, sizeof(v14_wheel));
 }
 
 static void mouse_event(SDL_MouseButtonEvent *e)
@@ -1571,7 +1645,7 @@ void handle_events(void)
 		case SDL_MOUSEWHEEL:
 			if (e.wheel.which != AUTO_INPUT_MOUSEID)
 				pointer_real_event(e.wheel.timestamp, false);
-			wheel_dir = e.wheel.y;
+			wheel_event(&e.wheel);
 			// Trace (XSYS4_STAGE2_TRACE): every wheel event the engine
 			// takes, the schedule's (auto) or the mouse's (real).
 			{
@@ -1618,7 +1692,12 @@ void handle_events(void)
 					scroll_gesture_y = e.mgesture.y;
 				float dy = scroll_gesture_y - e.mgesture.y;
 				if (dy * dy > SCROLL_GESTURE_SENSITIVITY * SCROLL_GESTURE_SENSITIVITY) {
-					wheel_dir = dy < 0 ? 1 : -1;  // Swipe up to scroll down.
+					// Swipe up to scroll down, retaining the old
+					// gesture threshold and one notch per crossing.
+					if (wheel_is_v14())
+						wheel_add_notches(dy < 0 ? 1 : -1);
+					else
+						wheel_dir = dy < 0 ? 1 : -1;
 					scroll_gesture_y = e.mgesture.y;
 				}
 			}

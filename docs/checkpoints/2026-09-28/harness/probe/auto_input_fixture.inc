@@ -43,9 +43,9 @@
  *       over nothing to the other button, a first-form click sends the
  *       whole-screen click and the button's, a drag off the button sends
  *       the whole-screen click alone, a right click sends nothing (the
- *       port's state, input-model IM4), a wheel step sends nothing (the
- *       whole-screen wheel, type 3, is not done) and is read by
- *       MouseWheel_GetCount's engine function.
+ *       port's state, input-model IM4), a wheel step reaches Whole and
+ *       the eligible component after SDL pumping, with the same two counts
+ *       read by MouseWheel_GetCount. G5 adds these type-3 messages.
  *   AU7 XSYS4_AUTO_CLICK=<ms> (the periodic clicks of gui-run.sh): at
  *       XSYS4_AUTO_CLICK_X/Y, at most XSYS4_AUTO_CLICK_COUNT, and the last
  *       one is released (before, the count stopped the release as well).
@@ -693,6 +693,7 @@ static void au_engine(void)
 	struct parts *b = br_box(AU_B, 500, 100, 200, 80, true);
 	cp_register_event(AU_A, 3, 31);
 	cp_register_event(AU_B, 4, 32);
+	BU_PE("Parts_SetWheelable", BU_I(AU_A), BU_I(true));
 	uint32_t B = au_base;
 	int n = au_load(au_spec("move,%u,150,140;move,%u,550,140,100;%u,150,140;drag,%u,150,140,%u,560,150;rclick,%u,150,140;wheel,%u,150,140,1",
 				B, B + 100, B + 300, B + 500, B + 800, B + 1100, B + 1300));
@@ -734,9 +735,23 @@ static void au_engine(void)
 	f = au_parts(1200);
 	AU_CHECK(f.n == 0 && !key_state[VK_RBUTTON], "the right click's release: %d message(s) (the port sends none yet, input-model IM4)", f.n);
 	f = au_parts(1300);
-	AU_CHECK(f.n == 0, "the wheel: %d message(s) (the whole-screen wheel is not done yet)", f.n);
+	AU_CHECK(f.n == 0, "the wheel before its queued SDL event is pumped: %d message(s)", f.n);
+	/* View's Clear/Peek boundary ends the earlier empty snapshot. */
+	mouse_clear_wheel();
 	SDL_Delay(2);
 	handle_events();
+	PE_UpdateInputState(16);
+	int (*wheel_count)(void) = (int (*)(void))br_pe_fn("GetMessageVariableCount");
+	int (*wheel_var)(int) = (int (*)(int))br_pe_fn("GetMessageVariableInt");
+	int wheel_n = 0;
+	for (int ty; (ty = br_msg_type()) >= 0; br_msg_pop()) {
+		int no = br_msg_parts();
+		AU_CHECK(ty == 3 && no == (wheel_n ? AU_A : 0) && wheel_count() == 2
+			&& wheel_var(0) == 1 && wheel_var(1) == 0,
+			"wheel message %d: type %d parts %d vars %d [%d,%d]", wheel_n, ty, no, wheel_count(), wheel_var(0), wheel_var(1));
+		wheel_n++;
+	}
+	AU_CHECK(wheel_n == 2, "the pumped wheel: %d messages, want Whole then eligible component", wheel_n);
 	int fwd = -1, back = -1;
 	mouse_get_wheel(&fwd, &back);
 	AU_CHECK(fwd == 1 && back == 0, "MouseWheel_GetCount's function after the wheel step: forward %d back %d", fwd, back);

@@ -704,6 +704,10 @@ struct parts {
 	int cg_deform[PARTS_NR_STATES];
 	bool clickable;
 	bool pass_cursor;
+	// v14: the component's own wheel flag (native +0x212). Effective
+	// wheelability also depends on type/focus. The native internal owner
+	// is not represented by the port's visual parent.
+	bool wheelable;
 	bool pixel_hittest;
 	bool lock_input_state;
 	bool want_save;
@@ -1048,13 +1052,15 @@ enum parts_message_type {
 
 // v14: the types the input update sends, by the type function of each
 // message's vtable (0x80f1dc -> 0x426ae0 returns 0, 0x80f6f0 -> 0x43a600
-// returns 1, 0x80f1e8 -> 0x426f70 returns 2, 0x80f794 -> 0x426b40 returns 4,
+// returns 1, 0x80f1e8 -> 0x426f70 returns 2, 0x80f6e4 -> 0x429f90 returns 3,
+// 0x80f794 -> 0x426b40 returns 4,
 // 0x80f208 -> 0x429a10 returns 6, 0x80f580 -> 0x533d80 returns 19,
 // 0x80f5a4 -> 0x533d90 returns 20).
 enum parts_v14_message_type {
 	PARTS_V14_MSG_MOUSE_ENTER = 0,	// x, y
 	PARTS_V14_MSG_MOUSE_MOVE  = 1,	// x, y
 	PARTS_V14_MSG_MOUSE_LEAVE = 2,	// x, y
+	PARTS_V14_MSG_MOUSE_WHEEL = 3,	// forward, back
 	PARTS_V14_MSG_MOUSE_CLICK = 4,	// x, y, key
 	PARTS_V14_MSG_ON_CURSOR   = 6,	// x, y, time since entered
 	PARTS_V14_MSG_FOCUS       = 19,
