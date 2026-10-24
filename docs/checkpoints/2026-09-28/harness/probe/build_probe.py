@@ -88,6 +88,12 @@ asset_shadow=here/'probe-asset-manager.c'
 asset_shadow.write_text((source/'src/asset_manager.c').read_text()+'\n'+(here/'cg_assets_shadow.inc').read_text())
 assetobj=here/('asset-manager-'+a.variant+'.o')
 compiled += [compile_as('src/asset_manager.c', asset_shadow, assetobj)]
+# sound_groups_fixture.inc reads the mixed samples: probe_audio_pull runs the engine's own SDL callback
+# (static audio_callback) on the calling thread, for cases that open no audio device.
+mixer_shadow=here/'probe-audio-mixer.c'
+mixer_shadow.write_text((source/'src/audio_mixer.c').read_text()+"\nvoid probe_audio_pull(float *out, int frames) { audio_callback(NULL, (Uint8 *)out, frames * (int)(sizeof(float) * 2)); }\n")
+mixerobj=here/('audio-mixer-'+a.variant+'.o')
+compiled += [compile_as('src/audio_mixer.c', mixer_shadow, mixerobj)]
 link=shlex.split(subprocess.check_output(['ninja','-t','commands','src/xsystem4'],cwd=build,text=True).splitlines()[-1])
 link.remove('src/xsystem4.p/ffi.c.o')
 binary=here/('runtime-probe-'+a.variant)
@@ -103,11 +109,12 @@ for i,arg in enumerate(link):
     elif arg=='src/xsystem4.p/hll_MainEXFile.c.o':link[i]=str(mainexobj)
     elif arg=='src/xsystem4.p/video.c.o':link[i]=str(videoobj)
     elif arg=='src/xsystem4.p/asset_manager.c.o':link[i]=str(assetobj)
+    elif arg=='src/xsystem4.p/audio_mixer.c.o':link[i]=str(mixerobj)
 run=subprocess.run(link,cwd=build,capture_output=True,text=True)
 (here/('link-'+a.variant+'.log')).write_text(run.stdout+run.stderr)
 if run.returncode:raise SystemExit(run.stderr)
 result={'variant':a.variant,'vm_sha256':hashlib.sha256((source/'src/vm.c').read_bytes()).hexdigest(),'probe_sha256':hashlib.sha256((here/'runtime_probe.c').read_bytes()).hexdigest(),'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),'compile_commands':compiled,'link_command':link,'scope':'Real-AIN VM/HLL harness; no GUI. Production parts/activity source copies append probe-only static-entry wrappers; no behavior replacement. Other engine objects link from the current build; original main renamed.'}
-result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h',source/'src/parts/parts.c',source/'src/hll/pe_v14_activity.c',source/'src/parts/parts_internal.h',source/'src/text.c',source/'src/parts/text.c',source/'src/font_freetype.c',source/'src/hll/MainEXFile.c',source/'src/video.c']}
+result['source_sha256']={str(p.relative_to(source)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source/'src/vm.c',source/'src/page.c',source/'src/heap.c',source/'src/ffi.c',source/'src/hll/Array.c',source/'include/vm/page.h',source/'src/parts/parts.c',source/'src/hll/pe_v14_activity.c',source/'src/parts/parts_internal.h',source/'src/text.c',source/'src/parts/text.c',source/'src/font_freetype.c',source/'src/hll/MainEXFile.c',source/'src/video.c',source/'src/audio_mixer.c']}
 result['source_sha256']['src/movie_ffmpeg.c']=hashlib.sha256((source/'src/movie_ffmpeg.c').read_bytes()).hexdigest()
 result['movie_fixture_manifest']={'path':str(movie_fixture_dir/'manifest.json'),'sha256':hashlib.sha256((movie_fixture_dir/'manifest.json').read_bytes()).hexdigest()}
 result['apeg_fixture_manifest']={'path':str(apeg_fixture_dir/'manifest.json'),'sha256':hashlib.sha256((apeg_fixture_dir/'manifest.json').read_bytes()).hexdigest()}

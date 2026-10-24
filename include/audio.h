@@ -33,6 +33,13 @@ bool bgm_exists(int no);
 int wav_prepare(int id, int no);
 int wav_prepare_voice(int id, int no);
 int bgm_prepare(int id, int no);
+// v14 sound groups: Prepare's bStreaming picks the group of a file without a
+// timemap row (channel_open_streaming).
+enum asset_type;
+int wav_prepare_streaming(int id, enum asset_type type, int no, bool streaming);
+int bgm_prepare_streaming(int id, int no, bool streaming);
+// The group (mixer) of the channel prepared under `id` (wav, then bgm), or -1.
+int audio_get_channel_group(int id);
 int wav_unprepare(int id);
 int bgm_unprepare(int id);
 int wav_play(int id);

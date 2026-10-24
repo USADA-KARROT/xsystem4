@@ -27,6 +27,7 @@
 #include "system4/ald.h"
 #include "system4/afa.h"
 #include "system4/cg.h"
+#include "system4/ex.h"
 #include "system4/file.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
@@ -300,6 +301,147 @@ static bool afa_exists_by_name(struct asset_manager *_manager, const char *name,
 		}
 	}
 	return false;
+}
+
+/*
+ * v14 sound groups: the timemaps of the sound and voice archives.
+ *
+ * Original (static disassembly of the CN executable): every member of
+ * Sound.afa and Voice.afa whose name starts with "timemap_" is an EX file with
+ * a table SoundInfo, and a row's Name keys a map to its Group,
+ * LoopBeginSample and LoopEndSample (0x4a07f0, 0x4a0a20, 0x4a0e00; columns 0
+ * to 3). Names are compared with A-Z folded to a-z and the byte after a lead
+ * byte 0x81..0xFE kept as it is (0x4195b0, the GBK rule), not with the
+ * archive's own folding. GetGroupNumFromFile looks the name up in maps keyed by
+ * name, not in the archive (0x4a45a0 also checks two other maps whose writers
+ * were not traced), so a row without a file counts.
+ *
+ * Port strategies: a timemap is used only with those four columns by name and
+ * type (Name a string, the others ints); a timemap of another shape gives its
+ * archive's files no rows. The first row of a name is kept, in the order of
+ * the archives (the original's order between archives and between rows of one
+ * name was not traced). Only the archives open when the sound engine starts
+ * are read.
+ */
+struct sound_info_map {
+	struct hash_table *rows;
+	struct sound_info *info;
+	int nr;
+};
+static struct sound_info_map sound_info_maps[ASSET_TYPE_MAX];
+
+static char *sound_info_key(const char *name, size_t len)
+{
+	char *key = xmalloc(len + 1);
+	for (size_t i = 0; i < len; i++) {
+		uint8_t c = (uint8_t)name[i];
+		if (c >= 0x81 && c <= 0xfe && i + 1 < len) {
+			key[i] = name[i];
+			key[i + 1] = name[i + 1];
+			i++;
+		} else {
+			key[i] = c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+		}
+	}
+	key[len] = '\0';
+	return key;
+}
+
+static void sound_info_read(struct sound_info_map *map, struct archive_data *d)
+{
+	struct ex *tm = ex_read(d->data, d->size);
+	struct ex_table *t = tm ? ex_get_table(tm, "SoundInfo") : NULL;
+	int c_name = t ? ex_col_from_name(t, "Name") : -1;
+	int c_group = t ? ex_col_from_name(t, "Group") : -1;
+	int c_begin = t ? ex_col_from_name(t, "LoopBeginSample") : -1;
+	int c_end = t ? ex_col_from_name(t, "LoopEndSample") : -1;
+	bool ok = c_name >= 0 && c_group >= 0 && c_begin >= 0 && c_end >= 0
+		&& t->fields[c_name].type == EX_STRING && t->fields[c_group].type == EX_INT
+		&& t->fields[c_begin].type == EX_INT && t->fields[c_end].type == EX_INT;
+	for (unsigned r = 0; ok && r < t->nr_rows; r++) {
+		struct ex_value *v = t->rows[r];
+		ok = v[c_name].type == EX_STRING && v[c_name].s && v[c_group].type == EX_INT
+			&& v[c_begin].type == EX_INT && v[c_end].type == EX_INT;
+	}
+	if (!ok) {
+		WARNING("Sound groups: %s in another shape; its files have no timemap rows", display_utf0(d->name));
+		if (tm)
+			ex_free(tm);
+		return;
+	}
+	if (!map->rows)
+		map->rows = ht_create(t->nr_rows * 3 / 2 + 1);
+	map->info = xrealloc_array(map->info, map->nr, map->nr + t->nr_rows, sizeof(struct sound_info));
+	int first = map->nr;
+	for (unsigned r = 0; r < t->nr_rows; r++) {
+		struct ex_value *v = t->rows[r];
+		char *key = sound_info_key(v[c_name].s->text, v[c_name].s->size);
+		struct ht_slot *slot = ht_put(map->rows, key, NULL);
+		free(key);
+		if (slot->value)
+			continue;
+		map->info[map->nr] = (struct sound_info) { v[c_group].i, v[c_begin].i, v[c_end].i };
+		// an index + 1, the table may still move
+		slot->value = (void *)(intptr_t)(map->nr + 1);
+		map->nr++;
+	}
+	NOTICE("Sound groups: %d of %u rows from %s", map->nr - first, t->nr_rows, display_utf0(d->name));
+	ex_free(tm);
+}
+
+void asset_sound_info_load(void)
+{
+	static const enum asset_type types[] = { ASSET_SOUND, ASSET_VOICE };
+	for (unsigned k = 0; k < sizeof(types) / sizeof(types[0]); k++) {
+		enum asset_type type = types[k];
+		struct sound_info_map *map = &sound_info_maps[type];
+		if (map->rows || !assets[type] || assets[type]->load_archive != afa_load_archive)
+			continue;
+		struct asset_manager_afa *manager = (struct asset_manager_afa *)assets[type];
+		for (int i = 0; i < MAX_ARCHIVES && manager->archives[i]; i++) {
+			struct afa_archive *ar = manager->archives[i];
+			for (uint32_t f = 0; f < ar->nr_files; f++) {
+				const char *n = ar->files[f].name->text;
+				if (strncasecmp(n, "timemap_", 8))
+					continue;
+				const char *ext = file_extension(n);
+				if (!ext || strcasecmp(ext, "ex"))
+					continue;
+				struct archive_data *d = archive_get_by_name(&ar->ar, n);
+				if (!d)
+					continue;
+				sound_info_read(map, d);
+				archive_free_data(d);
+			}
+		}
+	}
+}
+
+static bool sound_info_lookup(enum asset_type type, const char *name, size_t len, struct sound_info *out)
+{
+	struct sound_info_map *map = &sound_info_maps[type];
+	if (!map->rows)
+		return false;
+	char *key = sound_info_key(name, len);
+	intptr_t i = (intptr_t)ht_get(map->rows, key, NULL);
+	free(key);
+	if (i <= 0)
+		return false;
+	*out = map->info[i - 1];
+	return true;
+}
+
+bool asset_sound_info_by_name(enum asset_type type, const char *name, struct sound_info *out)
+{
+	return name && sound_info_lookup(type, name, strlen(name), out);
+}
+
+bool asset_sound_info_by_entry(enum asset_type type, const char *entry_name, struct sound_info *out)
+{
+	if (!entry_name)
+		return false;
+	const char *dot = strrchr(entry_name, '.');
+	return sound_info_lookup(type, entry_name, dot ? (size_t)(dot - entry_name) : strlen(entry_name), out);
 }
 
 static void _ald_init(enum asset_type type, struct archive *ar)

@@ -16,17 +16,24 @@
 
 #include <stdatomic.h>
 #include <assert.h>
+#include <errno.h>
+#include <math.h>
+#include <unistd.h>
 
 #include <sndfile.h>
 #include <SDL.h>
 
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/archive.h"
+#include "system4/ex.h"
+#include "system4/file.h"
 #include "system4/utfsjis.h"
 
 #include "asset_manager.h"
 #include "audio.h"
 #include "mixer.h"
+#include "vm.h"
 #include "xsystem4.h"
 
 #define clamp(min_value, max_value, value) min(max_value, max(min_value, value))
@@ -77,6 +84,9 @@ struct channel {
 	uint_least32_t loop_end;
 	atomic_uint loop_count;
 	struct fade fade;
+
+	// v14 sound groups: refilled by cb_read_frames_grouped (see there)
+	bool grouped;
 };
 
 struct mixer {
@@ -90,6 +100,12 @@ struct mixer {
 	struct mixer *parent;
 	struct mixer **children;
 	int nr_children;
+
+	// v14 sound groups: the integer volumes the game reads back. `volume`
+	// is the current one (0..100, `mixer.gain` is volume / 100); both are
+	// written on the main thread only, `mixer.gain` under the device lock.
+	int volume;
+	int default_volume;
 };
 
 static struct mixer *master = NULL;
@@ -97,6 +113,14 @@ static struct mixer *mixers = NULL;
 static int nr_mixers = 0;
 
 static SDL_AudioDeviceID audio_device = 0;
+
+// v14 sound groups (see mixer_init): set once before the device starts.
+static bool groups_enabled = false;
+// The game's SetGlobalFocus and the window's focus; with groups, the output
+// is silent while the window is inactive and GlobalFocus is off.
+static bool global_focus = false;
+static bool window_active = true;
+static atomic_bool focus_muted;
 
 /*
  * The SDL2 audio callback.
@@ -108,7 +132,7 @@ static void audio_callback(possibly_unused void *data, Uint8 *stream, int len)
 		return;
 	}
 	sts_mixer_mix_audio(&master->mixer, stream, len / (sizeof(float) * 2));
-	if (master->muted) {
+	if (master->muted || focus_muted) {
 		memset(stream, 0, len);
 	}
 }
@@ -193,6 +217,54 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
 }
 
 /*
+ * The refill of a channel in the v14 sound groups (cb_read_frames is kept as it
+ * is for every other channel). It fills the chunk across any number of loop
+ * points, so a loop shorter than the chunk and a loop end at a chunk edge
+ * work, it advances stereo data by samples, not frames, and a sound that ends
+ * inside the chunk plays that chunk: the stream is complete on the next
+ * refill, which reads nothing.
+ *
+ * Port strategy, not the original's behavior (its backend was not traced
+ * down to the decoder): [loop_start, loop_end) repeats while laps are left
+ * (loop_count 0 for ever, n > 1 for n laps); the last lap goes on to the end
+ * of the file.
+ */
+static int cb_read_frames_grouped(struct channel *ch, float *out, sf_count_t frame_count, uint_least32_t *num_read)
+{
+	int nr_channels = ch->info.channels;
+	sf_count_t done = 0;
+	int idle = 0;
+	while (done < frame_count && idle < 3) {
+		bool looping = ch->loop_count != 1;
+		uint_least32_t limit = looping ? ch->loop_end : (uint_least32_t)ch->info.frames;
+		if (ch->frame >= limit) {
+			if (!looping || !cb_seek(ch, ch->loop_start))
+				break;
+			if (ch->loop_count > 1)
+				ch->loop_count--;
+			idle++;
+			continue;
+		}
+		sf_count_t n = sf_readf_float(ch->file, out + done * nr_channels, min(frame_count - done, (sf_count_t)(limit - ch->frame)));
+		if (n <= 0) {
+			// The decoder stopped before the limit (see the XXX in
+			// cb_read_frames): that is where this lap ends.
+			if (!looping || !cb_seek(ch, ch->loop_start))
+				break;
+			if (ch->loop_count > 1)
+				ch->loop_count--;
+			idle++;
+			continue;
+		}
+		ch->frame += n;
+		done += n;
+		idle = 0;
+	}
+	*num_read = done;
+	return done > 0 ? STS_STREAM_CONTINUE : STS_STREAM_COMPLETE;
+}
+
+/*
  * Calculate the gain for a fade at a given sample.
  */
 static float cb_calc_fade(struct fade *fade)
@@ -215,7 +287,8 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	memset(ch->data, 0, sizeof(float) * sample->length);
 
 	// read audio data from file
-	int r = cb_read_frames(ch, ch->data, CHUNK_SIZE, &frames_read);
+	int r = ch->grouped ? cb_read_frames_grouped(ch, ch->data, CHUNK_SIZE, &frames_read)
+		: cb_read_frames(ch, ch->data, CHUNK_SIZE, &frames_read);
 
 	// convert mono to stereo
 	if (ch->info.channels == 1) {
@@ -500,7 +573,44 @@ static SF_VIRTUAL_IO channel_vio = {
 	.tell = channel_vio_tell
 };
 
-struct channel *channel_open(enum asset_type type, int no)
+/*
+ * v14 sound groups: the group and the loop points of a sound from its archive's
+ * timemap (asset_sound_info_by_entry), by the file's name. A file without a row
+ * (or with a negative group) takes the fallback: Prepare's bStreaming argument
+ * picks it in the original (nonzero 1, zero 2; 0x4a3568, the argument reaches
+ * the channel through 0x4a3430 -> 0x49a130 -> 0x4a0040), and every other way
+ * in (PlaySe, a file, the engine's own sounds) takes 2 here (port strategy).
+ * A group the table does not have also takes the fallback (port strategy).
+ * The loop points are used when 0 <= begin < end and begin is inside the
+ * file; the end is exclusive and at most the file's length (port strategy:
+ * the original hands both to its backend, 0x4a357b; how that treats an end of
+ * 0, an end before the begin or past the file was not traced). Otherwise the
+ * whole file loops, as without groups.
+ */
+static void channel_set_group(struct channel *ch, enum asset_type type, bool streaming)
+{
+	ch->grouped = true;
+	ch->mixer_no = mixer_group_fallback(streaming);
+	// The grouped refill needs begin < end; a BGI's loop (BGM) may not have
+	// it: then the whole file loops.
+	if (ch->loop_start >= ch->loop_end) {
+		ch->loop_start = 0;
+		ch->loop_end = ch->info.frames;
+	}
+	if (!ch->dfile || (type != ASSET_SOUND && type != ASSET_VOICE))
+		return;
+	struct sound_info si;
+	if (!asset_sound_info_by_entry(type, ch->dfile->name, &si))
+		return;
+	if (si.group >= 0 && si.group < nr_mixers)
+		ch->mixer_no = si.group;
+	if (si.loop_begin >= 0 && si.loop_begin < si.loop_end && si.loop_begin < ch->info.frames) {
+		ch->loop_start = si.loop_begin;
+		ch->loop_end = min((sf_count_t)si.loop_end, ch->info.frames);
+	}
+}
+
+static struct channel *_channel_open(enum asset_type type, int no, bool streaming)
 {
 	// get file from archive
 	struct archive_data *dfile = asset_get(type, no);
@@ -535,8 +645,31 @@ struct channel *channel_open(enum asset_type type, int no)
 		}
 	}
 	ch->no = no;
+	if (groups_enabled) {
+		// the group, not the legacy WAI/BGI mixer number
+		if (type == ASSET_SOUND || type == ASSET_VOICE) {
+			ch->loop_start = 0;
+			ch->loop_end = ch->info.frames;
+		}
+		channel_set_group(ch, type, streaming);
+	}
 
 	return ch;
+}
+
+struct channel *channel_open(enum asset_type type, int no)
+{
+	return _channel_open(type, no, false);
+}
+
+struct channel *channel_open_streaming(enum asset_type type, int no, bool streaming)
+{
+	return _channel_open(type, no, streaming);
+}
+
+int channel_get_group(struct channel *ch)
+{
+	return ch->mixer_no;
 }
 
 static bool init_channel(struct channel *ch)
@@ -564,6 +697,11 @@ static bool init_channel(struct channel *ch)
 	ch->loop_end = ch->info.frames;
 	ch->loop_count = 1;
 	ch->mixer_no = 0;
+	if (groups_enabled) {
+		// a file or archive data without a timemap row (channel_set_group)
+		ch->grouped = true;
+		ch->mixer_no = mixer_group_fallback(false);
+	}
 
 	ch->no = -1;
 	return true;
@@ -619,7 +757,246 @@ void channel_close(struct channel *ch)
 #define SJIS_MASTER "\x83\x7d\x83\x58\x83\x5e\x81\x5b"
 #define SJIS_VOICE  "\x89\xb9\x90\xba"
 
-void mixer_init(void)
+/*
+ * v14 sound groups.
+ *
+ * The original builds its mixer groups from a table of the main EX file and
+ * keeps every group's default and current volume as integers. Here that is
+ * done for exactly AIN v14 with the GBK string rule when the table is there
+ * with the shape below; every other game, and a table of another shape, keeps
+ * the mixers above (Music/Sound/Master or the INI's) and their behavior.
+ *
+ * Original (static disassembly of the CN executable): the number of groups is
+ * the first index without a default volume (0x4a1d50; at most 64, 0x49fc20);
+ * the parent of group n is 0 for n <= 5, else 3 when the row's voice-group
+ * column is negative and 5 when it is not (0x4a1e50); the default volume is
+ * the column's float x 100.0 truncated, the current one that clamped to
+ * 0..100 (0x4a20d0, 0x49fe90); a group's gain is the product of the current
+ * volumes up the parent chain with the root counted once, 0 when any of them
+ * is muted (0x4a5e70). Volume.sav is read after the defaults are set (0x4a28ef,
+ * 0x4a28f6) and written when the sound engine is released (0x4a26f0), which a
+ * restart does too.
+ *
+ * Here group 0 is the master mixer and every other group a mixer whose stream
+ * plays in its parent's, so the chain is multiplied by the mixers themselves
+ * and no channel multiplies it again. The graph is complete before the audio
+ * device starts and does not change afterwards; a restart keeps it and the
+ * volumes (port strategy: the original writes Volume.sav on a restart and
+ * presumably reads it back when the engine is rebuilt, which was not traced).
+ */
+#define GROUPS_MAX 64
+// The group table of the main EX file and its columns, by their names in the
+// CN game's file (GBK): the table, the group number (an indexed int), the
+// voice group (int) and the default volume (float).
+#define GROUP_TABLE   "\xa3\xc5\xa3\xdf\xc2\x95\xd2\xf4\xc8\xba\xbd\x4d\xd4\x4f\xb6\xa8"
+#define GROUP_NUMBER  "\xc8\xba\xbd\x4d\xbe\x8e\xcc\x96"
+#define GROUP_VOICE   "\x8c\x9d\x8f\xea\xd5\x5a\xd2\xf4\xc8\xba\xbd\x4d\xbe\x8e\xcc\x96"
+#define GROUP_DEFAULT "\xc4\xac\xd5\x4a\xa5\xdc\xa5\xea\xa5\xe5\xa9\x60\xa5\xe0"
+#define VOLUME_SAV "Volume.sav"
+
+struct groups_config {
+	int nr;
+	int parent[GROUPS_MAX];
+	int default_volume[GROUPS_MAX];
+};
+
+static int groups_row(struct ex_table *t, int col, int key)
+{
+	for (unsigned r = 0; r < t->nr_rows; r++) {
+		if (t->rows[r][col].i == key)
+			return r;
+	}
+	return -1;
+}
+
+static bool groups_read_config(struct groups_config *gc)
+{
+	if (!ain || ain->version != 14 || !game_charset_is_gbk() || ain_get_library(ain, "MainEXFile") < 0)
+		return false;
+	struct ex *ex = main_ex_file();
+	struct ex_value *v = ex ? ex_get(ex, GROUP_TABLE) : NULL;
+	if (!v || v->type != EX_TABLE || !v->t)
+		return false;
+	struct ex_table *t = v->t;
+	int c_no = ex_col_from_name(t, GROUP_NUMBER);
+	int c_voice = ex_col_from_name(t, GROUP_VOICE);
+	int c_default = ex_col_from_name(t, GROUP_DEFAULT);
+	if (c_no < 0 || c_voice < 0 || c_default < 0 || !t->nr_rows
+	    || t->fields[c_no].type != EX_INT || !t->fields[c_no].is_index
+	    || t->fields[c_voice].type != EX_INT || t->fields[c_default].type != EX_FLOAT)
+		return false;
+	for (unsigned r = 0; r < t->nr_rows; r++) {
+		if (t->rows[r][c_no].type != EX_INT || t->rows[r][c_voice].type != EX_INT
+		    || t->rows[r][c_default].type != EX_FLOAT)
+			return false;
+	}
+	gc->nr = 0;
+	int voice[GROUPS_MAX];
+	for (int g = 0; g < GROUPS_MAX; g++) {
+		int r = groups_row(t, c_no, g);
+		if (r < 0)
+			break;
+		float f = t->rows[r][c_default].f;
+		if (!isfinite(f) || fabsf(f) > 1000.0f)
+			return false;
+		gc->default_volume[g] = (int)(f * 100.0f);
+		voice[g] = t->rows[r][c_voice].i;
+		gc->nr = g + 1;
+	}
+	// Port strategy: the fallback groups 1 and 2 must exist.
+	if (gc->nr < 3)
+		return false;
+	int children[GROUPS_MAX] = {0};
+	for (int g = 0; g < gc->nr; g++) {
+		gc->parent[g] = g == 0 ? -1 : g <= 5 ? 0 : voice[g] < 0 ? 3 : 5;
+		if (g > 0)
+			children[gc->parent[g]]++;
+	}
+	// Port strategy: a group's mixer keeps at least half of its voices for
+	// sounds (STS_MIXER_VOICES each); a table that needs more is not used.
+	for (int g = 0; g < gc->nr; g++) {
+		if (children[g] > STS_MIXER_VOICES / 2)
+			return false;
+	}
+	return true;
+}
+
+/*
+ * Volume.sav, as the original writes it (0x49f780): 0, the number of groups,
+ * then for each group its current volume, 1 when it is muted (else 0) and 0.
+ * The reader (0x49f980 -> 0x49fb60) skips the first byte and the third of
+ * each group, takes the volume clamped to 0..100 (0x49fe40) and the mute as a
+ * bool, never changes the defaults or the number of groups, and keeps the
+ * defaults when the file is missing. A group that is cut short is not applied
+ * here; the ones before it are (port strategy: the order of the original's
+ * writes inside a group was not traced). The file is written only when what it
+ * would hold differs from what it was read or last written with, and through
+ * a temporary file (port strategy: the original writes it in place every
+ * time). Only the save folder is used.
+ */
+static uint8_t volume_sav_bytes[2 + 3 * GROUPS_MAX];
+static int volume_sav_len = -1;
+
+static void groups_read_volumes(void)
+{
+	if (!config.save_dir)
+		return;
+	char *path = savedir_path(VOLUME_SAV);
+	size_t len = 0;
+	uint8_t *data = file_read(path, &len);
+	free(path);
+	if (!data)
+		return;
+	if (len >= 2) {
+		int count = data[1];
+		for (int i = 0; i < count && i < GROUPS_MAX; i++) {
+			size_t at = 2 + 3 * (size_t)i;
+			if (at + 3 > len)
+				break;
+			if (i >= nr_mixers)
+				continue;
+			mixers[i].volume = clamp(0, 100, (int)data[at]);
+			mixers[i].mixer.gain = mixers[i].volume / 100.0f;
+			mixers[i].muted = data[at + 1] != 0;
+		}
+	}
+	if (len <= sizeof(volume_sav_bytes)) {
+		memcpy(volume_sav_bytes, data, len);
+		volume_sav_len = len;
+	}
+	free(data);
+}
+
+static bool volume_sav_write(const char *path, const uint8_t *data, size_t size)
+{
+#ifdef _WIN32
+	// rename() does not replace an existing file there.
+	return file_write(path, (uint8_t *)data, size);
+#else
+	size_t tmp_len = strlen(path) + 8;
+	char *tmp = xmalloc(tmp_len);
+	snprintf(tmp, tmp_len, "%s.xs4tmp", path);
+	FILE *fp = file_open_utf8(tmp, "wb");
+	if (!fp) {
+		free(tmp);
+		return false;
+	}
+	bool ok = fwrite(data, size, 1, fp) == 1;
+	ok = ok && fflush(fp) == 0;
+	ok = ok && fsync(fileno(fp)) == 0;
+	if (fclose(fp) != 0)
+		ok = false;
+	ok = ok && rename(tmp, path) == 0;
+	if (!ok) {
+		int err = errno;
+		remove_utf8(tmp);
+		errno = err;
+	}
+	free(tmp);
+	return ok;
+#endif
+}
+
+void mixer_groups_save(void)
+{
+	if (!groups_enabled || !config.save_dir)
+		return;
+	uint8_t buf[sizeof(volume_sav_bytes)];
+	int len = 2 + 3 * nr_mixers;
+	buf[0] = 0;
+	buf[1] = nr_mixers;
+	for (int i = 0; i < nr_mixers; i++) {
+		buf[2 + 3 * i] = mixers[i].volume;
+		buf[3 + 3 * i] = mixers[i].muted ? 1 : 0;
+		buf[4 + 3 * i] = 0;
+	}
+	if (len == volume_sav_len && !memcmp(buf, volume_sav_bytes, len))
+		return;
+	char *path = savedir_path(VOLUME_SAV);
+	if (volume_sav_write(path, buf, len)) {
+		memcpy(volume_sav_bytes, buf, len);
+		volume_sav_len = len;
+	} else {
+		WARNING("Failed to save '%s': %s", display_utf0(path), strerror(errno));
+	}
+	free(path);
+}
+
+static void groups_init(const struct groups_config *gc)
+{
+	nr_mixers = gc->nr;
+	mixers = xcalloc(nr_mixers, sizeof(struct mixer));
+	master = &mixers[0];
+	for (int i = 0; i < nr_mixers; i++) {
+		sts_mixer_init(&mixers[i].mixer, 44100, STS_MIXER_SAMPLE_FORMAT_FLOAT);
+		mixers[i].default_volume = gc->default_volume[i];
+		mixers[i].volume = clamp(0, 100, gc->default_volume[i]);
+		mixers[i].mixer.gain = mixers[i].volume / 100.0f;
+		if (!i)
+			continue;
+		struct mixer *parent = &mixers[gc->parent[i]];
+		mixers[i].parent = parent;
+		parent->children = xrealloc_array(parent->children, parent->nr_children, parent->nr_children+1, sizeof(struct mixer*));
+		parent->children[parent->nr_children++] = &mixers[i];
+	}
+	groups_read_volumes();
+	// Parents come first (a parent's number is lower), so every stream is
+	// played in a mixer that is set up.
+	for (int i = 1; i < nr_mixers; i++) {
+		mixers[i].stream.userdata = &mixers[i];
+		mixers[i].stream.callback = refill_mixer;
+		mixers[i].stream.sample.frequency = 44100;
+		mixers[i].stream.sample.audio_format = STS_MIXER_SAMPLE_FORMAT_FLOAT;
+		mixers[i].stream.sample.length = CHUNK_SIZE * 2;
+		mixers[i].stream.sample.data = mixers[i].data;
+		mixers[i].voice = sts_mixer_play_stream(&mixers[i].parent->mixer, &mixers[i].stream, 1.0f);
+	}
+	asset_sound_info_load();
+	groups_enabled = true;
+	NOTICE("Sound groups: %d groups from the main EX file", nr_mixers);
+}
+
+static void legacy_mixers_init(void)
 {
 	// initialize mixer naming
 	if (!config.mixer_nr_channels) {
@@ -684,6 +1061,15 @@ void mixer_init(void)
 		mixers[i].stream.sample.data = mixers[i].data;
 		mixers[i].voice = sts_mixer_play_stream(&mixers[i].parent->mixer, &mixers[i].stream, 1.0f);
 	}
+}
+
+void mixer_init(void)
+{
+	struct groups_config gc;
+	if (groups_read_config(&gc))
+		groups_init(&gc);
+	else
+		legacy_mixers_init();
 
 	// read audio metadata
 	if (config.bgi_path)
@@ -741,6 +1127,11 @@ int mixer_get_volume(int n, int *volume)
 	if (n < 0 || n >= nr_mixers) {
 		return 0;
 	}
+	if (groups_enabled) {
+		// the integer, so that a volume reads back as it was set
+		*volume = mixers[n].volume;
+		return 1;
+	}
 	SDL_LockAudioDevice(audio_device);
 	*volume = clamp(0, 100, (int)(mixers[n].mixer.gain * 100));
 	SDL_UnlockAudioDevice(audio_device);
@@ -752,9 +1143,87 @@ int mixer_set_volume(int n, int volume)
 	if (n < 0 || n >= nr_mixers)
 		return 0;
 	SDL_LockAudioDevice(audio_device);
-	mixers[n].mixer.gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	if (groups_enabled) {
+		// 0x49fc90: the current volume clamped to 0..100
+		mixers[n].volume = clamp(0, 100, volume);
+		mixers[n].mixer.gain = mixers[n].volume / 100.0f;
+	} else {
+		mixers[n].mixer.gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	}
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
+}
+
+bool mixer_groups_enabled(void)
+{
+	return groups_enabled;
+}
+
+// The fallback group of a sound without a timemap row (channel_set_group).
+int mixer_group_fallback(bool streaming)
+{
+	return groups_enabled ? (streaming ? 1 : 2) : 0;
+}
+
+int mixer_get_default_volume(int n, int *volume)
+{
+	if (!groups_enabled || n < 0 || n >= nr_mixers)
+		return 0;
+	*volume = mixers[n].default_volume;
+	return 1;
+}
+
+/*
+ * GetGroupVolume with groups: the product of the current volumes from the
+ * group up to the root (counted once), 0 when one of them is muted
+ * (0x4a5e70), and 0 while the output is silent for the inactive window
+ * (0x4a1a7c). A group the table does not have counts 1.0 itself (port
+ * strategy; the original takes 1.0 for a node it does not find).
+ */
+float mixer_group_gain(int n)
+{
+	if (!groups_enabled)
+		return 1.0f;
+	if (focus_muted)
+		return 0.0f;
+	float gain = 1.0f;
+	int k = n >= 0 && n < nr_mixers ? n : 0;
+	if (k != n)
+		gain = mixers[0].muted ? 0.0f : mixers[0].volume / 100.0f;
+	else {
+		for (int depth = 0; k >= 0 && depth < nr_mixers; depth++) {
+			if (mixers[k].muted)
+				return 0.0f;
+			gain *= mixers[k].volume / 100.0f;
+			k = mixers[k].parent ? (int)(mixers[k].parent - mixers) : -1;
+		}
+	}
+	return gain;
+}
+
+/*
+ * SetGlobalFocus (0x4a1438 keeps it with the groups, +0x30) and the window's
+ * activation (+0x31; taken to be the window's, from the writes 0x4bdc14 and
+ * 0x4be5e7 with the shape of WM_ACTIVATE): with both off a channel's gain and
+ * GetGroupVolume are 0 (0x4a11b0, 0x4a1a7c). Here the whole output is silent
+ * then (port strategy); the sounds go on playing and the user's volumes and
+ * mutes are not touched.
+ */
+static void mixer_update_focus(void)
+{
+	focus_muted = groups_enabled && !global_focus && !window_active;
+}
+
+void mixer_set_global_focus(bool on)
+{
+	global_focus = on;
+	mixer_update_focus();
+}
+
+void mixer_set_window_focus(bool active)
+{
+	window_active = active;
+	mixer_update_focus();
 }
 int mixer_get_mute(int n, int *mute)
 {

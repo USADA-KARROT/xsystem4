@@ -30,6 +30,7 @@
 #include "gfx/gfx.h"
 #include "gfx/private.h"
 #include "input.h"
+#include "mixer.h"
 #include "msgskip.h"
 #include "scene.h"
 #include "vm.h"
@@ -1410,9 +1411,12 @@ static void handle_window_event(SDL_Event *e)
 		break;
 	case SDL_WINDOWEVENT_FOCUS_GAINED:
 		keyboard_focus = true;
+		// the v14 sound groups mute an inactive window (SetGlobalFocus)
+		mixer_set_window_focus(true);
 		break;
 	case SDL_WINDOWEVENT_FOCUS_LOST:
 		keyboard_focus = false;
+		mixer_set_window_focus(false);
 		break;
 	case SDL_WINDOWEVENT_SIZE_CHANGED:
 		gfx_update_screen_scale();

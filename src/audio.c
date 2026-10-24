@@ -144,20 +144,43 @@ bool audio_play_archive_data(struct archive_data *dfile)
 bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no); }
 bool bgm_exists(int no) { return asset_exists(ASSET_BGM, no); }
 
-static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int no)
+static int audio_prepare_streaming(struct id_pool *pool, int id, enum asset_type type, int no, bool streaming)
 {
 	if (id < 0)
 		return 0;
-	struct channel *ch = channel_open(type, no);
+	struct channel *ch = channel_open_streaming(type, no, streaming);
 	struct channel *old = id_pool_set(pool, id, ch);
 	if (old)
 		channel_close(old);
 	return !!ch;
 }
 
+static int audio_prepare(struct id_pool *pool, int id, enum asset_type type, int no)
+{
+	return audio_prepare_streaming(pool, id, type, no, false);
+}
+
 int wav_prepare(int id, int no) { return audio_prepare(&wav, id, ASSET_SOUND, no); }
 int wav_prepare_voice(int id, int no) { return audio_prepare(&wav, id, ASSET_VOICE, no); }
 int bgm_prepare(int id, int no) { return audio_prepare(&bgm, id, ASSET_BGM, no); }
+
+int wav_prepare_streaming(int id, enum asset_type type, int no, bool streaming)
+{
+	return audio_prepare_streaming(&wav, id, type, no, streaming);
+}
+
+int bgm_prepare_streaming(int id, int no, bool streaming)
+{
+	return audio_prepare_streaming(&bgm, id, ASSET_BGM, no, streaming);
+}
+
+int audio_get_channel_group(int id)
+{
+	struct channel *ch = id >= 0 ? id_pool_get(&wav, id) : NULL;
+	if (!ch && id >= 0)
+		ch = id_pool_get(&bgm, id);
+	return ch ? channel_get_group(ch) : -1;
+}
 
 static int audio_unprepare(struct id_pool *pool, int id)
 {

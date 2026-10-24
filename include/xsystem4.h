@@ -79,6 +79,11 @@ char *save_dir_for_game_charset(const char *home, const char *game_name,
 struct string;
 void migrate_legacy_save_files(struct string **strings, int nr_strings);
 
+// MainEXFile's main EX file (config.ex_path), read on first use; NULL when it
+// cannot be read. MainEXFile owns it (src/hll/MainEXFile.c).
+struct ex;
+struct ex *main_ex_file(void);
+
 void indent_message(int indent, const char *fmt, ...);
 
 void log_message(const char *log, const char *fmt, ...);

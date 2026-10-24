@@ -45,6 +45,18 @@ struct archive_data *asset_get(enum asset_type type, int no);
 struct archive_data *asset_get_by_name(enum asset_type type, const char *name, int *id_out);
 struct archive *asset_get_archive(enum asset_type type);
 
+// v14 sound groups: a sound's row in its archive's timemap (SoundInfo).
+struct sound_info {
+	int group;
+	int loop_begin;
+	int loop_end;
+};
+void asset_sound_info_load(void);
+// By a name as the game asks for it (GetGroupNumFromFile).
+bool asset_sound_info_by_name(enum asset_type type, const char *name, struct sound_info *out);
+// By an archive entry's name (its extension is not part of the key).
+bool asset_sound_info_by_entry(enum asset_type type, const char *entry_name, struct sound_info *out);
+
 struct cg *asset_cg_load(int no);
 struct cg *asset_cg_load_by_name(const char *name, int *id_out);
 bool asset_cg_get_metrics(int no, struct cg_metrics *metrics);

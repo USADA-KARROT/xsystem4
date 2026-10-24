@@ -49,6 +49,17 @@ int mixer_set_volume(int n, int volume);
 int mixer_get_mute(int n, int *mute);
 int mixer_set_mute(int n, int mute);
 
+// v14 sound groups (audio_mixer.c): exactly AIN v14, the GBK string rule and
+// the group table of the main EX file; false for every other game.
+bool mixer_groups_enabled(void);
+int mixer_group_fallback(bool streaming);
+int mixer_get_default_volume(int n, int *volume);
+float mixer_group_gain(int n);
+void mixer_set_global_focus(bool on);
+void mixer_set_window_focus(bool active);
+// Writes Volume.sav (with groups only).
+void mixer_groups_save(void);
+
 struct sts_mixer_stream_t;
 int mixer_stream_play(struct sts_mixer_stream_t* stream, int volume);
 bool mixer_stream_set_volume(int voice, int volume);
@@ -59,6 +70,10 @@ struct channel;
 enum asset_type;
 
 struct channel *channel_open(enum asset_type type, int no);
+// With groups, a file without a timemap row goes to group 1 when `streaming`
+// is set (Prepare's bStreaming) and to group 2 when it is not.
+struct channel *channel_open_streaming(enum asset_type type, int no, bool streaming);
+int channel_get_group(struct channel *ch);
 // Takes ownership of dfile.
 struct channel *channel_open_archive_data(struct archive_data *dfile);
 struct channel *channel_open_file(const char *path);

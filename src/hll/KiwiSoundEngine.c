@@ -23,6 +23,7 @@
 #include "system4/string.h"
 
 #include "vm.h"
+#include "vm/heap.h"
 #include "hll.h"
 #include "audio.h"
 #include "asset_manager.h"
@@ -44,6 +45,15 @@
 static void KiwiSoundEngine_ModuleInit(void)
 {
 	audio_init();
+}
+
+// The sound engine's release writes Volume.sav (0x4a26f0), at the end and on a
+// restart (vm_exit and vm_reset run this). Nothing is freed: the parts and
+// sprite engines' _ModuleFini, which come later in the AIN's order, still stop
+// their sounds, and the mixers stay for the next run.
+static void KiwiSoundEngine_ModuleFini(void)
+{
+	mixer_groups_save();
 }
 
 static void KiwiSoundEngine_SetGlobalFocus(bool focus)
@@ -412,6 +422,141 @@ static bool KiwiSoundEngine_SetMixerMute(int n, bool mute)
 	return mixer_set_mute(n, mute);
 }
 
+/*
+ * The v14 sound groups (audio_mixer.c, mixer_init). These are bound only to the
+ * declarations of the v14 shapes (kiwi_select_function); without groups each
+ * one does what the function above it does, so a game without the group
+ * table keeps its behavior.
+ */
+
+// 0x4a1438: kept with the groups; see mixer_set_global_focus.
+static void KiwiSoundEngine_SetGlobalFocus_v14(bool focus)
+{
+	if (!mixer_groups_enabled()) {
+		KiwiSoundEngine_SetGlobalFocus(focus);
+		return;
+	}
+	mixer_set_global_focus(focus);
+}
+
+// Prepare(int ID, string SoundName, string FilterName, bool bStreaming):
+// bStreaming picks the group of a file without a timemap row (nonzero 1,
+// zero 2; see channel_set_group).
+static bool KiwiSoundEngine_Prepare_v14(int id, struct string *name, struct string *filter, bool streaming)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_Prepare(id, name, filter, streaming);
+	if (kiwi_trace())
+		NOTICE("S2 sound prepare id=%d name=%s", id, display_game0(name->text));
+	int no;
+	if (asset_exists_by_name(ASSET_SOUND, name->text, &no))
+		return wav_prepare_streaming(id, ASSET_SOUND, no, streaming);
+	if (asset_exists_by_name(ASSET_VOICE, name->text, &no))
+		return wav_prepare_streaming(id, ASSET_VOICE, no, streaming);
+	if (asset_exists_by_name(ASSET_BGM, name->text, &no))
+		return bgm_prepare_streaming(id, no, streaming);
+	return false;
+}
+
+// The group of the channel (0x4a1951 -> 0x4a3da0: the group Prepare gave it,
+// 0 without a channel).
+static int KiwiSoundEngine_GetGroupNum_v14(int id)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_GetGroupNum(id);
+	int g = audio_get_channel_group(id);
+	return g >= 0 ? g : 0;
+}
+
+// The timemap's group of a name; 2 when no timemap has the name (0x4a1a38).
+static int KiwiSoundEngine_GetGroupNumFromFile_v14(struct string *name)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_GetGroupNumFromFile(name);
+	struct sound_info si;
+	if (asset_sound_info_by_name(ASSET_SOUND, name->text, &si) || asset_sound_info_by_name(ASSET_VOICE, name->text, &si))
+		return si.group;
+	return 2;
+}
+
+static float KiwiSoundEngine_GetGroupVolume_v14(int group)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_GetGroupVolume(group);
+	return mixer_group_gain(group);
+}
+
+// 0x4a6720 checks 0 <= n < the number of groups.
+static bool KiwiSoundEngine_GetMixerDefaultVolume_v14(int n, int *volume)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_GetMixerDefaultVolume(n, volume);
+	return volume && mixer_get_default_volume(n, volume);
+}
+
+/*
+ * GetMixerName(int, wrap<string>): ffi passes the wrap's heap slot, not a
+ * pointer. The groups have no names of their own (the table has none); one
+ * that SetMixerName gave is written back. Without groups this returns false
+ * and writes nothing, as before.
+ */
+static bool KiwiSoundEngine_GetMixerName_v14(int n, int name_slot)
+{
+	if (!mixer_groups_enabled() || !string_index_valid(name_slot))
+		return false;
+	const char *name = mixer_get_name(n);
+	if (!name)
+		return false;
+	struct string *s = make_string(name, strlen(name));
+	heap_string_assign(name_slot, s);
+	free_string(s);
+	return true;
+}
+
+static bool kiwi_type_is(const struct ain_type *t, enum ain_data_type d)
+{
+	return t->data == d;
+}
+
+static bool kiwi_wrap_of(const struct ain_type *t, enum ain_data_type d)
+{
+	return t->data == AIN_WRAP && t->array_type && t->array_type->data == d;
+}
+
+static bool kiwi_shape(const struct ain_hll_function *f, enum ain_data_type ret, int nr_args)
+{
+	return f->return_type.data == ret && f->nr_arguments == nr_args && (!nr_args || f->arguments);
+}
+
+/*
+ * The functions above for the v14 declarations, exactly those shapes; every
+ * other declaration keeps the library table's function.
+ */
+void *kiwi_select_function(const struct ain_hll_function *f, void *dflt)
+{
+	if (!f || !f->name)
+		return dflt;
+	const struct ain_hll_argument *a = f->arguments;
+	if (!strcmp(f->name, "SetGlobalFocus") && kiwi_shape(f, AIN_VOID, 1) && kiwi_type_is(&a[0].type, AIN_BOOL))
+		return (void *)KiwiSoundEngine_SetGlobalFocus_v14;
+	if (!strcmp(f->name, "Prepare") && kiwi_shape(f, AIN_BOOL, 4) && kiwi_type_is(&a[0].type, AIN_INT)
+	    && kiwi_type_is(&a[1].type, AIN_STRING) && kiwi_type_is(&a[2].type, AIN_STRING) && kiwi_type_is(&a[3].type, AIN_BOOL))
+		return (void *)KiwiSoundEngine_Prepare_v14;
+	if (!strcmp(f->name, "GetGroupNum") && kiwi_shape(f, AIN_INT, 1) && kiwi_type_is(&a[0].type, AIN_INT))
+		return (void *)KiwiSoundEngine_GetGroupNum_v14;
+	if (!strcmp(f->name, "GetGroupNumFromFile") && kiwi_shape(f, AIN_INT, 1) && kiwi_type_is(&a[0].type, AIN_STRING))
+		return (void *)KiwiSoundEngine_GetGroupNumFromFile_v14;
+	if (!strcmp(f->name, "GetGroupVolume") && kiwi_shape(f, AIN_FLOAT, 1) && kiwi_type_is(&a[0].type, AIN_INT))
+		return (void *)KiwiSoundEngine_GetGroupVolume_v14;
+	if (!strcmp(f->name, "GetMixerDefaultVolume") && kiwi_shape(f, AIN_BOOL, 2) && kiwi_type_is(&a[0].type, AIN_INT)
+	    && kiwi_wrap_of(&a[1].type, AIN_INT))
+		return (void *)KiwiSoundEngine_GetMixerDefaultVolume_v14;
+	if (!strcmp(f->name, "GetMixerName") && kiwi_shape(f, AIN_BOOL, 2) && kiwi_type_is(&a[0].type, AIN_INT)
+	    && kiwi_wrap_of(&a[1].type, AIN_STRING))
+		return (void *)KiwiSoundEngine_GetMixerName_v14;
+	return dflt;
+}
+
 // Rance 9 declares Music/Sound functions that take a filename-number
 // rather than a data number (upstream behavior, keyed off Sound_Seek).
 static bool rance9_bgm_exists(int num)
@@ -452,6 +597,7 @@ static void KiwiSoundEngine_PreLink(void);
 
 HLL_LIBRARY(KiwiSoundEngine,
 	    HLL_EXPORT(_ModuleInit, KiwiSoundEngine_ModuleInit),
+	    HLL_EXPORT(_ModuleFini, KiwiSoundEngine_ModuleFini),
 	    HLL_EXPORT(_PreLink, KiwiSoundEngine_PreLink),
 	    HLL_EXPORT(SetGlobalFocus, KiwiSoundEngine_SetGlobalFocus),
 	    HLL_EXPORT(Music_IsExist, bgm_exists),

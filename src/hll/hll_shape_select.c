@@ -23,6 +23,7 @@ void *vsfile_select_function(const struct ain_hll_function *f, void *dflt);
 void *pe_layoutbox_select_function(const struct ain_hll_function *f, void *dflt);
 void *pe_upper_left_select_function(const struct ain_hll_function *f, void *dflt);
 void *system_select_function(const struct ain_hll_function *f, void *dflt);
+void *kiwi_select_function(const struct ain_hll_function *f, void *dflt);
 
 void *hll_shape_select_function(const char *lib, const struct ain_hll_function *f, void *dflt)
 {
@@ -34,6 +35,8 @@ void *hll_shape_select_function(const char *lib, const struct ain_hll_function *
 		return vsfile_select_function(f, dflt);
 	if (!strcmp(lib, "system"))
 		return system_select_function(f, dflt);
+	if (!strcmp(lib, "KiwiSoundEngine"))
+		return kiwi_select_function(f, dflt);
 	if (!strcmp(lib, "PartsEngine")
 	    && (!strcmp(f->name, "SetLayoutBoxReturn") || !strcmp(f->name, "GetLayoutBoxReturnSize")))
 		return pe_layoutbox_select_function(f, dflt);

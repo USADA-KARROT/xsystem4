@@ -191,15 +191,26 @@ static struct ex *load_ex_file(const char *path)
 	return ex_read_file(path);
 }
 
+/*
+ * The main EX file, read here on first use. The v14 sound groups read their
+ * table from it when the sound engine starts (audio_init), which can be before
+ * this library's _ModuleInit; the file is read once either way.
+ */
+struct ex *main_ex_file(void)
+{
+	if (!ex && config.ex_path && (ex = load_ex_file(config.ex_path)))
+		NOTICE("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
+	return ex;
+}
+
 static void MainEXFile_ModuleInit(void)
 {
 	// A restart (vm_reset) goes on with the file it has, unless something
 	// was appended to it: see _ModuleFini.
 	if (ex)
 		return;
-	if (!config.ex_path || !(ex = load_ex_file(config.ex_path)))
+	if (!main_ex_file())
 		ERROR("Failed to load .ex file: %s", display_utf0(config.ex_path));
-	NOTICE("MainEXFile: loaded %u blocks from '%s'", ex->nr_blocks, config.ex_path);
 }
 
 static void MainEXFile_ModuleFini(void)
