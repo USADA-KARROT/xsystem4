@@ -1,0 +1,5 @@
+phase	revision	mode	exit	sanitizer	failed_cases	status	scope
+pre-commit-check	7143b27979ae7ad88e0c329857093aae6c05b77e	sound-groups	1	0	11/13	EXPECTED_FAILURE	Final pre-commit fixture (after the probe review), default charset; parent src/include swapped in, built, run, restored; SG0 data self-check and SG10 legacy guard pass; semantic failures
+pre-commit-check	7143b27979ae7ad88e0c329857093aae6c05b77e	sound-groups	1	0	11/13	EXPECTED_FAILURE	Final pre-commit fixture (after the probe review), gbk charset; parent src/include swapped in, built, run, restored; SG0 data self-check and SG10 legacy guard pass; semantic failures
+parent-check-before-amend	7143b27979ae7ad88e0c329857093aae6c05b77e	sound-groups	1	0	11/13	EXPECTED_FAILURE	Fixture committed in 9379ede (amended before push), default charset, before-check.sh; SG0 and SG10 pass; successful build; semantic failures
+final-parent-check	7143b27979ae7ad88e0c329857093aae6c05b77e	sound-groups	1	0	11/13	EXPECTED_FAILURE	Final committed fixture of e69dfa3, default charset, before-check.sh; SG0 data self-check and SG10 legacy guard pass; successful build; semantic failures
