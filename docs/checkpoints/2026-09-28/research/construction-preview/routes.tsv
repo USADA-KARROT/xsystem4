@@ -1,0 +1,22 @@
+phase	route	seconds	exit	MSG	baseline_MSG	dialogue_comparison	clicks	target_diffs_vs_baseline	errors	binary_sha256	baseline
+pre-commit	normal150	150.296	0	88	88	equal	0	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	haruuri	182.313	0	629	629	equal	15	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	fightr	350.274	0	681	681	equal	171	63	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	config	45.269	0	88	88	equal	4	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	backlog	45.282	0	88	88	equal	5	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	savedialog	148.288	0	629	629	equal	16	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	garage	35.388	0	88	88	equal	3	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	sysmenu	30.325	0	88	88	equal	3	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit	movie replay	760.348	0	451	451	equal	49	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+pre-commit-movie-repeat	movie replay	760.212	0	451	451	equal	49	0	0	bda0117e9efa59e82231d33cb52fe4534aae4b526f0e85345dd605d9f2c0c8f2	G1-post-commit
+post-commit	normal150	150.254	0	88	88	equal	0	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	haruuri	182.243	0	629	629	equal	15	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	fightr	350.274	0	681	681	equal	171	44	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	config	45.242	0	88	88	equal	4	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	backlog	45.251	0	88	88	equal	5	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	savedialog	148.29	0	629	629	equal	16	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	garage	35.224	0	88	88	equal	3	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	sysmenu	30.28	0	88	88	equal	3	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit	movie replay	760.236	0	451	451	equal	49	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit-movie-repeat	movie replay	760.359	0	451	451	equal	49	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit
+post-commit-movie-repeat	movie replay	760.236	0	451	451	equal	49	0	0	cc5ca2e73434ddd5cdd2dca431197a1d6f4cbfc617bd6e8d8d72627d22b76717	G2-post-commit

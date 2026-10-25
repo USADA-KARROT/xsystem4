@@ -1,0 +1,4 @@
+phase	revision	charset	mode	exit	sanitizer	failed_cases
+pre-commit-check	e69dfa34a52613145238d6b66da96f8a4487757d	default	construction-preview	1	0	6/8
+pre-commit-check	e69dfa34a52613145238d6b66da96f8a4487757d	gbk	construction-preview	1	0	6/8
+final-parent-check	97fee1da0f08b124a09e18041ec6002f77795201	default	construction-preview	1	0	6/8
