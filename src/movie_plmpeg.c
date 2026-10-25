@@ -44,8 +44,9 @@ struct movie_context {
 	GLuint textures[3];  // Y, Cb, Cr
 
 	sts_mixer_stream_t sts_stream;
-	int voice;
+	int voice;  // the mixer's stream handle
 	int volume;
+	int sound_group;  // movie_set_sound_group; -1: the master mixer
 
 	// Time keeping data. Written by audio handler and referenced by video
 	// handler (i.e. we sync the video to the audio).
@@ -112,6 +113,7 @@ struct movie_context *movie_load(const char *filename)
 {
 	struct movie_context *mc = xcalloc(1, sizeof(struct movie_context));
 	mc->voice = -1;
+	mc->sound_group = -1;
 	char *path = gamedir_path_icase(filename);
 	if (!path) {
 		WARNING("%s: file does not exist", filename);
@@ -156,6 +158,7 @@ void movie_free(struct movie_context *mc)
 {
 	if (mc->voice >= 0)
 		mixer_stream_stop(mc->voice);
+	mixer_movie_sound_release(mc);
 
 	if (mc->plm)
 		plm_destroy(mc->plm);
@@ -177,8 +180,13 @@ bool movie_play(struct movie_context *mc)
 	mc->sts_stream.callback = audio_callback;
 	mc->sts_stream.sample.frequency = plm_get_samplerate(mc->plm);
 	mc->sts_stream.sample.audio_format = STS_MIXER_SAMPLE_FORMAT_FLOAT;
-	mc->voice = mixer_stream_play(&mc->sts_stream, mc->volume);
+	mc->voice = mixer_stream_play_group(&mc->sts_stream, mc->volume, mc->sound_group);
 	return true;
+}
+
+void movie_set_sound_group(struct movie_context *mc, int sound_id, int sound_group)
+{
+	mc->sound_group = mixer_movie_sound_set(sound_id, sound_group, mc);
 }
 
 bool movie_draw(struct movie_context *mc, struct sact_sprite *sprite)

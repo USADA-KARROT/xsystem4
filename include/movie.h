@@ -37,5 +37,9 @@ bool movie_seek(struct movie_context *mc, int msec);
 // After movie_play: puts the picture due at the current position into tex,
 // which has the video's size (a parts movie). Returns true when tex changed.
 bool movie_update_texture(struct movie_context *mc, struct texture *tex);
+// A parts movie's SoundID and SoundGroup (CreatePartsMovie), before
+// movie_play: with the v14 sound groups its sound plays in that group (see
+// mixer_stream_play_group); without them nothing changes.
+void movie_set_sound_group(struct movie_context *mc, int sound_id, int sound_group);
 
 #endif /* SYSTEM4_MOVIE_H */

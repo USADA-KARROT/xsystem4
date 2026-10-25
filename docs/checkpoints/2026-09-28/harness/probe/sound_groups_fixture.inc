@@ -99,8 +99,13 @@
  * races: the lock contract is for review. The focus events SG8 pushes carry
  * no window ID (the port does not filter them by window).
  *
+ * The internal volumes (sound-gain, G2) multiply every grouped channel; the
+ * main EX here has all four keys at exactly 1.0, so that the levels above
+ * are the chain's alone (the original's defaults for missing keys, 0.5 for
+ * the BGM and sound-effect groups, are sound-gain's GN2).
+ *
  * Not covered: the original's ducking curve and timing, its real background
- * sound routes, the internal volumes and the movie sound (G2), the system
+ * sound routes, the movie sound (sound-gain), the system
  * sound table (G11), non-contiguous group keys, more than 64 groups, an
  * archive overlay order, Rance 9's Sound_Seek binding (this AIN does not
  * declare it), and real audio output.
@@ -134,6 +139,14 @@ extern bool libraries_initialized;
 #define SG_KEY_GROUP   "\xc8\xba\xbd\x4d\xbe\x8e\xcc\x96"
 #define SG_KEY_VOICE   "\x8c\x9d\x8f\xea\xd5\x5a\xd2\xf4\xc8\xba\xbd\x4d\xbe\x8e\xcc\x96"
 #define SG_KEY_DEFAULT "\xc4\xac\xd5\x4a\xa5\xdc\xa5\xea\xa5\xe5\xa9\x60\xa5\xe0"
+/* The internal volume keys of the main EX (GBK schema names the engine has to
+ * recognize, top-level float blocks): a common prefix, then movie / BGM /
+ * sound effects / voice. */
+#define SG_KEY_IN_PREFIX "\xa3\xc5\xa3\xdf\xc2\x95\xd2\xf4\xa3\xdf\x83\xc8\xb2\xbf\xa5\xdc\xa5\xea\xa5\xe5\xa9\x60\xa5\xe0\xa3\xdf"
+#define SG_KEY_IN_MOVIE SG_KEY_IN_PREFIX "\xa5\xe0\xa9\x60\xa5\xd3\xa9\x60"
+#define SG_KEY_IN_BGM   SG_KEY_IN_PREFIX "\xa3\xc2\xa3\xc7\xa3\xcd"
+#define SG_KEY_IN_SE    SG_KEY_IN_PREFIX "\xd2\xf4\xd0\xa7"
+#define SG_KEY_IN_VOICE SG_KEY_IN_PREFIX "\xd5\x5a\xd2\xf4"
 /* Two names that differ only in a double-byte character's trail byte, one
  * in A-Z: an ASCII case fold must not touch it. */
 #define SG_DB_UPPER "\x81\x41"
@@ -247,6 +260,16 @@ static void sgx_int(struct sg_buf *b, const char *name, int value)
 	size_t start = b->n;
 	sgb_str(b, name);
 	sgb_u32(b, value);
+	sgb_patch(b, size_at, b->n - start);
+}
+static void sgx_float(struct sg_buf *b, const char *name, float value)
+{
+	sgb_u32(b, EX_FLOAT);
+	size_t size_at = b->n;
+	sgb_u32(b, 0);
+	size_t start = b->n;
+	sgb_str(b, name);
+	sgb_f32(b, value);
 	sgb_patch(b, size_at, b->n - start);
 }
 static void sgx_int_list(struct sg_buf *b, const char *name, int value)
@@ -503,6 +526,11 @@ static struct sg_buf sg_main_ex(int ds)
 		sgx_int_list(&blocks, SG_KEY_TABLE, 1); nb++;
 	} else if (ds != SG_DS_NOTABLE) {
 		sgx_table(&blocks, SG_KEY_TABLE, f, 3, v, ds == SG_DS_NOROWS ? 0 : SG_NR_GROUPS); nb++;
+	}
+	/* The internal volumes at exactly 1.0 (see the header). */
+	static const char *const in_keys[4] = { SG_KEY_IN_MOVIE, SG_KEY_IN_BGM, SG_KEY_IN_SE, SG_KEY_IN_VOICE };
+	for (int k = 0; k < 4; k++) {
+		sgx_float(&blocks, in_keys[k], 1.0f); nb++;
 	}
 	sgx_int(&blocks, "sg_unrelated_after", 3); nb++;
 	sgx_file(&out, &blocks, nb);
@@ -869,7 +897,12 @@ static void sg0_data(void)
 	char path[PATH_MAX];
 	snprintf(path, sizeof path, "%s/sgprobeEx.ex", sg_ds_dir[SG_DS_VALID]);
 	struct ex *ex = ex_read_file(path);
-	SG_CHECK(ex && ex->nr_blocks == 4, "main EX: %u blocks", ex ? ex->nr_blocks : 0);
+	SG_CHECK(ex && ex->nr_blocks == 8, "main EX: %u blocks", ex ? ex->nr_blocks : 0);
+	static const char *const in_keys[4] = { SG_KEY_IN_MOVIE, SG_KEY_IN_BGM, SG_KEY_IN_SE, SG_KEY_IN_VOICE };
+	for (int k = 0; ex && k < 4; k++) {
+		struct ex_value *iv = ex_get(ex, in_keys[k]);
+		SG_CHECK(iv && iv->type == EX_FLOAT && iv->f == 1.0f, "main EX: internal volume key %d is not the float 1.0", k);
+	}
 	struct ex_table *t = ex ? ex_get_table(ex, SG_KEY_TABLE) : NULL;
 	SG_CHECK(t && t->nr_rows == SG_NR_GROUPS && t->nr_fields == 3 && t->fields[0].is_index
 		 && t->fields[2].type == EX_FLOAT && t->fields[1].has_value && t->fields[1].value.i == -1,

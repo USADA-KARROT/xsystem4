@@ -1514,10 +1514,11 @@ void PE_update_parts_movies(void)
 /* Red, Green and Blue are the back colour's Y, Cb and Cr (the game's
  * CDrawMovie@SetBackColor converts its RGB): the surface, of the movie's
  * size, shows that colour through the movie shader until the first picture.
- * SoundID and SoundGroup are not used: the sound plays on its own stream. */
+ * SoundID and SoundGroup go with the movie's sound (0x449f50 -> 0x4a3140): with
+ * the v14 sound groups it plays in that group (movie_set_sound_group); without
+ * them they are not used. */
 static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
-	possibly_unused int soundid, possibly_unused int soundgroup,
-	int red, int green, int blue, int state)
+	int soundid, int soundgroup, int red, int green, int blue, int state)
 {
 	if (!parts_state_valid(--state))
 		return false;
@@ -1530,6 +1531,7 @@ static bool PE_stub_CreatePartsMovie(int number, struct string *filename,
 	parts_state_reset(&p->states[state], PARTS_MOVIE);
 	struct parts_movie *m = &p->states[state].movie;
 	m->mc = mc;
+	movie_set_sound_group(mc, soundid, soundgroup);
 	int w = 0, h = 0;
 	movie_get_video_size(mc, &w, &h);
 	if (w > 0 && h > 0) {

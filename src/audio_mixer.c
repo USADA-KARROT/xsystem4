@@ -17,7 +17,9 @@
 #include <stdatomic.h>
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include <sndfile.h>
@@ -116,6 +118,12 @@ static SDL_AudioDeviceID audio_device = 0;
 
 // v14 sound groups (see mixer_init): set once before the device starts.
 static bool groups_enabled = false;
+#define GROUPS_MAX 64
+// The groups' internal volumes, by group, and the movies' (see
+// groups_read_internal): written once before the device starts, then only
+// read (also by the audio callback).
+static float internal_volume[GROUPS_MAX];
+static float movie_internal_volume = 1.0f;
 // The game's SetGlobalFocus and the window's focus; with groups, the output
 // is silent while the window is inactive and GlobalFocus is off.
 static bool global_focus = false;
@@ -280,6 +288,29 @@ static float cb_calc_fade(struct fade *fade)
 	return gain;
 }
 
+/*
+ * v14 sound groups: the gain of a channel is its group chain x its own volume
+ * x the internal volume of its group (0x4a11b0; 0x4a5050 clamps that to 0..1).
+ * The chain is the mixers' (see groups_init); the internal volume multiplies
+ * the channel's own part, while it plays and while it fades alike: a Fade
+ * (0x4a3ad6) sets the channel's volume and the target has the internal volume
+ * in it, as the gain applied before does (port strategy: only the channel's
+ * part is clamped; the two differ only for an internal volume over 1.0).
+ * The movies' internal volume is for a channel without a name and with
+ * bStreaming (+0x2c, +0x10), which a movie's sound is (0x4a3140; see
+ * mixer_stream_play_group). A file's Prepare names its channel (0x4a4b20), so
+ * every script channel takes its group's; so does every sound the engine
+ * plays itself here (port strategy: the original's sound table is prepared
+ * from memory, 0x4a32fc, and whether its channels have bStreaming was not
+ * traced).
+ */
+static float channel_gain(struct channel *ch, float volume)
+{
+	if (!ch->grouped || ch->mixer_no < 0 || ch->mixer_no >= nr_mixers)
+		return volume;
+	return clamp(0.0f, 1.0f, volume * internal_volume[ch->mixer_no]);
+}
+
 static int refill_stream(sts_mixer_sample_t *sample, void *data)
 {
 	struct channel *ch = data;
@@ -310,7 +341,7 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	// set gain for fade
 	if (ch->fade.fading) {
 		float gain = cb_calc_fade(&ch->fade);
-		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = gain;
+		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = channel_gain(ch, gain);
 		ch->volume = gain * 100.0;
 
 		ch->fade.elapsed += frames_read;
@@ -324,7 +355,7 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 		}
 	} else {
 		float gain = ch->volume / 100.0;
-		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = gain;
+		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = channel_gain(ch, gain);
 	}
 
 	if (r == STS_STREAM_COMPLETE) {
@@ -574,6 +605,40 @@ static SF_VIRTUAL_IO channel_vio = {
 };
 
 /*
+ * The length of a sound file in ms, truncated (GetLengthFromFile with groups;
+ * 0x4a19c7 -> 0x4a42a0). The original picks the decoder by the first bytes
+ * (0x4a2ca0: at least 12 bytes, "Ogg" for Vorbis, "RIFF" and "WAVE" at 8 for
+ * a WAV, nothing for anything else, which gives 0) and divides the PCM bytes
+ * x 1000 by the format's bytes per second in unsigned 64-bit arithmetic: for
+ * a WAV its data chunk's size and its header's bytes per second, for Vorbis
+ * the samples x channels x 2 and the rate x channels x 2 (0x49dd0e, 0x49e160).
+ * Here it is the decoder's frames x 1000 / the file's rate, which is the same
+ * when the data chunk holds whole frames and the header agrees with itself
+ * (port strategy). dfile stays the caller's.
+ */
+int mixer_data_length_ms(struct archive_data *dfile)
+{
+	if (!dfile || !dfile->data || dfile->size < 12)
+		return 0;
+	const uint8_t *d = dfile->data;
+	bool ogg = !memcmp(d, "Ogg", 3);
+	bool wav = !memcmp(d, "RIFF", 4) && !memcmp(d + 8, "WAVE", 4);
+	if (!ogg && !wav)
+		return 0;
+	struct channel *ch = xcalloc(1, sizeof(struct channel));
+	ch->dfile = dfile;
+	ch->file = sf_open_virtual(&channel_vio, SFM_READ, &ch->info, ch);
+	int64_t ms = 0;
+	if (ch->file && sf_error(ch->file) == SF_ERR_NO_ERROR && ch->info.samplerate > 0 && ch->info.frames > 0
+	    && ch->info.frames < INT64_MAX / 1000)
+		ms = ch->info.frames * 1000 / ch->info.samplerate;
+	if (ch->file)
+		sf_close(ch->file);
+	free(ch);
+	return ms > INT_MAX ? INT_MAX : (int)ms;
+}
+
+/*
  * v14 sound groups: the group and the loop points of a sound from its archive's
  * timemap (asset_sound_info_by_entry), by the file's name. A file without a row
  * (or with a negative group) takes the fallback: Prepare's bStreaming argument
@@ -784,7 +849,6 @@ void channel_close(struct channel *ch)
  * volumes (port strategy: the original writes Volume.sav on a restart and
  * presumably reads it back when the engine is rebuilt, which was not traced).
  */
-#define GROUPS_MAX 64
 // The group table of the main EX file and its columns, by their names in the
 // CN game's file (GBK): the table, the group number (an indexed int), the
 // voice group (int) and the default volume (float).
@@ -794,11 +858,52 @@ void channel_close(struct channel *ch)
 #define GROUP_DEFAULT "\xc4\xac\xd5\x4a\xa5\xdc\xa5\xea\xa5\xe5\xa9\x60\xa5\xe0"
 #define VOLUME_SAV "Volume.sav"
 
+// The internal volumes of the main EX file (top-level floats; their names in
+// the CN game's file, GBK): a common prefix, then the movies', the BGM's, the
+// sound effects' and the voices'.
+#define INTERNAL_PREFIX "\xa3\xc5\xa3\xdf\xc2\x95\xd2\xf4\xa3\xdf\x83\xc8\xb2\xbf\xa5\xdc\xa5\xea\xa5\xe5\xa9\x60\xa5\xe0\xa3\xdf"
+#define INTERNAL_MOVIE INTERNAL_PREFIX "\xa5\xe0\xa9\x60\xa5\xd3\xa9\x60"
+#define INTERNAL_BGM   INTERNAL_PREFIX "\xa3\xc2\xa3\xc7\xa3\xcd"
+#define INTERNAL_SE    INTERNAL_PREFIX "\xd2\xf4\xd0\xa7"
+#define INTERNAL_VOICE INTERNAL_PREFIX "\xd5\x5a\xd2\xf4"
+
 struct groups_config {
 	int nr;
 	int parent[GROUPS_MAX];
 	int default_volume[GROUPS_MAX];
+	float internal[GROUPS_MAX];
+	float movie_internal;
 };
+
+static float groups_internal_key(struct ex *ex, const char *key, float dflt)
+{
+	struct ex_value *v = ex_get(ex, key);
+	// Port strategy: a block of another type (the original's reader for one
+	// was not traced) takes the default, as a missing one does.
+	if (!v || v->type != EX_FLOAT || !isfinite(v->f))
+		return dflt;
+	return v->f;
+}
+
+/*
+ * The internal volumes (0x4a11b0 multiplies a channel's gain by one; the
+ * sound config object reads them from the main EX file every time, which
+ * does not change while the game runs, so reading them once is the same):
+ * by the channel's group (0x4a1f60): group 0 1.0 (no key), group 1 the BGM
+ * key, group 2 the sound effects' key, every other group the voices' key; a
+ * missing key gives 0.5, 0.5 and 1.0. The movies' (0x4a21d0) is its own key,
+ * 0.5 when it is missing. GetGroupVolume does not have them (0x4a1a44,
+ * 0x4a5e70).
+ */
+static void groups_read_internal(struct ex *ex, struct groups_config *gc)
+{
+	float bgm = groups_internal_key(ex, INTERNAL_BGM, 0.5f);
+	float se = groups_internal_key(ex, INTERNAL_SE, 0.5f);
+	float voice = groups_internal_key(ex, INTERNAL_VOICE, 1.0f);
+	for (int g = 0; g < GROUPS_MAX; g++)
+		gc->internal[g] = g == 0 ? 1.0f : g == 1 ? bgm : g == 2 ? se : voice;
+	gc->movie_internal = groups_internal_key(ex, INTERNAL_MOVIE, 0.5f);
+}
 
 static int groups_row(struct ex_table *t, int col, int key)
 {
@@ -858,6 +963,7 @@ static bool groups_read_config(struct groups_config *gc)
 		if (children[g] > STS_MIXER_VOICES / 2)
 			return false;
 	}
+	groups_read_internal(ex, gc);
 	return true;
 }
 
@@ -967,6 +1073,8 @@ static void groups_init(const struct groups_config *gc)
 	nr_mixers = gc->nr;
 	mixers = xcalloc(nr_mixers, sizeof(struct mixer));
 	master = &mixers[0];
+	memcpy(internal_volume, gc->internal, sizeof(internal_volume));
+	movie_internal_volume = gc->movie_internal;
 	for (int i = 0; i < nr_mixers; i++) {
 		sts_mixer_init(&mixers[i].mixer, 44100, STS_MIXER_SAMPLE_FORMAT_FLOAT);
 		mixers[i].default_volume = gc->default_volume[i];
@@ -1241,28 +1349,134 @@ int mixer_set_mute(int n, int mute)
 	return 1;
 }
 
+/*
+ * A stream's handle (mixer_stream_play*): a voice of the master mixer is its
+ * number, as before; a movie's sound in a group (mixer_stream_play_group) is
+ * STREAM_IN_GROUP | the group << 8 | the voice, and has the movies' internal
+ * volume.
+ */
+#define STREAM_IN_GROUP 0x10000
+
+static struct mixer *stream_voice(int handle, int *voice, bool *in_group)
+{
+	if (handle < 0)
+		return NULL;
+	*in_group = handle & STREAM_IN_GROUP;
+	if (!*in_group) {
+		*voice = handle;
+		return handle < STS_MIXER_VOICES && master ? master : NULL;
+	}
+	int m = (handle >> 8) & 0xff;
+	*voice = handle & 0xff;
+	return m < nr_mixers && *voice < STS_MIXER_VOICES ? &mixers[m] : NULL;
+}
+
+static float stream_gain(int volume, bool in_group)
+{
+	float gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	return in_group ? clamp(0.0f, 1.0f, gain * movie_internal_volume) : gain;
+}
+
 int mixer_stream_play(sts_mixer_stream_t* stream, int volume)
 {
 	SDL_LockAudioDevice(audio_device);
-	float gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
-	int voice = sts_mixer_play_stream(&master->mixer, stream, gain);
+	int voice = sts_mixer_play_stream(&master->mixer, stream, stream_gain(volume, false));
 	SDL_UnlockAudioDevice(audio_device);
 	return voice;
 }
 
-bool mixer_stream_set_volume(int voice, int volume)
+/*
+ * A parts movie's sound with groups (CreatePartsMovie's SoundGroup, resolved
+ * by mixer_movie_sound_set): the original makes it a channel with bStreaming
+ * and no name (0x4a3140), so it plays in that group, through the group's
+ * chain, and has the movies' internal volume (0x4a11b0, 0x4a21d0). Without
+ * groups it plays on the master mixer as every movie does.
+ */
+int mixer_stream_play_group(sts_mixer_stream_t *stream, int volume, int group)
 {
-	if (voice < 0 || voice >= STS_MIXER_VOICES)
+	if (!groups_enabled || group < 0 || group >= nr_mixers)
+		return mixer_stream_play(stream, volume);
+	SDL_LockAudioDevice(audio_device);
+	int voice = sts_mixer_play_stream(&mixers[group].mixer, stream, stream_gain(volume, true));
+	SDL_UnlockAudioDevice(audio_device);
+	return voice < 0 ? -1 : STREAM_IN_GROUP | group << 8 | voice;
+}
+
+bool mixer_stream_set_volume(int handle, int volume)
+{
+	int voice;
+	bool in_group;
+	struct mixer *m = stream_voice(handle, &voice, &in_group);
+	if (!m)
 		return false;
 	SDL_LockAudioDevice(audio_device);
-	master->mixer.voices[voice].gain = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+	m->mixer.voices[voice].gain = stream_gain(volume, in_group);
 	SDL_UnlockAudioDevice(audio_device);
 	return true;
 }
 
-void mixer_stream_stop(int voice)
+void mixer_stream_stop(int handle)
 {
+	int voice;
+	bool in_group;
+	struct mixer *m = stream_voice(handle, &voice, &in_group);
+	if (!m)
+		return;
 	SDL_LockAudioDevice(audio_device);
-	sts_mixer_stop_voice(&master->mixer, voice);
+	sts_mixer_stop_voice(&m->mixer, voice);
 	SDL_UnlockAudioDevice(audio_device);
+}
+
+/*
+ * The SoundIDs of the parts movies, for GetGroupNum (0x4a3da0 reads the group
+ * of the channel 0x4a3140 made for the SoundID). The original's group is
+ * CreatePartsMovie's SoundGroup, and 1 for a negative one (0x4a3203; the new
+ * channel has bStreaming). Port strategies: a group the table does not have
+ * is 1 too (as a sound's, channel_set_group); the movie's sound is not a
+ * channel of the scripts' pool (IsPlay, Stop and the rest do not reach it);
+ * the latest movie made with an ID owns it, and its release (the original
+ * removes the channel by ID, 0x449e10 -> 0x49a1c0) forgets the ID. Main
+ * thread only.
+ */
+#define MOVIE_SOUNDS_MAX 16
+static struct { const void *owner; int id; int group; } movie_sounds[MOVIE_SOUNDS_MAX];
+
+int mixer_movie_sound_set(int id, int group, const void *owner)
+{
+	if (!groups_enabled || !owner)
+		return -1;
+	if (group < 0 || group >= nr_mixers)
+		group = 1;
+	int free_slot = -1;
+	for (int i = 0; i < MOVIE_SOUNDS_MAX; i++) {
+		if (movie_sounds[i].owner && (movie_sounds[i].id == id || movie_sounds[i].owner == owner))
+			movie_sounds[i].owner = NULL;
+		if (!movie_sounds[i].owner && free_slot < 0)
+			free_slot = i;
+	}
+	if (free_slot < 0) {
+		WARNING("Too many movie sounds; GetGroupNum(%d) will not know this one", id);
+		return group;
+	}
+	movie_sounds[free_slot].owner = owner;
+	movie_sounds[free_slot].id = id;
+	movie_sounds[free_slot].group = group;
+	return group;
+}
+
+void mixer_movie_sound_release(const void *owner)
+{
+	for (int i = 0; owner && i < MOVIE_SOUNDS_MAX; i++) {
+		if (movie_sounds[i].owner == owner)
+			movie_sounds[i].owner = NULL;
+	}
+}
+
+int mixer_movie_sound_group(int id)
+{
+	for (int i = 0; i < MOVIE_SOUNDS_MAX; i++) {
+		if (movie_sounds[i].owner && movie_sounds[i].id == id)
+			return movie_sounds[i].group;
+	}
+	return -1;
 }

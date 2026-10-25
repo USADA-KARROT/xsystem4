@@ -20,6 +20,7 @@
 
 #include "system4.h"
 #include "system4/ain.h"
+#include "system4/archive.h"
 #include "system4/string.h"
 
 #include "vm.h"
@@ -459,13 +460,45 @@ static bool KiwiSoundEngine_Prepare_v14(int id, struct string *name, struct stri
 }
 
 // The group of the channel (0x4a1951 -> 0x4a3da0: the group Prepare gave it,
-// 0 without a channel).
+// 0 without a channel). A parts movie's SoundID is a channel there too
+// (0x4a3140): its group is the movie's (mixer_movie_sound_set); a script's
+// channel of the same ID comes first here (port strategy).
 static int KiwiSoundEngine_GetGroupNum_v14(int id)
 {
 	if (!mixer_groups_enabled())
 		return KiwiSoundEngine_GetGroupNum(id);
 	int g = audio_get_channel_group(id);
+	if (g < 0)
+		g = mixer_movie_sound_group(id);
 	return g >= 0 ? g : 0;
+}
+
+/*
+ * GetLengthFromFile(string) with groups: the length in ms, truncated, of the
+ * file Prepare would open for the name (0x4a42a0 looks it up with Prepare's
+ * 0x4a4050; here Prepare_v14's order, Sound, Voice, then BGM: port strategy),
+ * 0 for a name without one and for a file that is neither a WAV nor Ogg
+ * Vorbis (mixer_data_length_ms). The scripts' AFL_Sound_GetLength wraps it;
+ * the ending waits that long plus a join time after each voice.
+ */
+static int KiwiSoundEngine_GetLengthFromFile_v14(struct string *name)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_GetLengthFromFile(name);
+	if (!name || !name->text[0])
+		return 0;
+	static const enum asset_type types[] = { ASSET_SOUND, ASSET_VOICE, ASSET_BGM };
+	for (unsigned i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+		int no;
+		if (!asset_exists_by_name(types[i], name->text, &no))
+			continue;
+		struct archive_data *dfile = asset_get(types[i], no);
+		int ms = mixer_data_length_ms(dfile);
+		if (dfile)
+			archive_free_data(dfile);
+		return ms;
+	}
+	return 0;
 }
 
 // The timemap's group of a name; 2 when no timemap has the name (0x4a1a38).
@@ -546,6 +579,8 @@ void *kiwi_select_function(const struct ain_hll_function *f, void *dflt)
 		return (void *)KiwiSoundEngine_GetGroupNum_v14;
 	if (!strcmp(f->name, "GetGroupNumFromFile") && kiwi_shape(f, AIN_INT, 1) && kiwi_type_is(&a[0].type, AIN_STRING))
 		return (void *)KiwiSoundEngine_GetGroupNumFromFile_v14;
+	if (!strcmp(f->name, "GetLengthFromFile") && kiwi_shape(f, AIN_INT, 1) && kiwi_type_is(&a[0].type, AIN_STRING))
+		return (void *)KiwiSoundEngine_GetLengthFromFile_v14;
 	if (!strcmp(f->name, "GetGroupVolume") && kiwi_shape(f, AIN_FLOAT, 1) && kiwi_type_is(&a[0].type, AIN_INT))
 		return (void *)KiwiSoundEngine_GetGroupVolume_v14;
 	if (!strcmp(f->name, "GetMixerDefaultVolume") && kiwi_shape(f, AIN_BOOL, 2) && kiwi_type_is(&a[0].type, AIN_INT)

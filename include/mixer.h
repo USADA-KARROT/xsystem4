@@ -60,12 +60,26 @@ void mixer_set_window_focus(bool active);
 // Writes Volume.sav (with groups only).
 void mixer_groups_save(void);
 
+// A stream's handle (the master mixer's voice, or a group's) goes to
+// mixer_stream_set_volume and mixer_stream_stop.
 struct sts_mixer_stream_t;
 int mixer_stream_play(struct sts_mixer_stream_t* stream, int volume);
-bool mixer_stream_set_volume(int voice, int volume);
-void mixer_stream_stop(int voice);
+// With groups: in `group` (from mixer_movie_sound_set), with the movies'
+// internal volume; without them, or for a group of -1, mixer_stream_play.
+int mixer_stream_play_group(struct sts_mixer_stream_t *stream, int volume, int group);
+bool mixer_stream_set_volume(int handle, int volume);
+void mixer_stream_stop(int handle);
+// A parts movie's SoundID and SoundGroup (with groups only; -1 without):
+// returns the group its sound plays in, which GetGroupNum gives for the ID
+// until the owner is released or another movie takes the ID.
+int mixer_movie_sound_set(int id, int group, const void *owner);
+void mixer_movie_sound_release(const void *owner);
+int mixer_movie_sound_group(int id);
 
 struct archive_data;
+// The length of a sound file's data in ms (GetLengthFromFile); 0 when it is
+// neither a WAV nor an Ogg Vorbis file.
+int mixer_data_length_ms(struct archive_data *dfile);
 struct channel;
 enum asset_type;
 
