@@ -315,6 +315,72 @@ static bool parts_takes_input(struct parts *parts)
 }
 
 /*
+ * v14: the input update reads one controller, the script's layer. The parts
+ * engine's update (0x53e690) runs the update of every controller of the
+ * stack (+0x88..+0x8c) and of the system overlay (+0x84), 0x53c5b0, and
+ * gives the input flag to one of them: the designated active controller
+ * (+0x94) or, while none is designated, the top of the stack (0x53e640);
+ * the overlay only while it is the designated one (and only while +0xb4 is
+ * set, SetEnableInput, which the game never calls). Only that controller
+ * runs the input update (0x547c90 from 0x53c64d), with its own manager
+ * (ctrl+0x18) on the elements of its own tree: 0x5385b0 collects every
+ * parts below the controller's root (pre-order), 0x546520 turns them into
+ * their widgets' elements. The time since entered (0x546620), the slots
+ * (0x547c00), the press target and the focus (0x546890, 0x545c70), the
+ * cursor walk (0x5471d0), the local wheel (0x547000) and GetClickNumber
+ * (0x547610) go over that list alone. The parts of every other controller
+ * are not touched: not entered, not left, no message, their time stands
+ * still. So a button under a child scene (a confirmation box opens a layer
+ * of its own: SceneContext@0 -> AFL_Parts_AddLayer(-1)) keeps its hover look
+ * and, when the box goes with the cursor still on it, is not entered again.
+ * GetActiveParts reads the active controller's own focus (0x57bc90 ->
+ * 0x53c6c0: +0x280, refreshed for every controller by 0x53c240).
+ *
+ * Here parts->controller_no follows the parent chain (parts_set_controller),
+ * which is the original's "below the controller's root", and the controller
+ * is PE_get_active_controller(), the choice of 0x53e690. In the
+ * single-controller mode (engines without AddController) every parts is in
+ * the scope, as before.
+ *
+ * The port's strategy, not the original's:
+ *  - one input manager for all the controllers (the original has one per
+ *    controller): the stored position, the sampled buttons, the slots and
+ *    the focus. BeginInput and EndInput reset every one of the original's
+ *    managers (0x53e8b0, 0x53e830) as they reset this one, so the two
+ *    differ only while the active controller changes between them: e.g. a
+ *    controller added inside a scope begins its own manager at once
+ *    (0x53d3a0 -> 0x546030), whose first updates send the whole-screen
+ *    MouseMove, which is not sent here when the cursor has not moved; and
+ *    the old controller's manager keeps its slots and its last buttons for
+ *    when it acts again, which here are emptied (v14_drop_slots_out_of_scope)
+ *    and shared;
+ *  - one focus (v14_active_parts) where the original has a flag on every
+ *    element (+0x1b4) and looks it up in the list (0x545c70). The wheel's
+ *    fallback and GetActiveParts take it only when it is in the scope; a
+ *    press in the scope still sends it LostFocus when it is another
+ *    controller's (v14_press), where the original sends that at the next
+ *    0x53c750 (BeginInput; a confirmation box's BeginInput comes before any
+ *    press in it);
+ *  - SetEnableInputProcess (+0x90 false leaves an element out of the list)
+ *    and SetEnableInput (+0xb4) stay stubs; the order is the drawing order
+ *    (z), not the tree's pre-order as 0x53c830 leaves it (not followed);
+ *  - a dragged scroll knob of another controller still follows the cursor
+ *    (the original's knob follows its focus' key events, which the other
+ *    controller's manager no longer sends; not followed further).
+ */
+static int v14_scope;	/* the controller of this input update */
+
+static bool v14_in_scope_of(const struct parts *parts, int controller)
+{
+	return !parts_multi_controller || parts->controller_no == controller;
+}
+
+static bool v14_in_scope(const struct parts *parts)
+{
+	return v14_in_scope_of(parts, v14_scope);
+}
+
+/*
  * v14: the one parts under the cursor that takes the mouse at a press. The
  * original's input update (0x546890) finds it at a press only, with
  * 0x545e10 and the predicate 0x546e20, and keeps it both as the focus (on a
@@ -334,12 +400,15 @@ static bool parts_takes_input(struct parts *parts)
  * middle of a swipe; swipes are not implemented.) The area is always the
  * default state's: at a press the parts has already switched to its down
  * state, and a ＣＧ判定部件 detector (FooterButton) defines its area only in
- * the normal state (on-cursor and down are CG parts without a CG).
+ * the normal state (on-cursor and down are CG parts without a CG). Only the
+ * parts of the update's controller are candidates (v14_in_scope).
  */
 static struct parts *v14_input_target(Point pos)
 {
 	struct parts *parts;
 	PARTS_LIST_FOREACH_REVERSE(parts) {
+		if (!v14_in_scope(parts))
+			continue;
 		// A scroll bar stands for its knob and its track, the original's
 		// inner parts, which the bar's own flags do not decide alone: the
 		// track can always be clicked (scrollbar.c).
@@ -455,10 +524,13 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 
 /*
  * v14 (Dohna Dohna): the original's input update (0x547c90, run by the parts
- * update 0x53c5b0 alone; the update does nothing outside a
- * BeginInput/EndInput scope, 0x547cba). In its order:
+ * update 0x53c5b0 alone, for the active controller alone: v14_in_scope; the
+ * update does nothing outside a BeginInput/EndInput scope, 0x547cba). In
+ * its order:
  *
- *  1. Every element's time since entered grows by the passed time
+ *  0. The slots whose element is not in the controller's list are emptied
+ *     silently (0x547c00 -> 0x548530; v14_drop_slots_out_of_scope).
+ *  1. Every listed element's time since entered grows by the passed time
  *     (0x546620 at 0x547df2, whether the element is entered or not), and
  *     GetClickNumber is cleared (+0x14 at 0x547e23).
  *  2. The cursor's position is read through the same call as the HLL
@@ -688,12 +760,18 @@ static void v14_leave(struct parts *parts, Point pos)
  * A scroll bar stands for its knob and its track (the original's inner
  * elements), as in v14_input_target: entered when one of them is under the
  * cursor, and it stops the walk.
+ *
+ * The list is the update's controller's (v14_in_scope): the parts of the
+ * other controllers are neither entered nor left, so they keep their
+ * entered flag, their state and their time.
  */
 static void v14_cursor_walk(Point pos, bool cur_clicking)
 {
 	bool stopped = false;
 	struct parts *parts;
 	PARTS_LIST_FOREACH_REVERSE(parts) {
+		if (!v14_in_scope(parts))
+			continue;
 		bool hit = false, stops = false;
 		if (!stopped && parts_takes_input(parts)) {
 			if (parts_scrollbar_has_look(parts)) {
@@ -714,7 +792,10 @@ static void v14_cursor_walk(Point pos, bool cur_clicking)
 }
 
 /* 0x546890 at a press: the pressed parts and the focus, and the focus'
- * messages when it changes (0x546a4e..0x546aa2). */
+ * messages when it changes (0x546a4e..0x546aa2). The old focus gets its
+ * LostFocus here also when it is another controller's; the original looks
+ * the old focus up in the list (0x545c70) and leaves one outside it to the
+ * next 0x53c750 (see v14_in_scope: one focus is the port's strategy). */
 static void v14_press(Point cur_pos, struct parts *target)
 {
 	int no = target ? target->no : 0;
@@ -809,13 +890,16 @@ static bool v14_wheelable(struct parts *parts)
  * stands for its inner track and knob, as in the existing input walk.
  * Without a hit, the updated focus receives it, otherwise the manager's
  * root. Here the active controller's root represents that fallback; the
- * system overlay has no root and cannot supply such an element.
+ * system overlay has no root and cannot supply such an element. The
+ * candidates and the focus are the update's controller's (0x545c70 finds
+ * the focus in the list, else the root): a focus held in another
+ * controller does not take it.
  */
 static void v14_dispatch_wheel(Point pos, const int *counts)
 {
 	struct parts *target = NULL, *parts;
 	PARTS_LIST_FOREACH_REVERSE(parts) {
-		if (!v14_wheelable(parts) || !parts_takes_input(parts))
+		if (!v14_in_scope(parts) || !v14_wheelable(parts) || !parts_takes_input(parts))
 			continue;
 		bool hit = parts_scrollbar_has_look(parts)
 			? parts_scrollbar_hittest(parts, pos) != PARTS_SCROLLBAR_MISS
@@ -826,8 +910,11 @@ static void v14_dispatch_wheel(Point pos, const int *counts)
 		}
 	}
 	bool fallback = !target;
-	if (!target && v14_active_parts)
-		target = parts_try_get(v14_active_parts);
+	if (!target && v14_active_parts) {
+		struct parts *focus = parts_try_get(v14_active_parts);
+		if (focus && v14_in_scope(focus))
+			target = focus;
+	}
 	if (!target)
 		target = parts_controller_root(PE_get_active_controller());
 	if (target)
@@ -839,12 +926,45 @@ static void v14_dispatch_wheel(Point pos, const int *counts)
 				target ? target->no : 0, fallback);
 }
 
+/* 0x547c90 -> 0x547c00 -> 0x548530 for each of the five slots: a slot whose
+ * element is not in this update's list is emptied, with no message and no
+ * change to the element (0x577af0 is not called). Of the slots the left one
+ * is followed here, with the drag that starts on it: a parts held down in
+ * another controller is no longer the pressed one, so the release clicks
+ * nothing and only the whole-screen click goes out. (In the original a
+ * controller begun inside the scope has a manager of its own that never had
+ * the press; the old one keeps its slot.) */
+static void v14_drop_slots_out_of_scope(void)
+{
+	struct parts *held = v14_press_parts ? parts_try_get(v14_press_parts) : NULL;
+	if (held && !v14_in_scope(held))
+		v14_press_parts = 0;
+	struct parts *down = click_down_parts ? parts_try_get(click_down_parts) : NULL;
+	if (down && !v14_in_scope(down))
+		click_down_parts = 0;
+	if (drag_parts && !v14_in_scope(drag_parts))
+		drag_state_reset();
+}
+
 static void v14_update_input(int passed_time)
 {
 	bool cur_clicking = key_is_down(VK_LBUTTON);
 	Point cur_pos;
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 	bool have_pos = mouse_in_window();
+	// The controller whose parts this update reads (0x53e690); in the
+	// single-controller mode every parts is read.
+	v14_scope = parts_multi_controller ? PE_get_active_controller() : 0;
+	// Trace (XSYS4_STAGE2_TRACE): the controller whenever it changes.
+	static int traced_scope = -1;
+	static unsigned traced_scopes;
+	if (parts_multi_controller && v14_scope != traced_scope && input_stage2_trace()
+			&& traced_scopes < 2000) {
+		traced_scopes++;
+		traced_scope = v14_scope;
+		NOTICE("S2 input-scope ms=%u controller=%d began=%d", SDL_GetTicks(), v14_scope,
+				parts_began_click);
+	}
 	struct parts *target = have_pos ? v14_input_target(cur_pos) : NULL;
 	// Trace (XSYS4_STAGE2_TRACE): the input target whenever it changes,
 	// so that a run's log shows what the cursor is on also where nothing
@@ -860,8 +980,11 @@ static void v14_update_input(int passed_time)
 	}
 	if (!parts_began_click)
 		return;
+	v14_drop_slots_out_of_scope();
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
+		if (!v14_in_scope(parts))
+			continue;
 		long long t = (long long)parts->hover_time + passed_time;
 		parts->hover_time = t > INT_MAX ? INT_MAX : t < INT_MIN ? INT_MIN : (int)t;
 	}
@@ -1246,13 +1369,23 @@ int PE_GetClickPartsNumber(void)
  *    +0x280 (0x53c6c0), which the parts update refreshes after its input
  *    update (0x53c240 at 0x53c654, after 0x547c90 at 0x53c64d), so a focus
  *    cleared by BeginInput or EndInput shows at the next parts update.
- *  - there is one value here. The original keeps one in every scope object
- *    and reads the object at +0x94 or, without one, the last of the array
- *    (0x57bc90 -> 0x53e640); which parts belong to which object was not
- *    looked up. */
+ *  - there is one focus here. The original keeps one value in every
+ *    controller and reads the active one's (0x57bc90: +0x94 or, without
+ *    one, the top of the stack, 0x53e640; 0x53c6c0 reads its +0x280, 0 when
+ *    empty), which 0x53c240 refreshes in every controller's update, input
+ *    flag or not, with the first parts of the controller's own tree whose
+ *    widget has the focus (0x538180 from its root). Here the focus counts
+ *    when it is the active controller's, and is 0 while another controller
+ *    acts (e.g. under a confirmation box that is opening, before its
+ *    BeginInput takes the focus); see v14_in_scope. */
 int PE_GetActivePartsNumber(void)
 {
-	return parts_began_click ? v14_active_parts : 0;
+	if (!parts_began_click)
+		return 0;
+	struct parts *focus = v14_active_parts ? parts_try_get(v14_active_parts) : NULL;
+	if (focus && !v14_in_scope_of(focus, parts_multi_controller ? PE_get_active_controller() : 0))
+		return 0;
+	return v14_active_parts;
 }
 
 bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)

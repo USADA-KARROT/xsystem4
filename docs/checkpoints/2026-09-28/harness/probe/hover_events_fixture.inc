@@ -91,11 +91,13 @@
  *       nested scopes too.
  *   HE9 the queue keeps every message while nobody takes them (300
  *       OnCursor in a row; the original's queue is a vector, 0x58aff0).
- *   HE10 a button clicked, then covered by a child scene (a nested scope
- *       and a blocker in front, as a confirmation box): LostFocus at the
+ *   HE10 a button clicked, then covered within its own layer (a nested
+ *       scope and a blocker of the same layer in front): LostFocus at the
  *       BeginInput, MouseLeave at the first walk under the cover; closed
  *       with the cursor elsewhere, the button stays left (no hover look
- *       left behind); with the cursor back on it, entered anew.
+ *       left behind); with the cursor back on it, entered anew. The game's
+ *       confirmation box opens a layer of its own instead, under which the
+ *       button is not walked at all: layer-input LI1 and LI2 (G3b).
  * The scroll bar's stop of the walk is checked by scrollbar-knob (K12),
  * which has the GL a bar's look needs.
  * Synthetic rectangles, the production PE_UpdateInputState and the v14
@@ -659,9 +661,9 @@ static void he_queue(void)
 	printf("  HE9 the queue keeps every message\n");
 }
 
-/* HE10: a button clicked, then covered by a child scene: the script opens
- * a confirmation box from the click (a nested scope and a blocker over the
- * screen). The clicked button is in no slot after the release, so it stays
+/* HE10: a button clicked, then covered within its own layer: a nested
+ * scope and a blocker over the screen in the button's layer (the game's
+ * confirmation box is a layer of its own: layer-input). The clicked button is in no slot after the release, so it stays
  * entered over the scope boundary and the first walk under the cover
  * leaves it (MouseLeave: the script's hover look goes); closed with the
  * cursor elsewhere, nothing more comes for it; back on it, it is entered

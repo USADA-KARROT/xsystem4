@@ -31,7 +31,9 @@
  *   CI11 PE_Save and PE_Load of a stack whose IDs are not the positions; a
  *        save without the ID section gives every layer the ID of its
  *        position (layer-root LR8: and warns).
- *   CI12 hit order follows the stack after a move.
+ *   CI12 the click goes to the active layer's parts wherever the layer is
+ *        in the stack: after a move and after an insertion at the bottom
+ *        (corrected in G3b, see the case).
  *   CI13 the system overlay controller is not in the stack: a layer added
  *        while it is active goes on top.
  * Guards, which pass before the change as well:
@@ -650,6 +652,15 @@ static void ci_save_load(void)
 
 /* --- CI12 --- */
 
+/* The click goes to the active layer's parts, wherever that layer is in the
+ * stack: the parts engine's update gives the input to the designated
+ * controller (+0x94) alone (0x53e690; layer-input). Until G3b this case
+ * wanted the parts on top of the drawing order after a move and after an
+ * insertion, which a walk over every layer gives; that contradicts the
+ * original: MoveController (0x53d740) does not write +0x94, so after A is
+ * moved on top B still acts, and AddController (0x53d3a0) designates the
+ * layer it inserts, so C acts once added at the bottom. The drawing order
+ * follows the stack (ci_drawn). */
 static void ci_hit_order(void)
 {
 	ci_setup();
@@ -659,26 +670,33 @@ static void ci_hit_order(void)
 	int b = ci_add(-1);
 	ci_part(CI_PB);				/* the same rectangle, a layer above */
 	/* Each release queues the whole-screen click and then the click of the
-	 * parts on top (br_click returns the count and the last message). */
+	 * parts it went down on (br_click returns the count and the last message). */
 	int n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 2 && type == 4 && no == CI_PB, "click with B on top: %d messages, last type %d parts %d; want 2, 4, %d",
+	CI_CHECK(n == 2 && type == 4 && no == CI_PB, "click with B on top and active: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PB);
 	ci_move(a, 99);
+	ci_drawn("after moving A on top", 2, (int[]){ CI_PB, CI_PA });
 	n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 2 && type == 4 && no == CI_PA, "click after moving A on top: %d messages, last type %d parts %d; want 2, 4, %d",
+	CI_CHECK(ci_active() == b && n == 2 && type == 4 && no == CI_PB,
+		 "click after moving A on top: active %d, %d messages, last type %d parts %d; want %d, 2, 4, %d",
+		 ci_active(), n, type, no, b, CI_PB);
+	ci_set_active(a);				/* the top layer designated */
+	n = br_click(150, 140, &type, &no);
+	CI_CHECK(n == 2 && type == 4 && no == CI_PA, "click with A designated on top: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PA);
-	int c = ci_add(CI_ID(0));			/* [0, c, b, a] */
+	int c = ci_add(CI_ID(0));			/* [0, c, b, a], c designated */
 	ci_part(CI_PC);
+	ci_drawn("with a new layer at the bottom", 3, (int[]){ CI_PC, CI_PB, CI_PA });
 	n = br_click(150, 140, &type, &no);
-	CI_CHECK(n == 2 && type == 4 && no == CI_PA, "click with a new layer at the bottom: %d messages, last type %d parts %d; want 2, 4, %d",
-		 n, type, no, CI_PA);
+	CI_CHECK(ci_active() == c && n == 2 && type == 4 && no == CI_PC,
+		 "click with a new layer at the bottom: active %d, %d messages, last type %d parts %d; want %d, 2, 4, %d",
+		 ci_active(), n, type, no, c, CI_PC);
 	ci_erase(a);
 	ci_erase(b);
 	n = br_click(150, 140, &type, &no);
 	CI_CHECK(n == 2 && type == 4 && no == CI_PC, "click with only the inserted layer left: %d messages, last type %d parts %d; want 2, 4, %d",
 		 n, type, no, CI_PC);
-	(void)c;
-	printf("CI12 hit order: %s\n", ci_failures ? "FAIL" : "ok");
+	printf("CI12 the click goes to the active layer: %s\n", ci_failures ? "FAIL" : "ok");
 }
 
 /* --- CI13 --- */

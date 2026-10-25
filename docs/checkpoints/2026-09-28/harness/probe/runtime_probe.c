@@ -186,6 +186,7 @@ static void init_probe(const char *path) {
 #include "sound_gain_fixture.inc"
 #include "construction_preview_fixture.inc"
 #include "sound_rewind_fixture.inc"
+#include "layer_input_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -294,6 +295,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"sound-gain"))return test_sound_gain();
     if(!strcmp(argv[2],"construction-preview"))return test_construction_preview();
     if(!strcmp(argv[2],"sound-rewind"))return test_sound_rewind();
+    if(!strcmp(argv[2],"layer-input"))return test_layer_input();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
