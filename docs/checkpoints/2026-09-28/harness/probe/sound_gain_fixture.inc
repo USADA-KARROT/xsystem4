@@ -25,6 +25,21 @@
  *    SoundGroup (a negative one falls back to 1), then SetLoopCount(SoundID,
  *    1) (0x4a2aa0). So the movie's gain is chain(SoundGroup) x the movie key,
  *    and GetGroupNum (0x4a3da0) reads SoundGroup for SoundID.
+ *  - A second movie with the same SoundID takes that channel over (0x49a130
+ *    finds the one there), and a movie's release removes the SoundID's
+ *    channel whoever made it (0x449e10 -> 0x49a1c0: it looks the ID up,
+ *    0x49a1ec, then calls 0x47aa40 and 0x4a01e0, 0x49a244, 0x49a259, read
+ *    as erasing the ID from the table and freeing the channel; no owner is
+ *    compared): the latest movie's group is the ID's, and after the
+ *    release of either GetGroupNum gives 0 for it (0x4a3da0 without a
+ *    channel). Both only for a movie with sound data: 0x449f50 takes the
+ *    channel only then (with a flag of the engine set, [0x888280]+0x93c)
+ *    and 0x449e10 releases it under the same condition, so a movie without
+ *    sound neither takes nor releases the ID. The port's ffmpeg backend
+ *    does not load a movie without an audio stream (the same); its plmpeg
+ *    backend loads one, and there a silent movie shadows and, at its
+ *    release, forgets another movie's ID (unlike the original; not
+ *    covered). Every movie here has sound.
  *  - GetLengthFromFile (0x4a19c7 -> 0x4a42a0) finds the file as Prepare does
  *    (0x4a4050), picks the decoder by the first bytes (0x4a2ca0: Ogg, or
  *    RIFF/WAVE) and returns the PCM bytes x 1000 / the bytes per second in
@@ -47,10 +62,10 @@
  * which no case has), looks the name up as Prepare does (so a numeric name
  * is a name, not an archive number) and stays 0 without the groups; the
  * movie's sound is not a channel of the scripts' pool (IsPlay and Stop do
- * not reach it), only GetGroupNum knows its SoundID, the latest movie made
- * with an ID owns it, and after that movie's release GetGroupNum gives 0 for
- * the ID (the original removes the channel by ID, 0x49a1c0; inferred from
- * its first half); a muted group or one at 0 still pulls the movie's sound,
+ * not reach it) and only GetGroupNum knows its SoundID; each movie keeps
+ * its own stream, so two movies with one SoundID both sound and the release
+ * of one does not stop the other's (the original has the one channel of the
+ * SoundID for both); a muted group or one at 0 still pulls the movie's sound,
  * so its clock goes on. GetLengthFromFile's new function is bound by the
  * declaration-shape hook (as sound-groups' wrappers are): the library
  * table's own function stays what it was (GN8 calls it directly).
@@ -67,19 +82,30 @@
  * values are at most 1.0), keys of another type, a SoundGroup outside the
  * table, a SoundID a script uses too, the focus mute on the movie
  * (sound-groups silences the whole output), the system sound table, the
- * parts sounds, PlaySe, real audio output and the original's loudness.
+ * parts sounds, PlaySe, real audio output and the original's loudness; also
+ * a movie's volume set while it plays in a group (movie_set_volume: only
+ * DrawMovie calls it, which this game does not use; that it keeps the
+ * movies' internal volume is not checked), a movie that is not a parts
+ * movie (PlayMovie, DrawMovie) with the groups (only the parts movies'
+ * sounds are checked to take the movies' internal volume), and a name that
+ * is a file in both the Sound and the Voice archive (which one
+ * GetLengthFromFile measures: the synthetic archives share no name; GN7
+ * checks each archive's own names); a parts movie without sound (the
+ * plmpeg backend's difference above).
  *
  * Cases (each in forked children): GN0 the synthetic data reads back; GN1
  * the gain by group (0, 1, 2, 3, 5, 6, 7; a BGM-style streaming file; a file
  * without a timemap row in either fallback group; two at once; changes while
  * playing; GetGroupVolume without it); GN2 missing keys; GN3 the channel
- * volume (Fade, also while a fade runs), a channel prepared again, a
- * restart; GN4 the movie sound in group 1 (follows the root and group 1, not
+ * volume (Fade, also while a fade runs, and a second Fade begun while one
+ * runs), a channel prepared again, a restart; GN4 the movie sound in group 1 (follows the root and group 1, not
  * group 2 or the voice group; its clock goes on while group 1 is muted or at
  * 0); GN5 SoundGroup and SoundID are the arguments (2; -1 falls back to 1;
  * GetGroupNum, 0 for an unrelated ID and after the release; the groups as
  * before after the release; the same SoundID again in another group, and
- * two movies with one SoundID at once); GN6 the
+ * two movies with one SoundID at once: the latest's group, forgotten by the
+ * release of either, another ID kept; the ID taken again after a release,
+ * forgotten by the release of a movie made with it before); GN6 the
  * movie key missing, or the only one with the sound-effect key; GN7
  * GetLengthFromFile (also numeric voice names that are not their archive
  * numbers, and 0 for an AIFF file, which libsndfile reads and the original's
@@ -787,6 +813,25 @@ static void gn3_channel(void)
 			 fs[i].name, got, want, gn_internal(ds, fs[i].group), fading);
 		gn_stop(20);
 	}
+	/* A second Fade while one runs starts where the first one is: a 1 s fade
+	 * from 1.0 to 0.0, five chunks in (about 0.91), then a 60 s fade back to
+	 * 1.0; the level goes on from there (within 3%: the channel's volume is
+	 * an integer). A fade starts from the channel's own volume (0x4a3ad6
+	 * writes fVolume; the original fades from the gain applied before, which
+	 * has the internal volume in it as the target does); a start with the
+	 * internal volume in the channel's part (group 1's is 0.25 here) would
+	 * drop the level to a quarter. */
+	float full = gn_play_level(20, "gn_g1", false);
+	SG_CHECK(gn_fade(20, 1000, 0.0f), "Fade(20, 1000, 0.0) failed");
+	float mid = sg_level();
+	int fading = sg_i1("IsFade", 20);
+	SG_CHECK(fading && mid > 0.5f * full && mid < 0.95f * full, "five chunks into a 1 s fade to 0: %.5f, want between %.5f and %.5f, fading %d",
+		 mid, 0.5f * full, 0.95f * full, fading);
+	SG_CHECK(gn_fade(20, 60000, 1.0f), "Fade(20, 60000, 1.0) failed");
+	got = sg_level();
+	SG_CHECK(got > 0.97f * mid && got < 1.03f * mid, "a 60 s fade to 1.0 begun five chunks into a 1 s fade to 0: %.5f, want within 3%% of %.5f",
+		 got, mid);
+	gn_stop(20);
 	/* A restart (the volumes stay, sound-groups) keeps the internal volumes. */
 	sg_restart();
 	SG_CHECK(sg_numof() == SG_NR_GROUPS, "after the restart GetMixerNumof=%d", sg_numof());
@@ -950,17 +995,47 @@ static void gn5_movie_reuse(void)
 	sg_setvol(1, 25); vol[1] = 25;
 	gn_movie_level("reuse: group 1 at 25 (the second movie is in group 2)", sg_chain(vol, mute, 2) * in);
 	gn_movie_release(7107);
-	/* Two movies with one SoundID at once (port strategy: the latest made
-	 * owns the ID; the other's release leaves it). */
+	/* Two movies with one SoundID at once: the latest gives the group, and
+	 * the release of either forgets the ID (see the header: 0x49a130,
+	 * 0x449e10 -> 0x49a1c0); a movie with another ID keeps its own. */
 	SG_CHECK(gn_movie_create(7109, 1000, 1) && gn_movie_create(7110, 1000, 2), "two movies with SoundID 1000 failed");
 	g = sg_i1("GetGroupNum", 1000);
 	SG_CHECK(g == 2, "GetGroupNum(1000)=%d with movies of SoundGroup 1 then 2, want 2 (the latest)", g);
 	gn_movie_release(7109);
 	g = sg_i1("GetGroupNum", 1000);
-	SG_CHECK(g == 2, "GetGroupNum(1000)=%d after the earlier movie's release, want 2", g);
+	SG_CHECK(g == 0, "GetGroupNum(1000)=%d after the earlier movie's release, want 0 (released by the ID)", g);
 	gn_movie_release(7110);
 	g = sg_i1("GetGroupNum", 1000);
 	SG_CHECK(g == 0, "GetGroupNum(1000)=%d after both releases, want 0", g);
+	SG_CHECK(gn_movie_create(7111, 1000, 1) && gn_movie_create(7112, 1000, 2) && gn_movie_create(7113, 2000, 1),
+		 "movies with SoundID 1000, 1000 and 2000 failed");
+	gn_movie_release(7112);
+	g = sg_i1("GetGroupNum", 1000);
+	int g2000 = sg_i1("GetGroupNum", 2000);
+	SG_CHECK(g == 0 && g2000 == 1, "after the later movie's release GetGroupNum(1000)=%d, want 0, and (2000)=%d, want 1 (another ID)", g, g2000);
+	gn_movie_release(7111);
+	g = sg_i1("GetGroupNum", 1000);
+	g2000 = sg_i1("GetGroupNum", 2000);
+	SG_CHECK(g == 0 && g2000 == 1, "after the earlier movie's release too GetGroupNum(1000)=%d, want 0, and (2000)=%d, want 1", g, g2000);
+	gn_movie_release(7113);
+	g2000 = sg_i1("GetGroupNum", 2000);
+	SG_CHECK(g2000 == 0, "GetGroupNum(2000)=%d after its movie's release, want 0", g2000);
+	/* The ID taken again after a release: the release of a movie made with
+	 * the ID before that forgets the later one's too (0x49a1c0 erases the
+	 * channel the ID has, whoever made it). */
+	SG_CHECK(gn_movie_create(7114, 1000, 1) && gn_movie_create(7115, 1000, 2), "two movies with SoundID 1000 (third pair) failed");
+	gn_movie_release(7115);
+	g = sg_i1("GetGroupNum", 1000);
+	SG_CHECK(g == 0, "GetGroupNum(1000)=%d after the later movie's release (third pair), want 0", g);
+	SG_CHECK(gn_movie_create(7116, 1000, 2), "a movie with SoundID 1000 after the release failed");
+	g = sg_i1("GetGroupNum", 1000);
+	SG_CHECK(g == 2, "GetGroupNum(1000)=%d for the movie made after the release, want 2", g);
+	gn_movie_release(7114);
+	g = sg_i1("GetGroupNum", 1000);
+	SG_CHECK(g == 0, "GetGroupNum(1000)=%d after the release of a movie made with the ID before it, want 0 (released by the ID)", g);
+	gn_movie_release(7116);
+	g = sg_i1("GetGroupNum", 1000);
+	SG_CHECK(g == 0, "GetGroupNum(1000)=%d after every release, want 0", g);
 	gn_movie_teardown(ctx);
 	printf("  GN5 movie SoundID reuse checked\n");
 }

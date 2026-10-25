@@ -230,7 +230,8 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
  * points, so a loop shorter than the chunk and a loop end at a chunk edge
  * work, it advances stereo data by samples, not frames, and a sound that ends
  * inside the chunk plays that chunk: the stream is complete on the next
- * refill, which reads nothing.
+ * refill, which reads nothing. Then refill_stream puts the channel back at
+ * frame 0 (see there).
  *
  * Port strategy, not the original's behavior (its backend was not traced
  * down to the decoder): [loop_start, loop_end) repeats while laps are left
@@ -358,7 +359,33 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = channel_gain(ch, gain);
 	}
 
+	/*
+	 * v14 sound groups: a stream that is complete is back at frame 0, so
+	 * that IsPlay is false and GetPos 0 after the end and a Play without a
+	 * new Prepare plays the sound again from its start. That is the
+	 * original's static buffer (bStreaming 0, the scripts' sound effects
+	 * and voices) as far as it was read: when its laps are played its
+	 * thread stops the DirectSound buffer and sets its position to 0
+	 * (0x6fc990), and Play starts it where it is (0x6fc5a0); those calls
+	 * are read as IDirectSoundBuffer's standard vtable (Stop,
+	 * SetCurrentPosition, Play), an inference, not traced into DirectSound.
+	 * Port strategies: frame 0, not the loop's begin (the static buffer
+	 * takes no loop points, 0x49c5c0); for every group channel, also one
+	 * prepared with bStreaming (the original's streaming buffer leaves its
+	 * data at the loop's end, inferred from 0x6f8af0 and 0x6f8770; the
+	 * scripts prepare a channel before every Play); and a later Play plays
+	 * one lap, since cb_read_frames_grouped used the count up (the
+	 * original counts its laps anew from 0 at every Play and keeps the
+	 * count, 0x6fc540, so it plays the count set again). The legacy refill
+	 * keeps its own end (cb_loop: the loop's begin). This runs on the audio
+	 * thread with the device locked, as every other seek of the channel's
+	 * file does. The seek comes before voice = -1 and both are atomics, so
+	 * for the readers without the lock (IsPlay, GetPos) IsPlay false
+	 * implies GetPos 0; keep that order.
+	 */
 	if (r == STS_STREAM_COMPLETE) {
+		if (ch->grouped)
+			cb_seek(ch, 0);
 		ch->voice = -1;
 	}
 
@@ -613,8 +640,10 @@ static SF_VIRTUAL_IO channel_vio = {
  * a WAV its data chunk's size and its header's bytes per second, for Vorbis
  * the samples x channels x 2 and the rate x channels x 2 (0x49dd0e, 0x49e160).
  * Here it is the decoder's frames x 1000 / the file's rate, which is the same
- * when the data chunk holds whole frames and the header agrees with itself
- * (port strategy). dfile stays the caller's.
+ * when the data chunk holds whole frames and the header agrees with itself,
+ * and for Vorbis when libsndfile's frames are the original's PCM samples
+ * (port strategy; the original's count comes from its own decoder, whose
+ * length was not compared with libsndfile's). dfile stays the caller's.
  */
 int mixer_data_length_ms(struct archive_data *dfile)
 {
@@ -1431,15 +1460,33 @@ void mixer_stream_stop(int handle)
  * The SoundIDs of the parts movies, for GetGroupNum (0x4a3da0 reads the group
  * of the channel 0x4a3140 made for the SoundID). The original's group is
  * CreatePartsMovie's SoundGroup, and 1 for a negative one (0x4a3203; the new
- * channel has bStreaming). Port strategies: a group the table does not have
- * is 1 too (as a sound's, channel_set_group); the movie's sound is not a
- * channel of the scripts' pool (IsPlay, Stop and the rest do not reach it);
- * the latest movie made with an ID owns it, and its release (the original
- * removes the channel by ID, 0x449e10 -> 0x49a1c0) forgets the ID. Main
- * thread only.
+ * channel has bStreaming). The SoundID has one channel: a later movie with
+ * the same ID takes it over (0x49a130 finds the one there), and a movie's
+ * release removes the SoundID's channel whoever made it (0x449e10 ->
+ * 0x49a1c0: it looks the ID up, 0x49a1ec, then calls 0x47aa40 and
+ * 0x4a01e0, 0x49a244, 0x49a259, read as erasing the ID from the table and
+ * freeing the channel; there is no owner check). Both only for a movie
+ * with sound data: 0x449f50 takes the channel only then (and with a flag
+ * of the engine set, [0x888280]+0x93c), and 0x449e10 releases it under
+ * the same condition; a movie without sound neither takes nor releases
+ * the ID. The ffmpeg backend does not load a movie without an audio
+ * stream, so it is the same there; the plmpeg backend loads one and still
+ * calls this, so there a silent movie shadows another movie's ID and its
+ * release forgets it, unlike the original (not covered). So here the
+ * latest movie made with an ID gives its group, and the release of any
+ * movie made with the ID forgets the ID, also when a movie made after
+ * another release took it again: every other movie with the ID is kept,
+ * shadowed (it gives no group), until its own release, which then knows
+ * its ID. Port strategies:
+ * a group the table does not have is 1 too (as a sound's,
+ * channel_set_group); the movie's sound is not a channel of the scripts'
+ * pool (IsPlay, Stop and the rest do not reach it), and every movie keeps
+ * its own stream, so two movies with one SoundID both sound and the release
+ * of one does not stop the other's (this game makes one movie at a time).
+ * Main thread only.
  */
 #define MOVIE_SOUNDS_MAX 16
-static struct { const void *owner; int id; int group; } movie_sounds[MOVIE_SOUNDS_MAX];
+static struct { const void *owner; int id; int group; bool shadowed; } movie_sounds[MOVIE_SOUNDS_MAX];
 
 int mixer_movie_sound_set(int id, int group, const void *owner)
 {
@@ -1449,8 +1496,10 @@ int mixer_movie_sound_set(int id, int group, const void *owner)
 		group = 1;
 	int free_slot = -1;
 	for (int i = 0; i < MOVIE_SOUNDS_MAX; i++) {
-		if (movie_sounds[i].owner && (movie_sounds[i].id == id || movie_sounds[i].owner == owner))
+		if (movie_sounds[i].owner == owner)
 			movie_sounds[i].owner = NULL;
+		else if (movie_sounds[i].owner && movie_sounds[i].id == id)
+			movie_sounds[i].shadowed = true;
 		if (!movie_sounds[i].owner && free_slot < 0)
 			free_slot = i;
 	}
@@ -1461,21 +1510,28 @@ int mixer_movie_sound_set(int id, int group, const void *owner)
 	movie_sounds[free_slot].owner = owner;
 	movie_sounds[free_slot].id = id;
 	movie_sounds[free_slot].group = group;
+	movie_sounds[free_slot].shadowed = false;
 	return group;
 }
 
 void mixer_movie_sound_release(const void *owner)
 {
 	for (int i = 0; owner && i < MOVIE_SOUNDS_MAX; i++) {
-		if (movie_sounds[i].owner == owner)
-			movie_sounds[i].owner = NULL;
+		if (movie_sounds[i].owner != owner)
+			continue;
+		int id = movie_sounds[i].id;
+		movie_sounds[i].owner = NULL;
+		for (int j = 0; j < MOVIE_SOUNDS_MAX; j++) {
+			if (movie_sounds[j].owner && movie_sounds[j].id == id)
+				movie_sounds[j].shadowed = true;
+		}
 	}
 }
 
 int mixer_movie_sound_group(int id)
 {
 	for (int i = 0; i < MOVIE_SOUNDS_MAX; i++) {
-		if (movie_sounds[i].owner && movie_sounds[i].id == id)
+		if (movie_sounds[i].owner && !movie_sounds[i].shadowed && movie_sounds[i].id == id)
 			return movie_sounds[i].group;
 	}
 	return -1;
