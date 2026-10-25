@@ -34,7 +34,7 @@
  *   the controller ID section          (version 7 and later, see below).
  *
  * Each list is a count and then the numbers; a parts record has the same
- * layout in versions 6 to 12. The controller ID section is always the
+ * layout in versions 6 to 13. The controller ID section is always the
  * last nr + 3 words, whatever precedes it, so a version 7 save with or
  * without it is read as well (and so is a later save without it).
  *
@@ -49,6 +49,8 @@
  * pixel and the alpha, or the alpha; the fields of 14..22).
  * Version 12 has the operation 29 (the scaled copy of a CG of the v14
  * command 14; the fields of 7 and 8).
+ * Version 13 has the operations 30 and 31 (the cut copy and the cut, scaled
+ * blend of a CG of the v14 commands 12 and 13; the fields of 7 and 8).
  *
  * A v14 save can also have the CG deform section (SAVE_CG_DEFORMS) after
  * the lists, before the controller ID section: its mark, a count, and for
@@ -66,9 +68,9 @@
  * effective eligibility is not saved. Controller roots carry their
  * own flag here even though they have no parts record. Older readers stop
  * before this section and still find CG deforms before it and IDs at the
- * end; none of the version 12 records change.
+ * end; none of the parts records change.
  */
-#define CURRENT_SAVE_VERSION 12
+#define CURRENT_SAVE_VERSION 13
 #define SAVE_CG_DEFORMS 0x46444350 /* "PCDF" */
 #define SAVE_WHEELABLE 0x45485750 /* "PWHE" */
 
@@ -368,6 +370,8 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
 	case PARTS_CP_SCALE_COPY_CG:
+	case PARTS_CP_CUT_CG_COPY:
+	case PARTS_CP_CUT_CG_SCALE_BLEND:
 		iarray_write(w, op->cut_cg.cg_no);
 		iarray_write(w, op->cut_cg.dx);
 		iarray_write(w, op->cut_cg.dy);
@@ -474,6 +478,8 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
 	case PARTS_CP_SCALE_COPY_CG:
+	case PARTS_CP_CUT_CG_COPY:
+	case PARTS_CP_CUT_CG_SCALE_BLEND:
 		op->cut_cg.cg_no = iarray_read(r);
 		op->cut_cg.dx = iarray_read(r);
 		op->cut_cg.dy = iarray_read(r);

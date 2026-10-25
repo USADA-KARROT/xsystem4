@@ -108,10 +108,10 @@
  *        last is dropped), a colour and an alpha outside 0..255 (clamped
  *        where they are written, the alpha after its division), no 色１
  *        (transparent black), an angle that is a multiple of 360.
- *   CC13 PE_Save writes XPE version 12 (11 when the two operations came,
- *        12 since cg-scale-copy), in which they are the types 27 and 28; a
- *        save without the new operations loads as version 11, 10, 9, 8 and
- *        7 wrote it; the three states come back with the same pixels and
+ *   CC13 PE_Save writes XPE version 13 (11 when the two operations came,
+ *        12 since cg-scale-copy, 13 since construction-preview), in which
+ *        they are the types 27 and 28; a save without the new operations
+ *        loads as version 12, 11, 10, 9, 8 and 7 wrote it; the three states come back with the same pixels and
  *        operations.
  *   CC14 under an AIN before version 14 the loader builds neither command
  *        and a save is version 3.
@@ -1724,8 +1724,8 @@ static void cc_polygon_save(void)
 {
 	cn_gl_setup();
 	ri_postlink();
-	/* A save without the new operations is version 12 too, and loads as
-	 * the versions before it wrote it: 8 to 11 differ by the number alone,
+	/* A save without the new operations is version 13 too, and loads as
+	 * the versions before it wrote it: 8 to 12 differ by the number alone,
 	 * 7 has no list of sub colour parts at the end. */
 	const int PLAIN = 9481;
 	static const int tri[] = { 1, 1, 14, 3, 6, 13 };
@@ -1739,9 +1739,9 @@ static void cc_polygon_save(void)
 	if (!saved || !plain)
 		return;
 	int pos = cq_version_pos(saved);
-	CC_CHECK(pos >= 0 && ca_save_version(saved) == 12, "CC13: XPE v%d, want 12", ca_save_version(saved));
+	CC_CHECK(pos >= 0 && ca_save_version(saved) == 13, "CC13: XPE v%d, want 13", ca_save_version(saved));
 	CC_CHECK(saved->values[saved->nr_vars - 1].i == 0, "CC13: the save does not end with an empty list of sub colour parts");
-	for (int version = 11; pos >= 0 && version >= 7; version--) {
+	for (int version = 12; pos >= 0 && version >= 7; version--) {
 		struct page *old = copy_page(saved);
 		old->values[pos].i = version;
 		if (version == 7)
@@ -1778,7 +1778,7 @@ static void cc_polygon_save(void)
 	cc_fill_model(model, 20, 10, 10, 200, 30, 255);
 	cq_write(model, 20 * 10, cov, 94, 255, 0, 186, 128);
 	CC_CHECK(before[0] && !memcmp(before[0], model, sizeof model), "CC13: the rectangle of command 94 is not built before the save");
-	/* The numbers a version 11 or 12 save holds for the two operations: the
+	/* The numbers a version 11 to 13 save holds for the two operations: the
 	 * third of Rect94 (command 94) and of NewSkillBase (command 95). */
 	int types[2] = { -1, -1 };
 	for (int i = 0; i < 2; i++) {
@@ -1795,7 +1795,7 @@ static void cc_polygon_save(void)
 	saved = NULL;
 	CC_CHECK(PE_Save(&saved), "CC13: PE_Save failed");
 	if (saved) {
-		CC_CHECK(ca_save_version(saved) == 12, "CC13: a save with the new operations is XPE v%d, want 12", ca_save_version(saved));
+		CC_CHECK(ca_save_version(saved) == 13, "CC13: a save with the new operations is XPE v%d, want 13", ca_save_version(saved));
 		int words = saved->nr_vars;
 		CC_CHECK(PE_Load(&saved), "CC13: PE_Load failed");
 		PE_UpdateComponent(0);

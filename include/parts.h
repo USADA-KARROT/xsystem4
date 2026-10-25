@@ -208,6 +208,10 @@ bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
 bool PE_AddScaleCopyCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
 		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
+bool PE_AddCutCGCopyToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int sx, int sy, int w, int h, int state);
+bool PE_AddCutCGScaleBlendToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state);
 bool PE_AddGrayFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
 		bool full_size, int state);
 bool PE_AddFillPieAMapToPartsConstructionProcess(int parts_no, int x, int y, int rx, int ry,

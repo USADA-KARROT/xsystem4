@@ -42,7 +42,8 @@
  *       surface (2), no 補間タイプ, no 元矩形; at the 32-bit limit of the
  *       fixed point a 4096-wide CG is built into 2048 columns, not into 2049.
  *       They pass before the fix as well (guards).
- *   CS5 PE_Save / PE_Load: XPE version 12, the same pixels and operations;
+ *   CS5 PE_Save / PE_Load: XPE version 12 (13 since construction-preview),
+ *       the same pixels and operations;
  *       a save without the operation rewritten as version 11 loads the same.
  *   CS6 before v14 nothing of this is built (guard); the save is version 3.
  *   CS7 the AIN's command 14 (AddPartsConstructionProcess) still adds the
@@ -547,7 +548,7 @@ static void cs_save_case(void)
 	CS_CHECK(PE_Save(&saved) && saved, "CS5: PE_Save failed");
 	if (!saved || !before)
 		return;
-	CS_CHECK(ca_save_version(saved) == 12, "CS5: the save is XPE v%d, want 12", ca_save_version(saved));
+	CS_CHECK(ca_save_version(saved) == 13, "CS5: the save is XPE v%d, want 13", ca_save_version(saved));
 	const int words = saved->nr_vars;
 	CS_CHECK(PE_Load(&saved), "CS5: PE_Load failed");
 	PE_UpdateComponent(0);

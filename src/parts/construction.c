@@ -49,6 +49,8 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_DRAW_CUT_CG:
 	case PARTS_CP_COPY_CUT_CG:
 	case PARTS_CP_SCALE_COPY_CG:
+	case PARTS_CP_CUT_CG_COPY:
+	case PARTS_CP_CUT_CG_SCALE_BLEND:
 	case PARTS_CP_GRAY_FILTER:
 	case PARTS_CP_FILL_PIE_AMAP:
 		break;
@@ -273,9 +275,10 @@ bool PE_AddCopyCutCGToPartsConstructionProcess(int parts_no, struct string *cg_n
 	return true;
 }
 
-/* Command 14 as the pactex loader builds it (build_scale_copy_cg). The AIN's
- * command 14 still takes PE_AddCopyCutCGToPartsConstructionProcess. */
-bool PE_AddScaleCopyCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
+/* The operations of a CG that the pactex loader adds for the v14
+ * construction commands 12, 13 and 14 (build_cut_cg_copy,
+ * build_cut_cg_scale_blend, build_scale_copy_cg). */
+static bool add_cut_cg_op(enum parts_cp_op_type type, int parts_no, struct string *cg_name,
 		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state)
 {
 	if (!parts_state_valid(--state))
@@ -289,7 +292,7 @@ bool PE_AddScaleCopyCGToPartsConstructionProcess(int parts_no, struct string *cg
 
 	struct parts_construction_process *cproc = get_cproc(parts_no, state);
 	struct parts_cp_op *op = xcalloc(1, sizeof(struct parts_cp_op));
-	op->type = PARTS_CP_SCALE_COPY_CG;
+	op->type = type;
 	op->cut_cg = (struct parts_cp_cut_cg) {
 		.cg_no = cg_no,
 		.dx = dx, .dy = dy, .dw = dw, .dh = dh,
@@ -299,6 +302,32 @@ bool PE_AddScaleCopyCGToPartsConstructionProcess(int parts_no, struct string *cg
 
 	parts_add_cp_op(cproc, op);
 	return true;
+}
+
+/* Command 14 as the pactex loader builds it (build_scale_copy_cg). The AIN's
+ * command 14 still takes PE_AddCopyCutCGToPartsConstructionProcess. */
+bool PE_AddScaleCopyCGToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state)
+{
+	return add_cut_cg_op(PARTS_CP_SCALE_COPY_CG, parts_no, cg_name, dx, dy, dw, dh,
+			sx, sy, sw, sh, interp_type, state);
+}
+
+/* Command 12 as the pactex loader builds it (build_cut_cg_copy): w x h
+ * pixels of the CG from (sx, sy) to (dx, dy). */
+bool PE_AddCutCGCopyToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int sx, int sy, int w, int h, int state)
+{
+	return add_cut_cg_op(PARTS_CP_CUT_CG_COPY, parts_no, cg_name, dx, dy, w, h,
+			sx, sy, w, h, 0, state);
+}
+
+/* Command 13 as the pactex loader builds it (build_cut_cg_scale_blend). */
+bool PE_AddCutCGScaleBlendToPartsConstructionProcess(int parts_no, struct string *cg_name,
+		int dx, int dy, int dw, int dh, int sx, int sy, int sw, int sh, int interp_type, int state)
+{
+	return add_cut_cg_op(PARTS_CP_CUT_CG_SCALE_BLEND, parts_no, cg_name, dx, dy, dw, dh,
+			sx, sy, sw, sh, interp_type, state);
 }
 
 bool PE_AddGrayFilterToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
@@ -1031,6 +1060,8 @@ static bool cp_op_on_pixels(const struct parts_cp_op *op)
 	case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
 	case PARTS_CP_FILL_POLYGON_AMAP:
 	case PARTS_CP_SCALE_COPY_CG:
+	case PARTS_CP_CUT_CG_COPY:
+	case PARTS_CP_CUT_CG_SCALE_BLEND:
 		return true;
 	default:
 		return op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
@@ -1668,6 +1699,102 @@ static int cp_sar8(int v)
 	return v >= 0 ? v >> 8 : -((255 - v) >> 8);
 }
 
+/* 0x4929e0: the top-left ow x oh pixels of the sw x sh image at src (rows
+ * of `stride` pixels) scaled to dw x dh, all four bytes, into out (rows of
+ * ow pixels). The callers have checked the sizes with cp_scale_fits. */
+static void cp_scale_rgba(const uint8_t *src, int stride, int sw, int sh, int dw, int dh,
+		uint8_t *out, int ow, int oh)
+{
+	for (int row = 0; row < oh; row++) {
+		const int v = (int)((int64_t)row * sh * 256 / dh);
+		int sy = v >> 8, ny = 1;
+		if (sy >= sh - 1) {
+			sy = sh - 1;
+			ny = 0;
+		}
+		const int fy = v & 0xff;
+		const uint8_t *upper = src + (size_t)sy * stride * 4;
+		const uint8_t *lower = upper + (size_t)ny * stride * 4;
+		uint8_t *d = out + (size_t)row * ow * 4;
+		for (int col = 0; col < ow; col++, d += 4) {
+			const int u = (int)((int64_t)col * sw * 256 / dw);
+			int sx = u >> 8, nx = 1;
+			if (sx >= sw - 1) {
+				sx = sw - 1;
+				nx = 0;
+			}
+			const int fx = u & 0xff;
+			const uint8_t *p = upper + sx * 4, *q = upper + (sx + nx) * 4;
+			const uint8_t *p2 = lower + sx * 4, *q2 = lower + (sx + nx) * 4;
+			for (int c = 0; c < 4; c++) {
+				const int t = p[c] + cp_sar8((q[c] - p[c]) * fx);
+				const int t2 = p2[c] + cp_sar8((q2[c] - p2[c]) * fx);
+				d[c] = t + cp_sar8((t2 - t) * fy);
+			}
+		}
+	}
+}
+
+/* 0x5acd70 -> the backend's 0x4918e0 (0x4941b0: all four bytes) on a
+ * surface with an alpha, 0x5ad010 -> 0x491860 -> 0x4940f0 (the colours
+ * alone) on one without: w x h pixels of src (rows of `stride` pixels) from
+ * its (0, 0) to (x, y), a rectangle the caller has clipped to the surface. */
+static void cp_put_copy(uint8_t *pixels, int tw, int x, int y, const uint8_t *src, int stride,
+		int w, int h, bool has_alpha)
+{
+	for (int row = 0; row < h; row++) {
+		const uint8_t *s = src + (size_t)row * stride * 4;
+		uint8_t *d = pixels + ((size_t)(y + row) * tw + x) * 4;
+		if (has_alpha) {
+			memcpy(d, s, (size_t)w * 4);
+			continue;
+		}
+		for (int col = 0; col < w; col++)
+			memcpy(d + col * 4, s + col * 4, 3);
+	}
+}
+
+/* 0x5aca90 -> the backend's 0x491a50 on a surface with an alpha (0x494320):
+ * each of R, G and B becomes c + ((s - c) * sa sar 8), sa the source's
+ * fourth byte, the sum wrapping in a byte (0x4943b0..0x4943f4; it stays
+ * within 0..255), and the surface's alpha is kept. The rectangle is the
+ * caller's, as for cp_put_copy. */
+static void cp_put_blend(uint8_t *pixels, int tw, int x, int y, const uint8_t *src, int stride,
+		int w, int h)
+{
+	for (int row = 0; row < h; row++) {
+		const uint8_t *s = src + (size_t)row * stride * 4;
+		uint8_t *d = pixels + ((size_t)(y + row) * tw + x) * 4;
+		for (int col = 0; col < w; col++, s += 4, d += 4) {
+			for (int c = 0; c < 3; c++)
+				d[c] = (uint8_t)(d[c] + cp_sar8((s[c] - d[c]) * s[3]));
+		}
+	}
+}
+
+/* 0x5ab3b0 as the pactex loader leaves it: the cut (sx, sy, sw, sh) of a CG,
+ * or all of it when sw or sh is not positive. False when the cut does not
+ * lie within the CG: the original cuts it to their intersection and then
+ * reads beyond what it loaded (the copies read the source from (0, 0)). */
+static bool cp_cut_rect(const struct cg *cg, const struct parts_cp_cut_cg *op, int *x, int *y, int *w, int *h)
+{
+	const int cw = cg->metrics.w, ch = cg->metrics.h;
+	if (!cg->pixels || cw <= 0 || ch <= 0)
+		return false;
+	if (op->sw <= 0 || op->sh <= 0) {
+		*x = 0;
+		*y = 0;
+		*w = cw;
+		*h = ch;
+		return true;
+	}
+	*x = op->sx;
+	*y = op->sy;
+	*w = op->sw;
+	*h = op->sh;
+	return op->sx >= 0 && op->sy >= 0 && op->sw <= cw - op->sx && op->sh <= ch - op->sy;
+}
+
 static void build_scale_copy_cg(uint8_t *pixels, int tw, int th, const struct parts_cp_cut_cg *op,
 		bool has_alpha)
 {
@@ -1683,36 +1810,82 @@ static void build_scale_copy_cg(uint8_t *pixels, int tw, int th, const struct pa
 		cg_free(cg);
 		return;
 	}
-	const uint8_t *src = cg->pixels;
-	const int nr_bytes = has_alpha ? 4 : 3;
-	for (int row = 0; row < h; row++) {
-		const int v = (int)((int64_t)row * sh * 256 / dh);
-		int sy = v >> 8, ny = 1;
-		if (sy >= sh - 1) {
-			sy = sh - 1;
-			ny = 0;
-		}
-		const int fy = v & 0xff;
-		const uint8_t *upper = src + (size_t)sy * sw * 4;
-		const uint8_t *lower = upper + (size_t)ny * sw * 4;
-		uint8_t *d = pixels + ((size_t)(y + row) * tw + x) * 4;
-		for (int col = 0; col < w; col++, d += 4) {
-			const int u = (int)((int64_t)col * sw * 256 / dw);
-			int sx = u >> 8, nx = 1;
-			if (sx >= sw - 1) {
-				sx = sw - 1;
-				nx = 0;
-			}
-			const int fx = u & 0xff;
-			const uint8_t *p = upper + sx * 4, *q = upper + (sx + nx) * 4;
-			const uint8_t *p2 = lower + sx * 4, *q2 = lower + (sx + nx) * 4;
-			for (int c = 0; c < nr_bytes; c++) {
-				const int t = p[c] + cp_sar8((q[c] - p[c]) * fx);
-				const int t2 = p2[c] + cp_sar8((q2[c] - p2[c]) * fx);
-				d[c] = t + cp_sar8((t2 - t) * fy);
-			}
-		}
+	uint8_t *scaled = xmalloc((size_t)w * h * 4);
+	cp_scale_rgba(cg->pixels, sw, sw, sh, dw, dh, scaled, w, h);
+	cp_put_copy(pixels, tw, x, y, scaled, w, w, h, has_alpha);
+	free(scaled);
+	cg_free(cg);
+}
+
+/*
+ * ＣＧ部分コピー (v14 construction command 12, native 0x4fe050) as the pactex
+ * loader gives it: w x h pixels of the CG from (sx, sy) (0x50b160 ->
+ * 0x5a9ea0 loads that cut; the step takes the larger of 元矩形's and
+ * 先矩形's sizes, see pactex_construction_step) copied to (dx, dy) as
+ * command 14 copies (cp_put_copy; 0x4fe1ed: 0x5abb80, then 0x5acd70 or
+ * 0x5ad010). 補間タイプ is not read. The destination is clipped to the
+ * surface (0x5abed0) and the source read from the cut's (0, 0) whatever was
+ * cut off. A CG's resolution rates that are not 100 (0x50b160 scales the cut
+ * then) are not reproduced, as for command 14.
+ */
+static void build_cut_cg_copy(uint8_t *pixels, int tw, int th, const struct parts_cp_cut_cg *op,
+		bool has_alpha)
+{
+	struct cg *cg = asset_cg_load(op->cg_no);
+	if (!cg)
+		return;
+	int cx, cy, cw, ch;
+	int x = op->dx, w = op->dw, y = op->dy, h = op->dh;
+	if (op->sw <= 0 || op->sh <= 0 || !cp_cut_rect(cg, op, &cx, &cy, &cw, &ch)
+			|| !cp_clip_span(&x, &w, tw) || !cp_clip_span(&y, &h, th)) {
+		cg_free(cg);
+		return;
 	}
+	w = min(w, cw);
+	h = min(h, ch);
+	cp_put_copy(pixels, tw, x, y, cg->pixels + ((size_t)cy * cg->metrics.w + cx) * 4, cg->metrics.w,
+			w, h, has_alpha);
+	cg_free(cg);
+}
+
+/*
+ * ＣＧ部分拡大縮小ブレンド (v14 construction command 13, native 0x4fe330) as
+ * the pactex loader gives it: 0x50b350 loads the cut (sx, sy, sw, sh) of
+ * the CG (cp_cut_rect) and for 補間タイプ 2 (the low byte, 0x4fe379) scales it
+ * to dw x dh (0x5aa9c0 -> 0x4929e0, cp_scale_rgba); 0x5aca90 then blends that
+ * at (dx, dy) (cp_put_blend), the rectangle clipped to the surface
+ * (0x5abed0) and read from the scaled cut's (0, 0). A CG without an alpha
+ * is blended with an alpha of 255: the QNT decoder writes 0xff into the
+ * fourth byte of its pixels (0x4764b4), and the cut and the scale keep it.
+ * On a surface without an alpha 0x491a50 blends by 0x491c10 instead (d +=
+ * ((s - d) * (sa >> 1)) >> 7); the loader passes none, and nothing is drawn
+ * there. 補間タイプ 1 (0x5aa7b0, not read) and the others (no scale) are not
+ * built. A CG's resolution rates that are not 100 (0x50b350 reads them, its
+ * vtable +0x2c and +0x30, and rescales 元矩形 by 100 / rate,
+ * 0x50b486..0x50b4cd) are not reproduced, as for command 12: the loader
+ * cannot see them, and such a CG is built from 元矩形 as given.
+ */
+static void build_cut_cg_scale_blend(uint8_t *pixels, int tw, int th, const struct parts_cp_cut_cg *op,
+		bool has_alpha)
+{
+	if (op->interp_type != 2 || !has_alpha)
+		return;
+	struct cg *cg = asset_cg_load(op->cg_no);
+	if (!cg)
+		return;
+	int cx, cy, cw, ch;
+	const int dw = op->dw, dh = op->dh;
+	int x = op->dx, w = dw, y = op->dy, h = dh;
+	if (!cp_cut_rect(cg, op, &cx, &cy, &cw, &ch) || !cp_scale_fits(dw, cw) || !cp_scale_fits(dh, ch)
+			|| !cp_clip_span(&x, &w, tw) || !cp_clip_span(&y, &h, th)) {
+		cg_free(cg);
+		return;
+	}
+	uint8_t *scaled = xmalloc((size_t)w * h * 4);
+	cp_scale_rgba(cg->pixels + ((size_t)cy * cg->metrics.w + cx) * 4, cg->metrics.w, cw, ch, dw, dh,
+			scaled, w, h);
+	cp_put_blend(pixels, tw, x, y, scaled, w, w, h);
+	free(scaled);
 	cg_free(cg);
 }
 
@@ -1837,6 +2010,12 @@ bool parts_build_construction_process(struct parts *parts,
 			break;
 		case PARTS_CP_SCALE_COPY_CG:
 			build_scale_copy_cg(pixels, t->w, t->h, &op->cut_cg, has_alpha);
+			break;
+		case PARTS_CP_CUT_CG_COPY:
+			build_cut_cg_copy(pixels, t->w, t->h, &op->cut_cg, has_alpha);
+			break;
+		case PARTS_CP_CUT_CG_SCALE_BLEND:
+			build_cut_cg_scale_blend(pixels, t->w, t->h, &op->cut_cg, has_alpha);
 			break;
 		case PARTS_CP_DRAW_CIRCLE_AMAP:
 			if (has_alpha)

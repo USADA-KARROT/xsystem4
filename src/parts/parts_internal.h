@@ -269,11 +269,17 @@ enum parts_cp_op_type {
 	// surface's pixels (struct parts_cp_cut_cg, as PARTS_CP_COPY_CUT_CG).
 	// Saved since XPE version 12.
 	PARTS_CP_SCALE_COPY_CG,
-#define PARTS_NR_CP_TYPES (PARTS_CP_SCALE_COPY_CG+1)
+	// The copy of a cut of a CG (v14 command 12) and the blend of a cut of
+	// a CG scaled (v14 command 13), on the surface's pixels (struct
+	// parts_cp_cut_cg, as PARTS_CP_COPY_CUT_CG). Saved since XPE version 13.
+	PARTS_CP_CUT_CG_COPY,
+	PARTS_CP_CUT_CG_SCALE_BLEND,
+#define PARTS_NR_CP_TYPES (PARTS_CP_CUT_CG_SCALE_BLEND+1)
 };
-// What XPE versions 11 and 12 saves hold for the types added last.
+// What XPE versions 11 to 13 saves hold for the types added last.
 _Static_assert(PARTS_CP_FILL_POLYGON_PIXEL_AMAP == 27 && PARTS_CP_FILL_POLYGON_AMAP == 28
-		&& PARTS_CP_SCALE_COPY_CG == 29, "the values of enum parts_cp_op_type are saved");
+		&& PARTS_CP_SCALE_COPY_CG == 29 && PARTS_CP_CUT_CG_COPY == 30
+		&& PARTS_CP_CUT_CG_SCALE_BLEND == 31, "the values of enum parts_cp_op_type are saved");
 
 struct parts_cp_create {
 	int w;

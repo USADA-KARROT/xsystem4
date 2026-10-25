@@ -834,10 +834,10 @@ static void cn_save(void)
 	if (v6 && iarray_init_reader(&r6, v6, "XPE")) {
 		unsigned version_pos = r6.pos;
 		int version = iarray_read(&r6);
-		CN_CHECK(version <= 12, "XPE v%d: this case only knows how versions 7 to 12 differ from 6", version);
+		CN_CHECK(version <= 13, "XPE v%d: this case only knows how versions 7 to 13 differ from 6", version);
 		if (version >= 8) {
 			// Version 8 ends with one more list (the parts in 減算色モード);
-			// versions 9 to 12 only have more operation types, none here.
+			// versions 9 to 13 only have more operation types, none here.
 			CN_CHECK(v6->values[v6->nr_vars - 1].i == 0, "the page does not end with an empty list of sub colour parts");
 			v6->nr_vars--;
 		}

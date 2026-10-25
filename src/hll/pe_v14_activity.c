@@ -866,10 +866,10 @@ struct pactex_cp_step {
 	int rotate;
 	int start, sweep;
 	int blur;		// ブラー (+0x54)
-	int interp;		// 補間タイプ (command 14)
-	int src[4];		// 元矩形 X,Y,W,H (command 14)
-	bool round;		// 丸め's second flag (command 90)
-	int rect_points[16];	// command 90's polygon (pactex_rect_polygon)
+	int interp;		// 補間タイプ (commands 13 and 14)
+	int src[4];		// 元矩形 X,Y,W,H (commands 12, 13 and 14)
+	bool round;		// 丸め's second flag (commands 89 and 90)
+	int rect_points[16];	// command 89's or 90's polygon (pactex_rect_polygon)
 	int nr_rect_points;
 	const char *cg_name;	// in the pactex tree
 	struct ex_list *points;	// 座標總覽, in the pactex tree
@@ -883,6 +883,7 @@ struct pactex_cp_step {
 
 enum {
 	PACTEX_CP_CREATE = 0,
+	PACTEX_CP_CREATE_PIXEL_ONLY = 1,
 	PACTEX_CP_CREATE_CG = 2,
 	PACTEX_CP_FILL = 3,
 	PACTEX_CP_BLEND_FILL = 4,
@@ -890,6 +891,8 @@ enum {
 	PACTEX_CP_FILL_WITH_ALPHA = 6,
 	PACTEX_CP_DRAW_TEXT = 7,
 	PACTEX_CP_FILL_GRADATION_HORIZON = 9,
+	PACTEX_CP_CUT_CG_COPY = 12,
+	PACTEX_CP_CUT_CG_SCALE_BLEND = 13,
 	PACTEX_CP_CUT_CG_SCALE_COPY = 14,
 	PACTEX_CP_GRAY_SCALE = 15,
 	PACTEX_CP_ONLY_ALPHA_TEXT = 24,
@@ -897,6 +900,7 @@ enum {
 	PACTEX_CP_MUL_AMAP_GRADATION_COLUMNS = 26,
 	PACTEX_CP_BLUR_H = 27,
 	PACTEX_CP_BLUR_V = 28,
+	PACTEX_CP_FILL_RECT_PIXEL_AMAP = 89,
 	PACTEX_CP_FILL_RECT_AMAP = 90,
 	PACTEX_CP_FILL_POLYGON_PIXEL_AMAP = 94,
 	PACTEX_CP_FILL_POLYGON_AMAP = 95,
@@ -1073,15 +1077,19 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	if (node->is_leaf || !pactex_step_int(node, "\x83\x52\x83\x7d\x83\x93\x83\x68",
 			"\xa5\xb3\xa5\xde\xa5\xf3\xa5\xc9", &s->command)) /* コマンド */
 		return false;
-	// The first step makes the surface: command 0 creates it, command 2
-	// loads it from a CG. A step that makes none leaves none for the rest;
-	// one that replaces the surface does not occur in the game.
-	if (first != (s->command == PACTEX_CP_CREATE || s->command == PACTEX_CP_CREATE_CG))
+	// The first step makes the surface: command 0 creates it, command 1
+	// creates one of pixels only, command 2 loads it from a CG. A step that
+	// makes none leaves none for the rest; one that replaces the surface
+	// does not occur in the game.
+	if (first != (s->command == PACTEX_CP_CREATE || s->command == PACTEX_CP_CREATE_PIXEL_ONLY
+			|| s->command == PACTEX_CP_CREATE_CG))
 		return false;
-	// The states that start with a CG, the commands only they have, the
-	// polygon and rectangle fills, the row gradation, the texts and the
-	// discs but 102's are built for v14 alone.
+	// The states that start with a CG or with pixels only, the commands only
+	// they have, the CG cuts, the polygon and rectangle fills, the row
+	// gradation, the texts and the discs but 102's are built for v14 alone.
 	if (ain->version < 14 && (s->command == PACTEX_CP_CREATE_CG || s->command == PACTEX_CP_BLEND_FILL
+			|| s->command == PACTEX_CP_CREATE_PIXEL_ONLY || s->command == PACTEX_CP_CUT_CG_COPY
+			|| s->command == PACTEX_CP_CUT_CG_SCALE_BLEND || s->command == PACTEX_CP_FILL_RECT_PIXEL_AMAP
 			|| s->command == PACTEX_CP_GRAY_SCALE || s->command == PACTEX_CP_BLUR_H
 			|| s->command == PACTEX_CP_BLUR_V || s->command == PACTEX_CP_FILL_POLYGON_PIXEL_AMAP
 			|| s->command == PACTEX_CP_FILL_POLYGON_AMAP
@@ -1101,6 +1109,13 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 	switch (s->command) {
 	case PACTEX_CP_CREATE:
 		// 0x4fbd30 -> 0x5a94d0 fails unless both are positive.
+	case PACTEX_CP_CREATE_PIXEL_ONLY:
+		// 0x4fbe40 -> 0x5a9680 likewise. 0x5a9680 asks the image manager's
+		// vfunc +0xc (0x7009e0) for pixels without an alpha and, unlike
+		// command 0's 0x5a94d0, does not fill them; a new image's bytes are
+		// 0 (0x419ef0, read in the pseudocode), so it is black, as
+		// build_create_pixel_only makes it. The game's states fill all of
+		// it with command 3 next.
 		return s->w > 0 && s->h > 0 && s->w <= PACTEX_CP_MAX_SIZE && s->h <= PACTEX_CP_MAX_SIZE;
 	case PACTEX_CP_CREATE_CG: {
 		// 0x4fbf40 -> 0x50ac80: the surface is ＣＧ名's CG, of its size
@@ -1343,6 +1358,7 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		s->points = v && v->type == EX_LIST ? v->list : NULL;
 		return pactex_polygon_points(s->points, surface_w, surface_h);
 	}
+	case PACTEX_CP_FILL_RECT_PIXEL_AMAP:
 	case PACTEX_CP_FILL_RECT_AMAP: {
 		// 0x506ae0 (矩形塗りつぶし（アルファのみ）): on a surface with an
 		// alpha (0x5abb80, a command 0 surface has one), 先矩形 W,H not
@@ -1351,15 +1367,23 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		// (0x4e9940), is scanned as command 95's (0x5af970, the scan
 		// 0x4d0820 with the writer 0x4d1420 -> 0x5b0a10): the alpha of each
 		// pixel it covers becomes 色１.A * coverage / 255.
+		// 0x506960 (矩形塗りつぶし（ピクセル＆アルファ）, command 89) is the
+		// same with 色１'s colour too, scanned as command 94's (0x5afa40,
+		// the writer 0x4d13a0 -> 0x5b0b80: the colour and A * coverage /
+		// 255, each clamped to 0..255), and it does not ask for an alpha
+		// (W or H not positive: 0x5069a2, 0x5069aa).
 		// A scan with no row or fewer than three vertices fails the step
-		// (0x506bbf). 色１, 丸め and 旋轉角度 are read as for 95; a turn
-		// that is not a multiple of 360 is not built.
+		// (0x506bbf). 色１, 丸め and 旋轉角度 are read as for 95 (94 for
+		// 89); a turn that is not a multiple of 360 is not built.
 		int item = 0;
 		struct ex_value *v;
 		memset(s->color, 0, sizeof s->color);
-		if (pactex_leaf_value(node, color_sjis, color_gbk)
-				&& !pactex_step_item(node, color_sjis, color_gbk, 3, &s->color[3]))
-			return false;
+		if (pactex_leaf_value(node, color_sjis, color_gbk)) {
+			for (int i = s->command == PACTEX_CP_FILL_RECT_AMAP ? 3 : 0; i < 4; i++) {
+				if (!pactex_step_item(node, color_sjis, color_gbk, i, &s->color[i]))
+					return false;
+			}
+		}
 		if (s->color[3] > INT32_MAX / 255 || s->color[3] < INT32_MIN / 255)
 			return false;
 		if ((v = pactex_leaf_value(node, "\x8a\xdb\x82\xdf", "\xcd\xe8\xa4\xe1")) /* 丸め */
@@ -1443,6 +1467,71 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 		return s->full || (s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
 			&& s->w <= surface_w - s->x && s->h <= surface_h - s->y);
 	}
+	case PACTEX_CP_CUT_CG_COPY:
+	case PACTEX_CP_CUT_CG_SCALE_BLEND: {
+		// 0x4fe050 (ＣＧ部分コピー, 12) and 0x4fe330 (ＣＧ部分拡大縮小ブレンド,
+		// 13), with ＣＧ名 and 元矩形 read as for 14. A CG that cannot be
+		// loaded fails the step (0x4fe14e, 0x4fe41a). One without an alpha
+		// gives an alpha of 255 (the QNT decoder writes 0xff there,
+		// 0x4764b4; build_cut_cg_scale_blend).
+		// 12 does not read 補間タイプ: it loads (元矩形 X, Y, max(元矩形 W,
+		// 先矩形 W), max(元矩形 H, 先矩形 H)) (the cmovge at 0x4fe0ce and
+		// 0x4fe0e5) and copies that many pixels of it to 先矩形 X,Y
+		// (build_cut_cg_copy).
+		// 13 loads 元矩形 (all of the CG when its W or H is not positive,
+		// 0x5ab3b0), scales it to 先矩形 W x H for 補間タイプ 2 (its low
+		// byte, 0x4fe379) and blends that at 先矩形 X,Y
+		// (build_cut_cg_scale_blend).
+		// Built only where those reproduce the original: a cut within the
+		// CG and a rectangle within the surface (the original cuts the cut
+		// to the CG, 0x5ab3b0, and the rectangle to the surface, 0x5abed0,
+		// and reads the source from (0, 0) whatever was cut off), for 13
+		// 補間タイプ 2 and sizes whose fixed-point products 0x4929e0 holds in
+		// 32 bits. The sums are checked so that they cannot overflow.
+		int cg_no;
+		struct cg_metrics metrics;
+		s->cg_name = pactex_get_string(node, SJIS_CG_MEI);
+		if (!s->cg_name)
+			s->cg_name = pactex_get_string(node, GBK_CG_MEI);
+		if (!s->cg_name || !asset_exists_by_name(ASSET_CG, s->cg_name, &cg_no)
+				|| !asset_cg_get_metrics(cg_no, &metrics)
+				|| metrics.w <= 0 || metrics.h <= 0
+				|| metrics.w > PACTEX_CP_MAX_SIZE || metrics.h > PACTEX_CP_MAX_SIZE)
+			return false;
+		for (int i = 0; i < 4; i++) {
+			if (!pactex_step_item(node, "\x8c\xb3\x8b\xe9\x8c\x60", "\xd4\xaa\xbe\xd8\xd0\xce",
+					i, &s->src[i])) /* 元矩形 */
+				return false;
+		}
+		if (s->command == PACTEX_CP_CUT_CG_COPY) {
+			s->w = max(s->src[2], s->w);
+			s->h = max(s->src[3], s->h);
+			s->src[2] = s->w;
+			s->src[3] = s->h;
+		} else {
+			if (!pactex_step_int(node, "\x95\xe2\x8a\xd4\x83\x5e\x83\x43\x83\x76",
+					"\xd1\x61\xe9\x67\xa5\xbf\xa5\xa4\xa5\xd7", &s->interp)) /* 補間タイプ */
+				return false;
+			s->interp &= 0xff;
+			if (s->interp != 2)
+				return false;
+			if (s->src[2] <= 0 || s->src[3] <= 0) {
+				s->src[0] = 0;
+				s->src[1] = 0;
+				s->src[2] = metrics.w;
+				s->src[3] = metrics.h;
+			}
+		}
+		if (!(s->src[0] >= 0 && s->src[1] >= 0 && s->src[2] > 0 && s->src[3] > 0
+				&& s->src[2] <= metrics.w - s->src[0] && s->src[3] <= metrics.h - s->src[1]
+				&& s->x >= 0 && s->y >= 0 && s->w > 0 && s->h > 0
+				&& s->w <= surface_w - s->x && s->h <= surface_h - s->y))
+			return false;
+		// Within those bounds the products fit in 64 bits.
+		return s->command == PACTEX_CP_CUT_CG_COPY
+			|| ((int64_t)(s->w - 1) * s->src[2] * 256 <= INT32_MAX
+				&& (int64_t)(s->h - 1) * s->src[3] * 256 <= INT32_MAX);
+	}
 	case PACTEX_CP_CUT_CG_SCALE_COPY: {
 		// 0x4fe5a0: ＣＧ名 scaled to 先矩形 W x H and copied to X,Y
 		// (build_scale_copy_cg). Only what that reproduces: 補間タイプ 2
@@ -1501,10 +1590,12 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
 }
 
 /* The steps of a construction state, when the loader can run them as the
- * original does: every command is one of 0 (create), 2 (the surface from a
- * CG), 3, 4, 5, 6 (fills), 7 (a text), 9 (a gradation of the rows' colour),
- * 14 (a CG scaled to a rectangle), 15 (gray scale), 24 (a text's alpha), 25,
- * 26 (alpha gradations), 27, 28 (blurs), 90 (a rectangle's alpha), 94, 95
+ * original does: every command is one of 0 (create), 1 (create pixels
+ * only), 2 (the surface from a CG), 3, 4, 5, 6 (fills), 7 (a text), 9 (a
+ * gradation of the rows' colour), 12 (a cut of a CG copied), 13 (a cut of a
+ * CG scaled and blended), 14 (a CG scaled to a rectangle), 15 (gray scale),
+ * 24 (a text's alpha), 25, 26 (alpha gradations), 27, 28 (blurs), 89 (a
+ * rectangle's colour and alpha), 90 (a rectangle's alpha), 94, 95
  * (polygons), 100, 101 (discs), 102 (disc alpha), 106 (a blended disc), 122
  * (sector alpha) and 129 (CG tiles), the first step makes the surface and
  * none would fail.
@@ -1515,6 +1606,12 @@ static bool pactex_construction_step(struct ex_tree *node, struct pactex_cp_step
  * without one (0x4fc378); 6, 7, 9, 14, 24, 25, 26, 90, 100, 101, 102, 106,
  * 122 and 129 after a CG were not checked against the original and are left
  * out with it.
+ * 12, 13 and 89 are built after command 0 alone: on a surface without an
+ * alpha the original copies the colours alone (0x5ad010), blends otherwise
+ * (0x491a50 -> 0x491c10) and writes no alpha. A list whose first step is
+ * command 1 (a surface without an alpha) is built with 3 after it only, the
+ * game's (the commands that write the alpha skip such a surface, 0x4fc378,
+ * and the others were not checked on one).
  * The original also builds the other states and keeps what the steps before
  * a failed one drew; those stay unbuilt here. サーフェイスエリア, which the
  * original reads after building, is (0, 0, 0, 0) in every state of the game;
@@ -1535,6 +1632,13 @@ static struct pactex_cp_step *pactex_construction_plan(struct ex_tree *state, in
 	struct pactex_cp_step *steps = xcalloc(list->nr_children, sizeof(struct pactex_cp_step));
 	for (unsigned i = 0; i < list->nr_children; i++) {
 		if (!pactex_construction_step(&list->children[i], &steps[i], i == 0, steps[0].w, steps[0].h)) {
+			free(steps);
+			return NULL;
+		}
+		if (((steps[i].command == PACTEX_CP_CUT_CG_COPY || steps[i].command == PACTEX_CP_CUT_CG_SCALE_BLEND
+				|| steps[i].command == PACTEX_CP_FILL_RECT_PIXEL_AMAP) && steps[0].command != PACTEX_CP_CREATE)
+				|| (steps[0].command == PACTEX_CP_CREATE_PIXEL_ONLY && i > 0
+					&& steps[i].command != PACTEX_CP_FILL)) {
 			free(steps);
 			return NULL;
 		}
@@ -1604,6 +1708,9 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 		switch (s->command) {
 		case PACTEX_CP_CREATE:
 			PE_AddCreateToPartsConstructionProcess(parts_no, s->w, s->h, pe_state);
+			break;
+		case PACTEX_CP_CREATE_PIXEL_ONLY:
+			PE_AddCreatePixelOnlyToPartsConstructionProcess(parts_no, s->w, s->h, pe_state);
 			break;
 		case PACTEX_CP_CREATE_CG: {
 			struct string *name = cstr_to_string(s->cg_name);
@@ -1683,11 +1790,14 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 			PE_AddFillCircleToPartsConstructionProcess(parts_no, false, s->x, s->y, s->rx,
 				0, 0, 0, s->color[3], pe_state);
 			break;
+		case PACTEX_CP_FILL_RECT_PIXEL_AMAP:
 		case PACTEX_CP_FILL_RECT_AMAP:
-			// Nothing for W or H not positive.
+			// Nothing for W or H not positive. 90 writes the alpha alone
+			// (95's operation), 89 the colour too (94's).
 			if (s->nr_rect_points)
-				PE_AddFillPolygonWriteToPartsConstructionProcess(parts_no, true, s->nr_rect_points,
-					s->rect_points, 0, 0, 0, s->color[3], pe_state);
+				PE_AddFillPolygonWriteToPartsConstructionProcess(parts_no,
+					s->command == PACTEX_CP_FILL_RECT_AMAP, s->nr_rect_points, s->rect_points,
+					s->color[0], s->color[1], s->color[2], s->color[3], pe_state);
 			break;
 		case PACTEX_CP_FILL_CIRCLE:
 		case PACTEX_CP_FILL_CIRCLE_IN_RECT:
@@ -1708,6 +1818,20 @@ static bool pactex_construction_build(struct ex_tree *state, int parts_no, int p
 		case PACTEX_CP_CUT_CG_SCALE_COPY: {
 			struct string *name = cstr_to_string(s->cg_name);
 			PE_AddScaleCopyCGToPartsConstructionProcess(parts_no, name, s->x, s->y, s->w, s->h,
+				s->src[0], s->src[1], s->src[2], s->src[3], s->interp, pe_state);
+			free_string(name);
+			break;
+		}
+		case PACTEX_CP_CUT_CG_COPY: {
+			struct string *name = cstr_to_string(s->cg_name);
+			PE_AddCutCGCopyToPartsConstructionProcess(parts_no, name, s->x, s->y,
+				s->src[0], s->src[1], s->w, s->h, pe_state);
+			free_string(name);
+			break;
+		}
+		case PACTEX_CP_CUT_CG_SCALE_BLEND: {
+			struct string *name = cstr_to_string(s->cg_name);
+			PE_AddCutCGScaleBlendToPartsConstructionProcess(parts_no, name, s->x, s->y, s->w, s->h,
 				s->src[0], s->src[1], s->src[2], s->src[3], s->interp, pe_state);
 			free_string(name);
 			break;

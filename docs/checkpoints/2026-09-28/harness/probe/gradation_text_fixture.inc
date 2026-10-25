@@ -59,7 +59,7 @@
  *       size of 0 or none, a float size, a negative edge, a pen left of the
  *       surface, the bytes 0x81 0x5C in the text. They pass before the fix
  *       as well (guards).
- *   GT6 PE_Save / PE_Load: XPE version 12, the same pixels and operations.
+ *   GT6 PE_Save / PE_Load: XPE version 13, the same pixels and operations.
  *   GT7 off the CN glyph grid (the SJIS string rule) the banner's shape is
  *       not built (guard) and a state of 0, 5 and 9 is (9 does not depend on
  *       the encoding); before v14 neither is built (guard).
@@ -622,7 +622,7 @@ static void gt_save(void)
 	GT_CHECK(PE_Save(&saved) && saved, "GT6: PE_Save failed");
 	if (!saved)
 		return;
-	GT_CHECK(ca_save_version(saved) == 12, "GT6: the save is XPE v%d, want 12", ca_save_version(saved));
+	GT_CHECK(ca_save_version(saved) == 13, "GT6: the save is XPE v%d, want 13", ca_save_version(saved));
 	GT_CHECK(PE_Load(&saved), "GT6: PE_Load failed");
 	PE_UpdateComponent(0);
 	ca_free_buffer(saved);

@@ -134,6 +134,8 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_FILL_POLYGON_PIXEL_AMAP] = "fill_polygon_pixel_amap",
 		[PARTS_CP_FILL_POLYGON_AMAP] = "fill_polygon_amap",
 		[PARTS_CP_SCALE_COPY_CG] = "scale_copy_cg",
+		[PARTS_CP_CUT_CG_COPY] = "cut_cg_copy",
+		[PARTS_CP_CUT_CG_SCALE_BLEND] = "cut_cg_scale_blend",
 	};
 
 	cJSON *ops, *tmp;
@@ -178,6 +180,8 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		case PARTS_CP_DRAW_CUT_CG:
 		case PARTS_CP_COPY_CUT_CG:
 		case PARTS_CP_SCALE_COPY_CG:
+		case PARTS_CP_CUT_CG_COPY:
+		case PARTS_CP_CUT_CG_SCALE_BLEND:
 			cJSON_AddNumberToObject(obj, "no", op->cut_cg.cg_no);
 			cJSON_AddItemToObjectCS(obj, "dst", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->cut_cg.dx);
@@ -677,6 +681,12 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_SCALE_COPY_CG:
 				sys_message(" scale-copy-cg");
+				break;
+			case PARTS_CP_CUT_CG_COPY:
+				sys_message(" cut-cg-copy");
+				break;
+			case PARTS_CP_CUT_CG_SCALE_BLEND:
+				sys_message(" cut-cg-scale-blend");
 				break;
 			}
 		}

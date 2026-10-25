@@ -67,7 +67,7 @@
  *   SH9 what is built with nothing drawn: 101 with W 0, 100 and 106 with r
  *       0 (106 also with its centre outside), 100 with r INT_MIN (0x507395
  *       takes any radius not positive), 90 with H 0; the step after it runs.
- *   SH10 PE_Save / PE_Load: XPE version 12 (no new operation), the same
+ *   SH10 PE_Save / PE_Load: XPE version 13 (no new operation), the same
  *       pixels and operations.
  *   SH11 off the CN glyph grid the text states stay unbuilt and the others
  *       are built (they do not depend on the encoding); before v14 none is.
@@ -835,7 +835,7 @@ static void sh_save(void)
 	struct page *saved = NULL;
 	SH_CHECK(PE_Save(&saved) && saved, "SH10: PE_Save failed");
 	if (saved) {
-		SH_CHECK(ca_save_version(saved) == 12, "SH10: the save is XPE v%d, want 12", ca_save_version(saved));
+		SH_CHECK(ca_save_version(saved) == 13, "SH10: the save is XPE v%d, want 13", ca_save_version(saved));
 		SH_CHECK(PE_Load(&saved), "SH10: PE_Load failed");
 		PE_UpdateComponent(0);
 		ca_free_buffer(saved);
