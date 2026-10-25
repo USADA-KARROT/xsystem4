@@ -1,0 +1,6 @@
+phase	revision	mode	exit	sanitizer	failed_cases	status	scope
+pre-commit-check	e69dfa34a52613145238d6b66da96f8a4487757d	sound-gain	1	0	7/9	EXPECTED_FAILURE	Final pre-commit fixture (after the probe review), default charset; parent src/include swapped in, built, run, restored; GN0 data self-check and GN8 legacy guard pass; semantic failures
+pre-commit-check	e69dfa34a52613145238d6b66da96f8a4487757d	sound-gain	1	0	7/9	EXPECTED_FAILURE	Final pre-commit fixture (after the probe review), gbk charset; parent src/include swapped in, built, run, restored; GN0 data self-check and GN8 legacy guard pass; semantic failures
+pre-commit-check	e69dfa34a52613145238d6b66da96f8a4487757d	sound-groups	0	0	0/13	EXPECTED_PASS	sound-groups fixture with the four internal volume keys at 1.0, default charset, same parent swap; the G1 expectations still hold on the parent
+pre-commit-check	e69dfa34a52613145238d6b66da96f8a4487757d	sound-groups	0	0	0/13	EXPECTED_PASS	sound-groups fixture with the four internal volume keys at 1.0, gbk charset, same parent swap; the G1 expectations still hold on the parent
+final-parent-check	81fccb3b57f8204538ba73bee3a05a1f47e10e05	sound-gain	1	0	7/9	EXPECTED_FAILURE	Final committed fixture of ebda614, default charset, before-check.sh; GN0 data self-check and GN8 legacy guard pass; successful build; semantic failures
