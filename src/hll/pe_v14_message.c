@@ -441,8 +441,24 @@ static int PE_v14_GetClickNumber(void)
 	return PE_GetClickPartsNumber();
 }
 
-static void PE_v14_SetClickMissSoundName(possibly_unused struct string *name) {}
-static struct string *PE_v14_GetClickMissSoundName(void) { return string_ref(&EMPTY_STRING); }
+/* SetClickMissSoundName (0x57bd27) and GetClickMissSoundName (0x57bd66)
+ * write and read one string of the engine object (+0x1e4). No reader of it
+ * was found in the parts engine (0x530000..0x5c0000, nor through the input
+ * manager), and the game sets it to "" alone (parts::detail::WaitForClick),
+ * so the name is kept here and not played. Before any Set it reads "": the
+ * engine's constructor (0x53ed10) does not write it, and a default-made
+ * string is presumed (its sub-objects' constructors were not read). */
+static struct string *click_miss_sound_name;
+static void PE_v14_SetClickMissSoundName(struct string *name)
+{
+	if (click_miss_sound_name)
+		free_string(click_miss_sound_name);
+	click_miss_sound_name = name && name->size ? string_dup(name) : NULL;
+}
+static struct string *PE_v14_GetClickMissSoundName(void)
+{
+	return click_miss_sound_name ? string_dup(click_miss_sound_name) : string_ref(&EMPTY_STRING);
+}
 static void PE_v14_StopSoundWithoutSystemSound(void) {}
 static void PE_v14_SetEnableInput(possibly_unused bool enable) {}
 static bool PE_v14_IsEnableInput(void) { return true; }

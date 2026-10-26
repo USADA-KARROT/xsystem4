@@ -2327,6 +2327,83 @@ static void pactex_resolve_radio_links(struct activity *act)
 	pactex_nr_radio_links = 0;
 }
 
+/* The keys of the component parser (0x553650) for the sounds and the
+ * on-cursor show link, as the CN executable spells them; no SJIS pactex was
+ * read, so no SJIS spelling is guessed. */
+#define PACTEX_ON_CURSOR_SOUND "\xa5\xaa\xa5\xf3\xd6\xb8\xe1\x98\xd2\xf4\xd0\xa7"	/* オン指針音效 0x7db0b4 */
+#define PACTEX_CLICK_SOUND "\xfc\x63\x93\xf4\xd2\xf4\xd0\xa7"				/* 點擊音效 0x7db0a4 */
+#define PACTEX_ON_CURSOR_SHOW_LINK "\xa5\xaa\xa5\xf3\xd6\xb8\xe1\x98\xb1\xed\xca\xbe\xdf\x42\x84\xd3" /* オン指針表示連動 0x7db054 */
+
+/* オン指針音效 and 點擊音效 (0x554a04..0x554ab4): strings with an empty
+ * default, into the sound names 2 and 3 (0x554bd0(i): +0x12c + i * 0x18 of
+ * the block, the component's +0x1b0 + i * 0x18). A value that is not a
+ * string is read as no name here (0x4182a0's handling of one was not read;
+ * every component of the game has both keys as strings). */
+static void pactex_apply_sound_names(struct ex_tree *node, int parts_no)
+{
+	static const struct { const char *key; int slot; } keys[] = {
+		{ PACTEX_ON_CURSOR_SOUND, 2 },
+		{ PACTEX_CLICK_SOUND, 3 },
+	};
+	for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+		struct ex_value *v = pactex_cn_value(node, keys[i].key);
+		if (v && v->type == EX_STRING && v->s && v->s->size)
+			parts_set_sound_name(parts_get(parts_no), keys[i].slot, v->s->text, v->s->size);
+	}
+}
+
+/* オン指針表示連動 (0x554445..0x5544de): a name, which the parser hands the
+ * loader's resolver (0x55df10 through the std::function at +0x24 of its
+ * third argument) and stores the number it gives at the block's +0xa0 (the
+ * component's +0x124). The resolver looks the name up in the activity's
+ * name table, which the loader fills for every component, the root
+ * included, before it reads any (0x560b20 -> 0x55f6e0; 0x5616f0 keys it by
+ * the short names), and gives 0 for a name that is not there: the order
+ * does not matter. Here the names are resolved at the end of pactex_load,
+ * when every parts of the activity has its name; "" and a name not found
+ * give no link. The table's entries for the root's "" and its ルートパーツ
+ * (this port's aliases, see pactex_load) are not looked at. */
+#define PACTEX_MAX_SHOW_LINKS 64
+static struct { int parts_no; char name[256]; } pactex_show_links[PACTEX_MAX_SHOW_LINKS];
+static int pactex_nr_show_links;
+static int pactex_alias_first, pactex_alias_end;	/* act->parts[first..end) */
+
+static void pactex_add_show_link(struct ex_tree *node, int parts_no)
+{
+	struct ex_value *v = pactex_cn_value(node, PACTEX_ON_CURSOR_SHOW_LINK);
+	if (!v || v->type != EX_STRING || !v->s || !v->s->size)
+		return;
+	if (pactex_nr_show_links >= PACTEX_MAX_SHOW_LINKS) {
+		WARNING("pactex: too many on-cursor show links");
+		return;
+	}
+	pactex_show_links[pactex_nr_show_links].parts_no = parts_no;
+	snprintf(pactex_show_links[pactex_nr_show_links].name,
+		sizeof(pactex_show_links[0].name), "%s", v->s->text);
+	pactex_nr_show_links++;
+}
+
+static void pactex_resolve_show_links(struct activity *act)
+{
+	for (int i = 0; i < pactex_nr_show_links; i++) {
+		int no = 0;
+		for (int j = 0; j < act->nr_parts && no <= 0; j++) {
+			if (j >= pactex_alias_first && j < pactex_alias_end)
+				continue;
+			if (act->parts[j].name[0] && !strcmp(act->parts[j].name, pactex_show_links[i].name))
+				no = act->parts[j].number;
+		}
+		struct parts *p = parts_try_get(pactex_show_links[i].parts_no);
+		if (!p)
+			continue;
+		if (no > 0)
+			parts_set_show_link(p, no);
+		else
+			WARNING("pactex: on-cursor show link '%s' not found", display_game0(pactex_show_links[i].name));
+	}
+	pactex_nr_show_links = 0;
+}
+
 static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 {
 	pactex_apply_pixel_decide(node, parts_no);
@@ -2409,6 +2486,8 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 			sizeof(pactex_clippers[0].name), "%s", clipper);
 		pactex_nr_clippers++;
 	}
+	pactex_add_show_link(node, parts_no);
+	pactex_apply_sound_names(node, parts_no);
 
 	/* Extract origin mode: 原点座標モード = int */
 	int origin_mode = pactex_get_int(node, SJIS_ORIGIN_MODE, -1);
@@ -2999,6 +3078,8 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	pactex_nr_clippers = 0;
 	pactex_nr_scroll_links = 0;
 	pactex_nr_radio_links = 0;
+	pactex_nr_show_links = 0;
+	pactex_alias_first = pactex_alias_end = 0;
 	int root_no = alloc_activity_parts_no();
 	struct parts *root = parts_get(root_no);
 	{
@@ -3027,6 +3108,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		snprintf(ap->name, sizeof(ap->name), "%s", root_branch->name->text);
 		ap->number = root_no;
 	}
+	pactex_alias_first = act->nr_parts;
 	if (act->nr_parts < MAX_ACTIVITY_PARTS) {
 		struct activity_part *ap = &act->parts[act->nr_parts++];
 		ap->name[0] = '\0';
@@ -3047,6 +3129,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 		}
 		ap->number = root_no;
 	}
+	pactex_alias_end = act->nr_parts;
 
 	/* Process children from the root's component branch */
 	struct ex_tree *buhin = root_buhin;
@@ -3068,6 +3151,7 @@ static bool pactex_load(struct activity *act, struct ex *ex)
 	pactex_resolve_clippers(act);
 	pactex_resolve_scroll_links(act);
 	pactex_resolve_radio_links(act);
+	pactex_resolve_show_links(act);
 	return true;
 }
 

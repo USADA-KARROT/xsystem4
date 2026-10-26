@@ -27,6 +27,7 @@
 #include "xsystem4.h"
 #include "parts_internal.h"
 #include "system4/ain.h"
+#include "system4/string.h"
 #include "vm.h"
 #include "xsystem4.h"
 
@@ -685,9 +686,10 @@ static void v14_enter(struct parts *parts, Point pos, bool cur_clicking)
 	int vars[3] = { pos.x, pos.y, 0 };
 	if (!parts->is_hovered) {
 		v14_send(parts, PARTS_V14_MSG_MOUSE_ENTER, 2, vars);
-		// 0x564f20, the cursor sound (Parts_PlaySound(n, 2)). The
-		// names of the sounds are not read yet (G4); nothing is played
-		// without a number.
+		// 0x564f20, the cursor sound (Parts_PlaySound(n, 2)), at every
+		// new enter (0x577c17), whether or not a button is down: the
+		// sound of the name in slot 2 (parts_set_sound_name). Nothing is
+		// played without a number.
 		if (parts_cursor_sound(parts) >= 0)
 			audio_play_sound(parts_cursor_sound(parts));
 		parts->hover_time = 0;
@@ -1194,17 +1196,133 @@ void PE_SetPartsGroupDecideClick(possibly_unused int group_no, possibly_unused b
 	UNIMPLEMENTED("(%d, %s)", group_no, decide_click ? "true" : "false");
 }
 
+/*
+ * v14 オン指針表示連動: a parts shown while another (its link) is entered.
+ * The original keeps the link's number at the component's +0x124, 0 for
+ * none (the constructor, 0x550927): Parts_SetOnCursorShowLinkPartsNumber
+ * (0x58e6d0) gets or makes the component and writes the number (and +0xb4,
+ * its fade, 0), Parts_GetOnCursorShowLinkPartsNumber (0x58e770) reads it,
+ * 0 without a component; the pactex loader resolves the name of the key in
+ * the activity (pactex_resolve_show_links). The link is a number: nothing
+ * is made for it, and a number without a parts shows the parts as if it
+ * had no link (0x535c90; see parts_link_shown). Here no link is -1, as for
+ * the engines before v14 (linked_to), and a number of 0 or less is no link;
+ * linked_from is the last parts linked to a target (the input marks the
+ * screen dirty through it). The original fades the parts in and out over
+ * +0x44 (100) ms; this port shows and hides it at once.
+ */
+void parts_set_show_link(struct parts *parts, int link_parts_no)
+{
+	struct parts *old = parts->linked_to > 0 ? parts_try_get(parts->linked_to) : NULL;
+	if (old && old->linked_from == parts->no)
+		old->linked_from = -1;
+	parts->linked_to = link_parts_no > 0 ? link_parts_no : -1;
+	struct parts *target = link_parts_no > 0 ? parts_try_get(link_parts_no) : NULL;
+	if (target)
+		target->linked_from = parts->no;
+	parts_dirty(parts);
+}
+
+/* Shared with the engines before v14 (GUIEngine, GoatGUIEngine, the older
+ * PartsEngine), which keep their behaviour: both parts are got or made, and
+ * the number is kept as it is. */
 void PE_SetOnCursorShowLinkPartsNumber(int parts_no, int link_parts_no)
 {
+	if (ain->version >= 14) {
+		if (parts_no > 0)
+			parts_set_show_link(parts_get(parts_no), link_parts_no);
+		return;
+	}
 	struct parts *parts = parts_get(parts_no);
 	struct parts *link_parts = parts_get(link_parts_no);
 	parts->linked_to = link_parts_no;
 	link_parts->linked_from = parts_no;
 }
 
+/* The engines before v14: -1 is no link. */
 int PE_GetOnCursorShowLinkPartsNumber(int parts_no)
 {
 	return parts_get(parts_no)->linked_to;
+}
+
+/* v14 (0x58e770): 0 is no link, and a number without a parts reads 0. */
+int PE_v14_GetOnCursorShowLinkPartsNumber(int parts_no)
+{
+	struct parts *parts = parts_no > 0 ? parts_try_get(parts_no) : NULL;
+	return parts && parts->linked_to > 0 ? parts->linked_to : 0;
+}
+
+/*
+ * v14 sound names. A component has four names (+0x1b0 + i * 0x18).
+ * Parts_SetSoundName (0x590230) and Parts_GetSoundName (0x5902e0) write and
+ * read slot State of the component the get-or-create lookup gives (0x540250:
+ * none for a number of 0 or less), without looking at the name or the
+ * State. The original plays a name by name: its low-level parts copy the
+ * slots 1..3 at their update (0x565200 -> 0x5b7f20, a name that differs
+ * replaces the old one and frees its sound), slots 2 and 3 get a CSound when
+ * not empty (0x5b7590 -> 0x5bac00), which plays through PlaySe(3, name, "")
+ * (0x5ba830); the enter plays slot 2 (0x564f20), the release that clicks
+ * plays slot 3 (0x5b7fc0).
+ *
+ * Here (a port's strategy): a name of slot 2 or 3 is made the sound
+ * archive's number of that name when it is set, on_cursor_sound and
+ * on_click_sound, which the input plays as before (audio_play_sound); an
+ * empty name, or one the archive does not have, is -1 and plays nothing
+ * (the original's PlaySe of such a name fails, silently). A State outside
+ * 0..3 writes nothing and reads "" (the original indexes past its slots).
+ * The number API of the engines before v14 writes the numbers alone.
+ */
+static int parts_sound_name_number(const struct string *name)
+{
+	int no = -1;
+	if (!name || !name->size || !asset_exists_by_name(ASSET_SOUND, name->text, &no) || no < 0)
+		return -1;
+	return no;
+}
+
+void parts_set_sound_name(struct parts *parts, int slot, const char *text, size_t len)
+{
+	if (slot < 0 || slot >= PARTS_NR_SOUND_NAMES)
+		return;
+	if (parts->sound_names[slot])
+		free_string(parts->sound_names[slot]);
+	parts->sound_names[slot] = text && len ? make_string(text, len) : NULL;
+	if (slot == 2)
+		parts->on_cursor_sound = parts_sound_name_number(parts->sound_names[slot]);
+	else if (slot == 3)
+		parts->on_click_sound = parts_sound_name_number(parts->sound_names[slot]);
+}
+
+void PE_SetSoundName(int parts_no, struct string *name, int state)
+{
+	if (parts_no <= 0)
+		return;
+	parts_set_sound_name(parts_get(parts_no), state, name ? name->text : NULL, name ? name->size : 0);
+}
+
+struct string *PE_GetSoundName(int parts_no, int state)
+{
+	if (parts_no <= 0)
+		return string_ref(&EMPTY_STRING);
+	struct parts *parts = parts_get(parts_no);
+	if (state < 0 || state >= PARTS_NR_SOUND_NAMES || !parts->sound_names[state])
+		return string_ref(&EMPTY_STRING);
+	return string_dup(parts->sound_names[state]);
+}
+
+/* Parts_PlaySound (0x59b220): the component the get-or-create lookup gives
+ * (0x53e510); 2 plays the cursor sound (0x564f20), 3 the click sound
+ * (0x5b7fc0), any other State nothing. A disabled button plays neither, as
+ * at its enter and its click (parts_cursor_sound; read from 0x5285b0, which
+ * empties its inner parts' names, not followed for this call). */
+void PE_PlaySound(int parts_no, int state)
+{
+	if (parts_no <= 0)
+		return;
+	struct parts *parts = parts_get(parts_no);
+	int no = state == 2 ? parts_cursor_sound(parts) : state == 3 ? parts_click_sound(parts) : -1;
+	if (no >= 0)
+		audio_play_sound(no);
 }
 
 bool PE_SetPartsOnCursorSoundNumber(int parts_no, int sound_no)

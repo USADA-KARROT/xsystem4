@@ -1,6 +1,8 @@
 /* Appended to a copy of src/asset_manager.c by build_probe.py (the probe has
  * no archives): CG files made in memory, served to the asset manager by name
- * and by number. Nothing here is part of the engine. */
+ * and by number; and (parts-sound-name) sound files that are names and
+ * numbers only, whose fetches are logged. Nothing here is part of the
+ * engine. */
 struct probe_cg_file {
 	const char *name;
 	const uint8_t *data;
@@ -73,3 +75,79 @@ void probe_install_cg_assets(const struct probe_cg_file *files, int n)
 	probe_cg_manager.get_by_name = probe_cg_get_by_name;
 	assets[ASSET_CG] = &probe_cg_manager;
 }
+
+/* parts-sound-name: a sound archive of names and numbers only. A number
+ * exists when the table has a name for it. Every fetch of a sound's data
+ * goes into the log, by number (get_by_id) or by the number of the name
+ * (get_by_name; -2 for a name that is not there), and no data is served:
+ * the engine's prepare fails right after the fetch ("Failed to load WAV n"),
+ * so one fetch is one attempt to play. The probe has no sound archive
+ * otherwise. */
+#define PROBE_SOUND_LOG_MAX 256
+static const char *const *probe_snd_names;
+static int probe_nr_snd_names;
+static int probe_snd_log[PROBE_SOUND_LOG_MAX];
+static int probe_snd_log_n;
+static struct asset_manager probe_snd_manager;
+
+static bool probe_snd_exists_by_id(struct asset_manager *manager, int id)
+{
+	(void)manager;
+	return id >= 0 && id < probe_nr_snd_names && probe_snd_names[id];
+}
+
+static bool probe_snd_exists_by_name(struct asset_manager *manager, const char *name, int *id_out)
+{
+	(void)manager;
+	for (int i = 0; name && i < probe_nr_snd_names; i++) {
+		if (probe_snd_names[i] && !strcmp(probe_snd_names[i], name)) {
+			if (id_out)
+				*id_out = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+static void probe_snd_note(int id)
+{
+	if (probe_snd_log_n < PROBE_SOUND_LOG_MAX)
+		probe_snd_log[probe_snd_log_n] = id;
+	probe_snd_log_n++;
+}
+
+static struct archive_data *probe_snd_get_by_id(struct asset_manager *manager, int id)
+{
+	(void)manager;
+	probe_snd_note(id);
+	return NULL;
+}
+
+static struct archive_data *probe_snd_get_by_name(struct asset_manager *manager, const char *name, int *id_out)
+{
+	int id = -2;
+	if (!probe_snd_exists_by_name(manager, name, &id))
+		id = -2;
+	if (id_out)
+		*id_out = id;
+	probe_snd_note(id);
+	return NULL;
+}
+
+void probe_install_sound_assets(const char *const *names, int n)
+{
+	probe_snd_names = names;
+	probe_nr_snd_names = n;
+	probe_snd_log_n = 0;
+	probe_snd_manager.exists_by_id = probe_snd_exists_by_id;
+	probe_snd_manager.exists_by_name = probe_snd_exists_by_name;
+	probe_snd_manager.get_by_id = probe_snd_get_by_id;
+	probe_snd_manager.get_by_name = probe_snd_get_by_name;
+	assets[ASSET_SOUND] = &probe_snd_manager;
+}
+
+/* The fetches since the last clear: their count, and the i-th (the log
+ * keeps the first PROBE_SOUND_LOG_MAX; -3 past them). */
+int probe_sound_fetch_count(void) { return probe_snd_log_n; }
+int probe_sound_fetch_at(int i) { return i >= 0 && i < probe_snd_log_n && i < PROBE_SOUND_LOG_MAX ? probe_snd_log[i] : -3; }
+void probe_sound_fetch_clear(void) { probe_snd_log_n = 0; }

@@ -907,17 +907,34 @@ static void parts_render_v14_gauge(struct parts *parts, struct parts_gauge *g, b
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }
 
+/*
+ * Whether the on-cursor show link lets the parts be drawn. v14 オン指針表示連動
+ * (0x535c90): shown while the link is entered; a number without a parts is
+ * shown as if there were no link (0x539db0's range check), and nothing is
+ * made for it. The original fades it over 100 ms and multiplies the fade
+ * into the alpha its children get; here the parts alone is shown or hidden at
+ * once (the game's four have no children). The engines before v14 keep
+ * theirs: the link is got or made.
+ */
+bool parts_link_shown(struct parts *parts)
+{
+	if (parts->linked_to < 0)
+		return true;
+	if (ain->version >= 14) {
+		struct parts *link_parts = parts->linked_to > 0 ? parts_try_get(parts->linked_to) : NULL;
+		return !link_parts || link_parts->is_hovered;
+	}
+	return parts_get(parts->linked_to)->is_hovered;
+}
+
 void parts_render(struct parts *parts)
 {
 	if (!parts->global.show)
 		return;
 	if (parts->message_window && !parts_message_window_show)
 		return;
-	if (parts->linked_to >= 0) {
-		struct parts *link_parts = parts_get(parts->linked_to);
-		if (!link_parts->is_hovered)
-			return;
-	}
+	if (!parts_link_shown(parts))
+		return;
 
 	// render
 	struct parts_state *state = &parts->states[parts->state];

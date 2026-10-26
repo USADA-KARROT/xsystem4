@@ -1819,6 +1819,10 @@ void parts_release(int parts_no)
 	dirty_list_remove(parts);
 	free(parts->user_component_name);
 	free(parts->button_cg_name);
+	for (int i = 0; i < PARTS_NR_SOUND_NAMES; i++) {
+		if (parts->sound_names[i])
+			free_string(parts->sound_names[i]);
+	}
 	parts_widget_free(parts);
 	for (int i = 0; i < parts->nr_uc_data; i++)
 		free(parts->uc_data[i]);

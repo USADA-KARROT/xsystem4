@@ -24,6 +24,7 @@
 #include "audio.h"
 #include "id_pool.h"
 #include "mixer.h"
+#include "system4/archive.h"
 #include "xsystem4.h"
 
 /*
@@ -34,10 +35,23 @@
 static struct id_pool wav;
 static struct id_pool bgm;
 
-// Anonymous channels for playing sounds in-engine. audio_update must be called
-// periodically to clean up channels that have finished playing.
+// Anonymous channels for playing sounds in-engine (the parts' cursor and click
+// sounds, motion and flash sounds). audio_update must be called periodically
+// to clean up channels that have finished playing.
+//
+// They are channels of their own, never IDs of the wav or bgm pool: a
+// script's IDs (KiwiSoundEngine's Prepare, Play, IsPlay and the rest, and
+// the SE IDs of PlaySe while it uses the wav pool) are fixed numbers, which an
+// anonymous channel taking the pool's lowest unused ID could be given while
+// the script had not prepared it yet. The script's Prepare of that ID then
+// replaced the engine's sound, and audio_update closed the script's channel
+// when it was not playing yet (prepared, its Play to come). The original
+// keeps them apart as well: the parts engine's CSound plays through the
+// sound engine's SE table (PlaySe(3, name), 0x5ba830 -> 0x4a3340), whose IDs
+// are apart from the general IDs (two tables, 0x4a2f00), so no general
+// function reaches it.
 #define NR_ANONYMOUS_CHANNELS 64
-static int anonymous_channels[NR_ANONYMOUS_CHANNELS];
+static struct channel *anonymous_channels[NR_ANONYMOUS_CHANNELS];
 
 void audio_init(void)
 {
@@ -49,7 +63,7 @@ void audio_init(void)
 	id_pool_init(&bgm, 0);
 
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
-		anonymous_channels[i] = -1;
+		anonymous_channels[i] = NULL;
 	}
 
 	mixer_init();
@@ -84,34 +98,39 @@ void audio_reset(void)
 		nr_bgm++;
 		bgm_unprepare(i);
 	}
+	int nr_anonymous = 0;
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
-		anonymous_channels[i] = -1;
+		if (anonymous_channels[i]) {
+			nr_anonymous++;
+			channel_close(anonymous_channels[i]);
+		}
+		anonymous_channels[i] = NULL;
 	}
-	if (trace)
+	if (trace) {
 		NOTICE("S2 sound reset closed wav=%d bgm=%d", nr_wav, nr_bgm);
+		if (nr_anonymous)
+			NOTICE("S2 sound reset closed anonymous=%d", nr_anonymous);
+	}
 }
 
 void audio_update(void)
 {
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
-		if (anonymous_channels[i] >= 0) {
-			if (!wav_is_playing(anonymous_channels[i])) {
-				wav_unprepare(anonymous_channels[i]);
-				anonymous_channels[i] = -1;
-			}
+		if (anonymous_channels[i] && !channel_is_playing(anonymous_channels[i])) {
+			channel_close(anonymous_channels[i]);
+			anonymous_channels[i] = NULL;
 		}
 	}
 }
 
-bool audio_play_sound(int sound_no)
+// An anonymous channel plays ch (opened, not playing); false, and ch closed,
+// when no channel is free or it does not play.
+static bool audio_play_anonymous(struct channel *ch)
 {
 	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
-		if (anonymous_channels[i] == -1) {
-			int ch = wav_get_unused_channel();
-			if (!wav_prepare(ch, sound_no))
-				return false;
-			if (!wav_play(ch)) {
-				wav_unprepare(ch);
+		if (!anonymous_channels[i]) {
+			if (!channel_play(ch)) {
+				channel_close(ch);
 				return false;
 			}
 			anonymous_channels[i] = ch;
@@ -119,26 +138,38 @@ bool audio_play_sound(int sound_no)
 		}
 	}
 	WARNING("Failed to allocate anonymous audio channel");
+	channel_close(ch);
 	return false;
+}
+
+static bool audio_anonymous_free(void)
+{
+	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
+		if (!anonymous_channels[i])
+			return true;
+	}
+	WARNING("Failed to allocate anonymous audio channel");
+	return false;
+}
+
+// The sound is opened as wav_prepare opens it (the sound archive, bStreaming
+// 0, so a v14 group from its timemap row), in a channel of its own.
+bool audio_play_sound(int sound_no)
+{
+	if (!audio_anonymous_free())
+		return false;
+	struct channel *ch = channel_open_streaming(ASSET_SOUND, sound_no, false);
+	return ch && audio_play_anonymous(ch);
 }
 
 bool audio_play_archive_data(struct archive_data *dfile)
 {
-	for (int i = 0; i < NR_ANONYMOUS_CHANNELS; i++) {
-		if (anonymous_channels[i] == -1) {
-			int ch = wav_get_unused_channel();
-			if (!wav_prepare_from_archive_data(ch, dfile))
-				return false;
-			if (!wav_play(ch)) {
-				wav_unprepare(ch);
-				return false;
-			}
-			anonymous_channels[i] = ch;
-			return true;
-		}
+	if (!audio_anonymous_free()) {
+		archive_free_data(dfile);
+		return false;
 	}
-	WARNING("Failed to allocate anonymous audio channel");
-	return false;
+	struct channel *ch = channel_open_archive_data(dfile);
+	return ch && audio_play_anonymous(ch);
 }
 
 bool wav_exists(int no) { return asset_exists(ASSET_SOUND, no); }

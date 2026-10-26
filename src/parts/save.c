@@ -69,10 +69,22 @@
  * own flag here even though they have no parts record. Older readers stop
  * before this section and still find CG deforms before it and IDs at the
  * end; none of the parts records change.
+ *
+ * The optional sound name section (SAVE_SOUND_NAMES) follows the wheel
+ * flags and precedes the controller IDs: its mark, a count, and for each
+ * parts with a sound name (parts->sound_names; the original's component
+ * block has its four names, written at 0x551676 and read at 0x551e62) the
+ * number and, for each of the four names, its length and then its bytes,
+ * one byte a word (so the bytes come back as they were, whatever the string
+ * rules). It is written only when a parts has a name. A reader that does not
+ * know it stops before it; without it a loaded parts has no names and keeps
+ * the sound numbers of its record. The numbers of a parts with names are
+ * made from them again.
  */
 #define CURRENT_SAVE_VERSION 13
 #define SAVE_CG_DEFORMS 0x46444350 /* "PCDF" */
 #define SAVE_WHEELABLE 0x45485750 /* "PWHE" */
+#define SAVE_SOUND_NAMES 0x444e5350 /* "PSND" */
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -1104,6 +1116,79 @@ static bool load_wheelable(struct iarray_reader *r)
 	return true;
 }
 
+static bool parts_has_sound_name(struct parts *parts)
+{
+	for (int i = 0; i < PARTS_NR_SOUND_NAMES; i++) {
+		if (parts->sound_names[i] && parts->sound_names[i]->size)
+			return true;
+	}
+	return false;
+}
+
+// The sound name section (see CURRENT_SAVE_VERSION), for the parts whose
+// records the save has.
+static void save_sound_names(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, count = 0;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!save_hidden && !parts->global.show)
+			continue;
+		if (!parts->want_save || parts_is_controller_root(parts) || !parts_has_sound_name(parts))
+			continue;
+		if (!count) {
+			iarray_write(w, SAVE_SOUND_NAMES);
+			count_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+		}
+		iarray_write(w, parts->no);
+		for (int i = 0; i < PARTS_NR_SOUND_NAMES; i++) {
+			struct string *name = parts->sound_names[i];
+			int len = name ? name->size : 0;
+			iarray_write(w, len);
+			for (int k = 0; k < len; k++)
+				iarray_write(w, (uint8_t)name->text[k]);
+		}
+		count++;
+	}
+	if (count)
+		iarray_write_at(w, count_pos, count);
+}
+
+// A section that does not read as one is warned about and left; the rest of
+// the save is loaded.
+static void load_sound_names(struct iarray_reader *r)
+{
+	if (r->error || r->pos >= r->size || r->data[r->pos].i != SAVE_SOUND_NAMES)
+		return;
+	iarray_read(r);
+	int nr = iarray_read(r);
+	if (r->error || nr < 0 || (unsigned)nr > r->size - r->pos) {
+		WARNING("invalid sound name section");
+		return;
+	}
+	char *buf = NULL;
+	for (int i = 0; i < nr; i++) {
+		int no = iarray_read(r);
+		struct parts *parts = no > 0 ? parts_try_get(no) : NULL;
+		for (int s = 0; s < PARTS_NR_SOUND_NAMES; s++) {
+			int len = iarray_read(r);
+			if (r->error || len < 0 || (unsigned)len > r->size - r->pos) {
+				WARNING("invalid sound name section");
+				free(buf);
+				return;
+			}
+			buf = xrealloc(buf, len + 1);
+			for (int k = 0; k < len; k++)
+				buf[k] = iarray_read(r);
+			buf[len] = 0;
+			if (parts && len)
+				parts_set_sound_name(parts, s, buf, len);
+		}
+	}
+	free(buf);
+}
+
 static bool parts_engine_save(struct page **buffer, bool save_hidden)
 {
 	// get parts into clean state first
@@ -1187,6 +1272,7 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 	if (ain->version >= 14) {
 		save_cg_deforms(&w, save_hidden);
 		save_wheelable(&w, save_hidden);
+		save_sound_names(&w, save_hidden);
 	}
 
 	// The controller ID section is the end of the save, after every list
@@ -1295,6 +1381,7 @@ bool PE_Load(struct page **buffer)
 			free(ids);
 			return false;
 		}
+		load_sound_names(&r);
 	}
 	// (the controller ID section follows the lists; it was read first)
 	if (parts_multi_controller && ain->version >= 14) {

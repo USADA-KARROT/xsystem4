@@ -1978,6 +1978,7 @@ static bool PartsEngine_Parts_SetPartsCGThread(int number, struct string *cgname
 #include "pe_v14_upper_left.h"
 #include "pe_v14_backlog.h"
 #include "pe_v14_checkbox.h"
+#include "pe_v14_sound_name.h"
 #include "pe_v14_stubs.h"
 
 /* Native 0x590770: positive numbers use the get-or-create lookup; only
@@ -2073,6 +2074,7 @@ static void pe_v14_register_batch(int libno)
 	pe_v14_register_upper_left(libno);
 	pe_v14_register_backlog();
 	pe_v14_register_checkbox(libno);
+	pe_v14_register_sound_names(libno);
 #include "pe_v14_prelink.h"
 }
 

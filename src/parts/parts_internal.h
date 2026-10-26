@@ -29,6 +29,9 @@ struct string;
 struct hash_table;
 struct parts_message_window;
 
+// v14: the sound names of a parts (struct parts, sound_names).
+#define PARTS_NR_SOUND_NAMES 4
+
 // NOTE: actual value is +1
 enum parts_state_type {
 	PARTS_STATE_DEFAULT = 0,
@@ -718,8 +721,18 @@ struct parts {
 	bool lock_input_state;
 	bool want_save;
 	bool draggable;
+	// The sound archive's numbers of the cursor and the click sound, which
+	// the input plays (-1: none). v14: those of sound_names[2] and [3]
+	// (parts_set_sound_name); the number API of the engines before v14
+	// (SetPartsOnCursorSoundNumber, SetPartsClickSoundNumber) writes them
+	// directly.
 	int on_cursor_sound;
 	int on_click_sound;
+	// v14: the component's four sound names (native +0x1b0 + i * 0x18:
+	// Parts_SetSoundName 0x590230, the pactex オン指針音效 in 2 and 點擊音效
+	// in 3); NULL is "". The original plays 2 and 3 only (0x565200 hands
+	// its low-level parts slots 1..3, and only 2 and 3 get a CSound).
+	struct string *sound_names[PARTS_NR_SOUND_NAMES];
 	int origin_mode;
 	int pending_parent;
 	int linked_to;
@@ -808,6 +821,9 @@ extern struct parts_list parts_list;
 void parts_button_set_cg_name(struct parts *parts, const char *base);
 void parts_set_edit_hidden(struct parts *parts, bool hidden);
 void parts_uc_data_set(struct parts *parts, const char *key, const char *value);
+void parts_set_sound_name(struct parts *parts, int slot, const char *text, size_t len);
+void parts_set_show_link(struct parts *parts, int link_parts_no);
+bool parts_link_shown(struct parts *parts);
 const char *parts_uc_data_get(struct parts *parts, const char *key);
 
 // A controller is identified by its ID (parts->controller_no). Its position
