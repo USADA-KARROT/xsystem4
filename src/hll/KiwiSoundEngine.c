@@ -40,7 +40,10 @@
  *   File query functions (26-28): check files by name
  *   Group/mixer functions (29-38): volume control per mixer group
  *
- * All channels use the wav pool internally.
+ * The general channels use the wav and bgm pools. With the v14 sound groups
+ * the SE functions use a table of their own (audio_se_*, see audio.c and
+ * the _v14 functions below); without them they share the wav pool with the
+ * general channels, as before.
  */
 
 static void KiwiSoundEngine_ModuleInit(void)
@@ -48,13 +51,22 @@ static void KiwiSoundEngine_ModuleInit(void)
 	audio_init();
 }
 
+static bool kiwi_trace(void);
+
 // The sound engine's release writes Volume.sav (0x4a26f0), at the end and on a
-// restart (vm_exit and vm_reset run this). Nothing is freed: the parts and
-// sprite engines' _ModuleFini, which come later in the AIN's order, still stop
-// their sounds, and the mixers stay for the next run.
+// restart (vm_exit and vm_reset run this). The system sound table is emptied
+// and its sounds stop: the original rebuilds its sound engine on a restart
+// (inferred), and the game's InitSystemSE sets the table again (port
+// strategy; its channels are this module's alone). Nothing else is freed: the
+// parts and sprite engines' _ModuleFini, which come later in the AIN's order,
+// still stop their sounds (audio_reset closes the general channels), and the
+// mixers stay for the next run.
 static void KiwiSoundEngine_ModuleFini(void)
 {
 	mixer_groups_save();
+	int n = audio_se_reset();
+	if (kiwi_trace())
+		NOTICE("S2 sound reset se channels=%d", n);
 }
 
 static void KiwiSoundEngine_SetGlobalFocus(bool focus)
@@ -430,6 +442,58 @@ static bool KiwiSoundEngine_SetMixerMute(int n, bool mute)
  * table keeps its behavior.
  */
 
+/*
+ * The system sound (SE) functions with groups: the SE table (audio_se_*), apart
+ * from the general channels (the original's two tables of the sound engine,
+ * 0x4a2f00; see audio.c). Without groups each does what it did before.
+ */
+static int KiwiSoundEngine_GetFreeSeID_v14(int min_id, int max_id)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_GetFreeSeID(min_id, max_id);
+	return audio_se_get_free_id(min_id, max_id);
+}
+
+// 0x4a14c5: GetFreeSeID(SeID, SeID) != SeID. The range is empty, which gives
+// 0, so this is true for every ID but 0, with or without an entry: the
+// original's arithmetic, kept (the scripts do not call it).
+static bool KiwiSoundEngine_IsExistSeID_v14(int se_id)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_IsExistSeID(se_id);
+	return audio_se_get_free_id(se_id, se_id) != se_id;
+}
+
+static bool KiwiSoundEngine_SetSeParam_v14(int se_id, int play_span, bool multi_play)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_SetSeParam(se_id, play_span, multi_play);
+	return audio_se_set_param(se_id, play_span, multi_play);
+}
+
+// The filter is not used, as before (how 0x4a3460 -> 0x4a4b20 uses it was
+// not traced).
+static bool KiwiSoundEngine_PlaySe_v14(int se_id, struct string *name, struct string *filter)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_PlaySe(se_id, name, filter);
+	return audio_se_play(se_id, name->text);
+}
+
+static bool KiwiSoundEngine_StopSe_v14(int se_id)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_StopSe(se_id);
+	return audio_se_stop(se_id);
+}
+
+static bool KiwiSoundEngine_IsPlaySe_v14(int se_id)
+{
+	if (!mixer_groups_enabled())
+		return KiwiSoundEngine_IsPlaySe(se_id);
+	return audio_se_is_playing(se_id);
+}
+
 // 0x4a1438: kept with the groups; see mixer_set_global_focus.
 static void KiwiSoundEngine_SetGlobalFocus_v14(bool focus)
 {
@@ -572,6 +636,21 @@ void *kiwi_select_function(const struct ain_hll_function *f, void *dflt)
 	const struct ain_hll_argument *a = f->arguments;
 	if (!strcmp(f->name, "SetGlobalFocus") && kiwi_shape(f, AIN_VOID, 1) && kiwi_type_is(&a[0].type, AIN_BOOL))
 		return (void *)KiwiSoundEngine_SetGlobalFocus_v14;
+	if (!strcmp(f->name, "GetFreeSeID") && kiwi_shape(f, AIN_INT, 2) && kiwi_type_is(&a[0].type, AIN_INT)
+	    && kiwi_type_is(&a[1].type, AIN_INT))
+		return (void *)KiwiSoundEngine_GetFreeSeID_v14;
+	if (!strcmp(f->name, "IsExistSeID") && kiwi_shape(f, AIN_BOOL, 1) && kiwi_type_is(&a[0].type, AIN_INT))
+		return (void *)KiwiSoundEngine_IsExistSeID_v14;
+	if (!strcmp(f->name, "SetSeParam") && kiwi_shape(f, AIN_BOOL, 3) && kiwi_type_is(&a[0].type, AIN_INT)
+	    && kiwi_type_is(&a[1].type, AIN_INT) && kiwi_type_is(&a[2].type, AIN_BOOL))
+		return (void *)KiwiSoundEngine_SetSeParam_v14;
+	if (!strcmp(f->name, "PlaySe") && kiwi_shape(f, AIN_BOOL, 3) && kiwi_type_is(&a[0].type, AIN_INT)
+	    && kiwi_type_is(&a[1].type, AIN_STRING) && kiwi_type_is(&a[2].type, AIN_STRING))
+		return (void *)KiwiSoundEngine_PlaySe_v14;
+	if (!strcmp(f->name, "StopSe") && kiwi_shape(f, AIN_BOOL, 1) && kiwi_type_is(&a[0].type, AIN_INT))
+		return (void *)KiwiSoundEngine_StopSe_v14;
+	if (!strcmp(f->name, "IsPlaySe") && kiwi_shape(f, AIN_BOOL, 1) && kiwi_type_is(&a[0].type, AIN_INT))
+		return (void *)KiwiSoundEngine_IsPlaySe_v14;
 	if (!strcmp(f->name, "Prepare") && kiwi_shape(f, AIN_BOOL, 4) && kiwi_type_is(&a[0].type, AIN_INT)
 	    && kiwi_type_is(&a[1].type, AIN_STRING) && kiwi_type_is(&a[2].type, AIN_STRING) && kiwi_type_is(&a[3].type, AIN_BOOL))
 		return (void *)KiwiSoundEngine_Prepare_v14;

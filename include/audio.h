@@ -40,6 +40,16 @@ int wav_prepare_streaming(int id, enum asset_type type, int no, bool streaming);
 int bgm_prepare_streaming(int id, int no, bool streaming);
 // The group (mixer) of the channel prepared under `id` (wav, then bgm), or -1.
 int audio_get_channel_group(int id);
+
+// v14 sound groups: KiwiSoundEngine's system sound (SE) table. Its IDs are
+// apart from the wav and bgm pools' (see audio.c). Main thread only.
+bool audio_se_set_param(int se_id, int play_span, bool multi_play);
+bool audio_se_play(int se_id, const char *name);
+bool audio_se_stop(int se_id);
+bool audio_se_is_playing(int se_id);
+int audio_se_get_free_id(int min_id, int max_id);
+// Frees every SE channel and entry; returns the number of channels freed.
+int audio_se_reset(void);
 int wav_unprepare(int id);
 int bgm_unprepare(int id);
 int wav_play(int id);

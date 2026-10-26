@@ -300,10 +300,12 @@ static float cb_calc_fade(struct fade *fade)
  * The movies' internal volume is for a channel without a name and with
  * bStreaming (+0x2c, +0x10), which a movie's sound is (0x4a3140; see
  * mixer_stream_play_group). A file's Prepare names its channel (0x4a4b20), so
- * every script channel takes its group's; so does every sound the engine
- * plays itself here (port strategy: the original's sound table is prepared
- * from memory, 0x4a32fc, and whether its channels have bStreaming was not
- * traced).
+ * every script channel takes its group's; so does every PlaySe sound (the
+ * original's SE table makes its channels with bStreaming 0, 0x4a0040(0) at
+ * 0x49b8fc, and names them as Prepare does) and every sound the engine plays
+ * itself here (port strategy for these: the original plays them from memory
+ * through the SE table, 0x4a3250, also on channels with bStreaming 0; the
+ * group it gives them, 2, was read, 0x4a4b70, and is the timemap's here).
  */
 static float channel_gain(struct channel *ch, float volume)
 {

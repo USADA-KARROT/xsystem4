@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -211,6 +212,228 @@ int audio_get_channel_group(int id)
 	if (!ch && id >= 0)
 		ch = id_pool_get(&bgm, id);
 	return ch ? channel_get_group(ch) : -1;
+}
+
+/*
+ * v14 sound groups: KiwiSoundEngine's system sound (SE) table.
+ *
+ * Original (static disassembly of the CN executable): the sound engine keeps
+ * two tables keyed by an int ID (both built by 0x4a2f00; hash maps, 0x442fc0):
+ * the general IDs' (+0xc8: Prepare, Play, Stop, IsPlay, Unprepare,
+ * GetGroupNum, GetFreeID) and the SE IDs' (+0xf8: the six SE functions), so
+ * the two ID spaces are apart and no general function reaches an SE channel.
+ * An SE entry (0x499780, got or made; a new one takes the table's defaults,
+ * PlaySpan 0 and bMultiPlay 1, 0x4a2fa5 and 0x4a2fac) has PlaySpan,
+ * bMultiPlay and its channels by the sound name PlaySe was given (a
+ * multimap, compared byte for byte, 0x49bbd0; channels of one name in the
+ * order they came). Its channels have bStreaming 0 (0x4a0040(0) at 0x49b8fc),
+ * so they take the timemap's group of the file, else 2, and that group's
+ * internal volume, as a Prepare without bStreaming does (0x4a3460, 0x4a11b0).
+ *
+ * Here an entry holds channels of its own (never in the wav or bgm pool),
+ * and the table is used on the main thread only: by the HLL functions and by
+ * KiwiSoundEngine's _ModuleFini. A channel is freed with channel_close, which
+ * stops it under the device lock before freeing it, as every channel is. The
+ * entry's second table (+0x14: the engine's own sounds from memory, as the
+ * parts engine's CSound plays them) is not here: those sounds play through
+ * audio_play_sound (G4).
+ */
+struct se_channel {
+	char *name;
+	struct channel *ch;	// NULL only inside audio_se_play
+};
+
+struct se_entry {
+	int id;
+	int play_span;
+	bool multi_play;
+	struct se_channel *channels;
+	int nr_channels;
+};
+
+static struct se_entry *se_entries;
+static int se_nr_entries;
+
+static struct se_entry *se_find(int id)
+{
+	for (int i = 0; i < se_nr_entries; i++) {
+		if (se_entries[i].id == id)
+			return &se_entries[i];
+	}
+	return NULL;
+}
+
+// 0x499780: the entry of the ID, made with the table's defaults when there is
+// none. The pointer lasts until the next entry is made.
+static struct se_entry *se_get(int id)
+{
+	struct se_entry *e = se_find(id);
+	if (e)
+		return e;
+	se_entries = xrealloc_array(se_entries, se_nr_entries, se_nr_entries + 1, sizeof(struct se_entry));
+	e = &se_entries[se_nr_entries++];
+	*e = (struct se_entry){ .id = id, .play_span = 0, .multi_play = true };
+	return e;
+}
+
+static void se_remove(struct se_entry *e, int i)
+{
+	if (e->channels[i].ch)
+		channel_close(e->channels[i].ch);
+	free(e->channels[i].name);
+	memmove(&e->channels[i], &e->channels[i + 1], (size_t)(e->nr_channels - i - 1) * sizeof(struct se_channel));
+	e->nr_channels--;
+}
+
+static void se_clear(struct se_entry *e)
+{
+	while (e->nr_channels)
+		se_remove(e, e->nr_channels - 1);
+	free(e->channels);
+	e->channels = NULL;
+}
+
+// 0x49ab10: frees the entry's channels that do not play, but `keep`.
+static void se_collect(struct se_entry *e, const struct channel *keep)
+{
+	for (int i = 0; i < e->nr_channels; ) {
+		if (e->channels[i].ch != keep && !channel_is_playing(e->channels[i].ch))
+			se_remove(e, i);
+		else
+			i++;
+	}
+}
+
+// SetSeParam (0x4a6550): makes the entry and sets both; true.
+bool audio_se_set_param(int se_id, int play_span, bool multi_play)
+{
+	struct se_entry *e = se_get(se_id);
+	e->play_span = play_span;
+	e->multi_play = multi_play;
+	return true;
+}
+
+// The file of a name as PlaySe opens it, with bStreaming 0: in the sound
+// archive, then the voice archive (as before this table: port strategy; the
+// original's order in 0x4a4050 was not traced).
+static struct channel *se_open(const char *name)
+{
+	static const enum asset_type types[] = { ASSET_SOUND, ASSET_VOICE };
+	for (unsigned i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
+		int no;
+		if (asset_exists_by_name(types[i], name, &no))
+			return channel_open_streaming(types[i], no, false);
+	}
+	return NULL;
+}
+
+/*
+ * PlaySe (0x4a3340: the entry, got or made, then 0x49b790 picks the channel).
+ * When the name has channels: with PlaySpan > 0, one of them that plays at a
+ * position below PlaySpan (unsigned, 0x49b85a) drops the call: false, nothing
+ * plays; else without bMultiPlay the first of them is stopped and prepared
+ * again. Otherwise, and when the name has none, a new channel. Each time the
+ * entry's channels that do not play are freed first, but the one taken again
+ * (0x49ab10). The channel is then prepared from the name (0x4a3460: false
+ * when there is no file) and played.
+ *
+ * Port strategies: the position is the port's own (channel_get_pos: the
+ * frames the channel's refill has read, which counts from the chunk after the
+ * zeroed first one in steps of a chunk; the original reads its buffer's
+ * GetPos, inferred to be the time played, 0x6fc3f0), so the game's 40 ms end
+ * at the second refill, 46 to 70 ms after the call with the device's
+ * 1024-frame callbacks; a channel taken again is closed and opened anew from
+ * the name in its place (its first chunk is a zeroed buffer, as after every
+ * Play); a name without a file leaves no channel (the original's stays, not
+ * playing, until the entry's next collection, which no function here can
+ * tell apart).
+ */
+bool audio_se_play(int se_id, const char *name)
+{
+	struct se_entry *e = se_get(se_id);
+	struct channel *first = NULL;
+	for (int i = 0; i < e->nr_channels; i++) {
+		struct channel *ch = e->channels[i].ch;
+		if (strcmp(e->channels[i].name, name))
+			continue;
+		if (!first)
+			first = ch;
+		if (e->play_span > 0 && channel_is_playing(ch)
+		    && (unsigned)channel_get_pos(ch) < (unsigned)e->play_span) {
+			se_collect(e, NULL);
+			return false;
+		}
+	}
+	int slot;
+	if (first && !e->multi_play) {
+		se_collect(e, first);
+		for (slot = 0; e->channels[slot].ch != first; slot++)
+			;
+		channel_close(first);
+		e->channels[slot].ch = NULL;
+	} else {
+		se_collect(e, NULL);
+		e->channels = xrealloc_array(e->channels, e->nr_channels, e->nr_channels + 1, sizeof(struct se_channel));
+		slot = e->nr_channels++;
+		e->channels[slot] = (struct se_channel){ .name = xstrdup(name), .ch = NULL };
+	}
+	struct channel *ch = se_open(name);
+	if (!ch) {
+		se_remove(e, slot);
+		return false;
+	}
+	e->channels[slot].ch = ch;
+	return channel_play(ch);
+}
+
+// StopSe (0x4998c0 -> 0x49a9b0): frees every channel of the entry and keeps
+// the entry and its parameters; false without an entry.
+bool audio_se_stop(int se_id)
+{
+	struct se_entry *e = se_find(se_id);
+	if (!e)
+		return false;
+	se_clear(e);
+	return true;
+}
+
+// IsPlaySe (0x499920 -> 0x49ad40): a channel of the entry plays.
+bool audio_se_is_playing(int se_id)
+{
+	struct se_entry *e = se_find(se_id);
+	for (int i = 0; e && i < e->nr_channels; i++) {
+		if (channel_is_playing(e->channels[i].ch))
+			return true;
+	}
+	return false;
+}
+
+/*
+ * GetFreeSeID (0x499700): the first ID from min on that has no entry, max not
+ * included; 0 when there is none, and for min == max. As in the original the
+ * IDs go up in 32 bits and wrap, so with min > max the search goes on past
+ * INT_MAX; it stops within one ID more than there are entries.
+ */
+int audio_se_get_free_id(int min_id, int max_id)
+{
+	for (uint32_t id = (uint32_t)min_id; id != (uint32_t)max_id; id++) {
+		if (!se_find((int)id))
+			return (int)id;
+	}
+	return 0;
+}
+
+int audio_se_reset(void)
+{
+	int n = 0;
+	for (int i = 0; i < se_nr_entries; i++) {
+		n += se_entries[i].nr_channels;
+		se_clear(&se_entries[i]);
+	}
+	free(se_entries);
+	se_entries = NULL;
+	se_nr_entries = 0;
+	return n;
 }
 
 static int audio_unprepare(struct id_pool *pool, int id)
