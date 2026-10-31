@@ -27,6 +27,7 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -81,8 +82,31 @@ struct activity {
 	int nr_end_keys;
 };
 
-static struct activity activities[MAX_ACTIVITIES];
+static struct activity *activities;
+static size_t activities_capacity;
 static int nr_activities = 0;
+
+/* The native registry grows by inserting nodes (0x563ec0 -> 0x564200).
+ * Keep this port's indexed table, growing its storage without a small
+ * fixed limit. The growth policy and allocation bounds are port choices. */
+static bool activity_reserve(void)
+{
+	if ((size_t)nr_activities < activities_capacity)
+		return true;
+	size_t limit = SIZE_MAX / sizeof(*activities);
+	if (limit > INT_MAX)
+		limit = INT_MAX;
+	if ((size_t)nr_activities >= limit)
+		return false;
+	size_t capacity = MAX_ACTIVITIES;
+	if (activities_capacity)
+		capacity = activities_capacity > limit / 2
+			? limit : activities_capacity * 2;
+	activities = xrealloc_array(activities, activities_capacity, capacity,
+			sizeof(*activities));
+	activities_capacity = capacity;
+	return true;
+}
 
 /* Parts numbers for activity components use a high range to avoid
  * collision with game-allocated parts (which start from low numbers). */
@@ -129,6 +153,9 @@ void pe_v14_activity_parts_released(int parts_no)
 // (0x4b30f0, 0x4b4bf0): no activity name is taken and the numbers start over.
 void pe_v14_activity_reset(void)
 {
+	free(activities);
+	activities = NULL;
+	activities_capacity = 0;
 	nr_activities = 0;
 	next_activity_parts_no = ACTIVITY_PARTS_BASE;
 	free(controller_released);
@@ -3180,7 +3207,9 @@ static bool PartsEngine_CreateActivity(struct string *name)
 {
 	if (find_activity(name) >= 0)
 		return true;
-	if (nr_activities >= MAX_ACTIVITIES)
+	if (ain->version != 14 && nr_activities >= MAX_ACTIVITIES)
+		return false;
+	if (!activity_reserve())
 		return false;
 	struct activity *act = &activities[nr_activities];
 	snprintf(act->name, sizeof(act->name), "%s", name->text);

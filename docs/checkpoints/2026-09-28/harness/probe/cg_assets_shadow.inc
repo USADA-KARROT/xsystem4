@@ -151,3 +151,62 @@ void probe_install_sound_assets(const char *const *names, int n)
 int probe_sound_fetch_count(void) { return probe_snd_log_n; }
 int probe_sound_fetch_at(int i) { return i >= 0 && i < probe_snd_log_n && i < PROBE_SOUND_LOG_MAX ? probe_snd_log[i] : -3; }
 void probe_sound_fetch_clear(void) { probe_snd_log_n = 0; }
+
+/* activity-capacity: exactly one synthetic Pact file. Unlike the activity
+ * tree wrappers, this supplies bytes to the production ReadActivityFile.
+ * The caller owns the bytes until uninstall; every fetch owns its copy. */
+static const uint8_t *probe_pact_bytes;
+static size_t probe_pact_size;
+static struct asset_manager *probe_pact_previous;
+static struct asset_manager probe_pact_manager;
+static struct archive_ops probe_pact_ops;
+static struct archive probe_pact_archive;
+static bool probe_pact_installed;
+
+static bool probe_pact_exists_by_name(struct asset_manager *manager,
+		const char *name, int *id_out)
+{
+	(void)manager;
+	if (!name || strcmp(name, "CapacityFixture.pactex"))
+		return false;
+	if (id_out)
+		*id_out = 0;
+	return true;
+}
+
+static struct archive_data *probe_pact_get_by_name(struct asset_manager *manager,
+		const char *name, int *id_out)
+{
+	if (!probe_pact_exists_by_name(manager, name, id_out))
+		return NULL;
+	struct archive_data *d = xcalloc(1, sizeof(*d));
+	d->data = xmalloc(probe_pact_size);
+	memcpy(d->data, probe_pact_bytes, probe_pact_size);
+	d->size = probe_pact_size;
+	d->archive = &probe_pact_archive;
+	return d;
+}
+
+void probe_install_pact_asset(const uint8_t *bytes, size_t size)
+{
+	assert(!probe_pact_installed && bytes && size);
+	probe_pact_previous = assets[ASSET_PACT];
+	probe_pact_bytes = bytes;
+	probe_pact_size = size;
+	probe_pact_ops.free_data = probe_cg_free_data;
+	probe_pact_archive.ops = &probe_pact_ops;
+	probe_pact_manager.exists_by_name = probe_pact_exists_by_name;
+	probe_pact_manager.get_by_name = probe_pact_get_by_name;
+	assets[ASSET_PACT] = &probe_pact_manager;
+	probe_pact_installed = true;
+}
+
+void probe_uninstall_pact_asset(void)
+{
+	assert(probe_pact_installed && assets[ASSET_PACT] == &probe_pact_manager);
+	assets[ASSET_PACT] = probe_pact_previous;
+	probe_pact_previous = NULL;
+	probe_pact_bytes = NULL;
+	probe_pact_size = 0;
+	probe_pact_installed = false;
+}

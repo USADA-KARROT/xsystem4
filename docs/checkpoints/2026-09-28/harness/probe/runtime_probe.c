@@ -189,6 +189,7 @@ static void init_probe(const char *path) {
 #include "layer_input_fixture.inc"
 #include "parts_sound_name_fixture.inc"
 #include "sound_se_fixture.inc"
+#include "activity_capacity_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -283,6 +284,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"v13-heap"))return test_v13_heap();
     if(!strcmp(argv[2],"heap-version-boundary"))return test_heap_version_boundary();
     if(!strcmp(argv[2],"activity-release"))return test_activity_release();
+    if(!strcmp(argv[2],"activity-capacity"))return test_activity_capacity();
     if(!strcmp(argv[2],"parts-rotate-xy"))return test_parts_rotate_xy();
     if(!strcmp(argv[2],"button-text"))return test_button_text();
     if(!strcmp(argv[2],"gradation-text"))return test_gradation_text();
