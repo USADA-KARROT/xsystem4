@@ -1,0 +1,16 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 126 模式 PASS、sanitizer 0	G8 的提交後驗證（程式 2d76d52；814a83c 只加文件），見 key-events 的 verify.tsv
+U1 第一輪：父版本加新探針	預設及 GBK	既有 123 模式 PASS；只有四個新模式失敗，失敗的案和修前檢查相同	搬移前（parent 3f20f3e）；證明 harness 的改動不影響既有模式；歷史
+U1 第一輪：實作後	預設及 GBK	各 127 模式 PASS、sanitizer 0	搬移前（parent 3f20f3e 加這一組的差異）；歷史
+U1 第一輪：審查後	預設及 GBK	各 127 模式 PASS、sanitizer 0，每個模式的結果和實作後逐行相同	只補證據檔與私人量測工具，程式與探針沒改；歷史
+搬到 814a83c 之上：提交前	預設及 GBK	各 130 模式 PASS、sanitizer 0；save-text-lines 8／8、movie-audio-length 6／6、parts-leaks 7／7、math-inverse-trig 7／7、text-size 12／12	parent 814a83c 加這一組的差異（src／include 4 個檔 +45／−8，diff 6623ee10a6dd）；模式清單是 G8 的 126 個加 U1 的 4 個，沒有重複
+搬到 814a83c 之上：審查後	預設及 GBK	各 130 模式 PASS、sanitizer 0，和提交前相同	審查後只改提交說明，程式、探針、harness 一個位元組都沒改
+修前檢查（搬移前）	預設及 GBK	27 案中 save-text-lines SX1–SX4、SX6，movie-audio-length ML1–ML3、ML5，parts-leaks PK1–PK4、PK6，math-inverse-trig MI1、MI2、MI6 失敗，其餘通過；probe exit 1、sanitizer 0；兩字集逐案相同	parent 3f20f3e 的 src／include 加當時的探針；那時還沒有 MI7；歷史
+修前檢查（提交前）	預設及 GBK	28 案中同樣 17 案失敗，MI7 等 11 個守衛通過；probe exit 1、sanitizer 0；兩字集逐案相同；text-size 12 案通過	parent 814a83c 的 src／include 加當時最終的探針；和搬移前的表比，27 案狀態與第一個失敗訊息全同，只多 MI7
+突變：U1 第一輪	預設及 GBK	37 個全部被殺：影片 3、Math 10、parts 13、多行文字 11（含兩個適用範圍的突變：只對 v14 補換行、只在 GBK 規則補換行）	等價、沒有跑的 9 種改法寫了理由（例如先複製新名稱再釋放舊的、asinf 換成倍精度 asin 再轉單精度）
+突變：搬到 814a83c 之上	預設及 GBK	U1 的 37 個重產後內容逐項相同，結果相同；新加 4 個（v12 以下或 v11 以下改回傳弧度，Asin、Acos 各兩個）都只被 MI7 殺；1 個資訊性的存活	資訊性的那一個是「讀檔時只在 CG 讀得到才釋放讀出的名稱」，列在 parts-leaks 的 Not covered
+突變：合計	預設及 GBK	42 個：必殺的 41 個全部被殺，其中 7 個只靠 sanitizer 中止；1 個存活（資訊性，Not covered）	只靠 sanitizer 中止的 7 個都在 sanitizer 報告之後中止（例如讀到緩衝區外、用到已釋放的字串）；沒有 ASan 的建置下會怎樣沒有驗證
+審查者自己的突變	預設及 GBK	搬移前的語義審查 8 個：6 個被殺、2 個存活（v12 以下改弧度，後來補 MI7 殺掉；名稱只在 CG 讀得到時才釋放，Not covered）；搬移後的整合審查 5 個：3 個被殺、2 個存活	搬移後存活的兩個：存在檢查改成上游只問檔案在不在的寫法（檔在而解不開的情形沒有案例）、拿掉一個模式的分派（掉進 timer 的預設路徑，rc 0、sanitizer 0）；都沒有併入 42
+洩漏偵測的工具	本機 ARM64	ASan 的 detect_leaks=1 直接中止（rc 134）；leaks 讀不了 ASan 行程（rc 255）；對沒有 sanitizer 的最小程式 leaks 抓到 10 個洩漏	所以改用 ASan 配置器的 malloc／free 掛鉤計數；不是 LeakSanitizer
+修前檢查（提交後）	預設及 GBK	四個模式 28 案逐案和提交前的修前表相同（0 案缺、0 案多、0 案狀態不同、0 案訊息不同）；text-size 兩行 rc 0、sanitizer 0、12 案通過	parent 814a83c 的 src／include 加提交的探針；before.tsv 是這一次的逐案表
+提交後驗證	預設及 GBK	各 130 模式 PASS、sanitizer 0；save-text-lines 8／8、movie-audio-length 6／6、parts-leaks 7／7、math-inverse-trig 7／7、text-size 12／12	HEAD e5d8963，沒有未提交的改動

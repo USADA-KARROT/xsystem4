@@ -172,6 +172,7 @@ wip 的 GB18030 字元處理（`git diff e8bd5ab 22e9496 -- src/parts/text.c src
 ### 6.7 e61f4b3（Math Asin/Acos）
 - 結果樹 `Math.c:316-317` `HLL_EXPORT(Asin, asinf)/(Acos, acosf)` 與 `Math.c:346-347` `HLL_EXPORT(Asin, Math_Asin)/(Acos, Math_Acos)` 並存。wip 版回傳度（`rad2deg`），與 `Math_Sin/Cos/Tan` 收度一致；上游版回傳弧度。
 - HLL 綁定對同名 export 取哪一個：未驗證（`src/vm.c` 的 link 邏輯未逐行讀）。解法：合併時刪上游兩行、保留 wip 的度制版本，或反向；不能兩者都留。
+- 2026-11-01 更新（U1，程式 `e5d8963`）：沒有 cherry-pick，上游的兩行 export 沒有搬，所以不會重複綁定；`Math_Asin`／`Math_Acos` 改成 `ain->version >= 14` 時回傳弧度（原版分派 `0x4c6520` 的 case 3、4 不換算單位），v13 以下保留度（沒有原版依據，只是保留舊行為）。見 [upstream-fixes](upstream-fixes/README.md)。
 
 ## 7. libsys4：8c93946 × upstream/master (20560d4)
 
@@ -187,7 +188,7 @@ wip 的 GB18030 字元處理（`git diff e8bd5ab 22e9496 -- src/parts/text.c src
 
 | # | 位置 | 風險 | 狀態 |
 |---|---|---|---|
-| 1 | `Math.c` Asin/Acos 重複 export、度/弧度不一致 | 執行期綁定不確定 | 未驗證（見 6.7） |
+| 1 | `Math.c` Asin/Acos 重複 export、度/弧度不一致 | 執行期綁定不確定 | 未驗證（見 6.7）；2026-11-01 U1 沒有搬上游的 export，不會重複 |
 | 2 | `SealEngine.c` grayscale/edge_reduction 存值不進渲染 | 功能未接上 | 見 6.6 |
 | 3 | `parts.c` `PE_RemoveController` 回傳 `delegate_index`（05820dc） | v14 EraseLayer 期望值 | 未驗證 |
 | 4 | `parts.c` `root_params` 讓無 parent 也走 `parts_combine_params`（6ea8af9） | v14 parts global 計算 | 未驗證 |
@@ -212,7 +213,7 @@ wip 的 GB18030 字元處理（`git diff e8bd5ab 22e9496 -- src/parts/text.c src
 | 6 | C audio：**d5b27a0（解 1 處，VOICE 分支搬進 `channel_open_archive_data`）**；測語音/BGM loop | 1 處 |
 | 7 | C alpha clipper：**461eca1（解 `parts_internal.h` 1 處；`render.c` 視批 5 是否已進）** | 1–2 處 |
 | 8 | C motion/PartsFunc：**fa09b00（解 motion.c 排版）** + addc26c + 267f7bb + 167d75d 同批 | 1 處 |
-| 9 | C Math：e61f4b3，**刪上游兩行 export 保留 wip 度制**（或反向，擇一） | 語義 |
+| 9 | C Math：e61f4b3，**刪上游兩行 export 保留 wip 度制**（或反向，擇一）；2026-11-01 U1 改成 v14 以上弧度、v13 以下度，見 6.7 的更新 | 語義 |
 | 略 | D：68e8257、960c97e（文件，可直接帶）、135cae2、e93cdda、03f9e7e（無害可帶）；pin：77d9e77、5bb36c7 不 pick | — |
 
 另一條路徑：直接 `git merge upstream/master`（一次解 4 檔 5 塊 + submodule），衝突總量與上表相同，但第 8 節的 9 個語義點不會在衝突中浮現，仍需逐一檢查。

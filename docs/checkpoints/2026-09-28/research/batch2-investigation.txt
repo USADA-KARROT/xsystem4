@@ -1,5 +1,5 @@
 ========================= 調查 =========================
-Math 組已完成原版 EXE 反組譯確認，並給出 selector 和新 C 函式。結論：CN 走錯的 122 次（Abs#1 33、Min#1-#5 24、Max#1-#5 30、Clamp#1 35）全部可以只靠 math_select_function 依宣告形狀分流修好。int Clamp 與現行 Math_Clamp 對全部邊界值等價，不必改。Math 其餘 29 個宣告沒有同名多載，也沒有 float/int 原型錯配，掃描報告沒有漏列。另外發現一個語義差異，但在 CN 裡實際影響為 0：原版 Asin/Acos 回傳弧度，xsystem4（和 Rufim）回傳角度，不過只有沒被呼叫的 AFL_Asin/AFL_Acos（FUNC 6435/6436）會用到。
+Math 組已完成原版 EXE 反組譯確認，並給出 selector 和新 C 函式。結論：CN 走錯的 122 次（Abs#1 33、Min#1-#5 24、Max#1-#5 30、Clamp#1 35）全部可以只靠 math_select_function 依宣告形狀分流修好。int Clamp 與現行 Math_Clamp 對全部邊界值等價，不必改。Math 其餘 29 個宣告沒有同名多載，也沒有 float/int 原型錯配，掃描報告沒有漏列。另外發現一個語義差異，但在 CN 裡實際影響為 0：原版 Asin/Acos 回傳弧度，xsystem4（和 Rufim）回傳角度，不過只有沒被呼叫的 AFL_Asin/AFL_Acos（FUNC 6435/6436）會用到。（2026-11-01：見本段末的更新。）
 
 EXE 定位：名稱字串 "Math" 在 0x7cee14，名稱比較鏈 0x49478f（call 0x41bfa0，相等時 mov eax,0x4c6520）指向 dispatcher 0x4c6520。0x4c654c 做 cmp eax,0x26（39 格，剛好對上 39 個宣告），0x4c6555 跳到跳表 0x4c6ca0。各格的分支形狀（int 版用 0x659f20 取參數、float 版用 0x65a070 取參數；參數個數用 +0x28 步距判斷）和 libraries.txt 的 index 0..38 逐格吻合。證據檔：scratchpad/overload2/math/table.txt、disp.txt、helpers1.txt、helpers2.txt。
 
@@ -28,6 +28,7 @@ EXE 定位：名稱字串 "Math" 在 0x7cee14，名稱比較鏈 0x49478f（call 
   [錯] Math.Clamp[38]#1 float(float value,float low,float high) x35: low>value 回 low；否則 high>value 回 value；否則回 high。比較都是 ordered：value 是 NaN 時回 high；high 是 NaN 時回 NaN；value==high 時回 high（-0.0/+0.0 以 high 為準）。現行未綁到的 Math_ClampF 在 NaN value 時回 NaN，和原版不同，所以另寫 Math_Clamp3F
   [錯] Math.Asin[3] / Math.Acos[4] float(float) x1: 原版直接回傳弧度（Intel libm asinf 0x78641d、acosf 0x786040，dispatcher 沒有乘換算常數）。對照：Cos/Sin/Tan 在 dispatcher 先 mulss [0x81306c]=0.017453292，也就是輸入是角度
 OPEN: SCY dump 與實際發行的受保護 EXE 是否逐位元一致，沒有獨立驗證（exe-findings.md 已註明）。本組語義以 dump 的 0x4c6520 為準。 ; Asin/Acos：EXE 顯示回傳弧度，xsystem4 和 Rufim 回傳角度。CN 只有 AFL_Asin/AFL_Acos（FUNC 6435/6436）會呼叫，而且沒有任何引用，所以對 CN 沒有實際影響。要不要改成弧度，需要先確認其他舊遊戲的原版語義（可能不同）。本提案不改，未驗證其他作品。 ; float Min/Max 的 signaling NaN：UCRT 的 _fdclass 把 sNaN 也當 NaN，回傳另一邊；目前的 isnan 實作行為相同，但 sNaN 在 ffi 傳遞中可能先被 quiet 掉。未驗證，實務上不會出現。 ; Rand/SetSeed：EXE 使用內部 521 格狀態產生器（0x4c676a、0x4c6e40），xsystem4 用 libc rand/srand，亂數序列不同。MTRand 用的 0x4c6400 是否等同 MT19937：未驗證。不影響 ABI，但如果要重現原版亂數序列，需要另外處理。 ; Ceil/Floor/Round 超出 int 範圍或 NaN 時，x86 cvttss2si 得到 INT_MIN，arm64 的 (int) 轉換則是飽和或 UB。要不要補一個 saturate-to-INT_MIN 的 helper，待決定。CN 實際輸入範圍未驗證。 ; ffi.c 正由另一位工程師修改，掛點行號（a8d92df:1161-1180）會漂移。合併時請放在 Array selector 區塊之後、if (funcptr) 之前。
+（2026-11-01 更新，U1 的程式 `e5d8963`：v14 以上的 Asin／Acos 改回傳弧度，v13 以下保留度（沒有原版依據）；`0x78641d`／`0x786040` 是 asinf／acosf，這一點只依函式的形狀推論，沒有符號。見 research/upstream-fixes/README.md。）
 ========================= 調查 =========================
 HashMap.Any 原版語義已用 EXE 反組譯確認。HashMap 的 dispatcher 在 0x654fb0，從名稱字串 0x7cee30 經比較分支 0x49475f 找到，跳表在 0x655264，共 14 格，正好對上 14 個宣告。
 - [7] Any(id)：走 case 0x655132，回傳 !helper0x6556a0。helper 的語義是「id 有效且 size==0」，所以 Any(id) = !(id 有效 && 空)。無效 id 在原版會回 true。

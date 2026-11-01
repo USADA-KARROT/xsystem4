@@ -1,0 +1,30 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+save-text-lines	SX1	FAIL	FAIL	是	SX1 v14 GBK rule: 1 line(s) after loading, 4 before (text bcd79c79d2d2b6a1, before bcd79c790ad2d20a0ab6a1)	5	修前失敗，符合預期（讀回變成一行）
+save-text-lines	SX2	FAIL	FAIL	是	SX2 v14 SJIS rule: 1 line(s) after loading, 3 before (text 414282a082a243, before 41420a82a082a20a43)	4	修前失敗，符合預期（讀回變成一行）
+save-text-lines	SX3	FAIL	FAIL	是	SX3 trailing line break: 1 line(s) after loading, 2 before (text bcd7, before bcd70a)	19	修前失敗，符合預期（讀回變成一行）
+save-text-lines	SX4	FAIL	FAIL	是	SX4: 5 line string(s) from the first PE_Load were not freed	2	修前失敗，符合預期（讀出的行字串沒有釋放）
+save-text-lines	SX5	PASS	PASS	是	—	0	通過：守衛（兩種規則的單行與空文字不變）
+save-text-lines	SX6	FAIL	FAIL	是	SX6 v13, three lines: 1 line(s) after loading, 3 before (text 41424382a0, before 41420a430a82a0)	4	修前失敗，符合預期（讀回變成一行）
+save-text-lines	SX7	PASS	PASS	是	—	0	通過：守衛（v13 的單行不變）
+save-text-lines	SX8	PASS	PASS	是	—	0	通過：守衛（存檔的格式不變）
+movie-audio-length	ML1	FAIL	FAIL	是	ML1 long-stereo.ogg: 54272 frames given, the file has 52920	4	修前失敗，符合預期（多送緩衝區尾端的樣本，時鐘也多算）
+movie-audio-length	ML2	FAIL	FAIL	是	ML2 synthetic.apeg: 54272 frames given, the file has 52920	4	修前失敗，符合預期（多送緩衝區尾端的樣本，時鐘也多算）
+movie-audio-length	ML3	FAIL	FAIL	是	ML3 tail-one.apeg: 51200 frames given, the file has 49729	5	修前失敗，符合預期（最後一格給 1024 個樣本，實際只有 1 個）
+movie-audio-length	ML4	PASS	PASS	是	—	0	通過：守衛（seek 後第一格不變）
+movie-audio-length	ML5	FAIL	FAIL	是	ML5: 31774 frames after the seek, want 30870	3	修前失敗，符合預期（seek 之後多送，時鐘也多算）
+movie-audio-length	ML6	PASS	PASS	是	—	0	通過：守衛（MP2 每格的長度就是緩衝區，修前修後相同）
+parts-leaks	PK1	FAIL	FAIL	是	PK1 v14 release: the state's CG name was not freed with the parts	6	修前失敗，符合預期（動畫狀態的名稱沒有釋放）
+parts-leaks	PK2	FAIL	FAIL	是	PK2 v14: the first CG name was not freed by the second SetLoopCG	4	修前失敗，符合預期（被取代的名稱沒有釋放）
+parts-leaks	PK3	FAIL	FAIL	是	PK3 v14 by_index: 6 of the 6 calls left their CG allocated	4	修前失敗，符合預期（確認存在用的 CG 沒有釋放）
+parts-leaks	PK4	FAIL	FAIL	是	PK4 v13 by name: 6 of the 6 calls left their CG allocated	2	修前失敗，符合預期（確認存在用的 CG 沒有釋放）
+parts-leaks	PK5	PASS	PASS	是	—	0	通過：守衛（v14 的 by-name 本來就不載入 CG）
+parts-leaks	PK6	FAIL	FAIL	是	PK6: 3 string(s) in all left from the first PE_Load	4	修前失敗，符合預期（讀出的 CG 名稱沒有釋放）
+parts-leaks	PK7	PASS	PASS	是	—	0	通過：守衛（SetLoopCG 失敗時狀態不變）
+math-inverse-trig	MI1	FAIL	FAIL	是	MI1 v14: Asin(1) = 89.9999924, want 1.57079633 (radians, within 2 ulp)	4	修前失敗，符合預期（v14 回傳度）
+math-inverse-trig	MI2	FAIL	FAIL	是	MI2 v14: Acos(0) = 90, want 1.57079633 (radians, within 2 ulp)	4	修前失敗，符合預期（v14 回傳度）
+math-inverse-trig	MI3	PASS	PASS	是	—	0	通過：守衛（定義域外是 NaN）
+math-inverse-trig	MI4	PASS	PASS	是	—	0	通過：守衛（v13 仍是度）
+math-inverse-trig	MI5	PASS	PASS	是	—	0	通過：守衛（其他三角函式不變）
+math-inverse-trig	MI6	FAIL	FAIL	是	MI6 v15: Asin(1) = 89.9999924, want 1.57079633 (radians, within 2 ulp)	2	修前失敗，符合預期（v15 回傳度；期望是移植版的選擇）
+math-inverse-trig	MI7	PASS	PASS	是	—	0	通過：守衛（v12 與 v1 仍是度）
+text-size	全部 12 案	PASS	PASS	是	—	0	通過：只改 TS3 的說明（經存讀檔的多行文字改由 save-text-lines 測），父版本上照舊通過

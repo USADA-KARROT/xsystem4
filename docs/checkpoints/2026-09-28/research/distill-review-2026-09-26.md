@@ -120,6 +120,7 @@ wip 修改的既有檔（53 個）與上游同期修改的檔（55 個）交集 
 - wip 改 `src/parts/parts.c`：`parts_state_free` 加 `parts_clear_hit_mask`（parts.c:175）、`parts_release` 加 `parts_message_window_free`（parts.c:1002）、`PE_Update` 時間 fallback（1172-1188）、`PE_RemoveController` 泛化（2211-2247）。
 - 同檔不同函式；merge-tree 顯示 parts.c 自動合併（不在 CONFLICT 清單）。
 - 語意層面：wip 的 heap 壓力 GC（heap.c:505-521）+ orphan sweep（heap.c:380-457）是在 VM heap 層掩蓋 refcount 洩漏；上游是在 parts 層修真正 leak。兩者不互斥，但 wip 的 sweep 會把上游想暴露的 bug 藏起來。上游 5d032d7 的 4 個 `free_string`/`cg_free` 修正 wip 目前沒有。
+  > 2026-11-01 更新（U1，程式 `e5d8963`）：parts 部分還留著的洩漏照這個提交的想法補了（動畫名稱兩處、只為確認存在而載入的 CG 兩處、`save.c` 讀出的 CG 名稱）；存在檢查沒有改成 `asset_exists`，v14 以前 gauge 的 CG 沒有做，AnteaterADVEngine 的部分不在範圍。見 [upstream-fixes](upstream-fixes/README.md)。
 
 ### 3.4 message_window.c vs 上游 parts 文字系統
 
