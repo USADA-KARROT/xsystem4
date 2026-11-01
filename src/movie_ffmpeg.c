@@ -220,9 +220,12 @@ static int audio_callback(sts_mixer_sample_t *sample, void *data)
 		return STS_STREAM_COMPLETE;
 	}
 	const int nr_channels = 2;
-	unsigned samples = mc->audio.frame->linesize[0] / mc->bytes_per_sample;
-	if (trim)
-		samples = mc->audio.frame->nb_samples - trim;
+	// The frame holds nb_samples samples per channel. linesize[0] is the
+	// size of a plane's buffer, which can be longer: a Vorbis frame after a
+	// short block, or the one the end of the stream cuts, holds fewer
+	// samples than its buffer, and the rest would be played (and counted
+	// by the clock) after the frame's end.
+	unsigned samples = mc->audio.frame->nb_samples - trim;
 	if (samples * nr_channels != sample->length) {
 		free(sample->data);
 		sample->length = samples * nr_channels;

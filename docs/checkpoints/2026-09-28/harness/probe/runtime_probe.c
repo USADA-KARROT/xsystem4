@@ -195,6 +195,11 @@ static void init_probe(const char *path) {
 #include "key_events_fixture.inc"
 #include "key_scrollbar_fixture.inc"
 #include "key_consumer_fixture.inc"
+#include "forked_cases.inc"
+#include "save_text_lines_fixture.inc"
+#include "movie_audio_length_fixture.inc"
+#include "parts_leaks_fixture.inc"
+#include "math_inverse_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -310,6 +315,10 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"key-events"))return test_key_events();
     if(!strcmp(argv[2],"key-scrollbar"))return test_key_scrollbar();
     if(!strcmp(argv[2],"key-consumer"))return test_key_consumer();
+    if(!strcmp(argv[2],"save-text-lines"))return test_save_text_lines();
+    if(!strcmp(argv[2],"movie-audio-length"))return test_movie_audio_length();
+    if(!strcmp(argv[2],"parts-leaks"))return test_parts_leaks();
+    if(!strcmp(argv[2],"math-inverse-trig"))return test_math_inverse_trig();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

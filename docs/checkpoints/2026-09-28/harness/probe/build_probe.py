@@ -94,6 +94,15 @@ mixer_shadow=here/'probe-audio-mixer.c'
 mixer_shadow.write_text((source/'src/audio_mixer.c').read_text()+"\nvoid probe_audio_pull(float *out, int frames) { audio_callback(NULL, (Uint8 *)out, frames * (int)(sizeof(float) * 2)); }\n")
 mixerobj=here/('audio-mixer-'+a.variant+'.o')
 compiled += [compile_as('src/audio_mixer.c', mixer_shadow, mixerobj)]
+# movie_audio_length_fixture.inc runs a movie's own audio callback (static audio_callback) on the calling
+# thread, as the mixer calls it, and reads what one call gave: the samples, their number and the clock.
+movie_shadow=here/'probe-movie-ffmpeg.c'
+movie_shadow.write_text((source/'src/movie_ffmpeg.c').read_text()+"\nint probe_movie_audio_pull(struct movie_context *mc, const void **data, unsigned *values, double *stream_time) {"
+    " int r = audio_callback(&mc->sts_stream.sample, mc); *data = mc->sts_stream.sample.data; *values = mc->sts_stream.sample.length;"
+    " SDL_LockMutex(mc->timer_mutex); *stream_time = mc->stream_time; SDL_UnlockMutex(mc->timer_mutex); return r; }\n"
+    "int probe_movie_bytes_per_sample(struct movie_context *mc) { return mc->bytes_per_sample; }\n")
+movieobj=here/('movie-ffmpeg-'+a.variant+'.o')
+compiled += [compile_as('src/movie_ffmpeg.c', movie_shadow, movieobj)]
 link=shlex.split(subprocess.check_output(['ninja','-t','commands','src/xsystem4'],cwd=build,text=True).splitlines()[-1])
 link.remove('src/xsystem4.p/ffi.c.o')
 binary=here/('runtime-probe-'+a.variant)
@@ -110,6 +119,7 @@ for i,arg in enumerate(link):
     elif arg=='src/xsystem4.p/video.c.o':link[i]=str(videoobj)
     elif arg=='src/xsystem4.p/asset_manager.c.o':link[i]=str(assetobj)
     elif arg=='src/xsystem4.p/audio_mixer.c.o':link[i]=str(mixerobj)
+    elif arg=='src/xsystem4.p/movie_ffmpeg.c.o':link[i]=str(movieobj)
 run=subprocess.run(link,cwd=build,capture_output=True,text=True)
 (here/('link-'+a.variant+'.log')).write_text(run.stdout+run.stderr)
 if run.returncode:raise SystemExit(run.stderr)

@@ -106,6 +106,45 @@ def generate(parent):
     header = b'APEG' + struct.pack('<IIHH', 16, 0, width, height)
     (out / 'synthetic.apeg').write_bytes(header + bytes(8) + b'SOND'
                                         + struct.pack('<I', len(ogg)) + ogg)
+
+    # movie-audio-length: a stereo Vorbis whose last decoded frame holds a
+    # single sample (the encoder decides the blocks, so a few lengths are
+    # tried and the first that ends that way is kept; none: no file), its
+    # APEG wrapper, an MPEG-1 program stream with MP2 audio (fixed frames of
+    # 1152 samples), and what the ffmpeg command decodes from each,
+    # interleaved, in the decoder's own sample format. lengths.txt lists, per
+    # movie: the reference, bytes per value, the decoded frames (ffprobe's
+    # nb_samples added up), the last frame's nb_samples, and the frames
+    # written (0 when no count was written).
+    def frame_samples(path):
+        text = run([ffprobe, '-v', 'error', '-select_streams', 'a:0', '-show_frames',
+                    '-show_entries', 'frame=nb_samples', '-of', 'csv=p=0', str(path)])
+        return [int(x) for x in text.split()]
+    tail_count = None
+    for count in (49729, 47681, 48705, 50753, 53825, 54849):
+        write_vorbis(out / 'tail-one.ogg', repr(count / 44100), 2)
+        tail_frames = frame_samples(out / 'tail-one.ogg')
+        if audio_inputs[-1]['frames'] == count and tail_frames and tail_frames[-1] == 1 and sum(tail_frames) == count:
+            tail_count = count
+            break
+        audio_inputs.pop()
+        (out / 'tail-one.ogg').unlink()
+    lengths = []
+    if tail_count:
+        tail = (out / 'tail-one.ogg').read_bytes()
+        (out / 'tail-one.apeg').write_bytes(header + bytes(8) + b'SOND'
+                                           + struct.pack('<I', len(tail)) + tail)
+    run(prefix + ['-i', str(out / 'long-stereo.ogg'), '-c:a', 'mp2', '-b:a', '192k',
+                  '-f', 'mpeg', str(out / 'mp2-stereo.mpg')])
+    for name, written, ref, fmt, value_bytes in [('long-stereo.ogg', 52920, 'long-stereo.f32', 'f32le', 4),
+                                           ('tail-one.ogg', tail_count, 'tail-one.f32', 'f32le', 4),
+                                           ('mp2-stereo.mpg', 0, 'mp2-stereo.s16', 's16le', 2)]:
+        if written is None:
+            continue
+        run(prefix + ['-i', str(out / name), '-f', fmt, '-c:a', 'pcm_' + fmt, str(out / ref)])
+        decoded = frame_samples(out / name)
+        lengths.append(f'{name} {ref} {value_bytes} {sum(decoded)} {decoded[-1]} {written}')
+    (out / 'lengths.txt').write_text('\n'.join(lengths) + '\n')
     (out / 'empty.bin').write_bytes(b'')
     (out / 'invalid.bin').write_bytes(b'synthetic invalid movie\n')
 

@@ -57,10 +57,10 @@
  *        screen (all nine origin modes but 1 and 4), its hit box, and both
  *        after the script changes the text or the 字間隔; the same after
  *        PE_Save / PE_Load, also when the save holds the sizes, offsets and
- *        hit boxes of the layout before this one (multi-line texts and font
- *        numerals are left out:
- *        loading does not put the line breaks back and does not draw a
- *        numeral again, both as before).
+ *        hit boxes of the layout before this one (multi-line texts are left
+ *        out here, save-text-lines takes them through PE_Save / PE_Load;
+ *        font numerals are left out: loading does not draw a numeral
+ *        again, as before).
  *   TS4  Font numerals: height size + 2e with a fractional 縁取り and with 太さ,
  *        and the upper-left corner by origin modes 9, 7 and 4 (an odd
  *        height too).

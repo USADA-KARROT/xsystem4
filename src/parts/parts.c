@@ -231,6 +231,8 @@ static void parts_state_free(struct parts_state *state)
 			gfx_delete_texture(&state->anim.frames[i]);
 		}
 		free(state->anim.frames);
+		if (state->anim.cg_name)
+			free_string(state->anim.cg_name);
 		break;
 	case PARTS_NUMERAL:
 		gfx_delete_texture(&state->common.texture);
@@ -1380,7 +1382,7 @@ static int parts_load_numeral_font_separate_string(struct string *cg_name)
 	return font_no;
 }
 
-static int parts_load_numeral_font_combined(struct cg *cg, int cg_no, int w[12])
+static int parts_load_numeral_font_combined(int cg_no, int w[12])
 {
 	// find existing font
 	for (int i = 0; i < parts_nr_numeral_fonts; i++) {
@@ -2275,8 +2277,11 @@ bool parts_animation_set_cg(struct parts *parts, struct parts_animation *anim,
 {
 	bool r = _parts_animation_set_cg(parts, anim, start_no, nr_frames, frame_time,
 			load_loop_cg_by_name, cg_name);
-	if (r)
+	if (r) {
+		if (anim->cg_name)
+			free_string(anim->cg_name);
 		anim->cg_name = string_dup(cg_name);
+	}
 	return r;
 }
 
@@ -2615,13 +2620,16 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList_by_index(int parts_no, int cg_no,
 	if (!parts_state_valid(--state))
 		return false;
 
+	// The CG is loaded only to see that it exists (and decodes); the font
+	// loads its own.
 	struct cg *cg = asset_cg_load(cg_no);
 	if (!cg)
 		return false;
+	cg_free(cg);
 
 	int w[12] = { w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w_minus, w_comma };
 	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
-	n->font_no = parts_load_numeral_font_combined(cg, cg_no, w);
+	n->font_no = parts_load_numeral_font_combined(cg_no, w);
 	return true;
 }
 
@@ -2653,13 +2661,15 @@ bool PE_SetNumeralLinkedCGNumberWidthWidthList(int parts_no, struct string *cg_n
 		return parts_numeral_update(parts, n);
 	}
 
+	// As in the by_index one: the CG only has to exist.
 	int no;
 	struct cg *cg = asset_cg_load_by_name(cg_name->text, &no);
 	if (!cg)
 		return false;
+	cg_free(cg);
 
 	struct parts_numeral *n = parts_get_numeral(parts_get(parts_no), state);
-	n->font_no = parts_load_numeral_font_combined(cg, no, w);
+	n->font_no = parts_load_numeral_font_combined(no, w);
 	return true;
 }
 

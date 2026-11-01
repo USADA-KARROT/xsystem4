@@ -57,13 +57,25 @@ static inline float rad2deg(float rad)
 	return rad * (180.0 / M_PI);
 }
 
+// 0x4c6520 (the Math dispatcher), cases 3 and 4: Asin and Acos call a
+// function on the argument and return its result as it is (only Cos, Sin
+// and Tan, cases 0-2, multiply their argument by the degree-to-radian
+// constant). That those functions (0x78641d, 0x786040) are the C library's
+// asinf and acosf is inferred from their shape, there is no symbol; so v14
+// returns radians. Engines after v14 follow v14 (the port's >= 14 rule, not
+// read). Engines before v14 are not read either: they keep degrees, the
+// port's old behaviour, which has no original to rest on.
 static float Math_Asin(float x)
 {
+	if (ain->version >= 14)
+		return asinf(x);
 	return rad2deg(asinf(x));
 }
 
 static float Math_Acos(float x)
 {
+	if (ain->version >= 14)
+		return acosf(x);
 	return rad2deg(acosf(x));
 }
 

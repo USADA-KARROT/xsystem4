@@ -213,7 +213,9 @@ static void load_parts_cg(struct iarray_reader *r, struct parts *parts, struct p
 	int no = iarray_read(r);
 	struct string *name = iarray_read_string_or_null(r);
 	if (name) {
+		// parts_cg_set keeps its own copy.
 		parts_cg_set(parts, cg, name);
+		free_string(name);
 	} else if (no) {
 		parts_cg_set_by_index(parts, cg, no);
 	}
@@ -250,10 +252,20 @@ static void load_parts_text(struct iarray_reader *r, struct parts *parts,
 	text->cursor.x = 0;
 	text->cursor.y = 0;
 
+	// save_parts_text keeps each line without its line break: put the
+	// breaks back between the lines, so that the text is laid out as
+	// PE_SetText laid it out before saving (for every version and
+	// character rule: the save is the port's own format).
 	int nr_lines = iarray_read(r);
-	for (unsigned i = 0; i < nr_lines; i++) {
+	for (int i = 0; i < nr_lines; i++) {
 		struct string *line = iarray_read_string(r);
+		if (i > 0) {
+			struct string *nl = make_string("\n", 1);
+			parts_text_append(parts, text, nl);
+			free_string(nl);
+		}
 		parts_text_append(parts, text, line);
+		free_string(line);
 	}
 }
 
