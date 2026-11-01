@@ -52,18 +52,47 @@
  *    then (only the whole-screen one). Inferred from the disassembly, with
  *    no native screen; whether the script reads the root's messages was
  *    not followed;
- *  - a focus kept over a switch of the active layer with the left button
- *    in its table, when a press in the other layer moves the focus or a
- *    BeginInput there clears it: the port leaves the bit in the element's
- *    table (its slot was emptied at the switch), so when the element is
- *    the focus again by a right or middle press it gets the left KeyUp and
- *    Click late, with GetClickNumber, and by a left press no left Trigger
- *    and no first Press. Natively the old manager presumably keeps
- *    the element in its slot, whose table the BeginInput reset clears
- *    silently (0x5461a0 -> 0x577af0), and a press in another layer leaves
- *    its +0x1b4, so its KeyUp and Click come when its layer acts again.
- *    Inferred, with no native screen; no case pins the port's behavior or
- *    the inferred native one. */
+ *  - the part of the original's manager per controller the port does not
+ *    follow (KE81-KE123 follow its slots, its left press mark and its
+ *    focus): a button held over a change of the active layer
+ *    (SetActiveLayer, or the removal of the designated layer) is no new
+ *    press for the manager of the layer it lands on (0x57ba47, 0x53d500,
+ *    0x547f2d): no whole-screen Trigger, no slot and no new choice of the
+ *    focus; only a focus that layer kept, whose own table had the button
+ *    up, sees it go down (KE115-KE119: the native press's messages on the
+ *    same element when the cursor is on that focus; with no element of
+ *    that layer under the cursor, as in KE116 and KE119, the native press
+ *    presumably finds nothing, sends the focus LostFocus and leaves
+ *    GetActiveParts 0, where the port keeps the focus, with its Trigger,
+ *    Down and a KeyUp without Click; with another element of that layer
+ *    under the cursor that one presumably takes the focus and the click,
+ *    where the port sends it its MouseEnter alone); at a switch back
+ *    only the cancellation of a kept slot uses what the old manager
+ *    sampled (a button that manager sampled down, released and pressed
+ *    again at the very update of the switch back, is a press here, KE112,
+ *    natively presumably none); the old manager, acting
+ *    again after a release elsewhere, sends no second whole-screen KeyUp
+ *    and Click; a BeginInput or an EndInput releases the one whole-screen
+ *    key table, not one per manager (0x5461a0 -> 0x547ad0); the
+ *    cancellation suppression (+0x1fc) is not kept per controller; and a
+ *    focus moved under another controller's parts (SetParentPartsNumber)
+ *    before a switch gets its LostFocus at the next press in its old
+ *    controller, natively presumably at the next BeginInput (0x545c70
+ *    finds it in no list); pressed in its new controller it gets Focus
+ *    again and the next BeginInput sends it LostFocus once for each
+ *    manager that has it, natively presumably no Focus and one LostFocus
+ *    (+0x1b4 is the element's). Inferred from the disassembly, with no
+ *    native screen; where the cases meet these frames their expectations
+ *    are the port's. Only KE122 moves a focus to another controller, with
+ *    no press after the move: it reads GetActiveParts in the old
+ *    controller and the next BeginInput's one LostFocus;
+ *  - a button held over the switch back with another element of the
+ *    returning layer under the cursor, or with the cursor leaving the
+ *    kept focus at the update of the switch back or after it (KE116 and
+ *    KE119 leave it two updates before, while the other layer acts);
+ *  - a table entry of a removed layer, empty but for its sampled buttons,
+ *    taken up by a later layer under the same controller number (harmless
+ *    with its slots empty, as read in the code, but for a moved focus). */
 #include <errno.h>
 
 static int ke_failures;
@@ -1242,7 +1271,21 @@ static int test_key_events(void)
 		kp_maximize_unminimizes, kc_end_cancel_residue, kl_begin_inactive_held_middle,
 		ke_click_no_drag_end, kc_right_cancel_keeps_pos, kc_left_cancel_keeps_pos,
 		ke_drag_rest_keeps_set_pos, kc_left_held_after_cancel,
-		kc_end_cancel_residue_passing, kl_layer_return_late_up, kl_layer_return_held};
+		kc_end_cancel_residue_passing, kl_layer_return_late_up, kl_layer_return_held,
+		kl_kept_moved_left, kl_kept_moved_right, kl_kept_begin_reset, kl_kept_end_reset,
+		kl_kept_outer_end, kl_kept_focus_outside_slots, kl_kept_two_focus_begin,
+		kl_kept_return_held_look, kl_kept_no_hold, kl_kept_released, kl_kept_v15,
+		kl_kept_overlay_order, kl_kept_right_slot_reset, kl_kept_drag_end,
+		kl_kept_return_cancel_left, kl_kept_return_cancel_right, kl_kept_begin_after_release,
+		kl_kept_return_held_begin_left, kl_kept_return_held_begin_right,
+		kl_kept_return_held_begin_middle, kl_kept_late_click_begin, kl_kept_other_held_right,
+		kl_kept_other_held_middle, kl_kept_moved_keys, kl_kept_begin_twice, kl_kept_v13,
+		kl_kept_right_held_since_begin, kl_kept_cancelled_residue, kl_kept_cancelled_moved,
+		kl_kept_middle_held_since_begin, kl_kept_left_held_since_begin, kl_kept_return_repress,
+		kl_kept_slot_and_focus_begin, kl_kept_return_held_no_pos, kl_kept_focus_held_back_left,
+		kl_kept_focus_held_back_away, kl_kept_focus_held_back_right, kl_kept_erased_layer_held_on,
+		kl_kept_erased_layer_held_away, kl_kept_outside_switch, kl_kept_begin_after_designation,
+		kl_kept_moved_focus, kl_kept_return_cancel_middle};
 	int failed = 0, n = sizeof(cases) / sizeof(*cases);
 	for (int i = 0; i < n; i++) {
 		fflush(stdout);

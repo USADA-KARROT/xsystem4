@@ -35,8 +35,9 @@
 bool parts_began_click = false;
 // v14 BeginInput/EndInput scopes can nest inside synchronous scene callbacks.
 static unsigned v14_input_depth;
-// As with the existing mouse/focus state, this is one shared manager.
-// Native managers own separate Whole tables for each controller.
+// One Whole table for all the controllers, a port's strategy, as are the
+// sampled buttons, the stored position and the cancellation suppression
+// below; native managers own one each (ctrl+0x18, +0x48). See v14_in_scope.
 static struct parts_v14_keys v14_whole_keys;
 
 // the mouse position at last update
@@ -65,13 +66,72 @@ static struct v14_mouse_slot v14_mouse_slots[3];
 static const int v14_mouse_keys[3] = { VK_LBUTTON, VK_MBUTTON, VK_RBUTTON };
 static bool v14_prev_middle, v14_prev_right;
 static bool v14_cancelled;
-// v14: the parts under the cursor at the last mouse press within the scope,
-// standing in for the original's focus (+0x1b4 of the element, set by
+// v14: the focus of the update's controller, the parts under the cursor at
+// the last mouse press in it within the scope, standing in for the
+// original's focus (+0x1b4 of an element of that controller's list, set by
 // 0x546890 at a press only). It is not one of the manager's slots: it stays
-// after the release and after the end of a scope, until a press elsewhere
-// or a BeginInput (LostFocus); GetActiveParts reports it within a scope
-// (PE_GetActivePartsNumber)
+// after the release and after the end of a scope, until another press in
+// that controller or a BeginInput (LostFocus). The other controllers'
+// focuses are kept in v14_kept; GetActiveParts reports the active
+// controller's within a scope (PE_GetActivePartsNumber)
 static int v14_active_parts;
+/* v14: what the manager of a controller other than the update's still
+ * holds. The original has one manager per controller (0x53e690:
+ * ctrl+0x18), which keeps its slots while another controller acts
+ * (0x53c5b0 skips 0x547c90 without the input flag), and its focus is the
+ * +0x1b4 of an element of its own list (0x545c70). The update's
+ * controller uses the variables above (v14_mouse_slots, click_down_parts
+ * for the left press mark +4, v14_active_parts); the others are kept here
+ * from the first update of another controller until their controller acts
+ * again (v14_switch_manager) or a BeginInput clears them
+ * (v14_reset_input_session). `sampled` is what the shared sampled buttons
+ * were when the controller was left, its manager's +0x40..+0x42 at its
+ * last update (0x547fbd). */
+struct v14_kept_manager {
+	int controller;
+	int focus;
+	struct v14_mouse_slot slots[3];
+	int click_down_parts;
+	bool sampled[3];
+};
+static struct v14_kept_manager *v14_kept;
+static int v14_nr_kept, v14_kept_cap;
+
+static void v14_kept_push(struct v14_kept_manager m)
+{
+	if (v14_nr_kept == v14_kept_cap) {
+		int cap = v14_kept_cap ? v14_kept_cap * 2 : 4;
+		v14_kept = xrealloc_array(v14_kept, v14_kept_cap, cap, sizeof *v14_kept);
+		v14_kept_cap = cap;
+	}
+	v14_kept[v14_nr_kept++] = m;
+}
+
+static struct v14_kept_manager *v14_kept_find(int controller)
+{
+	for (int i = 0; i < v14_nr_kept; i++) {
+		if (v14_kept[i].controller == controller)
+			return &v14_kept[i];
+	}
+	return NULL;
+}
+
+/* A released parts leaves every kept manager (0x53c140, as for the
+ * update's own one in parts_input_release). */
+static void v14_kept_forget(int parts_no)
+{
+	for (int i = 0; i < v14_nr_kept; i++) {
+		struct v14_kept_manager *m = &v14_kept[i];
+		if (m->focus == parts_no)
+			m->focus = 0;
+		if (m->click_down_parts == parts_no)
+			m->click_down_parts = 0;
+		for (int j = 0; j < 3; j++) {
+			if (m->slots[j].parts_no == parts_no)
+				m->slots[j] = (struct v14_mouse_slot){0};
+		}
+	}
+}
 void parts_enqueue_message_vars(int type, int parts_no, int delegate_index,
 		int unique_id, int nr_vars, const int *vars);
 
@@ -317,6 +377,7 @@ void parts_input_release(struct parts *parts)
 			if (v14_mouse_slots[i].parts_no == parts->no)
 				v14_mouse_slots[i] = (struct v14_mouse_slot){0};
 		}
+		v14_kept_forget(parts->no);
 	}
 }
 
@@ -365,28 +426,63 @@ static bool parts_takes_input(struct parts *parts)
  * single-controller mode (engines without AddController) every parts is in
  * the scope, as before.
  *
+ * As the original's managers, each controller keeps its own slots, left
+ * press mark and focus (v14_kept, v14_switch_manager): while another
+ * controller acts they stay as they were; a press there does not take the
+ * focus (0x546a4e compares with the focus 0x545c70 found in that
+ * controller's own list) and sends it no LostFocus; GetActiveParts reads
+ * the active controller's own focus; a BeginInput within a scope and every
+ * EndInput reset the elements in every manager's slots, and a BeginInput
+ * (or an EndInput that resumes a scope) sends every manager's focus
+ * LostFocus (v14_reset_input_session). So when a press lands in a
+ * confirmation box while it opens, before the box's BeginInput (a
+ * controller created inside an input scope takes presses at once), the
+ * button that opened it stays the old controller's focus and gets its
+ * LostFocus at the box's BeginInput, as inferred for the original.
+ *
  * The port's strategy, not the original's:
- *  - one input manager for all the controllers (the original has one per
- *    controller): the stored position, the sampled buttons, the slots and
- *    the focus. BeginInput and EndInput reset every one of the original's
- *    managers (0x53e8b0, 0x53e830) as they reset this one, so the two
- *    differ only while the active controller changes between them: e.g. a
- *    controller added inside a scope begins its own manager at once
- *    (0x53d3a0 -> 0x546030), whose first updates send the whole-screen
- *    MouseMove, which is not sent here when the cursor has not moved; and
- *    the old controller's manager keeps its slots and its last buttons for
- *    when it acts again, which here are emptied (v14_drop_slots_out_of_scope)
- *    and shared;
- *  - one focus (v14_active_parts) where the original has a flag on every
- *    element (+0x1b4) and looks it up in the list (0x545c70). The wheel's
- *    fallback and GetActiveParts take it only when it is in the scope; a
- *    press in the scope still sends it LostFocus when it is another
- *    controller's (v14_press), where the original sends that at the next
- *    0x53c750 (BeginInput). A controller created inside an input scope
- *    can already receive a press before an explicit BeginInput: when a
- *    press lands in a confirmation box while it opens, before the box's
- *    BeginInput, the button that opened it gets its LostFocus at the press
- *    here and, in the original, at the box's BeginInput (inferred);
+ *  - one sampled state for all the controllers (the original's managers
+ *    have one each): the sampled buttons (+0x40..+0x43), the stored
+ *    position (+0x18/+0x1c), the Whole key table (+0x48) and the
+ *    cancellation suppression (+0x1fc). BeginInput and EndInput reset every
+ *    one of the original's managers (0x53e8b0, 0x53e830) as they reset
+ *    these, so the two differ only while the active controller changes
+ *    between them, presumably: a button held over SetActiveLayer (or over
+ *    the removal of the designated controller) is a new press for the
+ *    manager that acts next (neither 0x57ba47 nor 0x53d500 begins it,
+ *    0x547f2d compares with what it sampled last), which it is not here:
+ *    no whole-screen Trigger, no slot, no new choice of the focus. Only a
+ *    focus that controller kept sees it, as its own key table had the
+ *    button up (v14_keys_update): its Trigger and Down and, when entered,
+ *    its Press and the left button's pressed look; at the release its
+ *    KeyUp and, entered with a position, its Click. That is the native
+ *    press's messages when the cursor is on that focus. With no element
+ *    of that controller under the cursor the native press presumably
+ *    finds nothing and sends the focus LostFocus (GetActiveParts 0), where
+ *    here the focus stays, gets a KeyUp and no Click, until the next
+ *    BeginInput; with another of its elements there that one presumably
+ *    takes the focus and the click, where here it gets its MouseEnter
+ *    alone;
+ *    the old manager, acting again after a release elsewhere, sends its
+ *    whole-screen KeyUp and Click a second time, which is not done here; a
+ *    BeginInput or an EndInput releases every manager's own Whole table
+ *    (0x5461a0 -> 0x547ad0), the one here; a controller added inside a
+ *    scope begins its own manager at once (0x53d3a0 -> 0x546030), whose
+ *    first updates send the whole-screen MouseMove, which is not sent here
+ *    when the cursor has not moved; and the suppression of a controller
+ *    left while cancelled is not kept for its return. Only the cancellation
+ *    of a slot taken up at a switch back uses what the old manager sampled
+ *    (v14_update_input). Inferred, with no native screen;
+ *  - one focus per controller (v14_active_parts and the kept ones) where
+ *    the original has a flag on every element (+0x1b4) and looks it up in
+ *    the list (0x545c70): a focus moved under another controller's parts
+ *    (SetParentPartsNumber) stays its old controller's here, and a press in
+ *    that controller sends it LostFocus (v14_press), where the original
+ *    finds it in no list and sends that at the next 0x53c750 (BeginInput);
+ *    pressed in its new controller it gets Focus again here, and the next
+ *    BeginInput sends it one LostFocus for each manager that has it, where
+ *    the original presumably sends no Focus (the new controller's 0x545c70
+ *    finds it with its flag set) and one LostFocus;
  *  - SetEnableInputProcess (+0x90 false leaves an element out of the list)
  *    and SetEnableInput (+0xb4) stay stubs; 0x53c830 re-sorts the list
  *    (keys not traced); the port uses z order (the drawing order);
@@ -404,6 +500,53 @@ static bool v14_in_scope_of(const struct parts *parts, int controller)
 static bool v14_in_scope(const struct parts *parts)
 {
 	return v14_in_scope_of(parts, v14_scope);
+}
+
+/* v14: the update's controller changed from `from` to `to` (SetActiveLayer,
+ * AddLayer or EraseLayer since the last update; SetActiveLayer begins no
+ * manager, 0x57ba47, so this waits for the first update). The old
+ * controller's manager keeps its slots, its left press mark and its focus;
+ * one without a focus holds nothing (in v14 a slot and the press mark only
+ * ever hold the focus' element: v14_press sets all three, a left Trigger
+ * marks the focus, and the focus changes only at a press, which empties
+ * the slots and comes with the left button up or going down: another
+ * button's press while it is held cancels instead). The new one takes up
+ * what it kept, or nothing (all false in `sampled` then), with what the
+ * shared buttons were when that controller was left in `sampled`. */
+static void v14_switch_manager(int from, int to, bool sampled[3])
+{
+	struct v14_kept_manager live = { .controller = from, .focus = v14_active_parts,
+		.click_down_parts = click_down_parts,
+		.sampled = { prev_clicking, v14_prev_middle, v14_prev_right } };
+	for (int i = 0; i < 3; i++)
+		live.slots[i] = v14_mouse_slots[i];
+	// The update's controller has no kept entry (taken up below).
+	if (live.focus)
+		v14_kept_push(live);
+	struct v14_kept_manager next = { .controller = to };
+	struct v14_kept_manager *m = v14_kept_find(to);
+	if (m) {
+		next = *m;
+		*m = v14_kept[--v14_nr_kept];
+	}
+	v14_active_parts = next.focus;
+	click_down_parts = next.click_down_parts;
+	for (int i = 0; i < 3; i++) {
+		v14_mouse_slots[i] = next.slots[i];
+		sampled[i] = next.sampled[i];
+	}
+	// The left slot's parts is the pressed one (v14_press,
+	// v14_release_slots).
+	v14_press_parts = v14_mouse_slots[0].parts_no;
+}
+
+/* The focus of a controller's manager: the update's own, or a kept one. */
+static int v14_focus_of(int controller)
+{
+	if (controller == v14_scope)
+		return v14_active_parts;
+	struct v14_kept_manager *m = v14_kept_find(controller);
+	return m ? m->focus : 0;
 }
 
 /*
@@ -551,8 +694,10 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
 /*
  * v14 (Dohna Dohna): the original's input update (0x547c90, run by the parts
  * update 0x53c5b0 alone, for the active controller alone: v14_in_scope; the
- * update does nothing outside a BeginInput/EndInput scope, 0x547cba). In
- * its order:
+ * update does nothing outside a BeginInput/EndInput scope, 0x547cba), with
+ * that controller's own manager: when the active controller changed, the
+ * old one's slots, left press mark and focus are kept and the new one's
+ * taken up first (v14_switch_manager), also outside a scope. In its order:
  *
  *  0. The slots whose element is not in the controller's list are emptied
  *     silently (0x547c00 -> 0x548530; v14_drop_slots_out_of_scope).
@@ -913,11 +1058,13 @@ static void v14_release_slots(const bool down[3])
 		click_down_parts = 0;
 }
 
-/* 0x546890 at a press: the pressed parts and the focus, and the focus'
- * messages when it changes (0x546a4e..0x546aa2). The old focus gets its
- * LostFocus here also when it is another controller's; the original looks
- * the old focus up in the list (0x545c70) and leaves one outside it to the
- * next 0x53c750 (see v14_in_scope: one focus is the port's strategy). */
+/* 0x546890 at a press: the pressed parts and the focus of the update's
+ * controller, and the focus' messages when it changes (0x546a4e..0x546aa2).
+ * Another controller's focus is kept apart (v14_kept) and gets nothing
+ * here. The old focus gets its LostFocus here also when it was moved under
+ * another controller's parts; the original looks the old focus up in the
+ * list (0x545c70) and leaves one outside it to the next 0x53c750 (see
+ * v14_in_scope: one focus per controller is the port's strategy). */
 static void v14_press(Point cur_pos, struct parts *target, int key)
 {
 	int no = target ? target->no : 0;
@@ -986,10 +1133,11 @@ static bool v14_click_ready(struct parts *parts)
  * line, so that every left release inside a scope has at least one line
  * (target=0 when no parts takes it, as before the v14 key events). A line
  * from an update without a left release ends in " (late)": an old focus'
- * table flushed at a focus change, a focus kept over a switch of the
- * active controller whose release comes when its controller acts again,
- * or an element whose own table still holds the left button when it is
- * the focus again (see v14_drop_slots_out_of_scope). */
+ * table flushed at a focus change, a controller's focus whose left button
+ * went up while another controller acted (its release comes when its
+ * controller acts again, see v14_drop_slots_out_of_scope), or an element
+ * whose own table still holds the left button when it is the focus again
+ * (a source cancelled by another button keeps it, as in the original). */
 static bool v14_trace_left_release;
 static bool v14_left_release_traced;
 
@@ -1206,40 +1354,42 @@ static void v14_dispatch_wheel(Point pos, const int *counts)
 
 /* 0x547c90 -> 0x547c00 -> 0x548530 for each of the five slots: a slot whose
  * element is not in this update's list is emptied, with no message and no
- * change to the element (0x577af0 is not called). Of the slots the left one
- * is followed here, with the drag that starts on it: a parts held down in
- * another controller is no longer the pressed one, so the release clicks
- * nothing and only the whole-screen click goes out. (In the original a
- * controller begun inside the scope has a manager of its own that never had
- * the press; the old one keeps its slot.)
- * The focus (v14_active_parts) and the focus' own key table are kept: while
- * another controller acts the focus is out of the scope, and its table is
- * neither sampled nor flushed (v14_update_input). When the left button went
- * down on the focus and the active controller changed, the focus' KeyUp and
- * MouseClick (when it is entered) come when its controller acts again: at
- * the first update after the switch back when the button was released in
- * the other controller (late; the whole-screen Click went out there at the
- * release and is not sent a second time, the sampled buttons being
- * shared), or at the release when it comes after the switch back.
- * The kept table holds the bit only while that element stays the one focus
- * and no BeginInput takes it: when a press in the other controller moves
- * the focus, or a BeginInput there clears it, the bit stays in the
- * element's table; when the element is the focus again by a right or
- * middle press it gets the left KeyUp and Click (late) then, and by a left
- * press no left Trigger and no first Press.
+ * change to the element (0x577af0 is not called). The slots, the left press
+ * mark and the focus go with their controller's manager
+ * (v14_switch_manager), so this empties only a slot or a press mark whose
+ * element was moved under another controller's parts
+ * (SetParentPartsNumber); the left slot's drag goes with it. The focus is
+ * not touched here. A release while another controller acts has no slot
+ * there: that controller's manager never had the press (also one begun
+ * inside the scope, which has a manager of its own), so the release sends
+ * the whole-screen click and, when that controller kept a focus whose own
+ * table had the button up, that focus' KeyUp and, entered with a
+ * position, its Click: the table read the button down at the controller's
+ * first update (see v14_in_scope).
+ * The focus' own key table is neither sampled nor flushed while another
+ * controller acts (v14_update_input). When the left button went down on a
+ * controller's focus and the active controller changed, the focus' KeyUp
+ * and MouseClick (when it is entered) come when its controller acts again:
+ * at the first update after the switch back when the button was released
+ * in the other controller (late, with GetClickNumber; the whole-screen
+ * Click went out there at the release and is not sent a second time, the
+ * sampled buttons being shared), or at the release when it comes after
+ * the switch back. A press in the other controller does not move that
+ * focus. A BeginInput or an EndInput meanwhile resets the element silently
+ * while it is still in its manager's slot (0x5461a0 -> 0x577af0;
+ * v14_reset_input_session), so none of its keys comes late then.
  * Inferred, with no native screen or dynamic measurement: the original's
  * 0x578580 and 0x574d50 use the element's own key table ([edi+8]), and
- * while the old controller's manager does not run its +0x40 and the
- * element's +0x1b4 stay. So that manager presumably sends its whole-screen
- * KeyUp and Click again when it acts again after a release elsewhere, and
- * keeps the element in its slot, so a BeginInput clears its table silently
- * (0x5461a0 -> 0x577af0); a press in another controller leaves the
- * element's +0x1b4 (0x545c70 looks in that controller's list only). And
- * SetActiveLayer does not begin the manager it designates (0x57ba47),
- * which compares with the buttons it sampled last (0x547f2d), so a button
- * held since then presumably is a new press there. The port has none of
- * these consequences; how this compares with the original running is not
- * verified. */
+ * while the old controller's manager does not run its slots, its +0x40 and
+ * the element's +0x1b4 stay (0x545c70 looks in the update's list only).
+ * So that manager presumably also sends its whole-screen KeyUp and Click
+ * again when it acts again after a release elsewhere, and a button held
+ * since SetActiveLayer (0x57ba47 does not begin the manager it designates,
+ * which compares with the buttons it sampled last, 0x547f2d) presumably is
+ * a new press there; the port sends no second whole-screen KeyUp or Click
+ * and makes no new press of it beyond a kept focus' own table (its sampled
+ * buttons are shared, see v14_in_scope). How this compares with the
+ * original running is not verified. */
 static void v14_drop_slots_out_of_scope(void)
 {
 	struct parts *held = v14_press_parts ? parts_try_get(v14_press_parts) : NULL;
@@ -1273,12 +1423,18 @@ static void v14_update_input(int passed_time)
 	// The controller whose parts this update reads (0x53e690); in the
 	// single-controller mode every parts is read.
 	int scope = parts_multi_controller ? PE_get_active_controller() : 0;
-	/* Native controllers have separate managers (0x53e690). With the
-	 * port's single manager, discard the previous scope's cancellation
-	 * suppression on a switch; it must not block the new layer's input.
-	 * Returning to the old scope does not restore its cancelled state. */
-	if (key_events && scope != v14_scope)
+	/* Native controllers have separate managers (0x53e690): on a switch
+	 * the old one keeps its slots, its left press mark and its focus, and
+	 * the new one takes up what it kept (v14_switch_manager). The
+	 * cancellation suppression is shared (the port's), so a switch
+	 * discards it: it must not block the new layer's input, and returning
+	 * to the old scope does not restore its cancelled state. */
+	bool switched = false, taken_sampled[3] = { false, false, false };
+	if (key_events && scope != v14_scope) {
 		v14_cancelled = false;
+		v14_switch_manager(v14_scope, scope, taken_sampled);
+		switched = true;
+	}
 	v14_scope = scope;
 	struct parts *target = have_pos ? v14_input_target(cur_pos) : NULL;
 	// Trace (XSYS4_STAGE2_TRACE): the input target whenever it changes,
@@ -1367,8 +1523,20 @@ static void v14_update_input(int passed_time)
 	if (key_events) {
 		// Cancels precede ordinary press/hover processing. The focus and
 		// local held bits stay intact and continue updating while blocked.
+		// At a switch back, a slot taken up is also cancelled by
+		// another button held now that its manager sampled up when it
+		// last ran: that is a new press for the manager (0x547f2d),
+		// which cancels the slot (0x548153..0x5481b0). One it sampled
+		// down, held since before the slot was filled, is no press
+		// there. (Ordinary presses still come from the shared sampled
+		// buttons.)
 		for (int i = 0; i < 3; i++) {
-			if (pressed[(i + 1) % 3] || pressed[(i + 2) % 3])
+			int j = (i + 1) % 3, k = (i + 2) % 3;
+			bool other = pressed[j] || pressed[k];
+			if (switched)
+				other = other || (down[j] && !taken_sampled[j])
+					|| (down[k] && !taken_sampled[k]);
+			if (other)
 				v14_cancel_slot(i, false, have_pos ? cur_pos : (Point){0, 0});
 		}
 		if (!have_pos) {
@@ -1778,8 +1946,24 @@ static void v14_reset_slot(int parts_no)
 	}
 	parts->hover_time = 0;
 	parts->hover_pos = (Point){0};
+	// The +0x1b4 is the element's: no manager has it as its focus now.
 	if (parts_no == v14_active_parts)
 		v14_active_parts = 0;
+	for (int i = 0; i < v14_nr_kept; i++) {
+		if (v14_kept[i].focus == parts_no)
+			v14_kept[i].focus = 0;
+	}
+}
+
+/* A controller's place in 0x53e830's order: the system overlay first (+0x84,
+ * 0x53e835), then the stack from its bottom (+0x88 on, 0x53e880; 0x53e640
+ * reads the top as the last one). One no longer on the stack goes last. */
+static int v14_begin_order(int controller)
+{
+	if (controller == PARTS_CONTROLLER_SYSTEM_OVERLAY)
+		return -1;
+	int index = parts_controller_index(controller);
+	return index < 0 ? INT_MAX : index;
 }
 
 static void v14_reset_input_session(bool begin)
@@ -1792,6 +1976,10 @@ static void v14_reset_input_session(bool begin)
 	// slots (0x577af0 on +0x1ec, +0x200, +0x208, +0x210, +0x218) and empties
 	// the slots and the stored position (+0x18/+0x1c). The three source
 	// slots are represented here; normal drop and swipe targets are not.
+	// 0x53e8b0 does this for every controller's manager (the stack, then
+	// the overlay), so the slots another controller's manager kept are
+	// reset as well (v14_kept), with the elements in them; the order is
+	// not seen, as nothing is sent.
 	// Each source is held until its release or cancellation, so a release
 	// before EndInput has already emptied it
 	// (0x547460, v14_update_input). The focus is not a slot (it is the
@@ -1817,6 +2005,13 @@ static void v14_reset_input_session(bool begin)
 			v14_mouse_slots[i] = (struct v14_mouse_slot){0};
 		}
 		v14_cancelled = false;
+		for (int k = 0; k < v14_nr_kept; k++) {
+			for (int i = 0; i < 3; i++) {
+				v14_reset_slot(v14_kept[k].slots[i].parts_no);
+				v14_kept[k].slots[i] = (struct v14_mouse_slot){0};
+			}
+			v14_kept[k].click_down_parts = 0;
+		}
 	} else {
 		v14_reset_slot(click_down_parts);
 		v14_reset_slot(v14_press_parts);
@@ -1828,11 +2023,30 @@ static void v14_reset_input_session(bool begin)
 		// 0x564cc0, a button's inner parts through 0x4db7e0 -> 0x4f3110):
 		// LostFocus to an element whose +0x1b4 is still set, which is
 		// cleared; its entered flag (+0x1ac) and state are not touched.
-		// The outermost EndInput (0x53e8b0 alone) leaves the focus.
-		struct parts *focus = v14_active_parts ? parts_try_get(v14_active_parts) : NULL;
-		if (focus)
-			v14_send(focus, PARTS_V14_MSG_LOST_FOCUS, 0, NULL);
+		// The outermost EndInput (0x53e8b0 alone) leaves every
+		// manager's focus. 0x53e830 takes the overlay first, then the
+		// stack from its bottom, one controller's trees at a time
+		// (v14_begin_order), so with a focus in several controllers
+		// (pressed before a BeginInput of the controller on top, see
+		// v14_in_scope) each gets one LostFocus in that order. The kept
+		// table is empty afterwards.
+		v14_kept_push((struct v14_kept_manager){ .controller = v14_scope,
+			.focus = v14_active_parts });
 		v14_active_parts = 0;
+		for (int i = 1; i < v14_nr_kept; i++) {
+			struct v14_kept_manager m = v14_kept[i];
+			int j = i;
+			for (; j > 0 && v14_begin_order(v14_kept[j - 1].controller)
+					> v14_begin_order(m.controller); j--)
+				v14_kept[j] = v14_kept[j - 1];
+			v14_kept[j] = m;
+		}
+		for (int i = 0; i < v14_nr_kept; i++) {
+			struct parts *focus = v14_kept[i].focus ? parts_try_get(v14_kept[i].focus) : NULL;
+			if (focus)
+				v14_send(focus, PARTS_V14_MSG_LOST_FOCUS, 0, NULL);
+		}
+		v14_nr_kept = 0;
 		// 0x546030 clears +0x40..+0x43 with one dword (0x5460c9), the
 		// last update's "had a position" (+0x43) with the sampled buttons.
 		v14_prev_have_pos = false;
@@ -1863,6 +2077,7 @@ void parts_reset_input(void)
 		v14_input_depth = 0;
 		v14_reset_input_session(false);
 		v14_active_parts = 0;
+		v14_nr_kept = 0;
 		v14_prev_have_pos = false;
 	}
 }
@@ -1903,39 +2118,44 @@ int PE_GetClickPartsNumber(void)
 	return clicked_parts;
 }
 
-/* v14 GetActiveParts: the parts under the cursor at the last mouse press
- * within the scope (see v14_update_input and pe_v14_message.c), 0 after a
- * press beside everything, after a reset of the input and when that parts
- * was released. The press of any button counts in v14. The timing differs in three ways, which are this port's
- * choice and not taken from the original:
+/* v14 GetActiveParts: the active controller's focus, the parts under the
+ * cursor at the last mouse press in that controller within the scope (see
+ * v14_update_input and pe_v14_message.c), 0 after a press there beside
+ * everything, after a reset of the input and when that parts was released.
+ * The press of any button counts in v14. The original keeps one value in
+ * every controller and reads the active one's (0x57bc90: +0x94 or, without
+ * one, the top of the stack, 0x53e640; 0x53c6c0 reads its +0x280, 0 when
+ * empty), which 0x53c240 refreshes in every controller's update, input
+ * flag or not, with the first parts of the controller's own tree whose
+ * widget has the focus (0x538180 from its root). Here it is the focus of
+ * the active controller's manager (v14_focus_of): the update's own or a
+ * kept one, so also right after SetActiveLayer, before that controller's
+ * first update; and 0 when that focus was moved under another
+ * controller's parts (see v14_in_scope). The timing differs in two ways,
+ * which are this port's choice and not taken from the original:
  *  - it is 0 outside a scope here, from the outermost EndInput on. In the
  *    original BeginInput and a nested EndInput walk the widgets to clear
  *    the focus (0x53e830 -> 0x53c750 -> 0x538060), while the outermost
  *    EndInput (0x58a750 at depth 1) runs 0x53e8b0 alone, which resets only
- *    the elements still in the manager's five slots (0x5461a0 -> 0x577af0,
+ *    the elements still in the managers' five slots (0x5461a0 -> 0x577af0,
  *    their +0x1b4 with them). The focus itself is kept here as there
  *    (v14_reset_input_session), so the next BeginInput sends it LostFocus.
  *  - it changes at once here. The original reports the scope object's
  *    +0x280 (0x53c6c0), which the parts update refreshes after its input
  *    update (0x53c240 at 0x53c654, after 0x547c90 at 0x53c64d), so a focus
  *    cleared by BeginInput or EndInput shows at the next parts update.
- *  - there is one focus here. The original keeps one value in every
- *    controller and reads the active one's (0x57bc90: +0x94 or, without
- *    one, the top of the stack, 0x53e640; 0x53c6c0 reads its +0x280, 0 when
- *    empty), which 0x53c240 refreshes in every controller's update, input
- *    flag or not, with the first parts of the controller's own tree whose
- *    widget has the focus (0x538180 from its root). Here the focus counts
- *    when it is the active controller's, and is 0 while another controller
- *    acts (e.g. under a confirmation box that is opening, before its
- *    BeginInput takes the focus); see v14_in_scope. */
+ * Versions after v14 keep the earlier one focus for every controller,
+ * counted when it is the active controller's. */
 int PE_GetActivePartsNumber(void)
 {
 	if (!parts_began_click)
 		return 0;
-	struct parts *focus = v14_active_parts ? parts_try_get(v14_active_parts) : NULL;
-	if (focus && !v14_in_scope_of(focus, parts_multi_controller ? PE_get_active_controller() : 0))
+	int active = parts_multi_controller ? PE_get_active_controller() : 0;
+	int no = ain->version == 14 ? v14_focus_of(active) : v14_active_parts;
+	struct parts *focus = no ? parts_try_get(no) : NULL;
+	if (focus && !v14_in_scope_of(focus, active))
 		return 0;
-	return v14_active_parts;
+	return no;
 }
 
 bool PE_IsCursorIn(int parts_no, int mouse_x, int mouse_y, int state)

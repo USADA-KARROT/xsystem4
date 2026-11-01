@@ -45,10 +45,13 @@
  * SceneContext@1 (FUNC 27191) calls AFL_Parts_EraseLayer; the
  * confirmation box (SceneYesNoDialog) included.
  *
- * The port keeps one input manager for all the controllers (its stored
- * position, its sampled buttons, its left slot and its focus), a port's
- * strategy. Every BeginInput and EndInput resets all the original's managers
- * as it resets the port's one, so the frames here are compared whole after a
+ * The port keeps one input state for all the controllers (its stored
+ * position, its sampled buttons, its whole-screen key table and its
+ * cancellation suppression), a port's strategy; each controller that acted
+ * keeps its own slots, left press mark and focus, as the original's
+ * managers do. Every BeginInput and EndInput resets all the original's
+ * managers as it resets the port's state and every kept one, so the frames
+ * here are compared whole after a
  * BeginInput or an EndInput; between an AddLayer and the next BeginInput
  * (the box's opening motion) only the messages of parts are compared: the
  * new manager's whole-screen MouseMove of the original (0x546030 at
@@ -88,15 +91,21 @@
  *       the top of the stack acts and the layer below is not walked; after
  *       the top layer is moved to the bottom, the new top acts.
  *   LI12 a layer added inside the scope while the left button is held on
- *       the scene's button: the slots whose element is not listed are
- *       emptied silently (0x547c90 -> 0x547c00 -> 0x548530 for +0x1ec,
- *       +0x200, +0x208, +0x210, +0x218; in the original the new layer's own
- *       manager never had the press), so the release sends the whole-screen
+ *       the scene's button: the new layer's own manager never had the press
+ *       (its slots are empty; the scene's manager, which does not run,
+ *       keeps the button in its left slot, and 0x547c90 -> 0x547c00 ->
+ *       0x548530 empties only the running manager's slots whose element
+ *       is not listed), so the release sends the whole-screen
  *       click alone: no MouseClick and no GetClickNumber for the button,
  *       which keeps its down state (nothing walks it), and the button, made
  *       draggable, does not follow the cursor (the port's drag starts on the
  *       left slot). Parts messages only between the AddLayer and the next
  *       BeginInput, as for the box.
+ *   LI13 LI12, then its outermost EndInput: the scene's manager still holds
+ *       the button in its left slot, so the EndInput resets it silently
+ *       (0x58a750 -> 0x53e8b0 -> 0x5461a0 -> 0x577af0): not entered, no
+ *       time, no focus; after the box goes the next BeginInput sends it no
+ *       LostFocus and the walk enters it anew (inferred).
  * Guards, which pass before the change as well:
  *   LI8 one layer: a blocker of the same layer leaves the button and enters
  *       it again (the shape of hover-events HE10, a cover within one layer,
@@ -645,6 +654,35 @@ static void li_held_layer(void)
 	PE_EndInput();
 }
 
+/* LI13: LI12, then its outermost EndInput (0x58a750 at depth 1 runs
+ * 0x53e8b0 alone): the scene's manager still holds B in its left slot, so
+ * 0x5461a0 -> 0x577af0 resets B silently: not entered, no time, no focus,
+ * its state left as it was (no walk). After the box goes, an update
+ * outside the scope does nothing; the next BeginInput sends B no
+ * LostFocus, and the walk enters B anew (MouseEnter). Inferred, with no
+ * native screen. The frame of the EndInput (read with the EraseLayer's)
+ * expects nothing; that is the port's: its one whole-screen key table had
+ * the release in the box. Inferred native: the scene's manager, which has
+ * not run since the press, still holds the left button in its own
+ * whole-screen table, so the EndInput sends one whole-screen KeyUp
+ * (0x5461a0 -> 0x547ad0). */
+static void li_held_layer_end(void)
+{
+	li_held_layer();
+	li_state("LI13", "the scene's button after the EndInput", LI_B, false, PARTS_STATE_CLICKED, 0);
+	ci_erase(ci_active());
+	struct he_frame f = li_drain();
+	LI_NONE("LI13 EraseLayer after the EndInput", f);
+	f = li_update(170, 160, false);
+	LI_NONE("LI13 an update outside the scope", f);
+	PE_BeginInput();
+	f = li_drain();
+	LI_NONE("LI13 BeginInput after the box", f);
+	f = li_update(170, 160, false);
+	LI_CHECK(he_count(&f, 0, LI_B) == 1, "LI13 the scene's button MouseEnter %d, want 1", he_count(&f, 0, LI_B));
+	PE_EndInput();
+}
+
 /* LI8: hover-events HE10 in the multi-controller mode, all in one layer. */
 static void li_one_layer(void)
 {
@@ -803,8 +841,10 @@ static void li_strings(void)
 static int test_layer_input(void)
 {
 	void (*cases[])(void) = { li_box_cursor_stays, li_box_cursor_moves, li_press_gap, li_wheel, li_lower_active,
-		li_overlay, li_membership, li_one_layer, li_v13, li_strings, li_none_designated, li_held_layer };
-	const char *names[] = { "LI1", "LI2", "LI3", "LI4", "LI5", "LI6", "LI7", "LI8", "LI9", "LI10", "LI11", "LI12" };
+		li_overlay, li_membership, li_one_layer, li_v13, li_strings, li_none_designated, li_held_layer,
+		li_held_layer_end };
+	const char *names[] = { "LI1", "LI2", "LI3", "LI4", "LI5", "LI6", "LI7", "LI8", "LI9", "LI10", "LI11", "LI12",
+		"LI13" };
 	const char *what[] = {
 		"the box closed with the cursor on the button: no MouseEnter again",
 		"the cursor off the button under the box: the hover kept, left after the box",
@@ -818,6 +858,7 @@ static int test_layer_input(void)
 		"guard: the same under the GBK, SJIS and flag-only string rules",
 		"no layer designated: the top of the stack acts",
 		"a layer added with the button held: no click for the scene's button",
+		"LI12, then the outermost EndInput resets the scene's slot element",
 	};
 	int n = sizeof(cases) / sizeof(cases[0]), failed = 0;
 	for (int i = 0; i < n; i++) {
