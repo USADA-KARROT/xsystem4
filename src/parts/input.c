@@ -35,6 +35,9 @@
 bool parts_began_click = false;
 // v14 BeginInput/EndInput scopes can nest inside synchronous scene callbacks.
 static unsigned v14_input_depth;
+// As with the existing mouse/focus state, this is one shared manager.
+// Native managers own separate Whole tables for each controller.
+static struct parts_v14_keys v14_whole_keys;
 
 // the mouse position at last update
 static Point parts_prev_pos = {0};
@@ -49,7 +52,20 @@ static int click_down_parts = 0;
 // which holds it from the press until the update of the release; see
 // v14_update_input
 static int v14_press_parts;
-// v14: the parts under the cursor at the last left press within the scope,
+/* Native sources are independent of the focus and its held-key table.
+ * Source priority is left, middle, right (0x546988..0x546a1f). */
+struct v14_mouse_slot {
+	int parts_no;
+	Point begin;
+	Point initial;
+	bool began;
+	bool crossed_threshold;
+};
+static struct v14_mouse_slot v14_mouse_slots[3];
+static const int v14_mouse_keys[3] = { VK_LBUTTON, VK_MBUTTON, VK_RBUTTON };
+static bool v14_prev_middle, v14_prev_right;
+static bool v14_cancelled;
+// v14: the parts under the cursor at the last mouse press within the scope,
 // standing in for the original's focus (+0x1b4 of the element, set by
 // 0x546890 at a press only). It is not one of the manager's slots: it stays
 // after the release and after the end of a scope, until a press elsewhere
@@ -296,6 +312,12 @@ void parts_input_release(struct parts *parts)
 		v14_press_parts = 0;
 	if (parts->no == v14_active_parts)
 		v14_active_parts = 0;
+	if (ain->version == 14) {
+		for (int i = 0; i < 3; i++) {
+			if (v14_mouse_slots[i].parts_no == parts->no)
+				v14_mouse_slots[i] = (struct v14_mouse_slot){0};
+		}
+	}
 }
 
 /* A disabled v14 button has no cursor or click sound: native 0x5285b0 empties
@@ -360,11 +382,14 @@ static bool parts_takes_input(struct parts *parts)
  *    fallback and GetActiveParts take it only when it is in the scope; a
  *    press in the scope still sends it LostFocus when it is another
  *    controller's (v14_press), where the original sends that at the next
- *    0x53c750 (BeginInput; a confirmation box's BeginInput comes before any
- *    press in it);
+ *    0x53c750 (BeginInput). A controller created inside an input scope
+ *    can already receive a press before an explicit BeginInput: when a
+ *    press lands in a confirmation box while it opens, before the box's
+ *    BeginInput, the button that opened it gets its LostFocus at the press
+ *    here and, in the original, at the box's BeginInput (inferred);
  *  - SetEnableInputProcess (+0x90 false leaves an element out of the list)
- *    and SetEnableInput (+0xb4) stay stubs; the order is the drawing order
- *    (z), not the tree's pre-order as 0x53c830 leaves it (not followed);
+ *    and SetEnableInput (+0xb4) stay stubs; 0x53c830 re-sorts the list
+ *    (keys not traced); the port uses z order (the drawing order);
  *  - a dragged scroll knob of another controller still follows the cursor
  *    (the original's knob follows its focus' key events, which the other
  *    controller's manager no longer sends; not followed further).
@@ -615,27 +640,14 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  * slots are reset at the end of a scope (v14_reset_input_session), so a
  * parts just clicked keeps its entered flag and its state there.
  *
- * The right and the middle button are not done: here their press and their
- * release do nothing to the parts' input, as before the left button was
- * reworked. In the original
- *  - a release sends the whole-screen click with key 2 or 4 (0x5480be,
- *    0x5480fb) and the focused element's MouseClick with that key (0x5788d0
- *    from 0x5789e8: clickable and the cursor on it), with no sound and
- *    without GetClickNumber (that branch does not write +5);
- *  - a press of any of the three moves the focus (0x546a1f..0x546aa2), with
- *    its Focus and LostFocus; here only a left press does;
- *  - a right or middle press with a parts in the left slot calls 0x5462b0
- *    (0x54816d), which cancels the drag and drop: it puts a draggable
- *    parts back where it was (0x5462d8), sends the drag's events (0x5781b0,
- *    and 0x80ffa8 for an element being dragged, +0x1e0), leaves the drop
- *    target (0x5784b0), empties the slot and sets +0x1fc (0x5463ad). While
- *    +0x1fc is set, until all three buttons are up (0x548206), the update
- *    skips 0x546890 (0x548278), so no new press is taken and no cursor walk
- *    runs. 0x5462b0 writes neither the focus nor the element's key table,
- *    so, read statically, the left button's click of the focused parts
- *    still goes out (not compared with the original running).
- * Doing them right takes the focus and the key table as the model and a
- * comparison with the original; that is left to a later round.
+ * v14 now keeps all three source slots independently of the focused
+ * element's key table. Any mouse press can choose the focus. A new other
+ * button cancels the existing source before target selection, and blocks
+ * that selection and the cursor walk until all buttons are released.
+ * Whole mouse releases and focused key updates continue while blocked.
+ * Cancellation sends the original Begin/Draging/End wire messages and
+ * restores only a movable left source. Normal drop target selection and
+ * completion remain unimplemented, as do swipes and double clicks.
  *
  * A disabled button (SetButtonEnable false) gets no MouseClick, no
  * GetClickNumber and no sound here. This is the port's expedient and has no
@@ -650,9 +662,8 @@ static void parts_update_mouse(struct parts *parts, Point cur_pos, bool cur_clic
  * sent as for any release. The hover of a disabled button is sent as for
  * any parts (0x577b90 does not ask).
  *
- * Not done: the KeyTrigger/KeyDown/KeyPress/KeyUp messages (types 15-18,
- * 0x578580), the double click (0x4e6bd0), the drag and drop messages and
- * the swipe (an element in a swipe, +0x1dc not negative, stops the walk and
+ * v14 key messages use the fixed table below. Not done: the double click
+ * (0x4e6bd0), normal drop target selection/completion and the swipe (an element in a swipe, +0x1dc not negative, stops the walk and
  * keeps its focus out of it: 0x5472e9, 0x548294).
  */
 static bool v14_prev_have_pos;
@@ -713,6 +724,8 @@ static void v14_enter(struct parts *parts, Point pos, bool cur_clicking)
 /* 0x577cf0: the element is not entered (or no longer). */
 static void v14_leave(struct parts *parts, Point pos)
 {
+	if (ain->version == 14)
+		parts->v14_scrollbar_track_entered = false;
 	if (parts->is_hovered) {
 		int vars[2] = { pos.x, pos.y };
 		v14_send(parts, PARTS_V14_MSG_MOUSE_LEAVE, 2, vars);
@@ -753,7 +766,7 @@ static void v14_leave(struct parts *parts, Point pos)
  * Leaving (0x577cf0), every update while the element is not entered: a
  * MouseLeave (x, y) when it was entered, and the default state (1). The
  * original skips both while the element is a drop target (+0x1e3); drag and
- * drop is not sent in v14 here.
+ * drop targets are not established by the current v14 walk.
  *
  * The messages go to the element's own emitter (+0x1e4), so they carry the
  * parts' number, delegate index and event ID. The coordinates go through
@@ -775,15 +788,23 @@ static void v14_cursor_walk(Point pos, bool cur_clicking)
 		if (!v14_in_scope(parts))
 			continue;
 		bool hit = false, stops = false;
+		enum parts_scrollbar_hit scrollbar_hit = PARTS_SCROLLBAR_MISS;
 		if (!stopped && parts_takes_input(parts)) {
 			if (parts_scrollbar_has_look(parts)) {
-				hit = parts_scrollbar_hittest(parts, pos) != PARTS_SCROLLBAR_MISS;
+				scrollbar_hit = parts_scrollbar_hittest(parts, pos);
+				hit = scrollbar_hit != PARTS_SCROLLBAR_MISS;
 				stops = true;
 			} else {
 				hit = parts_hittest(parts, PARTS_STATE_DEFAULT, pos);
 				stops = !parts->pass_cursor;
 			}
 		}
+		// Native 0x5471d0 walks the knob before the clickable track.
+		// A non-passing knob leaves the track; a passing knob allows it
+		// to enter. Cache only on the ordinary walk, not at release:
+		// cancellation can suppress this walk and retain entered state.
+		if (ain->version == 14)
+			parts->v14_scrollbar_track_entered = scrollbar_hit == PARTS_SCROLLBAR_TRACK;
 		if (hit) {
 			v14_enter(parts, pos, cur_clicking);
 			stopped = stops;
@@ -793,12 +814,111 @@ static void v14_cursor_walk(Point pos, bool cur_clicking)
 	}
 }
 
+/* 0x5781b0: a source has separate drag-start flags for each button.
+ * The wire representation of Draging has five integers, not four. */
+static void v14_drag_update(struct v14_mouse_slot *slot, int key, Point pos)
+{
+	struct parts *source = slot->parts_no ? parts_try_get(slot->parts_no) : NULL;
+	if (!source)
+		return;
+	if (!slot->began)
+		v14_send(source, PARTS_V14_MSG_DRAG_BEGIN, 1, &key);
+	int vars[5] = { slot->begin.x, slot->begin.y, pos.x, pos.y, key };
+	v14_send(source, PARTS_V14_MSG_DRAGGING, 5, vars);
+	slot->began = true;
+}
+
+static void v14_drag_end(struct v14_mouse_slot *slot, int key, int mode)
+{
+	struct parts *source = slot->parts_no ? parts_try_get(slot->parts_no) : NULL;
+	if (source && slot->began) {
+		int vars[2] = { key, mode };
+		v14_send(source, PARTS_V14_MSG_DRAG_END, 2, vars);
+	}
+	slot->began = false;
+}
+
+/* Native 0x5462b0/0x5463c0/0x546470: cancellation is not a focus change.
+ * Other-button press serializes mode 2; release without a position mode 3
+ * (0x577660). A source need not have moved or be movable to be cancelled. */
+static void v14_cancel_slot(int index, bool outside, Point pos)
+{
+	struct v14_mouse_slot *slot = &v14_mouse_slots[index];
+	struct parts *source = slot->parts_no ? parts_try_get(slot->parts_no) : NULL;
+	if (!source)
+		return;
+	int key = v14_mouse_keys[index];
+	if (index == 0 && source->draggable)
+		parts_set_pos(source, slot->initial);
+	v14_drag_update(slot, key, slot->begin);
+	v14_drag_end(slot, key, outside ? 3 : 2);
+	/* A native left cancellation also leaves its drop target. The port's
+	 * existing v14 input does not establish a drop target; target selection
+	 * and normal drop completion remain outside this input change. */
+	if (index == 0) {
+		if (drop_target) {
+			int no = source->no;
+			v14_send(drop_target, PARTS_V14_MSG_DROP_LEAVE, 1, &no);
+			v14_leave(drop_target, pos);
+		}
+		drag_state_reset();
+		v14_press_parts = 0;
+	}
+	*slot = (struct v14_mouse_slot){0};
+	v14_cancelled = true;
+}
+
+/* Normal source movement is needed to retain the cancellation's Begin
+ * state. Native 0x546c02 uses the configured Manhattan threshold, default
+ * 10 (0x545a3f..0x545a58). This port currently uses that default; importing
+ * the original configuration source is not implemented. Middle/right
+ * movement has no left-button threshold (0x546d36..0x546d90). */
+static void v14_move_slots(Point pos, bool moved)
+{
+	for (int i = 0; i < 3; i++) {
+		struct v14_mouse_slot *slot = &v14_mouse_slots[i];
+		struct parts *source = slot->parts_no ? parts_try_get(slot->parts_no) : NULL;
+		if (!source)
+			continue;
+		if (i == 0) {
+			long long dx = (long long)pos.x - slot->begin.x;
+			long long dy = (long long)pos.y - slot->begin.y;
+			if (llabs(dx) + llabs(dy) >= 10)
+				slot->crossed_threshold = true;
+			if (!slot->crossed_threshold || source->no != v14_active_parts)
+				continue;
+			if (moved && source->draggable)
+				parts_set_pos(source, (Point){ slot->initial.x + (pos.x - slot->begin.x),
+						slot->initial.y + (pos.y - slot->begin.y) });
+		}
+		if (moved)
+			v14_drag_update(slot, v14_mouse_keys[i], pos);
+	}
+}
+
+/* 0x547460/0x547530/0x5475a0: ordinary release ends a started drag and
+ * clears the source. No drop target is represented by the current v14
+ * walk, so the left end uses mode 1; middle/right use mode 0. */
+static void v14_release_slots(const bool down[3])
+{
+	for (int i = 0; i < 3; i++) {
+		if (down[i])
+			continue;
+		struct v14_mouse_slot *slot = &v14_mouse_slots[i];
+		v14_drag_end(slot, v14_mouse_keys[i], i == 0 ? 1 : 0);
+		*slot = (struct v14_mouse_slot){0};
+	}
+	v14_press_parts = v14_mouse_slots[0].parts_no;
+	if (!down[0])
+		click_down_parts = 0;
+}
+
 /* 0x546890 at a press: the pressed parts and the focus, and the focus'
  * messages when it changes (0x546a4e..0x546aa2). The old focus gets its
  * LostFocus here also when it is another controller's; the original looks
  * the old focus up in the list (0x545c70) and leaves one outside it to the
  * next 0x53c750 (see v14_in_scope: one focus is the port's strategy). */
-static void v14_press(Point cur_pos, struct parts *target)
+static void v14_press(Point cur_pos, struct parts *target, int key)
 {
 	int no = target ? target->no : 0;
 	if (no != v14_active_parts) {
@@ -808,11 +928,25 @@ static void v14_press(Point cur_pos, struct parts *target)
 		if (target)
 			v14_send(target, PARTS_V14_MSG_FOCUS, 0, NULL);
 	}
-	v14_press_parts = no;
+	v14_press_parts = key == VK_LBUTTON ? no : 0;
 	v14_active_parts = no;
+	if (ain->version == 14) {
+		// The focused inner element keeps its role until another press.
+		// Do not classify it again from the release position, and do not
+		// overwrite a different parts' role needed by old-focus flush.
+		if (target)
+			target->v14_scrollbar_track_focus = parts_scrollbar_has_look(target)
+				&& parts_scrollbar_hittest(target, cur_pos) == PARTS_SCROLLBAR_TRACK;
+		for (int i = 0; i < 3; i++) {
+			v14_mouse_slots[i] = (struct v14_mouse_slot){0};
+			if (target && key == v14_mouse_keys[i])
+				v14_mouse_slots[i] = (struct v14_mouse_slot){
+					.parts_no = no, .begin = cur_pos, .initial = target->local.pos };
+		}
+	}
 	// The click and a drag start on the target when it takes the click
 	// (it is clickable or blocks the cursor; a scroll bar may do neither).
-	if (target && (target->clickable || !target->pass_cursor)) {
+	if (key == VK_LBUTTON && target && (target->clickable || !target->pass_cursor)) {
 		click_down_parts = target->no;
 		drag_parts = target;
 		drag_initial_pos = target->local.pos;
@@ -822,7 +956,7 @@ static void v14_press(Point cur_pos, struct parts *target)
 		unsigned candidates = 0;
 		struct parts *parts;
 		NOTICE("S2 parts press ms=%u key=%d pos=%d,%d target=%d", SDL_GetTicks(),
-				VK_LBUTTON, cur_pos.x, cur_pos.y, v14_press_parts);
+				key, cur_pos.x, cur_pos.y, no);
 		PARTS_LIST_FOREACH_REVERSE(parts) {
 			if (!parts->clickable || !parts->global.show || !parts->global.alpha || candidates++ >= 32)
 				continue;
@@ -836,18 +970,43 @@ static void v14_press(Point cur_pos, struct parts *target)
 	}
 }
 
+/* Native 0x574648 makes the track clickable; the ordinary knob keeps the
+ * default false (0x550a2f). The outer pass_cursor, but not clickable, is
+ * copied by 0x573b20. The local release (0x5788d0) uses that inner element's
+ * entered state, including when its keys are flushed after losing focus. */
+static bool v14_click_ready(struct parts *parts)
+{
+	if (ain->version == 14 && parts_scrollbar_has_look(parts))
+		return parts->v14_scrollbar_track_focus && parts->v14_scrollbar_track_entered;
+	return parts->clickable && parts->is_hovered;
+}
+
+/* Trace (XSYS4_STAGE2_TRACE) only, no behavior: whether the input update
+ * reads a left release, and whether that update has printed its "S2 click"
+ * line, so that every left release inside a scope has at least one line
+ * (target=0 when no parts takes it, as before the v14 key events). A line
+ * from an update without a left release ends in " (late)": an old focus'
+ * table flushed at a focus change, a focus kept over a switch of the
+ * active controller whose release comes when its controller acts again,
+ * or an element whose own table still holds the left button when it is
+ * the focus again (see v14_drop_slots_out_of_scope). */
+static bool v14_trace_left_release;
+static bool v14_left_release_traced;
+
 /* 0x578580 -> 0x5788d0 at a release: the pressed parts' own click, when it
  * is entered and the position is given (0x578944, 0x578955). */
 static void v14_release(int pressed_no, Point cur_pos, bool have_pos)
 {
 	int vars[3] = { cur_pos.x, cur_pos.y, VK_LBUTTON };
 	struct parts *target = pressed_no ? parts_try_get(pressed_no) : NULL;
-	bool on_target = target && target->is_hovered && target->clickable && have_pos;
+	bool on_target = target && have_pos && v14_click_ready(target);
+	v14_left_release_traced = true;
 	if (getenv("XSYS4_STAGE2_TRACE"))
-		NOTICE("S2 click ms=%u key=%d pos=%d,%d target=%d%s%s", SDL_GetTicks(), VK_LBUTTON,
+		NOTICE("S2 click ms=%u key=%d pos=%d,%d target=%d%s%s%s", SDL_GetTicks(), VK_LBUTTON,
 				cur_pos.x, cur_pos.y, target ? target->no : 0,
 				target && !on_target ? " (left)" : "",
-				on_target && target->button_disabled ? " (disabled)" : "");
+				on_target && target->button_disabled ? " (disabled)" : "",
+				v14_trace_left_release ? "" : " (late)");
 	if (!on_target || target->button_disabled)
 		return;
 	if (parts_click_sound(target) >= 0)
@@ -861,6 +1020,123 @@ static void v14_release(int pressed_no, Point cur_pos, bool have_pos)
 	// pactex loader's legacy guess also gives a parts type 1.
 	if (target->component_type == PARTS_COMPONENT_CHECKBOX && target->checkbox)
 		parts_checkbox_set_checked(target, !target->checkbox->checked);
+}
+
+/* Native 0x575060: fixed table order, including generic Shift/Control and
+ * F1..F9, excluding Alt, separator and F10+. Platform VK sampling remains
+ * key_is_down's existing policy (including its current keypad mapping). */
+static const enum sact_keycode v14_key_codes[PARTS_V14_NR_KEYS] = {
+	0x01, 0x02, 0x04, 0x08, 0x09, 0x0d, 0x10, 0x11, 0x1b, 0x20,
+	0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2d, 0x2e,
+	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
+	0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a,
+	0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54,
+	0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x60, 0x61, 0x62, 0x63,
+	0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6d, 0x6e,
+	0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
+};
+
+static void v14_key_message(struct parts *parts, int type, int key)
+{
+	if (parts)
+		v14_send(parts, type, 1, &key);
+	else
+		parts_enqueue_message_vars(type, 0, -1, -1, 1, &key);
+}
+
+/* Native 0x5788d0: local Click precedes KeyUp, also when flushing an old
+ * focus. Only left release has sound, ClickNumber and checkbox effects.
+ * Keep this port's disabled-button policy for all three local clicks. */
+static void v14_key_up(struct parts *parts, int key, Point pos, bool have_pos)
+{
+	if (parts) {
+		if (key == VK_LBUTTON) {
+			if (parts->clickable) {
+				if (click_down_parts == parts->no)
+					click_down_parts = 0;
+				// An entered element with no position keeps its state.
+				if (!parts->is_hovered)
+					parts_set_state(parts, PARTS_STATE_DEFAULT);
+				else if (have_pos)
+					parts_set_state(parts, PARTS_STATE_HOVERED);
+			}
+			v14_release(parts->no, pos, have_pos);
+		} else if ((key == VK_RBUTTON || key == VK_MBUTTON)
+				&& have_pos && v14_click_ready(parts)
+				&& !parts->button_disabled) {
+			int vars[3] = { pos.x, pos.y, key };
+			v14_send(parts, PARTS_V14_MSG_MOUSE_CLICK, 3, vars);
+		}
+	}
+	v14_key_message(parts, PARTS_V14_MSG_KEY_UP, key);
+}
+
+/* Native 0x574fd0 clears held bits but leaves repeat time/threshold intact.
+ * Whole EndInput uses only Up; a focus change uses the full local release. */
+static void v14_keys_flush(struct parts_v14_keys *keys, struct parts *parts,
+		Point pos, bool have_pos)
+{
+	bool released[PARTS_V14_NR_KEYS];
+	for (int i = 0; i < PARTS_V14_NR_KEYS; i++) {
+		released[i] = keys->down[i];
+		keys->down[i] = false;
+	}
+	for (int i = 0; i < PARTS_V14_NR_KEYS; i++) {
+		if (released[i])
+			v14_key_up(parts, v14_key_codes[i], pos, have_pos);
+	}
+}
+
+static void v14_keys_update(struct parts_v14_keys *keys, struct parts *parts,
+		Point pos, bool have_pos)
+{
+	// Native gate is a WM_ACTIVATE active&&!minimized cache. Using the
+	// SDL activation/minimization cache is an explicit port approximation,
+	// not OS-message equivalence; platform sampling is unchanged here.
+	bool active = input_is_active();
+	bool repeat = (int32_t)keys->elapsed > keys->threshold;
+	if (repeat) {
+		keys->elapsed = 0;
+		keys->threshold = 80;
+	}
+	unsigned char events[PARTS_V14_NR_KEYS];
+	bool held = false, triggered = false;
+	for (int i = 0; i < PARTS_V14_NR_KEYS; i++) {
+		bool down = active && key_is_down(v14_key_codes[i]);
+		bool trigger = down && !keys->down[i];
+		events[i] = (trigger ? 1 : 0) | (down ? 2 : 0)
+			| (down && (trigger || repeat) ? 4 : 0)
+			| (!down && keys->down[i] ? 8 : 0);
+		keys->down[i] = down;
+		held |= down;
+		triggered |= trigger;
+	}
+	if (!held || triggered) {
+		keys->elapsed = 0;
+		keys->threshold = 500;
+	}
+	// Four complete batches, not four interleaved messages per key.
+	for (int batch = 0; batch < 4; batch++) {
+		for (int i = 0; i < PARTS_V14_NR_KEYS; i++) {
+			if (!(events[i] & (1 << batch)))
+				continue;
+			int key = v14_key_codes[i];
+			// 0x578650..0x578675: left Trigger sets the pressed state
+			// on the focused element, even while source selection is
+			// suppressed by another button's cancellation.
+			if (batch == 0 && parts && key == VK_LBUTTON
+					&& parts->is_hovered && parts->clickable) {
+				click_down_parts = parts->no;
+				parts_set_state(parts, PARTS_STATE_CLICKED);
+			}
+			if (batch == 2 && parts && i < 3 && !parts->is_hovered)
+				continue;
+			if (batch == 3)
+				v14_key_up(parts, key, pos, have_pos);
+			else
+				v14_key_message(parts, PARTS_V14_MSG_KEY_TRIGGER + batch, key);
+		}
+	}
 }
 
 /*
@@ -935,7 +1211,35 @@ static void v14_dispatch_wheel(Point pos, const int *counts)
  * another controller is no longer the pressed one, so the release clicks
  * nothing and only the whole-screen click goes out. (In the original a
  * controller begun inside the scope has a manager of its own that never had
- * the press; the old one keeps its slot.) */
+ * the press; the old one keeps its slot.)
+ * The focus (v14_active_parts) and the focus' own key table are kept: while
+ * another controller acts the focus is out of the scope, and its table is
+ * neither sampled nor flushed (v14_update_input). When the left button went
+ * down on the focus and the active controller changed, the focus' KeyUp and
+ * MouseClick (when it is entered) come when its controller acts again: at
+ * the first update after the switch back when the button was released in
+ * the other controller (late; the whole-screen Click went out there at the
+ * release and is not sent a second time, the sampled buttons being
+ * shared), or at the release when it comes after the switch back.
+ * The kept table holds the bit only while that element stays the one focus
+ * and no BeginInput takes it: when a press in the other controller moves
+ * the focus, or a BeginInput there clears it, the bit stays in the
+ * element's table; when the element is the focus again by a right or
+ * middle press it gets the left KeyUp and Click (late) then, and by a left
+ * press no left Trigger and no first Press.
+ * Inferred, with no native screen or dynamic measurement: the original's
+ * 0x578580 and 0x574d50 use the element's own key table ([edi+8]), and
+ * while the old controller's manager does not run its +0x40 and the
+ * element's +0x1b4 stay. So that manager presumably sends its whole-screen
+ * KeyUp and Click again when it acts again after a release elsewhere, and
+ * keeps the element in its slot, so a BeginInput clears its table silently
+ * (0x5461a0 -> 0x577af0); a press in another controller leaves the
+ * element's +0x1b4 (0x545c70 looks in that controller's list only). And
+ * SetActiveLayer does not begin the manager it designates (0x57ba47),
+ * which compares with the buttons it sampled last (0x547f2d), so a button
+ * held since then presumably is a new press there. The port has none of
+ * these consequences; how this compares with the original running is not
+ * verified. */
 static void v14_drop_slots_out_of_scope(void)
 {
 	struct parts *held = v14_press_parts ? parts_try_get(v14_press_parts) : NULL;
@@ -946,27 +1250,36 @@ static void v14_drop_slots_out_of_scope(void)
 		click_down_parts = 0;
 	if (drag_parts && !v14_in_scope(drag_parts))
 		drag_state_reset();
+	if (ain->version == 14) {
+		for (int i = 0; i < 3; i++) {
+			int no = v14_mouse_slots[i].parts_no;
+			struct parts *p = no ? parts_try_get(no) : NULL;
+			if (!p || !v14_in_scope(p))
+				v14_mouse_slots[i] = (struct v14_mouse_slot){0};
+		}
+	}
 }
 
 static void v14_update_input(int passed_time)
 {
-	bool cur_clicking = key_is_down(VK_LBUTTON);
+	bool key_events = ain->version == 14;
+	bool active = !key_events || input_is_active();
+	bool cur_clicking = active && key_is_down(VK_LBUTTON);
+	bool down[3] = { cur_clicking, active && key_is_down(VK_MBUTTON),
+		active && key_is_down(VK_RBUTTON) };
 	Point cur_pos;
 	mouse_get_pos(&cur_pos.x, &cur_pos.y);
 	bool have_pos = mouse_in_window();
 	// The controller whose parts this update reads (0x53e690); in the
 	// single-controller mode every parts is read.
-	v14_scope = parts_multi_controller ? PE_get_active_controller() : 0;
-	// Trace (XSYS4_STAGE2_TRACE): the controller whenever it changes.
-	static int traced_scope = -1;
-	static unsigned traced_scopes;
-	if (parts_multi_controller && v14_scope != traced_scope && input_stage2_trace()
-			&& traced_scopes < 2000) {
-		traced_scopes++;
-		traced_scope = v14_scope;
-		NOTICE("S2 input-scope ms=%u controller=%d began=%d", SDL_GetTicks(), v14_scope,
-				parts_began_click);
-	}
+	int scope = parts_multi_controller ? PE_get_active_controller() : 0;
+	/* Native controllers have separate managers (0x53e690). With the
+	 * port's single manager, discard the previous scope's cancellation
+	 * suppression on a switch; it must not block the new layer's input.
+	 * Returning to the old scope does not restore its cancelled state. */
+	if (key_events && scope != v14_scope)
+		v14_cancelled = false;
+	v14_scope = scope;
 	struct parts *target = have_pos ? v14_input_target(cur_pos) : NULL;
 	// Trace (XSYS4_STAGE2_TRACE): the input target whenever it changes,
 	// so that a run's log shows what the cursor is on also where nothing
@@ -980,8 +1293,21 @@ static void v14_update_input(int passed_time)
 		traced_no = traced_now;
 		NOTICE("S2 hover ms=%u pos=%d,%d target=%d", SDL_GetTicks(), cur_pos.x, cur_pos.y, traced_now);
 	}
+	// Keep the initial hover trace as the run's opening anchor.
+	static int traced_scope = -1;
+	static unsigned traced_scopes;
+	if (parts_multi_controller && v14_scope != traced_scope && input_stage2_trace()
+			&& traced_scopes < 2000) {
+		traced_scopes++;
+		traced_scope = v14_scope;
+		NOTICE("S2 input-scope ms=%u controller=%d began=%d", SDL_GetTicks(), v14_scope,
+				parts_began_click);
+	}
 	if (!parts_began_click)
 		return;
+	struct parts *old_focus = v14_active_parts ? parts_try_get(v14_active_parts) : NULL;
+	if (old_focus && !v14_in_scope(old_focus))
+		old_focus = NULL;
 	v14_drop_slots_out_of_scope();
 	struct parts *parts;
 	PARTS_LIST_FOREACH(parts) {
@@ -989,13 +1315,28 @@ static void v14_update_input(int passed_time)
 			continue;
 		long long t = (long long)parts->hover_time + passed_time;
 		parts->hover_time = t > INT_MAX ? INT_MAX : t < INT_MIN ? INT_MIN : (int)t;
+		// Every element in this active scope advances, even without focus.
+		// Unsigned addition preserves native 32-bit wrapping without UB.
+		if (key_events)
+			parts->v14_keys.elapsed += (uint32_t)passed_time;
 	}
 	clicked_parts = 0;
+	v14_left_release_traced = false;
+	if (key_events) {
+		v14_whole_keys.elapsed += (uint32_t)passed_time;
+		// 0x547e16: complete Whole keys before wheel, move or click.
+		v14_keys_update(&v14_whole_keys, NULL, cur_pos, have_pos);
+	}
 	if (!have_pos)
 		cur_pos = parts_prev_pos;
 	bool moved = cur_pos.x != parts_prev_pos.x || cur_pos.y != parts_prev_pos.y;
 	bool press = cur_clicking && !prev_clicking;
 	bool release = !cur_clicking && prev_clicking;
+	v14_trace_left_release = release;
+	bool pressed[3] = { press, down[1] && !v14_prev_middle,
+		down[2] && !v14_prev_right };
+	bool released[3] = { release, !down[1] && v14_prev_middle,
+		!down[2] && v14_prev_right };
 	// The parts whose own click this release sends (the focus' key table,
 	// 0x578580): the left slot's, taken before the slot is emptied.
 	int released_no = release ? v14_press_parts : 0;
@@ -1013,33 +1354,68 @@ static void v14_update_input(int passed_time)
 		int vars[3] = { cur_pos.x, cur_pos.y, VK_LBUTTON };
 		if (moved)
 			parts_enqueue_message_vars(PARTS_V14_MSG_MOUSE_MOVE, 0, -1, -1, 2, vars);
-		if (release)
-			parts_enqueue_message_vars(PARTS_V14_MSG_MOUSE_CLICK, 0, -1, -1, 3, vars);
-		if (press) {
-			v14_press(cur_pos, target);
-		} else if (!cur_clicking) {
-			// 0x5468d6..0x5468fb -> 0x547460: no press and the left
-			// button up (the release included): the left slot is
-			// emptied; the focus stays.
-			v14_press_parts = 0;
-			click_down_parts = 0;
+		// Whole mouse release order is L/R/M, unlike slot priority L/M/R.
+		static const int order[3] = { 0, 2, 1 };
+		for (int n = 0; n < (key_events ? 3 : 1); n++) {
+			int i = order[n];
+			if (released[i]) {
+				vars[2] = v14_mouse_keys[i];
+				parts_enqueue_message_vars(PARTS_V14_MSG_MOUSE_CLICK, 0, -1, -1, 3, vars);
+			}
 		}
-		v14_cursor_walk(cur_pos, cur_clicking);
-	} else if (!release && v14_press_parts && v14_press_parts == v14_active_parts) {
-		// 0x5476b0: the left slot's parts, when it is the focus, that is
-		// while the left button is held on the parts it went down on (at
-		// a release here 0x5462b0 has emptied the slot first, 0x5481cb).
-		// 0x577cf0 reads the position again and, without one, has (0, 0)
-		// (its locals are cleared first, 0x577d1d; what the call writes
-		// when it fails was not followed).
-		struct parts *focus = parts_try_get(v14_active_parts);
-		if (focus)
-			v14_leave(focus, (Point){ 0, 0 });
+	}
+	if (key_events) {
+		// Cancels precede ordinary press/hover processing. The focus and
+		// local held bits stay intact and continue updating while blocked.
+		for (int i = 0; i < 3; i++) {
+			if (pressed[(i + 1) % 3] || pressed[(i + 2) % 3])
+				v14_cancel_slot(i, false, have_pos ? cur_pos : (Point){0, 0});
+		}
+		if (!have_pos) {
+			for (int i = 0; i < 3; i++) {
+				if (released[i])
+					v14_cancel_slot(i, true, (Point){0, 0});
+			}
+		}
+		if (!down[0] && !down[1] && !down[2])
+			v14_cancelled = false;
+	}
+	if (!key_events || !v14_cancelled) {
+		if (have_pos) {
+			if (key_events) {
+				int key = pressed[0] ? VK_LBUTTON : pressed[1] ? VK_MBUTTON
+					: pressed[2] ? VK_RBUTTON : 0;
+				if (key)
+					v14_press(cur_pos, target, key);
+				else
+					v14_release_slots(down);
+				v14_move_slots(cur_pos, moved);
+			} else if (press) {
+				v14_press(cur_pos, target, VK_LBUTTON);
+			} else if (!cur_clicking) {
+				v14_press_parts = 0;
+				click_down_parts = 0;
+			}
+			v14_cursor_walk(cur_pos, cur_clicking);
+		} else if (!release && v14_press_parts && v14_press_parts == v14_active_parts) {
+			// 0x548311..0x548339 -> 0x5476b0: without a position only the
+			// left slot's parts is left (0x548324 -> 0x547740 also leaves a
+			// hovered drop target, which the port does not make), when it
+			// is the focus (0x5476dc..0x5476ec calls 0x577cf0), that is
+			// while the left button is held on the parts it went down on
+			// (at a release here 0x5462b0
+			// has emptied the slot first, 0x5481cb). 0x577cf0 reads the
+			// position again and, without one, has (0, 0) (its locals are
+			// cleared first, 0x577d1d; what the call writes when it fails
+			// was not followed).
+			struct parts *focus = parts_try_get(v14_active_parts);
+			if (focus)
+				v14_leave(focus, (Point){ 0, 0 });
+		}
 	}
 
-	// Drag movement: a draggable pressed parts follows the cursor (the
-	// drag messages are not sent in v14).
-	if (drag_parts && cur_clicking && moved && drag_parts->draggable) {
+	// Retain the previous movement policy outside the v14 key path.
+	if (!key_events && drag_parts && cur_clicking && moved && drag_parts->draggable) {
 		parts_set_pos(drag_parts, (Point){
 			drag_initial_pos.x + (cur_pos.x - drag_start_cursor.x),
 			drag_initial_pos.y + (cur_pos.y - drag_start_cursor.y) });
@@ -1058,8 +1434,28 @@ static void v14_update_input(int passed_time)
 	// A failed position query still uses the manager's previous position.
 	if (have_wheel)
 		v14_dispatch_wheel(cur_pos, wheel);
+	if (key_events) {
+		struct parts *focus = v14_active_parts ? parts_try_get(v14_active_parts) : NULL;
+		if (focus && !v14_in_scope(focus))
+			focus = NULL;
+		if (focus)
+			v14_keys_update(&focus->v14_keys, focus, cur_pos, have_pos);
+		// 0x548367..0x54837c: new focus first, then old focus's full Up
+		// path. Inactive controllers' element tables remain untouched.
+		if (old_focus && old_focus != focus)
+			v14_keys_flush(&old_focus->v14_keys, old_focus, cur_pos, have_pos);
+	}
 	if (release) {
-		v14_release(released_no, cur_pos, have_pos);
+		// v14's element table already dispatched Click before KeyUp.
+		if (!key_events)
+			v14_release(released_no, cur_pos, have_pos);
+		// Trace: a left release no parts of the scope took (no focus in
+		// the scope, e.g. after BeginInput sampled the button held, or a
+		// press on a layer that is no longer active) is target=0, as it
+		// was before the v14 key events.
+		else if (!v14_left_release_traced && getenv("XSYS4_STAGE2_TRACE"))
+			NOTICE("S2 click ms=%u key=%d pos=%d,%d target=0", SDL_GetTicks(), VK_LBUTTON,
+					cur_pos.x, cur_pos.y);
 		drag_state_reset();
 		// Without a position the release empties the slot here
 		// (0x5462b0).
@@ -1067,7 +1463,12 @@ static void v14_update_input(int passed_time)
 		click_down_parts = 0;
 	}
 
+	v14_trace_left_release = false;
 	prev_clicking = cur_clicking;
+	if (key_events) {
+		v14_prev_middle = down[1];
+		v14_prev_right = down[2];
+	}
 	if (have_pos && v14_prev_have_pos)
 		parts_prev_pos = cur_pos;
 	v14_prev_have_pos = have_pos;
@@ -1364,6 +1765,13 @@ static void v14_reset_slot(int parts_no)
 	struct parts *parts = parts_no ? parts_try_get(parts_no) : NULL;
 	if (!parts)
 		return;
+	if (ain->version == 14) {
+		// 0x577af0: silent local reset, with repeat fields preserved.
+		for (int i = 0; i < PARTS_V14_NR_KEYS; i++)
+			parts->v14_keys.down[i] = false;
+		parts->v14_scrollbar_track_focus = false;
+		parts->v14_scrollbar_track_entered = false;
+	}
 	if (parts->is_hovered) {
 		parts->is_hovered = false;
 		v14_hover_changed(parts);
@@ -1376,13 +1784,16 @@ static void v14_reset_slot(int parts_no)
 
 static void v14_reset_input_session(bool begin)
 {
+	if (ain->version == 14)
+		v14_keys_flush(&v14_whole_keys, NULL, (Point){0}, false);
 	// Native 0x53e830/0x53e8b0 reset the input targets, not the message
 	// queue. The end of a scope (0x53e8b0 -> 0x5461a0: EndInput, and
 	// BeginInput within a scope) resets the elements in the manager's five
 	// slots (0x577af0 on +0x1ec, +0x200, +0x208, +0x210, +0x218) and empties
-	// the slots and the stored position (+0x18/+0x1c). Of the slots only the
-	// left one is followed here, and it holds a parts only while the left
-	// button is held on it: the update of the release has emptied it
+	// the slots and the stored position (+0x18/+0x1c). The three source
+	// slots are represented here; normal drop and swipe targets are not.
+	// Each source is held until its release or cancellation, so a release
+	// before EndInput has already emptied it
 	// (0x547460, v14_update_input). The focus is not a slot (it is the
 	// element's +0x1b4, found anew by 0x545c70 every update): a parts just
 	// clicked keeps its entered flag, its time and its state like every
@@ -1390,8 +1801,26 @@ static void v14_reset_input_session(bool begin)
 	// the next scope, and one the cursor is no longer on is left by the
 	// next walk. When the held parts is the focus, 0x577af0 clears its
 	// +0x1b4 too, silently.
-	v14_reset_slot(click_down_parts);
-	v14_reset_slot(v14_press_parts);
+	// A source cancelled by another button is no longer in its slot:
+	// 0x5462b0/0x5463c0/0x546470 empty the slot with 0x548530 (left:
+	// 0x54636e..0x546378), which drops the reference and leaves the
+	// element as it is. So in v14 only the three source slots are reset
+	// here; click_down_parts (the left press or a left Trigger on the
+	// focus while selection is suppressed) and v14_press_parts are reset
+	// only as members of a slot. A cancelled source keeps its focus, its
+	// entered flag and its key table, and the next Begin sends it
+	// LostFocus (0x538060). Versions after v14 keep the earlier reset of
+	// the pressed parts.
+	if (ain->version == 14) {
+		for (int i = 0; i < 3; i++) {
+			v14_reset_slot(v14_mouse_slots[i].parts_no);
+			v14_mouse_slots[i] = (struct v14_mouse_slot){0};
+		}
+		v14_cancelled = false;
+	} else {
+		v14_reset_slot(click_down_parts);
+		v14_reset_slot(v14_press_parts);
+	}
 	if (begin) {
 		// The beginning (0x53e830, BeginInput and an EndInput that
 		// resumes an outer scope: 0x53c750 -> 0x538060) takes the focus
@@ -1418,9 +1847,13 @@ static void v14_reset_input_session(bool begin)
 	// child scene cannot turn its closing press into another DOWN. The left
 	// button held here is up at a later update: that release sends the
 	// whole-screen click, as the original's sampled buttons make it
-	// (0x546030 samples all three into +0x40..+0x42; only the left one is
-	// followed here, see v14_update_input).
-	prev_clicking = begin && key_is_down(VK_LBUTTON);
+	// (0x546030 samples all three into +0x40..+0x42).
+	bool active = ain->version != 14 || input_is_active();
+	prev_clicking = begin && active && key_is_down(VK_LBUTTON);
+	if (ain->version == 14) {
+		v14_prev_middle = begin && active && key_is_down(VK_MBUTTON);
+		v14_prev_right = begin && active && key_is_down(VK_RBUTTON);
+	}
 	parts_began_click = begin;
 }
 
@@ -1470,11 +1903,10 @@ int PE_GetClickPartsNumber(void)
 	return clicked_parts;
 }
 
-/* v14 GetActiveParts: the parts under the cursor at the last left press
+/* v14 GetActiveParts: the parts under the cursor at the last mouse press
  * within the scope (see v14_update_input and pe_v14_message.c), 0 after a
  * press beside everything, after a reset of the input and when that parts
- * was released. That is the original's meaning too (there the press of any
- * button counts). The timing differs in three ways, which are this port's
+ * was released. The press of any button counts in v14. The timing differs in three ways, which are this port's
  * choice and not taken from the original:
  *  - it is 0 outside a scope here, from the outermost EndInput on. In the
  *    original BeginInput and a nested EndInput walk the widgets to clear

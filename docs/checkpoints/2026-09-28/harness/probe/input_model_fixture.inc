@@ -18,22 +18,14 @@
  *       EndInput is the port's choice: the original's value changes at the
  *       next parts update, and its outermost EndInput does not walk the
  *       widgets to clear the focus (see PE_GetActivePartsNumber).
- *   IM4 The right and the middle button do nothing to the parts' input.
- *       This is the port's state, not the original's: there a release
- *       sends the whole-screen click with key 2 or 4 (0x5480be, 0x5480fb)
- *       and the focused element's MouseClick (0x5789e8), and a press moves
- *       the focus; that is left for a later round (see v14_update_buttons).
- *       Guarded: no message at a press or a release (on a clickable parts,
- *       beside everything, held at BeginInput), no GetClickNumber (the
- *       original has none either: +5 is written for key 1 alone,
- *       0x5789cb), the focus stays where the left button put it. A right
- *       or middle click while the left button is held on a parts leaves
- *       the left click whole: the down state, both messages and
- *       GetClickNumber (0x5462b0 cancels a drag and drop there and does not
- *       touch the click). A drag goes on under a right click, which the
- *       original cancels. The script's own reading of the right button (a
- *       CASClick polling Key_IsDown, the real bytecode) still sees a right
- *       click.
+ *   IM4 Right and middle releases send Whole then focused MouseClick,
+ *       without left-only GetClickNumber or pressed visuals. Any new
+ *       mouse press selects focus (0x546926); another button cancels the
+ *       source slot while the focused element keeps its key history
+ *       (0x5462b0). Script polling remains independent of queued events.
+ *       Key batches and complete drag payloads are checked by key-events;
+ *       this fixture projects those families locally, counting drag
+ *       messages separately for the cancellation checks below.
  *   IM5 A button held at BeginInput releases into the whole-screen click
  *       alone (0x546030 samples the buttons); a disabled button gets the
  *       whole-screen click alone and is not GetClickNumber, which is the
@@ -75,7 +67,7 @@ static int im_hll_int(const char *name)
 /* One input update with the buttons as given: the queued messages, taken
  * off the queue. */
 struct im_msg { int type, no, delegate, x, y, key; };
-struct im_frame { int n; struct im_msg m[3]; };
+struct im_frame { int n, drag_n; struct im_msg m[4]; };
 static struct im_frame im_update(bool left, bool right, bool middle)
 {
 	extern bool key_state[];
@@ -87,10 +79,12 @@ static struct im_frame im_update(bool left, bool right, bool middle)
 	key_state[VK_MBUTTON] = middle;
 	PE_UpdateInputState(16);
 	struct im_frame f = { 0 };
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 4; i++)
 		f.m[i] = (struct im_msg){ -1, -1, -2, 0, 0, 0 };
 	for (int t; (t = br_msg_type()) >= 0; br_msg_pop()) {
-		if (f.n < 3)
+		/* Only this click-focused reader projects drag notifications. */
+		if (ain->version == 14 && (t == 7 || t == 8 || t == 10)) { f.drag_n++; continue; }
+		if (f.n < 4)
 			f.m[f.n] = (struct im_msg){ t, br_msg_parts(), delegate(), var(0), var(1), var(2) };
 		f.n++;
 	}
@@ -247,118 +241,97 @@ static void im_other_buttons(void)
 	im_setup();
 	extern bool key_state[];
 	struct parts *box = parts_get(IM_BOX), *other = parts_get(IM_OTHER);
-	/* a right click on a clickable parts: nothing (the original sends the
-	 * whole-screen click with key 2 and the parts' own, and no
-	 * GetClickNumber) */
 	mouse_set_pos(150, 140);
-	struct im_frame f = im_update(false, true, false);
-	IM_FRAME(f, "a right press", 0);
-	IM_CHECK(box->state == PARTS_STATE_HOVERED, "the parts under a right press is in state %d, want the on-cursor state", box->state);
-	IM_CHECK(im_hll_int("GetActiveParts") == 0, "a right press made parts %d the focus, want none", im_hll_int("GetActiveParts"));
-	f = im_update(false, false, false);
-	IM_FRAME(f, "a right release on a clickable parts", 0);
-	IM_CHECK(im_hll_int("GetClickNumber") == 0, "GetClickNumber after a right click of a parts is %d, want 0", im_hll_int("GetClickNumber"));
-	/* a middle click on it */
-	f = im_update(false, false, true);
-	IM_FRAME(f, "a middle press", 0);
-	IM_CHECK(box->state == PARTS_STATE_HOVERED, "the parts under a middle press is in state %d, want the on-cursor state", box->state);
-	f = im_update(false, false, false);
-	IM_FRAME(f, "a middle release on a clickable parts", 0);
-	IM_CHECK(im_hll_int("GetClickNumber") == 0 && im_hll_int("GetActiveParts") == 0,
-		 "a middle click of a parts: GetClickNumber %d, GetActiveParts %d; want 0 and 0", im_hll_int("GetClickNumber"), im_hll_int("GetActiveParts"));
-	/* beside everything, both at once */
+	im_update(false, false, false);
+	struct im_frame f;
+	const int keys[] = {VK_RBUTTON, VK_MBUTTON};
+	for (int k = 0; k < 2; k++) {
+		f = im_update(false, k == 0, k == 1);
+		IM_FRAME(f, "right/middle press", 0);
+		IM_CHECK(box->state == PARTS_STATE_HOVERED, "non-left press changed visual state");
+		IM_CHECK(im_hll_int("GetActiveParts") == IM_BOX, "non-left press did not select focus");
+		f = im_update(false, false, false);
+		IM_FRAME(f, "right/middle release", 2);
+		IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, keys[k]) &&
+			im_is(&f.m[1], IM_BOX, 3, 150, 140, keys[k]), "non-left Whole/local click order or payload");
+		IM_CHECK(im_hll_int("GetClickNumber") == 0, "non-left click changed GetClickNumber");
+	}
 	mouse_set_pos(640, 600);
+	im_update(false, false, false);
 	im_update(false, true, true);
 	f = im_update(false, false, false);
-	IM_FRAME(f, "a right and middle click beside everything", 0);
-	/* the focus stays where the left button put it (in the original a
-	 * press of any button moves it) */
+	IM_FRAME(f, "right/middle release on blank", 2);
+	IM_CHECK(im_is(&f.m[0], 0, -1, 640, 600, VK_RBUTTON) &&
+		im_is(&f.m[1], 0, -1, 640, 600, VK_MBUTTON), "blank release order or payload");
+	IM_CHECK(im_hll_int("GetActiveParts") == 0, "blank non-left press retained focus");
+
+	/* Cancellation preserves the focused element's left click state. */
 	mouse_set_pos(150, 140);
 	im_update(false, false, false);
-	im_update(true, false, false);
-	im_update(false, false, false);
-	mouse_set_pos(640, 600);
-	im_update(false, false, false);
-	im_update(false, true, false);
-	im_update(false, false, false);
-	im_update(false, false, true);
-	im_update(false, false, false);
-	IM_CHECK(im_hll_int("GetActiveParts") == IM_BOX, "GetActiveParts after a right and a middle click beside everything is %d, want %d", im_hll_int("GetActiveParts"), IM_BOX);
-	/* A right click while the left button is held on the parts: the parts
-	 * keeps its down state and gets its click (0x5462b0 cancels a drag
-	 * and drop and leaves the focused element's click alone). */
-	mouse_set_pos(150, 140);
-	im_update(false, false, false);
-	im_update(true, false, false);
-	IM_CHECK(box->state == PARTS_STATE_CLICKED, "the left-pressed parts is in state %d, want the down state", box->state);
-	f = im_update(true, true, false);
-	IM_FRAME(f, "a right press while the left button is held", 0);
-	IM_CHECK(box->state == PARTS_STATE_CLICKED, "a right press took the down state off the left-pressed parts (state %d)", box->state);
-	f = im_update(true, false, false);
-	IM_FRAME(f, "the right release while the left button is held", 0);
-	IM_CHECK(box->state == PARTS_STATE_CLICKED, "a right release took the down state off the left-pressed parts (state %d)", box->state);
-	f = im_update(false, false, false);
-	IM_FRAME(f, "the left release after a right click", 2);
-	IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, 1) && im_is(&f.m[1], IM_BOX, 3, 150, 140, 1),
-		 "want the whole-screen click and the parts' own, both with key 1");
-	IM_CHECK(im_hll_int("GetClickNumber") == IM_BOX, "GetClickNumber at the left release after a right click is %d, want %d", im_hll_int("GetClickNumber"), IM_BOX);
-	/* the middle button, still down when the left one comes up */
-	im_update(true, false, false);
-	f = im_update(true, false, true);
-	IM_CHECK(box->state == PARTS_STATE_CLICKED, "a middle press took the down state off the left-pressed parts (state %d)", box->state);
-	f = im_update(false, false, true);
-	IM_FRAME(f, "the left release while the middle button is held", 2);
-	IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, 1) && im_is(&f.m[1], IM_BOX, 3, 150, 140, 1),
-		 "want the whole-screen click and the parts' own, both with key 1");
-	f = im_update(false, false, false);
-	IM_FRAME(f, "the middle release after the left one", 0);
-	/* left and right released in one update: the left button's two */
+	for (int k = 0; k < 2; k++) {
+		im_update(true, false, false);
+		f = im_update(true, k == 0, k == 1);
+		IM_FRAME(f, "other press during left hold", 0);
+		IM_CHECK(f.drag_n == 3, "stationary cancellation sent %d drag messages, want 3", f.drag_n);
+		IM_CHECK(box->state == PARTS_STATE_CLICKED, "cancellation cleared left pressed visual");
+		f = im_update(true, false, false);
+		IM_FRAME(f, "other release during left hold", 2);
+		IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, keys[k]) &&
+			im_is(&f.m[1], IM_BOX, 3, 150, 140, keys[k]), "cancelled non-left click payload");
+		IM_CHECK(box->state == PARTS_STATE_CLICKED, "other release cleared left pressed visual");
+		f = im_update(false, false, false);
+		IM_FRAME(f, "left release after cancellation", 2);
+		IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, VK_LBUTTON) &&
+			im_is(&f.m[1], IM_BOX, 3, 150, 140, VK_LBUTTON), "cancellation swallowed left click");
+		IM_CHECK(im_hll_int("GetClickNumber") == IM_BOX, "cancelled left click lost GetClickNumber");
+	}
 	im_update(true, true, false);
 	f = im_update(false, false, false);
-	IM_FRAME(f, "left and right released together", 2);
-	IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, 1) && im_is(&f.m[1], IM_BOX, 3, 150, 140, 1),
-		 "want the whole-screen click and the parts' own, both with key 1");
-	/* The script reads the right button itself: its CASClick (the bytecode
-	 * run unchanged, polling Key_IsDown as the ADV engine's RClick does at
-	 * every parts update) takes a right click for which the input update
-	 * sends nothing. */
+	IM_FRAME(f, "left and right released together", 4);
+	IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, VK_LBUTTON) &&
+		im_is(&f.m[1], 0, -1, 150, 140, VK_RBUTTON) &&
+		im_is(&f.m[2], IM_BOX, 3, 150, 140, VK_LBUTTON) &&
+		im_is(&f.m[3], IM_BOX, 3, 150, 140, VK_RBUTTON), "Whole releases must precede local releases");
+
 	lr_replace_hll("IbisInputEngine", "Key_IsDown", (void *)df_key_is_down);
 	int rclick = new_object_from_ain(ain_get_struct(ain, "CASClick"));
 	const int any = INT_MIN, right_cancel[] = { VK_RBUTTON, 1 };
 	df_click_call(rclick, "Init", 2, right_cancel);
 	im_update(false, false, false);
-	IM_CHECK(!df_click_call(rclick, "IsClick", 1, &any), "the script's right-button CASClick has a click before any press");
+	IM_CHECK(!df_click_call(rclick, "IsClick", 1, &any), "script polling clicked before press");
 	int msgs = 0, clicks = 0;
 	for (int i = 0; i < 4; i++) {
 		f = im_update(false, i < 2, false);
 		msgs += f.n;
 		clicks += df_click_call(rclick, "IsClick", 1, &any) == 1;
 	}
-	IM_CHECK(clicks == 1 && !msgs, "a right click: %d click(s) of the script's CASClick and %d message(s); want 1 and none", clicks, msgs);
-	/* held at BeginInput: its release sends nothing either */
+	IM_CHECK(clicks == 1 && msgs == 2, "polling/queue coexistence: %d clicks and %d messages", clicks, msgs);
 	PE_EndInput();
 	key_state[VK_RBUTTON] = key_state[VK_MBUTTON] = true;
 	PE_BeginInput();
 	im_update(false, true, true);
 	f = im_update(false, false, false);
-	IM_FRAME(f, "the release of a right and a middle button held at BeginInput", 0);
-	/* A drag goes on under a right click (the port's state: the original
-	 * cancels the drag there, 0x5462b0, which is not done). */
+	IM_FRAME(f, "Begin-held right and middle release", 2);
+	IM_CHECK(im_is(&f.m[0], 0, -1, 150, 140, VK_RBUTTON) &&
+		im_is(&f.m[1], 0, -1, 150, 140, VK_MBUTTON), "Begin-held release must be Whole only");
+
 	PE_SetDrag(IM_OTHER, true);
 	mouse_set_pos(550, 140);
 	im_update(false, false, false);
 	im_update(true, false, false);
 	mouse_set_pos(560, 150);
 	im_update(true, false, false);
-	IM_CHECK(other->local.pos.x == 510 && other->local.pos.y == 110, "the dragged parts is at (%d,%d), want (510,110)", other->local.pos.x, other->local.pos.y);
-	im_update(true, true, false);
+	IM_CHECK(other->local.pos.x == 510 && other->local.pos.y == 110, "drag did not move before cancellation");
+	f = im_update(true, true, false);
+	IM_CHECK(f.drag_n == 2, "started drag cancellation sent %d messages, want 2", f.drag_n);
+	IM_CHECK(other->local.pos.x == 500 && other->local.pos.y == 100, "cancel did not restore source position");
 	im_update(true, false, false);
 	mouse_set_pos(570, 160);
 	im_update(true, false, false);
-	IM_CHECK(other->local.pos.x == 520 && other->local.pos.y == 120, "the dragged parts is at (%d,%d) after a right click, want (520,120): the drag was dropped", other->local.pos.x, other->local.pos.y);
+	IM_CHECK(other->local.pos.x == 500 && other->local.pos.y == 100, "cancelled source resumed before all buttons released");
 	im_update(false, false, false);
 	PE_EndInput();
-	printf("  IM4 the right and the middle button do nothing to the parts' input\n");
+	printf("  IM4 right/middle focus, clicks, cancellation and script polling\n");
 }
 
 static void im_scope_and_peek(void)

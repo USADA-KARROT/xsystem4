@@ -338,6 +338,10 @@ static int sk_drain(struct sk_msg *m, int max)
 	int (*var)(int) = (int (*)(int))br_pe_fn("GetMessageVariableInt");
 	int n = 0;
 	for (int t; (t = br_msg_type()) >= 0; br_msg_pop()) {
+		/* This reader checks widget value/click events. The raw
+		 * key-events fixture checks the new v14 drag notifications. */
+		if (ain->version == 14 && (t == 7 || t == 8 || t == 10))
+			continue;
 		if (n < max)
 			m[n] = (struct sk_msg){ t, br_msg_parts(), var(0), t == 21 ? var(1) : 0 };
 		n++;

@@ -33,8 +33,9 @@
  *    4=mouse click (x, y, keyCode), 5=double click,
  *    6=on cursor (x, y, time since entered), 19=focus, 20=lost focus (no
  *    variables). MouseClick's keyCode distinguishes left (1), right (2),
- *    middle (4). The input update sends 0, 1, 2, 3, 4, 6, 19 and 20
- *    (src/parts/input.c, v14_update_input).
+ *    middle (4). Key events 15..18 carry one key code. Drag messages
+ *    7/8/10 carry key; beginX,beginY,x,y,key; key,mode respectively.
+ *    See src/parts/input.c for event production and remaining limitations.
  */
 
 #include "system4/ain.h"
@@ -60,7 +61,7 @@ struct v14_parts_message {
 	int parts_no;
 	int delegate_index;
 	int unique_id;
-	int vars[4];
+	int vars[5];
 	int nr_vars;
 };
 static struct v14_parts_message *msg_queue;
@@ -111,7 +112,9 @@ void parts_enqueue_message_vars(int type, int parts_no, int delegate_index, int 
 	msg_queue[msg_tail].parts_no = parts_no;
 	msg_queue[msg_tail].delegate_index = delegate_index;
 	msg_queue[msg_tail].unique_id = unique_id;
-	int nv = (nr_vars > 4) ? 4 : nr_vars;
+	// Draging's five integers include the button in the last position.
+	int capacity = sizeof(msg_queue[msg_tail].vars) / sizeof(msg_queue[msg_tail].vars[0]);
+	int nv = nr_vars < 0 ? 0 : nr_vars > capacity ? capacity : nr_vars;
 	msg_queue[msg_tail].nr_vars = nv;
 	for (int i = 0; i < nv; i++)
 		msg_queue[msg_tail].vars[i] = vars[i];
@@ -422,14 +425,13 @@ static void PE_v14_GetKeyWaitCGName(int parts_no, int name_slot, int *start_no,
  * its inner parts 0x4f2ff0). The game's IsClickableParts(GetActiveParts())
  * keeps a release on a clickable parts from stepping the message, and
  * IsInputPartsActive asks for a text box (types 4, 7, 11). This port's value
- * follows the left button alone and is reset at other moments than the
- * original's; see PE_GetActivePartsNumber.
+ * follows all three mouse buttons in v14 and is reset at other moments
+ * than the original's; see PE_GetActivePartsNumber.
  *
  * GetClickNumber is the parts that got the left button's MouseClick in the
  * last input update, 0 otherwise (the element's +5, written at 0x5789cb in
  * the key 1 branch of 0x5788d0 alone; see v14_update_input). A right or
- * middle click of a parts does not set it in the original, and this port
- * sends no such click at all. */
+ * middle click of a parts does not set it, in the original or in the port. */
 
 static int PE_v14_GetActiveParts(void)
 {

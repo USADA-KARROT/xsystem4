@@ -687,6 +687,15 @@ struct parts_params {
 	bool add_subtract;
 };
 
+// v14 element key history; zero initialization matches the native constructor.
+// The clock belongs to the whole table, not to each key. Not serialized.
+#define PARTS_V14_NR_KEYS 80
+struct parts_v14_keys {
+	bool down[PARTS_V14_NR_KEYS];
+	uint32_t elapsed;
+	int32_t threshold;
+};
+
 struct parts {
 	struct sprite sp;
 	enum parts_state_type state;
@@ -746,6 +755,12 @@ struct parts {
 	bool is_hovered;
 	int hover_time;
 	Point hover_pos;
+	struct parts_v14_keys v14_keys;
+	// v14 scrollbar Click uses the focused inner track, not the outer
+	// parts' clickable/hovered flags. Kept per parts for old-focus flush;
+	// no separate inner keyboard tables are represented here. Not saved.
+	bool v14_scrollbar_track_focus;
+	bool v14_scrollbar_track_entered;
 	int draw_filter;
 	// v14 減算色モード (SetComponentSubColorMode; pactex 減算色模式, stored as
 	// == 1 by 0x554020, native +0xc4): the parts' own add colour counts
@@ -1085,6 +1100,14 @@ enum parts_v14_message_type {
 	PARTS_V14_MSG_MOUSE_WHEEL = 3,	// forward, back
 	PARTS_V14_MSG_MOUSE_CLICK = 4,	// x, y, key
 	PARTS_V14_MSG_ON_CURSOR   = 6,	// x, y, time since entered
+	PARTS_V14_MSG_DRAG_BEGIN  = 7,	// key
+	PARTS_V14_MSG_DRAGGING    = 8,	// begin x, begin y, x, y, key
+	PARTS_V14_MSG_DRAG_END    = 10,	// key, mode
+	PARTS_V14_MSG_DROP_LEAVE  = 14,	// source parts number
+	PARTS_V14_MSG_KEY_TRIGGER = 15,	// key
+	PARTS_V14_MSG_KEY_DOWN    = 16,	// key
+	PARTS_V14_MSG_KEY_PRESS   = 17,	// key
+	PARTS_V14_MSG_KEY_UP      = 18,	// key
 	PARTS_V14_MSG_FOCUS       = 19,
 	PARTS_V14_MSG_LOST_FOCUS  = 20,
 };

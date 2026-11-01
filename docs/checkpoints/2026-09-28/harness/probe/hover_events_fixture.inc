@@ -61,8 +61,8 @@
  *       clickable one behind the blocker, a hidden one and a transparent
  *       one in front; the messages front to back, the states, the press
  *       target (the first clickable or blocking parts) and its click.
- *   HE3 no position (the pointer outside the window): nothing is sent and
- *       nothing changes, except the focus held down, which is left; no click
+ *   HE3 no position (the pointer outside the window): no projected hover
+ *       or click event, except the focus held down, which is left; no click
  *       at a release outside; back inside, the stored-position rule (the
  *       whole-screen MouseMove twice); after a click the pointer leaving
  *       sends nothing (the slot is empty); a release in the update the
@@ -86,6 +86,8 @@
  *       from the port's code) against the engine over 6000 seeded frames:
  *       six overlapping parts of varied kinds, moves, presses, releases,
  *       the pointer leaving the window, scope boundaries; every message
+ *       retained by this fixture's v14 projection (keys 15-18 and drag
+ *       notifications 7/8/10 are checked separately by key-events)
  *       (type, parts, delegate, event ID, variables), every state, the
  *       entered flags, GetClickNumber and GetActiveParts, every frame;
  *       nested scopes too.
@@ -101,8 +103,15 @@
  * The scroll bar's stop of the walk is checked by scrollbar-knob (K12),
  * which has the GL a bar's look needs.
  * Synthetic rectangles, the production PE_UpdateInputState and the v14
- * message queue, read raw (br_msg_type_raw). No GL, no game assets. Each
- * case runs in its own fork.
+ * message queue, read through br_msg_type_raw. In v14, he_drain locally
+ * omits key types 15-18 and drag notifications 7/8/10: native source
+ * movement (0x546c02) and outside release cancellation (0x5462b0) send
+ * these in addition to the hover/focus/click sequence modeled here.
+ * Hover, focus, Click (4) and every other event stay visible. The raw
+ * key-events collector checks cancellation payloads and key/click order;
+ * this fixture does not claim the complete raw cross-family sequence.
+ * Before v14 this reader omits no event.
+ * No GL, no game assets. Each case runs in its own fork.
  */
 
 static int he_failures;
@@ -126,7 +135,9 @@ static int he_hll_int(const char *name)
 	return r[0].i;
 }
 
-/* Every message queued, raw (hover messages included). */
+/* Local v14 hover/focus/click projection: key-events checks the key and
+ * drag families in the unfiltered queue. Retain Click and all other types
+ * in order; before v14 this reader does not project any family. */
 static struct he_frame he_drain(void)
 {
 	int (*delegate)(void) = (int (*)(void))br_pe_fn("GetMessageDelegateIndex");
@@ -135,6 +146,8 @@ static struct he_frame he_drain(void)
 	assert(delegate && count && var);
 	struct he_frame f = { 0 };
 	for (int t; (t = br_msg_type_raw()) >= 0; br_msg_pop()) {
+		if (ain->version == 14 && ((t >= 15 && t <= 18) || t == 7 || t == 8 || t == 10))
+			continue;
 		if (f.n < HE_MAXMSG) {
 			struct he_msg *m = &f.m[f.n];
 			*m = (struct he_msg){ t, br_msg_parts(), delegate(), he_unique(), count(), { var(0), var(1), var(2) } };

@@ -17,6 +17,7 @@ static void global_init_probe_step(void);
 static void global_init_probe_return(int fno);
 static void delegate_cursor_probe_step(void);
 static void array_construct_probe_step(void);
+static void key_consumer_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -40,6 +41,7 @@ static void probe_step(unsigned op) {
     (void)op;
     if(++total_steps > probe_step_budget) { fprintf(stderr,"PROBE instruction budget exceeded\n");exit(90); }
     if(call_stack_ptr>0)steps[call_stack[call_stack_ptr-1].fno]++;
+    key_consumer_probe_step();
     observer_probe_step();
     delegate_reentrancy_probe_step();
     personality_probe_step();
@@ -190,6 +192,9 @@ static void init_probe(const char *path) {
 #include "parts_sound_name_fixture.inc"
 #include "sound_se_fixture.inc"
 #include "activity_capacity_fixture.inc"
+#include "key_events_fixture.inc"
+#include "key_scrollbar_fixture.inc"
+#include "key_consumer_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -302,6 +307,9 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"layer-input"))return test_layer_input();
     if(!strcmp(argv[2],"parts-sound-name"))return test_parts_sound_name();
     if(!strcmp(argv[2],"sound-se"))return test_sound_se();
+    if(!strcmp(argv[2],"key-events"))return test_key_events();
+    if(!strcmp(argv[2],"key-scrollbar"))return test_key_scrollbar();
+    if(!strcmp(argv[2],"key-consumer"))return test_key_consumer();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

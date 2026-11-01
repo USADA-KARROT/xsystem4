@@ -102,13 +102,12 @@ static int br_pairs(int n, const int *pairs)
 static int (*br_msg_type)(void), (*br_msg_parts)(void);
 static void (*br_msg_pop)(void), (*br_msg_release)(void);
 
-/* Since G3 (2026-10-20) the v14 input update also queues the hover's
- * messages for every parts the cursor walk enters or leaves (MouseEnter 0,
- * MouseMove 1, MouseLeave 2, OnCursor 6), the whole-screen MouseMove (1)
- * and the focus' (19, 20); hover-events checks them through
- * br_msg_type_raw. The fixtures that count the clicks, the scroll and the
- * check boxes read the queue through br_msg_type, which takes those off the
- * head first: their counts and orders stay those of the other messages. */
+/* br_msg_type_raw is the unchanged accessor for the complete v14 queue.
+ * Click, scroll and check-box fixtures use br_msg_type as a local
+ * projection: it omits G3 hover/focus (0, 1, 2, 6, 19, 20) and G8 key
+ * events (15-18), while retaining Click (4), drag and other event types.
+ * hover-events uses its own reader, retaining hover/focus and omitting only
+ * 15-18. G8's raw collector and KE14 keep the cross-family order visible. */
 static int (*br_msg_type_raw)(void);
 static bool br_msg_is_hover(int type)
 {
@@ -117,7 +116,7 @@ static bool br_msg_is_hover(int type)
 static int br_msg_type_skip_hover(void)
 {
 	int t;
-	while ((t = br_msg_type_raw()) >= 0 && br_msg_is_hover(t))
+	while ((t = br_msg_type_raw()) >= 0 && (br_msg_is_hover(t) || (t >= 15 && t <= 18)))
 		br_msg_pop();
 	return t;
 }
@@ -159,8 +158,9 @@ static struct parts *br_box(int no, int x, int y, int w, int h, bool all_states)
 }
 
 /* One press at (x, y) after a released frame, and its release; returns the
- * number of queued messages and the last one's type and parts number. A
- * release queues the whole-screen click (type 4, parts 0) first and then,
+ * number of messages in this reader's projection and the last one's type
+ * and parts number. Within this projection, a release queues the
+ * whole-screen click (type 4, parts 0) first and then,
  * when a clickable parts was pressed and is still under the cursor, that
  * parts' own MouseClick (0x547c90: 0x548064, then 0x5788d0). The order is
  * checked here for every caller: with two messages or more the first must

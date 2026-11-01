@@ -42,6 +42,16 @@
 #endif
 
 bool key_state[VK_NR_KEYCODES];
+/* Distinct SDL sources can represent the same v14 virtual key. */
+static const struct {
+	SDL_Scancode scan;
+	enum sact_keycode key;
+} v14_key_sources[] = {
+	{SDL_SCANCODE_LSHIFT, VK_SHIFT}, {SDL_SCANCODE_RSHIFT, VK_SHIFT},
+	{SDL_SCANCODE_LCTRL, VK_CONTROL}, {SDL_SCANCODE_RCTRL, VK_CONTROL},
+	{SDL_SCANCODE_RETURN, VK_RETURN}, {SDL_SCANCODE_KP_ENTER, VK_RETURN},
+};
+static bool v14_source_down[sizeof(v14_key_sources) / sizeof(*v14_key_sources)];
 static enum sact_keycode sdl_keytable[] = {
 	[SDL_SCANCODE_0] = VK_0,
 	[SDL_SCANCODE_1] = VK_1,
@@ -153,6 +163,13 @@ static enum sact_keycode sdl_keytable[] = {
 
 bool mouse_focus = true;
 bool keyboard_focus = true;
+static bool window_minimized;
+
+bool input_is_active(void)
+{
+	/* SDL policy for the native cached activation/non-minimized gate. */
+	return keyboard_focus && (!(ain && ain->version == 14) || !window_minimized);
+}
 
 #define MAX_CONTROLLERS 4
 static SDL_GameController *controllers[MAX_CONTROLLERS];
@@ -201,6 +218,12 @@ bool key_is_down(enum sact_keycode code)
 
 void key_clear_flag(bool no_ctrl)
 {
+	if (ain && ain->version == 14) {
+		for (unsigned i = 0; i < sizeof(v14_key_sources) / sizeof(*v14_key_sources); i++) {
+			if (!no_ctrl || v14_key_sources[i].key != VK_CONTROL)
+				v14_source_down[i] = false;
+		}
+	}
 	for (int i = 0; i < VK_NR_KEYCODES; i++) {
 		if (no_ctrl && i == VK_CONTROL)
 			continue;
@@ -988,8 +1011,24 @@ static void key_event(SDL_KeyboardEvent *e, bool pressed)
 	if (e->keysym.scancode >= (sizeof(sdl_keytable)/sizeof(*sdl_keytable)))
 		return;
 	enum sact_keycode code = sdl_keytable[e->keysym.scancode];
+	// v14 treats keypad Enter as Return; retain earlier mappings.
+	if (ain && ain->version == 14 && e->keysym.scancode == SDL_SCANCODE_KP_ENTER)
+		code = VK_RETURN;
 	if (code) {
-		key_state[code] = pressed;
+		bool down = pressed;
+		if (ain && ain->version == 14) {
+			for (unsigned i = 0; i < sizeof(v14_key_sources) / sizeof(*v14_key_sources); i++) {
+				if (v14_key_sources[i].scan != e->keysym.scancode)
+					continue;
+				v14_source_down[i] = pressed;
+				down = false;
+				for (unsigned j = 0; j < sizeof(v14_key_sources) / sizeof(*v14_key_sources); j++)
+					if (v14_key_sources[j].key == code)
+						down |= v14_source_down[j];
+				break;
+			}
+		}
+		key_state[code] = down;
 		if (pressed && key_handler)
 			key_handler(code);
 	}
@@ -1395,6 +1434,7 @@ static void fire_deferred_events(void)
 static void handle_window_event(SDL_Event *e)
 {
 	extern bool scene_is_dirty;
+	bool was_active = input_is_active();
 	switch (e->window.event) {
 	case SDL_WINDOWEVENT_EXPOSED:
 		// Don't call gfx_swap() directly — it blocks on macOS
@@ -1418,11 +1458,25 @@ static void handle_window_event(SDL_Event *e)
 		keyboard_focus = false;
 		mixer_set_window_focus(false);
 		break;
+	case SDL_WINDOWEVENT_MINIMIZED:
+		if (ain && ain->version == 14)
+			window_minimized = true;
+		break;
+	case SDL_WINDOWEVENT_RESTORED:
+	case SDL_WINDOWEVENT_MAXIMIZED:
+		if (ain && ain->version == 14)
+			window_minimized = false;
+		break;
 	case SDL_WINDOWEVENT_SIZE_CHANGED:
 		gfx_update_screen_scale();
 		scene_is_dirty = true;
 		break;
 	}
+	/* 0x4bdaf0 clears the keyboard when native activation becomes valid.
+	 * SDL focus/minimize events are a cross-platform approximation. */
+	if (ain && ain->version == 14 && input_is_active() &&
+			(!was_active || e->window.event == SDL_WINDOWEVENT_FOCUS_GAINED))
+		key_clear_flag(false);
 }
 
 // Whether the user is asked before the game is closed from outside the

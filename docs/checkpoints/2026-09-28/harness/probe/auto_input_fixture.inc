@@ -42,8 +42,8 @@
  *       alone hovers a button and sends nothing, a straight move passes
  *       over nothing to the other button, a first-form click sends the
  *       whole-screen click and the button's, a drag off the button sends
- *       the whole-screen click alone, a right click sends nothing (the
- *       port's state, input-model IM4), a wheel step reaches Whole and
+ *       the whole-screen click alone, a right click sends Whole then local
+ *       MouseClick with key 2, a wheel step reaches Whole and
  *       the eligible component after SDL pumping, with the same two counts
  *       read by MouseWheel_GetCount. G5 adds these type-3 messages.
  *   AU7 XSYS4_AUTO_CLICK=<ms> (the periodic clicks of gui-run.sh): at
@@ -672,6 +672,8 @@ static struct au_frame au_parts(uint32_t t)
 	PE_UpdateInputState(16);
 	struct au_frame f = { 0 };
 	for (int ty; (ty = br_msg_type()) >= 0; br_msg_pop()) {
+		/* This schedule-to-click check leaves drag payloads to key-events. */
+		if (ain->version == 14 && (ty == 7 || ty == 8 || ty == 10)) continue;
 		if (f.n < 3) {
 			f.m[f.n].type = ty;
 			f.m[f.n].no = br_msg_parts();
@@ -733,7 +735,11 @@ static void au_engine(void)
 	AU_CHECK(f.n == 0 && key_state[VK_RBUTTON] && a->state == PARTS_STATE_HOVERED,
 		 "the right click's press on A: %d message(s), right button %d, A in state %d", f.n, key_state[VK_RBUTTON], a->state);
 	f = au_parts(1200);
-	AU_CHECK(f.n == 0 && !key_state[VK_RBUTTON], "the right click's release: %d message(s) (the port sends none yet, input-model IM4)", f.n);
+	AU_CHECK(f.n == 2 && !key_state[VK_RBUTTON] &&
+		f.m[0].type == 4 && f.m[0].no == 0 && f.m[0].key == VK_RBUTTON &&
+		f.m[1].type == 4 && f.m[1].no == AU_A && f.m[1].key == VK_RBUTTON &&
+		f.m[0].x == 150 && f.m[0].y == 140 && f.m[1].x == 150 && f.m[1].y == 140,
+		"right release must send Whole then local key-2 click, got %d messages", f.n);
 	f = au_parts(1300);
 	AU_CHECK(f.n == 0, "the wheel before its queued SDL event is pumped: %d message(s)", f.n);
 	/* View's Clear/Peek boundary ends the earlier empty snapshot. */
