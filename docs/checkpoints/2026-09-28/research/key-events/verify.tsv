@@ -1,0 +1,20 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 123 模式 PASS、sanitizer 0	P0 的提交後驗證（程式 3e103f6；3f20f3e 只加文件），見 activity-capacity 的 verify.tsv
+收尾第一輪	預設及 GBK	各 125／126：只有 confirm-exit 一個模式失敗，12 案中只有 CE11 一案失敗（案內兩個 SIGINT 檢查）	私人包裝讓子行程繼承了忽略 SIGINT（和 P0 的診斷相同）；改正包裝後重跑各 126／126、sanitizer 0；程式與判準不變
+第一段最終	預設及 GBK	各 126 模式 PASS、sanitizer 0；key-events 59／59	審查前的程式與探針，歷史
+審查修正後	預設及 GBK	各 126 模式 PASS、sanitizer 0；key-events 70／70	引擎改了範圍結束的重設；歷史
+提交前準備	預設及 GBK	各 126 模式 PASS、sanitizer 0；key-events 77／77	獨立核對前的探針，歷史
+提交前最終	預設	126 模式 PASS、sanitizer 0；key-events 78／78、key-scrollbar 8／8、key-consumer 2／2、input-model 7／7、auto-input 13／13、confirm-exit 12／12、scrollbar-knob 12／12、hover-events 10／10、base-ui-review 7／7、config-widgets 13／13	parent 3f20f3e 加當時這一組的差異（src／include 5 個檔 +540／−92）；跑在當時最後一次探針修改之後；歷史（之後有第一次提交與提交後修正輪）
+提交前最終	GBK	126 模式 PASS、sanitizer 0；各模式案數同上	同上
+提交後修正輪	預設及 GBK	各 126 模式 PASS、sanitizer 0；key-events 80／80	補追蹤行、KE79、KE80 與註解之後；審查後只改註解，再跑一次，結果相同；新子案放進既有模式，模式數不變
+修前檢查（提交前）	預設及 GBK	key-events 80 案中 78 案失敗（KE8、KE78 通過）、key-scrollbar 8／8 失敗、input-model 只有 IM4、auto-input 只有 AU6 失敗、key-consumer 通過；probe exit 1、sanitizer 0；兩字集逐案相同	parent 3f20f3e 的 src／include 加修正輪的探針；KE79、KE80 在父版本失敗；其餘 108 案和補子案之前的表狀態全同
+只改讀取方式的四個模式	預設及 GBK	base-ui-review、config-widgets、hover-events、scrollbar-knob 在父版本上 PASS、sanitizer 0	新的過濾在父版本是空操作，預期就通過
+突變：第一段	預設及 GBK	218 個：198 個由指定的案殺、2 個由指定外的案殺、18 個存活（等價 15、不等價 3）	不等價的三個：一個照原版修了引擎後改判等價，兩個列進探針檔頭的 Not covered
+突變：審查後	預設及 GBK	新加 21 個：16 個被殺（其中 4 個在第一次重跑時存活、補子案後才殺）、5 個存活（等價 3、Not covered 1、G8 之前的條件 1）	補做運算式層級的列舉；分支清單原本沒有涵蓋指派式裡的布林與比較
+子條件列舉	靜態	51 個敘述、141 個子條件；補列前有自己突變的 62 個、補列後 127 個；沒有突變的 14 個寫了理由	逐文字比對；巨集、函式呼叫內部與跨函式的條件組合沒有涵蓋
+突變：提交前準備	預設及 GBK	新跑 71 個：39 個被殺、9 個不等價存活（6 個補子案、3 個列進 Not covered）、15 個等價、8 個指標保護拿掉後探針在 sanitizer 下中止	等價是在目前程式結構與 v13／v14 目標下的論證，不是形式證明
+突變：最終探針上的必跑批	預設及 GBK	14 個全部被指定的案殺掉	還原後的建置 rc 0、全部 PASS
+突變：提交後修正輪	預設及 GBK	新加 4 個：切層丟槽時一併清掉不在範圍內的焦點、或清掉它的鍵表，2 個都只被 KE79、KE80 殺（舊 78 案沒有一案失敗）；2 個只動追蹤的對照在六個解析模式都存活	探針不讀追蹤行，只動追蹤的修改一定存活，所以判等價；引擎行為不變的依據是差異本身（新變數只用在追蹤）、verify 與路線；審查後只改註解，重跑結果相同
+突變：合計	預設及 GBK	320 個（各段的列舉加上審查與核對者寫的）：270 個被殺（其中一個是 G8 之前的條件，只在審查的一次執行裡殺）、36 個存活判等價、8 個拿掉指標保護後在 sanitizer 下中止、6 個不等價而沒有子案（在探針檔頭的 Not covered）	提交後修正輪的審查者在自己的隔離副本另跑的 7 個突變與 2 個診斷案沒有併入這個數
+修前檢查（提交後）	預設及 GBK	五個解析模式 110 案逐案和提交前的修前表相同（0 案缺、0 案多、0 案狀態不同）；28 案的第一個失敗訊息不同，把 fixture 行號正規化後 0 案不同；四個只改讀取方式的模式 8 行 rc 0、sanitizer 0	parent 3f20f3e 的 src／include 加提交的探針；before.tsv 是這一次的逐案表
+提交後驗證	預設及 GBK	各 126 模式 PASS、sanitizer 0；key-events 80／80、key-scrollbar 8／8、key-consumer 2／2、input-model 7／7、auto-input 13／13、confirm-exit 12／12、scrollbar-knob 12／12、hover-events 10／10、base-ui-review 7／7、config-widgets 13／13、layer-input 12／12	HEAD 2d76d52，沒有未提交的改動（src／include 對 parent +608／−96）

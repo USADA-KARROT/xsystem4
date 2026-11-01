@@ -1,0 +1,115 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+key-events	KE1	FAIL	FAIL	是	button 1 trigger target 0	22	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE2	FAIL	FAIL	是	button 2 did not focus target	27	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE3	FAIL	FAIL	是	button 4 did not focus target	27	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE4	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	23	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE5	FAIL	FAIL	是	line 224: expected one type 15 target 0 key 2	14	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE6	FAIL	FAIL	是	line 234: expected one type 15 target 0 key 4	8	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE7	FAIL	FAIL	是	line 243: expected one type 15 target 0 key 2	11	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE8	PASS	PASS	是	—	0	通過：v13 守衛
+key-events	KE9	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	41	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE10	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	69	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE11	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	11	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE12	FAIL	FAIL	是	80-key event count 0	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE13	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	14	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE14	FAIL	FAIL	是	release order count 0	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE15	FAIL	FAIL	是	cancel DragBegin count	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE16	FAIL	FAIL	是	movement did not begin drag	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE17	FAIL	FAIL	是	cancel DragBegin count	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE18	FAIL	FAIL	是	cancel DragBegin count	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE19	FAIL	FAIL	是	cancel DragBegin count	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE20	FAIL	FAIL	是	cancel DragBegin count	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE21	FAIL	FAIL	是	cancel DragBegin count	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE22	FAIL	FAIL	是	Begin-held key table wrongly seeded	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE23	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	12	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE24	FAIL	FAIL	是	slot reset emitted local Up	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE25	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	12	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE26	FAIL	FAIL	是	Whole repeat unexpectedly gated by hover	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE27	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	13	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE28	FAIL	FAIL	是	v14 keypad Enter not Return	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE29	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	24	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE30	FAIL	FAIL	是	movement did not begin drag	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE31	FAIL	FAIL	是	movement did not begin drag	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE32	FAIL	FAIL	是	cancel DragBegin count	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE33	FAIL	FAIL	是	cancel DragBegin count	6	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE34	FAIL	FAIL	是	cancel DragBegin count	6	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE35	FAIL	FAIL	是	cancel DragBegin count	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE36	FAIL	FAIL	是	cancel DragBegin count	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE37	FAIL	FAIL	是	key 16 lost other held source	6	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE38	FAIL	FAIL	是	initial key missing	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE39	FAIL	FAIL	是	cancel DragBegin count	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE40	FAIL	FAIL	是	line 453: expected one type 15 target 0 key 1	24	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE41	FAIL	FAIL	是	line 453: expected one type 15 target 0 key 2	24	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE42	FAIL	FAIL	是	line 453: expected one type 15 target 0 key 4	24	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE43	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	30	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE44	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	33	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE45	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	28	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE46	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	316	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE47	FAIL	FAIL	是	cancel DragBegin count	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE48	FAIL	FAIL	是	line 682: expected one type 15 target 0 key 2	8	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE49	FAIL	FAIL	是	right press did not focus	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE50	FAIL	FAIL	是	right press did not focus	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE51	FAIL	FAIL	是	line 744: expected one type 15 target 0 key 2	28	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE52	FAIL	FAIL	是	right press did not focus	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE53	FAIL	FAIL	是	button 2 did not focus	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE54	FAIL	FAIL	是	button 4 did not focus	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE55	FAIL	FAIL	是	line 167: expected one type 15 target 0 key 1	21	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE56	FAIL	FAIL	是	activation did not start the held buttons	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE57	FAIL	FAIL	是	initial key missing	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE58	FAIL	FAIL	是	keypad Enter not Return	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE59	FAIL	FAIL	是	right press under a held left did not focus	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE60	FAIL	FAIL	是	line 919: expected one type 15 target 0 key 1	21	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE61	FAIL	FAIL	是	button 4 did not focus	24	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE62	FAIL	FAIL	是	button 2 did not focus	24	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE63	FAIL	FAIL	是	cancel DragBegin count	8	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE64	FAIL	FAIL	是	cancel DragBegin count	8	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE65	FAIL	FAIL	是	cancel DragBegin count	8	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE66	FAIL	FAIL	是	line 1000: source event count 0, want 2	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE67	FAIL	FAIL	是	cancel DragBegin count	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE68	FAIL	FAIL	是	button 2 did not focus	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE69	FAIL	FAIL	是	button 4 did not focus	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE70	FAIL	FAIL	是	maximize kept the minimized gate	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE71	FAIL	FAIL	是	Begin forgot the last position (local MouseMove 1)	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE72	FAIL	FAIL	是	activation did not start the held middle button	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE73	FAIL	FAIL	是	line 1126: expected one type 18 target 0 key 1	13	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE74	FAIL	FAIL	是	cancel DragBegin count	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE75	FAIL	FAIL	是	cancel DragBegin count	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE76	FAIL	FAIL	是	line 1164: source event count 0, want 2	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE77	FAIL	FAIL	是	cancel DragBegin count	5	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE78	PASS	PASS	是	—	0	通過：守 G8 新寫的條件，不是證明行為改變的修前案
+key-events	KE79	FAIL	FAIL	是	line 147: expected one type 15 target 0 key 1	18	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-events	KE80	FAIL	FAIL	是	line 147: expected one type 15 target 0 key 1	20	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS1	FAIL	FAIL	是	track did not forward type 15	4	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS2	FAIL	FAIL	是	knob initial press	3	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS3	FAIL	FAIL	是	other key press changed rate or was swallowed	8	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS4	FAIL	FAIL	是	empty range lost forwarded trigger	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS5	FAIL	FAIL	是	held left lost bar KeyDown/rate after right press	1	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS6	FAIL	FAIL	是	knob other key lost trigger	16	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS7	FAIL	FAIL	是	track overlap release changed rate or lost KeyUp	2	修前失敗，符合預期（G8 才有的事件或行為不存在）
+key-scrollbar	KS8	FAIL	FAIL	是	local bar Click count 0, want 1 for key 2	6	修前失敗，符合預期（G8 才有的事件或行為不存在）
+input-model	IM1	PASS	PASS	是	—	0	通過：既有行為不變
+input-model	IM2	PASS	PASS	是	—	0	通過：既有行為不變
+input-model	IM3	PASS	PASS	是	—	0	通過：既有行為不變
+input-model	IM4	FAIL	FAIL	是	non-left press did not select focus	22	修前失敗，符合預期（期望改成原版的右／中鍵行為）
+input-model	IM5	PASS	PASS	是	—	0	通過：既有行為不變
+input-model	IM6	PASS	PASS	是	—	0	通過：既有行為不變
+input-model	IM7	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU1	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU2	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU3	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU4	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU5	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU6	FAIL	FAIL	是	right release must send Whole then local key-2 click, got 0 messages	1	修前失敗，符合預期（期望改成原版的右／中鍵行為）
+auto-input	AU7	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU8	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU9	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU10	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU11	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU12	PASS	PASS	是	—	0	通過：既有行為不變
+auto-input	AU13	PASS	PASS	是	—	0	通過：既有行為不變
+key-consumer	KC1	PASS	PASS	是	—	0	通過：守衛（只驗 AIN 的消費端）
+key-consumer	KC2	PASS	PASS	是	—	0	通過：守衛（只驗 AIN 的消費端）
+base-ui-review	全部 7 案	PASS	PASS	是	—	0	通過：只改讀取方式（略過新的事件家族），父版本上是空操作
+config-widgets	全部 13 案	PASS	PASS	是	—	0	通過：只改讀取方式（略過新的事件家族），父版本上是空操作
+hover-events	全部 10 案	PASS	PASS	是	—	0	通過：只改讀取方式（略過新的事件家族），父版本上是空操作
+scrollbar-knob	全部 12 案	PASS	PASS	是	—	0	通過：只改讀取方式（略過新的事件家族），父版本上是空操作
