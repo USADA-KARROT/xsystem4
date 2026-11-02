@@ -1,0 +1,15 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 80／80、layer-input 12／12	U1 的提交後驗證（程式 e5d8963；3228ba8 只加文件），見 upstream-fixes 的 verify.tsv；這一組開工時在 3228ba8 上重跑
+實作後	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 114／114、layer-input 13／13、hover-events 10／10	parent 3228ba8 加當時的差異（diff 07e143fb3b83）；提交前路線與片頭用的就是這一次連結的執行檔；歷史
+審查後修正	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 119／119、layer-input 13／13、hover-events 10／10	補 KE115–KE119；input.c 只改註解（去掉註解後逐字相同，物件檔只差兩個警告訊息帶的行號）；diff 23462095b7e9；歷史
+提交前收尾	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 123／123、layer-input 13／13、hover-events 10／10	補 KE120–KE123、KE116 與 KE119 的游標時點；input.c 只改註解；diff 5d0b58834463；歷史
+提交前最終（核對後）	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 123／123、layer-input 13／13、hover-events 10／10；兩份輸出把標籤正規化之後和收尾那一次逐行相同	探針檔頭只多四行註解；diff 5d0b58834463（和提交的 src／include 相同）
+修前檢查（實作後）	預設及 GBK	key-events 114 案中 24 案、layer-input 只有 LI13 失敗，其餘通過；probe exit 1、sanitizer 0；兩字集逐案相同	parent 3228ba8 的 src／include 加當時的探針；第一版探針（KE81–KE106）是 17 案加 LI13；歷史
+修前檢查（審查後修正）	預設及 GBK	key-events 119 案中 29 案、layer-input 只有 LI13 失敗；KE115–KE119 的第一個失敗都是別層的按下送舊層的焦點 LostFocus；KE112 只有釘移植版那一格的兩行	同上；歷史
+修前檢查（提交前最終）	預設及 GBK	key-events 123 案中 31 案、layer-input 只有 LI13 失敗，12 個守衛與舊案通過；probe exit 1、sanitizer 0；兩字集逐案相同	parent 3228ba8 的 src／include 加最終的探針；逐案表和收尾那一次逐位元組相同
+突變：列舉	預設及 GBK	55 個：第一輪 54 個被殺，1 個存活（切換時不由左槽推出按下中的元件），補 KE114 後被殺；補 KE115–KE119 之後全部重跑，沒有一個少殺	每個分支條件、比較、回傳、清除時機與子條件各一個；每個突變在兩字集失敗的案相同；只跑 key-events
+突變：審查者寫的	預設及 GBK	11 個（語義審查 9、複審 2）：語義審查的 3 個到 KE119 都存活，補 KE120–KE122 才殺；其餘被既有的案殺	兩個只在釘移植版的格子被殺（KE112；KE116、KE119），證明的是移植版的選擇被釘住，不是修正
+突變：合計	預設及 GBK	66 個全部被殺；等價或不跑的 11 項寫了理由	等價的理由是移植版程式的不變式與不是行為的程式；寫出陣列外的改法交給 sanitizer；不是形式證明
+審查者的錯誤實作與不變式	預設及 GBK	探針審查 12 個錯誤實作的變體：既有探針抓不到的 2 種補了子案（KE107、KE108）；語義審查加檢查跑 26 個輸入相關模式，「槽與按下標記只放本層的焦點」沒有違反	都在隔離副本，沒有併入 66
+修前檢查（提交後）	預設及 GBK	兩個模式 136 案逐案和提交前的修前表相同（0 案缺、0 案多、0 案狀態不同、0 案訊息不同）；key-events 31 案、layer-input 只有 LI13 失敗，sanitizer 0	parent 3228ba8 的 src／include 加提交的探針；before.tsv 是這一次的逐案表
+提交後驗證	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 123／123、layer-input 13／13、hover-events 10／10；130 個模式沒有重複，TIMER PASS 只在 timer 模式	HEAD d698d6a，沒有未提交的改動
