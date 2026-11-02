@@ -1,0 +1,15 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 130 模式 PASS、sanitizer 0；key-events 123／123、layer-input 13／13、hover-events 10／10	G8b 的提交後驗證（程式 d698d6a；42aa793 只加文件），見 layer-switch 的 verify.tsv；這一組開工時在 42aa793 上重跑
+實作後	預設及 GBK	各 133 模式 PASS、sanitizer 0；msgwin-rates 14／14、msgwin-sample 6／6、font-cache 7／7	parent 42aa793 加當時的差異（diff 188643ab2150）；提交前的路線、片頭與實機用的就是這份原始碼建的執行檔；歷史
+提交前收尾	預設及 GBK	各 133 模式 PASS、sanitizer 0；msgwin-rates 16／16、msgwin-sample 6／6、font-cache 7／7；WR1 雜湊 63689b45	補 WR15、WR16；src 只改註解（去掉註解後程式碼的 token 相同，物件檔只差警告訊息帶的行號）；diff 03c9bfd5539a；歷史
+提交前最終（核對後）	預設及 GBK	各 133 模式 PASS、sanitizer 0；msgwin-rates 16／16、msgwin-sample 6／6、font-cache 7／7；WR1 雜湊 63689b45	核對後只改兩處註解（同一條命令編的物件檔只差除錯資訊裡兩份原始檔的校驗值）；diff 503b2b2085a5（和提交的 src／include 相同）
+修前檢查（第一版探針）	預設及 GBK	23 案中 16 案失敗（WR2–WR6、WR9–WR11、WS1、WS2、WS5、WS6、FN1–FN4），7 個守衛通過；sanitizer 0；兩字集逐案相同	parent 42aa793 的 src／include 加探針審查前的探針；歷史
+修前檢查（探針審查後）	預設及 GBK	27 案中 18 案失敗（WR2–WR6、WR9–WR12、WR14、WS1、WS2、WS5、WS6、FN1–FN4），9 個守衛通過；probe exit 1、sanitizer 0；兩字集逐案相同	補 WR12–WR14、FN7 與幾案的子案；WR5 換成截斷和四捨五入分得開的 0.34；歷史
+修前檢查（提交前最終）	預設及 GBK	29 案中 20 案失敗，9 個守衛通過；WR1 雜湊 63689b45；probe exit 1、sanitizer 0；兩字集逐案相同	補 WR15、WR16；核對後又只改註解，重跑的逐案表和收尾那一次逐位元組相同
+突變：列舉	預設及 GBK	95 個：第一輪 7 個存活（轉換低於 int 範圍的值 1、文字鍵 3、沒有父 parts 的 3），補子案後全部被殺	每個分支、比較、轉換、夾值、存放與綁定各一個，子條件各一個；在補 WR15、WR16 之前的探針上跑
+突變：審查者寫的	預設及 GBK	7 個：5 個被殺（其中 2 個補 WR15、WR16 之後重跑才殺）；2 個存活（鍵待標記，Not covered；原版的整數合成，WR12 刻意接受）	2 個重跑在最終探針上也跑了
+突變：收尾新寫	預設及 GBK	2 個：背景只在顯示時吃比率（WR15 殺）、亮度下丟掉加算色（WR14、WR16 殺）	在最終探針上跑
+突變：合計	預設及 GBK	104 個不同的突變，102 個被抓到，其中 6 個帶 sanitizer 中止（5 個在指定的案本身）；等價 13 項、探針碰不到 5 項寫了理由	等價的理由是讀程式的論證；不是形式證明
+審查者的錯誤實作	預設及 GBK	探針審查的 17 個錯誤實作，12 個被當時的探針抓到；存活的 5 個補了 WR12、WR13、WR5 的改寫與 WR8 的改寫，重入路徑列進 Not covered	都在隔離副本，沒有算進 104
+修前檢查（提交後）	預設及 GBK	三個模式 29 案逐案和提交前的修前表相同（0 案缺、0 案多、0 案狀態不同、0 案訊息不同）；恰好 20 案失敗、sanitizer 0；WR1 雜湊兩字集都是 63689b45	parent 42aa793 的 src／include 加提交的探針；before.tsv 由這一次的逐案表整理
+提交後驗證	預設及 GBK	各 133 模式 PASS、sanitizer 0；msgwin-rates 16／16、msgwin-sample 6／6、font-cache 7／7、key-events 123／123、layer-input 13／13、hover-events 10／10；133 個模式沒有重複，TIMER PASS 只在 timer 模式；WR1 雜湊兩組都是 63689b45	HEAD c3e7649，沒有未提交的改動

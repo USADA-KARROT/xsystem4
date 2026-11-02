@@ -164,6 +164,7 @@ wip 的 GB18030 字元處理（`git diff e8bd5ab 22e9496 -- src/parts/text.c src
 
 ### 6.5 4e20a49 / 5cbc697 / a19c200 / 5fb3c49
 見第 5 節。
+- 2026-11-02 更新（G9，程式 `c3e7649`）：`5fb3c49` 沒有挑進來。照它的想法，`text_style_font_size` 在 v14 每次依樣式的字型與字級重查（同一組字型與字級回同一個尺寸，字形快取不丟），涵蓋 parts 文字、訊息框文字與連快取一起複製的樣式；v13 以下照舊沿用第一次查到的尺寸（上游不分版本）。見 [message-window-config](message-window-config/README.md)。
 
 ### 6.6 上游 3D（02f29b6 / 0211877 / b68e162 / e14b4bc / 5cc163a / 9654950 / 11ad7a5）× wip SealEngine.c
 - 不是文字衝突（序列全 CLEAN），是綁定層交會：上游把 SealEngine 功能實作在 `ReignEngine.c` 的 `SEAL_EXPORTS` 並由 `HLL_LIBRARY(SealEngine, REIGN_EXPORTS, TAPIR_EXPORTS, SEAL_EXPORTS)`（上游 `ReignEngine.c:2754`）綁定；wip 把該行註解掉（`22e9496:src/hll/ReignEngine.c:2725-2728`，理由：v14 wrap/2-slot 簽名不同）改用獨立 `src/hll/SealEngine.c`（2,099 行、248 函數、178 處呼叫 `RE_/reign_/model_`）。

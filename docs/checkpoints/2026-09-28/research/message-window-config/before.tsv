@@ -1,0 +1,30 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+msgwin-rates	WR1	PASS	PASS	是	—	0	通過，守衛：比率 1.0／1.0 時背景就是 CG、文字不變；印出的畫面雜湊修前修後相同
+msgwin-rates	WR2	FAIL	FAIL	是	WR2 opacity 0.5: the background is not drawn with multiply 255 and alpha 127	1	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：不透明度 0.5 時背景仍是 CG 的 alpha 255
+msgwin-rates	WR3	FAIL	FAIL	是	WR3 brightness 0.5: the background is not drawn with multiply 127 and alpha 255	1	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：亮度 0.5 時背景沒有變暗
+msgwin-rates	WR4	FAIL	FAIL	是	WR4 opacity 0: the background is not drawn with multiply 255 and alpha 0	2	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：不透明度 0 時背景仍在，亮度 0 時沒有變黑
+msgwin-rates	WR5	FAIL	FAIL	是	WR5: brightness 0.34: the multiply is not 86	2	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：0.34 時乘色與 alpha 不是截斷後的 86
+msgwin-rates	WR6	FAIL	FAIL	是	WR6: the background at 0.5 and 0.5	1	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：0.5 時背景沒有變
+msgwin-rates	WR7	PASS	PASS	是	—	0	通過，守衛：不是訊息框的 parts（CG、文字）不受比率影響
+msgwin-rates	WR8	PASS	PASS	是	—	0	通過，守衛：v13：v14 設過 0.5 之後，v13 的 PE_Update 畫出 CG 原色
+msgwin-rates	WR9	FAIL	FAIL	是	WR9 WinG: the rates do not reach the window	2	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：pactex 載入的視窗（兩種拼法的型別名）收不到比率
+msgwin-rates	WR10	FAIL	FAIL	是	WR10: linked 0, sibling 0; want 1, 0	9	修前失敗，符合預期：SetComponentMessageWindowEffectLink／IsComponentMessageWindowEffectLink 沒有綁定，連動旗標讀回 0
+msgwin-rates	WR11	FAIL	FAIL	是	WR11: UpdateMatrix does not give the window the rates	2	修前失敗，符合預期：UpdateMatrix 沒有綁定，視窗收不到比率
+msgwin-rates	WR12	FAIL	FAIL	是	WR12: the background does not have the window's alpha times the opacity	2	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：背景只有視窗本身的 alpha，沒有乘上不透明度
+msgwin-rates	WR13	PASS	PASS	是	—	0	通過，守衛：訊息框底下的 CG parts 不受比率影響
+msgwin-rates	WR14	FAIL	FAIL	是	WR14 brightness -1.0: the background is not black and opaque	8	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：範圍外的比率（亮度 −1.0 時背景不是黑的不透明）
+msgwin-rates	WR15	FAIL	FAIL	是	WR15: the rates passed with the show false do not reach the window	1	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：show 為假時傳進來的比率沒有到視窗
+msgwin-rates	WR16	FAIL	FAIL	是	WR16: brightness 0.5 with an add colour of 60: the background is not the CG times 127 plus 60	2	修前失敗，符合預期：UpdateComponent 的兩個比率被丟掉：亮度 0.5、加算色 60 時背景是 CG 加 60，沒有變暗
+msgwin-sample	WS1	FAIL	FAIL	是	WS1 GBK key: GetMessageWindowText is ""	2	修前失敗，符合預期：pactex 的文字鍵（GBK 拼法）沒有讀，GetMessageWindowText 是空字串
+msgwin-sample	WS2	FAIL	FAIL	是	WS2 SJIS key: GetMessageWindowText is ""	2	修前失敗，符合預期：pactex 的文字鍵（SJIS 拼法）沒有讀，GetMessageWindowText 是空字串
+msgwin-sample	WS3	PASS	PASS	是	—	0	通過，守衛：沒有文字鍵、空字串、不是字串時沒有文字
+msgwin-sample	WS4	PASS	PASS	是	—	0	通過，守衛：別的鍵與鍵待標記區塊裡的同名葉不是視窗的文字
+msgwin-sample	WS5	FAIL	FAIL	是	WS5: the pactex text is not shown	2	修前失敗，符合預期：pactex 的文字鍵沒有讀，視窗沒有文字
+msgwin-sample	WS6	FAIL	FAIL	是	WS6: 1 line(s), 0 character(s); want 1 and 2	2	修前失敗，符合預期：pactex 的文字鍵沒有讀，排出 0 個字
+font-cache	FN1	FAIL	FAIL	是	FN1 SetFont 20 -> 40:	1	修前失敗，符合預期：PE_SetFont 改字級之後仍用第一次查到的尺寸（下一行起是改字級後與一開始就給新字級的排版）
+font-cache	FN2	FAIL	FAIL	是	FN2 SetPartsFontSize 20 -> 34:	1	修前失敗，符合預期：PE_SetPartsFontSize 改字級之後仍用第一次查到的尺寸
+font-cache	FN3	FAIL	FAIL	是	FN3 SetPartsFontType 0 -> 1:	1	修前失敗，符合預期：PE_SetPartsFontType 改字型之後仍是舊字型的字形
+font-cache	FN4	FAIL	FAIL	是	FN4 SetMessageWindowTextFont 20 -> 40:	1	修前失敗，符合預期：SetMessageWindowTextFont 改字級之後，下一次排版仍是舊字級
+font-cache	FN5	PASS	PASS	是	—	0	通過，守衛：同一字型再設一次保留快取的尺寸與字形
+font-cache	FN6	PASS	PASS	是	—	0	通過，守衛：v13：排字之前給的字型會被用
+font-cache	FN7	PASS	PASS	是	—	0	通過，守衛：v13：改字級之後照舊沿用第一次查到的尺寸（只對 v14 重查，移植版的選擇）

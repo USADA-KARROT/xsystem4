@@ -75,6 +75,8 @@ G3 時對原因有兩種推論：原版只走目前範圍的元件，或原版�
 - `GetActiveParts` 的時間點仍是移植版的「立刻」，原版要等下一次元件更新。
 - 沒有做：`SetEnableInputProcess`（+0x90）與 `SetEnableInput`（+0xb4）仍是空殼；清單順序沿用 z 順序；別層正在拖曳的捲軸把手仍跟著游標；右鍵、中鍵與其他四個槽本來就沒有；手勢。
   > 2026-11-01 更新（G8，程式 `2d76d52`）：中鍵與右鍵的來源槽已補上（只在 v14）；drop 與 swipe 的兩個槽仍沒有。見 [key-events](../key-events/README.md)。
+  >
+  > 2026-11-02 更新（拖放範圍的唯讀研究，隨 G9 的文件公開）：這個遊戲沒有放下的消費者，drop 的槽不打算做；swipe 排進 G12b。見 [drag-scope](../drag-scope/README.md)。
 
 ## 提交說明的更正
 
