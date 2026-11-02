@@ -944,9 +944,25 @@ void parts_set_show(struct parts *parts, bool show)
 	parts_layout_size_changed(parts);
 }
 
+/*
+ * v14 MessageWindowEffectLink (native +0xae): 0x535260 multiplies the parts'
+ * own alpha by the update's MessageWindowAlphaRate and each component of its
+ * multiply colour by the MessageWindowMulColorRate, truncating each
+ * (0x5354db..0x5356ea), before 0x579bb0 combines them with its parent's, so
+ * its children have them too. Only the v14 binding sets the flag. (A product
+ * outside 0..255 is clamped here, where the original passes it on unclamped,
+ * 0x5356ac..0x5356ea and 0x579bb0; how such a value is drawn was not read.
+ * The script's rates lie within 0 and 1.)
+ */
+static int parts_effect_linked(int value, bool link, float rate)
+{
+	return link ? parts_rate_byte((float)value * rate) : value;
+}
+
 static void parts_update_global_alpha(struct parts *parts, int parent_alpha)
 {
-	parts->global.alpha = parent_alpha * (parts->local.alpha / 255.0f);
+	parts->global.alpha = parent_alpha * (parts_effect_linked(parts->local.alpha,
+			parts->message_window_effect_link, parts_message_window_alpha_rate) / 255.0f);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
@@ -1063,10 +1079,12 @@ void parts_set_add_color(struct parts *parts, SDL_Color color)
 
 static void parts_update_global_multiply_color(struct parts *parts, SDL_Color parent_color)
 {
+	const bool link = parts->message_window_effect_link;
+	const float rate = parts_message_window_mul_rate;
 	parts->global.multiply_color = (SDL_Color) {
-		parent_color.r * (parts->local.multiply_color.r / 255.0f),
-		parent_color.g * (parts->local.multiply_color.g / 255.0f),
-		parent_color.b * (parts->local.multiply_color.b / 255.0f),
+		parent_color.r * (parts_effect_linked(parts->local.multiply_color.r, link, rate) / 255.0f),
+		parent_color.g * (parts_effect_linked(parts->local.multiply_color.g, link, rate) / 255.0f),
+		parent_color.b * (parts_effect_linked(parts->local.multiply_color.b, link, rate) / 255.0f),
 		255
 	};
 
@@ -1082,6 +1100,50 @@ void parts_set_multiply_color(struct parts *parts, SDL_Color color)
 	parts_update_global_multiply_color(parts, parts->parent ? parts->parent->global.multiply_color
 			: (SDL_Color){255,255,255,255});
 	parts_dirty(parts);
+}
+
+// The alpha and multiply colour of a linked parts and its children again.
+static void parts_update_effect_link(struct parts *parts)
+{
+	struct parts *parent = parts->parent;
+	parts_update_global_alpha(parts, parent ? parent->global.alpha : 255);
+	parts_update_global_multiply_color(parts, parent ? parent->global.multiply_color
+			: (SDL_Color){255,255,255,255});
+}
+
+void parts_set_message_window_effect_link(struct parts *parts, bool link)
+{
+	if (parts->message_window_effect_link == link)
+		return;
+	parts->message_window_effect_link = link;
+	parts_update_effect_link(parts);
+	parts_dirty(parts);
+}
+
+/*
+ * The original puts the two rates in the update context (0x53c490 writes
+ * +0xa4 and +0xa8, which are 1.0 in a new context, 0x579350); in their
+ * update a message window's background (parts_message_window_background)
+ * and the linked parts take them. Here they are those of the last update,
+ * which the game passes in every frame, and the linked parts follow them
+ * when they change.
+ */
+float parts_message_window_mul_rate = 1.0f;
+float parts_message_window_alpha_rate = 1.0f;
+
+void parts_set_message_window_rates(float mul_color_rate, float alpha_rate)
+{
+	bool changed = mul_color_rate != parts_message_window_mul_rate
+		|| alpha_rate != parts_message_window_alpha_rate;
+	parts_message_window_mul_rate = mul_color_rate;
+	parts_message_window_alpha_rate = alpha_rate;
+	if (!changed)
+		return;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (parts->message_window_effect_link)
+			parts_update_effect_link(parts);
+	}
 }
 
 void parts_set_origin_mode(struct parts *parts, int origin_mode)
@@ -1901,8 +1963,10 @@ static bool parts_has_dirty_parent(struct parts *parts)
 
 // pos: where the child is placed in the parent (parts_placed_pos).
 static void parts_combine_params(struct parts_params *parent, struct parts_params *child,
-		Point pos, bool sub_color_mode, struct parts_params *out)
+		Point pos, bool sub_color_mode, bool effect_link, struct parts_params *out)
 {
+	const float alpha_rate = parts_message_window_alpha_rate;
+	const float mul_rate = parts_message_window_mul_rate;
 	out->z = parent->z + child->z;
 	if (ain->version < 14) {
 		out->pos = parts_child_pos(parent, pos);
@@ -1911,16 +1975,19 @@ static void parts_combine_params(struct parts_params *parent, struct parts_param
 		out->pos = parts_transform_anchor(out->matrix);
 	}
 	out->show = parent->show && child->show;
-	out->alpha = parent->alpha * (child->alpha / 255.0f);
+	out->alpha = parent->alpha * (parts_effect_linked(child->alpha, effect_link, alpha_rate) / 255.0f);
 	out->scale.x = parent->scale.x * child->scale.x;
 	out->scale.y = parent->scale.y * child->scale.y;
 	out->rotation.x = parent->rotation.x + child->rotation.x;
 	out->rotation.y = parent->rotation.y + child->rotation.y;
 	out->rotation.z = parent->rotation.z + child->rotation.z;
 	parts_accumulate_add_color(parent, child->add_color, sub_color_mode, out);
-	out->multiply_color.r = parent->multiply_color.r * (child->multiply_color.r / 255.0f);
-	out->multiply_color.g = parent->multiply_color.g * (child->multiply_color.g / 255.0f);
-	out->multiply_color.b = parent->multiply_color.b * (child->multiply_color.b / 255.0f);
+	out->multiply_color.r = parent->multiply_color.r
+		* (parts_effect_linked(child->multiply_color.r, effect_link, mul_rate) / 255.0f);
+	out->multiply_color.g = parent->multiply_color.g
+		* (parts_effect_linked(child->multiply_color.g, effect_link, mul_rate) / 255.0f);
+	out->multiply_color.b = parent->multiply_color.b
+		* (parts_effect_linked(child->multiply_color.b, effect_link, mul_rate) / 255.0f);
 	out->reverse_lr = parent->reverse_lr != child->reverse_lr;
 	out->reverse_tb = parent->reverse_tb != child->reverse_tb;
 }
@@ -1929,7 +1996,8 @@ static void parts_update_component(struct parts *parts)
 {
 	if (parts->parent) {
 		parts_combine_params(&parts->parent->global, &parts->local,
-				parts_placed_pos(parts), parts->sub_color_mode, &parts->global);
+				parts_placed_pos(parts), parts->sub_color_mode,
+				parts->message_window_effect_link, &parts->global);
 		if (parts->edit_hidden)
 			parts->global.show = false;
 	} else {

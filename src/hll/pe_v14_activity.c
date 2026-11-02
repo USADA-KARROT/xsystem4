@@ -506,6 +506,7 @@ enum pactex_message_key {
 	PACTEX_MW_CHAR_SPACE,
 	PACTEX_MW_LINE_SPACE,
 	PACTEX_MW_SPEED,
+	PACTEX_MW_TEXT,
 };
 static const struct { const char *sjis, *gbk; } pactex_message_keys[] = {
 	[PACTEX_MW_AREA] = {"\x83\x65\x83\x4c\x83\x58\x83\x67\x83\x47\x83\x8a\x83\x41", "\xce\xc4\xb1\xbe\xa5\xa8\xa5\xea\xa5\xa2"}, /* テキストエリア / 文本エリア */
@@ -519,6 +520,7 @@ static const struct { const char *sjis, *gbk; } pactex_message_keys[] = {
 	[PACTEX_MW_CHAR_SPACE] = {"\x95\xb6\x8e\x9a\x8a\xd4\x8a\x75", "\xce\xc4\xd7\xd6\xe9\x67\xb8\xf4"}, /* 文字間隔 / 文字間隔 */
 	[PACTEX_MW_SPEED] = {"\x8e\x9a\x91\xac\x93\x78", "\xd7\xd6\xcb\xd9\xb6\xc8"}, /* 字速度 / 字速度 */
 	[PACTEX_MW_LINE_SPACE] = {"\x8d\x73\x8a\xd4\x8a\x75", "\xd0\xd0\xe9\x67\xb8\xf4"}, /* 行間隔 / 行間隔 */
+	[PACTEX_MW_TEXT] = {"\x83\x65\x83\x4c\x83\x58\x83\x67", "\xce\xc4\xb1\xbe"}, /* テキスト / 文本 */
 };
 
 static struct ex_value *pactex_message_value(struct ex_tree *node, enum pactex_message_key key)
@@ -576,6 +578,15 @@ static bool pactex_apply_message_window(struct ex_tree *type_info, const char *p
 		pactex_message_item(type_info, PACTEX_MW_AREA, 1, 0),
 		pactex_message_item(type_info, PACTEX_MW_AREA, 2, 0),
 		pactex_message_item(type_info, PACTEX_MW_AREA, 3, 0));
+	// 0x4f0d0f: 文本 (テキスト in the SJIS executable, 0x4f0cff) is the
+	// window's text, the string SetMessageWindowText sets and
+	// GetMessageWindowText returns; the loader does not look at the read
+	// table, and marks the window changed (+0x150), so its next update
+	// builds the text. Its message number here is -1, the default of
+	// 信息番號 (0x4f1250), which is not read.
+	struct ex_value *text = pactex_message_value(type_info, PACTEX_MW_TEXT);
+	if (text && text->type == EX_STRING)
+		PE_SetMessageWindowText(parts_no, text->s, -1, NULL, 0, 0);
 	PE_SetMessageWindowTextOriginPosMode(parts_no,
 		pactex_message_number(type_info, PACTEX_MW_ORIGIN, 1));
 	PE_SetMessageWindowTextFont(parts_no,

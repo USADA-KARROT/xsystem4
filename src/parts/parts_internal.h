@@ -17,6 +17,7 @@
 #ifndef SYSTEM4_PARTS_INTERNAL_H
 #define SYSTEM4_PARTS_INTERNAL_H
 
+#include <limits.h>
 #include <cglm/types.h>
 #include "gfx/gfx.h"
 #include "gfx/font.h"
@@ -778,6 +779,9 @@ struct parts {
 	// 0x551ee9), as its message window block carries the text speed.
 	bool speed_up_disabled;
 	bool message_window;
+	// v14 MessageWindowEffectLink (native +0xae): the parts' own alpha and
+	// multiply colour take the message window rates (parts.c). Not saved.
+	bool message_window_effect_link;
 	struct parts_message_window *message;
 	int alpha_clipper_parts_no;
 	bool clip_enabled;
@@ -945,8 +949,24 @@ void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
 extern bool parts_message_window_show;
+// v14: MessageWindowMulColorRate and MessageWindowAlphaRate of the last
+// UpdateComponent or UpdateMatrix (parts.c).
+extern float parts_message_window_mul_rate;
+extern float parts_message_window_alpha_rate;
+void parts_set_message_window_rates(float mul_color_rate, float alpha_rate);
+void parts_set_message_window_effect_link(struct parts *parts, bool link);
+
+/* A colour or alpha factor as the original makes it a byte: cvttss2si
+ * truncates, giving 0x80000000 for NaN or a value out of range, and the
+ * result is clamped to 0..255. */
+static inline int parts_rate_byte(float f)
+{
+	int v = f >= -2147483648.0f && f < 2147483648.0f ? (int)f : INT_MIN;
+	return v < 0 ? 0 : v > 255 ? 255 : v;
+}
 
 // message_window.c: the sidecar owns text/strings; the parts owns the background.
+void parts_message_window_background(struct parts *parts, float *alpha, float multiply_color[3]);
 void parts_message_window_free(struct parts_message_window *message);
 float parts_message_window_glyph_alpha(struct parts *parts, struct parts_text *text, int index);
 struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position);

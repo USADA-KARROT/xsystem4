@@ -19,6 +19,7 @@
 #include <math.h>
 
 #include "system4.h"
+#include "system4/ain.h"
 #include "system4/fnl.h"
 #include "system4/hashtable.h"
 #include "system4/string.h"
@@ -26,6 +27,7 @@
 
 #include "gfx/gfx.h"
 #include "gfx/font.h"
+#include "vm.h"
 #include "xsystem4.h"
 
 /*
@@ -182,9 +184,15 @@ struct font_size *gfx_font_get_size(unsigned face, float size)
 	return font->get_size(font, size);
 }
 
+/* The face or the size of a style can change after its text was laid out
+ * (PE_SetFont, PE_SetPartsFontType and PE_SetPartsFontSize, a message
+ * window's SetMessageWindowTextFont), and a style copied with its cache
+ * keeps it. In v14 the size is looked up again each time: a font gives the
+ * same size, and so the same glyphs, for the same face and size. Engines
+ * before v14 keep the first one, as they did. */
 static struct font_size *text_style_font_size(struct text_style *ts)
 {
-	if (ts->font_size)
+	if (ts->font_size && ain->version < 14)
 		return ts->font_size;
 	return ts->font_size = gfx_font_get_size(ts->face, ts->size);
 }

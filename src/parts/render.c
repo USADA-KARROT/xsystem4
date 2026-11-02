@@ -481,7 +481,10 @@ static void parts_render_cg(struct parts *parts, struct parts_common *common, in
 		parts->global.multiply_color.g / 255.0f,
 		parts->global.multiply_color.b / 255.0f,
 	};
-	parts_render_texture(parts, &common->texture, mw_transform, &r, parts->global.alpha / 255.0, add_color, multiply_color, draw_filter, parts->alpha_clipper_parts_no);
+	float alpha = parts->global.alpha / 255.0;
+	// A message window's state is its background.
+	parts_message_window_background(parts, &alpha, multiply_color);
+	parts_render_texture(parts, &common->texture, mw_transform, &r, alpha, add_color, multiply_color, draw_filter, parts->alpha_clipper_parts_no);
 
 	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 }

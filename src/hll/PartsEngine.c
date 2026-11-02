@@ -1011,10 +1011,13 @@ static bool PE_v14_Load(int buf_slot)
 // callbacks that call UpdateComponent again). When UpdateView is not
 // presenting (View_Update leaves it out while the ADV engine skips, or the
 // game never calls it), present here, at most every 16 ms.
+// The two rates are g_AFConfig's brightness and opacity of the message
+// window (parts::detail::Update); 0x57bb82 hands them down to the update of
+// every parts (0x53c490). A reentrant call sets them as well.
 static void PE_v14_UpdateComponent(int passed_time, int scaled_passed_time,
 		bool message_window_show, float mul_color_rate, float alpha_rate)
 {
-	(void)mul_color_rate; (void)alpha_rate;
+	parts_set_message_window_rates(mul_color_rate, alpha_rate);
 	if (pe_v14_in_update) {
 		handle_events();
 		// Parts movies follow their clock here too (no VM callbacks).
@@ -2003,6 +2006,70 @@ static void pe_v14_register_wheel(int libno)
 	static_library_register(&lib_PartsEngine, "Parts_SetWheelable", PE_v14_SetWheelable);
 }
 
+/* void UpdateMatrix(bool MessageWindowShow, float MessageWindowMulColorRate,
+ * float MessageWindowAlphaRate): native case 13 (0x57bbe9 -> 0x53e780) runs
+ * the update of every layer (0x53c490) with both times 0 and without the
+ * input, so the show and the two rates reach the parts as in
+ * UpdateComponent. The rest of such an update (the parts' own updates at
+ * time 0) is not done here. */
+static void PE_v14_UpdateMatrix(bool message_window_show, float mul_color_rate, float alpha_rate)
+{
+	parts_message_window_show = message_window_show;
+	parts_set_message_window_rates(mul_color_rate, alpha_rate);
+}
+
+/* void SetComponentMessageWindowEffectLink(int Number, bool Link) and bool
+ * IsComponentMessageWindowEffectLink(int Number): native cases 107 and 108
+ * (0x58cb30, 0x58cbc0) write and read +0xae of the component that the
+ * get-or-create lookup gives (0x540250 -> 0x56d450 -> 0x53d920 -> 0x53a0b0
+ * -> 0x539c80): none for a number of 0 or less (0x539cb0), and then nothing
+ * is written and false is read. */
+static void PE_v14_SetComponentMessageWindowEffectLink(int number, bool link)
+{
+	if (number > 0)
+		parts_set_message_window_effect_link(parts_get(number), link);
+}
+
+static bool PE_v14_IsComponentMessageWindowEffectLink(int number)
+{
+	return number > 0 && parts_get(number)->message_window_effect_link;
+}
+
+// Before the stubs of pe_v14_prelink.h; unknown declarations keep theirs.
+static void pe_v14_register_message_window_rates(int libno)
+{
+	if (ain->version < 14)
+		return;
+	static const struct {
+		const char *name;
+		void *fun;
+		enum ain_data_type result;
+		int nr_arguments;
+		enum ain_data_type arguments[3];
+	} bindings[] = {
+		{ "UpdateMatrix", PE_v14_UpdateMatrix, AIN_VOID, 3, { AIN_BOOL, AIN_FLOAT, AIN_FLOAT } },
+		{ "SetComponentMessageWindowEffectLink", PE_v14_SetComponentMessageWindowEffectLink,
+		  AIN_VOID, 2, { AIN_INT, AIN_BOOL } },
+		{ "IsComponentMessageWindowEffectLink", PE_v14_IsComponentMessageWindowEffectLink,
+		  AIN_BOOL, 1, { AIN_INT } },
+	};
+	for (size_t i = 0; i < sizeof(bindings) / sizeof(bindings[0]); i++) {
+		struct ain_hll_function *fun = get_fun(libno, bindings[i].name);
+		if (!fun || !fun->arguments || fun->nr_arguments != bindings[i].nr_arguments
+				|| !pe_v14_gauge_arg_shape(&fun->return_type, bindings[i].result))
+			continue;
+		bool match = true;
+		for (int j = 0; j < fun->nr_arguments; j++) {
+			if (!pe_v14_gauge_arg_shape(&fun->arguments[j].type, bindings[i].arguments[j])) {
+				match = false;
+				break;
+			}
+		}
+		if (match)
+			static_library_register(&lib_PartsEngine, bindings[i].name, bindings[i].fun);
+	}
+}
+
 /* Fill the v14-only names into the runtime library table. Called from
  * PartsEngine_PostLink, gated on the v14 declaration set; register only
  * fills entries that are still NULL after link_libraries(). */
@@ -2074,6 +2141,7 @@ static void pe_v14_register_batch(int libno)
 	pe_v14_register_upper_left(libno);
 	pe_v14_register_backlog();
 	pe_v14_register_checkbox(libno);
+	pe_v14_register_message_window_rates(libno);
 	pe_v14_register_sound_names(libno);
 #include "pe_v14_prelink.h"
 }

@@ -950,6 +950,38 @@ Texture *parts_message_window_key_wait(struct parts *parts, Point *position)
 	return &kw->frames[kw->frame];
 }
 
+/*
+ * The background under the rates of the update (v14). While the window is
+ * shown its update (0x4f25e0) gives its background (+0xa0 of the window,
+ * 0x4f1d30) a multiply colour that goes from the base colour towards the
+ * 明るさ乗算色 as the MessageWindowMulColorRate falls. As read in the
+ * disassembly (0x4f2660), each component of that background multiply
+ * colour is trunc((bright - base) * (1 - rate) + base) in single
+ * precision, clamped to 0..255 (0x550ce0), and the background alpha is
+ * trunc(MessageWindowAlphaRate * 255), clamped the same way. The
+ * background is then combined with the window's own colour and alpha
+ * (0x4f32c0 -> 0x535260 -> 0x579bb0). The text and the key wait mark keep
+ * their colour and alpha; 0x4f2790, which 0x4f2660 calls last, only places
+ * the background, the text and the mark. The base is white for an active
+ * window (+0xbc) and its pactex 非アクティブ時の乗算カラー otherwise, bright
+ * the EX list Ｅ＿信息窗口.明るさ乗算色 (0x4f1c90, default 0); here they are
+ * white and black, as for the game's five windows and its EX: neither the
+ * active flag, the inactive colour nor the EX list is read.
+ */
+void parts_message_window_background(struct parts *parts, float *alpha, float multiply_color[3])
+{
+	if (ain->version < 14 || !parts->message)
+		return;
+	const int base = 255, bright = 0;
+	// Two roundings, as the original's mulss and addss.
+	float scaled = (float)(bright - base) * (1.0f - parts_message_window_mul_rate);
+	int mul = parts_rate_byte(scaled + (float)base);
+	int a = parts_rate_byte(parts_message_window_alpha_rate * 255.0f);
+	*alpha *= a / 255.0f;
+	for (int i = 0; i < 3; i++)
+		multiply_color[i] *= mul / 255.0f;
+}
+
 struct parts_text *parts_message_window_render_text(struct parts *parts, Point *position)
 {
 	struct parts_message_window *mw = parts->message;
