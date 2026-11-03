@@ -201,6 +201,7 @@ static void init_probe(const char *path) {
 #include "parts_leaks_fixture.inc"
 #include "math_inverse_fixture.inc"
 #include "msgwin_config_fixture.inc"
+#include "cursor_config_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -323,6 +324,8 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"msgwin-rates"))return test_msgwin_rates();
     if(!strcmp(argv[2],"msgwin-sample"))return test_msgwin_sample();
     if(!strcmp(argv[2],"font-cache"))return test_font_cache();
+    if(!strcmp(argv[2],"mouse-cursor"))return test_mouse_cursor();
+    if(!strcmp(argv[2],"screensaver"))return test_screensaver();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

@@ -17,6 +17,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <SDL.h>
 
 #include "system4/ain.h"
 #include "system4/cg.h"
@@ -112,6 +113,7 @@ extern bool parts_message_window_show;
 // were already advanced by PartsEngine.UpdateComponent with the game's own
 // passed time (view::detail::View_Update calls both first). Advance and draw
 // here only what did not happen since the previous UpdateView.
+static void screensaver_update(void);
 static bool SystemService_UpdateView(void)
 {
 	// Compute elapsed time for animation/motion updates
@@ -130,6 +132,7 @@ static bool SystemService_UpdateView(void)
 
 	frame_pacing_update_view();
 	handle_events();
+	screensaver_update();
 	sprite_call_plugins();
 	bool advanced = frame_pacing_take_parts_updated();
 	if (!advanced) {
@@ -434,11 +437,10 @@ static bool SystemService_GetWindowSetting(int type, int *value)
 // reads it back every frame (config::detail::SetHideUnmoveMouseCursor,
 // SetHideKeyOrJoypadInputMouseCursor, SetHideStepMessageMouseCursor): a type
 // that is refused unchecks its box at once. The original of that game takes
-// exactly these three types, keeps a flag for each (all start as 0), returns
-// 0 or 1 and refuses any other type. Two differences from it: the values are
-// only kept, the cursor is never hidden; and they are not saved (the original
-// has a settings file of its own for them), so all three are 0 again after a
-// restart. Engines before v14 keep the one type they had.
+// exactly these three types (0x4c3230, 0x4c3300), keeps a flag for each (all
+// start as 0), returns 0 or 1 and refuses any other type; what the flags do
+// is in src/input.c (mouse_cursor_*), and they are kept in a file of their
+// own (below). Other versions keep their existing types in memory.
 #define NR_MOUSE_CURSOR_CONFIG 3
 static int mouse_cursor_config[NR_MOUSE_CURSOR_CONFIG] = {0};
 
@@ -453,6 +455,10 @@ static bool SystemService_SetMouseCursorConfig(int type, int value)
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
+	if (ain->version == 14) {
+		mouse_cursor_set(type, value != 0);
+		return true;
+	}
 	mouse_cursor_config[type] = value;
 	return true;
 }
@@ -464,8 +470,103 @@ static bool SystemService_GetMouseCursorConfig(int type, int *value)
 		WARNING("Invalid mouse cursor config type: %d", type);
 		return false;
 	}
+	if (ain->version == 14) {
+		if (value) *value = mouse_cursor_get(type);
+		return true;
+	}
 	if (value) *value = !!mouse_cursor_config[type];
 	return true;
+}
+
+/*
+ * v14: MouseCursorSetting.sav in the save folder keeps the three types. The
+ * original writes it (0x498310) when its window closes (0x4be9b0) and as the
+ * first step of a restart (0x4c12e0), every time, and reads it (0x4984f0)
+ * when it makes its settings object again: here _ModuleFini and
+ * _ModuleInit, which the end of the program and a restart both run. It
+ * holds "AMC" and a 0 byte, then four little-endian int32: 2 (the version),
+ * types 0, 1 and 2, each 0 or 1. The reader starts from the defaults and
+ * stops at the first thing it cannot read, keeping what it read before: the
+ * name up to its 0 byte must be "AMC"; the version is compared unsigned and
+ * above 2 is refused; type 1 is read from version 1 on and type 2 from
+ * version 2 on (below that they keep their default 0: the original writes
+ * 0 to type 2 there, and for version 0 to a field that is already 0); each
+ * value counts as value != 0; bytes after the last one are not read. A
+ * missing file keeps the defaults; one that cannot be read, or is empty,
+ * too, with a warning (the original logs an error then). The file is
+ * written in place, as the original does.
+ */
+#define MOUSE_CURSOR_SAV "MouseCursorSetting.sav"
+#define MOUSE_CURSOR_SAV_VERSION 2
+
+static bool mouse_cursor_sav_int(const uint8_t *data, size_t len, size_t *at, int32_t *v)
+{
+	if (len - *at < 4)
+		return false;
+	const uint8_t *p = data + *at;
+	*v = (int32_t)((uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24);
+	*at += 4;
+	return true;
+}
+
+static void mouse_cursor_read_file(void)
+{
+	if (!config.save_dir)
+		return;
+	char *path = savedir_path(MOUSE_CURSOR_SAV);
+	size_t len = 0;
+	uint8_t *data = file_read(path, &len);
+	if (!data) {
+		if (file_exists(path))
+			WARNING("Failed to read '%s'", display_utf0(path));
+		free(path);
+		return;
+	}
+	free(path);
+	// the name up to its 0 byte is "AMC": the first four bytes are "AMC\0"
+	size_t at = 4;
+	int32_t version, v = 0;
+	if (len < at || memcmp(data, "AMC", at))
+		goto out;
+	if (!mouse_cursor_sav_int(data, len, &at, &v) || (uint32_t)v > MOUSE_CURSOR_SAV_VERSION)
+		goto out;
+	version = v;
+	if (!mouse_cursor_sav_int(data, len, &at, &v))
+		goto out;
+	mouse_cursor_load(MOUSE_CURSOR_HIDE_STILL, v != 0);
+	if (version >= 1) {
+		if (!mouse_cursor_sav_int(data, len, &at, &v))
+			goto out;
+		mouse_cursor_load(MOUSE_CURSOR_HIDE_KEY, v != 0);
+	}
+	if (version >= 2) {
+		if (!mouse_cursor_sav_int(data, len, &at, &v))
+			goto out;
+		mouse_cursor_load(MOUSE_CURSOR_HIDE_MESSAGE, v != 0);
+	}
+out:
+	free(data);
+}
+
+static void mouse_cursor_sav_put(uint8_t *p, int32_t v)
+{
+	for (int i = 0; i < 4; i++)
+		p[i] = (uint32_t)v >> (8 * i);
+}
+
+static void mouse_cursor_write_file(void)
+{
+	if (!config.save_dir)
+		return;
+	uint8_t data[20] = { 'A', 'M', 'C', 0 };
+	mouse_cursor_sav_put(data + 4, MOUSE_CURSOR_SAV_VERSION);
+	mouse_cursor_sav_put(data + 8, mouse_cursor_get(MOUSE_CURSOR_HIDE_STILL));
+	mouse_cursor_sav_put(data + 12, mouse_cursor_get(MOUSE_CURSOR_HIDE_KEY));
+	mouse_cursor_sav_put(data + 16, mouse_cursor_get(MOUSE_CURSOR_HIDE_MESSAGE));
+	char *path = savedir_path(MOUSE_CURSOR_SAV);
+	if (!file_write(path, data, sizeof(data)))
+		WARNING("Failed to save '%s'", display_utf0(path));
+	free(path);
 }
 
 //bool SystemService_RunProgram(struct string *program_file_name, struct string *parameter);
@@ -602,7 +703,40 @@ static void SystemService_OpenPlayingManual(void) {
 HLL_QUIET_UNIMPLEMENTED(false, bool, SystemService, IsExistSystemMessage);
 //static bool SystemService_PopSystemMessage(int *message);
 
-static void SystemService_RestrainScreensaver(void) { }
+/*
+ * v14: RestrainScreensaver (0x4b9f00) records the time, and for 30 s after
+ * the last call the original's window refuses SC_SCREENSAVE and
+ * SC_MONITORPOWER (0x4bdea0 -> 0x4b9f70); otherwise the screen saver is
+ * allowed. The game calls it when its setting is on: each frame while a
+ * movie plays, and each time auto mode moves on from a message. SDL turns
+ * the screen saver off when its video starts; each UpdateView sets it to
+ * what the original would allow at that time (SDL does something only when
+ * that changes; on macOS it holds a display sleep assertion while the
+ * screen saver is off, which keeps off the display sleep as well, as the
+ * original's two refusals do). Other versions keep SDL's default, and
+ * the call does nothing for them.
+ */
+#define SCREENSAVER_RESTRAIN_MS 30000
+static bool screensaver_restrained;		// +4
+static uint32_t screensaver_restrain_time;	// +8
+
+static void SystemService_RestrainScreensaver(void)
+{
+	if (ain->version != 14)
+		return;
+	screensaver_restrained = true;
+	screensaver_restrain_time = SDL_GetTicks();
+}
+
+static void screensaver_update(void)
+{
+	if (ain->version != 14)
+		return;
+	if (screensaver_restrained && SDL_GetTicks() - screensaver_restrain_time < SCREENSAVER_RESTRAIN_MS)
+		SDL_DisableScreenSaver();
+	else
+		SDL_EnableScreenSaver();
+}
 
 static int SystemService_Debug_GetUseVideoMemorySize(void) { return 0; }
 
@@ -655,6 +789,22 @@ static void SystemService_PreLink(void);
 static void SystemService_ModuleInit(void)
 {
 	load_window_settings();
+	// As the original makes its cursor settings object and then reads the
+	// file (0x4bfd60), at the start of the program and on a restart.
+	// The restart loop (0x4b5a60) releases the old references (0x4c12e0
+	// and 0x4b30f0) before it initializes the input engine again.
+	if (ain->version == 14) {
+		mouse_cursor_init();
+		mouse_cursor_read_file();
+	}
+}
+
+static void SystemService_ModuleFini(void)
+{
+	if (ain->version == 14) {
+		mouse_cursor_write_file();
+		mouse_cursor_fini();
+	}
 }
 
 static void SystemService_AddBackupSaveFileName(struct string *name)
@@ -863,6 +1013,7 @@ static struct string *SystemService_GetScreenInfo(void) {
 HLL_LIBRARY(SystemService,
 	    HLL_EXPORT(_PreLink, SystemService_PreLink),
 	    HLL_EXPORT(_ModuleInit, SystemService_ModuleInit),
+	    HLL_EXPORT(_ModuleFini, SystemService_ModuleFini),
 	    HLL_EXPORT(GetMixerNumof, mixer_get_numof),
 	    HLL_EXPORT(GetMixerName, SystemService_GetMixerName),
 	    HLL_EXPORT(GetMixerVolume, mixer_get_volume),

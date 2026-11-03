@@ -1002,6 +1002,218 @@ bool mouse_show_cursor(bool show)
 	return SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE) >= 0;
 }
 
+/*
+ * The v14 mouse cursor settings, as the original's settings object keeps
+ * them (constructor 0x497dc0; the field offsets are given below). Each type
+ * starts off:
+ *   - type 0 hides a cursor that has not moved for 3000 ms;
+ *   - type 1 hides it when a key is pressed with the cursor in the window
+ *     (0x4be6c0 -> 0x498130; the original also does this for a pad button,
+ *     0x496fc0, which is not done here);
+ *   - type 2 hides it when the game shows the next message
+ *     (IbisInputEngine.Mouse_HideByStepMessage, 0x498190).
+ * A key or a message hides it only once for its reason, and only 1000 ms
+ * or more after the last time either of them hid it. The game hides the
+ * cursor itself while a movie plays (Mouse_HideCursorByGame, 0x498760).
+ *
+ * The original looks at the cursor on each WM_MOUSEMOVE and each 200 ms
+ * timer (0x497f60); the port does so after each event pump, with a move
+ * being a mouse motion event and "in front with the cursor inside" being
+ * the window's keyboard and mouse focus. The times count from SDL's start,
+ * as the original's count from the engine's (so neither hides for a key or
+ * a message in the first second). The original's last cursor position
+ * starts at -1,-1 when its settings object is made (at the start and on a
+ * restart, before the file is read), so its first look counts as a move
+ * (bar a cursor at -1,-1) and the still-time starts there; here the move
+ * flag starts set when the settings start over (mouse_cursor_init, from
+ * SystemService._ModuleInit). SDL changes the cursor only when its state
+ * changes, which the original's mirror of it (+0x3f) is for.
+ */
+#define MOUSE_CURSOR_STILL_MS 3000	// +0x34
+#define MOUSE_CURSOR_HIDE_GAP_MS 1000
+
+static struct {
+	bool type[NR_MOUSE_CURSOR_HIDE];	// +0x08..+0x0a
+	bool still_hidden;	// +0x25
+	bool moved;		// a move since the last look (+0x28, +0x2c)
+	uint32_t still_since;	// +0x30
+	uint32_t last_hide;	// +0x38: the last hide for a key or a message
+	bool key_hidden;	// +0x3c
+	bool message_hidden;	// +0x3d
+	bool game_hidden;	// +0x3e
+} mouse_cursor;
+
+static bool mouse_cursor_v14(void)
+{
+	return ain && ain->version == 14;
+}
+
+static void mouse_cursor_show(void)
+{
+	SDL_ShowCursor(SDL_ENABLE);
+}
+
+static void mouse_cursor_hide(void)
+{
+	SDL_ShowCursor(SDL_DISABLE);
+}
+
+// 0x498270: the cursor no longer counts as hidden for being still, and the
+// still-time starts now. The original also takes the cursor's position
+// again, so that the next look sees no move made before this; here the move
+// flag is cleared (the event pump takes it at each look anyway, so this
+// matters only before the first look after the settings start over).
+static void mouse_cursor_restart(void)
+{
+	mouse_cursor.still_hidden = false;
+	mouse_cursor.moved = false;
+	mouse_cursor.still_since = SDL_GetTicks();
+}
+
+// The state the settings start in, as the original's settings object is
+// made (0x497dc0): all three types off, nothing hidden, and the last cursor
+// position unknown (-1,-1), so that the first look counts as a move.
+void mouse_cursor_init(void)
+{
+	memset(&mouse_cursor, 0, sizeof(mouse_cursor));
+	mouse_cursor.moved = true;
+}
+
+void mouse_cursor_load(enum mouse_cursor_hide type, bool on)
+{
+	mouse_cursor.type[type] = on;
+}
+
+bool mouse_cursor_get(enum mouse_cursor_hide type)
+{
+	return mouse_cursor.type[type];
+}
+
+// SystemService.SetMouseCursorConfig (0x4c3230); the same value again does
+// nothing.
+void mouse_cursor_set(enum mouse_cursor_hide type, bool on)
+{
+	if (mouse_cursor.type[type] == on)
+		return;
+	switch (type) {
+	case MOUSE_CURSOR_HIDE_STILL:
+		// Turned off it shows the cursor, even one a key or a message hid
+		// (their reasons stay recorded); while the game hides the cursor,
+		// only the flag changes.
+		if (!on) {
+			if (mouse_cursor.game_hidden)
+				break;
+			mouse_cursor_show();
+		}
+		mouse_cursor_restart();
+		break;
+	case MOUSE_CURSOR_HIDE_KEY:
+		if (!on && mouse_cursor.key_hidden) {
+			mouse_cursor.key_hidden = false;
+			mouse_cursor_show();
+		}
+		break;
+	case MOUSE_CURSOR_HIDE_MESSAGE:
+		if (!on && mouse_cursor.message_hidden) {
+			mouse_cursor.message_hidden = false;
+			mouse_cursor_show();
+		}
+		break;
+	default:
+		return;
+	}
+	mouse_cursor.type[type] = on;
+}
+
+// 0x498130 (a key) and 0x498190 (a message).
+static void mouse_cursor_hide_for(enum mouse_cursor_hide type, bool *hidden)
+{
+	uint32_t now = SDL_GetTicks();
+	if (!mouse_cursor.type[type] || *hidden || now - mouse_cursor.last_hide < MOUSE_CURSOR_HIDE_GAP_MS)
+		return;
+	*hidden = true;
+	mouse_cursor_hide();
+	mouse_cursor.last_hide = now;
+}
+
+void mouse_cursor_hide_by_message(void)
+{
+	mouse_cursor_hide_for(MOUSE_CURSOR_HIDE_MESSAGE, &mouse_cursor.message_hidden);
+}
+
+// 0x498760. Shown again, the cursor stays hidden when a key or the
+// still-time hid it (a message's hide is not looked at), and the still-time
+// starts again either way; so a cursor the still-time hid is not shown by a
+// move afterwards (the original does the same), only by the cursor leaving
+// the window, the window losing the front, or a move after another 3000 ms
+// still.
+void mouse_cursor_hide_by_game(bool hide)
+{
+	if (mouse_cursor.game_hidden == hide)
+		return;
+	if (hide) {
+		mouse_cursor_hide();
+	} else {
+		if (!mouse_cursor.key_hidden && !mouse_cursor.still_hidden)
+			mouse_cursor_show();
+		mouse_cursor_restart();
+	}
+	mouse_cursor.game_hidden = hide;
+}
+
+void mouse_cursor_fini(void)
+{
+	mouse_cursor_show();
+	mouse_cursor_init();
+}
+
+static void mouse_cursor_key(void)
+{
+	if (mouse_focus)
+		mouse_cursor_hide_for(MOUSE_CURSOR_HIDE_KEY, &mouse_cursor.key_hidden);
+}
+
+// 0x497f60, after each event pump.
+static void mouse_cursor_update(void)
+{
+	bool moved = mouse_cursor.moved;
+	mouse_cursor.moved = false;
+	// Another window in front or the cursor outside: shown (the reasons
+	// stay recorded), and the still-time starts again.
+	if (!keyboard_focus || !mouse_focus) {
+		mouse_cursor_show();
+		mouse_cursor_restart();
+		return;
+	}
+	if (mouse_cursor.game_hidden) {
+		mouse_cursor_hide();
+		return;
+	}
+	if (mouse_cursor.type[MOUSE_CURSOR_HIDE_STILL]) {
+		uint32_t now = SDL_GetTicks();
+		if (moved) {
+			if (mouse_cursor.still_hidden) {
+				mouse_cursor.still_hidden = false;
+				mouse_cursor_show();
+			}
+			mouse_cursor.still_since = now;
+		} else if (!mouse_cursor.still_hidden && now - mouse_cursor.still_since >= MOUSE_CURSOR_STILL_MS) {
+			mouse_cursor.still_hidden = true;
+			mouse_cursor_hide();
+		}
+	}
+	// A move shows a cursor a key or a message hid, and clears both reasons
+	// (the original has one test for each type; the first one that holds
+	// clears what the second one looks at).
+	if (moved && ((mouse_cursor.type[MOUSE_CURSOR_HIDE_KEY] && mouse_cursor.key_hidden)
+			|| (mouse_cursor.type[MOUSE_CURSOR_HIDE_MESSAGE] && mouse_cursor.message_hidden))) {
+		mouse_cursor.key_hidden = false;
+		mouse_cursor.message_hidden = false;
+		mouse_cursor_show();
+		mouse_cursor_restart();
+	}
+}
+
 static void(*input_handler)(const char*);
 static void(*editing_handler)(const char*, int, int);
 static void(*key_handler)(int);
@@ -1659,6 +1871,8 @@ void handle_events(void)
 			gfx_swap();
 			break;
 		case SDL_KEYDOWN:
+			if (mouse_cursor_v14())
+				mouse_cursor_key();
 			if (e.key.keysym.scancode == SDL_SCANCODE_F9) {
 				vm_stack_trace();
 			} else if (e.key.keysym.scancode == SDL_SCANCODE_F11) {
@@ -1688,6 +1902,7 @@ void handle_events(void)
 			break;
 		case SDL_MOUSEMOTION:
 			pointer_real_event(e.motion.timestamp, true);
+			mouse_cursor.moved = true;
 			break;
 		case SDL_MOUSEBUTTONUP:
 		case SDL_MOUSEBUTTONDOWN:
@@ -1794,4 +2009,6 @@ void handle_events(void)
 	}
 	if (dbg_dap)
 		dbg_dap_handle_messages();
+	if (mouse_cursor_v14())
+		mouse_cursor_update();
 }

@@ -73,7 +73,7 @@
  * 22.05 kHz file, voice, play once, unusable points); SG8 focus with
  * GlobalFocus off and on, user values kept, position and fade go on; SG9
  * Volume.sav bytes, reopen, damaged files, restart, no write before quitting,
- * nothing else left in the save folder; SG10 the legacy mixers for every
+ * no leftover in the save folder; SG10 the legacy mixers for every
  * other game (with a v13 game's BGI loop and WAI groups) and unknown
  * declaration shapes; SG11 the real audio thread under changes and a restart;
  * SG12 the game's own list filter, the voice-group mute, the file groups the
@@ -1356,14 +1356,18 @@ static void sg_write_file(const char *dir, const char *name, const uint8_t *b, i
 	assert(f && fwrite(b, 1, n, f) == (size_t)n);
 	fclose(f);
 }
-/* Entries of the save folder other than Volume.sav (a temporary file left). */
+/* Entries of the save folder other than Volume.sav (a temporary file left)
+ * and MouseCursorSetting.sav, which is not a leftover: the engine writes it
+ * at the same exit and restart, as the original does (SystemService's
+ * _ModuleFini). */
 static int sg_others(const char *dir)
 {
 	DIR *d = opendir(dir);
 	int n = 0;
 	struct dirent *e;
 	while (d && (e = readdir(d)))
-		if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..") && strcmp(e->d_name, "Volume.sav")) {
+		if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..") && strcmp(e->d_name, "Volume.sav")
+		    && strcmp(e->d_name, "MouseCursorSetting.sav")) {
 			printf("  (left in the save folder: %s)\n", e->d_name);
 			n++;
 		}

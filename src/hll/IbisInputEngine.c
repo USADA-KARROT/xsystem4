@@ -14,6 +14,7 @@
  * along with this program; if not, see <http://gnu.org/licenses/>.
  */
 
+#include "system4/ain.h"
 #include "hll.h"
 #include "input.h"
 #include "sact.h"
@@ -24,14 +25,25 @@ bool IbisInputEngine_Mouse_MovePosImmediately(int x, int y)
 	return true;
 }
 
+// v14: the cursor settings decide with the game when the cursor is shown
+// (0x498760, src/input.c); other versions show and hide it directly.
 bool IbisInputEngine_Mouse_HideCursorByGame(bool hide)
 {
+	if (ain->version == 14) {
+		mouse_cursor_hide_by_game(hide);
+		return true;
+	}
 	return mouse_show_cursor(!hide);
 }
 
 //bool Mouse_IsHideCursorByGame(void);
-//void Mouse_HideByStepMessage(void);
-HLL_QUIET_UNIMPLEMENTED(, void, IbisInputEngine, Mouse_HideByStepMessage);
+// v14: hides the cursor when its setting is on (0x498190, src/input.c). The
+// game calls it when a message's key wait ends. Other versions do nothing.
+static void IbisInputEngine_Mouse_HideByStepMessage(void)
+{
+	if (ain->version == 14)
+		mouse_cursor_hide_by_message();
+}
 
 static void IbisInputEngine_Joystick_ClearCaptureFlag(void)
 {

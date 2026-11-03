@@ -176,6 +176,28 @@ bool input_stage2_trace(void);
 void mouse_get_wheel(int *forward, int *back);
 void mouse_clear_wheel(void);
 bool mouse_show_cursor(bool show);
+/*
+ * The v14 mouse cursor settings and what hides the cursor (src/input.c):
+ * SystemService.Set/GetMouseCursorConfig, IbisInputEngine.Mouse_HideBy-
+ * StepMessage and Mouse_HideCursorByGame. Only AIN v14 uses them.
+ */
+enum mouse_cursor_hide {
+	MOUSE_CURSOR_HIDE_STILL,	// type 0: not moved for 3000 ms
+	MOUSE_CURSOR_HIDE_KEY,		// type 1: a key press
+	MOUSE_CURSOR_HIDE_MESSAGE,	// type 2: the next message
+	NR_MOUSE_CURSOR_HIDE
+};
+// The settings start over, before the settings file is read (the start of
+// the program and a restart).
+void mouse_cursor_init(void);
+// A value read from the settings file (only the flag changes).
+void mouse_cursor_load(enum mouse_cursor_hide type, bool on);
+bool mouse_cursor_get(enum mouse_cursor_hide type);
+void mouse_cursor_set(enum mouse_cursor_hide type, bool on);
+void mouse_cursor_hide_by_message(void);
+void mouse_cursor_hide_by_game(bool hide);
+// The program ends or restarts: the cursor is shown, the state starts over.
+void mouse_cursor_fini(void);
 void register_input_handler(void(*handler)(const char*));
 void clear_input_handler(void);
 void register_editing_handler(void(*handler)(const char*, int, int));
