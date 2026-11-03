@@ -4,6 +4,14 @@
 
 所有輸出都寫到 repo 外的 `XS4_WORK`，repo 本身不會被弄髒。
 
+## 游標設定與螢幕保護（2026-11-03）
+
+新增 `probe/cursor_config_fixture.inc` 的 `mouse-cursor`（14 案）與 `screensaver`（6 案），全套由 133 增為 135 模式。提交前修前兩種字集各 36 案，13 案符合預期地失敗、23 案守衛通過；完整預設與 GBK 各 135 模式通過、sanitizer 0。提交後使用 `925b0fe` 的探針重驗移植版父提交 `023625f`，兩字集各 36 案的狀態與失敗原因均相同；本次提交的預設與 GBK 各 135 模式通過、sanitizer 0。WR1 修前及本次提交的繪圖雜湊皆為 `63689b45`。這不是 Windows 原版執行結果。首次提交後片頭時序未過：第二趟斜率 +202.0975266 ppm 超過 200 ppm，組層級未執行，整組退出碼 6；先前探針的通過結果仍保留。原碼與判準不變，一次完整重驗通過，程式已推送並三方一致；首次失敗仍保留且原因未明。這次完整重驗已重新取得兩字集各 36 案的相同修前結果、預設與 GBK 各 135 模式通過及 sanitizer 0；WR1 修前與修後皆為 `63689b45`。同一提交與來源的獨立核對完成，完整重驗九條路線判準已通過且完成獨立核對；三趟片頭個別及組層級亦通過，組平均 +4.80 毫秒、標準差 3.89 毫秒、外層退出碼 0。舊固定影格判準為 50/50、48/50、50/50，僅記錄；片頭追加獨立核對與最終審查已完成。研究與資料表見[游標設定](../research/cursor-settings/README.md)。
+
+`mouse-cursor` 經 HLL 入口與真正的模組生命週期，檢查設定檔的格式、版本與截斷讀取、結束及重置、三種隱藏條件、遊戲顯隱、移動、焦點，以及首次檢查前的重算。`screensaver` 在 SDL dummy 視訊環境檢查預設允許、呼叫續期與 30 秒逾時；另守沒有視訊初始化、既有非作用中等待、第 13 與第 15 版的原行為。新增邏輯限 AIN 第 14 版，兩種字集規則均適用；非第 14 版案例只守移植版父提交的行為。
+
+每案各自 fork、用合成資料與獨立暫存存檔資料夾；不開遊戲視窗、不移動桌面游標。計時用真實時間，在界線前後保留餘裕；接近界線的排程延遲是環境失敗。SDL 查詢不等於螢幕上的游標或系統電源宣告；游標與降 CPU 沒有在畫面上驗證。手把、Win32 選單、原版的 200 毫秒計時器、啟動第一秒、寫檔錯誤文字，以及作用中視窗的判定不在本探針範圍。
+
 ## 需要的東西
 
 - macOS（Apple Silicon 已驗證）、Command Line Tools 的 clang。
@@ -26,7 +34,7 @@
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 133 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 135 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 # 注意：新機器、乾淨的 clone、清過快取或系統更新之後，無視窗的 GL 探針可能因為還沒有 Metal pipeline 快取而報 ENVIRONMENT FAILURE（rc 2）。先用有視窗的引擎跑一次（例如 gui-run.sh）建立快取，再跑 verify。
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
