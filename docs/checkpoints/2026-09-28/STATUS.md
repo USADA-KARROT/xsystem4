@@ -1,8 +1,8 @@
 # 2026-09-28 新遊戲人物 ID assertion 修正
 
-**最新狀態（2026-11-03）：補上 v14 游標隱藏設定與 MouseCursorSetting.sav 存讀，並依最近一次呼叫控制 30 秒的螢幕保護抑制；非作用中降 CPU 與訊息跳過的跳幀已有實作，本組不改。程式提交 `925b0fe`，父提交 `023625f`，libsys4 固定 `247f544`。新增兩個模式，全套 135 模式；提交前、首次提交後及完整重驗的預設與 GBK 各 135 模式通過、sanitizer 0。首次提交後第二趟片頭斜率 +202.0975266 ppm 超過 200 ppm，整組驗收失敗、組層級未執行。保持原碼與判準不變後，一次完整重驗通過：九路線、三趟片頭各 50/50、組平均 +4.80 毫秒、標準差 3.89 毫秒；舊固定影格判準為 50/50、48/50、50/50，僅記錄。首輪失敗原因仍未查明；最終獨立審查已完成；程式已推送，本機、ls-remote 與 GitHub branches API 三方一致。實際游標顯隱、非作用中 CPU 及 Windows 原版同畫面並排仍未驗證。**
+**最新狀態（2026-11-08）：G13 v14 訊息框的連動隱藏傳給整個子樹：右鍵隱藏對話框時，頭像、名牌、左下與右下的按鈕、選單鈕與 NEXT 一起藏，隱藏中點不到；pactex 載入與 `SetMessageWindowActive` 不再無條件設連動，`SetMessageWindowActive` 也不再改 show。程式提交 `4b681b2`，父提交 `8f9cd6d`，libsys4 固定 `247f544`。新邏輯只在 v14、不分字集（英文版執行檔在相關函式除位址與鍵的長度外指令相同）。新模式 `msgwin-showlink` 14 案（135 → 136 模式）；修前兩種字集恰好 SL1–SL9 失敗。突變 75 個中 68 個被抓到、7 個判等價。提交前與提交後預設與 GBK 各 136 模式通過、sanitizer 0；九條路線對 G10a 的基準對白相同、錯誤 0、桌面游標不變；片頭三趟新判準各 50/50、組層級通過（提交前平均 +6.3 毫秒、提交後 −6.9 毫秒）。實機右鍵隱藏後，和英文版原版的隱藏畫面只差兩個下角的 88 個像素；隱藏中點選單鈕只恢復顯示，和原版相同。對話中打開劇情回顧時一起藏是推論，沒有原版畫面。**
 
-[游標設定與螢幕保護研究](research/cursor-settings/README.md) · [審查與限制](research/cursor-settings/review.md) · [前一組訊息框設定](research/message-window-config/README.md)。仍不能當作完整遊戲使用。接著依序：G10b 視窗設定 → U2 → G1c → G12a → 每層取樣與取消旗標 → G12b → 從存檔複本試玩。
+[訊息框連動隱藏研究與驗證](research/message-window-showlink/README.md) · [審查](research/message-window-showlink/review.md) · [前一組游標設定與螢幕保護](research/cursor-settings/README.md)。原版依據是靜態反組譯（`0x535260` 把連動併進合成 show、傳給整個子樹；輸入只拿合成 show 為真的 parts；pactex 載入與 `SetMessageWindowActive` 都不設連動），右鍵隱藏和英文版原版並排相同。和原版仍不同的有：輸入的時序（移植版同一次更新、原版推定晚一次）、`SetMessageWindowActive` 的查找與作用中旗標、pactex 的連動鍵沒讀、核取方塊的顯示連動（`0x537f10`）沒做。仍不能當作完整遊戲使用。進行中：G14 修正、G15、U2；之後依序 G10b → G12a → 每層取樣與取消旗標 → G1c → G12b → 從第 8 天以後試玩。
 
 接續 [2026-09-26 交接](../2026-09-26/STATUS.md)（`22e9496`）。本 checkpoint 含三批引擎修正：人物 ID 的 `ff6fc2f`；Array overload 的 `3386e7d`..`763f5bd`；以及第二批 `4c7b820`..`6ec6258`（子元件查詢、Math、Sort、String、檔案與版面原型）。之後依序是成就通知、角色對白、存讀檔持久化與 GBK 字元規則；libsys4 在 GBK 字元規則一組由 `8c93946` 改為 `247f544`（使用者同意）。
 

@@ -101,7 +101,7 @@
 4. **提交說明查證時另做的兩份註解修改**都套用，讓公開註解、探針檔頭與提交說明一致（`0x4f2790` 擺三者的位置、get-or-create 的完整鏈、原版不夾值、Not covered 的 flat）。
 5. **補 WR15、WR16**：審查找到的兩個缺口（show 為假時的比率、亮度不動加算色）能直接寫子案，就補案，不只列進 Not covered。
 6. **原版不同值的補拍**：這一輪不拍（使用者不在、螢幕鎖著）。文件與提交說明寫「沒有原版畫面，期望值來自反組譯」，HANDOFF 的待辦列補拍的步驟。
-7. **範圍外的發現**（`SetMessageWindowActive(false)` 會把視窗藏起來、載入時無條件設 ShowLink）：這一組不修，列進 HANDOFF 的待辦。
+7. **範圍外的發現**（`SetMessageWindowActive(false)` 會把視窗藏起來、載入時無條件設 ShowLink）：這一組不修，列進 HANDOFF 的待辦（2026-11-08 補記（G13，程式 `4b681b2`）：兩條都修了，見〈範圍外的發現〉的更新）。
 
 ### 實作【讀】【移】
 
@@ -258,6 +258,7 @@
 
 1. **`SetMessageWindowActive(false)` 會把視窗藏起來**：移植版的 `PE_v14_SetMessageWindowActive` 把 active 交給 `PE_SetShow`；原版 `0x5950d0` 只寫 `+0xbc` 並標已改，非作用中的視窗照畫，只是基底色改用「非アクティブ時の乗算カラー」（這個遊戲是白，畫面和作用中一樣）。呼叫者是 ADV 的 `message::detail::CMessageWindow@UpdateActiveState`，多個視窗的場景可能走得到；G8b 的路線裡追蹤到的前 12 次都是 active 1，傳假的情形沒有量。這一組沒有讓它變差。建議另開一組：先量遊戲會不會傳假，再保持顯示、把作用中旗標與非作用中的乘色接進背景的基底。
 2. **ShowLink**：移植版載入訊息框的 pactex 時（與 `SetMessageWindowActive`）無條件把視窗設成連動 show；原版 pactex 的「信息窗口表示連動」全是 0，AIN 也只有屬性函式會設。所以移植版的遊戲視窗在 show 為假時整個不畫。原版的 ADV 視窗怎麼跟著 MessageWindowShow 隱藏，沒有追（可能經介面設屬性）。
+   > 2026-11-08 更新（G13，程式 `4b681b2`）：兩條都修了。`SetMessageWindowActive` 不再改 show、不設連動（作用中旗標沒有接，移植版的背景一律從白畫）；pactex 載入不再設連動。原版的 ADV 視窗是腳本自己設連動：除了屬性函式，`CMessageWindow@Create`（訊息框 parts）、`AdvNamePlate@Create` 與 `AdvSystemButton` 的一個 lambda（兩個 activity 的根）也設，所以「AIN 也只有屬性函式會設」不完整；連動照原版傳給整個子樹，右鍵隱藏時頭像、名牌與按鈕一起藏。見 [message-window-showlink](../message-window-showlink/README.md)。
 
 ## 沒做與沒驗證
 

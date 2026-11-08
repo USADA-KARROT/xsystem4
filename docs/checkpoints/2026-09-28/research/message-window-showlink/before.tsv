@@ -1,0 +1,31 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+msgwin-showlink	SL1	FAIL	FAIL	是	SL1: hidden: the linked root's child is drawn	2	修前失敗，符合預期：連動的子樹沒有跟著藏：訊息框隱藏時，連動的根（沒有畫面）的子與孫照畫
+msgwin-showlink	SL2	FAIL	FAIL	是	SL2: hidden: the parts below the linked window is drawn	1	修前失敗，符合預期：連動的子樹沒有跟著藏：連動的訊息框底下的 CG parts 在隱藏時照畫
+msgwin-showlink	SL3	FAIL	FAIL	是	SL3: hidden: the linked parts' child is drawn	2	修前失敗，符合預期：連動的子樹沒有跟著藏：沒有連動的父底下，連動的 parts 的子在隱藏時照畫
+msgwin-showlink	SL4	FAIL	FAIL	是	SL4: hidden: the linked root's child is drawn	6	修前失敗，符合預期：連動的子樹沒有跟著藏：隱藏中在連動的根底下新建的 parts 照畫
+msgwin-showlink	SL5	FAIL	FAIL	是	SL5: UpdateMatrix(false): the linked root's child is drawn	3	修前失敗，符合預期：連動的子樹沒有跟著藏：UpdateMatrix(false) 之後連動的根的子照畫
+msgwin-showlink	SL6	FAIL	FAIL	是	SL6: hidden: the parts below the linked root is entered	2	修前失敗，符合預期：隱藏中連動的根底下的按鈕仍被進入、按下放開仍點得到
+msgwin-showlink	SL7	FAIL	FAIL	是	SL7: pressed while hidden and released when shown, the parts was clicked	1	修前失敗，符合預期：隱藏中按下、顯示後放開，按鈕被點到（按下時有元件接）
+msgwin-showlink	SL8	FAIL	FAIL	是	SL8 WinG: the window loaded from the pactex is linked to the message windows' show	4	修前失敗，符合預期：pactex 載入的訊息框被無條件設成連動，隱藏時不畫
+msgwin-showlink	SL9	FAIL	FAIL	是	SL9: SetMessageWindowActive(false) changed the window's drawing	6	修前失敗，符合預期：SetMessageWindowActive(false) 把視窗藏起來、設成連動
+msgwin-showlink	SL10	PASS	PASS	是	—	0	通過，守衛：沒有連動時，隱藏訊息框不改任何畫面，顯示也不標重畫
+msgwin-showlink	SL11	PASS	PASS	是	—	0	通過，守衛：訊息框顯示中，有連動的場景多次更新畫面不變；印出的雜湊修前修後相同
+msgwin-showlink	SL12	PASS	PASS	是	—	0	通過，守衛：連動的根底下自己隱藏與編輯上隱藏的子，顯示後仍不畫；IsComponentShow 讀自己的 show
+msgwin-showlink	SL13	PASS	PASS	是	—	0	通過，守衛：v13：PE_Update(false) 只藏連動的 parts 自己，它的子照畫（v14 之前不變）
+msgwin-showlink	SL14	PASS	PASS	是	—	0	通過，守衛：沒有連動的按鈕在隱藏中照樣進得去、點得到
+msgwin-rates	WR1	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR2	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR3	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR4	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR5	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR6	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR7	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR8	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR9	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR10	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR11	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR12	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR13	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR14	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR15	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過
+msgwin-rates	WR16	PASS	PASS	是	—	0	通過，守衛：G9 的模式，這次當守衛：比率的各案修前修後都通過

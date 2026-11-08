@@ -1,0 +1,6 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 135 模式 PASS、sanitizer 0	G10a 的提交後驗證（程式 925b0fe；8f9cd6d 只加文件），見 cursor-settings 的研究；這一組開工時在 8f9cd6d 上重跑
+實作後	預設及 GBK	各 136 模式 PASS、sanitizer 0；msgwin-showlink 14／14、layer-root 11／11；WR1 雜湊 63689b45、SL11 雜湊 fd4b8b45	parent 8f9cd6d 加當時的差異；提交前的路線、片頭與實機用的就是這份原始碼建的執行檔；歷史
+提交前最終（套用註解修正之後重綁）	預設及 GBK	各 136 模式 PASS、sanitizer 0；msgwin-showlink 14／14；WR1 雜湊 63689b45、SL11 雜湊 fd4b8b45	提交說明查證之後只改探針檔頭的註解；src 和實作後相同
+提交後	預設及 GBK	各 136 模式 PASS、sanitizer 0；msgwin-showlink 14／14；WR1 雜湊 63689b45、SL11 雜湊 fd4b8b45	HEAD 4b681b2
+修前（提交後）	預設及 GBK	msgwin-showlink 14 案中恰好 SL1–SL9 失敗、msgwin-rates 16 案全過；sanitizer 0；逐案表和提交前最後一次重綁的逐位元組相同	parent 8f9cd6d 的 src／include 加提交的探針；見 before.tsv
