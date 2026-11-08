@@ -71,6 +71,11 @@ static bool dm_empty_queries(int lib, int array, int held)
 	 * or invalid-callback VM_ERROR where the old null page returned early. */
 	unsigned long before_steps = total_steps;
 	int sp = stack_ptr;
+	/* The value goes with type operand 2 as the bytecode hands it over: A_REF
+	 * of this struct (it has a string member) shares its page in this VM,
+	 * one reference more, which the call gives back (hll-param-handover). */
+	assert(!v14_struct_is_plain_value(heap[held].page));
+	heap_ref(held);
 	stack_push(array); stack_push(0); stack_push(5); stack_push(held);
 	hll_call(lib, value_find, 2);
 	assert(stack_ptr == sp + 1);

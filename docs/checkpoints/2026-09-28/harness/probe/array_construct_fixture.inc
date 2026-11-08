@@ -846,8 +846,13 @@ static void ac_act_emplace_erase(void)
 	ac_act_emplace_seq();
 	bu_call("Array", "Erase", 3, 2, 3, (union vm_value[]){ BU_I(ac.array), BU_I(1), BU_I(1) });
 }
+/* The value goes with type operand 2 as the bytecode hands it over: A_REF of
+ * this struct shares its page in this VM, one reference more, which the call
+ * gives back (hll-param-handover). */
 static void ac_act_push(void)
 {
+	assert(!v14_struct_is_plain_value(heap[ac_pushed].page));
+	heap_ref(ac_pushed);
 	bu_call("Array", "PushBack", 2, 2, 2, (union vm_value[]){ BU_I(ac.array), BU_I(ac_pushed) });
 }
 /* Two elements from every destructor that is entered: the watch is armed
@@ -879,8 +884,9 @@ static void ac_act_emplace_two_each(void)
  * appended objects are still alive afterwards.
  * This port's own, marked "port" below:
  *  - a lost object is seen as one reference left on it, the array's (round 3:
- *    two, PushBack's reference here and the probe's; natively a pushed
- *    struct was not read);
+ *    two, PushBack's reference here and the probe's; the one A_REF handed
+ *    over with it the call gives back; natively a pushed struct was not
+ *    read);
  *  - the probe releases the lost objects itself before it counts the live
  *    slots, so that count says nothing else was left behind;
  *  - round 2 as a whole: the destructor also erases an element the outer

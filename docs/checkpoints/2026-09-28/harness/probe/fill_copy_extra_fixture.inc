@@ -42,19 +42,27 @@ static int test_fill_copy_extra(void)
 	int d2 = ob_int_array((int[]){9, 9, 9, 9, 9}, 5), s2 = ob_int_array((int[]){20, 21, 22}, 3);
 	int r2 = fx_call(lib, copy2, 1, (int[]){d2, s2, 1, 10}, 4);
 	fx_expect("Copy#2 dst5 src3 (1,10) past-src null", fx_ints(d2, r2), "r=4 [21,22,0,0,9]");
-	/* Fill on a value-struct array: every element must be its own object */
+	/* Fill on a value-struct array: every element must be its own object.
+	 * The value is handed over with type operand 2 as the bytecode makes it:
+	 * A_REF of a struct of plain numbers copies it in this VM (vm.c A_REF,
+	 * vm_copy_page), and the call gives that copy's reference back. The
+	 * caller keeps v. */
 	int st = or_struct("CASPos");
 	int p = or_struct_array(st, (const int[][2]){{0, 0}, {0, 0}, {0, 0}}, 3);
 	int v = alloc_struct(st);
 	heap[v].page->values[0].i = 7; heap[v].page->values[1].i = 8;
-	int r3 = fx_call(lib, fill0, 2, (int[]){p, v}, 2);
+	int c = vm_copy_page(heap[v].page);
+	unsigned cseq = heap[c].seq;
+	int r3 = fx_call(lib, fill0, 2, (int[]){p, c}, 2);
 	struct page *pp = heap[p].page;
 	int e0 = pp->values[0].i, e1 = pp->values[1].i, e2 = pp->values[2].i;
 	char got[64];
 	snprintf(got, sizeof got, "r=%d distinct=%d x=%d,%d,%d", r3,
-		 e0 != e1 && e1 != e2 && e0 != e2 && e0 != v,
+		 e0 != e1 && e1 != e2 && e0 != e2 && e0 != v && e0 != c && e1 != c && e2 != c,
 		 heap[e0].page->values[0].i, heap[e1].page->values[0].i, heap[e2].page->values[0].i);
 	fx_expect("Fill#0 CASPos array values copied", got, "r=3 distinct=1 x=7,7,7");
+	snprintf(got, sizeof got, "%s", HEAP_REF(c) > 0 && heap[c].seq == cseq ? "alive" : "released");
+	fx_expect("Fill#0 gives the handed-over copy back", got, "released");
 	heap[e0].page->values[0].i = 99;
 	snprintf(got, sizeof got, "%d,%d", heap[e1].page->values[0].i, heap[v].page->values[0].i);
 	fx_expect("Fill#0 writing one element leaves others", got, "7,7");

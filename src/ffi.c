@@ -335,6 +335,26 @@ int hll_generic_slots(int hll_arg3)
 	return slots + (hll_generic_is_option(hll_arg3) ? 1 : 0);
 }
 
+/*
+ * v14: an object value hll_param (type operand low word 2) without the wrap
+ * bit is handed over to the call. Natively CALLHLL (0x66d470) pops its
+ * arguments into a vector (0x66a5e0 -> 0x66a700 -> 0x659970), which retains
+ * an hll_param value only when the operand has the wrap bit
+ * (0x659a7e..0x659aa7), and destroys that vector after the call (0x6734b0
+ * at 0x66d782, 0x673720 -> 0x659d20), which releases every object value once
+ * (0x659d46) whatever the wrap bit. So a value with the wrap bit (0x10002,
+ * 0x30002, the interface 0x10003) is borrowed, and one without it (2, the
+ * option 0x20002) comes with a reference of its own that the call gives
+ * back. The bytecode makes such a value with A_REF, NEW, a function's result
+ * or a string expression. Strings keep this VM's temporary flag instead
+ * (the array shares the slot with the caller), and v13 and earlier keep
+ * their rule; an interface without the wrap bit (low word 3) is not treated.
+ */
+static bool hll_param_handed_over(int hll_arg3)
+{
+	return ain->version >= 14 && (hll_arg3 & 0xFFFF) == 2 && !(hll_arg3 & 0x10000);
+}
+
 void hll_call(int libno, int fno, int hll_arg3)
 {
 	struct ain_hll_function *f = &ain->libraries[libno].functions[fno];
@@ -700,6 +720,7 @@ void hll_call(int libno, int fno, int hll_arg3)
 				args[i] = &heap_slots[i];
 			} else {
 				stack_ptr--;
+				heap_slots[i] = stack[stack_ptr].i;	/* kept for the release after the call */
 				args[i] = &stack[stack_ptr];
 			}
 			break;
@@ -779,6 +800,10 @@ void hll_call(int libno, int fno, int hll_arg3)
 			j++;
 			break;
 		case AIN_HLL_PARAM:
+			// v14: give back the reference a handed-over page came with
+			// (the value as it was popped, its first slot for an option).
+			if (hll_param_handed_over(hll_arg3) && page_index_valid(heap_slots[i]))
+				heap_unref(heap_slots[i]);
 			// v14: generic element — skip the extra slots of a multi-slot type
 			j += hll_generic_slots(hll_current_arg3) - 1;
 			break;

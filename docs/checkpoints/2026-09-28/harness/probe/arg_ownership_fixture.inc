@@ -39,11 +39,12 @@
  *        member's), a CASPosF to MathHelper::CalcAngle (released), an array
  *        to MatchingInfo@0(Customer, array) (released: the member is a
  *        copy), a delegate to AFL_Parts_AddBeginUpdateEvent, which copies it
- *        down three calls (released, and one delegate page more in all: the
- *        list's), and a delegate to Observer::Create, whose own A_REF and
- *        NEW Observer pass a copy on (released; after the real
- *        Observer@Release the observer and its own delegates are gone, and
- *        the update record's delegate page stays, see below).
+ *        down three calls (released, and as many delegate pages as before:
+ *        the list's came; when the list goes its record and that page go
+ *        too), and a delegate to Observer::Create, whose own A_REF and NEW
+ *        Observer pass a copy on (released; after the real Observer@Release
+ *        the observer, its own delegates and the update record with its
+ *        delegate page are gone).
  *   AO3  Borrowed, as before: a wrap argument (ObserverCollection@Add) keeps
  *        the caller's reference; a string that is not a temporary keeps the
  *        caller's reference while a temporary one is consumed; and an
@@ -70,14 +71,15 @@
  *     size. FrameImageCache.MinLoadTime is set to 0 so that the wait ends
  *     in the first frames (the probe's clock does not move).
  *
- * Known leaks of other mechanisms, pinned as they are (to be lowered when
- * they are fixed): the box this VM gives a wrap local that X_ASSIGN then
- * overwrites; and the update-event record: AddPartsUpdateEvent hands its
- * local record to Array.PushBack with A_REF (one reference) and the library
- * retains it again, so the record and its delegate page outlive the list
- * (the same as SelectableIndexArray<T>@Insert in array-literal). One round
- * of Observer::Create and Release leaves 2 boxes, 1 record and 1 emptied
- * delegate page; one FrameImageCache@Join 25, 4 and 1.
+ * Known leaks of another mechanism, pinned as they are (to be lowered when
+ * it is fixed): the box this VM gives a wrap local that X_ASSIGN then
+ * overwrites. One round of Observer::Create and Release leaves 2 boxes; one
+ * FrameImageCache@Join 25. The update-event record is no longer one of
+ * them: AddPartsUpdateEvent hands its local record to Array.PushBack with
+ * A_REF (one reference) and the library retains it again, and since the
+ * call gives the handed-over reference back (hll-param-handover) no record
+ * and no delegate page of one outlive the list. The cases still count them,
+ * as zero.
  *
  * What the cases do not reach: the arguments of DG_CALL (delegate-args) and
  * of an HLL callback (vm_call_nopop) are copied by their own code and are
@@ -159,10 +161,9 @@ static bool ao_alive(int slot, unsigned seq)
 	return slot > 1 && (size_t)slot < heap_size && HEAP_REF(slot) > 0 && heap[slot].seq == seq;
 }
 
-/* The slots that appeared since xl_mark, by kind. Three kinds are known
- * leaks of other mechanisms (see the header): the box of a wrap local, an
- * update-event record that Array.PushBack retained again, and the emptied
- * delegate page such a record holds. */
+/* The slots that appeared since xl_mark, by kind: the box of a wrap local
+ * (a known leak, see the header), an update-event record and the emptied
+ * delegate page such a record holds (both once known leaks, now zero). */
 struct ao_left { int boxes, records, delegates, empty_delegates, other; };
 
 static struct ao_left ao_left_since_mark(bool show)
@@ -246,12 +247,13 @@ static void ao_join(void)
 			printf("AO1 the second Join left %d wrap box(es), %d update record(s), %d empty delegate(s), %d other\n", l.boxes,
 			       l.records, l.empty_delegates, l.other);
 			AO_CHECK(l.other == 0 && l.delegates == 0, "the second Join left %d slot(s) of another kind", l.other + l.delegates);
-			/* One record, not four, since Array.Realloc gives an element one
-			 * reference (array-construct): the three were the elements of
-			 * CallPartsUpdateEvent's local list, which Array.Copy replaced
-			 * and the extra reference kept. */
-			AO_CHECK(l.boxes == 25 && l.records == 1 && l.empty_delegates == 1,
-				"the known leaks of a Join are 25 boxes, 1 record and 1 empty delegate; got %d, %d and %d", l.boxes, l.records,
+			/* No record: the three that were the elements of
+			 * CallPartsUpdateEvent's local list went once Array.Realloc gave
+			 * an element one reference (array-construct), and the one
+			 * Array.PushBack retained after A_REF once the call gave the
+			 * handed-over reference back (hll-param-handover). */
+			AO_CHECK(l.boxes == 25 && l.records == 0 && l.empty_delegates == 0,
+				"the known leaks of a Join are 25 boxes, no record and no empty delegate; got %d, %d and %d", l.boxes, l.records,
 				l.empty_delegates);
 		}
 		xl_mark();
@@ -326,12 +328,15 @@ static void ao_handed_over(void)
 		ao_count_pages(DELEGATE_PAGE) - pages, wc_size(list));
 	heap[global_page_slot].page->values[g].i = -1;
 	heap_unref(list);
-	/* known: the record outlives the list (Array.PushBack retained the
-	 * value A_REF handed it), and its delegate page with it */
+	/* the record goes with the list (the call gave back the reference
+	 * A_REF handed Array.PushBack with it), and its delegate page with it:
+	 * one delegate page fewer than before the call, the argument's */
 	struct ao_left l = ao_left_since_mark(true);
-	AO_CHECK(l.other == 0 && l.records == 1 && l.delegates == 1 && l.empty_delegates == 0 && ao_count_pages(DELEGATE_PAGE) == pages,
-		"after the list went: %d record(s), %d delegate page(s) and %d slot(s) of another kind; the known leak is 1 record with "
-		"its delegate page", l.records, l.delegates + l.empty_delegates, l.other);
+	AO_CHECK(l.other == 0 && l.records == 0 && l.delegates == 0 && l.empty_delegates == 0
+		 && ao_count_pages(DELEGATE_PAGE) == pages - 1,
+		"after the list went: %d record(s), %d delegate page(s) (%d in all, %d before the call) and %d slot(s) of another "
+		"kind; want none and one page fewer", l.records, l.delegates + l.empty_delegates, ao_count_pages(DELEGATE_PAGE), pages,
+		l.other);
 
 	/* a delegate through Observer::Create: its own A_REF and NEW Observer hand a copy on */
 	ao_global_struct_array("parts::detail::g_dgPartsBeginUpdateEvent");
@@ -362,10 +367,10 @@ static void ao_handed_over(void)
 		printf("AO2 Observer@Release: the observer %s; delegate pages %d; the update list has %d\n",
 		       ao_alive(obs, oseq) ? "ALIVE" : "released", ao_count_pages(DELEGATE_PAGE), wc_size(list));
 		AO_CHECK(!ao_alive(obs, oseq), "the observer has %d reference(s) after its Release", HEAP_REF(obs));
-		/* known: the record and its (emptied) delegate page stay, as above */
-		AO_CHECK(wc_size(list) == 0 && ao_count_pages(DELEGATE_PAGE) == pages - 1 + 1,
-			"%d delegate page(s) and %d update event(s) after the Release, want %d (the leaked record's) and 0",
-			ao_count_pages(DELEGATE_PAGE), wc_size(list), pages);
+		/* the record and its delegate page go as well, as above */
+		AO_CHECK(wc_size(list) == 0 && ao_count_pages(DELEGATE_PAGE) == pages - 1,
+			"%d delegate page(s) and %d update event(s) after the Release, want %d (the argument's went) and 0",
+			ao_count_pages(DELEGATE_PAGE), wc_size(list), pages - 1);
 	}
 	heap_unref(target);
 }
@@ -459,9 +464,10 @@ static void ao_rounds(void)
 	(void)pages_first;
 	AO_CHECK(!bad, "a round found no observer in the collection");
 	AO_CHECK(l.other == 0 && l.delegates == 0, "%d slot(s) of another kind were left by 199 rounds", l.other + l.delegates);
-	/* known, per round: two boxes, one record and its emptied delegate page */
-	AO_CHECK(l.boxes == 2 * 199 && l.records == 199 && l.empty_delegates == 199,
-		"the known leaks of 199 rounds are 398 boxes, 199 records and 199 empty delegates; got %d, %d and %d", l.boxes,
+	/* known, per round: two boxes (no record and no emptied delegate page
+	 * since the call gives the handed-over record back) */
+	AO_CHECK(l.boxes == 2 * 199 && l.records == 0 && l.empty_delegates == 0,
+		"the known leaks of 199 rounds are 398 boxes, no record and no empty delegate; got %d, %d and %d", l.boxes,
 		l.records, l.empty_delegates);
 }
 
