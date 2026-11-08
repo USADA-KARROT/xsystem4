@@ -55,6 +55,7 @@ lambda 的 delegate 擁有建立它的函式的區域頁。把 lambda 當引數�
 - **`A_REF` 對 struct 是共享同一頁**，原版是複製。被呼叫函式就地修改值引數時會改到呼叫者的物件（本 AIN 有 2 個函式這樣做，都是向量正規化）。
 - **string 引數**：`S_MOD` 的結果與 HLL 回傳的字串沒有 temporary 旗標，當引數時多留一個（修正前後相同）。
 - **Array 函式庫對 `A_REF` 交出的 struct 值再 retain**（`PushBack 2`、`Insert 2`）：每次登錄更新事件洩漏一筆紀錄，每個 CG 圖層物件多一個參照。探針把這些殘留數釘住了，修好時要往下改。
+  > 2026-11-09 更新（G14 修正，程式 `d142176`）：v14 已修。型別參數 2 交出的頁由 CALLHLL 在呼叫後歸還（照原版），更新事件的紀錄與它的 delegate 頁、CG 圖層物件不再多留；探針釘住的殘留往下改了（每次 `FrameImageCache@Join` 的 box、紀錄、清空的 delegate 頁 25、1、1 → 25、0、0，199 輪 398、199、199 → 398、0、0）。字串與 v13 以前照舊。見 [hll-param-handover](../hll-param-handover/README.md)。
 - 探針沒有涵蓋：struct 與 array 引數經真位元組碼的產生端（目前由 C 端建物件後直接呼叫）；多播的 delegate。
 - 開場類的短路線峰值記憶體比前一組高約 20MB，原因沒有查。
 

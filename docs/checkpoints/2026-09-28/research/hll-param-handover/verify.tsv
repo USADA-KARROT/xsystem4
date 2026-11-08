@@ -1,0 +1,6 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 135 模式 PASS、sanitizer 0	8f9cd6d（G10a 的文件提交；程式 925b0fe）；這一組開工時在 8f9cd6d 上重跑
+實作後（提交前）	預設及 GBK	各 136 模式 PASS、sanitizer 0；hll-param-handover 8／8；optimized 與 ASan 建置都成功	8f9cd6d 加這一組的差異（src/ffi.c 與 harness）；提交前的路線、片頭、戰國蘭斯、實機的截圖與 ASan 用的是這份原始碼建的執行檔（參照追蹤另用加了追蹤的量測建置）；之後只改了報告，原始碼與探針沒有再改
+修前（提交前）	預設及 GBK	hll-param-handover 8 案中恰好 HP1–HP4 失敗、HP5–HP8 通過；結束碼 1、sanitizer 0、沒有崩潰；兩種字集的失敗訊息逐字相同	8f9cd6d 的 src／include 加最終的探針（證據審查之後重跑；更早一次用的是探針審查之前的版本）
+提交後	預設及 GBK	各 137 模式 PASS、sanitizer 0；hll-param-handover 8／8、msgwin-showlink 14／14；WR1 雜湊 63689b45	HEAD d142176（parent 0d41a04，含 G13 的程式）；同一個提交的前一次驗收也是各 137 模式 PASS，那一次的路線因磁碟的安全線沒有開跑
+修前（提交後）	預設及 GBK	恰好 HP1–HP4 失敗、HP5–HP8 通過，sanitizer 0；8 案的狀態與訊息和記錄的修前表相同，逐案表和提交前的逐位元組相同	parent 0d41a04 的 src／include 加提交的探針（和最終的探針逐位元組相同）；見 before.tsv

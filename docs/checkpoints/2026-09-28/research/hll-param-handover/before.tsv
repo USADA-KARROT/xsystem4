@@ -1,0 +1,9 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+hll-param-handover	HP1	FAIL	FAIL	是	after the push and the release of the view local the card has 2 reference(s), want 1 (the array's): the reference A_REF handed to PushBack was not given back	7	修前失敗，符合預期：交出的參照沒有歸還：遊戲自己的 CreateView 推入後卡片 2 個參照，Erase#1 之後不解構，解構子與 activity 的釋放都沒有跑
+hll-param-handover	HP2	FAIL	FAIL	是	Array.PushBack(type 2) of a struct: 3 reference(s) after the call, want 2 (the caller's and the array's): the handed-over reference was not given back	8	修前失敗，符合預期：交出的參照沒有歸還：PushBack、Add、Insert 與 IsExist 之後都多一個參照，呼叫者與陣列都放掉後 struct 還活著
+hll-param-handover	HP3	FAIL	FAIL	是	PushBack(type 2) of an array of structs: 3 reference(s), want 2 (the caller's and the array's)	13	修前失敗，符合預期：交出的參照沒有歸還：共享的頁（struct 的陣列、另有持有者的 delegate）與 A_REF 的複本（數字陣列、delegate、純數值 struct）都多一個參照，之後還活著
+hll-param-handover	HP4	FAIL	FAIL	是	PushBack(0x20002) of an option holding a struct: 3 reference(s), want 2 (the caller's and the array's; natively the payload is handed over, 0x6597f0 has no wrap bit)	2	修前失敗，符合預期：交出的參照沒有歸還：option 0x20002 帶的 struct 多一個參照，之後還活著
+hll-param-handover	HP5	PASS	PASS	是	—	0	通過，守衛：帶 wrap 位元的 0x10002、介面 0x10003、wrap 的 option 0x30002 是借用，型別參數 1 不碰任何槽
+hll-param-handover	HP6	PASS	PASS	是	—	0	通過，守衛：字串照這個分支的暫存旗標處理（移植版的行為，不是原版）
+hll-param-handover	HP7	PASS	PASS	是	—	0	通過，守衛：v13、v11 照這個分支的規則，不歸還
+hll-param-handover	HP8	PASS	PASS	是	—	0	通過，守衛：靜態前提：型別參數 2 的值都由交出型的指令產生，讀得出的被呼叫者都回傳值，呼叫點都有綁定
