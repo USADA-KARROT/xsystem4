@@ -73,6 +73,9 @@ void parts_cp_op_free(struct parts_cp_op *op)
 	case PARTS_CP_GRAY_SCALE:
 	case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
 	case PARTS_CP_FILL_POLYGON_AMAP:
+	case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+	case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+	case PARTS_CP_FILL_PIE_IN_RECT:
 		free(op->pixel.points);
 		break;
 	}
@@ -406,6 +409,24 @@ bool PE_AddFillCircleToPartsConstructionProcess(int parts_no, bool blend, int x,
 	});
 }
 
+bool PE_AddFillCircleInRectToPartsConstructionProcess(int parts_no, bool blend, int x, int y, int w, int h,
+		int r, int g, int b, int a, int state)
+{
+	return add_pixel_op(parts_no, state, blend ? PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT
+			: PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .r = r, .g = g, .b = b, .a = a
+	});
+}
+
+bool PE_AddFillPieInRectToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		int start_angle, int sweep_angle, int r, int g, int b, int a, int angle, int state)
+{
+	return add_pixel_op(parts_no, state, PARTS_CP_FILL_PIE_IN_RECT, (struct parts_cp_pixel) {
+		.x = x, .y = y, .w = w, .h = h, .r = r, .g = g, .b = b, .a = a,
+		.radius = start_angle, .line_width = sweep_angle, .a2 = angle
+	});
+}
+
 bool PE_AddDrawCircleToPartsConstructionProcess(int parts_no, int x, int y, int radius, int line_width,
 		int a, int state)
 {
@@ -691,49 +712,36 @@ static void build_gray_filter(struct parts_construction_process *cproc, struct p
 }
 
 /*
- * FillPieAMap (v14 construction command 122, native 0x5093d0): replaces the
- * alpha in a sector of an ellipse, antialiased.
+ * The sector scan of v14 construction commands 121 and 122 (native 0x4d0280):
+ * a sector of the ellipse with radii (rx, ry) around (cx, cy), antialiased.
  *
- * The scan (0x4d0280) covers the 2r x 2r pixels around the centre, r being
- * the larger radius. A pixel is in the sector when the angle of its top-left
- * corner, in 1/65536 turns and truncated, lies in [start, start + sweep],
+ * The scan covers the 2r x 2r positions cx - r + col, cy - r + row, r being
+ * the larger radius. A position is in the sector when its angle from the
+ * centre, in 1/65536 turns and truncated, lies in [start, start + sweep],
  * both ends included; the angles are degrees modulo 360 (0x4e5e50), and a
  * range that ends before it starts is the union of its two parts (0x4eb0c0).
- * Negative angles select nothing (0x4eae00). The coverage (0x4e6680) is the
- * number n of the pixel's 8x8 subsamples, at offsets k/8 from that corner,
- * that lie in the ellipse; a pixel with n > 0 gets a * (n * 255 / 64) / 255
- * (0x4d05c0, stored by 0x5b0a10) and the others keep their alpha. The
- * original multiplies by the reciprocal of each radius (0x4e6738) and rounds
- * the two squares before adding them; both decide the subsamples that lie
- * exactly on the ellipse (e.g. (6, 8) for r 10, (5, 12) for r 13), so the
- * products below stay separate statements.
- *
- * The rotation (0x4eafc0) is not implemented. Operations also come from
- * save data, so what the pactex loader would not pass is checked again here:
- * a rotation, radii above PARTS_CP_PIE_MAX_RADIUS and angles beyond one turn
- * draw nothing.
+ * The coverage (0x4e6680) is the number n of the 8x8 subsamples at offsets
+ * k/8 from the position that lie in the ellipse. The original multiplies by
+ * the reciprocal of each radius (0x4e6738) and rounds the two squares before
+ * adding them; both decide the subsamples that lie exactly on the ellipse
+ * (e.g. (6, 8) for r 10, (5, 12) for r 13), so the products below stay
+ * separate statements. The pixel is the position truncated towards zero
+ * (0x4d03ba), so the column and the row just outside the left and top edges
+ * land on the first one; a pixel with n > 0 gets the alpha a * (n * 255 / 64)
+ * / 255, scaled first and then clamped, and with `rgb` that colour too (the
+ * writers 0x4d05c0 -> 0x5b0a10 and 0x4d0510 -> 0x5b0b80). Without `alpha`
+ * the alpha is not written.
  */
-static void build_fill_pie_amap(struct parts_construction_process *cproc, struct parts_cp_pie *op)
+static void cp_fill_pie(uint8_t *pixels, int tw, int th, double cx, double cy, double rx, double ry,
+		int start_deg, int sweep_deg, const uint8_t *rgb, int a, bool alpha)
 {
-	Texture *t = &cproc->common.texture;
-	if (op->rx <= 0 || op->ry <= 0 || op->start < 0 || op->sweep < 0)
-		return;
-	if (op->angle || op->rx > PARTS_CP_PIE_MAX_RADIUS || op->ry > PARTS_CP_PIE_MAX_RADIUS
-			|| op->start > 360 || op->sweep > 360) {
-		WARNING("FillPieAMap: unsupported sector");
-		return;
-	}
-	if (!t->handle || t->w <= 0 || t->h <= 0)
-		return;
-
-	const int start = (op->start % 360) * (65536.0 / 360.0);
-	const int end = ((op->start + op->sweep) % 360) * (65536.0 / 360.0);
-	const double r = max(op->rx, op->ry);
+	const int start = (start_deg % 360) * (65536.0 / 360.0);
+	const int end = ((start_deg + sweep_deg) % 360) * (65536.0 / 360.0);
+	const double r = max(rx, ry);
 	const int size = r + r;
-	const double inv_rx = 1.0 / op->rx;
-	const double inv_ry = 1.0 / op->ry;
+	const double inv_rx = 1.0 / rx;
+	const double inv_ry = 1.0 / ry;
 
-	uint8_t *pixels = gfx_get_pixels(t);
 	for (int row = 0; row < size; row++) {
 		const double dy = row - r;
 		for (int col = 0; col < size; col++) {
@@ -760,18 +768,50 @@ static void build_fill_pie_amap(struct parts_construction_process *cproc, struct
 			if (!n)
 				continue;
 
-			// The centre is (x + 0.5, y + 0.5); the conversion truncates
-			// towards zero (0x4d03ba), so the column and the row just
-			// outside the left and top edges land on the first one.
-			const double px = op->x + 0.5 + dx;
-			const double py = op->y + 0.5 + dy;
-			if (px <= -1.0 || px >= t->w || py <= -1.0 || py >= t->h)
+			const double px = cx + dx;
+			const double py = cy + dy;
+			if (px <= -1.0 || px >= tw || py <= -1.0 || py >= th)
 				continue;
-			// Scaled first (0x4d05c0), then clamped (0x5b0a10).
-			const int64_t a = (int64_t)op->a * (n * 255 / 64) / 255;
-			pixels[((int)py * t->w + (int)px) * 4 + 3] = min(max(a, 0), 255);
+			uint8_t *d = pixels + ((size_t)(int)py * tw + (int)px) * 4;
+			if (rgb) {
+				d[0] = rgb[0];
+				d[1] = rgb[1];
+				d[2] = rgb[2];
+			}
+			if (alpha) {
+				const int64_t pa = (int64_t)a * (n * 255 / 64) / 255;
+				d[3] = min(max(pa, 0), 255);
+			}
 		}
 	}
+}
+
+/*
+ * FillPieAMap (v14 construction command 122, native 0x5093d0): replaces the
+ * alpha in a sector of the ellipse with radii (rx, ry) around (x + 0.5,
+ * y + 0.5) (cp_fill_pie).
+ *
+ * The rotation (0x4eafc0) is not implemented. Operations also come from
+ * save data, so what the pactex loader would not pass is checked again here:
+ * a rotation, radii above PARTS_CP_PIE_MAX_RADIUS and angles beyond one turn
+ * draw nothing. Negative angles select nothing (0x4eae00).
+ */
+static void build_fill_pie_amap(struct parts_construction_process *cproc, struct parts_cp_pie *op)
+{
+	Texture *t = &cproc->common.texture;
+	if (op->rx <= 0 || op->ry <= 0 || op->start < 0 || op->sweep < 0)
+		return;
+	if (op->angle || op->rx > PARTS_CP_PIE_MAX_RADIUS || op->ry > PARTS_CP_PIE_MAX_RADIUS
+			|| op->start > 360 || op->sweep > 360) {
+		WARNING("FillPieAMap: unsupported sector");
+		return;
+	}
+	if (!t->handle || t->w <= 0 || t->h <= 0)
+		return;
+
+	uint8_t *pixels = gfx_get_pixels(t);
+	cp_fill_pie(pixels, t->w, t->h, op->x + 0.5, op->y + 0.5, op->rx, op->ry, op->start, op->sweep,
+			NULL, op->a, true);
 	gfx_update_texture_with_pixels(t, pixels);
 	free(pixels);
 }
@@ -1062,6 +1102,9 @@ static bool cp_op_on_pixels(const struct parts_cp_op *op)
 	case PARTS_CP_SCALE_COPY_CG:
 	case PARTS_CP_CUT_CG_COPY:
 	case PARTS_CP_CUT_CG_SCALE_BLEND:
+	case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+	case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+	case PARTS_CP_FILL_PIE_IN_RECT:
 		return true;
 	default:
 		return op->type >= PARTS_CP_MUL_AMAP_GRADATION_ROWS
@@ -1288,25 +1331,97 @@ int parts_cp_circle_cells(int r, int dy, int *dx0, int *dx1)
 	return found ? 1 : 0;
 }
 
+/* The coverage of the cell i, j of a disc of diameter d (0x4e6530): the
+ * number of its 8x8 subsamples, at (i - d/2 + s/8, j - d/2 + t/8) from the
+ * centre, within d/2, scaled to n * 255 / 64. In eighths, exactly (d/2 is a
+ * multiple of 1/2). */
+static int cp_disc_coverage(int i, int j, int d)
+{
+	const int64_t rr = (int64_t)16 * d * d;
+	int n = 0;
+	for (int t = 0; t < 8; t++) {
+		const int64_t v = (int64_t)8 * j - (int64_t)4 * d + t;
+		for (int s = 0; s < 8; s++) {
+			const int64_t u = (int64_t)8 * i - (int64_t)4 * d + s;
+			if (u * u + v * v <= rr)
+				n++;
+		}
+	}
+	return n * 255 / 64;
+}
+
 /*
- * FillCircle (v14 construction commands 102 and 106, native 0x507640 and
- * 0x507d60): an antialiased disc of 半徑 around (x + 0.5, y + 0.5). The scan
- * (0x4cfb40) takes the 2r + 1 positions centre - r, centre - r + 1, ... on
- * both axes; the pixel is the position truncated towards zero (0x4cfc39),
- * so the column and the row just left of and above the surface land on the
- * first one, and the coverage is that of the cell from the position's
- * offset to the centre. Cells without coverage write nothing. A radius that
- * is not positive draws nothing and succeeds.
- *   102 replaces the alpha by a * coverage / 255 (0x4cbbd0 -> 0x5b0a10).
- *   106 stages (r, g, b, a * coverage / 255) on a transparent surface of the
- *       same size (0x5a94d0, 0x4cbb20 -> 0x5b0b80), a later write to a pixel
- *       replacing an earlier one, and composes it (cp_blend_pixel). Only the
- *       scanned pixels are staged here; the others would not change.
- *       With nothing written (the disc lies outside the surface) the
- *       original fails the command and the steps after it (0x507ee2 ->
- *       0x507f2c); here the later operations still run.
+ * The disc scan of v14 construction commands 100 to 103, 106 and 107 (native
+ * 0x4cfb40): an antialiased disc of diameter d whose centre is
+ * (x + 0.5 + d/2, y + 0.5 + d/2). It takes the d + 1 positions centre - d/2, centre - d/2 +
+ * 1, ..., centre + d/2 on both axes, that is x + 0.5 + i; the pixel is the
+ * position truncated towards zero (0x4cfc39), so the column and the row just
+ * left of and above the surface land on the first one, and the coverage is
+ * that of the cell from the position's offset to the centre. Cells without
+ * coverage write nothing.
+ *   Without `blend` the alpha becomes a * coverage / 255 (0x4cbbd0 ->
+ *   0x5b0a10).
+ *   With it, (r, g, b, a * coverage / 255) is staged on a transparent
+ *   surface of the same size (0x5a94d0, 0x4cbb20 -> 0x5b0b80), a later write
+ *   to a pixel replacing an earlier one, and composed (cp_blend_pixel). Only
+ *   the scanned pixels are staged here; the others would not change.
  * The colour and the alpha are clamped to 0..255 here, as 0x5b0b80 clamps
  * each value it writes (the alpha after 0x4cbb20's division).
+ */
+static void cp_fill_disc(uint8_t *pixels, int tw, int th, int64_t x, int64_t y, int d,
+		const struct parts_cp_pixel *op, bool blend)
+{
+	// The staged alpha of pixels x .. x + d + 1, y .. y + d + 1: position
+	// x + 0.5 + i is pixel x + i, except -0.5, which is pixel 0, one more
+	// than that (so d + 2 pixels a side, not d + 1).
+	const int side = d + 2;
+	uint8_t *staged = blend ? xcalloc(side, side) : NULL;
+	for (int j = 0; j <= d; j++) {
+		const double fy = y + 0.5 + j;
+		if (fy <= -1.0 || fy >= th)
+			continue;
+		const int py = fy;
+		for (int i = 0; i <= d; i++) {
+			const double fx = x + 0.5 + i;
+			if (fx <= -1.0 || fx >= tw)
+				continue;
+			const int px = fx;
+			const int cov = cp_disc_coverage(i, j, d);
+			if (cov <= 0)
+				continue;
+			// Scaled first, then clamped (0x5b0a10).
+			const uint8_t a = cp_byte((int64_t)op->a * cov / 255);
+			if (blend)
+				staged[(py - y) * side + (px - x)] = a;
+			else
+				pixels[((size_t)py * tw + px) * 4 + 3] = a;
+		}
+	}
+	if (!blend)
+		return;
+	for (int j = 0; j < side; j++) {
+		const int64_t py = y + j;
+		if (py < 0 || py >= th)
+			continue;
+		for (int i = 0; i < side; i++) {
+			const int64_t px = x + i;
+			if (px < 0 || px >= tw || !staged[j * side + i])
+				continue;
+			cp_blend_pixel(pixels + ((size_t)py * tw + px) * 4, cp_byte(op->r), cp_byte(op->g),
+					cp_byte(op->b), staged[j * side + i]);
+		}
+	}
+	free(staged);
+}
+
+/*
+ * FillCircle (v14 construction commands 102 and 106, native 0x507640 and
+ * 0x507d60): the disc of 半徑 r around (x + 0.5, y + 0.5) (cp_fill_disc with
+ * the diameter 2r from x - r, y - r). 102 replaces the alpha, 106 blends. A
+ * radius that is not positive draws nothing and succeeds. With nothing
+ * written (the disc lies outside the surface) the original fails 106 and the
+ * steps after it (0x507ee2 -> 0x507f2c); here the later operations still
+ * run.
  * The commands 100 and 101 run the same scan with 106's writer on the surface
  * itself (0x507350, 0x5074b0 -> 0x4cbb20 -> 0x5b0b80): the colour and the
  * alpha replace a covered pixel's. There is no operation of their own: the
@@ -1322,49 +1437,59 @@ static void build_fill_circle(uint8_t *pixels, int tw, int th, const struct part
 		WARNING("FillCircle: unsupported radius %d", r);
 		return;
 	}
+	cp_fill_disc(pixels, tw, th, (int64_t)op->x - r, (int64_t)op->y - r, 2 * r, op, blend);
+}
 
-	// The staged alpha of pixels x - r .. x + r + 1, y - r .. y + r + 1:
-	// position p is pixel floor(p) = x - r + i, except -0.5, which is
-	// pixel 0, one more than that (so 2r + 2 pixels a side, not 2r + 1).
-	const int side = 2 * r + 2;
-	const int64_t bx = (int64_t)op->x - r, by = (int64_t)op->y - r;
-	uint8_t *staged = blend ? xcalloc(side, side) : NULL;
-	for (int j = 0; j <= 2 * r; j++) {
-		const double fy = op->y + 0.5 - r + j;
-		if (fy <= -1.0 || fy >= th)
-			continue;
-		const int py = fy;
-		for (int i = 0; i <= 2 * r; i++) {
-			const double fx = op->x + 0.5 - r + i;
-			if (fx <= -1.0 || fx >= tw)
-				continue;
-			const int px = fx;
-			const int cov = cp_circle_coverage(i - r, j - r, r);
-			if (cov <= 0)
-				continue;
-			// Scaled first, then clamped (0x5b0a10).
-			const uint8_t a = cp_byte((int64_t)op->a * cov / 255);
-			if (blend)
-				staged[(py - by) * side + (px - bx)] = a;
-			else
-				pixels[((size_t)py * tw + px) * 4 + 3] = a;
-		}
-	}
-	if (!blend)
+/*
+ * FillCircle in a rectangle (v14 construction commands 103 and 107, native
+ * 0x507790 and 0x507f80): the disc of 102 and 106 whose diameter is the
+ * larger of W and H (0x5077ec, 0x508090: cmovge), from the rectangle's X, Y:
+ * its centre is (X + 0.5 + D/2, Y + 0.5 + D/2), so with W and H not equal
+ * the disc reaches past the shorter side. W or H not positive draws nothing
+ * and succeeds. The original fails 103 on a surface without alpha
+ * (0x5abb80) and 107 when it writes nothing, and the steps after them; here
+ * only the operation is left out. Diameters above twice
+ * PARTS_CP_CIRCLE_MAX_RADIUS are not drawn (xsystem4's limit).
+ */
+static void build_fill_circle_in_rect(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op,
+		bool blend)
+{
+	if (op->w <= 0 || op->h <= 0)
 		return;
-	for (int j = 0; j < side; j++) {
-		const int64_t py = by + j;
-		if (py < 0 || py >= th)
-			continue;
-		for (int i = 0; i < side; i++) {
-			const int64_t px = bx + i;
-			if (px < 0 || px >= tw || !staged[j * side + i])
-				continue;
-			cp_blend_pixel(pixels + ((size_t)py * tw + px) * 4, cp_byte(op->r), cp_byte(op->g),
-					cp_byte(op->b), staged[j * side + i]);
-		}
+	const int d = op->w >= op->h ? op->w : op->h;
+	if (d > 2 * PARTS_CP_CIRCLE_MAX_RADIUS) {
+		WARNING("FillCircle: unsupported diameter %d", d);
+		return;
 	}
-	free(staged);
+	cp_fill_disc(pixels, tw, th, op->x, op->y, d, op, blend);
+}
+
+/*
+ * FillPie in a rectangle (v14 construction command 121, native 0x5092a0 ->
+ * 0x5b0760): the sector of 122 (cp_fill_pie) of the ellipse inside the
+ * rectangle, rx = W/2 and ry = H/2 around (X + 0.5 + W/2, Y + 0.5 + H/2), in
+ * doubles (not the larger of the two, as 103 takes), from 開始角度 over
+ * 移動角度; every covered pixel takes the colour and, on a surface with
+ * alpha, the alpha (100's writer, 0x4d0510 -> 0x5b0b80). The handler does
+ * not ask for alpha. W or H not positive and a negative angle draw nothing
+ * and succeed. As for 122, a rotation, sizes above twice
+ * PARTS_CP_PIE_MAX_RADIUS and angles beyond one turn are not drawn.
+ */
+static void build_fill_pie_in_rect(uint8_t *pixels, int tw, int th, const struct parts_cp_pixel *op,
+		bool has_alpha)
+{
+	const int start = op->radius, sweep = op->line_width;
+	if (op->w <= 0 || op->h <= 0 || start < 0 || sweep < 0)
+		return;
+	if (op->a2 || op->w > 2 * PARTS_CP_PIE_MAX_RADIUS || op->h > 2 * PARTS_CP_PIE_MAX_RADIUS
+			|| start > 360 || sweep > 360) {
+		WARNING("FillPie: unsupported sector");
+		return;
+	}
+	const double rx = op->w * 0.5, ry = op->h * 0.5;
+	const uint8_t rgb[3] = { cp_byte(op->r), cp_byte(op->g), cp_byte(op->b) };
+	cp_fill_pie(pixels, tw, th, op->x + 0.5 + rx, op->y + 0.5 + ry, rx, ry, start, sweep,
+			rgb, op->a, has_alpha);
 }
 
 /*
@@ -1996,6 +2121,16 @@ bool parts_build_construction_process(struct parts *parts,
 			break;
 		case PARTS_CP_FILL_CIRCLE_BLEND:
 			build_fill_circle(pixels, t->w, t->h, &op->pixel, true);
+			break;
+		case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+			if (has_alpha)
+				build_fill_circle_in_rect(pixels, t->w, t->h, &op->pixel, false);
+			break;
+		case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+			build_fill_circle_in_rect(pixels, t->w, t->h, &op->pixel, true);
+			break;
+		case PARTS_CP_FILL_PIE_IN_RECT:
+			build_fill_pie_in_rect(pixels, t->w, t->h, &op->pixel, has_alpha);
 			break;
 		case PARTS_CP_FILL_POLYGON_BLEND:
 		case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:

@@ -136,6 +136,9 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		[PARTS_CP_SCALE_COPY_CG] = "scale_copy_cg",
 		[PARTS_CP_CUT_CG_COPY] = "cut_cg_copy",
 		[PARTS_CP_CUT_CG_SCALE_BLEND] = "cut_cg_scale_blend",
+		[PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT] = "fill_circle_amap_in_rect",
+		[PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT] = "fill_circle_blend_in_rect",
+		[PARTS_CP_FILL_PIE_IN_RECT] = "fill_pie_in_rect",
 	};
 
 	cJSON *ops, *tmp;
@@ -238,6 +241,9 @@ static void parts_construction_process_to_json(struct parts_construction_process
 		case PARTS_CP_GRAY_SCALE:
 		case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
 		case PARTS_CP_FILL_POLYGON_AMAP:
+		case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+		case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+		case PARTS_CP_FILL_PIE_IN_RECT:
 			cJSON_AddItemToObjectCS(obj, "rect", tmp = cJSON_CreateObject());
 			cJSON_AddNumberToObject(tmp, "x", op->pixel.x);
 			cJSON_AddNumberToObject(tmp, "y", op->pixel.y);
@@ -687,6 +693,15 @@ static void parts_list_print(struct parts *parts, int indent)
 				break;
 			case PARTS_CP_CUT_CG_SCALE_BLEND:
 				sys_message(" cut-cg-scale-blend");
+				break;
+			case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+				sys_message(" fill-circle-amap-in-rect");
+				break;
+			case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+				sys_message(" fill-circle-blend-in-rect");
+				break;
+			case PARTS_CP_FILL_PIE_IN_RECT:
+				sys_message(" fill-pie-in-rect");
 				break;
 			}
 		}

@@ -278,12 +278,20 @@ enum parts_cp_op_type {
 	// parts_cp_cut_cg, as PARTS_CP_COPY_CUT_CG). Saved since XPE version 13.
 	PARTS_CP_CUT_CG_COPY,
 	PARTS_CP_CUT_CG_SCALE_BLEND,
-#define PARTS_NR_CP_TYPES (PARTS_CP_CUT_CG_SCALE_BLEND+1)
+	// The discs of v14 commands 103 and 107 and the sector of 121, each
+	// fitted to a rectangle, on the surface's pixels (struct
+	// parts_cp_pixel). Saved since XPE version 14.
+	PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT,
+	PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT,
+	PARTS_CP_FILL_PIE_IN_RECT,
+#define PARTS_NR_CP_TYPES (PARTS_CP_FILL_PIE_IN_RECT+1)
 };
-// What XPE versions 11 to 13 saves hold for the types added last.
+// What XPE versions 11 to 14 saves hold for the types added last.
 _Static_assert(PARTS_CP_FILL_POLYGON_PIXEL_AMAP == 27 && PARTS_CP_FILL_POLYGON_AMAP == 28
 		&& PARTS_CP_SCALE_COPY_CG == 29 && PARTS_CP_CUT_CG_COPY == 30
-		&& PARTS_CP_CUT_CG_SCALE_BLEND == 31, "the values of enum parts_cp_op_type are saved");
+		&& PARTS_CP_CUT_CG_SCALE_BLEND == 31 && PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT == 32
+		&& PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT == 33 && PARTS_CP_FILL_PIE_IN_RECT == 34,
+		"the values of enum parts_cp_op_type are saved");
 
 struct parts_cp_create {
 	int w;
@@ -345,8 +353,14 @@ struct parts_cp_pie {
 //   BLEND_FILL (4): the rectangle (or `full`), the colour and the alpha `a`;
 //   GRAY_SCALE (15): the rectangle (or `full`);
 //   FILL_POLYGON_PIXEL_AMAP / _AMAP (94 / 95): `points`, with the colour
-//     and the alpha `a`, or the alpha alone.
-// Larger circles and polygons are not built (xsystem4's limits).
+//     and the alpha `a`, or the alpha alone;
+//   FILL_CIRCLE_AMAP_IN_RECT / _BLEND_IN_RECT (103 / 107): the rectangle
+//     (the disc's diameter is the larger of w and h) and the alpha `a`, with
+//     the colour for the blend;
+//   FILL_PIE_IN_RECT (121): the rectangle (the ellipse inside it), the
+//     colour and the alpha `a`; 開始角度 in `radius`, 移動角度 in
+//     `line_width` and 回転角度 in `a2`.
+// Larger circles, sectors and polygons are not built (xsystem4's limits).
 #define PARTS_CP_CIRCLE_MAX_RADIUS 1024
 #define PARTS_CP_POLYGON_MAX_POINTS 1024
 // The run of a disc's row dy that has a coverage (construction.c): 1 one

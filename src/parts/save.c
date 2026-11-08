@@ -34,7 +34,7 @@
  *   the controller ID section          (version 7 and later, see below).
  *
  * Each list is a count and then the numbers; a parts record has the same
- * layout in versions 6 to 13. The controller ID section is always the
+ * layout in versions 6 to 14. The controller ID section is always the
  * last nr + 3 words, whatever precedes it, so a version 7 save with or
  * without it is read as well (and so is a later save without it).
  *
@@ -51,6 +51,8 @@
  * command 14; the fields of 7 and 8).
  * Version 13 has the operations 30 and 31 (the cut copy and the cut, scaled
  * blend of a CG of the v14 commands 12 and 13; the fields of 7 and 8).
+ * Version 14 has the operations 32 to 34 (the discs and the sector in a
+ * rectangle of the v14 commands 103, 107 and 121; the fields of 14..22).
  *
  * A v14 save can also have the CG deform section (SAVE_CG_DEFORMS) after
  * the lists, before the controller ID section: its mark, a count, and for
@@ -81,7 +83,7 @@
  * the sound numbers of its record. The numbers of a parts with names are
  * made from them again.
  */
-#define CURRENT_SAVE_VERSION 13
+#define CURRENT_SAVE_VERSION 14
 #define SAVE_CG_DEFORMS 0x46444350 /* "PCDF" */
 #define SAVE_WHEELABLE 0x45485750 /* "PWHE" */
 #define SAVE_SOUND_NAMES 0x444e5350 /* "PSND" */
@@ -449,9 +451,13 @@ static void save_parts_cp_op(struct iarray_writer *w, struct parts_cp_op *op)
 	case PARTS_CP_GRAY_SCALE:
 	case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
 	case PARTS_CP_FILL_POLYGON_AMAP:
+	case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+	case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+	case PARTS_CP_FILL_PIE_IN_RECT:
 		// Since version 8, for the reason given above (the blending fill
-		// and the gray scale since version 10, the last two since version
-		// 11). One layout for all of them, a polygon's points last.
+		// and the gray scale since version 10, the two polygon fills since
+		// version 11, the last three since version 14). One layout for all
+		// of them, a polygon's points last.
 		iarray_write(w, op->pixel.x);
 		iarray_write(w, op->pixel.y);
 		iarray_write(w, op->pixel.w);
@@ -555,6 +561,9 @@ static struct parts_cp_op *load_parts_cp_op(struct iarray_reader *r)
 	case PARTS_CP_GRAY_SCALE:
 	case PARTS_CP_FILL_POLYGON_PIXEL_AMAP:
 	case PARTS_CP_FILL_POLYGON_AMAP:
+	case PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT:
+	case PARTS_CP_FILL_CIRCLE_BLEND_IN_RECT:
+	case PARTS_CP_FILL_PIE_IN_RECT:
 		op->pixel.x = iarray_read(r);
 		op->pixel.y = iarray_read(r);
 		op->pixel.w = iarray_read(r);

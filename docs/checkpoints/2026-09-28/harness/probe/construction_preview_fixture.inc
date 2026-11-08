@@ -100,10 +100,11 @@
  *       keeps what the steps before it drew (0x4fb675), while here the whole
  *       state stays unbuilt. Values near INT_MAX are not built either: the
  *       original adds them in 32 bits and wraps around.
- *   PV7 PE_Save / PE_Load: XPE version 13 (the two operation types of 12
- *       and 13 are new), each of their operations saved as its type and
- *       the fields of 7, 8 and 29 (checked before the load), the same pixels
- *       and operations, the surface of pixels only still without an alpha;
+ *   PV7 PE_Save / PE_Load: XPE version 13 (14 since construction-in-rect;
+ *       the two operation types of 12 and 13 are new), each of their
+ *       operations saved as its type and the fields of 7, 8 and 29 (checked
+ *       before the load), the same pixels and operations, the surface of
+ *       pixels only still without an alpha;
  *       a save rewritten as version 12 loads the same.
  *   PV8 guards: before v14 none of these is built (the save is XPE v3);
  *       states of commands built before (14, 90) load as before next to the
@@ -933,7 +934,7 @@ static void pv_save_case(void)
 	bool layout = false;
 	if (saved) {
 		words = saved->nr_vars;
-		PV_CHECK(ca_save_version(saved) == 13, "PV7: the save is XPE v%d, want 13 (two new operation types)",
+		PV_CHECK(ca_save_version(saved) == 14, "PV7: the save is XPE v%d, want 14 (two new operation types in 13)",
 			 ca_save_version(saved));
 		/* Preview and Blend have one 13 each, Bar two 12. */
 		int found = 0;

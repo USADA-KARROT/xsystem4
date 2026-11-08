@@ -222,6 +222,10 @@ bool PE_AddBlurToPartsConstructionProcess(int parts_no, bool vertical,
 		int x, int y, int w, int h, bool full_size, int radius, int state);
 bool PE_AddFillCircleToPartsConstructionProcess(int parts_no, bool blend, int x, int y, int radius,
 		int r, int g, int b, int a, int state);
+bool PE_AddFillCircleInRectToPartsConstructionProcess(int parts_no, bool blend, int x, int y, int w, int h,
+		int r, int g, int b, int a, int state);
+bool PE_AddFillPieInRectToPartsConstructionProcess(int parts_no, int x, int y, int w, int h,
+		int start_angle, int sweep_angle, int r, int g, int b, int a, int angle, int state);
 bool PE_AddDrawCircleToPartsConstructionProcess(int parts_no, int x, int y, int radius, int line_width,
 		int a, int state);
 bool PE_AddFillPolygonToPartsConstructionProcess(int parts_no, int nr_points, const int *points,

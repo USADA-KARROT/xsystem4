@@ -204,6 +204,7 @@ static void init_probe(const char *path) {
 #include "cursor_config_fixture.inc"
 #include "msgwin_showlink_fixture.inc"
 #include "hll_param_handover_fixture.inc"
+#include "construction_in_rect_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -330,6 +331,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"screensaver"))return test_screensaver();
     if(!strcmp(argv[2],"msgwin-showlink"))return test_msgwin_showlink();
     if(!strcmp(argv[2],"hll-param-handover"))return test_hll_param_handover();
+    if(!strcmp(argv[2],"construction-in-rect"))return test_construction_in_rect();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

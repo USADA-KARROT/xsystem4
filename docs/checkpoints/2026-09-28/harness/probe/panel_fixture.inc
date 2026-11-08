@@ -80,7 +80,10 @@
  *       fill of the alpha; the original multiplies it by a gradation,
  *       0x4ff740 / 0x4ff8d0), 27 and 28 (nothing; the blurs 0x4ffa60 /
  *       0x4ffba0), 52 (nothing; the ring 0x502570), 102 and 106 (nothing;
- *       the discs 0x507640 / 0x507d60).
+ *       the discs 0x507640 / 0x507d60). Three more were given their own
+ *       operation with construction-in-rect (2026-11-08), which checks what
+ *       they draw: 103 and 107 (nothing; the discs in a rectangle 0x507790 /
+ *       0x507f80) and 121 (nothing; the sector in a rectangle 0x5092a0).
  *       For those the table holds the operation's type as a number, since
  *       the tree before that change has no name for it.
  *   PN7 PE_Save / PE_Load: the same pixels and operations, and the loaded
@@ -901,8 +904,10 @@ static const struct pn_guard pn_guards[] = {
 	{ 30, 1, PARTS_CP_FILL_ALPHA_COLOR, { 5, 6, 26, 26, 10, 20, 30, 40 } },
 	{ 31, 0 }, { 52, 1, 22 }, { 56, 0 },	/* PARTS_CP_DRAW_CIRCLE_AMAP */
 	{ 57, 1, PARTS_CP_FILL_ALPHA_COLOR, { 5, 6, 12, 8, 10, 20, 30, 40 } },
-	/* 97 has no vertices here; PARTS_CP_FILL_CIRCLE_AMAP / _BLEND */
-	{ 58, 0 }, { 89, 0 }, { 95, 0 }, { 97, 0 }, { 102, 1, 18 }, { 103, 0 }, { 106, 1, 19 }, { 107, 0 }, { 120, 0 }, { 121, 0 },
+	/* 97 has no vertices here; PARTS_CP_FILL_CIRCLE_AMAP / _BLEND; the
+	 * in-rect discs and sector (PARTS_CP_FILL_CIRCLE_AMAP_IN_RECT,
+	 * _BLEND_IN_RECT, PARTS_CP_FILL_PIE_IN_RECT) */
+	{ 58, 0 }, { 89, 0 }, { 95, 0 }, { 97, 0 }, { 102, 1, 18 }, { 103, 1, 32 }, { 106, 1, 19 }, { 107, 1, 33 }, { 120, 0 }, { 121, 1, 34 },
 	{ 122, 0 }, { 128, 0 }, { 132, 0 }, { 133, 0 }, { 200, 0 },
 };
 

@@ -1079,7 +1079,10 @@ enum v14_cp_type {
 	V14_CP_DRAW_CIRCLE_ALPHA_BLEND_IN_RECT = 57,
 	V14_CP_FILL_POLYGON_ALPHA_BLEND = 97,
 	V14_CP_FILL_CIRCLE_AMAP = 102,
+	V14_CP_FILL_CIRCLE_AMAP_IN_RECT = 103,
 	V14_CP_FILL_CIRCLE_ALPHA_BLEND = 106,
+	V14_CP_FILL_CIRCLE_ALPHA_BLEND_IN_RECT = 107,
+	V14_CP_FILL_PIE_IN_RECT = 121,
 	V14_CP_TILE_CG_COPY = 129,
 };
 
@@ -1210,8 +1213,8 @@ static void v14_cp_add_text(int parts_no, int cmd, struct page *ints, int wf_slo
  * The step's other fields, as 0x59a730 copies them: ArrayInt[16..19] 色２
  * (+0x44..+0x50), [30] 全體 (+0xc4, != 0), [31] ブラー (+0x54), [32] and [33]
  * 半径 (+0xc8, +0xcc), [34] 線の幅 (+0xd0), [36] 丸め (+0xd5, != 0), [37]
- * 回転角度 (+0xd8); ArrayPos is copied int by int (0x59ab62), x0, y0, x1,
- * y1, ...
+ * 回転角度 (+0xd8), [38] and [39] 開始角度 and 移動角度 (+0xdc, +0xe0);
+ * ArrayPos is copied int by int (0x59ab62), x0, y0, x1, y1, ...
  *   - 25 / 26 multiply the alpha by a gradation between 色１.A and 色２.A
  *     over the rows / columns (0x4ff740 / 0x4ff8d0), 27 / 28 blur along the
  *     rows / columns by ブラー (0x4ffa60 / 0x4ffba0): construction.c.
@@ -1223,6 +1226,11 @@ static void v14_cp_add_text(int parts_no, int cmd, struct page *ints, int wf_slo
  *   - 97 fills ArrayPos's polygon, 106 a disc of 半径[0] around 先矩形 X,Y,
  *     both blended; 102 writes the disc's alpha (0x506610, 0x507d60,
  *     0x507640). A polygon with 丸め or a rotation adds nothing.
+ *   - 103 and 107 are the discs of 102 and 106 fitted to 先矩形 (the
+ *     diameter the larger of W and H), 121 a sector of the ellipse inside
+ *     先矩形 from [38] over [39] degrees that takes 色１ and its alpha
+ *     (0x507790, 0x507f80, 0x5092a0): construction.c. Only under a v14
+ *     AIN, where this HLL is bound.
  *   - 52 writes the alpha of a ring of that radius, 線の幅 wide (0x502570).
  *   - 129 tiles the CG over the rectangle (0x50a220).
  *   - 7, 8, 23 and 24 draw the text (先矩形 X,Y) one character's cell after
@@ -1407,6 +1415,21 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		PE_AddFillCircleToPartsConstructionProcess(parts_no, cmd == V14_CP_FILL_CIRCLE_ALPHA_BLEND,
 			dx, dy, V14_CP_INT(32, 0), r, g, b, V14_CP_INT(15, 0), state);
 		break;
+	case V14_CP_FILL_CIRCLE_AMAP_IN_RECT:
+	case V14_CP_FILL_CIRCLE_ALPHA_BLEND_IN_RECT:
+		if (ain->version < 14)
+			goto cp_unknown;
+		PE_AddFillCircleInRectToPartsConstructionProcess(parts_no,
+			cmd == V14_CP_FILL_CIRCLE_ALPHA_BLEND_IN_RECT, dx, dy, dw, dh, r, g, b,
+			V14_CP_INT(15, 0), state);
+		break;
+	case V14_CP_FILL_PIE_IN_RECT:
+		if (ain->version < 14)
+			goto cp_unknown;
+		PE_AddFillPieInRectToPartsConstructionProcess(parts_no, dx, dy, dw, dh,
+			V14_CP_INT(38, 0), V14_CP_INT(39, 0), r, g, b, V14_CP_INT(15, 0),
+			V14_CP_INT(37, 0), state);
+		break;
 	case V14_CP_DRAW_CIRCLE_AMAP:
 		PE_AddDrawCircleToPartsConstructionProcess(parts_no, dx, dy, V14_CP_INT(32, 0),
 			V14_CP_INT(34, 0), V14_CP_INT(15, 0), state);
@@ -1443,7 +1466,8 @@ static void PartsEngine_AddPartsConstructionProcess(int parts_no, int wi_slot, i
 		PE_AddFillAlphaColorToPartsConstructionProcess(parts_no, dx, dy, fw, fh, r, g, b, a, state);
 		break;
 	}
-	default: {
+	default:
+	cp_unknown: {
 		static int cp_warn = 0;
 		if (cp_warn++ < 10) {
 			WARNING("AddPartsConstructionProcess: unknown type %d parts=%d "
