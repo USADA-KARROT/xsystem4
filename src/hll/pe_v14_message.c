@@ -338,16 +338,23 @@ static bool pe_v14_trace_window_enabled(unsigned *count, int parts_no)
 	return !parts_try_get(parts_no) && missing_count++ < 20;
 }
 
+/* SetMessageWindowActive (native case 499 -> 0x5950d0) only writes the
+ * window's active flag (+0xbc) and marks it changed (+0x208); it neither
+ * shows nor hides the window nor links it to the message windows' show. The
+ * flag picks the base colour of the background (0x4f2678), which is white
+ * for every window here (parts_message_window_background), as the game's
+ * inactive colour is, so nothing is kept. The original takes the window as
+ * its other message window calls do (0x53e010: a parts made for a number
+ * without one, another component replaced by a window, 0x536c20); here a
+ * missing parts or another component is left as it is (the game calls it
+ * on its windows only). */
 static void PE_v14_SetMessageWindowActive(int parts_no, bool active)
 {
 	static unsigned trace_count;
 	bool trace = pe_v14_trace_window_enabled(&trace_count, parts_no);
 	if (trace) pe_v14_trace_window("Active", "before", parts_no, -1, active);
-	struct parts *parts = parts_try_get(parts_no);
-	if (!parts)
+	if (!parts_try_get(parts_no))
 		return;
-	parts->message_window = true;
-	PE_SetShow(parts_no, active);
 	if (trace) pe_v14_trace_window("Active", "after", parts_no, -1, active);
 }
 

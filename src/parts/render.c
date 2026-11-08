@@ -934,7 +934,9 @@ void parts_render(struct parts *parts)
 {
 	if (!parts->global.show)
 		return;
-	if (parts->message_window && !parts_message_window_show)
+	// Before v14 only the linked parts itself is hidden; v14 takes the link
+	// into the show of its subtree (parts_hidden_by_message_window).
+	if (ain->version < 14 && parts->message_window && !parts_message_window_show)
 		return;
 	if (!parts_link_shown(parts))
 		return;

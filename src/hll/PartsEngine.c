@@ -2014,7 +2014,7 @@ static void pe_v14_register_wheel(int libno)
  * time 0) is not done here. */
 static void PE_v14_UpdateMatrix(bool message_window_show, float mul_color_rate, float alpha_rate)
 {
-	parts_message_window_show = message_window_show;
+	parts_set_message_window_show(message_window_show);
 	parts_set_message_window_rates(mul_color_rate, alpha_rate);
 }
 

@@ -911,9 +911,27 @@ void parts_set_z(struct parts *parts, int z)
 	parts_dirty(parts);
 }
 
+/*
+ * v14 MessageWindowShowLink (native +0xad): 0x535260 takes the show of a
+ * parts' update context as Show && edit show && link && ..., where link is
+ * the update's message window show (+0xa1 of the context) when the parts is
+ * linked and true otherwise (0x53548e..0x5354d4), and 0x579bb0 ANDs that
+ * into its parent's show (0x535752); its children start from the result.
+ * So a linked parts and its whole subtree are hidden while the message
+ * windows are, for the drawing and for the input, which takes only parts
+ * whose context show is set (0x54725d, 0x545f11, 0x547089). The engines
+ * before v14 keep the port's own: only the linked parts is not drawn
+ * (parts_render).
+ */
+static bool parts_hidden_by_message_window(struct parts *parts)
+{
+	return ain->version >= 14 && parts->message_window && !parts_message_window_show;
+}
+
 static void parts_update_global_show(struct parts *parts, bool parent_show)
 {
-	parts->global.show = parent_show && parts->local.show && !parts->edit_hidden;
+	parts->global.show = parent_show && parts->local.show && !parts->edit_hidden
+		&& !parts_hidden_by_message_window(parts);
 
 	struct parts *child;
 	PARTS_FOREACH_CHILD(child, parts) {
@@ -1998,7 +2016,7 @@ static void parts_update_component(struct parts *parts)
 		parts_combine_params(&parts->parent->global, &parts->local,
 				parts_placed_pos(parts), parts->sub_color_mode,
 				parts->message_window_effect_link, &parts->global);
-		if (parts->edit_hidden)
+		if (parts->edit_hidden || parts_hidden_by_message_window(parts))
 			parts->global.show = false;
 	} else {
 		parts_load_transform(parts);
@@ -2065,6 +2083,33 @@ void PE_UpdateComponent(possibly_unused int passed_time)
 
 bool parts_message_window_show = true;
 
+/*
+ * The message window show of an update (UpdateComponent, UpdateMatrix). The
+ * original writes it into the context of every update (0x53c490 -> +0xa1)
+ * and takes it into the show of each linked parts' subtree in its walk
+ * (parts_hidden_by_message_window); here the subtrees of the linked parts
+ * are shown or hidden again when it changes, before the update's input
+ * (the original's input, 0x53c64d, runs before its walk, 0x53c67c, so it
+ * sees the change one update later). A linked parts below another is
+ * shown or hidden again from its parent's show as it is then, and again by
+ * the walk of the other's subtree when that is still to come.
+ */
+void parts_set_message_window_show(bool show)
+{
+	if (parts_message_window_show == show)
+		return;
+	parts_message_window_show = show;
+	if (ain->version < 14)
+		return;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!parts->message_window)
+			continue;
+		parts_update_global_show(parts, parts->parent ? parts->parent->global.show : true);
+		parts_dirty(parts);
+	}
+}
+
 /* scaled_passed_time is the second time of v14 UpdateComponent: the game's
  * frame time under its timer scale (3 while it skips) and capped at 150 ms
  * where the passed time is capped at 50 (view::detail::CalcPassedTime). */
@@ -2091,7 +2136,7 @@ void PE_UpdateScaled(int passed_time, int scaled_passed_time, bool message_windo
 		if (scaled_passed_time == 0)
 			scaled_passed_time = passed_time;
 	}
-	parts_message_window_show = message_window_show;
+	parts_set_message_window_show(message_window_show);
 	PE_UpdateComponent(passed_time);
 	audio_update();
 	parts_update_animation(passed_time);
@@ -2112,7 +2157,7 @@ void PE_Update(int passed_time, bool message_window_show)
 
 void PE_UpdateParts(int passed_time, possibly_unused bool is_skip, bool message_window_show)
 {
-	parts_message_window_show = message_window_show;
+	parts_set_message_window_show(message_window_show);
 	audio_update();
 	parts_update_animation(passed_time);
 	parts_message_window_update(passed_time);
@@ -3272,10 +3317,20 @@ bool PE_SetPartsGroupNumber(possibly_unused int PartsNumber, possibly_unused int
 	return true;
 }
 
+/* v14 SetComponentMessageWindowShowLink (native case 105 -> 0x58ca00) writes
+ * +0xad, which the next update takes into the show of the parts' subtree
+ * (parts_hidden_by_message_window); here the subtree is shown or hidden
+ * again at once. */
 void PE_SetPartsMessageWindowShowLink(possibly_unused int parts_no, bool message_window_show_link)
 {
 	struct parts *parts = parts_get(parts_no);
+	if (parts->message_window == message_window_show_link)
+		return;
 	parts->message_window = message_window_show_link;
+	if (ain->version >= 14) {
+		parts_update_global_show(parts, parts->parent ? parts->parent->global.show : true);
+		parts_dirty(parts);
+	}
 }
 
 bool PE_GetPartsMessageWindowShowLink(int parts_no)
@@ -3684,7 +3739,7 @@ int PE_GetFreeNumber(void)
 void parts_v14_restart(void)
 {
 	root_pos = (Point){ 0, 0 };
-	parts_message_window_show = true;
+	parts_set_message_window_show(true);
 	first_free = PARTS_FIRST_FREE_NUMBER;
 	pe_last_time = (struct timespec){0};
 	parts_motion_reset();

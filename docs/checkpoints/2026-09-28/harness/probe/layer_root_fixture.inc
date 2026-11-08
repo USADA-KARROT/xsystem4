@@ -359,7 +359,9 @@ static void lr_activity_on_layer(void)
 	int layer = ci_add(-1);
 	int root = lr_load_activity("LR3");
 	int window = BU_PE("GetActivityPartsNumber", BU_I(sf_str("LR3", -1)), BU_I(sf_str(LR_MW_NAME, -1))).i;
-	LR_CHECK(window > 0 && parts_try_get(window) && parts_try_get(window)->message_window,
+	/* The parts has its message window. (The loader does not link it to the
+	 * message windows' show, 0x553e62..0x553ead; see msgwin-showlink.) */
+	LR_CHECK(window > 0 && parts_try_get(window) && parts_try_get(window)->message,
 		 "the activity's message window parts: %d", window);
 	LR_CHECK(lr_parent(root) == layer && lr_layer_of(root) == layer && lr_layer_of(window) == layer,
 		 "the activity root's parent %d, layer %d, the window's layer %d; want %d", lr_parent(root),

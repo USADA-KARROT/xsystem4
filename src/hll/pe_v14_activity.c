@@ -564,8 +564,10 @@ static bool pactex_apply_message_window(struct ex_tree *type_info, const char *p
 	if (!ptype || (strcmp(ptype, "\x83\x81\x83\x62\x83\x5a\x81\x5b\x83\x57\x83\x45\x83\x42\x83\x93\x83\x68\x83\x45") &&
 			strcmp(ptype, "\xd0\xc5\xcf\xa2\xb4\xb0\xbf\xda")))
 		return false;
-	struct parts *parts = parts_get(parts_no);
-	parts->message_window = true;
+	// The type does not link the window to the message windows' show: the
+	// original's loader keeps the link of 信息窗口表示連動 (== 1, 0x553e62..
+	// 0x553ead), which is not read here (the game's pactex has 0 there), and
+	// the game's scripts link their windows (CMessageWindow@Create).
 	const char *cg = pactex_get_string(type_info, SJIS_CG_MEI);
 	if (!cg) cg = pactex_get_string(type_info, GBK_CG_MEI);
 	if (cg) {

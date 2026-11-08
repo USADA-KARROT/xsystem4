@@ -949,6 +949,8 @@ void parts_release(int parts_no);
 void parts_release_all(void);
 void parts_set_surface_area(struct parts *parts, struct parts_common *common, int x, int y, int w, int h);
 extern bool parts_message_window_show;
+// Sets it; v14 shows or hides again the subtrees of the linked parts.
+void parts_set_message_window_show(bool show);
 // v14: MessageWindowMulColorRate and MessageWindowAlphaRate of the last
 // UpdateComponent or UpdateMatrix (parts.c).
 extern float parts_message_window_mul_rate;
