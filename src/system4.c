@@ -134,6 +134,24 @@ static bool view_height_from_ini;
 static char *save_folder_name = NULL;
 static bool save_dir_from_user = false;
 
+// The character encoding of the game's strings, from the "encoding" key of
+// .xsys4rc or --encoding (the command line wins). ENCODING_AUTO: the strict
+// GB18030 check over the AIN's string table decides (see main).
+enum game_encoding { ENCODING_AUTO, ENCODING_SJIS, ENCODING_GBK };
+static enum game_encoding game_encoding = ENCODING_AUTO;
+
+// "sjis" or "gbk", in any case. Any other value leaves the setting as it was.
+static bool set_encoding(const char *name)
+{
+	if (!strcasecmp(name, "sjis"))
+		game_encoding = ENCODING_SJIS;
+	else if (!strcasecmp(name, "gbk"))
+		game_encoding = ENCODING_GBK;
+	else
+		return false;
+	return true;
+}
+
 static bool read_config(const char *path)
 {
 	int ini_size;
@@ -224,6 +242,11 @@ static void read_user_config_file(const char *path, const char *basedir)
 				config.save_format = SAVE_FORMAT_RSM;
 			} else {
 				WARNING("Invalid value for save-format in config: \"%s\"",
+						ini_string(&ini[i])->text);
+			}
+		} else if (!strcmp(ini[i].name->text, "encoding")) {
+			if (!set_encoding(ini_string(&ini[i])->text)) {
+				WARNING("Invalid value for encoding in config: \"%s\"",
 						ini_string(&ini[i])->text);
 			}
 		}
@@ -398,6 +421,7 @@ static void usage(void)
 	puts("    -v, --version        Display the version and exit");
 	puts("    -a, --audit          Audit AIN file for xsystem4 compatibility");
 	puts("    -e, --echo-message   Echo in-game messages to standard output");
+	puts("        --encoding       Specify the game's character encoding. sjis or gbk (default: detected)");
 	puts("        --font-mincho    Specify the path to the mincho font to use");
 	puts("        --font-gothic    Specify the path to the gothic font to use");
 	puts("        --font-fnl       Specify the path to a .fnl font library to use");
@@ -430,6 +454,7 @@ enum {
 	LOPT_VERSION,
 	LOPT_AUDIT,
 	LOPT_ECHO_MESSAGE,
+	LOPT_ENCODING,
 	LOPT_FONT_MINCHO,
 	LOPT_FONT_GOTHIC,
 	LOPT_FONT_FNL,
@@ -489,6 +514,7 @@ int main(int argc, char *argv[])
 	char *ainfile;
 	int err = AIN_SUCCESS;
 	bool audit = false;
+	char *encoding = NULL;
 
 	char *font_mincho = NULL;
 	char *font_gothic = NULL;
@@ -503,6 +529,7 @@ int main(int argc, char *argv[])
 			{ "version",       no_argument,       0, LOPT_VERSION },
 			{ "audit",         no_argument,       0, LOPT_AUDIT },
 			{ "echo-message",  no_argument,       0, LOPT_ECHO_MESSAGE },
+			{ "encoding",      required_argument, 0, LOPT_ENCODING },
 			{ "font-mincho",   required_argument, 0, LOPT_FONT_MINCHO },
 			{ "font-gothic",   required_argument, 0, LOPT_FONT_GOTHIC },
 			{ "font-fnl",      required_argument, 0, LOPT_FONT_FNL },
@@ -541,6 +568,9 @@ int main(int argc, char *argv[])
 		case 'e':
 		case LOPT_ECHO_MESSAGE:
 			config.echo = true;
+			break;
+		case LOPT_ENCODING:
+			encoding = optarg;
 			break;
 		case LOPT_FONT_MINCHO:
 			font_mincho = optarg;
@@ -630,6 +660,8 @@ int main(int argc, char *argv[])
 
 	// NOTE: some command line options are handled here so that they
 	//       will override settings from .xsys4rc files
+	if (encoding && !set_encoding(encoding))
+		WARNING("Invalid value for --encoding option: \"%s\"", encoding);
 	if (font_mincho)
 		config.font_paths[FONT_MINCHO] = font_mincho;
 	if (font_gothic)
@@ -664,32 +696,28 @@ int main(int argc, char *argv[])
 			config.view_height = 720;
 	}
 
-	// Auto-detect GB18030 encoding: check if STR0 strings contain
-	// GB18030 byte patterns (lead byte 0xA1-0xDF followed by valid second byte)
-	// that are NOT valid SJIS (SJIS uses 0xA1-0xDF as single-byte half-width katakana).
-	// The legacy score keeps driving ain_is_gb18030 exactly as before. The GBK
-	// character rule of the String library and CharRef/CharAssign also needs
-	// the strict check, because the legacy score fires on real SJIS tables too
-	// (see gb18030_detect_strings). XSYS4_STRING_CHARSET=sjis|gbk overrides
-	// the character rule, and with it how game strings are decoded for the
-	// window title, file names, the save folder and logs (game_charset_is_gbk).
-	if (ain->nr_strings > 0) {
-		struct gb18030_scores sc;
-		bool strict = gb18030_detect_strings(ain->strings, ain->nr_strings, &sc);
-		if (sc.legacy > 5) {
-			ain_is_gb18030 = true;
-			WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", sc.legacy);
-	WARNING("AINCHECK: msgf=%d nr_messages=%d messages=%p", ain->msgf, ain->nr_messages, (void*)ain->messages);
-			if (strict) {
-				gbk_string_rules_enable();
-				WARNING("GBK string rules enabled (boundary=%d, sjis_invalid=%d, utf8=%d/%d)",
-					sc.boundary, sc.sjis_invalid, sc.utf8_valid, sc.nonascii);
-			} else {
-				WARNING("GB18030 check not confirmed (boundary=%d, sjis_invalid=%d, utf8=%d/%d); "
-					"String character rules stay SJIS",
-					sc.boundary, sc.sjis_invalid, sc.utf8_valid, sc.nonascii);
-			}
-		}
+	// The game's encoding turns two switches on or off together:
+	// ain_is_gb18030 (the GB18030 text paths) and the GBK character rule of
+	// the String library and CharRef/CharAssign; game_charset_is_gbk() is the
+	// two. "gbk" or "sjis" from --encoding or .xsys4rc is used as given.
+	// Otherwise only the strict check of gb18030_detect_strings turns them on:
+	// its legacy score (a byte A1..DF followed by a byte >= 0x40) also fires on
+	// Shift-JIS tables and no longer decides anything. Then
+	// XSYS4_STRING_CHARSET=sjis|gbk overrides the character rule alone, and
+	// with it how game strings are decoded for the window title, file names,
+	// the save folder and logs (game_charset_is_gbk).
+	struct gb18030_scores sc;
+	bool strict = gb18030_detect_strings(ain->strings, ain->nr_strings, &sc);
+	if (game_encoding == ENCODING_GBK) {
+		gbk_string_rules_enable();
+		WARNING("encoding=gbk: Chinese text support and GBK string rules enabled");
+	} else if (game_encoding == ENCODING_SJIS) {
+		WARNING("encoding=sjis: Shift-JIS text (strict GB18030 check: %d)", strict);
+	} else if (strict) {
+		gbk_string_rules_enable();
+		WARNING("Detected GB18030 encoding in AIN (score=%d), enabling Chinese text support", sc.legacy);
+		WARNING("GBK string rules enabled (boundary=%d, sjis_invalid=%d, utf8=%d/%d)",
+			sc.boundary, sc.sjis_invalid, sc.utf8_valid, sc.nonascii);
 	}
 	const char *charset_override = getenv("XSYS4_STRING_CHARSET");
 	if (charset_override && *charset_override) {

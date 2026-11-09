@@ -22,47 +22,34 @@ uniform float progress;  // effect progress (0..1)
 in vec2 tex_coord;
 out vec4 frag_color;
 
-#define MAX_STRIDE 128.0
+// the largest chunk (half-way through the effect) is 2 * HALF_CHUNK + 1 pixels
+#define HALF_CHUNK 48.0
 
 vec3 get_pixel(vec2 xy) {
         return mix(texture(old, xy).rgb, texture(tex, xy).rgb, progress);
 }
 
+// progress=(0..0.5..1) -> (0..1..0)
+float triangle(float f) {
+        return 1.0 - abs(f * 2.0 - 1.0);
+}
+
 void main() {
-        // size of each chunk
-        float stride = MAX_STRIDE * (1.0 - abs(progress * 2.0 - 1.0)); // progress=(0..0.5..1) -> stride=(0..max..0)
-        // offset of frag coordinate relative to chunk
-        vec2 offset = mod(gl_FragCoord.xy, stride);
+        // size of each chunk in pixels, as in the original engine: odd, from 1
+        // at progress 0 and 1 to 97 half-way; at least 1 for a progress
+        // outside 0..1 (never a chunk of 0 pixels or less)
+        float chunk_size = max(floor(triangle(progress) * HALF_CHUNK) * 2.0 + 1.0, 1.0);
+        // the grid is anchored at the center of the screen, in whole pixels, as
+        // in the original engine: a chunk edge passes through it on both axes
+        vec2 center = floor(resolution * 0.5);
+        // offset of the pixel in its chunk
+        vec2 chunk_off = mod(gl_FragCoord.xy - center, chunk_size);
         // the chunk coordinate
-        vec2 chunk = tex_coord - offset / resolution;
-        // coordinate of chunk center
-        vec2 center = chunk + vec2(stride/2.0, stride/2.0) / resolution;
-
-        // FIXME: In this implementation, the anchor point is at the top left of the screen.
-        //        It should be anchored at the center to match SACT2.dll.
-        frag_color = vec4(get_pixel(center), 1.0);
+        vec2 chunk = tex_coord - chunk_off / resolution;
+        // each chunk shows the crossfade at its first pixel (the top left one),
+        // as in the original engine. The partial chunks at the left and top
+        // edges begin off screen; the textures clamp to the edge, so theirs is
+        // the first pixel on screen.
+        vec2 first = chunk + vec2(0.5) / resolution;
+        frag_color = vec4(get_pixel(first), 1.0);
 }
-
-/* NOTE: This is an alternate implementation which computes an average for each chunk.
-         SACT2.dll does not do this.
-
-#define SAMPLES 8.0
-#define MAX_STRIDE 16.0
-
-vec3 get_pixel(vec2 xy) {
-        return mix(texture(old, xy).xyz, texture(tex, xy).xyz, progress);
-}
-
-void main() {
-        float stride = MAX_STRIDE * (1.0 - abs(progress * 2.0 - 1.0)); // progress=(0..0.5..1) -> stride=(0..max..0)
-        vec3 avg = vec3(0, 0, 0);
-        vec2 xy = floor(gl_FragCoord.xy / (SAMPLES * stride)) * (SAMPLES * stride);
-        for (float j = 0.0; j < SAMPLES; j += 1.0) {
-                for (float i = 0.0; i < SAMPLES; i+= 1.0) {
-                        avg += get_pixel((xy + stride * vec2(i, j)) / resolution);
-                }
-        }
-        avg /= SAMPLES * SAMPLES;
-        frag_color = vec4(avg, 1.0);
-}
-*/

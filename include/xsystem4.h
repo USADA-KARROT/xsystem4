@@ -116,7 +116,8 @@ extern bool game_rance8;
 extern bool game_rance8_mg;
 extern bool game_dungeons_and_dolls;
 
-/* CN (GBK/GB18030) text support. Auto-detected in system4.c; consumed by the
+/* CN (GBK/GB18030) text support. Set in system4.c (--encoding, the encoding
+ * key of .xsys4rc, or the strict check below); consumed by the
  * text/encoding paths. Originally declared in the fork's libsys4 header, which
  * is no longer available, so it lives here and is defined in hacks.c. */
 extern bool ain_is_gb18030;
@@ -126,7 +127,7 @@ extern bool ain_is_gb18030;
  * legacy:       the historical check: among the first 100 strings, those with
  *               a byte in A1..DF followed by a byte >= 0x40. It also fires on
  *               real SJIS tables (e.g. hiragana 82 A2 before a lead byte), so
- *               it only keeps driving ain_is_gb18030 as before.
+ *               it decides nothing; it is only logged.
  * boundary:     the same test at SJIS character boundaries only (first 100).
  * sjis_invalid: strings that are invalid SJIS but valid GBK (all strings).
  * nonascii, utf8_valid: strings with a byte >= 0x80, and how many of those
