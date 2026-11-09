@@ -1,0 +1,14 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+construction-in-rect	IR1	FAIL	FAIL	是	IR1 103: 0 operation(s) added, the last of type 12, not one of type 32	24	修前失敗，符合預期：103 沒有加操作，圖形沒有畫出來：遊戲的游標、W≠H 取較大者的圓、被左與上緣切到的圓，像素都是底色
+construction-in-rect	IR2	FAIL	FAIL	是	IR2 107: 0 operation(s) added, the last of type 12, not one of type 33	27	修前失敗，符合預期：107 沒有加操作，圖形沒有畫出來：圓點疊在半透明底上的混合、透明白底、W≠H、被邊緣切到的圓
+construction-in-rect	IR3	FAIL	FAIL	是	IR3 121: 0 operation(s) added, the last of type 12, not one of type 34	48	修前失敗，符合預期：121 沒有加操作，圖形沒有畫出來：兩端的半圓、取代而不是混合的四分之一、W≠H 的內切橢圓、角度取餘數與以 double 換算的開始角
+construction-in-rect	IR4	FAIL	FAIL	是	IR4 the status screen's bar, the first dot: (21,15) = (0,0,0,80), want (100,100,100,128)	22	修前失敗，符合預期：位置列整套（兩種畫面顏色的 5 點、3 點與游標）只剩底與中間的矩形
+construction-in-rect	IR5	FAIL	FAIL	是	IR5 103 (1,1,7,7) (2,1) = (50,60,70,255), want (50,60,70,39)	25	修前失敗，符合預期：奇數尺寸（D 7、7×5 與 5×7）沒有加操作，圖形沒有畫出來
+construction-in-rect	IR6	FAIL	FAIL	是	IR6 103 A 999 (3,1) = (1,2,3,40), want (1,2,3,231)	30	修前失敗，符合預期：超出 0..255 的值在寫入時才夾，修前沒有加操作，圖形沒有畫出來
+construction-in-rect	IR7	FAIL	FAIL	是	IR7 121 without alpha: (6,8) = (40,50,60,255), want (255,0,186,255)	6	修前失敗，符合預期：121 在沒有 alpha 的表面沒有寫顏色
+construction-in-rect	IR8	FAIL	FAIL	是	IR8: the pixels before the save differ from the model	7	修前失敗，符合預期：存讀檔之前的像素就和模型不同，存檔仍是第 13 版
+construction-in-rect	IR9	PASS	PASS	是	—	0	通過，守衛：不畫的情形（W 或 H 不是正的而下一步照做、整個在外、開始或移動是負的）與 xsystem4 自己的上限（2049 以上、超過 360、旋轉）
+construction-in-rect	IR10	PASS	PASS	是	—	0	通過，守衛：AIN 版本 14 之前三個命令都不加操作
+construction-in-rect	IR11	PASS	PASS	是	—	0	通過，守衛：102、106、97 照舊加自己的操作，其他命令經 AIN 宣告仍不加操作，模型的扇形掃描等於 xsystem4 的 122
+construction-in-rect	IR12	FAIL	FAIL	是	IR12 103 at (-9,-1) (0,3) = (1,2,3,40), want (1,2,3,3)	34	修前失敗，符合預期：表面左與上緣外半格的位置截斷到第一欄或第一列，修前沒有加操作，圖形沒有畫出來
+construction-in-rect	IR13	FAIL	FAIL	是	IR13 103 D 2048 (0,0) = (10,20,30,40), want (10,20,30,200)	15	修前失敗，符合預期：xsystem4 畫得出的最大尺寸（D、W、H 2048）沒有加操作，圖形沒有畫出來

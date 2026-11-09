@@ -1,0 +1,6 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 135 模式 PASS、sanitizer 0	8f9cd6d（G10a 的文件提交；程式 925b0fe）；這一組開工時在 8f9cd6d 上重跑
+實作後（提交前）	預設及 GBK	各 136 模式 PASS、sanitizer 0；construction-in-rect 13／13；optimized 與 ASan 建置都成功	8f9cd6d 加這一組的差異（src 6 個檔與 harness）；在最後一次修改原始碼與探針之後跑（第一次被暫停打斷，整對重跑）；提交前的路線、片頭與實機用的是這份原始碼建的執行檔（實機另加私人的 parts 傾印）；之後只改了報告，原始碼與探針沒有再改
+修前（提交前）	預設及 GBK	construction-in-rect 13 案中恰好 IR1–IR8、IR12、IR13 失敗、IR9–IR11 通過；結束碼 1、sanitizer 0、沒有崩潰；兩種字集的失敗訊息逐字相同；守衛模式 msgwin-rates 16 案通過	8f9cd6d 的 src／include 加最終的探針（突變後補了子案，重跑過；更早幾次用的是補案前的探針）
+提交後	預設及 GBK	各 138 模式 PASS、sanitizer 0；construction-in-rect 13／13、hll-param-handover 8／8、msgwin-showlink 14／14；WR1 雜湊 63689b45	HEAD 44283e3（parent 6c0a2f3，含 G13 與 G14 修正的程式）；同一個提交的前一次驗收也是各 138 模式 PASS，那一次的路線跑了五條就因磁碟的安全線停下
+修前（提交後）	預設及 GBK	恰好 IR1–IR8、IR12、IR13 失敗、IR9–IR11 通過，sanitizer 0；守衛模式 msgwin-rates 通過；13 案的狀態與訊息和記錄的修前表相同，逐案表和提交前的逐位元組相同	parent 6c0a2f3 的 src／include 加提交的探針（和最終的探針逐位元組相同）；見 before.tsv
