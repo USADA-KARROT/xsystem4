@@ -8,7 +8,7 @@
 
 - CN 原版的 String 庫、VM 的 C_REF／C_ASSIGN 與文字排版都用同一條規則：首位元組 `0x81..0xFE` 就是 2 位元組字元，不檢查尾位元組，不處理 GB18030 四位元組；字元碼是 `(lead << 8) | trail`，單位元組不做正負號延伸；索引越界一律回安全值，不會中止。
 - xsystem4 與 libsys4 原本全用 SJIS 規則（`SJIS_2BYTE`：`80..9F`、`E0..FF`），字元碼的首位元組放在低位，越界時 `ERROR`。大部分漢字的首位元組（`A1..DF`）被拆成兩個「字元」，尾位元組 `E0..FE` 又會吞掉下一個位元組。
-- 修正後，GBK 規則只在「舊的 GB18030 偵測成立，而且新的嚴格判定也成立」時開啟。SJIS 遊戲走的程式碼與修正前相同（`sjis-chars` 修正前後逐行相同、`test/Run/test.ain` 輸出相同）。
+- 修正後，GBK 規則只在「舊的 GB18030 偵測成立，而且新的嚴格判定也成立」時開啟（2026-11-09 更新（U2，程式 `6e4e673`）：沒有指定編碼時只看嚴格判定，寬鬆分數不再決定任何事；嚴格判定成立就一定也滿足舊偵測，所以這裡的條件結果相同。另有 `--encoding` 與 `.xsys4rc` 的 `encoding` 鍵：`gbk` 兩層都開、`sjis` 兩層都不開，見 [字串編碼](../encoding-select/README.md)）。SJIS 遊戲走的程式碼與修正前相同（`sjis-chars` 修正前後逐行相同、`test/Run/test.ain` 輸出相同）。
 - 名牌「綺□綺□」的根因是預設 gothic 字型 `VL-Gothic-Regular.ttf` 沒有 U+83C8「菈」，**不是**字元規則。本組已驗證：修正後名牌照舊缺字；改用 `HanaMinA.ttf` 當 gothic 字型時完整顯示。字型 fallback 與名牌殘影另案處理。
 
 ## 原版語義與位址
@@ -64,14 +64,14 @@ GBK 分支的細節：
 | 檔案 | 內容 |
 |---|---|
 | `src/hacks.c`、`include/xsystem4.h` | `gb18030_detect_strings()`：legacy（舊判準逐字照抄）、boundary、sjis_invalid、nonascii、utf8_valid 五個分數；嚴格判定為 `boundary > 5 && sjis_invalid >= 16 && utf8_valid*2 < nonascii`。`gbk_string_rules_enable()` 設 `ain_is_gb18030` 並開 libsys4 的 GBK 規則 |
-| `src/system4.c` | 偵測改呼叫上述函式，位置與舊日誌不變；嚴格判定成立時呼叫 `gbk_string_rules_enable()` 並印 `GBK string rules enabled`，否則印 `GB18030 check not confirmed`。`XSYS4_STRING_CHARSET=sjis|gbk` 只覆寫字元規則 |
+| `src/system4.c` | 偵測改呼叫上述函式，位置與舊日誌不變；嚴格判定成立時呼叫 `gbk_string_rules_enable()` 並印 `GBK string rules enabled`，否則印 `GB18030 check not confirmed`（2026-11-09 更新（U2，程式 `6e4e673`）：這一行與舊偵測打開 `ain_is_gb18030` 的那一支都拿掉了；只有寬鬆分數成立時什麼都不印）。`XSYS4_STRING_CHARSET=sjis|gbk` 只覆寫字元規則 |
 | `src/hll/String.c` | GBK 分支：ToInt／ToFloat 先正規化；Length、Insert 用 `mbcs_*`；Erase、FindLast、Replace、Split、ToLower／ToUpper、SearchAll 照原版；GetPart 依目前規則前進。SearchAll 的寫回抽成 `string_searchall_store()`，SJIS 路徑呼叫同一段程式碼 |
 | `src/vm.c`、`src/hll/vmString.c` | `S_LENGTH`／`S_LENGTH2`、`vmString.GetLength` 改用 `mbcs_count_char`（SJIS 模式等價） |
 | `src/hll/iarray.c` | 寫入端不動。讀取端在 GBK 模式下是寫入端的精確反函數（`c ≥ 0x100` 為一對，否則單一位元組）；SJIS 模式改呼叫 `string_push_back_sjis`（就是舊行為） |
 | `src/hll/InputString.c` | Backspace 改呼叫 `string_pop_back_sjis`：緩衝區內容是 `utf2sjis` 的輸出 |
 | `src/text.c`、`src/parts/text.c`、`src/hll/CharSpriteManager.c`、`src/hll/StoatSpriteEngine.c` | 只改 `ain_is_gb18030` 分支：首位元組後接 NUL 時算 1 位元組；四位元組形式被 NUL 截短時只取 NUL 之前的位元組；`0x80`／`0xFF` 後接 NUL 時算 1 位元組。完整字元的寬度與修正前相同 |
 
-`ain_is_gb18030` 的偵測條件與所有既有使用點（Trim、regex 的 `\s`、`text.c`、`asset_manager.c` 等）都沒有改。
+`ain_is_gb18030` 的偵測條件與所有既有使用點（Trim、regex 的 `\s`、`text.c`、`asset_manager.c` 等）都沒有改。（2026-11-09 更新（U2，程式 `6e4e673`）：偵測條件改了：沒有指定編碼時只看嚴格判定。使用點沒有改。）
 
 ## 設計與反駁的處理
 
@@ -86,7 +86,7 @@ GBK 分支的細節：
 | 語義 5、回歸 R8 | `mbcs_char_bytes` 遇 NUL 回 0 會卡死 | 不匯出這個 API；所有以 size 為界的迴圈用永不為 0 的步進；`C_ASSIGN` 寫入尾位元組為 0 的碼時截斷；測試含內嵌 NUL 的 Find |
 | 語義 6 | ReplaceRegex 的 CN 呼叫是 3 次，不是 0 次 | 更正（`backlog::detail::SYS_EraseTag`、`Enemy@0`、編輯器）；仍是 stub，列入另案 |
 | 語義 7 | InputString 混用兩種規則 | Backspace 固定走 SJIS（`string_pop_back_sjis`） |
-| 語義 8 | 證據等級偏高 | 名牌根因以字型探針升為已驗證；JAST 誤判維持「推定（高）」（位元組由 UTF-8 dump 回編），fixture 另以合成 SJIS 清單重現 |
+| 語義 8 | 證據等級偏高 | 名牌根因以字型探針升為已驗證；JAST 誤判維持「推定（高）」（位元組由 UTF-8 dump 回編；2026-11-09 補記（U2，程式 `6e4e673`）：以引擎修前的 `--audit` 實測，寬鬆分數 22，邊界分數與 SJIS 不合法而 GBK 合法都是 0），fixture 另以合成 SJIS 清單重現 |
 | 回歸 R1 | 渲染器 NUL 防護沒涵蓋 `0x80`／`0xFF` | `ain_is_gb18030` 分支內 `0x80`／`0xFF` 後接 NUL 時算 1 位元組；fixture 經 `build_probe.py` 產生的包裝函式直接測試 |
 | 回歸 R2 | before-check 不還原 libsys4 | 修正前對照把 submodule 暫時切回 `8c93946`（真正的舊組態），另跑一次「舊 src + `247f544`」；結束時切回 `247f544` |
 | 回歸 R3 | 漏掉 `test/Run/test.ain` | 修正前後各跑一次複本，輸出逐行相同 |
@@ -148,7 +148,7 @@ GBK 分支的細節：
 1. 立繪與進度的差異是否就是原版的行為：只有 framebuffer 觀察，沒有和原版畫面對照。
 2. 修正後會走到以前走不到的路徑：面板 CG（`立繪／X` 的 GetPart／Split）、結局成就的末字比對、PersonalityIcon、`%D` 組成的 CG 與語音名稱。這些路徑可能暴露其他既有缺陷；150 秒內沒有觸發。
 3. 讀檔後的 PartsEngine 文字與 backlog：iarray 讀取端的修正只有 headless 證據（GUI 沒有觸發 ResumeLoad）。舊存檔若已存入被 SJIS 錯切的字串，讀回後不會自動修復。
-4. 偵測門檻只用 CN 的真 AIN、合成 SJIS／UTF-8／GBK 清單驗證。JAST 英文版的誤判（舊判準 22 分）是由 UTF-8 dump 以 cp932 回編的位元組算出，屬推定（高）；其他 GB 遊戲與大量使用半形片假名的 SJIS 遊戲未驗證。
+4. 偵測門檻只用 CN 的真 AIN、合成 SJIS／UTF-8／GBK 清單驗證。JAST 英文版的誤判（舊判準 22 分）是由 UTF-8 dump 以 cp932 回編的位元組算出，屬推定（高）（2026-11-09 補記（U2，程式 `6e4e673`）：以引擎修前的 `--audit` 實測，寬鬆分數 22，邊界分數與 SJIS 不合法而 GBK 合法都是 0，見 [字串編碼](../encoding-select/README.md)）；其他 GB 遊戲與大量使用半形片假名的 SJIS 遊戲未驗證。
 5. `ToLower`／`ToUpper` 照原版會把 `82 60..79`／`82 81..9A` 兩段漢字互換；CN 的呼叫點推定都是 ASCII。
 6. 字元碼方向在 SJIS 模式維持 little-endian；日文原版 bytecode（例如 `SYS_ToUpper` 的 `0x8281` 常數）其實要求 big-endian，上游在 SJIS 遊戲上可能本來就不一致。依規則 3 不動。
 7. `MotionSet` 傾印中 `PartsParamCollection.<Time>` 在兩種規則下都是 1000，而字串寫的是 `Time:150`。這是否與名牌殘影有關未驗證，建議殘影組從這裡查起。
@@ -158,7 +158,7 @@ GBK 分支的細節：
 
 - **字型 fallback**：`ft_font_get_glyph` 在 gothic 字型沒有該字時改用 mincho（可只在 `ain_is_gb18030` 下啟用）。影響約 11.4% 的對白。
 - **名牌殘影**：舊名牌的文字零件沒有淡出（見上方第 7 點）。
-- **舊偵測誤判 SJIS 遊戲**：建議 `ain_is_gb18030 = legacy > 5 && strict`，但會改變 SJIS 遊戲的既有行為，需主控端決定。
+- **舊偵測誤判 SJIS 遊戲**：建議 `ain_is_gb18030 = legacy > 5 && strict`，但會改變 SJIS 遊戲的既有行為，需主控端決定。（2026-11-09 補記（U2，程式 `6e4e673`）：已修，主線決定只看嚴格判定：嚴格判定成立就蘊含 legacy > 5，兩種寫法對任何字串表結果相同；英文版戰國蘭斯實測從誤判回到 SJIS，見 [字串編碼](../encoding-select/README.md)。）
 - **轉碼**：`utf2sjis`（IME、檔名、GetSaveFolderName）與 `sjis2utf`（`unix_path`、日誌、MsgBox、MSG 行）在 GB 遊戲中都不對。
 - **SJIS 模式既有的越界**：`string_erase` 目標是字尾單獨首位元組時越界；渲染器 SJIS 分支沒有 NUL 防護。
 - **SJIS 遊戲的 String 語義**：Replace 寫回 self、Split 忽略 mode、FindLast 空 key、Erase 負值，只在 GB 模式修正。

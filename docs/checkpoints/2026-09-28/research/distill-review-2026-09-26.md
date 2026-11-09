@@ -40,7 +40,7 @@ base `e8bd5ab` 只有 3 個 getenv（`XSYSTEM4_HOME`、`XDG_DATA_HOME`、`HOME`�
 | 位置 | 內容 | 引入 |
 |---|---|---|
 | vm.c:5096-5117 | 每 50M 指令印 `heartbeat:` WARNING + 4 層 call stack + 6 層 base frame；`call_stack_ptr > 100` 時一次全 dump。所有遊戲都跑。 | 14c2618 |
-| system4.c:673 | `WARNING("AINCHECK: msgf=%d nr_messages=%d messages=%p", ...)` 縮排錯位（在 `if (gb_score > 5)` 區塊內但縮排在外層），明顯臨時檢查。 | 0b8beae |
+| system4.c:673 | `WARNING("AINCHECK: msgf=%d nr_messages=%d messages=%p", ...)` 縮排錯位（在 `if (gb_score > 5)` 區塊內但縮排在外層），明顯臨時檢查（2026-11-09 補記（U2，程式 `6e4e673`）：已刪掉）。 | 0b8beae |
 | vm.c:97 | `NOTICE("v14 MSG fallback enabled (R=%d A=%d)")` | 14c2618 |
 | vm.c:4707-4708 | `WARNING("X_ASSIGN %d past end of page ...")` 每次觸發都印，無節流。 | a4a623f |
 | vm.c:5148-5155 | `VM_CALL_TIMEOUT` WARNING（前 10 次）。但 `vm_call_insn_limit` 只在 vm.c:416 初始 0、1697-1706 save/restore、5171 設 0，沒有任何寫入非零值的點 → 整段 5137-5175 是 dead code。 | 14c2618 |

@@ -1,0 +1,8 @@
+項目	字集／範圍	結果	界線
+父版本基準	預設及 GBK	各 135 模式 PASS、sanitizer 0	8f9cd6d（G10a 的文件提交；程式 925b0fe）；這一組開工時在 8f9cd6d 上重跑
+實作後（提交前，著色器照上游）	預設及 GBK	各 137 模式 PASS、sanitizer 0；encoding-select 40／40、mosaic-effect 15／15	8f9cd6d 加這一組的差異；在最後一次修改原始碼與探針之後跑；提交前的路線、片頭、戰國蘭斯冒煙與 --encoding 的實機啟動用的是這份 C 程式建的執行檔
+審查後（馬賽克照原版）	預設及 GBK	各 137 模式 PASS、sanitizer 0；encoding-select 40／40、mosaic-effect 19／19	只改了著色器與探針的 mosaic-effect 部分；執行檔逐位元組不變（著色器是執行時讀的檔）
+提交說明查證後	預設及 GBK	各 137 模式 PASS、sanitizer 0	探針檔頭改了兩處註解（行數不變）之後重跑；之後原始碼與探針沒有再改
+修前（提交前）	預設及 GBK	encoding-select 40 案中恰好 30 案失敗、mosaic-effect 19 案中恰好 16 案失敗，守衛通過；結束碼 1、sanitizer 0、沒有崩潰；兩種字集逐案相同；守衛模式 msgwin-rates 16 案通過	8f9cd6d 的 src／include／shaders 加提交前最後的探針（和提交的只差檔頭兩處註解）；每次改探針都先寫下預測，最後一次和預測相同
+提交後	預設及 GBK	各 140 模式 PASS、sanitizer 0；encoding-select 40／40、mosaic-effect 19／19、construction-in-rect 13／13、hll-param-handover 8／8、msgwin-showlink 14／14、gbk-detect 通過；WR1 雜湊 63689b45	HEAD 6e4e673（parent 672f0d0，含 G13、G14 修正與 G15 的程式）；同一個提交的前兩次驗收也是各 140 模式 PASS，那兩次的路線因桌面游標被移動而作廢
+修前（提交後）	預設及 GBK	恰好同樣的 30 案與 16 案失敗、守衛通過，sanitizer 0；守衛模式 msgwin-rates 通過；75 案的狀態與訊息和記錄的修前表相同，逐案表和提交前的逐位元組相同	parent 672f0d0 的 src／include／shaders 加提交的探針；見 before.tsv

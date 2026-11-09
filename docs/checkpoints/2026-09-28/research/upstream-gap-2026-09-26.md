@@ -100,7 +100,7 @@ wip/post-checkpoint-2026-07-06 (`22e9496`) 對 nunuhara/xsystem4 master (`04333a
 | 135cae2 | 08-20 | Mitigate UI performance issue in Rance 9 | D | CLEAN | `hacks.c` Rance9 專屬 bytecode 重寫；wip 只加 `ain_is_gb18030` 宣告；無害 |
 | bf3430d | 08-23 | Improve EFFECT_VWAVE_CROSSFADE | A | CLEAN | shader |
 | b30a107 | 08-23 | Implement EFFECT_VWAVE_SCROLL_CROSSFADE | A | CLEAN | shader + `effect.c/h` |
-| 4233c7d | 08-24 | Fix EFFECT_CROSSFADE_MOSAIC | A | CLEAN | shader |
+| 4233c7d | 08-24 | Fix EFFECT_CROSSFADE_MOSAIC | A | CLEAN | shader（2026-11-09 補記（U2，程式 `6e4e673`）：沒有照搬：原點移到中心照上游（和原版相同），格子大小與取樣點照原版的靜態反組譯，見 [字串編碼與 6 號馬賽克](encoding-select/README.md)） |
 | fa09b00 | 08-25 | Implement PartsEngine.SetSpeedupRateByMessageSkip | **C** | CONFLICT | `motion.c:544-548` 純排版（wip 多一空行）；上游同時刪 `parts.c` 的舊 `PE_SetSpeedupRateByMessageSkip`（wip 該函數在 `parts.c:2171`，整體 merge 自動刪除）。Dohna PartsEngine 宣告無此函數，功能上不需要，但檔案上是 addc26c 的前置 |
 | 02f29b6 | 08-23 | 3d: Implement SealEngine.{Set,Get}EdgeReductionRate | B(!) | CLEAN | 上游加 `plugin->edge_reduction_rate` 進 outline 計算並在 `ReignEngine.c` SEAL_EXPORTS 綁定；**wip 的 `HLL_LIBRARY(SealEngine…)` 在 `ReignEngine.c:2728` 已註解掉，改由 `hll/SealEngine.c` 提供**，而 `SealEngine.c:1289` 只把值存進 `se_plugin_ext[p].edge_reduction_rate`，不進渲染 → 合併後需把 wip setter 改寫入上游的 plugin 欄位才生效 |
 | e14b4bc | 08-23 | 3d: Implement per-instance billboard vertices and UVs | B | CLEAN | `3d/reign.c`、`renderer.c`、`reign.h`；wip `3d/reign.c` +42 行（external-archive plugins） |

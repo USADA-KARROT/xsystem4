@@ -1,0 +1,60 @@
+模式	案例	預設	GBK	兩字集相同	父版本第一個失敗（探針自己的英文訊息）	預設的失敗斷言數	判定
+encoding-select	EN1	PASS	PASS	是	—	0	通過，守衛：沒有指定編碼，GBK 表（v14）嚴格判定成立：兩層都開，記錄照舊印偵測與字元規則兩行
+encoding-select	EN2	PASS	PASS	是	—	0	通過，守衛：同上，v5 的 GBK 表
+encoding-select	EN3	FAIL	FAIL	是	EN3: ain_is_gb18030=1, want 0	1	修前失敗，符合預期：沒有指定編碼，v5 的 SJIS 表只有寬鬆分數成立：修前 `ain_is_gb18030` 被寬鬆分數打開
+encoding-select	EN4	FAIL	FAIL	是	EN4: ain_is_gb18030=1, want 0	1	修前失敗，符合預期：同上，v14 的 SJIS 表
+encoding-select	EN5	FAIL	FAIL	是	EN5: ain_is_gb18030=1, want 0	1	修前失敗，符合預期：沒有指定編碼，UTF-8 表寬鬆分數成立、嚴格判定不成立：修前 `ain_is_gb18030` 被打開
+encoding-select	EN6	PASS	PASS	是	—	0	通過，守衛：沒有指定編碼，ASCII 表（v5）：兩層都關
+encoding-select	EN7	PASS	PASS	是	—	0	通過，守衛：沒有指定編碼，沒有字串的表（v14）：兩層都關
+encoding-select	EN8	FAIL	FAIL	是	EN8: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：`--encoding=gbk`（ASCII 表），被當成不認得的選項而忽略
+encoding-select	EN9	FAIL	FAIL	是	EN9: the character rule is SJIS, want GBK	2	修前失敗，符合預期：`--encoding=gbk`（SJIS 表），被當成不認得的選項而忽略；寬鬆分數只開了第一層，字元規則仍是 SJIS
+encoding-select	EN10	FAIL	FAIL	是	EN10: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：`--encoding=gbk`（沒有字串的表），被當成不認得的選項而忽略
+encoding-select	EN11	PASS	PASS	是	—	0	通過，守衛：`--encoding=gbk` 加嚴格判定成立的 GBK 表：兩層都開（修前靠判定）
+encoding-select	EN12	FAIL	FAIL	是	EN12: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：`--encoding=sjis`（嚴格判定成立的 GBK 表），被當成不認得的選項而忽略，兩層照判定打開
+encoding-select	EN13	FAIL	FAIL	是	EN13: ain_is_gb18030=1, want 0	1	修前失敗，符合預期：`--encoding=sjis`（SJIS 表），被當成不認得的選項而忽略，寬鬆分數照樣打開第一層
+encoding-select	EN14	FAIL	FAIL	是	EN14: main did not return (wait status 256); its last stderr: runtime-probe-asan: unrecognized option `--encoding'	1	修前失敗，符合預期：`--encoding gbk`（兩個引數）：多出一個位置引數，用法錯誤，main 沒有返回
+encoding-select	EN15	FAIL	FAIL	是	EN15: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：`--encoding=GBK`（大小寫），被當成不認得的選項而忽略
+encoding-select	EN16	FAIL	FAIL	是	EN16: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：`--encoding=Sjis`（大小寫），被當成不認得的選項而忽略
+encoding-select	EN17	PASS	PASS	是	—	0	通過，守衛：`--encoding=foo` 加 GBK 表：照判定兩層都開，有一行寫出選項與值的警告（修前是 getopt 自己的警告）
+encoding-select	EN18	FAIL	FAIL	是	EN18: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：全域 rc 的 gbk 加不認得的 `--encoding=foo`，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN19	FAIL	FAIL	是	EN19: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：全域 rc 的 gbk，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN20	FAIL	FAIL	是	EN20: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：遊戲資料夾 rc 的 sjis，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN21	FAIL	FAIL	是	EN21: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：全域 sjis、遊戲資料夾 gbk（遊戲資料夾的蓋過全域的），`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN22	FAIL	FAIL	是	EN22: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：全域 gbk、遊戲資料夾 sjis，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN23	FAIL	FAIL	是	EN23: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：全域 rc 的 gbk 加 `--encoding=sjis`（命令列蓋過 rc），`.xsys4rc` 的 `encoding` 鍵不認得、被忽略，選項也被忽略
+encoding-select	EN24	FAIL	FAIL	是	EN24: ain_is_gb18030=0, want 1	3	修前失敗，符合預期：遊戲資料夾 rc 的 sjis 加 `--encoding=gbk`，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略，選項也被忽略
+encoding-select	EN25	FAIL	FAIL	是	EN25: ain_is_gb18030=0, want 1	4	修前失敗，符合預期：全域 gbk、遊戲資料夾的錯值，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略，也沒有警告
+encoding-select	EN26	FAIL	FAIL	是	EN26: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：遊戲資料夾 rc 的 SJIS（大小寫），`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN27	PASS	PASS	是	—	0	通過，守衛：`XSYS4_STRING_CHARSET=sjis` 加 GBK 表：只關字元規則
+encoding-select	EN28	PASS	PASS	是	—	0	通過，守衛：`XSYS4_STRING_CHARSET=gbk` 加 ASCII 表：只開字元規則
+encoding-select	EN29	FAIL	FAIL	是	EN29: ain_is_gb18030=1, want 0	2	修前失敗，符合預期：`XSYS4_STRING_CHARSET=gbk` 加 SJIS 表：修前寬鬆分數另外打開 `ain_is_gb18030`，應該只開字元規則
+encoding-select	EN30	PASS	PASS	是	—	0	通過，守衛：`XSYS4_STRING_CHARSET` 的錯值：警告後忽略，兩層照判定都開
+encoding-select	EN31	FAIL	FAIL	是	EN31: ain_is_gb18030=1, want 0	2	修前失敗，符合預期：`XSYS4_STRING_CHARSET=gbk` 加 `--encoding=sjis`，被當成不認得的選項而忽略
+encoding-select	EN32	FAIL	FAIL	是	EN32: ain_is_gb18030=0, want 1	1	修前失敗，符合預期：`XSYS4_STRING_CHARSET=sjis` 加 `--encoding=gbk`，被當成不認得的選項而忽略
+encoding-select	EN33	PASS	PASS	是	—	0	通過，守衛：沒有指定編碼，harness 載入的 AIN 的字串表：兩層都開
+encoding-select	EN34	FAIL	FAIL	是	EN34: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：`--encoding=sjis` 加 harness 載入的 AIN 的字串表，被當成不認得的選項而忽略
+encoding-select	EN35	FAIL	FAIL	是	EN35: the usage text does not list --encoding	1	修前失敗，符合預期：用法說明沒有列 `--encoding`
+encoding-select	EN36	FAIL	FAIL	是	EN36: the startup log has an AINCHECK line	1	修前失敗，符合預期：SJIS 表（v5）的啟動記錄有 AINCHECK 一行
+encoding-select	EN37	FAIL	FAIL	是	EN37: the startup log has an AINCHECK line	1	修前失敗，符合預期：GBK 表（v14）的啟動記錄有 AINCHECK 一行
+encoding-select	EN38	FAIL	FAIL	是	EN38: ain_is_gb18030=0, want 1	4	修前失敗，符合預期：空值的 `--encoding=` 加全域 rc 的 gbk，`.xsys4rc` 的 `encoding` 鍵不認得、被忽略
+encoding-select	EN39	FAIL	FAIL	是	EN39: ain_is_gb18030=1, want 0	3	修前失敗，符合預期：`--encoding=gbk` 之後再 `--encoding=sjis`（最後一個為準），被當成不認得的選項而忽略
+encoding-select	EN40	FAIL	FAIL	是	EN40: no warning line names encoding and "baz"	1	修前失敗，符合預期：全域 rc 的錯值：鍵不認得、靜靜忽略，沒有同時寫出鍵與值的警告
+mosaic-effect	MZ1	FAIL	FAIL	是	120x100 p=0.1250: the chunk edges along the row are not a grid of 25 anchored at the centre	2	修前失敗，符合預期：格線從畫面的一角起、格子大小是沒有取整的 128 × 三角，沒有格線過畫面中心（120×100，格子 25）
+mosaic-effect	MZ2	FAIL	FAIL	是	120x100 p=0.3750: the chunk edges along the row are not a grid of 73 anchored at the centre	2	修前失敗，符合預期：同上（120×100，格子 73）
+mosaic-effect	MZ3	FAIL	FAIL	是	120x100 p=0.1000: the chunk edges along the row are not a grid of 19 anchored at the centre	2	修前失敗，符合預期：同上（120×100，格子 19）
+mosaic-effect	MZ4	FAIL	FAIL	是	120x100 p=0.5000: the chunk edges along the row are not a grid of 97 anchored at the centre	2	修前失敗，符合預期：同上（120×100，格子 97）
+mosaic-effect	MZ5	FAIL	FAIL	是	800x600 p=0.1250: the chunk edges along the row are not a grid of 25 anchored at the centre	2	修前失敗，符合預期：同上（800×600，格子 25）
+mosaic-effect	MZ6	FAIL	FAIL	是	800x600 p=0.7500: the chunk edges along the row are not a grid of 49 anchored at the centre	2	修前失敗，符合預期：同上（800×600，格子 49）
+mosaic-effect	MZ7	FAIL	FAIL	是	120x100 p=0.1250: 12000 pixels are not their chunk's first pixel sample	1	修前失敗，符合預期：每格取格子中心，不是第一個像素（120×100，格子 25）
+mosaic-effect	MZ8	FAIL	FAIL	是	120x100 p=0.1000: 12000 pixels are not their chunk's first pixel sample	1	修前失敗，符合預期：同上（120×100，格子 19）
+mosaic-effect	MZ9	FAIL	FAIL	是	120x100 p=0.000000: not the per-pixel crossfade	1	修前失敗，符合預期：進度 0：格子大小 0、取樣沒有定義，這台機器上整張都取到最後一個像素，不是逐像素的交叉淡入
+mosaic-effect	MZ10	FAIL	FAIL	是	120x100 p=1.000000: not the per-pixel crossfade	1	修前失敗，符合預期：進度 1：同上
+mosaic-effect	MZ11	PASS	PASS	是	—	0	通過，守衛：進度 1/512：逐像素的交叉淡入
+mosaic-effect	MZ12	PASS	PASS	是	—	0	通過，守衛：進度 511/512：逐像素的交叉淡入
+mosaic-effect	MZ13	FAIL	FAIL	是	120x100 p=0.0125: the chunk edges along the row are not a grid of 3 anchored at the centre	2	修前失敗，符合預期：小格子（3）、畫面邊到中心有很多格：格線從一角起
+mosaic-effect	MZ14	PASS	PASS	是	—	0	通過，守衛：格子大小 1 當成格線看：每兩個像素之間都有邊
+mosaic-effect	MZ15	FAIL	FAIL	是	1280x720 p=0.4688: the chunk edges along the row are not a grid of 91 anchored at the centre	2	修前失敗，符合預期：1280×720、格子 91：格線從一角起
+mosaic-effect	MZ16	FAIL	FAIL	是	121x101 p=0.1250: 12221 pixels are not their chunk's first pixel sample	1	修前失敗，符合預期：奇數畫面 121×101：每格取格子中心，不是第一個像素
+mosaic-effect	MZ17	FAIL	FAIL	是	120x100 p=-0.062500: not the per-pixel crossfade	1	修前失敗，符合預期：0..1 以外的進度（−0.0625）：格子大小是負的，不是逐像素的交叉淡入
+mosaic-effect	MZ18	FAIL	FAIL	是	120x100 p=1.062500: not the per-pixel crossfade	1	修前失敗，符合預期：同上（1.0625）
+mosaic-effect	MZ19	FAIL	FAIL	是	1024x768 p=0.5000: 786432 pixels are not their chunk's first pixel sample	1	修前失敗，符合預期：1024×768、格子 97：每格取格子中心，不是第一個像素
