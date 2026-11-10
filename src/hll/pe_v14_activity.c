@@ -410,6 +410,36 @@ static void pactex_apply_click_permission(struct ex_tree *node, int parts_no)
 		PE_SetClickable(parts_no, true);
 }
 
+/* ドラッグ (drag), the field the same parser reads right after オン指針透過:
+ * 0x55482a gets it with the default 0 and stores "== 1" at block +0x122
+ * (0x554848..0x554855), i.e. parts +0x1a6, the byte Parts_SetDrag
+ * (0x58fb20) writes. The input reads it to move the source of a left drag
+ * with the cursor (0x546c6b) and to put the source back when a left drag
+ * is cancelled (0x5462cf); the drag events are sent either way. The field
+ * starts as 0 (0x550a2f) and the store is unconditional; as for 點擊許可
+ * above, only a 1 is applied, to a parts the loader has just allocated.
+ * The script's own Parts_SetDrag comes after the load and wins.
+ *
+ * The CN executable reads the GBK spelling, the English one the SJIS
+ * spelling (same address, string 0x7c0194). Both are looked up here, byte
+ * for byte, so the game's charset does not matter; a component with both
+ * is draggable when either is 1. A value that is not an integer counts as
+ * missing (the original's getter truncates a float; no component of the
+ * game has one). Of the game's components 2 are 1: a CG detection parts
+ * whose flag the script sets itself after the load in some views and
+ * leaves in others, and a drag area it never sets. Not for an AIN before
+ * v14. */
+static const char GBK_DRAG[]  = "\xa5\xc9\xa5\xe9\xa5\xc3\xa5\xb0"; /* ドラッグ (GBK) */
+static const char SJIS_DRAG[] = "\x83\x68\x83\x89\x83\x62\x83\x4f"; /* ドラッグ (SJIS) */
+
+static void pactex_apply_drag(struct ex_tree *node, int parts_no)
+{
+	if (ain->version < 14)
+		return;
+	if (pactex_get_int(node, SJIS_DRAG, 0) == 1 || pactex_get_int(node, GBK_DRAG, 0) == 1)
+		PE_SetDrag(parts_no, true);
+}
+
 /* Extract a list leaf property by exact name match. Returns NULL if not found. */
 static struct ex_list *pactex_get_list(struct ex_tree *node, const char *name)
 {
@@ -565,9 +595,11 @@ static bool pactex_apply_message_window(struct ex_tree *type_info, const char *p
 			strcmp(ptype, "\xd0\xc5\xcf\xa2\xb4\xb0\xbf\xda")))
 		return false;
 	// The type does not link the window to the message windows' show: the
-	// original's loader keeps the link of 信息窗口表示連動 (== 1, 0x553e62..
-	// 0x553ead), which is not read here (the game's pactex has 0 there), and
-	// the game's scripts link their windows (CMessageWindow@Create).
+	// original's loader reads 信息窗口表示連動 and stores whether it is 1 in
+	// the record's +0x29 (0x553e62..0x553ead), inferred to correspond to
+	// the parts' MessageWindowShowLink flag at +0xad.
+	// This is not read here (the game's pactex has 0 there); the game's
+	// scripts link their windows (CMessageWindow@Create).
 	const char *cg = pactex_get_string(type_info, SJIS_CG_MEI);
 	if (!cg) cg = pactex_get_string(type_info, GBK_CG_MEI);
 	if (cg) {
@@ -2449,6 +2481,7 @@ static void pactex_apply_properties(struct ex_tree *node, int parts_no)
 	pactex_apply_pixel_decide(node, parts_no);
 	pactex_apply_click_permission(node, parts_no);
 	pactex_apply_pass_cursor(node, parts_no);
+	pactex_apply_drag(node, parts_no);
 	pactex_apply_wheelable(node, parts_no);
 	pactex_apply_speed_up(node, parts_no);
 

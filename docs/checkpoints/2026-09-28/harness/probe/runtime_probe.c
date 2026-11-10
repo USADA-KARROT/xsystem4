@@ -206,6 +206,7 @@ static void init_probe(const char *path) {
 #include "hll_param_handover_fixture.inc"
 #include "construction_in_rect_fixture.inc"
 #include "encoding_fixture.inc"
+#include "drag_flag_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -336,6 +337,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"encoding-select"))return test_encoding_select();
     if(!strcmp(argv[2],"mosaic-effect"))return test_mosaic_effect();
     if(!strcmp(argv[2],"mosaic-render"))return test_mosaic_render();
+    if(!strcmp(argv[2],"drag-flag"))return test_drag_flag();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();
