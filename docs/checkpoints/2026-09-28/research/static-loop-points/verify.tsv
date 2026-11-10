@@ -1,0 +1,7 @@
+stage	cycle	source_revision	charset	modes	exit	sanitizer	status	probe_binary_sha256	engine_binary_sha256	scope
+pre	original	672f0d09587fedf8f2dc6348a015aac16b738193	default	138	0	0	PASS	-	-	原基底加本組修改；原完整套件；沒有逐次保存完整探針及引擎雜湊
+pre	original	672f0d09587fedf8f2dc6348a015aac16b738193	gbk	138	0	0	PASS	-	-	原基底加本組修改；原完整套件；沒有逐次保存完整探針及引擎雜湊
+pre	final	672f0d09587fedf8f2dc6348a015aac16b738193	default	138	0	0	PASS	-	-	原基底加本組修改；最小註解已套用；四檔與候選相符；完整執行檔雜湊未逐次保存，另列兩組完成後身分
+pre	final	672f0d09587fedf8f2dc6348a015aac16b738193	gbk	138	0	0	PASS	-	-	原基底加本組修改；最小註解已套用；四檔與候選相符；完整執行檔雜湊未逐次保存，另列兩組完成後身分
+integrated	final	65ab81b503c0860fd40e5d0d6565bf8a9b8e24a2	default	140	0	0	PASS	-	-	提交後完整驗證；完整執行檔雜湊未逐次保存，另列兩組完成後身分
+integrated	final	65ab81b503c0860fd40e5d0d6565bf8a9b8e24a2	gbk	140	0	0	PASS	-	-	提交後完整驗證；完整執行檔雜湊未逐次保存，另列兩組完成後身分

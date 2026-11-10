@@ -4,6 +4,10 @@
 
 所有輸出都寫到 repo 外的 `XS4_WORK`，repo 本身不會被弄髒。
 
+## 靜態迴圈點與串流最後一圈（2026-11-10）
+
+G1c 擴充既有 sound-groups（21 案）與 sound-rewind（10 案），不新增模式：靜態 sound／voice 通道整檔循環且保留 timemap 群組；有效 timemap 串流的最後一圈到 End；BGM 封裝沿用 BGI 與最後一圈到檔尾的移植策略。提交前在 `672f0d0` 加修改的預設／GBK 各 138 模式 PASS、sanitizer 0；整合程式 `65ab81b`（父提交 `76a6f71`）預設／GBK 各 140 模式 PASS、sanitizer 0；程式推送已完成，三方一致為 `65ab81b`。完整驗證每個模式均符合各自預期退出碼，並非每個模式都退出 0。正面證據為合成探針；本遊戲靜態循環受影響 0 列，GUI 僅作回歸。詳見[靜態迴圈點研究](../research/static-loop-points/README.md)。
+
 ## 字串編碼的選擇與 6 號馬賽克（2026-11-09）
 
 新增 `probe/encoding_fixture.inc` 的 `encoding-select`（40 案）與 `mosaic-effect`（19 案），全套由 138 增為 140 模式（程式 `6e4e673`，U2）；另有不列在模式清單裡的輔助模式 `mosaic-render`，由 `mosaic-effect` 的每一案以 posix_spawn 啟動。修前（提交前用 `8f9cd6d`、提交後用 parent `672f0d0` 的 src／include／shaders，加上探針）兩種字集恰好 `encoding-select` 30 案、`mosaic-effect` 16 案失敗、守衛與 `msgwin-rates` 通過，sanitizer 0，兩次的逐案表逐位元組相同；提交前的預設與 GBK 各 137 模式、提交後各 140 模式通過，sanitizer 0。`encoding-select` 呼叫引擎自己的 `main`（`build_probe.py` 改名的 `xsystem4_original_main`）加 `--audit`，需要 `$TMPDIR`（或 `$XS4_SAVE_TMP`）可寫，暫存資料夾不能在 `XS4_SRC` 或 `XS4_MASTER_GAME` 裡；`mosaic-effect` 讀 `XS4_SRC` 的著色器。既有探針沒有改。研究與資料表見[字串編碼與 6 號馬賽克](../research/encoding-select/README.md)。
@@ -86,13 +90,14 @@ WE6 明確區分自身 wheel flag 與一般視覺父層，拒絕錯誤繼承與�
 
 ## v14 聲音群組探針
 
-`sound-groups`（2026-10-24，G1），fixture 為 `probe/sound_groups_fixture.inc`，共 13 案，各自 fork。資料全部自己合成：主 EX 的群組表、兩個 AFA（音效、語音，各含一個 timemap 成員，放在封裝中間）、舊路用的 BGI／WAI 與 PCM，名稱中性；暫存資料夾跑完刪除，不需要遊戲資產與 GL。經 AIN 的 KiwiSoundEngine 宣告以 ffi 呼叫，走 module init／fini、正式的資產管理器讀封裝、SDL 事件抽取與 `vm_exit` 的結束路徑；取樣直接跑引擎自己的 SDL callback（`build_probe.py` 在 `audio_mixer.c` 的複本後面接 `probe_audio_pull()`，見〈探針結構〉）。SG11 用 SDL dummy driver 的真音訊執行緒。
+`sound-groups`（2026-10-24，G1；2026-11-10，G1c 擴充），fixture 為 `probe/sound_groups_fixture.inc`，共 21 案（SG0–SG20），各自 fork。資料全部自己合成：主 EX 的群組表、兩個 AFA（音效、語音，各含一個 timemap 成員，放在封裝中間）、舊路用的 BGI／WAI 與 PCM，名稱中性；暫存資料夾跑完刪除，不需要遊戲資產與 GL。經 AIN 的 KiwiSoundEngine 宣告以 ffi 呼叫，走 module init／fini、正式的資產管理器讀封裝、SDL 事件抽取與 `vm_exit` 的結束路徑；取樣直接跑引擎自己的 SDL callback（`build_probe.py` 在 `audio_mixer.c` 的複本後面接 `probe_audio_pull()`，見〈探針結構〉）。SG11 用 SDL dummy driver 的真音訊執行緒。
 
 - SG0 合成檔以 libsys4 讀回（資料自檢）；SG1 啟用條件、初始化順序（KiwiSoundEngine 在 MainEXFile 之前或之後、沒有裝置、dummy 裝置）、重複 init、重啟（照 `init_libraries` 重跑 `_PreLink`／`_PostLink`／`_ModuleInit`）；SG2 群組樹、父群組、預設值、根只乘一次、靜音沿鏈；SG3 整數讀回 0..100、夾限、範圍外的群組。
-- SG4 播放中的取樣沿群組鏈；SG5 依名稱的身分（封裝序號、名稱、數字三者不可互換、兩個封裝、大小寫、GBK 首位元組規則的雙位元組名稱、沒有檔的列、群組 0、檔案查詢與 Prepare 的 fallback、同名兩列留先者）；SG6 缺 timemap 或形狀不對；SG7 迴圈點（單聲道、立體聲、短迴圈、chunk 邊界、End 在最後一格／檔尾／超過檔尾、22.05 kHz、語音、只播一次、不合法的端點）。
+- SG4 播放中的取樣沿群組鏈；SG5 依名稱的身分（封裝序號、名稱、數字三者不可互換、兩個封裝、大小寫、GBK 首位元組規則的雙位元組名稱、沒有檔的列、群組 0、檔案查詢與 Prepare 的 fallback、同名兩列留先者）；SG6 缺 timemap 或形狀不對；SG7 串流迴圈點（單聲道、立體聲、短迴圈、chunk 邊界、End 在最後一格／檔尾／超過檔尾、22.05 kHz、語音、不合法端點）；其中靜態只播一次的子案嚴格要求整檔，不接受停在 timemap 終點。
 - SG8 焦點（GlobalFocus 關與開、使用者的值不被改、位置與淡出照常推進）；SG9 Volume.sav（位元組、重開、損毀檔、重啟、結束前不寫、存檔資料夾裡沒有別的檔）；SG10 其他遊戲走舊路（v13 含 BGI 迴圈與 WAI 群組、v15、SJIS、只有 GB18030 旗標、沒有表或表形狀不對、INI 混音器）與未知宣告形狀保留原綁定；SG11 真音訊執行緒下改群組與重啟；SG12 遊戲腳本的清單過濾、語音群組靜音、BGM 上限讀的檔案群組。
+- SG13 靜態無限循環與 SG14 靜態有限次數：每圈整檔，含單／立體聲、語音、22.05 kHz 與不同端點；SG15 靜態保留列的群組與群組鏈增益；SG16、SG17 同 ID 改變 bStreaming 後重新 Prepare，守每次 Prepare 決定種類的移植策略；SG18 PlaySe 與引擎自己的聲音整檔一次；SG19 串流次數 1–3 的最後一圈到 End；SG20 群組模式 BGM 封裝兩種 bStreaming 沿用 BGI 與最後一圈到檔尾，另守無效 BGI 與後備群組。
 
-期望值照原版的靜態讀法另寫，不取自移植版的輸出（位址見[聲音群組研究](../research/sound-groups/README.md)）。檔頭另列出探針當成移植策略守的部分：迴圈終點不包含、不合法端點整檔循環、最後一圈播到檔尾、Volume.sav 只在結束與重啟時寫且不留暫存檔、重啟保留記憶體裡的音量、同名列留先者、增益從下一個 chunk 生效。照原版修正這些時要一起改探針，不是回歸。
+期望值依原版靜態讀法或明示的移植策略獨立寫出，不取自移植版的輸出（位址見[聲音群組研究](../research/sound-groups/README.md)及[靜態迴圈點研究](../research/static-loop-points/README.md)）。靜態 SetLoop 不存點（`0x49c5c0`），每圈位置回 0（`0x6fc760`）；緩衝區裝著整檔與 DirectSound 呼叫的解讀仍含推論。串流最後一圈到 End 且終點不包含有 `0x6f8af0` 的依據，解碼器位置讀成位元組仍是推論。探針另守的移植策略包括：無效或越檔尾端點的修整、每次 Prepare 決定種類（原版看 ID 第一次建立，SetLoopCount 可以更早建立 ID）、BGM 封裝沿用 BGI 與最後一圈到檔尾、Volume.sav 只在結束與重啟時寫且不留暫存檔、重啟保留記憶體裡的音量、同名列留先者、增益從下一個 chunk 生效。策略改動時要同步調整探針。
 
 G2 起，合成主 EX 對每個資料集都多四個內部音量鍵（頂層 float 區塊「Ｅ＿聲音＿內部ボリューム＿」加ムービー／ＢＧＭ／音效／語音，GBK），值精確等於 1.0，所以這裡的電平仍只是群組鏈的乘積，期望值沒有改；SG0 的資料自檢從 4 個區塊改成 8 個，並逐一檢查四個鍵是 float 1.0。照原版，缺鍵時 BGM 與音效群組會乘 0.5，這一點由下面的 `sound-gain`（GN2）守。
 
@@ -100,7 +105,7 @@ G2 起，合成主 EX 對每個資料集都多四個內部音量鍵（頂層 flo
 
 正式程式 `e69dfa3` 提交後，用最終 fixture 對 parent `7143b27` 跑 `before-check.sh`：成功建置後 11/13 案因語義失敗，SG0 資料自檢與 SG10 舊路防守通過，probe exit 1、sanitizer 0。修正後 default／GBK 各 116 模式 PASS，`sound-groups` 13/13。原版依據、移植策略、突變、錄音與 GUI 的覆蓋限制見[聲音群組研究](../research/sound-groups/README.md)及[修前對照](../research/sound-groups/before.tsv)。
 
-**不涵蓋**：有限次數的迴圈（`SetLoopCount` 大於 1）；7 個包裝宣告裡 4 個的未知形狀；表外群組、只有 1–2 組的表、子群組上限等防守用的策略；舊路遊戲在視窗失焦時的行為與舊路的 refill（審查者的突變在這些地方存活）。SG11 只抓得到崩潰、死鎖與 ASan 看得到的釋放後使用，抓不到資料競爭本身。dummy 與磁碟音訊不代表真實聽測；BGM 封裝加 BGI 的群組模式路徑、多個封裝之間 timemap 的先後都沒有案。內部音量、片頭聲音的路由與 `GetLengthFromFile` 見下面〈v14 聲音增益探針〉；系統音效的通道池（G11）不在範圍內。
+**不涵蓋**：負次數、播完後 GetLoopCount、Prepare 後未設次數的串流預設（原版 0、移植版 1）、SetLoopCount 先於 Prepare 與 Unprepare 的 ID 生命週期；解碼器在宣告長度或迴圈終點前提早結束（存活突變是覆蓋缺口，不是等價）；7 個包裝宣告裡 4 個的未知形狀；表外群組的 GetGroupVolume、只有 1–2 組的表、子群組上限等防守策略；舊路遊戲在視窗失焦時的行為與舊路 refill 的完整範圍。有限次數與群組模式的 BGM 封裝迴圈已由 SG14、SG19、SG20 覆蓋，SG20 只守既有移植行為，沒有證實原版 BGM 封裝。SG11 只抓崩潰、死鎖與 ASan 可見的釋放後使用，抓不到資料競爭。多個封裝間 timemap 的先後、實際裝置與原版聽測仍未涵蓋；dummy 與磁碟音訊不能代替聽測。內部音量、片頭路由與 GetLengthFromFile 見 sound-gain；系統音效池另由 sound-se 覆蓋。
 
 GUI 路線：聲音群組啟用的遊戲（多娜多娜），`gui-run.sh` 的 `saves/` 在結束時會多一個 `Volume.sav`——執行器以 SIGTERM 停引擎，引擎轉成 SDL_QUIT、在主執行緒走 `vm_exit` 寫出；沒改過音量時是 29 位元組的預設內容。和前一組的存檔比對時，這個檔是預期中的新檔。用 `RUN_SAVE_SEED` 指向一個放了 Volume.sav 的資料夾，就能從指定的音量開始（本組的錄音就是這樣做的）。
 
@@ -124,16 +129,19 @@ GUI 路線：聲音群組啟用的遊戲（多娜多娜），`gui-run.sh` 的 `s
 
 ## v14 聲音倒帶探針
 
-`sound-rewind`（2026-10-25，G1b），fixture 為 `probe/sound_rewind_fixture.inc`，共 9 案，各自 fork。建在 `sound-groups` 的寫入器、`sg_setup` 與取樣之上，資料自己寫：`sound-groups` 的主 EX（群組表、內部音量 1.0），音效與語音兩個 AFA（44.1 kHz 的 PCM16 斜坡，含 timemap；frame k 的值是 k+1，唯一的立體聲聲音右聲道是 −(k+1)，所以增益 1 時每個輸出樣本都指得出是來源的哪一格）；舊路另用 `sound-groups` SG10 的 BGM 封裝、BGI、WAI；第三份資料是沒有群組表的主 EX。所有群組音量 100。暫存資料夾跑完刪除，不需要遊戲資產與 GL。經 AIN 的 KiwiSoundEngine 宣告以 ffi 呼叫，取樣和 `sound-groups` 一樣直接跑引擎自己的 SDL callback（`probe_audio_pull()`）。
+`sound-rewind`（2026-10-25，G1b；2026-11-10，G1c 擴充），fixture 為 `probe/sound_rewind_fixture.inc`，共 10 案（SR0–SR9），各自 fork。建在 `sound-groups` 的寫入器、`sg_setup` 與取樣之上，資料自己寫：`sound-groups` 的主 EX（群組表、內部音量 1.0），音效與語音兩個 AFA（44.1 kHz 的 PCM16 斜坡，含 timemap；frame k 的值是 k+1，唯一的立體聲聲音右聲道是 −(k+1)，所以增益 1 時每個輸出樣本都指得出是來源的哪一格）；舊路另用 `sound-groups` SG10 的 BGM 封裝、BGI、WAI；第三份資料是沒有群組表的主 EX。所有群組音量 100。暫存資料夾跑完刪除，不需要遊戲資產與 GL。經 AIN 的 KiwiSoundEngine 宣告以 ffi 呼叫，取樣和 `sound-groups` 一樣直接跑引擎自己的 SDL callback（`probe_audio_pull()`）。
 
-- SR0 合成資料以 libsys4 讀回（資料自檢，含沒有表的那一份）；SR1 播完後不 Prepare 再 Play 兩次，八種聲音各自 fork（6000 frame；700，在一塊內結束；2048，剛好在塊邊結束；語音；沒有 timemap 列；bStreaming 1；立體聲的 bStreaming 0 與 1）：每次都從 frame 0 依序播完、之後靜音，每次結束後先讀 GetPos 要 0、再讀 IsPlay 要假，4000 frame 以上的五種另驗再播時 IsPlay 真、GetPos 在檔內；SR2 迴圈從 1000 開始的聲音播一次後再 Play，從 0 播；SR3 兩圈後再 Play，從 0 播一圈或兩圈，之後靜音；SR4 播完 → Stop → Play，從 0 播。
+- SR0 合成資料以 libsys4 讀回（資料自檢，含沒有表的那一份）；SR1 播完後不 Prepare 再 Play 兩次，八種聲音各自 fork（6000 frame；700，在一塊內結束；2048，剛好在塊邊結束；語音；沒有 timemap 列；bStreaming 1；立體聲的 bStreaming 0 與 1）：每次都從 frame 0 依序播完、之後靜音，每次結束後先讀 GetPos 要 0、再讀 IsPlay 要假，4000 frame 以上的五種另驗再播時 IsPlay 真、GetPos 在檔內；SR2 timemap 起點非 0 的靜態聲音，嚴格播完整檔一次，結束後再 Play 仍從 0 播完整檔；SR3 兩圈後再 Play，從 0 播一圈或兩圈，之後靜音；SR4 播完 → Stop → Play，從 0 播。
 - 守衛（修改前就通過）：SR5 修改前就對的位置（播放中 Stop、計時與立即的 Fade 帶 stop、播完後 Seek(0)，各自再 Play 從 0；Prepare 後 Seek(50 ms)，以及播完後 Seek(50 ms) 再 Stop，Play 從 frame 2205）；SR6 播放中再 Play 不中斷；SR7 舊路不變（v13 與 v14 SJIS 的一次性聲音；BGI 迴圈 1000..3000 的 BGM 在 v13、v14 SJIS、v15、v14 只有 GB18030 旗標、v14 GBK 沒有群組表、v13 INI 混音器六種設定下，各測第一次 Play、播完再 Play、播完 Stop 再 Play）；SR8 在聲音結束的那一塊裡（IsPlay 仍真）Stop、Fade(0) 帶 stop 或 Seek(0)，再 Play 從 0 播。
+- SR9 有效 timemap 點的串流播一次，嚴格只讀到 End；結束後先讀 GetPos 要 0、再讀 IsPlay 要假，再次 Play 從 frame 0 到 End。停止在 End 有原版靜態依據，串流也倒回 0 是移植策略。
 
-期望值照原版的靜態讀法另寫，不取自移植版的輸出（位址見[聲音倒帶研究](../research/sound-rewind/README.md)）：原版的靜態緩衝區（bStreaming 0，腳本的音效、語音、系統音）播完時停下、位置設回 0（`0x6fc990`），之後 IsPlay 假、GetPos 0（`0x6fc480`、`0x6fc3f0`），再 Play 從頭播；對 DirectSound 的呼叫是照 IDirectSoundBuffer 的標準 vtable 解讀的。播完後先讀 GetPos，是因為遊戲腳本的自動模式計時器在同一個函式裡不先呼叫 IsPlay 就讀語音通道的 GetPos；只在 IsPlay 看到結束時才倒帶的實作會失敗。檔頭另列出探針當成移植策略守的部分：串流通道也倒回 0（原版串流緩衝區播完時資料停在迴圈終點，是推論）；迴圈起點不是 0 時也從 0 播（靜態緩衝區不存迴圈點，`0x49c5c0`）；播完 n 圈後再 Play 收一圈或 n 圈（移植版用掉次數、只播一圈，原版不用掉）；播放中再 Play 不中斷（同靜態緩衝區；串流緩衝區會從頭播）。照原版修正這些時要一起改探針，不是回歸。
+期望值照原版的靜態讀法另寫，不取自移植版的輸出（位址見[聲音倒帶研究](../research/sound-rewind/README.md)）：原版的靜態緩衝區（bStreaming 0，腳本的音效、語音、系統音）播完時停下、位置設回 0（`0x6fc990`），之後 IsPlay 假、GetPos 0（`0x6fc480`、`0x6fc3f0`），再 Play 從頭播；對 DirectSound 的呼叫是照 IDirectSoundBuffer 的標準 vtable 解讀的。播完後先讀 GetPos，是因為遊戲腳本的自動模式計時器在同一個函式裡不先呼叫 IsPlay 就讀語音通道的 GetPos；只在 IsPlay 看到結束時才倒帶的實作會失敗。檔頭另列出探針當成移植策略守的部分：串流通道也倒回 0（原版串流緩衝區播完時資料停在迴圈終點，是推論）；串流即使 timemap 起點不是 0 也倒回 0 再播（SR9）；靜態 SR2 的整檔與從 0 播則有靜態 SetLoop 不存點的依據（`0x49c5c0`），緩衝區裝著整檔仍含推論；播完 n 圈後再 Play 收一圈或 n 圈（移植版用掉次數、只播一圈，原版不用掉）；播放中再 Play 不中斷（同靜態緩衝區；串流緩衝區會從頭播）。照原版修正這些時要一起改探針，不是回歸。
 
 只對群組通道（`sound-groups` 的群組模式：v14、GBK 字元規則、主 EX 有辨識得到的群組表）生效，閘門是群組模式，不是 AIN 版本。其他遊戲照舊：舊的重填在讀到結尾的那一次就結束、那一塊不混音，所以一次性的聲音少播最後不足一塊（6000 frame 的聲音只播到 frame 5119），之後倒回迴圈起點（BGI 迴圈的 BGM 第一次 0..2047、之後 1000..2023）。SR7 把這個上游既有的行為精確當成「舊路不變」的指紋；之後若修舊路的最後一塊，SR7 要同步改。SR1 與 SR8 播放中的取樣窗依賴「Play 後第一塊是清零的緩衝」，引擎若改成 Play 時預先填資料，取樣窗要跟著移。
 
 正式程式 `3af566d` 提交後，用最終 fixture 對 parent `d7c0d27` 跑 `before-check.sh`（預設字集）：成功建置後 9 案中 4 案（SR1–SR4）因語義失敗，SR0 資料自檢與 SR5–SR8 守衛通過，`sound-gain` 只有 GN5 失敗，probe exit 1、sanitizer 0。修改前（G2 程式 `ebda614`，最終 fixture）兩種字集都是 9 案中 4 案（SR1–SR4）因語義失敗、守衛通過，probe exit 1、sanitizer 0。提交前（G2 程式加這一組的 diff）default／GBK 各 118 模式 PASS；提交後 default／GBK 各 119 模式 PASS（比提交前多 G7 的 `construction-preview`），`sound-rewind` 9/9、`sound-gain` 9/9、`sound-groups` 13/13。原版依據、移植策略、突變、錄音與 GUI 的覆蓋限制見[聲音倒帶研究](../research/sound-rewind/README.md)及[修前對照](../research/sound-rewind/before.tsv)。
+
+以上為 G1b 當時的 9 案與模式數。G1c 提交前的最終探針對 `672f0d0`，預設／GBK 都只有 SR9 失敗；修正後 sound-rewind 10/10，完整套件各 138 模式 PASS、sanitizer 0。整合程式 `65ab81b` 的預設／GBK 各 140 模式 PASS、sanitizer 0；原與整合結果分列，程式推送已完成，三方一致為 `65ab81b`。詳見[靜態迴圈點研究](../research/static-loop-points/README.md)。
 
 **不涵蓋**：播完後的 GetLoopCount、原版結束的時間點（移植版在最後一格之後的下一次重填才結束，晚一塊）、Pause／Restart、聲音結束時計時淡出還在跑、解碼器在檔尾前停住（群組重填自己的那個分支；合成 WAV 走不到）、影片的聲音、PlaySe（每次都 Prepare）、群組模式下的 BGM 封裝池（多娜多娜沒有）、22.05 kHz 的聲音、「播完的通道 GetPos 假回 0、下一次 Play 才倒帶」的實作（透過這個 API 一樣）、倒帶與結束在音訊執行緒與主執行緒之間的先後（探針在同一個執行緒呼叫 audio callback）、Prepare 找不到名稱之後的 Play（沒有案）、真實的聲音輸出。審查者的突變在其中三處存活：只在讀到結尾的分支倒帶、下一次 Play 才倒帶、倒帶放在標成不在播放之後。dummy 與磁碟音訊不代表真實聽測。
 
