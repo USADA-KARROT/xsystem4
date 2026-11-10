@@ -35,12 +35,14 @@
  * Port strategies, checked here as such and not claimed as original
  * behavior: every group channel, streaming or not, is back at frame 0 when
  * its sound has ended (the original's streaming buffer leaves its data at
- * the loop's end then, inferred from 0x6f8af0 and 0x6f8770; not followed);
- * it plays again from frame 0 also when its loop begins later (the static
- * buffer ignores loop points: its +0x34 returns false); after n laps it
- * plays again one lap or n (SR3 takes either: the port uses its count up,
- * the original does not); Play while a sound plays goes on (as the static
- * buffer; the streaming one starts over). The legacy mixers (every other
+ * the loop's end then, inferred from 0x6f8af0 and 0x6f8770; not followed),
+ * so a streaming channel whose loop begins later plays again from frame 0,
+ * not from its loop's begin (SR9; a static buffer keeps no loop points,
+ * its +0x34 is 0x49c5c0 and returns false, so SR2 plays the whole file
+ * from 0 either way, 2026-11-09 G1c); after n laps it plays again one
+ * lap or n (SR3 takes either: the port uses its count up, the original
+ * does not); Play while a sound plays goes on (as the static buffer; the
+ * streaming one starts over). The legacy mixers (every other
  * game) keep their own ends, exactly as before (SR7): a sound played once
  * loses the chunk in which it ends and goes back to its loop begin, which
  * the next Play, and a Stop then Play, start from.
@@ -63,9 +65,10 @@
  * timemap row; a streaming one; a stereo one, with bStreaming 0 and 1):
  * every frame from 0 in order, then silence, GetPos 0 (read first) and
  * IsPlay false after each end, and for the five of at least 4000 frames
- * IsPlay true and GetPos inside the sound while it plays again; SR2 a loop
- * that begins at 1000, played once, plays again from 0; SR3 two laps, then
- * again from 0, one or two laps, then silence; SR4 Stop after the end, then
+ * IsPlay true and GetPos inside the sound while it plays again; SR2 a row
+ * whose loop begins at 1000, bStreaming 0, played once: the whole file,
+ * then again the whole file from 0; SR3 two laps, then again from 0, one
+ * or two laps, then silence; SR4 Stop after the end, then
  * Play from 0; SR5 the positions that were right before the change (Stop
  * while playing, Fade with stop timed and at once, Seek(0) after the end;
  * each then Play from 0; Seek(50 ms) after Prepare, and after the end then
@@ -74,7 +77,9 @@
  * BGI loop in v13, v14 SJIS, v15, v14 with the GB18030 flag only, v14 GBK
  * without the table and v13 with INI mixers, played again and stopped then
  * played after its end); SR8 Stop, Fade(0, stop) or Seek(0) in the chunk in
- * which the sound ends (IsPlay still true), then Play from 0.
+ * which the sound ends (IsPlay still true), then Play from 0; SR9 the row
+ * of SR2 with bStreaming 1, played once: 0..2999 (the loop's end; sound-
+ * groups' SG19), then again from 0, not from 1000.
  *
  * Data: synthetic, written here into a fresh mkdtemp directory
  * (xs4-sound-rewind-*, under $XS4_SAVE_TMP or $TMPDIR, refused inside
@@ -429,8 +434,10 @@ static void sr1_replay(void)
 	sg_i1("Unprepare", id);
 }
 
-/* ---- SR2: a loop that begins later ---------------------------------------------------- */
+/* ---- SR2, SR9: a row whose loop begins later ------------------------------------------------ */
 
+/* SR2: bStreaming 0. The static buffer keeps no loop points (0x49c5c0), so
+ * once is the whole file 0..5999, and again the whole file. */
 static void sr2_loop_begin(void)
 {
 	sg_setup(&sr_group_opts);
@@ -439,15 +446,35 @@ static void sr2_loop_begin(void)
 	int id = 21;
 	if (!sr_prepare(id, "sr_mid", false, 1))
 		return;
-	/* Once: 0..2999 and (sound-groups' play-once strategy) maybe on to the
-	 * file's end; again from 0, not from the loop's begin 1000. */
-	struct sr_want w = { 0, 2999, 0, 1, 1, 5999 };
-	if (sr_take("loop 1000..3000 once, the first Play", id, 6000, w, true)) {
-		sr_after_end("loop 1000..3000 once, the first Play", id, true);
-		if (sr_take("loop 1000..3000 once, Play again without Prepare", id, 6000, w, true))
-			sr_after_end("loop 1000..3000 once, Play again without Prepare", id, true);
+	struct sr_want w = { 0, 5999, 0, 1, 1, 0 };
+	if (sr_take("row loop 1000..3000, bStreaming 0, once, the first Play", id, 6000, w, true)) {
+		sr_after_end("row loop 1000..3000, bStreaming 0, once, the first Play", id, true);
+		if (sr_take("row loop 1000..3000, bStreaming 0, once, Play again without Prepare", id, 6000, w, true))
+			sr_after_end("row loop 1000..3000, bStreaming 0, once, Play again without Prepare", id, true);
 	}
-	printf("  SR2 a loop that begins at 1000 checked\n");
+	printf("  SR2 a row whose loop begins at 1000, bStreaming 0, checked\n");
+}
+
+/* SR9: bStreaming 1. The streaming buffer's last lap stops at the loop's
+ * end (0x6f8af0; sound-groups' SG19), so once is 0..2999; again from 0,
+ * not from the loop's begin 1000 (the rewind is a port strategy for a
+ * streaming channel, see the head of this file). It ends before SR_MID, so
+ * there is no check while it plays. */
+static void sr9_stream_loop_begin(void)
+{
+	sg_setup(&sr_group_opts);
+	sg_group_mode_ok();
+	sr_unity();
+	int id = 28;
+	if (!sr_prepare(id, "sr_mid", true, 1))
+		return;
+	struct sr_want w = { 0, 2999, 0, 1, 1, 0 };
+	if (sr_take("row loop 1000..3000, bStreaming 1, once, the first Play", id, 6000, w, false)) {
+		sr_after_end("row loop 1000..3000, bStreaming 1, once, the first Play", id, true);
+		if (sr_take("row loop 1000..3000, bStreaming 1, once, Play again without Prepare", id, 6000, w, false))
+			sr_after_end("row loop 1000..3000, bStreaming 1, once, Play again without Prepare", id, true);
+	}
+	printf("  SR9 a row whose loop begins at 1000, bStreaming 1, checked\n");
 }
 
 /* ---- SR3: laps ------------------------------------------------------------------------ */
@@ -687,8 +714,8 @@ static int test_sound_rewind(void)
 		f += r;
 	}
 	failed += sg_report("SR1", "played to the end, then Play without Prepare: from frame 0 (eight sounds)", f);
-	sg_begin("SR2", "a loop that begins later: again from frame 0");
-	failed += sg_report("SR2", "a loop that begins later: again from frame 0", sg_fork(sr2_loop_begin));
+	sg_begin("SR2", "a row whose loop begins later, bStreaming 0: the whole file, again from frame 0");
+	failed += sg_report("SR2", "a row whose loop begins later, bStreaming 0: the whole file, again from frame 0", sg_fork(sr2_loop_begin));
 	sg_begin("SR3", "two laps, then again from frame 0");
 	failed += sg_report("SR3", "two laps, then again from frame 0", sg_fork(sr3_laps));
 	sg_begin("SR4", "Stop after the end, then Play from frame 0");
@@ -724,7 +751,10 @@ static int test_sound_rewind(void)
 		f += r;
 	}
 	failed += sg_report("SR8", "Stop, Fade(0, stop) or Seek(0) in the chunk in which the sound ends, then Play from frame 0", f);
+	sg_begin("SR9", "a row whose loop begins later, bStreaming 1: to the loop's end, again from frame 0");
+	failed += sg_report("SR9", "a row whose loop begins later, bStreaming 1: to the loop's end, again from frame 0",
+			    sg_fork(sr9_stream_loop_begin));
 	sr_remove_data();
-	printf("SOUND-REWIND %s: %d of 9 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	printf("SOUND-REWIND %s: %d of 10 cases failed\n", failed ? "FAIL" : "PASS", failed);
 	return failed ? 1 : 0;
 }

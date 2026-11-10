@@ -1,11 +1,14 @@
-/* sound-groups (G1, 2026-10-24): the v14 sound groups.
+/* sound-groups (G1, 2026-10-24; the static and the streaming buffer, G1c,
+ * 2026-11-09): the v14 sound groups.
  *
  * The original engine builds its mixer groups from a table in the main EX
  * file, keeps every group's default and current volume as integers, attaches
- * each sound to the group its archive's timemap gives it (and takes the loop
- * points from there), multiplies the gains up the parent chain, mutes on lost
- * focus unless the game allows global focus, and keeps the volumes in
- * Volume.sav. This mode checks those through the engine's own entry points:
+ * each sound to the group its archive's timemap gives it, hands the
+ * timemap's loop points to the sound's buffer, where only a streaming
+ * buffer (Prepare's bStreaming) keeps them, multiplies the gains up the
+ * parent chain, mutes on lost focus unless the game allows global focus,
+ * and keeps the volumes in Volume.sav. This mode checks those through the
+ * engine's own entry points:
  * the AIN's KiwiSoundEngine declarations called through ffi, the module
  * init/fini, the asset manager reading real archive files, the SDL event pump,
  * the exit path, and the engine's SDL audio callback for the samples.
@@ -25,28 +28,44 @@
  * argument (the HLL dispatch's jump table 0x4a1c34 follows the AIN's
  * declaration order, entry 9 is Prepare at 0x4a1640, which passes its fourth
  * argument on: 0x4a169c -> 0x4a3430 -> 0x49a130 -> 0x4a0040 -> channel +0x10;
- * nonzero -> 1, zero -> 2), both loop points handed to the backend when
- * neither is negative 0x4a357b, focus 0x4a1438/0x4a11b0/0x4a1a7c (gain 0 when
- * GlobalFocus is off and +0x31 is 0; inferred to be the window's activation
+ * nonzero -> 1, zero -> 2), both loop points handed to the buffer when
+ * neither is negative (0x4a357b..0x4a35ba, its vtable +0x34; a static
+ * buffer's, 0x49c5c0, keeps neither, so it loops the whole file, the
+ * buffer read as holding the whole file, an inference; a streaming
+ * buffer's, 0x6f7ed0, keeps both, and its last lap stops at the loop's
+ * end, 0x6f8af0, its decoder position read as a byte offset, an
+ * inference; see the G1c section below), focus
+ * 0x4a1438/0x4a11b0/0x4a1a7c (gain 0 when GlobalFocus is off and +0x31 is
+ * 0; inferred to be the window's activation
  * from its writes 0x4bdc14/0x4be5e7, which have the shape of WM_ACTIVATE),
  * Volume.sav 0x49f780/0x49f980 (00, count, (volume, mute, 00) x count; read
  * after the EX defaults, written on shutdown and restart).
  *
  * Port strategies, checked here as such and not claimed as original behavior:
  * the groups exist as soon as KiwiSoundEngine's init returns (it runs before
- * MainEXFile's, and the audio callback may run from then on); the loop end is
- * exclusive and is used only when 0 <= begin < end; an end of 0, an end at or
- * before the begin, or a negative point loops the whole file as before; a
- * sound played once is not cut short; Volume.sav is written only on
- * shutdown/restart (not while volumes change) and without leftovers; a restart
- * keeps the volumes in memory; a damaged Volume.sav never crashes and never
- * touches groups it does not reach; a timemap of another shape is ignored for
- * its archive (its files fall back as if they had no row); a gain change
+ * MainEXFile's, and the audio callback may run from then on); a streaming
+ * channel's loop end is exclusive (as the original's refill reads, with its
+ * decoder position taken as a byte offset, an inference) and the points are
+ * used only when 0 <= begin < end and begin is inside the file; an end of 0,
+ * an end at or before the begin, or a negative point loops the whole file as
+ * before (with a negative point the original does not hand the points on
+ * either, and its streaming buffer keeps the whole file it set when it
+ * opened the file, 0x6f7a20); an end past the file ends with the file; the
+ * kind of buffer is the one each Prepare is given, as every Prepare opens a
+ * new channel (SG16, SG17; the original keeps an ID's buffer once made,
+ * 0x49a130, so its first creation decides the kind); a BGM archive's
+ * file in group mode has no timemap row and keeps its BGI loop with either
+ * bStreaming, its last lap going on to the file's end, as before (SG20;
+ * how the original treats such a file was not traced); a row's group the
+ * table does not have takes the fallback of the Prepare (SG5); Volume.sav
+ * is written only on shutdown/restart (not while volumes change) and
+ * without leftovers; a restart keeps the volumes in memory; a damaged
+ * Volume.sav never crashes and never touches groups it does not reach; a
+ * timemap of another shape is ignored for its archive (its files fall back
+ * as if they had no row); a gain change
  * takes effect from the next chunk the callback mixes (sg_level reads the
  * last 512 frames of five chunks; the original's smoothing, if any, is not
- * known); a loop's last lap plays on to the end of the file (SG7's play-once
- * cases accept that or a stop at the loop's end); of two timemap rows of one
- * name the first stays (SG5's vx_alpha).
+ * known); of two timemap rows of one name the first stays (SG5's vx_alpha).
  *
  * The v14 shapes are bound through the engine's declaration-shape hook
  * (hll_shape_select_function, called by link_static_library): SG10 links
@@ -67,17 +86,35 @@
  * samples through the chain while playing; SG5 name-based identity (archive
  * index vs name vs number, both archives, the timemap member in the middle of
  * its archive, case, double-byte names under the GBK lead rule, rows without
- * files, group 0, fallbacks of the file query and of Prepare); SG6 a missing
- * or odd timemap; SG7 loop points from the samples (mono, stereo, short loop,
- * chunk edges, ends at the file's last frame, at its end and past it, a
- * 22.05 kHz file, voice, play once, unusable points); SG8 focus with
- * GlobalFocus off and on, user values kept, position and fade go on; SG9
+ * files, group 0, fallbacks of the file query and of Prepare, also for a
+ * row's negative group and one the table does not have); SG6 a missing or
+ * odd timemap; SG7 loop points from the samples with bStreaming 1 (mono,
+ * stereo, short loop, chunk edges, ends at the file's last frame, at its end
+ * and past it, a begin of 60 with an end far past the file, a 22.05 kHz
+ * file, voice, unusable points: an end of 0, an end before the begin or at
+ * it, a negative begin, a begin at the file's end), and with bStreaming 0
+ * played once (the whole file, also with a loop that ends before it) and
+ * unusable points; SG8 focus with GlobalFocus off and on, user values kept,
+ * position and fade go on; SG9
  * Volume.sav bytes, reopen, damaged files, restart, no write before quitting,
  * no leftover in the save folder; SG10 the legacy mixers for every
  * other game (with a v13 game's BGI loop and WAI groups) and unknown
  * declaration shapes; SG11 the real audio thread under changes and a restart;
  * SG12 the game's own list filter, the voice-group mute, the file groups the
- * BGM cap reads.
+ * BGM cap reads; SG13 bStreaming 0 with a row's loop, for ever: every lap is
+ * the whole file (mono, stereo, a short loop, a voice, 22.05 kHz, an end at
+ * the file's last frame and past it, a begin of 60 with an end far past the
+ * file); SG14 bStreaming 0 with 2 or 3 laps: the whole file that many times,
+ * then silence; SG15 a static channel of a row whose loop is not the whole
+ * file keeps the row's group and its chain's gain; SG16 and SG17 an ID
+ * prepared with one bStreaming, then the other: the second decides (port
+ * strategy); SG18 PlaySe of names whose rows loop, and a sound the engine
+ * plays itself: the whole file once; SG19 bStreaming 1 with 1 to 3 laps:
+ * the last lap stops at the loop's end (an end past the file ends with the
+ * file); SG20 a BGM archive's file in group mode with either bStreaming and
+ * 0 to 2 laps: its BGI loop, the last lap to the file's end, the whole file
+ * for a loop whose begin is its end, and the Prepare's fallback group (port
+ * strategy).
  *
  * A restart (sg_restart) runs what system.Reset runs: every library's
  * _ModuleFini, the VM state and heap anew, then _PreLink, _PostLink and
@@ -105,10 +142,25 @@
  * the BGM and sound-effect groups, are sound-gain's GN2).
  *
  * Not covered: the original's ducking curve and timing, its real background
- * sound routes, the movie sound (sound-gain), the system
- * sound table (G11), non-contiguous group keys, more than 64 groups, an
- * archive overlay order, Rance 9's Sound_Seek binding (this AIN does not
- * declare it), and real audio output.
+ * sound routes, the movie sound (sound-gain), the system sound table (G11;
+ * SG18 only plays three names once), non-contiguous group keys, more than
+ * 64 groups, an archive overlay order, Rance 9's Sound_Seek binding (this
+ * AIN does not declare it), and real audio output. Of the two buffers
+ * (G1c): the original's lap count after a Prepare (it hands the buffer 1
+ * for bStreaming 0 and 0, for ever, for bStreaming 1, 0x4a4e3f..0x4a4e48;
+ * the port's is 1 for both; the game's scripts set the count right before
+ * each Play of a streaming channel; so a streaming channel played without a
+ * count plays one lap, which now ends at the loop's end, where the
+ * original's loops for ever); a negative count (the static buffer plays
+ * once, its lap compare is signed, 0x6fc7ea; the streaming one loops for ever,
+ * its refill wants a count above 0; the port's count is unsigned, for ever
+ * for both); SetLoopCount on an ID without a channel (the original makes a
+ * streaming buffer for it, 0x4a2ab0); how the original's streaming buffer
+ * treats an end of 0, an end before the begin or past the file (not
+ * traced); the original's buffer kind, decided at first creation (the port's
+ * SG16 and SG17 check each Prepare deciding); GetLoopCount; Unprepare and
+ * whether the original forgets an ID's buffer; decoder EOF before the
+ * declared file length or loop end.
  */
 #include <dlfcn.h>
 #include <errno.h>
@@ -390,10 +442,25 @@ static const struct sg_sound sg_sounds[] = {
 	/* 22.05 kHz: the loop points are frames of the file, not of the output */
 	{ "sg_slow", SG_RAMP_22K, 3000, 0, true, 2, 500, 1500 },
 	{ "sg_orphan_s", SG_CONST, 8192, 8192, false, 0, 0, 0 },
+	/* G1c (after the others, so that their archive indices stay): the
+	 * shape of most of the game's rows that are not the whole file and are
+	 * prepared with bStreaming 0 (a begin of 60, an end far past the file),
+	 * and a constant whose loop is not the whole file, in group 7 (under 5),
+	 * for the gain of a static channel's group (SG15). */
+	{ "sg_far", SG_RAMP, 4000, 0, true, 2, 60, 8000000 },
+	{ "sg_lvl", SG_CONST, 8192, 8192, true, 7, 1000, 3000 },
+	/* G1c, the edges of the rows: a loop whose begin is its end, a loop
+	 * that begins at the file's end (SG7), a group the table does not have
+	 * (8, its row count) and a negative group (SG5). */
+	{ "sg_eqpt", SG_RAMP, 4000, 0, true, 2, 500, 500 },
+	{ "sg_past", SG_RAMP, 4000, 0, true, 2, 4000, 6000 },
+	{ "sg_grp8", SG_CONST, 8192, 8192, true, 8, 0, 8192 },
+	{ "sg_grpneg", SG_CONST, 8192, 8192, true, -1, 0, 8192 },
 };
 /* The timemap rows in another order than the archive, plus a row without a file. */
 static const char *const sg_sound_rows[] = { "sg_rev", "sg_tone_a", "sg_ramp_s", "sg_tail_b", "sg_end0", "sg_root", "sg_short",
-	"sg_edge_b", "sg_ramp_m", "sg_slow", "sg_neg", "sg_once", "sg_tail_c", "sg_tone_b", "sg_edge_a", "sg_tail_a", "sg_ghost_s" };
+	"sg_edge_b", "sg_ramp_m", "sg_slow", "sg_neg", "sg_once", "sg_tail_c", "sg_tone_b", "sg_edge_a", "sg_tail_a", "sg_ghost_s",
+	"sg_lvl", "sg_far", "sg_eqpt", "sg_past", "sg_grp8", "sg_grpneg" };
 
 /* Voice archive in dictionary order (1, 10, 100, 2): the names are not the
  * archive ordinals and not numbers to parse. */
@@ -462,18 +529,22 @@ static bool sg_write(const char *dir, const char *name, const struct sg_buf *b)
 /* SG10's legacy metadata: a BGM archive with one ramp, a BGI giving it the
  * loop 1000..3000 for ever (the old line format, each byte's nibbles
  * swapped), and a WAI (version 3) that puts the sound archive's data number 1
- * (sg_tone_b) in mixer 1 and every other one in mixer 0. */
+ * (sg_tone_b) in mixer 1 and every other one in mixer 0. A second ramp
+ * (BGM number 2, G1c's SG20) has a BGI loop whose begin is its end. */
 #define SG_LEGACY_BGM "sg_bgm_ramp"
+#define SG_LEGACY_BGM_FLAT "sg_bgm_flat"
 static bool sg_legacy_meta_files(const char *dir)
 {
-	struct sg_member m = { SG_LEGACY_BGM ".wav", sg_wav(SG_RAMP, 6000, 0) };
+	struct sg_member m[2] = { { SG_LEGACY_BGM ".wav", sg_wav(SG_RAMP, 6000, 0) },
+				  { SG_LEGACY_BGM_FLAT ".wav", sg_wav(SG_RAMP, 6000, 0) } };
 	struct sg_buf bga = {0};
-	sga_file(&bga, &m, 1);
+	sga_file(&bga, m, 2);
 	bool ok = sg_write(dir, "sgprobeBA.afa", &bga);
-	free(m.data.p);
+	free(m[0].data.p);
+	free(m[1].data.p);
 	free(bga.p);
 	struct sg_buf bgi = {0};
-	const char *line = " 1, 0, 1000, 3000, -1\n";
+	const char *line = " 1, 0, 1000, 3000, -1\n 2, 0, 2000, 2000, -1\n";
 	for (const char *c = line; *c; c++) {
 		uint8_t x = (uint8_t)*c;
 		x = x >> 4 | (x & 0xf) << 4;
@@ -844,9 +915,14 @@ static bool sg_prepare(int id, const char *name, bool streaming)
 	stack_push((int)streaming);
 	return sg_call("Prepare").i;
 }
+/* Prepare(..., bStreaming), SetLoopCount, Play; sg_play_loop is bStreaming 0. */
+static bool sg_play_loop_as(int id, const char *name, int loops, bool streaming)
+{
+	return sg_prepare(id, name, streaming) && sg_i2("SetLoopCount", id, loops) && sg_i1("Play", id);
+}
 static bool sg_play_loop(int id, const char *name, int loops)
 {
-	return sg_prepare(id, name, false) && sg_i2("SetLoopCount", id, loops) && sg_i1("Play", id);
+	return sg_play_loop_as(id, name, loops, false);
 }
 
 /* ---- samples ----------------------------------------------------------------------- */
@@ -1132,6 +1208,9 @@ static void sg5_identity(void)
 		{ SG_DB_LOWER, false, 7 },
 		/* no row: the Prepare argument decides (nonzero 1, zero 2) */
 		{ "sg_orphan_s", true, 1 }, { "sg_orphan_s", false, 2 }, { "vx_orphan", true, 1 }, { "vx_orphan", false, 2 },
+		/* a row's negative group takes the fallback too (0x4a3568), and so
+		 * does a group the table does not have (port strategy) */
+		{ "sg_grpneg", true, 1 }, { "sg_grpneg", false, 2 }, { "sg_grp8", true, 1 }, { "sg_grp8", false, 2 },
 	};
 	for (unsigned i = 0; i < SG_COUNT(p); i++) {
 		int id = 30 + i;
@@ -1178,14 +1257,16 @@ static int sg_frame_of(float v) { return (int)lrintf(v * 32768.0f) - 1; }
 
 /* The frames a sound plays: 0.. then [begin, end) again and again
  * (loops == 0), or once: 0..last, then (tail) optionally on to the file's
- * end, then silence; never back. Earlier output is flushed first. */
-static void sg7_sequence_rep(const char *name, int id, int loops, int n, int lb, int le, bool stereo, int last, bool tail, int rep)
+ * end, then silence; never back. Earlier output is flushed first. The
+ * channel is prepared with the given bStreaming. */
+static void sg7_sequence_rep(const char *name, int id, int loops, int n, int lb, int le, bool stereo, int last, bool tail, int rep,
+			     bool streaming)
 {
 	enum { FRAMES = 22 * SG_CHUNK };
 	static float buf[FRAMES * 2];
 	sg_pull(buf, 4 * SG_CHUNK);
-	if (!sg_play_loop(id, name, loops)) {
-		SG_CHECK(false, "%s: cannot play", name);
+	if (!sg_play_loop_as(id, name, loops, streaming)) {
+		SG_CHECK(false, "%s (bStreaming %d): cannot play", name, streaming);
 		return;
 	}
 	sg_pull(buf, FRAMES);
@@ -1196,7 +1277,7 @@ static void sg7_sequence_rep(const char *name, int id, int loops, int n, int lb,
 		if (fabsf(buf[2 * i]) > 0.5f / 32768)
 			s = i;
 	if (s < 0) {
-		SG_CHECK(false, "%s: no sound in %d frames", name, FRAMES);
+		SG_CHECK(false, "%s (bStreaming %d): no sound in %d frames", name, streaming, FRAMES);
 		return;
 	}
 	enum { PLAY, TAIL, END } phase = PLAY;
@@ -1209,14 +1290,15 @@ static void sg7_sequence_rep(const char *name, int id, int loops, int n, int lb,
 			phase = END;
 		if (phase == END) {
 			if (!silent) {
-				SG_CHECK(false, "%s: output frame %d after the end is source frame %d, want silence", name, i - s, got);
+				SG_CHECK(false, "%s (bStreaming %d): output frame %d after the end is source frame %d, want silence", name,
+					 streaming, i - s, got);
 				return;
 			}
 			continue;
 		}
 		if (got != want || got_r != want) {
-			SG_CHECK(false, "%s: output frame %d is %s %d (right %d), want %d (loop %d..%d, lap %d)", name, i - s,
-				 silent ? "silence, frame" : "source frame", silent ? -1 : got, got_r, want, lb, le, laps);
+			SG_CHECK(false, "%s (bStreaming %d): output frame %d is %s %d (right %d), want %d (loop %d..%d, lap %d)", name,
+				 streaming, i - s, silent ? "silence, frame" : "source frame", silent ? -1 : got, got_r, want, lb, le, laps);
 			return;
 		}
 		/* a file at half the output rate gives every frame twice */
@@ -1235,13 +1317,20 @@ static void sg7_sequence_rep(const char *name, int id, int loops, int n, int lb,
 			phase = END;
 	}
 	if (loops == 0)
-		SG_CHECK(laps >= 2, "%s: only %d laps in %d frames", name, laps, FRAMES - s);
+		SG_CHECK(laps >= 2, "%s (bStreaming %d): only %d laps in %d frames", name, streaming, laps, FRAMES - s);
 	else
-		SG_CHECK(phase != PLAY, "%s: played once only %d frames, want at least %d", name, played, last + 1);
+		SG_CHECK(phase != PLAY, "%s (bStreaming %d): played once only %d frames, want at least %d", name, streaming, played,
+			 last + 1);
 }
+/* bStreaming 0 (also SG10's legacy BGM) */
 static void sg7_sequence(const char *name, int id, int loops, int n, int lb, int le, bool stereo, int last, bool tail)
 {
-	sg7_sequence_rep(name, id, loops, n, lb, le, stereo, last, tail, 1);
+	sg7_sequence_rep(name, id, loops, n, lb, le, stereo, last, tail, 1, false);
+}
+/* bStreaming 1 */
+static void sg7_stream(const char *name, int id, int loops, int n, int lb, int le, bool stereo, int last, bool tail)
+{
+	sg7_sequence_rep(name, id, loops, n, lb, le, stereo, last, tail, 1, true);
 }
 
 static void sg7_loops(void)
@@ -1251,29 +1340,379 @@ static void sg7_loops(void)
 	/* Unity gain on the chains used, so a sample names its frame. */
 	for (int g = 0; g < SG_NR_GROUPS; g++)
 		sg_setvol(g, 100);
-	sg7_sequence("sg_ramp_m", 50, 0, 6000, 1000, 3000, false, 0, false);
-	sg7_sequence("sg_ramp_s", 51, 0, 6000, 1000, 3000, true, 0, false);
-	sg7_sequence("sg_short", 52, 0, 3000, 500, 600, false, 0, false);
-	sg7_sequence("sg_edge_a", 53, 0, 5000, 0, 2048, false, 0, false);
-	sg7_sequence("sg_edge_b", 54, 0, 5000, 0, 2049, false, 0, false);
-	sg7_sequence("vx_loop", 55, 0, 4000, 200, 1200, false, 0, false);
-	/* Played once: every frame, nothing cut at the end, no loop back. With
-	 * an end before the file's end, the rest may play or not (unknown). */
+	/* The loop points are a streaming buffer's (bStreaming 1; a static
+	 * buffer keeps none, SG13): mono, stereo, a loop shorter than a chunk,
+	 * ends at a chunk's edge and one past it, a voice. */
+	sg7_stream("sg_ramp_m", 50, 0, 6000, 1000, 3000, false, 0, false);
+	sg7_stream("sg_ramp_s", 51, 0, 6000, 1000, 3000, true, 0, false);
+	sg7_stream("sg_short", 52, 0, 3000, 500, 600, false, 0, false);
+	sg7_stream("sg_edge_a", 53, 0, 5000, 0, 2048, false, 0, false);
+	sg7_stream("sg_edge_b", 54, 0, 5000, 0, 2049, false, 0, false);
+	sg7_stream("vx_loop", 55, 0, 4000, 200, 1200, false, 0, false);
+	/* Played once with bStreaming 0: every frame of the file, nothing cut
+	 * at the end, no loop back, also when the row's loop ends before the
+	 * file's end (the static buffer has no loop points). A streaming
+	 * buffer's last lap is SG19's. */
 	sg7_sequence("sg_once", 56, 1, 6000, 0, 6000, false, 5999, false);
-	sg7_sequence("sg_ramp_m", 57, 1, 6000, 1000, 3000, false, 2999, true);
-	/* Port strategy: unusable loop points loop the whole file. */
+	sg7_sequence("sg_ramp_m", 57, 1, 6000, 1000, 3000, false, 5999, false);
+	/* Unusable loop points loop the whole file: with bStreaming 0 (no loop
+	 * points at all) and with bStreaming 1 (port strategy for an end of 0
+	 * and an end before the begin; with a negative point the original does
+	 * not hand the points on, and the streaming buffer keeps the whole file
+	 * it set when it opened the file, 0x6f7a20). */
 	sg7_sequence("sg_end0", 58, 0, 4000, 0, 4000, false, 0, false);
 	sg7_sequence("sg_rev", 59, 0, 4000, 0, 4000, false, 0, false);
 	sg7_sequence("sg_neg", 60, 0, 4000, 0, 4000, false, 0, false);
+	sg7_stream("sg_end0", 65, 0, 4000, 0, 4000, false, 0, false);
+	sg7_stream("sg_rev", 66, 0, 4000, 0, 4000, false, 0, false);
+	sg7_stream("sg_neg", 67, 0, 4000, 0, 4000, false, 0, false);
+	/* a begin that is the end, a begin at the file's end (port strategy) */
+	sg7_stream("sg_eqpt", 69, 0, 4000, 0, 4000, false, 0, false);
+	sg7_stream("sg_past", 49, 0, 4000, 0, 4000, false, 0, false);
 	/* Loops that end at the file's last frame or at its end (most of the
-	 * game's own), and past it (port strategy: as at the end). */
-	sg7_sequence("sg_tail_a", 61, 0, 6000, 1000, 5999, false, 0, false);
-	sg7_sequence("sg_tail_b", 62, 0, 6000, 1000, 6000, false, 0, false);
-	sg7_sequence("sg_tail_c", 63, 0, 6000, 1000, 6000, false, 0, false);
+	 * game's own), and past it (port strategy: as at the end), and the
+	 * shape of a begin of 60 and an end far past the file. */
+	sg7_stream("sg_tail_a", 61, 0, 6000, 1000, 5999, false, 0, false);
+	sg7_stream("sg_tail_b", 62, 0, 6000, 1000, 6000, false, 0, false);
+	sg7_stream("sg_tail_c", 63, 0, 6000, 1000, 6000, false, 0, false);
+	sg7_stream("sg_far", 68, 0, 4000, 60, 4000, false, 0, false);
 	/* 22.05 kHz: the loop goes back to the file's frame 500, every frame
 	 * twice in the 44.1 kHz output. */
-	sg7_sequence_rep("sg_slow", 64, 0, 3000, 500, 1500, false, 0, false, 2);
+	sg7_sequence_rep("sg_slow", 64, 0, 3000, 500, 1500, false, 0, false, 2, true);
 	printf("  SG7 loop points checked\n");
+}
+
+/* ---- G1c: the static and the streaming buffer -------------------------------------------- */
+
+/* The original (static disassembly of the one CN executable): Prepare
+ * hands the timemap's loop points to the sound's buffer through its vtable
+ * +0x34 when neither is negative (0x4a358e..0x4a35ba). The static buffer
+ * (bStreaming 0, vtable 0x8128d8) has 0x49c5c0 there, which keeps neither
+ * and returns false. With a count of laps its playing thread sets the
+ * DirectSound buffer's position back to 0 at the end of every lap and
+ * stops after the count (0x6fc540, 0x6fc760: Stop, SetCurrentPosition(0),
+ * Play); with a count of 0 it plays the buffer with the looping flag
+ * (0x6fc5a0: the flag is the count being 0); so every lap is the whole
+ * buffer (the calls and the flag read as IDirectSoundBuffer's standard
+ * vtable and DSBPLAY_LOOPING, an inference; that the buffer holds the
+ * whole file is an inference too). The streaming buffer (vtable 0x812820)
+ * stores both (0x6f7ed0); opening a file sets them to the whole file
+ * (0x6f7a20; the length read as the data's size over a frame's, an
+ * inference); its refill (0x6f8af0) reads up to the loop's end, goes back
+ * to its begin there, and on its last lap (a count above 0 used up) stops
+ * at the loop's end and fills the rest with silence (its decoder position
+ * read as a byte offset, an inference). */
+
+enum { SG_TAKE = 22 * SG_CHUNK };
+static float sg_take_buf[SG_TAKE * 2];
+
+static void sg_unity(void)
+{
+	for (int g = 0; g < SG_NR_GROUPS; g++)
+		SG_CHECK(sg_setvol(g, 100), "SetMixerVolume(%d, 100) failed", g);
+}
+
+/* Flush what played before, Prepare (bStreaming as given), SetLoopCount,
+ * Play, pull a take, then Stop and Unprepare. */
+static bool sg_take_play(const char *what, int id, const char *name, int loops, bool streaming)
+{
+	static float flush[4 * SG_CHUNK * 2];
+	sg_pull(flush, 4 * SG_CHUNK);
+	if (!sg_play_loop_as(id, name, loops, streaming)) {
+		SG_CHECK(false, "%s: cannot play", what);
+		return false;
+	}
+	sg_pull(sg_take_buf, SG_TAKE);
+	sg_i1("Stop", id);
+	sg_i1("Unprepare", id);
+	return true;
+}
+
+/* What a take of a ramp must hold after its leading silence: lap 1 is the
+ * source frames 0..le-1, every later lap lb..le-1, `laps` laps (0: for
+ * ever, at least two whole laps in the take), then silence to the end of
+ * the take (at least two chunks of it). The last lap ends at le, or at
+ * last_to when that is given (the file's end). A file at 22.05 kHz gives
+ * every frame `rep` (2) times; a stereo ramp has the negated frame on the
+ * right. */
+struct sg_laps { int lb, le, laps, rep; bool stereo; int last_to; };
+static void sg_laps_check(const char *what, struct sg_laps q)
+{
+	const float *buf = sg_take_buf;
+	int s = -1;
+	for (int i = 0; i < SG_TAKE && s < 0; i++)
+		if (fabsf(buf[2 * i]) > 0.5f / 32768 || fabsf(buf[2 * i + 1]) > 0.5f / 32768)
+			s = i;
+	if (s < 0) {
+		SG_CHECK(false, "%s: no sound in %d frames", what, SG_TAKE);
+		return;
+	}
+	int want = 0, lap = 1, seen = 0, end_at = -1;
+	for (int i = s; i < SG_TAKE; i++) {
+		float l = buf[2 * i], r = buf[2 * i + 1];
+		bool silent = l == 0.0f && r == 0.0f;
+		if (end_at >= 0) {
+			if (!silent) {
+				SG_CHECK(false, "%s: output frame %d after the end of lap %d is source frame %d, want silence", what,
+					 i - s, q.laps, sg_frame_of(l));
+				return;
+			}
+			continue;
+		}
+		int got = sg_frame_of(l), got_r = q.stereo ? sg_frame_of(-r) : sg_frame_of(r);
+		if (silent || got != want || got_r != want) {
+			char of[16] = "for ever";
+			if (q.laps)
+				snprintf(of, sizeof of, "%d", q.laps);
+			SG_CHECK(false, "%s: output frame %d is %s %d (right %d), want %d (lap %d of %s, laps after the first %d..%d)",
+				 what, i - s, silent ? "silence, frame" : "source frame", silent ? -1 : got, got_r, want, lap, of,
+				 q.lb, q.le - 1);
+			return;
+		}
+		if (++seen < q.rep)
+			continue;
+		seen = 0;
+		bool last = q.laps && lap >= q.laps;
+		if (++want < (last && q.last_to ? q.last_to : q.le))
+			continue;
+		if (last) {
+			end_at = i + 1;
+			continue;
+		}
+		want = q.lb;
+		lap++;
+	}
+	if (q.laps == 0)
+		SG_CHECK(lap > 2, "%s: only %d laps begun in %d frames", what, lap, SG_TAKE - s);
+	else if (end_at < 0)
+		SG_CHECK(false, "%s: lap %d of %d not ended in %d frames (at source frame %d)", what, lap, q.laps, SG_TAKE - s, want);
+	else
+		SG_CHECK(SG_TAKE - end_at >= 2 * SG_CHUNK, "%s: only %d frames after the end", what, SG_TAKE - end_at);
+}
+
+/* ---- SG13: bStreaming 0 loops the whole file ---------------------------------------------- */
+
+/* Every lap from frame 0 to the file's end, whatever the row's loop: mono,
+ * stereo, a short loop, a voice (group 6), 22.05 kHz, an end at the file's
+ * last frame, an end past the file, a begin of 60 with an end far past it. */
+static const struct { const char *name; int n; bool stereo; int rep; } sg13_sounds[] = {
+	{ "sg_ramp_m", 6000, false, 1 }, { "sg_ramp_s", 6000, true, 1 }, { "sg_short", 3000, false, 1 },
+	{ "vx_loop", 4000, false, 1 }, { "sg_slow", 3000, false, 2 }, { "sg_tail_a", 6000, false, 1 },
+	{ "sg_tail_c", 6000, false, 1 }, { "sg_far", 4000, false, 1 },
+};
+static void sg13_static_whole(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	for (int i = 0; i < SG_COUNT(sg13_sounds); i++) {
+		char what[96];
+		snprintf(what, sizeof what, "%s, bStreaming 0, laps for ever", sg13_sounds[i].name);
+		if (sg_take_play(what, 70 + i, sg13_sounds[i].name, 0, false))
+			sg_laps_check(what, (struct sg_laps){ 0, sg13_sounds[i].n, 0, sg13_sounds[i].rep, sg13_sounds[i].stereo });
+	}
+	printf("  SG13 bStreaming 0 loops the whole file\n");
+}
+
+/* ---- SG14: bStreaming 0 plays the whole file n times ------------------------------------- */
+
+static void sg14_static_laps(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	static const struct { const char *name; int n; bool stereo; int laps; } c[] = {
+		{ "sg_ramp_m", 6000, false, 2 }, { "sg_ramp_s", 6000, true, 2 }, { "sg_short", 3000, false, 3 },
+		{ "vx_loop", 4000, false, 2 }, { "sg_far", 4000, false, 3 },
+	};
+	for (int i = 0; i < SG_COUNT(c); i++) {
+		char what[96];
+		snprintf(what, sizeof what, "%s, bStreaming 0, %d laps", c[i].name, c[i].laps);
+		if (sg_take_play(what, 70 + i, c[i].name, c[i].laps, false))
+			sg_laps_check(what, (struct sg_laps){ 0, c[i].n, c[i].laps, 1, c[i].stereo });
+	}
+	printf("  SG14 bStreaming 0 plays the whole file n times\n");
+}
+
+/* ---- SG15: a static channel keeps its timemap group ---------------------------------------- */
+
+/* sg_lvl (a constant 0.25, group 7 under 5 under 0, a loop that is not the
+ * whole file) looped with bStreaming 0: the channel is in group 7 and its
+ * level follows that chain; the fallback group of bStreaming 0 (2) does
+ * not move it. */
+static void sg15_static_group(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	int id = 70;
+	if (!sg_play_loop_as(id, "sg_lvl", 0, false)) {
+		SG_CHECK(false, "sg_lvl: cannot play with bStreaming 0");
+		return;
+	}
+	SG_CHECK(sg_i1("GetGroupNum", id) == 7, "sg_lvl with bStreaming 0: GetGroupNum %d, want 7", sg_i1("GetGroupNum", id));
+	struct { int group, volume; bool mute; float want; } steps[] = {
+		{ -1, 0, false, 0.25f }, { 7, 50, false, 0.125f }, { 5, 40, false, 0.05f }, { 0, 50, false, 0.025f },
+		{ 5, -1, true, 0.0f }, { 5, -1, false, 0.025f }, { 2, 0, false, 0.025f }, { 3, 0, false, 0.025f },
+	};
+	for (int i = 0; i < SG_COUNT(steps); i++) {
+		if (steps[i].group >= 0 && steps[i].volume >= 0)
+			sg_setvol(steps[i].group, steps[i].volume);
+		else if (steps[i].group >= 0)
+			sg_setmute(steps[i].group, steps[i].mute);
+		float l = sg_level();
+		SG_CHECK(SG_NEAR(l, steps[i].want), "sg_lvl with bStreaming 0, step %d: level %.5f, want %.5f", i, l, steps[i].want);
+	}
+	sg_i1("Stop", id);
+	sg_i1("Unprepare", id);
+	printf("  SG15 a static channel keeps its timemap group\n");
+}
+
+/* ---- SG16, SG17: the kind of buffer follows each Prepare ------------------------------------ */
+
+/* Port strategy, not the original's behavior: every Prepare opens a new
+ * channel of the kind it is given. The original keeps an ID's buffer once
+ * made (0x49a130 returns the one it finds at 0x49a172, without looking at
+ * bStreaming), so its first creation decides the kind (whether its
+ * Unprepare forgets the buffer was not traced). SG16: an ID
+ * prepared with bStreaming 1, then 0: the whole file loops; SG17: 0, then
+ * 1: the row's loop. */
+static void sg16_static_after_streaming(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	SG_CHECK(sg_prepare(70, "sg_ramp_m", true), "sg_ramp_m: Prepare with bStreaming 1 failed");
+	if (sg_take_play("sg_ramp_m, bStreaming 1, then again with 0, laps for ever", 70, "sg_ramp_m", 0, false))
+		sg_laps_check("sg_ramp_m, bStreaming 1, then again with 0, laps for ever", (struct sg_laps){ 0, 6000, 0, 1, false });
+	SG_CHECK(sg_prepare(71, "sg_far", true), "sg_far: Prepare with bStreaming 1 failed");
+	if (sg_take_play("sg_far on an ID prepared with bStreaming 1, then sg_ramp_m with 0", 71, "sg_ramp_m", 0, false))
+		sg_laps_check("sg_far on an ID prepared with bStreaming 1, then sg_ramp_m with 0", (struct sg_laps){ 0, 6000, 0, 1, false });
+	printf("  SG16 bStreaming 0 after 1 on one ID checked\n");
+}
+static void sg17_streaming_after_static(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	SG_CHECK(sg_prepare(70, "sg_ramp_m", false), "sg_ramp_m: Prepare with bStreaming 0 failed");
+	if (sg_take_play("sg_ramp_m, bStreaming 0, then again with 1, laps for ever", 70, "sg_ramp_m", 0, true))
+		sg_laps_check("sg_ramp_m, bStreaming 0, then again with 1, laps for ever", (struct sg_laps){ 1000, 3000, 0, 1, false });
+	printf("  SG17 bStreaming 1 after 0 on one ID checked\n");
+}
+
+/* ---- SG18: PlaySe plays the whole file once ------------------------------------------------- */
+
+/* A PlaySe channel is a static one (0x49b790 makes it with 0x4a0040(0)) and
+ * plays once: the whole file, whatever the row's loop (a sound, a voice,
+ * the shape of a begin of 60 with an end far past the file). */
+static void sg18_playse(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	static const struct { const char *name; int n; } c[] = { { "sg_ramp_m", 6000 }, { "vx_loop", 4000 }, { "sg_far", 4000 } };
+	for (int i = 0; i < SG_COUNT(c); i++) {
+		static float flush[4 * SG_CHUNK * 2];
+		char what[96];
+		snprintf(what, sizeof what, "PlaySe(%d, %s)", 5 + i, c[i].name);
+		sg_pull(flush, 4 * SG_CHUNK);
+		stack_push(5 + i);
+		stack_push(sg_str(c[i].name));
+		stack_push(sg_str(""));
+		if (!sg_call("PlaySe").i) {
+			SG_CHECK(false, "%s returned false", what);
+			continue;
+		}
+		sg_pull(sg_take_buf, SG_TAKE);
+		sg_i1("StopSe", 5 + i);
+		sg_laps_check(what, (struct sg_laps){ 0, c[i].n, 1, 1, false });
+	}
+	/* So does a sound the engine plays itself (audio_play_sound, a parts'
+	 * sound; port strategy, the original plays those through the SE table,
+	 * 0x4a3250, on channels made with bStreaming 0). */
+	int no = -1;
+	SG_CHECK(asset_exists_by_name(ASSET_SOUND, "sg_ramp_m", &no), "sg_ramp_m is not in the sound archive");
+	if (no >= 0) {
+		static float flush[4 * SG_CHUNK * 2];
+		sg_pull(flush, 4 * SG_CHUNK);
+		if (!audio_play_sound(no)) {
+			SG_CHECK(false, "the engine's own sg_ramp_m: audio_play_sound returned false");
+		} else {
+			sg_pull(sg_take_buf, SG_TAKE);
+			sg_laps_check("the engine's own sg_ramp_m", (struct sg_laps){ 0, 6000, 1, 1, false });
+		}
+	}
+	printf("  SG18 PlaySe plays the whole file once\n");
+}
+
+/* ---- SG19: a streaming buffer's last lap ends at the loop's end ------------------------------ */
+
+/* bStreaming 1 with a count of laps: lap 1 from 0 to the loop's end, every
+ * later one from its begin, and the last stops at the loop's end
+ * (0x6f8af0), not at the file's: once, twice, three times a short loop,
+ * stereo, a voice, 22.05 kHz, an end at the file's last frame; an end past
+ * the file ends with the file. */
+static void sg19_stream_last_lap(void)
+{
+	sg_setup(&sg_group_opts);
+	sg_group_mode_ok();
+	sg_unity();
+	static const struct { const char *name; int lb, le, laps, rep; bool stereo; } c[] = {
+		{ "sg_ramp_m", 1000, 3000, 1, 1, false }, { "sg_ramp_m", 1000, 3000, 2, 1, false },
+		{ "sg_short", 500, 600, 3, 1, false }, { "sg_ramp_s", 1000, 3000, 1, 1, true },
+		{ "vx_loop", 200, 1200, 1, 1, false }, { "sg_slow", 500, 1500, 1, 2, false },
+		{ "sg_tail_a", 1000, 5999, 1, 1, false }, { "sg_tail_c", 1000, 6000, 1, 1, false },
+	};
+	for (int i = 0; i < SG_COUNT(c); i++) {
+		char what[96];
+		snprintf(what, sizeof what, "%s, bStreaming 1, %d lap%s", c[i].name, c[i].laps, c[i].laps == 1 ? "" : "s");
+		if (sg_take_play(what, 70 + i, c[i].name, c[i].laps, true))
+			sg_laps_check(what, (struct sg_laps){ c[i].lb, c[i].le, c[i].laps, c[i].rep, c[i].stereo });
+	}
+	printf("  SG19 a streaming buffer's last lap ends at the loop's end\n");
+}
+
+/* ---- SG20: a BGM archive's file keeps its BGI loop ------------------------------------------ */
+
+/* Port strategy, as before G1c: in group mode a BGM archive's file (Prepare
+ * looks for the name in the sound and voice archives first) has no timemap
+ * row; with either bStreaming it keeps its BGI loop (1000..3000; SG10's
+ * legacy metadata) and its last lap goes on to the file's end; a BGI loop
+ * whose begin is its end loops the whole file. Its group is the fallback
+ * of the Prepare (nonzero 1, zero 2). How the original treats such a file
+ * was not traced. */
+static void sg20_bgm_archive(void)
+{
+	struct sg_opts o = sg_group_opts;
+	o.ds = SG_DS_LEGACYMETA;
+	sg_setup(&o);
+	sg_group_mode_ok();
+	sg_unity();
+	static const struct { bool streaming; int laps; } c[] = {
+		{ true, 0 }, { false, 0 }, { true, 1 }, { false, 1 }, { true, 2 }, { false, 2 },
+	};
+	for (int i = 0; i < SG_COUNT(c); i++) {
+		char what[96];
+		snprintf(what, sizeof what, "%s, bStreaming %d, count %d", SG_LEGACY_BGM, c[i].streaming, c[i].laps);
+		if (sg_take_play(what, 70 + i, SG_LEGACY_BGM, c[i].laps, c[i].streaming))
+			sg_laps_check(what, (struct sg_laps){ 1000, 3000, c[i].laps, 1, false, 6000 });
+	}
+	for (int i = 0; i < 4; i++) {
+		bool streaming = i % 2 == 0;
+		int laps = i < 2 ? 0 : 2;
+		char what[96];
+		snprintf(what, sizeof what, "%s, bStreaming %d, count %d", SG_LEGACY_BGM_FLAT, streaming, laps);
+		if (sg_take_play(what, 80 + i, SG_LEGACY_BGM_FLAT, laps, streaming))
+			sg_laps_check(what, (struct sg_laps){ 0, 6000, laps, 1, false });
+	}
+	for (int s = 0; s < 2; s++) {
+		SG_CHECK(sg_prepare(90 + s, SG_LEGACY_BGM, s == 0), "%s: Prepare with bStreaming %d failed", SG_LEGACY_BGM, s == 0);
+		int g = sg_i1("GetGroupNum", 90 + s);
+		SG_CHECK(g == (s == 0 ? 1 : 2), "%s, bStreaming %d: GetGroupNum %d, want %d", SG_LEGACY_BGM, s == 0, g, s == 0 ? 1 : 2);
+		sg_i1("Unprepare", 90 + s);
+	}
+	printf("  SG20 a BGM archive's file keeps its BGI loop\n");
 }
 
 /* ---- SG8: focus ----------------------------------------------------------------------------- */
@@ -1868,7 +2307,23 @@ static int test_sound_groups(void)
 	failed += sg_report("SG11", "audio thread under group changes and a restart", sg_fork(sg11_thread));
 	sg_begin("SG12", "script list filter, voice mute, cap groups");
 	failed += sg_report("SG12", "script list filter, voice mute, cap groups", sg_fork(sg12_scripts));
+	sg_begin("SG13", "bStreaming 0 loops the whole file");
+	failed += sg_report("SG13", "bStreaming 0 loops the whole file", sg_fork(sg13_static_whole));
+	sg_begin("SG14", "bStreaming 0 plays the whole file n times");
+	failed += sg_report("SG14", "bStreaming 0 plays the whole file n times", sg_fork(sg14_static_laps));
+	sg_begin("SG15", "a static channel keeps its timemap group");
+	failed += sg_report("SG15", "a static channel keeps its timemap group", sg_fork(sg15_static_group));
+	sg_begin("SG16", "bStreaming 0 after 1 on one ID: the whole file (port strategy)");
+	failed += sg_report("SG16", "bStreaming 0 after 1 on one ID: the whole file (port strategy)", sg_fork(sg16_static_after_streaming));
+	sg_begin("SG17", "bStreaming 1 after 0 on one ID: the row's loop (port strategy)");
+	failed += sg_report("SG17", "bStreaming 1 after 0 on one ID: the row's loop (port strategy)", sg_fork(sg17_streaming_after_static));
+	sg_begin("SG18", "PlaySe plays the whole file once");
+	failed += sg_report("SG18", "PlaySe plays the whole file once", sg_fork(sg18_playse));
+	sg_begin("SG19", "a streaming buffer's last lap ends at the loop's end");
+	failed += sg_report("SG19", "a streaming buffer's last lap ends at the loop's end", sg_fork(sg19_stream_last_lap));
+	sg_begin("SG20", "a BGM archive's file keeps its BGI loop (port strategy)");
+	failed += sg_report("SG20", "a BGM archive's file keeps its BGI loop (port strategy)", sg_fork(sg20_bgm_archive));
 	sg_remove_data();
-	printf("SOUND-GROUPS %s: %d of 13 cases failed\n", failed ? "FAIL" : "PASS", failed);
+	printf("SOUND-GROUPS %s: %d of 21 cases failed\n", failed ? "FAIL" : "PASS", failed);
 	return failed ? 1 : 0;
 }

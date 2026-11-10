@@ -89,6 +89,12 @@ struct channel {
 
 	// v14 sound groups: refilled by cb_read_frames_grouped (see there)
 	bool grouped;
+	// v14 sound groups: Prepare's bStreaming, the kind of the original's
+	// buffer (false for every other way in), and whether the loop points
+	// are the timemap's on a streaming channel, whose last lap then ends
+	// at the loop's end (channel_set_group, cb_read_frames_grouped)
+	bool streaming;
+	bool stream_loop;
 };
 
 struct mixer {
@@ -233,10 +239,16 @@ static int cb_read_frames(struct channel *ch, float *out, sf_count_t frame_count
  * refill, which reads nothing. Then refill_stream puts the channel back at
  * frame 0 (see there).
  *
- * Port strategy, not the original's behavior (its backend was not traced
- * down to the decoder): [loop_start, loop_end) repeats while laps are left
- * (loop_count 0 for ever, n > 1 for n laps); the last lap goes on to the end
- * of the file.
+ * [loop_start, loop_end) repeats while laps are left (loop_count 0 for ever,
+ * n > 1 for n laps). The last lap of a streaming channel with the timemap's
+ * loop points (stream_loop) ends at the loop's end: on the last lap of a
+ * count above 0 the original's streaming buffer stops its refill there and
+ * fills the rest with silence (0x6f8af0; its decoder position read as a
+ * byte offset, an inference). The last lap of every other channel goes on
+ * to the end of the file; that is the loop's end of a static channel and of
+ * a streaming one without the timemap's points (see channel_set_group), and
+ * port strategy, as before, for a BGM archive's file, which keeps its BGI
+ * loop.
  */
 static int cb_read_frames_grouped(struct channel *ch, float *out, sf_count_t frame_count, uint_least32_t *num_read)
 {
@@ -245,7 +257,7 @@ static int cb_read_frames_grouped(struct channel *ch, float *out, sf_count_t fra
 	int idle = 0;
 	while (done < frame_count && idle < 3) {
 		bool looping = ch->loop_count != 1;
-		uint_least32_t limit = looping ? ch->loop_end : (uint_least32_t)ch->info.frames;
+		uint_least32_t limit = looping || ch->stream_loop ? ch->loop_end : (uint_least32_t)ch->info.frames;
 		if (ch->frame >= limit) {
 			if (!looping || !cb_seek(ch, ch->loop_start))
 				break;
@@ -371,11 +383,11 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	 * (0x6fc990), and Play starts it where it is (0x6fc5a0); those calls
 	 * are read as IDirectSoundBuffer's standard vtable (Stop,
 	 * SetCurrentPosition, Play), an inference, not traced into DirectSound.
-	 * Port strategies: frame 0, not the loop's begin (the static buffer
-	 * takes no loop points, 0x49c5c0); for every group channel, also one
-	 * prepared with bStreaming (the original's streaming buffer leaves its
-	 * data at the loop's end, inferred from 0x6f8af0 and 0x6f8770; the
-	 * scripts prepare a channel before every Play); and a later Play plays
+	 * Port strategies: frame 0 also for a channel prepared with bStreaming,
+	 * whose loop may begin later (the original's streaming buffer leaves
+	 * its data at the loop's end, inferred from 0x6f8af0 and 0x6f8770; the
+	 * scripts prepare a channel before every Play; a static channel's loop
+	 * is the whole file, see channel_set_group); and a later Play plays
 	 * one lap, since cb_read_frames_grouped used the count up (the
 	 * original counts its laps anew from 0 at every Play and keeps the
 	 * count, 0x6fc540, so it plays the count set again). The legacy refill
@@ -677,16 +689,28 @@ int mixer_data_length_ms(struct archive_data *dfile)
  * the channel through 0x4a3430 -> 0x49a130 -> 0x4a0040), and every other way
  * in (PlaySe, a file, the engine's own sounds) takes 2 here (port strategy).
  * A group the table does not have also takes the fallback (port strategy).
- * The loop points are used when 0 <= begin < end and begin is inside the
- * file; the end is exclusive and at most the file's length (port strategy:
- * the original hands both to its backend, 0x4a357b; how that treats an end of
- * 0, an end before the begin or past the file was not traced). Otherwise the
- * whole file loops, as without groups.
+ * The group is the row's for both kinds of buffer. The original hands the
+ * row's loop points to the buffer when neither is negative
+ * (0x4a357b..0x4a35ba, its vtable +0x34), and only the streaming buffer
+ * keeps them (0x6f7ed0): the static one's +0x34 (0x49c5c0) keeps neither
+ * and returns false, and its thread plays the whole buffer on every lap
+ * (0x6fc5a0, 0x6fc760; the buffer read as holding the whole file, an
+ * inference). So a static channel (bStreaming 0, and every other way in)
+ * loops the whole file here, and a streaming one the row's points when
+ * 0 <= begin < end and begin is inside the file; the end is exclusive and
+ * at most the file's length (port strategy: how the original's streaming
+ * buffer treats an end of 0, an end before the begin or past the file was
+ * not traced). Otherwise the whole file loops, as without groups. The kind
+ * is the one this Prepare is given, as every Prepare opens a new channel
+ * (port strategy: the original keeps an ID's buffer once made, 0x49a130,
+ * so its first creation decides the kind). A BGM archive's file has
+ * no row and keeps its BGI loop with either kind, as before (port
+ * strategy; how the original treats such a file was not traced).
  */
-static void channel_set_group(struct channel *ch, enum asset_type type, bool streaming)
+static void channel_set_group(struct channel *ch, enum asset_type type)
 {
 	ch->grouped = true;
-	ch->mixer_no = mixer_group_fallback(streaming);
+	ch->mixer_no = mixer_group_fallback(ch->streaming);
 	// The grouped refill needs begin < end; a BGI's loop (BGM) may not have
 	// it: then the whole file loops.
 	if (ch->loop_start >= ch->loop_end) {
@@ -700,9 +724,10 @@ static void channel_set_group(struct channel *ch, enum asset_type type, bool str
 		return;
 	if (si.group >= 0 && si.group < nr_mixers)
 		ch->mixer_no = si.group;
-	if (si.loop_begin >= 0 && si.loop_begin < si.loop_end && si.loop_begin < ch->info.frames) {
+	if (ch->streaming && si.loop_begin >= 0 && si.loop_begin < si.loop_end && si.loop_begin < ch->info.frames) {
 		ch->loop_start = si.loop_begin;
 		ch->loop_end = min((sf_count_t)si.loop_end, ch->info.frames);
+		ch->stream_loop = true;
 	}
 }
 
@@ -747,7 +772,8 @@ static struct channel *_channel_open(enum asset_type type, int no, bool streamin
 			ch->loop_start = 0;
 			ch->loop_end = ch->info.frames;
 		}
-		channel_set_group(ch, type, streaming);
+		ch->streaming = streaming;
+		channel_set_group(ch, type);
 	}
 
 	return ch;

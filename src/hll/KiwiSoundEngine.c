@@ -505,8 +505,9 @@ static void KiwiSoundEngine_SetGlobalFocus_v14(bool focus)
 }
 
 // Prepare(int ID, string SoundName, string FilterName, bool bStreaming):
-// bStreaming picks the group of a file without a timemap row (nonzero 1,
-// zero 2; see channel_set_group).
+// bStreaming is the kind of the channel's buffer: only a streaming one takes
+// the timemap's loop points, and it picks the group of a file without a
+// timemap row (nonzero 1, zero 2; see channel_set_group).
 static bool KiwiSoundEngine_Prepare_v14(int id, struct string *name, struct string *filter, bool streaming)
 {
 	if (!mixer_groups_enabled())
