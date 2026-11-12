@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-11-10）：G1c 的提交後驗收完成。**群組模式的靜態通道保留群組增益、循環重播整檔；採用 timemap 點的串流在有限末圈到終點停止。整合後預設與 GBK 各 140 模式通過、sanitizer 0，九條路線及三趟片頭相位與組層級通過。靜態受影響交集為 0 列，正面證據來自合成探針；遊戲路線僅作回歸。
-> 程式 `65ab81b`（父提交 `76a6f71`；原程式 `4ae99ed`）的推送核對：已完成，三方一致為 `65ab81b`。逐輪驗證執行檔身分未保存，兩組完成後另表記錄。戰鬥 171 下、最近 B 代表距離 2；片頭組平均 +1.79 ms。錄音僅支持 BGM 接點與指定來源的局部結果，整段電平及原版音訊並排未驗證；種類、預設圈數、重播與無效端點仍有差異。詳見[靜態迴圈研究](docs/checkpoints/2026-09-28/research/static-loop-points/README.md)。
+> **最新狀態（2026-11-10）：G12a 的提交後驗收完成。**v14 pactex 載入器讀取 GBK／SJIS 兩種拖曳屬性鍵，整數值等於 1 才啟用；v14 之前不變，載入後仍以腳本設定為準。整合程式 `fd5c23a`（父提交 `a5e99b9`，原程式 `b207d72`，模式聯集為 141）：修前兩種組態各 150 案只有 DG1–DG3 如預期失敗；預設與 GBK 各 141 模式通過、sanitizer 0；九條回歸路線 9/9 通過，戰鬥 171 下、最近 B 代表距離 1；三趟片頭相位各 50/50、組平均 −6.04 ms、標準差 7.83 ms 通過，舊固定影格 50/50、50/50、48/50 只作記錄。提交前首輪片頭第 3 趟斜率 +222.190 ppm 超過固定 200 ppm，屬有效失敗、原因未知；之後的固定完整重驗（三趟各 50/50、組平均 +1.078 ms）與整合三趟都通過，仍不代表原因已釐清。程式推送的三方核對記在[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> 編隊與人材清單修前已能拖曳換位；本次正面修正證據來自合成探針，未在遊戲實機看到修正的可見差異。原版只取得靜態清單並排，沒有拖曳中畫面。詳見[拖曳旗標研究](docs/checkpoints/2026-09-28/research/drag-flag/README.md)與[審查](docs/checkpoints/2026-09-28/research/drag-flag/review.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

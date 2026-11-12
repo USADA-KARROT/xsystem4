@@ -1,0 +1,5 @@
+階段	基底	組態	案例總數	預期失敗數	實際失敗數	守衛通過數	失敗案例	守衛範圍	sanitizer	判定	限制
+提交前第1輪	672f0d0	預設	150	3	3	147	DG1、DG2、DG3	DG4–DG9；msgwin-rates 16；key-events 123；key-consumer 2	0	符合預期	DG1–DG3 因旗標未載入與來源不跟游標失敗；其餘是既有行為，不算本次修好
+整合驗收	a5e99b9	預設	150	3	3	147	DG1、DG2、DG3	DG4–DG9；msgwin-rates 16；key-events 123；key-consumer 2	0	符合預期	另以整合父版本執行，逐案狀態與失敗訊息和提交前原表相同
+提交前第1輪	672f0d0	GBK	150	3	3	147	DG1、DG2、DG3	DG4–DG9；msgwin-rates 16；key-events 123；key-consumer 2	0	符合預期	DG1–DG3 因旗標未載入與來源不跟游標失敗；其餘是既有行為，不算本次修好
+整合驗收	a5e99b9	GBK	150	3	3	147	DG1、DG2、DG3	DG4–DG9；msgwin-rates 16；key-events 123；key-consumer 2	0	符合預期	另以整合父版本執行，逐案狀態與失敗訊息和提交前原表相同
