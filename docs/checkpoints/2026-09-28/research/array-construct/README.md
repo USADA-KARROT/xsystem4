@@ -79,6 +79,7 @@ G15 初版補上建構與釋放後，審查又修正三項問題：建構子釋�
 ## 驗證
 
 - `array-construct` 為 15 案（AC15 是 2026-10-11 `c40182c` 新增的；本節以下的修前紀錄與「14 案」是當時的）：基本建構與所有權、Realloc 前段／尾段及逆序釋放、無建構子預設值、同陣列重入、兩個真實腳本呼叫者、版本與形狀守衛、四種 owner 失效／替換、合法解構子的舊長度與待刪元素、primitive／struct／未知 operand 的回傳槽數、解構子內層修改的安全界線、解構子在尾端新增元素時的最終長度與遺失的物件。
+  > 2026-11-13 更新（B1）：AC15 第 3 輪的期望跟著 v14 struct 值陣列的複本改了：PushBack 存入的是新做的元素（推入的 struct 的複本），被截掉、遺失的是這個元素，上面只有陣列的一份參照；推入的 struct 只剩探針的一份。外層只讀一次長度、只改大小、截掉的元素不解構的斷言不變。見 [struct 值陣列研究](../array-struct-copy/README.md)。
 - AC8–AC11、AC13 直接走 `hll_call`，在恢復 stack pointer 前量回傳槽數，避免包裝函式自行清 stack 掩蓋 ABI 錯誤。
 - 最終 14 案 fixture 正式 before-check：主線修前 `f517ca8` 為 **12／14 失敗**，含 AC4／AC8–AC11 共 **5 份 ASan use-after-free 報告**；摘要 `san=10` 是關鍵字匹配數，不能寫成 10 個獨立錯誤。未審初版 `b63ce19` 為 **5／14 失敗**（AC4／8／9／12／14），san=0。兩次均已恢復來源且工作樹乾淨；本段恢復狀態由執行者確認。前手七案及早期 13 案結果保留為歷史證據，詳見 [before／after](before-after.txt)。
 - 本輪 v2 focused AC1–AC14 全過；default／GBK 各 87 模式 `VERDICT PASS`，sanitizer 0。紀錄對應 `b63ce19` 加 src/include diff SHA256 `b6f1ff216cd607e9cd7333d3e3d41a09a4e287904c1834560a0befb5ae693421`。修正已提交為 `3f65915`，並已確認主線 `3ab99a1` 的 src/include/harness 相同；主線 `3ab99a1`（diff 空）的提交後 default／GBK 也各 87 模式 PASS、san=0，14 案全過。

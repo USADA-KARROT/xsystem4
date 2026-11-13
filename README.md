@@ -1,8 +1,8 @@
 xsystem4
 ========
 
-> **最新狀態（2026-11-10）：G12a 的提交後驗收完成。**v14 pactex 載入器讀取 GBK／SJIS 兩種拖曳屬性鍵，整數值等於 1 才啟用；v14 之前不變，載入後仍以腳本設定為準。整合程式 `fd5c23a`（父提交 `a5e99b9`，原程式 `b207d72`，模式聯集為 141）：修前兩種組態各 150 案只有 DG1–DG3 如預期失敗；預設與 GBK 各 141 模式通過、sanitizer 0；九條回歸路線 9/9 通過，戰鬥 171 下、最近 B 代表距離 1；三趟片頭相位各 50/50、組平均 −6.04 ms、標準差 7.83 ms 通過，舊固定影格 50/50、50/50、48/50 只作記錄。提交前首輪片頭第 3 趟斜率 +222.190 ppm 超過固定 200 ppm，屬有效失敗、原因未知；之後的固定完整重驗（三趟各 50/50、組平均 +1.078 ms）與整合三趟都通過，仍不代表原因已釐清。程式推送的三方核對記在[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
-> 編隊與人材清單修前已能拖曳換位；本次正面修正證據來自合成探針，未在遊戲實機看到修正的可見差異。原版只取得靜態清單並排，沒有拖曳中畫面。詳見[拖曳旗標研究](docs/checkpoints/2026-09-28/research/drag-flag/README.md)與[審查](docs/checkpoints/2026-09-28/research/drag-flag/review.md)。
+> **最新狀態（2026-11-13）：B1 的提交前完整實機驗收與提交後驗收完成。**v14 的陣列存入 struct 值的元素時（Add、PushBack、Insert、Fill、帶值的 Realloc），照原版由呼叫端新開元素、再由元素設定函式逐成員指派（Fill 與帶值 Realloc 的新尾巴對既有元素就地指派），並照原版 struct 指派的前置與收尾，把綁在來源物件上的 delegate 項目帶到複本上；v14 之前、不是 struct 值的陣列，以及含本程式不複製的成員型別的 struct 不變。修前移植版只加參照、元素和值共用同一頁，戰鬥的動作格快取因此被改寫，同型敵人第二次以後被擊倒時取不到動作格、擊倒演出被略過。程式 `b0261a8`（父提交 `bbb612b`，模式 141 → 142）：修前兩種組態 `array-struct-copy` 72 案中 53 案、`hll-param-handover` 只有 HP1–HP3 如預期失敗；提交前最後的來源與程式提交上，預設與 GBK 各 142 模式通過、sanitizer 0；九條路線裡八條照既有判準和基準相符，片頭那條只差動態 parts 編號，把編號轉回基準的編號空間後，既有的路線判準與片頭相位判準原封不動通過（提交前三趟組平均 −4.9 ms、提交後三趟 −0.7 ms）；戰鬥追蹤裡複製出的 242 個元素沒有一個和快取共用、快取沒有被寫入、四次擊倒各取到 13 格。程式推送的三方核對記在[交接](docs/checkpoints/2026-09-28/HANDOFF.md)。
+> 原版（Wine 下的中文版原版，只跑了一場戰鬥）同型第二次擊倒有和第一次同種類的完整演出；移植版修正後逐格擷取，四次擊倒都經過同樣的階段、順序和原版相同（立繪在總傷害出現之前離場），修前同型第二次的立繪站到總傷害出現之後。只比畫面內容與順序。陣列語義的期望多由靜態反組譯推演、沒有在原版上實跑；片頭編號的轉換證明用的是私人工具；一般的 struct 指派、Copy 一族與 `A_REF` 的複本不在範圍內。詳見[struct 值陣列研究](docs/checkpoints/2026-09-28/research/array-struct-copy/README.md)與[審查](docs/checkpoints/2026-09-28/research/array-struct-copy/review.md)。
 > [最新進度](docs/checkpoints/2026-09-28/STATUS.md) · [9/26 交接與下一步](docs/checkpoints/2026-09-26/STATUS.md) · [重建／重跑](docs/checkpoints/2026-09-26/REPRODUCE.md) · [完整研究報告](docs/checkpoints/2026-09-26/outputs/xsystem4-原版逆向與原生路線研究-2026-09-20.md) · [API對照地圖](docs/checkpoints/2026-09-26/outputs/原生研究-API地圖-2026-09-20.html)
 
 xsystem4 is an implementation of AliceSoft's System 4 game engine for unix-like

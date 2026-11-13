@@ -1,0 +1,84 @@
+模式	案例	預設	GBK	兩字集相同	父提交第一個失敗（探針自己的英文訊息；堆積槽號與 struct 編號一律以 # 代替，-1 保留）	預設的失敗斷言數	判定
+array-struct-copy	SC1	FAIL	FAIL	是	SC1 Add: after Array.Add the source has 2 reference(s), want its owner's 1	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC2	FAIL	FAIL	是	SC2 PushBack: after Array.PushBack the source has 2 reference(s), want its owner's 1	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC3	FAIL	FAIL	是	SC3 Insert into an empty array: after Array.Insert the source has 2 reference(s), want its owner's 1	12	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC4	FAIL	FAIL	是	SC4 Fill#0 element 0: is slot #, want the element's own object # (natively assigned in place, 0x646e38)	8	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC5	FAIL	FAIL	是	SC5 Fill#1(1, 1) element 1: is slot #, want the element's own object # (natively assigned in place, 0x646e38)	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC6	FAIL	FAIL	是	SC6 Realloc#1(3) (wrap member) element 1: wrap member 2 is slot #, the source's #: not shared	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC7	FAIL	FAIL	是	pass 1: 13 of 13 added element(s) are the cache's own objects	4	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC8	FAIL	FAIL	是	Add: the element is #, the source #	9	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC9	FAIL	FAIL	是	SC9 a string member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC10	FAIL	FAIL	是	SC10 a struct member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC11	FAIL	FAIL	是	SC11 an array<int> member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC12	FAIL	FAIL	是	SC12 a delegate member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC13	FAIL	FAIL	是	SC13 a wrap<struct> member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC14	FAIL	FAIL	是	SC14 an interface member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC15	FAIL	FAIL	是	SC15 a ref struct member: after Array.Add the source has 2 reference(s), want its owner's 1	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC16	FAIL	FAIL	是	SC16: 1 element(s), the source 2 reference(s)	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC17	FAIL	FAIL	是	Insert of none: the element is -1 (no page); natively a new object of the array's struct (0x67f5c0), which the assignment leaves as it is (0x67ac30 gives 0, 0x681833)	5	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC18	FAIL	FAIL	是	after Erase, Add 0: the source has 2 reference(s), want 1	13	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC19	FAIL	FAIL	是	SC19: element #, the source # (2 reference(s))	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC20	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC21	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC22	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC23	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC24	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC25	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC26	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC27	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC28	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC29	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC30	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC31	FAIL	FAIL	是	SC31 Add of a temporary: element # (the value #, alive), want a new object and the value gone	5	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC32	FAIL	FAIL	是	SC32 Fill#0 of arr[0]: the elements are #,#, want #,# (in place), element 0 with 0 reference(s)	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC33	FAIL	FAIL	是	SC33 Add of another struct: element # (a page, struct #), want a new object of struct #	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC34	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC35	FAIL	FAIL	是	SC35 array<string>: element #, the source #	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC36	FAIL	FAIL	是	SC36 element 0: the source has 2 reference(s)	40	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC37	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC38	FAIL	FAIL	是	SC38 a slot without a page: the copy's array is slot -1 (the source's #)	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC39	FAIL	FAIL	是	SC39 depth 0: element # (the source #), its wrap -1 (the source's # with 1 reference(s))	1	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC40	FAIL	FAIL	是	SC40 kind 0: 0 function(s) ran during the store, element # (the source #)	3	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC41	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC42	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC43	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC44	FAIL	FAIL	是	SC44 struct A: 1 element(s), the source # (handed #) has 2 reference(s); want 1 element and only the owner's reference	4	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC45	FAIL	FAIL	是	SC45 an array of itself: 1 element(s), the source # (handed #) has 2 reference(s); want 1 element and only the owner's reference	2	修前失敗，符合預期：存入與複本（元素就是值本身，或沒有新開元素、沒有就地指派）
+array-struct-copy	SC46	FAIL	FAIL	是	SC46 Add: the element is the value itself (slot #, the value #)	15	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC47	FAIL	FAIL	是	SC47 Add: the element is the value itself (slot #, the value #)	4	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC48	FAIL	FAIL	是	SC48 Add: the element is the value itself (slot #, the value #)	4	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC49	FAIL	FAIL	是	SC49 Add: the element is the value itself (slot #, the value #)	3	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC50	FAIL	FAIL	是	SC50 Add: the element is the value itself (slot #, the value #)	3	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC51	FAIL	FAIL	是	SC51 an array of structs: the element is the value itself (slot #, the value #)	2	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC52	FAIL	FAIL	是	SC52 Fill#0: returned 2, elements #,#; want 2 and the elements' own objects #,# (assigned in place)	9	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC53	FAIL	FAIL	是	SC53 Add: the element is the value itself (slot #, the value #)	9	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC54	FAIL	FAIL	是	SC54 s's handler stores s: the element is the value itself (slot #, the value #)	6	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC55	FAIL	FAIL	是	SC55 O {int, m, D}: the element is the value itself (slot #, the value #)	7	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC56	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC57	PASS	PASS	是	—	0	通過，符合預期：真實形狀；父提交共用所以回呼仍在，鎖住的是帶回 delegate 項目
+array-struct-copy	SC58	FAIL	FAIL	是	SC58 EmplaceBack after Erase: 1 element(s), first # (not a CASFont), returned 0; want one new CASFont, returned	2	修前失敗，符合預期：刪到空後再存入、無頁的目的陣列
+array-struct-copy	SC59	FAIL	FAIL	是	SC59 AddRange: the element is the value itself (slot #, the value #)	2	修前失敗，符合預期：刪到空後再存入、無頁的目的陣列
+array-struct-copy	SC60	FAIL	FAIL	是	SC60 Add: the element is the value itself (slot #, the value #)	5	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC61	FAIL	FAIL	是	SC61 a wrap<W> member: Add: the element is the value itself (slot #, the value #)	24	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC62	PASS	PASS	是	—	0	通過，守衛：本分支既有處理或界線
+array-struct-copy	SC63	FAIL	FAIL	是	SC63 Fill#0 into a member object: returned 1, element #, its member -1; want 1, # and # (assigned in place)	7	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC64	FAIL	FAIL	是	SC64 Add: the element is the value itself (slot #, the value #)	1	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC65	FAIL	FAIL	是	SC65 Realloc#1(2): the outside delegate: [s.1], want [s.1 t.1]	2	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC66	FAIL	FAIL	是	SC66 Add: the element is the value itself (slot #, the value #)	3	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC67	FAIL	FAIL	是	SC67 Add: the element is the value itself (slot #, the value #)	4	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC68	FAIL	FAIL	是	SC68 Add: the element is the value itself (slot #, the value #)	4	修前失敗，符合預期：delegate 項目的前置與收尾（元素就是值本身，沒有自己的項目）
+array-struct-copy	SC69	FAIL	FAIL	是	SC69 a push by the script: the environment's destructor ran 0 time(s) during Fill, want 1	13	修前失敗，符合預期：Fill 途中腳本改動陣列（父提交的 Fill 沒有前置，語義失敗、沒有崩潰）
+array-struct-copy	SC70	FAIL	FAIL	是	SC70 the environment's destructor ran 0 time(s) during Fill, want 1	4	修前失敗，符合預期：Fill 途中腳本改動陣列（父提交的 Fill 沒有前置，語義失敗、沒有崩潰）
+array-struct-copy	SC71	FAIL	FAIL	是	SC71 the environment's destructor ran 0 time(s) during Fill, want 1	4	修前失敗，符合預期：Fill 途中腳本改動陣列（父提交的 Fill 沒有前置，語義失敗、沒有崩潰）
+array-struct-copy	SC72	FAIL	FAIL	是	SC72 the environment's destructor ran 0 time(s) during Fill, want 1	4	修前失敗，符合預期：Fill 途中腳本改動陣列（父提交的 Fill 沒有前置，語義失敗、沒有崩潰）
+hll-param-handover	HP1	FAIL	FAIL	是	after the push m_uiView holds 1 slot(s), first #; want a new PlayerWorkerView (not the card #) holding the card's m_act #	2	修前失敗，符合預期：期望跟著改（元素是陣列自己的新物件）
+hll-param-handover	HP2	FAIL	FAIL	是	Array.PushBack(type 2) of a struct: 2 reference(s) after the call, want 1 (the caller's): the handed-over reference was not given back, or the array holds the struct itself	9	修前失敗，符合預期：期望跟著改（元素是陣列自己的新物件）
+hll-param-handover	HP3	FAIL	FAIL	是	PushBack(type 2) of A_REF's copy of a struct of plain numbers: the copy alive, element #; want the copy gone and a new element with one reference	1	修前失敗，符合預期：期望跟著改（元素是陣列自己的新物件）
+hll-param-handover	HP4	PASS	PASS	是	—	0	通過，守衛
+hll-param-handover	HP5	PASS	PASS	是	—	0	通過，守衛
+hll-param-handover	HP6	PASS	PASS	是	—	0	通過，守衛
+hll-param-handover	HP7	PASS	PASS	是	—	0	通過，守衛
+hll-param-handover	HP8	PASS	PASS	是	—	0	通過，守衛
+msgwin-rates	全部 16 案	PASS	PASS	是	—	0	通過，守衛模式
+key-events	全部 123 案	PASS	PASS	是	—	0	通過，守衛模式
+key-consumer	全部 2 案	PASS	PASS	是	—	0	通過，守衛模式
