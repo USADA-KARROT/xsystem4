@@ -1561,6 +1561,230 @@ void delegate_erase(struct page *page, int obj, int fun)
 	}
 }
 
+/*
+ * v14: the delegate entries around a struct assignment (0x681820, the
+ * struct object's vtable 0x811dbc +4). The members are assigned by the
+ * caller; these are the steps before and after them:
+ *   - before (0x68185f -> 0x681f70), after the early returns for a value
+ *     that is no live struct or one of another member count: every entry
+ *     for the target is dropped, as when it is freed
+ *     (delegate_struct_assign_begin);
+ *   - after, when every member was assigned (0x6818c8: the value's vtable
+ *     +8, 0x6818f0; delegate_struct_assigned):
+ *     (a) 0x681918..0x6819b1: each delegate in the value's list (copied
+ *         into a set: once each, by slot) gets, for each entry for the
+ *         value, an entry for the target with the same function and
+ *         environment (0x6528f0);
+ *     (b) 0x6819b6..0x6819dc: each delegate the target reaches (0x682080)
+ *         gets the same and then loses its entries for the value
+ *         (0x682330: 0x6528f0, then 0x652970);
+ *     (c) 0x6819e3..0x681a09: each delegate the value reaches loses its
+ *         entries for the target (0x6822d0: 0x652970).
+ * So an object stored by value keeps the handlers bound to the value, its
+ * own delegates' entries for the value point at it instead, and the
+ * value's are as they were. The steps are taken one by one as natively;
+ * what they do at the edges (an entry left twice across levels, a call of
+ * the value's own delegate in progress losing the entries it gained) comes
+ * with them.
+ *
+ * Natively the value handed to an assignment is a copy (A_REF), never the
+ * target; here A_REF shares a struct, so the caller leaves a target that is
+ * the value alone (it keeps its entries, as with the copy). */
+
+#define DG_WALK_MAX_DEPTH 32
+
+// The delegate page in slot while the slot holds the allocation seq names.
+static struct page *dg_live(int slot, uint32_t seq)
+{
+	if (!page_index_valid(slot) || heap[slot].seq != seq || !heap[slot].page
+	    || heap[slot].page->type != DELEGATE_PAGE)
+		return NULL;
+	return heap[slot].page;
+}
+
+static int dg_slot_compare(const void *a, const void *b)
+{
+	int32_t x = *(const int32_t *)a, y = *(const int32_t *)b;
+	return x < y ? -1 : x > y;
+}
+
+// The delegates in obj's list, once each and by slot (the list copied into
+// a std::set: 0x681f9a..0x681fc2, 0x681918..0x681945): a copy, as the
+// steps below change the list. *n is their number; free() the result.
+static int32_t *dg_targets_sorted(int obj, int *n)
+{
+	*n = 0;
+	struct dg_target_list *l = dg_targets ? ht_get_int(dg_targets, obj, NULL) : NULL;
+	if (!l || !l->n)
+		return NULL;
+	int32_t *v = xmalloc(sizeof(int32_t) * l->n);
+	memcpy(v, l->dg, sizeof(int32_t) * l->n);
+	qsort(v, l->n, sizeof(int32_t), dg_slot_compare);
+	int k = 0;
+	for (int i = 0; i < l->n; i++) {
+		if (!k || v[k-1] != v[i])
+			v[k++] = v[i];
+	}
+	*n = k;
+	return v;
+}
+
+// 0x6528f0: each entry for src among the delegate's entries at the start
+// (counted once, walked by index) gets an entry for dst with its function
+// and environment, added as 0x652210 adds one (delegate_append_env: the
+// environment retained, an equal entry taken out first, the new one at the
+// end, the limit of a call in progress not raised), and the delegate goes
+// into dst's list. The page is read again for each entry: adding can move
+// it, and releasing an environment can change the delegate.
+static void dg_copy_entries(int slot, int dst, int src)
+{
+	if (!page_index_valid(slot))
+		return;
+	uint32_t seq = heap[slot].seq;
+	struct page *dg = dg_live(slot, seq);
+	if (!dg)
+		return;
+	int n = dg->nr_vars / 3;
+	for (int i = 0; i < n; i++) {
+		dg = dg_live(slot, seq);
+		if (!dg)
+			return;
+		if (i * 3 + 2 >= dg->nr_vars || dg->values[i*3].i != src)
+			continue;
+		int fun = dg->values[i*3+1].i, env = dg->values[i*3+2].i;
+		heap[slot].page = delegate_append_env(dg, dst, fun, env);
+		if (dg_target_is_struct(dst))
+			dg_target_add(dst, slot);
+	}
+}
+
+// 0x652970: the delegate's entries for obj go, back to front, each through
+// the one remove function (as delegate_drop_entries; the page read again).
+static void dg_drop_slot_entries(int slot, int obj)
+{
+	if (!page_index_valid(slot))
+		return;
+	uint32_t seq = heap[slot].seq;
+	struct page *dg = dg_live(slot, seq);
+	if (!dg)
+		return;
+	for (int i = dg->nr_vars / 3 - 1; i >= 0; i--) {
+		dg = dg_live(slot, seq);
+		if (!dg)
+			return;
+		if (i * 3 + 2 >= dg->nr_vars || dg->values[i*3].i != obj)
+			continue;
+		delegate_remove_at(dg, i);
+	}
+}
+
+typedef void (*dg_walk_fn)(int slot, int dst, int src);
+
+static void dg_walk_struct(int obj, dg_walk_fn fn, int dst, int src, int depth);
+
+// 0x682080 for a value of type t: a delegate is handed to fn (type 63), a struct
+// is walked member by member (13), an array whose innermost element type is a
+// delegate element by element (79; 0x653530 goes through array levels only: a
+// wrap goes to 0x653660, which makes it a reference type code, wrap<delegate>
+// 0x43, so an array of wraps is not walked). Nothing else: not the structs of an
+// array of structs, nor what a wrap, a reference, an interface or an option
+// holds. Natively a member always has its object; here -1 (or a page of another
+// kind) is the default object, which holds no entry, and is passed over.
+static void dg_walk_value(const struct ain_type *t, int v, dg_walk_fn fn, int dst, int src, int depth)
+{
+	if (depth > DG_WALK_MAX_DEPTH || v <= 1 || !page_index_valid(v) || !heap[v].page)
+		return;
+	struct page *p = heap[v].page;
+	switch (t->data) {
+	case AIN_STRUCT:
+		if (p->type == STRUCT_PAGE)
+			dg_walk_struct(v, fn, dst, src, depth + 1);
+		break;
+	case AIN_DELEGATE:
+		if (p->type == DELEGATE_PAGE)
+			fn(v, dst, src);
+		break;
+	case AIN_ARRAY: {
+		const struct ain_type *e = t->array_type;
+		while (e && (e->data == AIN_ARRAY || e->data == AIN_REF_ARRAY))
+			e = e->array_type;
+		if (!e || e->data != AIN_DELEGATE || p->type != ARRAY_PAGE)
+			break;
+		uint32_t seq = heap[v].seq;
+		for (int i = 0; ; i++) {
+			p = page_index_valid(v) && heap[v].seq == seq ? heap[v].page : NULL;
+			if (!p || p->type != ARRAY_PAGE || i >= p->nr_vars)
+				break;
+			dg_walk_value(t->array_type, p->values[i].i, fn, dst, src, depth + 1);
+		}
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+// 0x682080 for a struct: its members by the struct's declaration (the
+// object's own descriptor, 0x6821b3..), the page read again for each.
+static void dg_walk_struct(int obj, dg_walk_fn fn, int dst, int src, int depth)
+{
+	if (!dg_target_is_struct(obj))
+		return;
+	uint32_t seq = heap[obj].seq;
+	int no = heap[obj].page->index;
+	if (no < 0 || no >= ain->nr_structures)
+		return;
+	struct ain_struct *s = &ain->structures[no];
+	for (int m = 0; m < s->nr_members; m++) {
+		struct page *p = page_index_valid(obj) && heap[obj].seq == seq ? heap[obj].page : NULL;
+		if (!p || p->type != STRUCT_PAGE || m >= p->nr_vars)
+			return;
+		dg_walk_value(&s->members[m].type, p->values[m].i, fn, dst, src, depth);
+	}
+}
+
+// 0x682330 (b): the target's own delegate points at the target instead.
+static void dg_walk_retarget(int slot, int dst, int src)
+{
+	dg_copy_entries(slot, dst, src);
+	dg_drop_slot_entries(slot, src);
+}
+
+// 0x6822d0 (c): the value's own delegate loses what (a) gave it.
+static void dg_walk_untarget(int slot, int dst, int src)
+{
+	dg_drop_slot_entries(slot, dst);
+}
+
+// Before a struct value is assigned into the existing object dst
+// (0x681f70): every entry for dst goes. Not needed for an object made for
+// the assignment, which nothing points at.
+void delegate_struct_assign_begin(int dst)
+{
+	if (ain->version < 14 || !dg_target_is_struct(dst))
+		return;
+	int n;
+	int32_t *v = dg_targets_sorted(dst, &n);
+	for (int i = 0; i < n; i++)
+		dg_drop_slot_entries(v[i], dst);
+	free(v);
+}
+
+// After the struct value in slot src was assigned into dst, every member
+// (0x6818f0): steps (a), (b) and (c) above.
+void delegate_struct_assigned(int dst, int src)
+{
+	if (ain->version < 14 || dst == src || !dg_target_is_struct(dst) || !dg_target_is_struct(src))
+		return;
+	int n;
+	int32_t *v = dg_targets_sorted(src, &n);
+	for (int i = 0; i < n; i++)
+		dg_copy_entries(v[i], dst, src);
+	free(v);
+	dg_walk_struct(dst, dg_walk_retarget, dst, src, 0);
+	dg_walk_struct(src, dg_walk_untarget, dst, src, 0);
+}
+
 struct page *delegate_plusa(struct page *dst, struct page *add)
 {
 	if (!add)

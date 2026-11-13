@@ -829,8 +829,8 @@ static void ac_case_destructor_reenter(void)
 }
 
 /* --- AC15: a destructor that appends to the array being resized --- */
-static int ac_added[8], ac_nr_added, ac_add_rounds, ac_pushed = -1;
-static uint32_t ac_added_seq[8];
+static int ac_added[8], ac_nr_added, ac_add_rounds, ac_pushed = -1, ac_pushed_elem = -1;
+static uint32_t ac_added_seq[8], ac_pushed_elem_seq;
 static void ac_act_emplace_seq(void)
 {
 	int obj = bt_emplace_back(ac.array, 2);
@@ -848,12 +848,16 @@ static void ac_act_emplace_erase(void)
 }
 /* The value goes with type operand 2 as the bytecode hands it over: A_REF of
  * this struct shares its page in this VM, one reference more, which the call
- * gives back (hll-param-handover). */
+ * gives back (hll-param-handover). The array stores a new element holding a
+ * copy of it (array-struct-copy): that element is the appended object. */
 static void ac_act_push(void)
 {
 	assert(!v14_struct_is_plain_value(heap[ac_pushed].page));
 	heap_ref(ac_pushed);
 	bu_call("Array", "PushBack", 2, 2, 2, (union vm_value[]){ BU_I(ac.array), BU_I(ac_pushed) });
+	int n = ac_numof(ac.array);
+	ac_pushed_elem = n > 0 ? ac_elem(ac.array, n - 1) : -1;
+	ac_pushed_elem_seq = ac_pushed_elem > 0 ? heap_get_seq(ac_pushed_elem) : 0;
 }
 /* Two elements from every destructor that is entered: the watch is armed
  * again (at most four times, should a destructor of an appended element run). */
@@ -883,10 +887,11 @@ static void ac_act_emplace_two_each(void)
  * many constructors and destructors ran and on which objects, and that the
  * appended objects are still alive afterwards.
  * This port's own, marked "port" below:
- *  - a lost object is seen as one reference left on it, the array's (round 3:
- *    two, PushBack's reference here and the probe's; the one A_REF handed
- *    over with it the call gives back; natively a pushed struct was not
- *    read);
+ *  - a lost object is seen as one reference left on it, the array's (round 3
+ *    too: the lost object is the new element PushBack made, 0x67f5c0, with
+ *    a copy of the pushed struct, 0x646d70 -> 0x646e38; the pushed struct
+ *    keeps the probe's reference alone, the one A_REF handed over with it
+ *    the call gives back);
  *  - the probe releases the lost objects itself before it counts the live
  *    slots, so that count says nothing else was left behind;
  *  - round 2 as a whole: the destructor also erases an element the outer
@@ -943,9 +948,12 @@ static void ac_case_destructor_appends(void)
 		/* The objects that were appended and cut off: alive, not destroyed. */
 		int lost[8], nr_lost = 0, lost_refs = 1;
 		if (round == 3) {
-			lost[nr_lost++] = ac_pushed;
-			lost_refs = 2; /* port: PushBack's reference and the probe's */
-			AC_CHECK(ac_same(ac_pushed, pushed_seq), "round 3: the pushed object %d was destroyed", ac_pushed);
+			lost[nr_lost++] = ac_pushed_elem;
+			AC_CHECK(ac_pushed_elem != ac_pushed && ac_same(ac_pushed_elem, ac_pushed_elem_seq),
+				 "round 3: the pushed element %d is the pushed object %d itself, or was destroyed", ac_pushed_elem, ac_pushed);
+			AC_CHECK(ac_same(ac_pushed, pushed_seq) && HEAP_REF(ac_pushed) == 1,
+				 "round 3: the pushed object %d was destroyed or has %d reference(s), want the probe's 1", ac_pushed,
+				 ac_same(ac_pushed, pushed_seq) ? HEAP_REF(ac_pushed) : -1);
 		} else if (round != 2) {
 			for (int i = 0; i < ac_nr_added; i++) {
 				lost[nr_lost++] = ac_added[i];
@@ -993,6 +1001,8 @@ static void ac_case_destructor_appends(void)
 				for (int k = 0; k < lost_refs; k++)
 					heap_unref(lost[i]);
 			}
+			if (round == 3)
+				heap_unref(ac_pushed);	/* the probe's */
 			heap_unref(readers);
 			AC_CHECK(live_slots() == live - 1, "appending destructor round %d left %zu live slots; want %zu",
 				 round, live_slots(), live - 1);

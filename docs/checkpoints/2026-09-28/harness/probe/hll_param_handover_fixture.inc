@@ -21,7 +21,8 @@
  *   - with the wrap bit (0x10002, the interface 0x10003, 0x30002, 0x30003):
  *     retained on the way in and released on the way out: borrowed.
  * Storing an element retains it on its own (0x646d70 -> 0x67f290: retain the
- * new value, release the old one).
+ * new value, release the old one), except in an array of value structs,
+ * whose new element holds a copy (0x646d70 -> 0x646e38; array-struct-copy).
  *
  * This VM never gave the handed-over reference back (ffi.c skips an hll_param
  * in its release loop), so every A_REF (or NEW) handed to Array.PushBack,
@@ -36,24 +37,32 @@
  *        push sequence (from the m_uiView reference through the release of
  *        the view local) on a card whose m_act comes from the real
  *        AFL_Activity_Create of a synthetic activity, then the real loop
- *        over deleted ids with Erase#1 and its real predicate. After the
- *        push the array holds the card and the card has exactly one
- *        reference (the array's); after the erase the card is gone, its
- *        CActivityWrap destructor and AFL_Activity_Release ran once each,
- *        PartsEngine.ReleaseActivity ran once for its name and the name is
- *        free. Nothing more is released when the collection goes.
+ *        over deleted ids with Erase#1 and its real predicate. m_uiView is
+ *        an array<PlayerWorkerView>, an array of value structs: the push
+ *        stores a new element holding a copy of the card (0x67f5c0, then
+ *        0x646d70 -> 0x646e38; array-struct-copy), whose wrap members
+ *        share the card's objects. After the push the array holds that
+ *        element, with one reference (the array's) and the card's m_act;
+ *        the card itself is gone with the view local. After the erase the
+ *        element is gone, the CActivityWrap destructor and
+ *        AFL_Activity_Release ran once each, PartsEngine.ReleaseActivity
+ *        ran once for its name and the name is free. Nothing more is
+ *        released when the collection goes.
  *   HP2  The real ffi path (hll_call) with type operand 2 and a struct value
  *        as this VM's A_REF leaves it (the owner's page with one more
  *        reference: A_REF shares a struct with reference members here):
- *        PushBack, Add and Insert leave the owner's reference and the
- *        array's; IsExist leaves the owner's. After the owner and the array
- *        go the struct is destroyed once.
+ *        PushBack, Add and Insert leave the owner's reference alone, and
+ *        the array holds a new element of its own (array-struct-copy);
+ *        IsExist leaves the owner's. After the owner and the array go the
+ *        struct and the element are destroyed, once each.
  *   HP3  Other pages. Shared, as in HP2: an array of structs (A_REF shares
  *        it here) and a delegate another holder keeps (synthetic: one
  *        reference handed over with it). Copied, as A_REF leaves them here
  *        (a number array, a delegate, a struct of plain numbers; vm.c
  *        A_REF): the copy is the array's alone after PushBack and is gone
- *        after IsExist.
+ *        after IsExist; into an array of value structs, the struct's copy
+ *        is gone after PushBack too, the array holding a new element of
+ *        its own (array-struct-copy).
  *   HP4  The option 0x20002 (an option of an object without the wrap bit)
  *        holding a struct: handed over too. A none option releases nothing.
  *        No call site of this AIN passes a page through 0x20002 (its two Add
@@ -464,6 +473,7 @@ static void hp1_card(void)
 		vp->values[m_act + 1].i = act[1];
 	XC_CHECK(lr_activity_exists(HP_CARD_FILE), "precondition: the activity %s was not created", HP_CARD_FILE);
 	unsigned long d_wrap = calls[dtor_wrap], d_rel = calls[afl_release];
+	uint32_t aseq = heap[act[0]].seq;
 
 	/* frame 1: the push */
 	int sp, csp = call_stack_ptr;
@@ -471,15 +481,26 @@ static void hp1_card(void)
 	hp_set_local(lp, v_view, view);	/* NEW's reference, as X_ASSIGN leaves it in the local */
 	instr_ptr = hp_code[kp - 7].ip;
 	hp_run_to(hp_code[ps].ip);
-	XC_CHECK(hp_numof(arr) == 1 && hp_elem(arr, 0) == view, "after the push m_uiView holds %d slot(s), first %d; want the card %d",
-		 hp_numof(arr), hp_elem(arr, 0), view);
-	XC_CHECK(hp_refs(view, vseq) == 1,
-		 "after the push and the release of the view local the card has %d reference(s), want 1 (the array's): "
-		 "the reference A_REF handed to PushBack was not given back", hp_refs(view, vseq));
+	/* the element: a new PlayerWorkerView holding the card's members */
+	int el = hp_elem(arr, 0);
+	uint32_t elseq = el > 0 && heap_index_valid(el) ? heap[el].seq : 0;
+	XC_CHECK(hp_numof(arr) == 1 && el != view && hp_alive(el, elseq) && heap[el].page && heap[el].page->index == sv
+		 && heap[el].page->values[m_act].i == act[0],
+		 "after the push m_uiView holds %d slot(s), first %d; want a new PlayerWorkerView (not the card %d) holding the "
+		 "card's m_act %d", hp_numof(arr), el, view, act[0]);
+	XC_CHECK(hp_refs(el, elseq) == 1 && !hp_alive(view, vseq),
+		 "after the push and the release of the view local the element has %d reference(s) and the card %d; want 1 "
+		 "(the array's) and the card gone with its local", hp_refs(el, elseq), hp_refs(view, vseq));
+	/* the card went, the element still shares its m_act: the wrap lives on
+	 * and nothing of it has been destroyed yet */
+	XC_CHECK(hp_alive(act[0], aseq), "after the card went its CActivityWrap %d is %s; want it alive (the element's m_act)",
+		 act[0], hp_alive(act[0], aseq) ? "alive" : "gone");
+	XC_CHECK(calls[dtor_wrap] == d_wrap, "after the card went CActivityWrap's destructor ran %lu time(s); want 0 (the "
+		 "element still holds the wrap)", calls[dtor_wrap] - d_wrap);
 	hp_leave(sp, csp);
-	XC_CHECK(hp_refs(view, vseq) == 1 && hp_elem(arr, 0) == view,
-		 "after CreateView returned the card has %d reference(s) and m_uiView's first element is %d; want 1 and the card %d",
-		 hp_refs(view, vseq), hp_elem(arr, 0), view);
+	XC_CHECK(hp_refs(el, elseq) == 1 && hp_elem(arr, 0) == el,
+		 "after CreateView returned the element has %d reference(s) and m_uiView's first element is %d; want 1 and %d",
+		 hp_refs(el, elseq), hp_elem(arr, 0), el);
 
 	/* frame 2: the loop over deleted ids */
 	lp = hp_enter(create_view, coll, &sp);
@@ -493,8 +514,8 @@ static void hp1_card(void)
 	XC_CHECK(heap[coll].page->values[m_ui].i == arr && hp_numof(arr) == 0,
 		 "after Erase#1 m_uiView is slot %d (was %d) with %d element(s), want the same slot and 0",
 		 heap[coll].page->values[m_ui].i, arr, hp_numof(arr));
-	XC_CHECK(!hp_alive(view, vseq), "after Erase#1 the card is still alive with %d reference(s): it is never destroyed",
-		 hp_refs(view, vseq));
+	XC_CHECK(!hp_alive(el, elseq), "after Erase#1 the element is still alive with %d reference(s): it is never destroyed",
+		 hp_refs(el, elseq));
 	XC_CHECK(calls[dtor_wrap] == d_wrap + 1, "CActivityWrap's destructor ran %lu time(s) after Erase#1, want 1",
 		 calls[dtor_wrap] - d_wrap);
 	XC_CHECK(calls[afl_release] == d_rel + 1, "AFL_Activity_Release ran %lu time(s) after Erase#1, want 1",
@@ -578,18 +599,23 @@ static void hp2_struct(void)
 			left = hp_hll("Insert", 0, 2, 3, (int[]){ arr, 0, s });
 		else
 			left = hp_hll(calls_[i].fn, calls_[i].ord, 2, 2, (int[]){ arr, s });
-		int want = calls_[i].stores ? 2 : 1;
 		XC_CHECK(left == (calls_[i].stores ? 0 : 1), "Array.%s left %d result slot(s)", calls_[i].fn, left);
-		XC_CHECK(hp_refs(s, seq) == want, "Array.%s(type 2) of a struct: %d reference(s) after the call, want %d "
-			 "(the caller's%s): the handed-over reference was not given back", calls_[i].fn, hp_refs(s, seq), want,
-			 calls_[i].stores ? " and the array's" : "");
-		XC_CHECK(hp_numof(arr) == (calls_[i].stores ? 1 : 0) && (!calls_[i].stores || hp_elem(arr, 0) == s),
-			 "Array.%s stored %d slot(s)", calls_[i].fn, hp_numof(arr));
+		XC_CHECK(hp_refs(s, seq) == 1, "Array.%s(type 2) of a struct: %d reference(s) after the call, want 1 "
+			 "(the caller's): the handed-over reference was not given back, or the array holds the struct itself",
+			 calls_[i].fn, hp_refs(s, seq));
+		/* an array of value structs holds a new element of its own (array-struct-copy) */
+		int el = hp_elem(arr, 0);
+		uint32_t elseq = el > 0 && heap_index_valid(el) ? heap[el].seq : 0;
+		XC_CHECK(hp_numof(arr) == (calls_[i].stores ? 1 : 0)
+			 && (!calls_[i].stores || (el != s && hp_alive(el, elseq) && HEAP_REF(el) == 1)),
+			 "Array.%s stored %d slot(s), the first %d (the struct %d)", calls_[i].fn, hp_numof(arr), el, s);
 		heap_unref(s);		/* the caller's */
 		heap_unref(arr);	/* the array, with its element */
-		XC_CHECK(!hp_alive(s, seq) && hp_dtor_calls() == d0 + 1,
+		unsigned long want = calls_[i].stores ? 2 : 1;
+		XC_CHECK(!hp_alive(s, seq) && (!calls_[i].stores || !hp_alive(el, elseq)) && hp_dtor_calls() == d0 + want,
 			 "after Array.%s the caller and the array went: the struct %s with %d reference(s), destructor ran %lu time(s); "
-			 "want destroyed once", calls_[i].fn, hp_alive(s, seq) ? "alive" : "gone", hp_refs(s, seq), hp_dtor_calls() - d0);
+			 "want each object destroyed once (%lu)", calls_[i].fn, hp_alive(s, seq) ? "alive" : "gone", hp_refs(s, seq),
+			 hp_dtor_calls() - d0, want);
 		while (hp_alive(s, seq))
 			heap_unref(s);
 	}
@@ -605,9 +631,18 @@ static void hp3_copied(const char *what, int src, enum ain_data_type elem_type, 
 	int arr = hp_array(elem_type, struct_type);
 	int c = hp_aref_copy(src, what, &seq);
 	hp_hll("PushBack", 0, 2, 2, (int[]){ arr, c });
-	XC_CHECK(hp_refs(c, seq) == 1 && hp_elem(arr, 0) == c,
-		 "PushBack(type 2) of A_REF's copy of %s: %d reference(s), element %d; want 1 (the array's) and the copy %d",
-		 what, hp_refs(c, seq), hp_elem(arr, 0), c);
+	if (elem_type == AIN_ARRAY_STRUCT) {
+		/* an array of value structs: a new element of its own; the copy
+		 * A_REF handed over is given back and goes (array-struct-copy) */
+		int el = hp_elem(arr, 0);
+		XC_CHECK(!hp_alive(c, seq) && el != c && el > 0 && heap_index_valid(el) && HEAP_REF(el) == 1,
+			 "PushBack(type 2) of A_REF's copy of %s: the copy %s, element %d; want the copy gone and a new element "
+			 "with one reference", what, hp_alive(c, seq) ? "alive" : "gone", el);
+	} else {
+		XC_CHECK(hp_refs(c, seq) == 1 && hp_elem(arr, 0) == c,
+			 "PushBack(type 2) of A_REF's copy of %s: %d reference(s), element %d; want 1 (the array's) and the copy %d",
+			 what, hp_refs(c, seq), hp_elem(arr, 0), c);
+	}
 	heap_unref(arr);
 	XC_CHECK(!hp_alive(c, seq), "the copy of %s outlived its array (%d reference(s))", what, hp_refs(c, seq));
 	while (hp_alive(c, seq))

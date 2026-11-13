@@ -26,6 +26,7 @@
 #endif
 
 #include "system4/ain.h"
+#include "system4/string.h"
 #include "hll.h"
 #include "vm.h"
 #include "vm/heap.h"
@@ -492,11 +493,645 @@ static void Array_Alloc(struct page **array, int numof)
 	*array = new_a;
 }
 
-// PushBack (capital B) — alias for Pushback
-static void Array_PushBack(struct page **array, int value)
+/* v14: a struct value stored into an array of value structs.
+ *
+ * Original (static disassembly of the unpacked executable):
+ *  - Add and PushBack (0x6476b0) insert at the end. Insert (0x647990) clamps
+ *    the index, opens a new element there (vtable +0x58, 0x67f5c0, which
+ *    calls 0x656970 with flag 0: 0x679b30(struct, 0) gives the members their
+ *    default objects and runs no constructor, 0x679baf) and then calls the
+ *    element setter 0x646d70(index, value, 0) (0x647a31).
+ *  - Fill (0x648120) calls the same setter for each element of the clamped
+ *    range; Realloc with a value (0x647510) is Realloc (vtable +0x50) and
+ *    then Fill over the new tail. These assign into existing elements.
+ *  - The setter dispatches on the array's element type (call [eax] at
+ *    0x646db5; table 0x647088/0x647064). A struct (13 -> 0x646e38) takes the
+ *    element's object (vtable +0x1c) and assigns the value's object into it
+ *    (its vtable +4, 0x681820). A value that is not a live struct object
+ *    (0x67ac30 gives 0) assigns nothing (0x681833), and neither does a struct
+ *    with another member count (0x681843..0x681859): the element keeps what
+ *    it had, a new one its defaults.
+ *  - 0x681820 assigns member by member with 0x656d60 (table 0x657004/
+ *    0x656fe0): int, float, bool and enum are moved; a string is copied into
+ *    the element's own string (0x67db50); a struct is assigned recursively
+ *    into the element's own member object (0x656eb6); an array is copied
+ *    into the element's own array (0x656f45 -> 0x67ffb0: cleared, given as
+ *    many default elements as the source has, 0x67fe20(n, 0), each assigned
+ *    with 0x656d60 by 0x6801d0); a delegate is cleared and copied
+ *    (0x656efc -> 0x652710); references, wraps and interfaces copy their
+ *    slots, retain the new object (0x679f10) and release the old one
+ *    (0x679f90) (0x656f7c); an option copies its flag and assigns or
+ *    releases its payload (0x656da8). Any other member type (a long int,
+ *    type 91, 100, ...) fails the assignment at that member (0x656fc8).
+ *  - Around the members, 0x681820 drops every delegate entry for the target
+ *    (0x681f70) and, when every member was assigned, gives the target the
+ *    value's entries (0x6818f0): page.c, delegate_struct_assigned. The same
+ *    for a struct member and for each struct element of an array member.
+ *
+ * Port strategy (how this VM does it; not the original's structure):
+ *  - Only for v14 with type operand 2 on an AIN_ARRAY_STRUCT page of rank 1
+ *    (array_value_struct), and only for a struct whose members this code
+ *    knows how to assign (array_struct_assignable: no member type the
+ *    original fails on, no option of a reference payload, no nested array
+ *    of rank > 1 or of elements other than numbers, strings, structs and
+ *    one-slot references, and no type 87 or ref enum member: the original
+ *    shares those, but this VM's teardown does not release them). Anything
+ *    else keeps the older handling.
+ *  - The value: a live struct object of the array's struct is copied; none
+ *    (-1) or a struct of another member count gives the defaults; any other
+ *    value (another struct of the same member count, a wrap box, a number)
+ *    keeps the older handling.
+ *  - A string, array or delegate member gets a new slot holding the copy,
+ *    and the slot it had is released; natively the copy goes into the
+ *    member object the element already has. A struct member is assigned in
+ *    place, as natively. Nothing can tell the two apart unless a reference
+ *    to the member object itself is held elsewhere.
+ *  - v14 objects here leave string, struct and delegate members -1 until
+ *    they are used (init_struct_slot): that is the original's default
+ *    object, so a -1 in the value is copied as the default (-1), and a
+ *    struct member the element has is assigned the defaults of a new
+ *    object.
+ *  - The delegate steps are taken for each target and value here: the new
+ *    element, an element Fill assigns, a struct member and a struct element
+ *    of an array member, the inner ones first, all before the member
+ *    objects given up are released. The first step only for an object
+ *    a script can have seen (a new one has no entry), neither when the
+ *    value is the target itself (A_REF shares a struct here; natively the
+ *    value is a copy and the target keeps its entries), and none for a
+ *    struct that keeps the older handling.
+ *  - The member objects the element gives up are released after the whole
+ *    store, when the array holds the element: a release can run a
+ *    destructor, which can call this library again. Natively each is
+ *    released as its member is assigned.
+ *  - A new object here has objects the original's new object does not: the
+ *    inner object of a wrap<struct> member (alloc_struct, v14), and the
+ *    default object made for a value's -1 struct member. Natively those
+ *    slots are -1 (0x6569b8) and nothing is made. Such an object is never
+ *    constructed nor seen by a script, so when the copy replaces it, it is
+ *    released without its destructor (sv_release_quiet).
+ *  - Nested values deeper than SV_MAX_DEPTH are left at their defaults (a
+ *    guard against a page shared into itself; natively values cannot form
+ *    such a cycle). */
+
+#define SV_MAX_DEPTH 32
+
+struct sv_pending {
+	struct { int slot; uint32_t seq; bool quiet; } *v;
+	int n, cap;
+};
+
+// Releases the slot after the store (sv_release_pending); quiet: without
+// destructors (an object only this VM made, see above). Slots 0 and 1 are
+// reserved (heap_unref) and -1 is none: never released here. The slot's
+// allocation (seq) is recorded with it, as array_struct_resize does.
+static void sv_release_later(struct sv_pending *p, int slot, bool quiet)
 {
-	if (!array)
+	if (slot <= 1 || !heap_index_valid(slot))
 		return;
+	if (p->n == p->cap) {
+		p->cap = p->cap ? p->cap * 2 : 16;
+		p->v = xrealloc(p->v, p->cap * sizeof(*p->v));
+	}
+	p->v[p->n].slot = slot;
+	p->v[p->n].seq = heap_get_seq(slot);
+	p->v[p->n].quiet = quiet;
+	p->n++;
+}
+
+static bool sv_released_by_teardown(enum ain_data_type type);
+
+// Lets go of an object only this VM made (a wrap's inner object alloc_struct
+// gave a new object, a default object made for a -1 member): its last
+// reference frees it as delete_page does, its members released as
+// delete_page_vars releases them, but no destructor runs for it or for an
+// inner object of the same kind. A shared one only loses a reference.
+static void sv_release_quiet(int slot)
+{
+	if (slot <= 1 || !heap_index_valid(slot))
+		return;
+	struct page *p = heap[slot].type == VM_PAGE ? heap[slot].page : NULL;
+	if (HEAP_REF(slot) > 1 || !p || p->type != STRUCT_PAGE) {
+		heap_unref(slot);
+		return;
+	}
+	heap[slot].page = NULL; // heap_unref frees the slot without delete_page
+	for (int i = p->nr_vars - 1; i >= 0; i--) {
+		enum ain_data_type type = variable_type(p, i, NULL, NULL);
+		int v = p->values[i].i;
+		if (type == AIN_OPTION && variable_option_is_value(p, i))
+			continue;
+		if (!sv_released_by_teardown(type) || v == -1)
+			continue;
+		if (type == AIN_STRUCT || type == AIN_WRAP)
+			sv_release_quiet(v);
+		else
+			heap_unref(v);
+	}
+	free_page(p);
+	heap_unref(slot);
+}
+
+// Each recorded slot holds the reference given up for it, so it cannot be
+// freed before this; a slot freed and used again since it was recorded
+// (only if something else released it once too often) is left alone.
+static void sv_release_pending(struct sv_pending *p)
+{
+	for (int i = 0; i < p->n; i++) {
+		if (!heap_index_valid(p->v[i].slot) || heap_get_seq(p->v[i].slot) != p->v[i].seq)
+			continue;
+		if (p->v[i].quiet)
+			sv_release_quiet(p->v[i].slot);
+		else
+			heap_unref(p->v[i].slot);
+	}
+	free(p->v);
+	p->v = NULL;
+	p->n = p->cap = 0;
+}
+
+enum sv_kind { SV_SKIP, SV_PLAIN, SV_STRING, SV_STRUCT, SV_ARRAY, SV_DELEGATE, SV_SHARED, SV_OPTION, SV_NONE };
+
+// The member rule of 0x656d60 for a declared type.
+static enum sv_kind sv_kind_of(const struct ain_type *t)
+{
+	switch (t->data) {
+	case AIN_VOID:
+		return SV_SKIP;
+	case AIN_INT: case AIN_FLOAT: case AIN_BOOL: case AIN_ENUM:
+		return SV_PLAIN;
+	case AIN_STRING:
+		return SV_STRING;
+	case AIN_STRUCT:
+		return t->struc >= 0 && t->struc < ain->nr_structures ? SV_STRUCT : SV_NONE;
+	case AIN_ARRAY:
+		return t->rank <= 1 && t->array_type ? SV_ARRAY : SV_NONE;
+	case AIN_DELEGATE:
+		return SV_DELEGATE;
+	case AIN_REF_INT: case AIN_REF_FLOAT: case AIN_REF_STRING: case AIN_REF_STRUCT:
+	case AIN_REF_BOOL: case AIN_REF_DELEGATE: case AIN_REF_ARRAY: case AIN_WRAP:
+	case AIN_IFACE:
+		return SV_SHARED;
+	case AIN_UNKNOWN_TYPE_87: case AIN_REF_ENUM:
+		// Natively shared too (0x656f7c), but this VM's teardown does not
+		// release these (variable_fini, AIN_REF_TYPE): a reference added
+		// here would never be given back, and one released here was never
+		// added. Every SV_SHARED type is one sv_released_by_teardown names.
+		// A struct with such a member keeps the older handling.
+		return SV_NONE;
+	case AIN_OPTION:
+		return ain_option_type_is_value(t) ? SV_OPTION : SV_NONE;
+	default:
+		return SV_NONE;
+	}
+}
+
+static bool sv_struct_ok(int no, int depth);
+
+// Elements of an array member: numbers, strings, structs this code assigns,
+// and one-slot references (wraps of a struct, references).
+static bool sv_elem_ok(const struct ain_type *e, int depth)
+{
+	switch (sv_kind_of(e)) {
+	case SV_PLAIN:
+	case SV_STRING:
+		return true;
+	case SV_STRUCT:
+		return sv_struct_ok(e->struc, depth + 1);
+	case SV_SHARED:
+		return ss_type_slot_count(e) == 1;
+	default:
+		return false;
+	}
+}
+
+static const struct ain *sv_memo_ain;
+// 0 not known, 1 being checked, 2 yes, 3 no, 4 yes for now (see below)
+static signed char *sv_memo;
+// whether the outermost check in progress has taken a struct as yes for now
+static bool sv_memo_tentative;
+
+/* Whether struct no, and every struct reachable from it through struct
+ * members and the elements of array members, has only members this code
+ * assigns. depth is 0 for the outermost check (array_struct_assignable) and
+ * grows by one per nested struct (sv_elem_ok, the struct member below).
+ *
+ * A struct met again while it is being checked (a cycle: an array of
+ * itself, or of a struct holding an array of it) is taken as yes for now,
+ * and so is one recorded as 4. A yes reached after such a guess rests on it
+ * until the outermost check ends, so it is recorded as 4, not 2. When the
+ * outermost check ends with yes, every struct that returned yes in it is
+ * yes: each guess was about a struct on the stack, which returned yes too
+ * (a no stops its caller's loop and makes it no, up to the outermost), so
+ * those structs, with the ones recorded as 2, are closed under "every
+ * member supported, every struct reached among them". The 4s then become
+ * 2. When it ends with no, they become 0 (not known) and are checked again
+ * when asked. A no never rests on a guess (a guess is a yes) and is
+ * recorded at once, as is a yes reached before any guess of the check (the
+ * flag is cleared when the outermost check starts).
+ *
+ * Cost: a struct is checked at most once per outermost check (afterwards it
+ * is 2, 3 or 4 until the check ends); the outermost struct is always
+ * recorded as 2 or 3, so it is checked once. The structs forgotten after a
+ * no can be checked again within another outermost check. The 4s are
+ * looked for only when the check took a guess. SV_MAX_DEPTH bounds the
+ * recursion; a struct deeper than that counts as no, which is conservative
+ * (the struct that reached the limit is recorded as no and keeps the older
+ * handling, whatever its members). */
+static bool sv_struct_ok(int no, int depth)
+{
+	if (no < 0 || no >= ain->nr_structures || depth > SV_MAX_DEPTH)
+		return false;
+	if (sv_memo_ain != ain) {
+		free(sv_memo);
+		sv_memo = xcalloc(ain->nr_structures, 1);
+		sv_memo_ain = ain;
+	}
+	if (sv_memo[no] == 1 || sv_memo[no] == 4) {
+		sv_memo_tentative = true;
+		return true;
+	}
+	if (sv_memo[no])
+		return sv_memo[no] == 2;
+	if (depth == 0)
+		sv_memo_tentative = false;
+	sv_memo[no] = 1;
+	struct ain_struct *s = &ain->structures[no];
+	bool ok = true;
+	for (int m = 0; ok && m < s->nr_members; m++) {
+		const struct ain_type *t = &s->members[m].type;
+		switch (sv_kind_of(t)) {
+		case SV_STRUCT:
+			ok = sv_struct_ok(t->struc, depth + 1);
+			break;
+		case SV_ARRAY:
+			ok = sv_elem_ok(t->array_type, depth);
+			break;
+		case SV_SHARED:
+		case SV_OPTION: {
+			// the slots after the first are void members of their own
+			int slots = ss_type_slot_count(t);
+			ok = slots >= 1 && m + slots <= s->nr_members;
+			for (int k = 1; ok && k < slots; k++)
+				ok = s->members[m + k].type.data == AIN_VOID;
+			if (ok)
+				m += slots - 1;
+			break;
+		}
+		case SV_NONE:
+			ok = false;
+			break;
+		default:
+			break;
+		}
+	}
+	if (!ok)
+		sv_memo[no] = 3;
+	else if (depth == 0 || !sv_memo_tentative)
+		sv_memo[no] = 2;
+	else
+		sv_memo[no] = 4;
+	if (depth == 0 && sv_memo_tentative) {
+		for (int i = 0; i < ain->nr_structures; i++) {
+			if (sv_memo[i] == 4)
+				sv_memo[i] = ok ? 2 : 0;
+		}
+	}
+	return ok;
+}
+
+// v14: the struct of this call's array when a struct value stored into it is
+// copied here, or -1.
+static int array_struct_assignable(struct page *a)
+{
+	int no = array_value_struct(a);
+	return no >= 0 && sv_struct_ok(no, 0) ? no : -1;
+}
+
+// The live struct page in slot v of struct no with all its members, or NULL.
+static struct page *sv_struct_page(int v, int no)
+{
+	if (v <= 0 || !heap_index_valid(v) || heap[v].type != VM_PAGE)
+		return NULL;
+	struct page *p = heap[v].page;
+	if (!p || p->type != STRUCT_PAGE || p->index != no || p->nr_vars != ain->structures[no].nr_members)
+		return NULL;
+	return p;
+}
+
+static void sv_assign(int dst, int src, int no, struct sv_pending *pend, int depth, bool fresh);
+
+// A new slot holding a copy of the string in slot v. What is not a string
+// (-1, or the reserved 0 an older resize leaves in a string array) is kept
+// as it is: nothing owns it.
+static int sv_copy_string(int v)
+{
+	if (v <= 1 || !heap_index_valid(v) || heap[v].type != VM_STRING || !heap[v].s)
+		return v <= 1 ? v : -1;
+	return heap_alloc_string(string_dup(heap[v].s));
+}
+
+// A new slot holding a copy of the delegate in slot v; -1 (or the reserved
+// slot it was) for none.
+static int sv_copy_delegate(int v)
+{
+	if (v <= 1 || !heap_index_valid(v) || heap[v].type != VM_PAGE || !heap[v].page
+	    || heap[v].page->type != DELEGATE_PAGE)
+		return v <= 1 ? v : -1;
+	return vm_copy_page(heap[v].page);
+}
+
+// A new object of struct no holding a copy of the object in slot v (0x67fe20
+// with 0 and 0x656d60, as an array element); -1 for none, the defaults for
+// an object of another struct.
+static int sv_copy_struct(int v, int no, struct sv_pending *pend, int depth)
+{
+	if (v <= 1)
+		return v;
+	int obj = alloc_struct(no);
+	if (sv_struct_page(v, no) && depth <= SV_MAX_DEPTH) {
+		sv_assign(obj, v, no, pend, depth + 1, true);
+		delegate_struct_assigned(obj, v);
+	}
+	return obj;
+}
+
+// Whether the teardown of a page releases a value of this type
+// (variable_fini).
+static bool sv_released_by_teardown(enum ain_data_type type)
+{
+	switch (type) {
+	case AIN_STRING:
+	case AIN_STRUCT:
+	case AIN_DELEGATE:
+	case AIN_FUNC_TYPE:
+	case AIN_ARRAY_TYPE:
+	case AIN_ARRAY:
+	case AIN_WRAP:
+	case AIN_IFACE_WRAP:
+	case AIN_OPTION:
+	case AIN_REF_TYPE:
+	case AIN_IFACE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// The element type a page of this kind holds for the declared element kind:
+// the page's own teardown must release exactly the copies made here.
+static bool sv_page_fits(const struct page *p, enum sv_kind k)
+{
+	switch (k) {
+	case SV_PLAIN:
+		return p->a_type == AIN_ARRAY_INT || p->a_type == AIN_ARRAY_FLOAT
+			|| p->a_type == AIN_ARRAY_BOOL || p->a_type == AIN_ARRAY_LONG_INT;
+	case SV_STRING:
+		return p->a_type == AIN_ARRAY_STRING;
+	case SV_STRUCT:
+		return p->a_type == AIN_ARRAY_STRUCT;
+	case SV_SHARED:
+		return p->a_type == AIN_ARRAY || p->a_type == AIN_REF_ARRAY;
+	default:
+		return false;
+	}
+}
+
+// A new slot holding a copy of the array in slot v (0x67ffb0); -1 for none.
+// A page whose kind does not fit the declaration (a page this VM made without
+// knowing the element type) gets a new page with the same values, each value
+// its teardown releases retained once more: shared, as before.
+static int sv_copy_array(int v, const struct ain_type *t, struct sv_pending *pend, int depth)
+{
+	if (v <= 1 || !heap_index_valid(v) || heap[v].type != VM_PAGE)
+		return v <= 1 ? v : -1;
+	struct page *src = heap[v].page;
+	if (!src || src->type != ARRAY_PAGE) {
+		int slot = heap_alloc_slot(VM_PAGE);
+		heap_set_page(slot, NULL);
+		return slot;
+	}
+	const struct ain_type *e = t->array_type;
+	int n = src->nr_vars;
+	struct page *dst = alloc_page(ARRAY_PAGE, src->a_type, n);
+	dst->array = src->array;
+	enum sv_kind k = sv_kind_of(e);
+	if (!sv_page_fits(src, k)) {
+		for (int i = 0; i < n; i++) {
+			dst->values[i] = src->values[i];
+			int x = src->values[i].i;
+			if (sv_released_by_teardown(variable_type(src, i, NULL, NULL)) && x > 1 && heap_index_valid(x))
+				heap_ref(x);
+		}
+		return heap_alloc_page(dst);
+	}
+	for (int i = 0; i < n; i++)
+		dst->values[i].i = -1;
+	int slot = heap_alloc_page(dst);
+	for (int i = 0; i < n; i++) {
+		// the pages are read again: copying an element allocates
+		int x = heap[v].page->values[i].i, y;
+		switch (k) {
+		case SV_STRING:
+			y = sv_copy_string(x);
+			break;
+		case SV_STRUCT:
+			y = sv_copy_struct(x, e->struc, pend, depth);
+			break;
+		case SV_SHARED:
+			y = x;
+			if (y > 1 && heap_index_valid(y))
+				heap_ref(y);
+			break;
+		default:
+			y = x;
+			break;
+		}
+		heap[slot].page->values[i].i = y;
+	}
+	return slot;
+}
+
+// Assigns the object in slot src to the object in slot dst, both live pages
+// of struct no (0x681820 -> 0x656d60). The member objects dst gives up go to
+// pend; fresh: dst is an object made for this store, whose member objects
+// nothing else has seen.
+static void sv_assign(int dst, int src, int no, struct sv_pending *pend, int depth, bool fresh)
+{
+	struct ain_struct *s = &ain->structures[no];
+	for (int m = 0; m < s->nr_members; m++) {
+		const struct ain_type *t = &s->members[m].type;
+		// the pages are read again after each allocation
+		int b = heap[src].page->values[m].i;
+		int old = heap[dst].page->values[m].i, nv;
+		switch (sv_kind_of(t)) {
+		case SV_PLAIN:
+			heap[dst].page->values[m].i = b;
+			break;
+		case SV_STRING:
+			nv = sv_copy_string(b);
+			heap[dst].page->values[m].i = nv;
+			sv_release_later(pend, old, fresh);
+			break;
+		case SV_DELEGATE:
+			nv = sv_copy_delegate(b);
+			heap[dst].page->values[m].i = nv;
+			sv_release_later(pend, old, fresh);
+			break;
+		case SV_ARRAY:
+			nv = sv_copy_array(b, t, pend, depth);
+			heap[dst].page->values[m].i = nv;
+			sv_release_later(pend, old, fresh);
+			break;
+		case SV_STRUCT: {
+			int c = t->struc;
+			bool have = sv_struct_page(old, c) != NULL;
+			if (depth > SV_MAX_DEPTH)
+				break;
+			if (sv_struct_page(b, c)) {
+				bool made = !have;
+				if (made) {
+					nv = alloc_struct(c);
+					heap[dst].page->values[m].i = nv;
+					sv_release_later(pend, old, fresh);
+					old = nv;
+				} else if (!fresh && old != b) {
+					delegate_struct_assign_begin(old);
+				}
+				sv_assign(old, b, c, pend, depth + 1, fresh || made);
+				if (old != b)
+					delegate_struct_assigned(old, b);
+			} else if (have && old != b) {
+				// the value's member is this VM's default object (-1),
+				// which holds no entry: only the first step applies
+				if (!fresh)
+					delegate_struct_assign_begin(old);
+				int def = alloc_struct(c);
+				sv_assign(old, def, c, pend, depth + 1, fresh);
+				sv_release_later(pend, def, true);
+			} else if (!have) {
+				heap[dst].page->values[m].i = b <= 1 ? b : -1;
+				sv_release_later(pend, old, fresh);
+			}
+			break;
+		}
+		case SV_SHARED:
+		case SV_OPTION: {
+			int slots = ss_type_slot_count(t);
+			if (sv_kind_of(t) == SV_SHARED && b > 1 && heap_index_valid(b))
+				heap_ref(b);
+			for (int k = 0; k < slots; k++)
+				heap[dst].page->values[m + k] = heap[src].page->values[m + k];
+			if (sv_kind_of(t) == SV_SHARED)
+				sv_release_later(pend, old, fresh);
+			m += slots - 1;
+			break;
+		}
+		default:
+			break;
+		}
+	}
+}
+
+enum sv_value { SV_VALUE_OTHER, SV_VALUE_COPY, SV_VALUE_DEFAULT };
+
+// What a store of value does to an element of struct no (0x646e38).
+static enum sv_value sv_classify(int value, int no)
+{
+	if (value == -1)
+		return SV_VALUE_DEFAULT;
+	if (value <= 0 || !heap_index_valid(value) || heap[value].type != VM_PAGE)
+		return SV_VALUE_OTHER;
+	struct page *p = heap[value].page;
+	if (!p || p->type != STRUCT_PAGE || p->index < 0 || p->index >= ain->nr_structures)
+		return SV_VALUE_OTHER;
+	if (sv_struct_page(value, no))
+		return SV_VALUE_COPY;
+	if (p->index != no && ain->structures[p->index].nr_members != ain->structures[no].nr_members)
+		return SV_VALUE_DEFAULT;
+	return SV_VALUE_OTHER;
+}
+
+// Add, PushBack and Insert: the new element (0x67f5c0) with the value
+// assigned to it (0x646d70), owned by the array alone; 0 when the older
+// handling applies. The value keeps its references. No script runs here, so
+// the caller's page stays: the object is new (no constructor, nothing points
+// at it), member objects given up wait in pend, and every environment the
+// last step releases is still held by the value's entry it was copied from.
+static int array_struct_new_element(struct page *a, int value, struct sv_pending *pend)
+{
+	int no = array_struct_assignable(a);
+	if (no < 0)
+		return 0;
+	enum sv_value how = sv_classify(value, no);
+	if (how == SV_VALUE_OTHER)
+		return 0;
+	int obj = alloc_struct(no);
+	if (how == SV_VALUE_COPY && sv_struct_page(obj, no)) {
+		sv_assign(obj, value, no, pend, 0, true);
+		delegate_struct_assigned(obj, value);
+	}
+	return obj;
+}
+
+// Fill and the tail of Realloc with a value: each element of [start,
+// start + count) is assigned the value in place (0x646e38); an element
+// without an object gets a new one. Returns false when the older handling
+// applies.
+// The count is taken once and each round reads the array again (0x648120
+// hands 0x646d70 the array object and the index in each round): the first
+// and last steps can release an environment whose destructor runs a script,
+// and the script can change this array. A round needs the array's heap slot
+// (hll_self_slot) to hold the same allocation, with the index inside it;
+// otherwise the rest is left out. *array follows the slot for the
+// write-back (NULL when the array is gone). Without a known slot the page
+// handed in is used as it is.
+static bool array_struct_fill(struct page **array, int start, int count, int value)
+{
+	struct page *a = *array;
+	int no = array_struct_assignable(a);
+	if (no < 0)
+		return false;
+	enum sv_value how = sv_classify(value, no);
+	if (how == SV_VALUE_OTHER)
+		return false;
+	if (how == SV_VALUE_DEFAULT)
+		return true; // 0x681833 / 0x681859: nothing is assigned
+	int slot = hll_self_slot;
+	if (slot <= 0 || !heap_index_valid(slot) || heap[slot].type != VM_PAGE || heap[slot].page != a)
+		slot = 0;
+	uint32_t seq = slot ? heap[slot].seq : 0;
+	struct sv_pending pend = { 0 };
+	for (int i = 0; i < count; i++) {
+		if (slot) {
+			a = array_struct_page(slot, seq, no);
+			if (!a || start + i >= a->nr_vars)
+				break;
+		}
+		int e = a->values[start + i].i;
+		bool made = !sv_struct_page(e, no);
+		if (made) {
+			int obj = alloc_struct(no);
+			a->values[start + i].i = obj;
+			sv_release_later(&pend, e, false);
+			e = obj;
+		} else if (e != value) {
+			delegate_struct_assign_begin(e);
+		}
+		sv_assign(e, value, no, &pend, 0, made);
+		if (e != value)
+			delegate_struct_assigned(e, value);
+	}
+	sv_release_pending(&pend);
+	if (slot)
+		*array = heap_index_valid(slot) && heap[slot].seq == seq && heap[slot].type == VM_PAGE
+			? heap[slot].page : NULL;
+	return true;
+}
+
+// The slots of one element at the end. owned: the array takes over the
+// value's reference (a new element made here) instead of adding one.
+static void array_push_back_slots(struct page **array, int value, bool owned)
+{
 	struct page *a = *array;
 	int old_size = a ? a->nr_vars : 0;
 	int slots = array_elem_slots();
@@ -527,7 +1162,7 @@ static void Array_PushBack(struct page **array, int value)
 			a->values[old_size].i = value;
 			for (int k = 1; k < slots; k++)
 				a->values[old_size + k].i = extra[k - 1];
-			if (array_elem_is_ref() && value > 0)
+			if (!owned && array_elem_is_ref() && value > 0)
 				heap_ref(value);
 			return;
 		}
@@ -539,7 +1174,7 @@ static void Array_PushBack(struct page **array, int value)
 		a->values[old_size].i = value;
 		for (int k = 1; k < slots; k++)
 			a->values[old_size + k].i = extra[k - 1];
-		if (array_elem_is_ref() && value > 0)
+		if (!owned && array_elem_is_ref() && value > 0)
 			heap_ref(value);
 		*array = a;
 	} else {
@@ -558,10 +1193,23 @@ static void Array_PushBack(struct page **array, int value)
 		new_a->values[0].i = value;
 		for (int k = 1; k < slots; k++)
 			new_a->values[k].i = extra[k - 1];
-		if (array_elem_is_ref() && value > 0)
+		if (!owned && array_elem_is_ref() && value > 0)
 			heap_ref(value);
 		*array = new_a;
 	}
+}
+
+// PushBack (capital B) - alias for Pushback. A struct value stored into a
+// v14 array of value structs becomes a new element holding its copy
+// (array_struct_new_element).
+static void Array_PushBack(struct page **array, int value)
+{
+	if (!array)
+		return;
+	struct sv_pending pend = { 0 };
+	int obj = array_struct_new_element(*array, value, &pend);
+	array_push_back_slots(array, obj > 0 ? obj : value, obj > 0);
+	sv_release_pending(&pend);
 }
 
 static int array_erase_stride(const struct page *a);
@@ -1104,6 +1752,22 @@ static bool Array_Erase(struct page **array, int index, int length)
 	}
 	int new_size = a->nr_vars - length;
 	if (new_size == 0) {
+		// v14: an emptied array of value structs keeps its element type,
+		// as natively: Erase (0x647a60) removes through vtable +0x5c
+		// (0x67f750), whose last element goes through 0x67f5a0 ->
+		// 0x67ec50, and neither writes the element type (+0x10). Without
+		// the page the next store would not know the struct.
+		// The test is wider than array_value_struct's (any type operand
+		// and rank): v14 PopBack, Free and Clear keep a typed empty page
+		// of any array already, and the page is what lets the next store,
+		// which checks the operand itself, know the struct.
+		if (ain->version >= 14 && a->a_type == AIN_ARRAY_STRUCT) {
+			struct page *empty = alloc_page(ARRAY_PAGE, a->a_type, 0);
+			empty->array = a->array;
+			free_page(a);
+			*array = empty;
+			return true;
+		}
 		free_page(a);
 		*array = NULL;
 		return true;
@@ -1218,14 +1882,20 @@ void *array_erase_function(const struct ain_hll_function *f)
 
 // Insert: a two-slot element (0x10003, an interface) is inserted whole, at
 // a logical index, like PushBack/Add store it (see Array_PushBack).
+// A struct value stored into a v14 array of value structs becomes a new
+// element holding its copy (array_struct_new_element).
 static void Array_Insert(struct page **array, int index, int value)
 {
 	if (!array)
 		return;
+	struct sv_pending pend = { 0 };
+	int obj = array_struct_new_element(*array, value, &pend);
+	if (obj > 0)
+		value = obj;
 	int extra[2];
 	array_elem_extra(&value, extra);
 	// heap_ref for ref-counted elements (struct/string/delegate)
-	if (array_elem_is_ref() && value > 0)
+	if (obj <= 0 && array_elem_is_ref() && value > 0)
 		heap_ref(value);
 	struct page *a = *array;
 	int stride = array_elem_slots();
@@ -1255,6 +1925,7 @@ static void Array_Insert(struct page **array, int index, int value)
 		}
 	}
 	*array = new_a;
+	sv_release_pending(&pend);
 }
 
 static void Array_Sort(struct page **array)
@@ -2367,6 +3038,8 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 	if (!src_vals) return;
 	for (int i = 0; i < src_count; i++)
 		src_vals[i] = s->values[i];
+	bool src_structs = s->a_type == AIN_ARRAY_STRUCT;
+	int src_struct = s->array.struct_type;
 	struct page *new_a = alloc_page(ARRAY_PAGE, d ? d->a_type : s->a_type, new_size);
 	if (d) {
 		for (int i = 0; i < old_size; i++)
@@ -2375,6 +3048,11 @@ static void Array_AddRange(struct page **dst, int src_wrap)
 		free_page(d);
 	} else {
 		new_a->array.rank = 1;
+		// v14: the struct of a page of value structs comes from the
+		// source (a cached page keeps the struct it last held, and a
+		// store into this array copies by it: array_value_struct)
+		if (ain->version >= 14 && src_structs)
+			new_a->array.struct_type = src_struct;
 	}
 	// Multi-slot elements (0x10003, options): only the first slot of an
 	// element is an object; the others are its vtable offset or flag and gain
@@ -3531,6 +4209,9 @@ static int array_fill_range(struct page **array, int start, int count, int value
 	}
 	if ((long long)start + count > numof)
 		count = numof - start;
+	// v14 arrays of value structs: assigned in place (array_struct_fill)
+	if (array_struct_fill(array, start, count, value))
+		return count;
 	int stride = array_call_stride();
 	for (int i = 0; i < count; i++)
 		array_elem_store(a, (start + i) * stride, value, hll_param_slot2);

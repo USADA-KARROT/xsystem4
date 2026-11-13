@@ -184,6 +184,9 @@ bool delegate_get(struct page *page, int i, int *obj_out, int *fun_out);
 // v14 weak method targets (original 0x652210/0x681f70)
 void delegate_page_register(int slot);
 void delegate_target_freed(int obj);
+// v14 struct assignment (original 0x681820: 0x681f70 before, 0x6818f0 after)
+void delegate_struct_assign_begin(int dst);
+void delegate_struct_assigned(int dst, int src);
 void delegate_targets_reset(void);
 void page_reset_state(void);
 
