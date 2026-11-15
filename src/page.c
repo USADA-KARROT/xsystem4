@@ -223,6 +223,31 @@ enum ain_data_type array_type(enum ain_data_type type)
 	}
 }
 
+/*
+ * The page type of an array whose declared element is a value: int, bool and
+ * enum elements take an int array, float elements a float array. AIN_VOID
+ * when the element is not one of these. The original array keeps the
+ * declared element type (0x679350) and releases or copies int, float, bool
+ * and enum (10, 11, 47, 92) elements without touching the heap (0x680270 ->
+ * 0x656c10, 0x67ffb0); a generic page here would take them for heap slots.
+ * Used to make pages by struct member init, X_A_INIT and DeserializeStruct.
+ */
+enum ain_data_type array_value_page_type(const struct ain_type *elem)
+{
+	if (!elem)
+		return AIN_VOID;
+	switch (elem->data) {
+	case AIN_INT:
+	case AIN_BOOL:
+	case AIN_ENUM:
+		return AIN_ARRAY_INT;
+	case AIN_FLOAT:
+		return AIN_ARRAY_FLOAT;
+	default:
+		return AIN_VOID;
+	}
+}
+
 // v14: check if member is wrap<struct> (inheritance or contained struct).
 static bool is_wrap_struct(struct ain_variable *member)
 {
@@ -306,8 +331,9 @@ enum ain_data_type variable_type(struct page *page, int varno, int *struct_type,
 	case ARRAY_PAGE:
 		// The slots after the first of a multi-slot element (a vtable
 		// offset, an option flag) are values, not references. The
-		// original array knows its element type (page +0x48, from
-		// 0x653420) and releases an element through it (0x680270); the
+		// original array knows its element type (the description at
+		// page +0x2c; +0x48 is the slot count 0x653420 derives from
+		// it) and releases an element through it (0x680270); the
 		// bytecode retains only the object (SP_INC) and so does the
 		// Array library. An offset above 1 must not be taken for a heap
 		// slot by the page's teardown, its copy or X_OP_SET.
@@ -507,15 +533,17 @@ static void init_struct_slot(struct page *page, int idx, struct ain_variable *me
 			// For AIN_ARRAY_TYPE cases, member->type.data is already the
 			// concrete container type (AIN_ARRAY_INT, AIN_ARRAY_FLOAT, etc.).
 			// For generic AIN_ARRAY, try subtype or default to AIN_ARRAY.
+			// A value element (enum included) takes the page X_A_INIT
+			// gives the same declaration (0x6569dd -> 0x679350).
 			enum ain_data_type arr_dtype = member->type.data;
 			if (arr_dtype == AIN_ARRAY && member->type.array_type) {
-				switch (member->type.array_type->data) {
-				case AIN_INT: case AIN_BOOL: arr_dtype = AIN_ARRAY_INT; break;
-				case AIN_FLOAT: arr_dtype = AIN_ARRAY_FLOAT; break;
-				case AIN_STRING: arr_dtype = AIN_ARRAY_STRING; break;
-				case AIN_STRUCT: arr_dtype = AIN_ARRAY_STRUCT; break;
-				default: break;
-				}
+				enum ain_data_type value = array_value_page_type(member->type.array_type);
+				if (value != AIN_VOID)
+					arr_dtype = value;
+				else if (member->type.array_type->data == AIN_STRING)
+					arr_dtype = AIN_ARRAY_STRING;
+				else if (member->type.array_type->data == AIN_STRUCT)
+					arr_dtype = AIN_ARRAY_STRUCT;
 			}
 			union vm_value zero_dim = { .i = 0 };
 			struct page *arr = alloc_array(1, &zero_dim, arr_dtype,

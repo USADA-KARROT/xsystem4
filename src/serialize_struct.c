@@ -1221,19 +1221,17 @@ static bool l_struct(struct ss_loader *L, struct ss_loc loc, int32_t value, int 
 	return ok;
 }
 
-/* xsystem4 array type for a new array whose destination had no page (X_A_INIT). */
+/* X_A_INIT array type: the destination had no page, or a generic one for values. */
 static void l_new_array_meta(const struct ain_type *elem, struct page *np)
 {
 	np->array.rank = 1;
+	enum ain_data_type value = array_value_page_type(elem);
+	if (value != AIN_VOID) {
+		np->a_type = value;
+		np->array.struct_type = -1;
+		return;
+	}
 	switch (elem->data) {
-	case AIN_INT: case AIN_BOOL: case AIN_ENUM:
-		np->a_type = AIN_ARRAY_INT;
-		np->array.struct_type = -1;
-		break;
-	case AIN_FLOAT:
-		np->a_type = AIN_ARRAY_FLOAT;
-		np->array.struct_type = -1;
-		break;
 	case AIN_STRING:
 		np->a_type = AIN_ARRAY_STRING;
 		np->array.struct_type = -1;
@@ -1342,7 +1340,11 @@ static bool l_array(struct ss_loader *L, struct ss_loc loc, int32_t value, const
 		return l_fail(L, "array elements exceed the file size");
 
 	struct page *np = alloc_page(ARRAY_PAGE, AIN_ARRAY, nn);
-	if (old) {
+	/* 0x65d5b0 keeps the destination's element type, which natively is
+	 * always the declared one. A generic page whose declared elements are
+	 * values (left by an older engine, or a copy of such a page) would take
+	 * them for heap slots: give it the declared page type instead. */
+	if (old && !(old->a_type == AIN_ARRAY && array_value_page_type(elem) != AIN_VOID)) {
 		np->a_type = old->a_type;
 		np->array = old->array;
 		np->array.rank = 1;

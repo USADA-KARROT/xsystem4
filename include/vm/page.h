@@ -152,6 +152,7 @@ void create_struct(int no, union vm_value *var);
 
 // arrays
 enum ain_data_type array_type(enum ain_data_type type);
+enum ain_data_type array_value_page_type(const struct ain_type *elem);
 struct page *alloc_array(int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs);
 struct page *realloc_array(struct page *src, int rank, union vm_value *dimensions, enum ain_data_type data_type, int struct_type, bool init_structs);
 int array_numof(struct page *page, int rank);

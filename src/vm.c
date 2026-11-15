@@ -5569,14 +5569,13 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 		if ((arg == 0 || ain->version >= 14) && decl && decl->array_type &&
 		    (data_type == AIN_ARRAY || data_type == AIN_REF_ARRAY)) {
 			const struct ain_type *elem = decl->array_type;
-			switch (elem->data) {
-			case AIN_INT: case AIN_BOOL: case AIN_ENUM:
-				data_type = AIN_ARRAY_INT; break;
-			case AIN_FLOAT: data_type = AIN_ARRAY_FLOAT; break;
-			case AIN_STRING: data_type = AIN_ARRAY_STRING; break;
-			case AIN_STRUCT:
-				data_type = AIN_ARRAY_STRUCT; struct_type = elem->struc; break;
-			default: break;
+			enum ain_data_type value = array_value_page_type(elem);
+			if (value != AIN_VOID) {
+				data_type = value;
+			} else if (elem->data == AIN_STRING) {
+				data_type = AIN_ARRAY_STRING;
+			} else if (elem->data == AIN_STRUCT) {
+				data_type = AIN_ARRAY_STRUCT; struct_type = elem->struc;
 			}
 		}
 		// The concrete cases above have one slot per element. An element

@@ -938,16 +938,57 @@ static enum savefile_error load_rsave_image(const char *key, const char *path)
 	return SAVEFILE_SUCCESS;
 }
 
+/*
+ * An image written by an earlier engine can hold a one-dimensional generic
+ * page for a struct member declared as an array of values: init_struct_slot
+ * gave an array<enum> member of an object made without its constructor such
+ * a page. Its teardown and copies would take the values for heap slots. The
+ * original array always carries its declared element type (0x679350) and
+ * never touches the heap for int, float, bool and enum elements (0x680270 ->
+ * 0x656c10), so such a page gets the page type of its declaration. Nothing
+ * else changes: struct_type, layout and values stay; pages of members
+ * declared with reference elements, multi-slot or multi-dimensional pages,
+ * and pages no struct member names are left as they are.
+ */
+static void fix_value_array_members(void)
+{
+	if (ain->version < 14)
+		return;
+	for (size_t slot = 0; slot < heap_size; slot++) {
+		if (!heap[slot].ref || heap[slot].type != VM_PAGE || !heap[slot].page)
+			continue;
+		struct page *page = heap[slot].page;
+		if (page->type != STRUCT_PAGE || page->index < 0 || page->index >= ain->nr_structures)
+			continue;
+		for (int i = 0; i < page->nr_vars; i++) {
+			const struct ain_type *t = variable_decltype(page, i);
+			if (!t || t->data != AIN_ARRAY)
+				continue;
+			enum ain_data_type value = array_value_page_type(t->array_type);
+			int a = page->values[i].i;
+			if (value == AIN_VOID || a <= 0 || (size_t)a >= heap_size || !heap[a].ref
+			    || heap[a].type != VM_PAGE || !heap[a].page)
+				continue;
+			struct page *arr = heap[a].page;
+			if (arr->type == ARRAY_PAGE && arr->a_type == AIN_ARRAY && arr->array.rank == 1
+			    && arr->array.elem_slots <= 1)
+				arr->a_type = value;
+		}
+	}
+}
+
 void vm_load_image(const char *key, const char *path)
 {
 	// First, try to read as a rsave.
 	enum savefile_error error = load_rsave_image(key, path);
 	switch (error) {
 	case SAVEFILE_SUCCESS:
+		fix_value_array_members();
 		return;
 	case SAVEFILE_INVALID_SIGNATURE:
 		// If not a System4 resume save file, read as a json.
 		load_json_image(key, path);
+		fix_value_array_members();
 		return;
 	default:
 		VM_ERROR("Failed to read VM image '%s': %s", display_sjis0(path), savefile_strerror(error));
