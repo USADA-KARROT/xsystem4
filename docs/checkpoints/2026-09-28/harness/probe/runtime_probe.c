@@ -209,6 +209,7 @@ static void init_probe(const char *path) {
 #include "drag_flag_fixture.inc"
 #include "array_struct_copy_fixture.inc"
 #include "array_enum_member_fixture.inc"
+#include "wrap_local_init_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -342,6 +343,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"drag-flag"))return test_drag_flag();
     if(!strcmp(argv[2],"array-struct-copy"))return test_array_struct_copy();
     if(!strcmp(argv[2],"array-enum-member"))return test_array_enum_member();
+    if(!strcmp(argv[2],"wrap-local-init"))return test_wrap_local_init();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

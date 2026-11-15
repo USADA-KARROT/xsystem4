@@ -34,7 +34,8 @@
  *       selector Tutorial::MoveSceneParent hands to ArrayExtensions::Select)
  *       with a real rect from AFL_Parts_CreateRect. Right after the frame is
  *       set up, local 2 (<dummy : IRectParts@Core::get>, wrap) must still hold
- *       its own initial value, not the delegate page slot. After the call the
+ *       its own initial value (-1, and its second slot, local 3, 0; see
+ *       wrap-local-init), not the delegate page slot. After the call the
  *       delegate page must be alive with its refcount unchanged, the rect's
  *       refcount unchanged and the returned IParts pair non-null.
  *   DA2 The real ArrayExtensions::Select<IParts&, IRectParts&> over four real
@@ -198,9 +199,10 @@ static void da_inspect_lambda(struct page *local)
 {
 	da_seen_local2 = local && local->nr_vars > 2 ? local->values[2].i : -99;
 	da_seen_local3 = local && local->nr_vars > 3 ? local->values[3].i : -99;
-	/* _function_call gives a wrap local a fresh one-value STRUCT_PAGE (variable_initval). */
-	da_local2_fresh = da_live_page(da_seen_local2) && HEAP_REF(da_seen_local2) == 1
-		&& heap[da_seen_local2].page->type == STRUCT_PAGE && heap[da_seen_local2].page->index == -1;
+	/* A v14 wrap local starts as -1 and its second slot as 0 (0x656b10 -> 0x656970,
+	 * branch 0x6569b8; wrap-local-init); it used to be a fresh one-value
+	 * STRUCT_PAGE box (variable_initval). */
+	da_local2_fresh = da_seen_local2 == -1 && da_seen_local3 == 0;
 }
 
 /* The returned IParts pair is owned by the caller (SP_INC in the lambda). */
@@ -231,7 +233,8 @@ static void da_lambda(void)
 	printf("DA1 lambda locals at entry: [2]=%d [3]=%d (delegate page slot %d); returned [%d, %d]\n",
 	       da_seen_local2, da_seen_local3, dgslot, r[0].i, r[1].i);
 	DA_CHECK(da_seen_local2 != dgslot && da_local2_fresh,
-		 "DA1 local 2 <dummy : IRectParts@Core::get> = %d at entry, want its own fresh wrap page%s", da_seen_local2,
+		 "DA1 local 2 <dummy : IRectParts@Core::get> = %d at entry, want -1 (local 3 = %d, want 0)%s", da_seen_local2,
+		 da_seen_local3,
 		 da_seen_local2 == dgslot ? " (it is the delegate page slot)" : "");
 	bool dg_alive = da_live_page(dgslot) && heap[dgslot].seq == dg_seq;
 	DA_CHECK(dg_alive && HEAP_REF(dgslot) == 1,

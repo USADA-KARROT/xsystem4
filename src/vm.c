@@ -1086,6 +1086,26 @@ static int scenario_label_addr(const char *lname)
 	VM_ERROR("Invalid scenario label: %s", display_sjis0(lname));
 }
 
+// The value a local starts with on a new local page (a call frame or a scenario
+// page). The original makes the page with 0x679970, which writes each variable
+// with 0x656b10 -> 0x656970: a v14 wrap (type 82, branch 0x6569b8) is -1 in its
+// first slot and 0 in the others (its own void variables here), with no object
+// made. X_ASSIGN (0x66f080) overwrites a local without releasing it, and the
+// bytecode stores a wrap local set at its declaration, or a foreach element
+// variable, with no DELETE before, so a box made here leaked once per call.
+// Before v14 the box stays. A value option starts -1 in its first slot, as it
+// was. The original (0x656a44) writes -1 to every slot but the last and sets
+// that last slot, the flag, to no value (0x653610() + 1); here the slots after
+// the first stay 0, so the flag reads as a value. Old difference; not changed.
+static union vm_value local_initval(const struct ain_type *t)
+{
+	if (ain_option_type_is_value(t))
+		return (union vm_value){ .i = -1 };
+	if (ain->version >= 14 && t->data == AIN_WRAP)
+		return (union vm_value){ .i = -1 };
+	return variable_initval(t->data);
+}
+
 static int alloc_scenario_page(const char *fname)
 {
 	int fno, slot;
@@ -1098,9 +1118,7 @@ static int alloc_scenario_page(const char *fname)
 	slot = heap_alloc_slot(VM_PAGE);
 	heap_set_page(slot, alloc_page(LOCAL_PAGE, fno, f->nr_vars));
 	for (int i = 0; i < f->nr_vars; i++) {
-		heap[slot].page->values[i] = ain_option_type_is_value(&f->vars[i].type)
-			? (union vm_value){ .i = -1 }
-			: variable_initval(f->vars[i].type.data);
+		heap[slot].page->values[i] = local_initval(&f->vars[i].type);
 	}
 	return slot;
 }
@@ -1280,11 +1298,10 @@ static int _function_call(int fno, int return_address)
 				f->vars[i].type.data, fno, display_game0(f->name), i);
 			break;
 		}
-		// A value option (option<int> etc.) is a plain value; allocating a slot
-		// for it leaks one per call, since X_ASSIGN overwrites it without unref.
-		union vm_value initv = ain_option_type_is_value(&f->vars[i].type)
-			? (union vm_value){ .i = -1 }
-			: variable_initval(f->vars[i].type.data);
+		// A value option (option<int> etc.) and a v14 wrap start as -1:
+		// a slot for them leaked whenever the first store had no DELETE
+		// before it (X_ASSIGN does not unref; see local_initval).
+		union vm_value initv = local_initval(&f->vars[i].type);
 		heap[slot].page->values[i] = initv;
 		if (ain->version <= 1 && f->vars[i].type.data == AIN_STRUCT) {
 			create_struct(f->vars[i].type.struc, &heap[slot].page->values[i]);

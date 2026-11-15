@@ -256,12 +256,13 @@ static void wc_customer_order(void)
 		WC_CHECK(!da_live_page(customers[i]), "source customer %d survived collection teardown", i);
 	WC_CHECK(!da_live_page(c) && !da_live_page(list) && !da_live_page(index_slot) && !da_live_page(result),
 		"collection/list/index/result survived their last owner");
-	/* GetOrdered leaves one pre-existing unused local placeholder, an
-	 * anonymous empty wrap box (a separate VM local-initialization issue;
-	 * an empty-source GetOrdered with zero callbacks leaves it too). Do not
-	 * hide extra retained customers inside a blanket allowance. Until the
-	 * arg-ownership change an empty delegate page was left as well and this
-	 * check pinned both: GetOrdered hands its lambda (DG_NEW_FROM_METHOD)
+	/* GetOrdered leaves nothing. Until a v14 wrap local started as -1
+	 * (wrap-local-init) it left one empty wrap box, the box this VM gave the
+	 * foreach element variable `value` of ArrayExtensions::Select<Customer&,
+	 * int>, overwritten by its first store (an empty-source GetOrdered with
+	 * zero callbacks left it too). Do not hide extra retained customers
+	 * inside a blanket allowance. Until the arg-ownership change an empty
+	 * delegate page was left as well and this check pinned both: GetOrdered hands its lambda (DG_NEW_FROM_METHOD)
 	 * to ArrayExtensions::Select as a delegate argument, which
 	 * function_call retained again, so the delegate page stayed, emptied
 	 * when its target, the collection, was released. Natively a delegate
@@ -276,8 +277,8 @@ static void wc_customer_order(void)
 		    && p->nr_vars == 1 && p->values[0].i == -1)
 			wrap_placeholders++;
 	}
-	WC_CHECK(live_slots() == baseline + 1 && delegate_placeholders == 0 && wrap_placeholders == 1,
-		"teardown leaves %zu live slots (%d empty delegate/%d empty wrap), want only the baseline wrap placeholder",
+	WC_CHECK(live_slots() == baseline && delegate_placeholders == 0 && wrap_placeholders == 0,
+		"teardown leaves %zu live slots (%d empty delegate/%d empty wrap), want none",
 		live_slots() - baseline, delegate_placeholders, wrap_placeholders);
 }
 

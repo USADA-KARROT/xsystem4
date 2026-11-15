@@ -85,9 +85,10 @@
  *     instead of being copied; the heap slot is the element's own.
  *   - EL1 compares the slots a call leaves behind with what the same
  *     bytecode leaves for a path that is not there, not with zero. This VM
- *     gives the wrap local of EX_GetNodeNameList / EX_GetEXNameList a box
- *     that the function's X_ASSIGN overwrites, one slot per call. That is
- *     not this library's and is left as it is.
+ *     gave the wrap local of EX_GetNodeNameList / EX_GetEXNameList a box
+ *     that the function's X_ASSIGN overwrote, one slot per call, until a
+ *     v14 wrap local started as -1 (wrap-local-init); now that path leaves
+ *     none. That was not this library's doing.
  *
  * Every case runs in a child process. Exit code 1 is a failed check. Exit
  * code 2 is the environment: XS4_GAME has no EX file, the EX file lacks the

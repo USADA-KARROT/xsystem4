@@ -71,11 +71,12 @@
  *     size. FrameImageCache.MinLoadTime is set to 0 so that the wait ends
  *     in the first frames (the probe's clock does not move).
  *
- * Known leaks of another mechanism, pinned as they are (to be lowered when
- * it is fixed): the box this VM gives a wrap local that X_ASSIGN then
- * overwrites. One round of Observer::Create and Release leaves 2 boxes; one
- * FrameImageCache@Join 25. The update-event record is no longer one of
- * them: AddPartsUpdateEvent hands its local record to Array.PushBack with
+ * Leaks of another mechanism, now counted as zero: the box this VM gave a
+ * wrap local that X_ASSIGN then overwrote. One round of Observer::Create and
+ * Release left 2 boxes (HasValue<ObserverCollection&> twice); one
+ * FrameImageCache@Join 25 (15 if-let, declared and foreach element
+ * variables of 13 functions), until a v14 wrap local started as -1 (wrap-local-init). The
+ * update-event record is no longer one of them either: AddPartsUpdateEvent hands its local record to Array.PushBack with
  * A_REF (one reference) and the library retains it again, and since the
  * call gives the handed-over reference back (hll-param-handover) no record
  * and no delegate page of one outlive the list. The cases still count them,
@@ -161,9 +162,9 @@ static bool ao_alive(int slot, unsigned seq)
 	return slot > 1 && (size_t)slot < heap_size && HEAP_REF(slot) > 0 && heap[slot].seq == seq;
 }
 
-/* The slots that appeared since xl_mark, by kind: the box of a wrap local
- * (a known leak, see the header), an update-event record and the emptied
- * delegate page such a record holds (both once known leaks, now zero). */
+/* The slots that appeared since xl_mark, by kind: the box of a wrap local,
+ * an update-event record and the emptied delegate page such a record holds
+ * (all three once known leaks, now zero; see the header). */
 struct ao_left { int boxes, records, delegates, empty_delegates, other; };
 
 static struct ao_left ao_left_since_mark(bool show)
@@ -252,8 +253,8 @@ static void ao_join(void)
 			 * an element one reference (array-construct), and the one
 			 * Array.PushBack retained after A_REF once the call gave the
 			 * handed-over reference back (hll-param-handover). */
-			AO_CHECK(l.boxes == 25 && l.records == 0 && l.empty_delegates == 0,
-				"the known leaks of a Join are 25 boxes, no record and no empty delegate; got %d, %d and %d", l.boxes, l.records,
+			AO_CHECK(l.boxes == 0 && l.records == 0 && l.empty_delegates == 0,
+				"a Join leaves no box, no record and no empty delegate; got %d, %d and %d", l.boxes, l.records,
 				l.empty_delegates);
 		}
 		xl_mark();
@@ -464,10 +465,11 @@ static void ao_rounds(void)
 	(void)pages_first;
 	AO_CHECK(!bad, "a round found no observer in the collection");
 	AO_CHECK(l.other == 0 && l.delegates == 0, "%d slot(s) of another kind were left by 199 rounds", l.other + l.delegates);
-	/* known, per round: two boxes (no record and no emptied delegate page
-	 * since the call gives the handed-over record back) */
-	AO_CHECK(l.boxes == 2 * 199 && l.records == 0 && l.empty_delegates == 0,
-		"the known leaks of 199 rounds are 398 boxes, no record and no empty delegate; got %d, %d and %d", l.boxes,
+	/* per round: no box (two until a wrap local started as -1), no record
+	 * and no emptied delegate page (since the call gives the handed-over
+	 * record back) */
+	AO_CHECK(l.boxes == 0 && l.records == 0 && l.empty_delegates == 0,
+		"199 rounds leave no box, no record and no empty delegate; got %d, %d and %d", l.boxes,
 		l.records, l.empty_delegates);
 }
 

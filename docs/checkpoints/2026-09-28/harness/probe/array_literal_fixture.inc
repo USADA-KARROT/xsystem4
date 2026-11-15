@@ -117,13 +117,14 @@
  *     library stores; natively the page knows its element width from the
  *     start. Nothing can be read from an empty page, so only AL5 sees it.
  *   - AL2 does not ask for an empty heap after the release. What is left
- *     is printed and comes from elsewhere: the box this VM gives a wrap
- *     local that X_ASSIGN then overwrites (EX_GetNodeNameList and other
- *     functions, see ex-name-list); and two empty strings and a CASPosF,
+ *     is printed and comes from elsewhere: two empty strings and a CASPosF,
  *     which were left before this change as well and were not traced. None
- *     of these is an array's doing. The counts are pinned as they are, 11
- *     boxes and 3 other slots: they are known leaks, to be lowered when they
- *     are fixed. Six more were left until the HLL call gave back the
+ *     of these is an array's doing. The count is pinned as it is, 3 other
+ *     slots: a known leak, to be lowered when it is fixed. The empty wrap
+ *     boxes are pinned at zero: 11 were left, every one the box this VM gave
+ *     a wrap local that X_ASSIGN then overwrote (HasValue<int> 4 times,
+ *     EX_GetNodeNameList twice and five foreach element variables), until a
+ *     v14 wrap local started as -1 (wrap-local-init). Six more were left until the HLL call gave back the
  *     reference a handed-over value comes with (hll-param-handover): the CG
  *     layer object, which SelectableIndexArray<T>@Insert passes with A_REF
  *     (one reference) to Array.Insert, which retains it again, and what
@@ -578,7 +579,7 @@ static void al_whole_frame(void)
 	AL_CHECK(params == 0, "%d object(s) of a sub-parameter's struct were left", params);
 	AL_CHECK(keys == 0, "%d key string(s) of a sub-parameter were left", keys);
 	/* known leaks that are not an array's (see the header) */
-	AL_CHECK(boxes == 11 && other == 3, "%d wrap box(es) and %d other slot(s) were left; the known ones are 11 and 3", boxes,
+	AL_CHECK(boxes == 0 && other == 3, "%d wrap box(es) and %d other slot(s) were left; the known ones are 0 and 3", boxes,
 		other);
 	al_show_left();
 }
