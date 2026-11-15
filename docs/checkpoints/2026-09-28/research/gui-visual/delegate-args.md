@@ -72,6 +72,8 @@ i = 1（void） : 變數 2 ← 下一格 = delegate page slot  vi = 3
 | DA2 | 真 `ArrayExtensions::Select<IParts&, IRectParts&>` 走四個真 rect，delegate page 照 `DG_NEW_FROM_METHOD`＋`CALLFUNC` 交給 Select | selector 只跑 2 次，結果 2 個 IParts 存活、2 個 null | 跑 4 次，4 個都存活 |
 | DA3 | 以 `DG_Function<int, Worker&?, SpecialCustomer&, int>` 呼叫收入函式，不帶 worker（none） | 回傳 −400 正確，但 SpecialCustomer 被釋放（ref 1→0）；作為 int 傳入的 slot 被加參照（ref 1→2） | 回傳 −400，兩者 ref 不變 |
 
+> 2026-11-15 更新（W1，程式 `2227b07`）：表中那一案修正後一欄的「自己的新 wrap page」是當時移植版的初值；W1 照原版讓 v14 的 wrap 型區域變數從 -1 開始，這一案改成檢查進入時這一格是 -1、它後面的伴隨格是 0（仍不是 delegate page 的 slot）。見 [wrap-local-init](../wrap-local-init/README.md)。
+
 - `before-check.sh 6421e6e delegate-args iface-arg`：`delegate-args` rc=84，3/4 案例失敗；`iface-arg` 通過（見上，原本就沒涵蓋這個情況）。sanitizer 0。
 - `verify-step.sh`（HEAD `2005274`）：48 個模式 `VERDICT PASS`；`XS4_PROBE_GBK=1` 也是 48 個 `VERDICT PASS`。`deleted-event` 仍為既有的 rc 87。
 

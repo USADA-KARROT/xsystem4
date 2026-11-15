@@ -135,6 +135,8 @@ ShallowCopy／At 各有兩個同形宣告，上表只有 #1 被實際呼叫。�
 
 本組不修 CASMatrix 巢狀宣告、generic companion-slot 解構、共用一般函式回傳 helper，以及空 Select 也會留下的兩個既有未回收 placeholder（empty delegate 與 anonymous wrap box）。SJIS 字元測試的 91 行 `SJIS ` 輸出，baseline／default／GBK 最終組逐位元組相同。
 
+> 2026-11-15 更新（W1，程式 `2227b07`）：上文兩處說的 anonymous wrap box，其實是有名字的 foreach 元素變數的初值盒子；W1 照原版讓 v14 的 wrap 型區域變數從 -1 開始之後不再留下，這一案現在不容許任何 wrap box（empty delegate 那一個在 2026-10-08 的 `arg-ownership` 那一組之後已不留）。見 [wrap-local-init](../wrap-local-init/README.md)。
+
 
 ### 可公開重跑證據與版本對應
 

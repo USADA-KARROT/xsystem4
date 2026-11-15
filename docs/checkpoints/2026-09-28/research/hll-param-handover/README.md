@@ -86,6 +86,7 @@
 - **釘著這個洩漏的數字往下改**：
   - `arg-ownership`：更新事件的紀錄不再殘留（`AddPartsUpdateEvent` 以 `A_REF` 把區域的紀錄交給 `Array.PushBack`）。AO1 一次 `FrameImageCache@Join` 留下的 box、紀錄、清空的 delegate 頁由 25、1、1 變成 25、0、0；AO4 的 199 輪由 398、199、199 變成 398、0、0；AO2 清單放掉後，delegate 頁比呼叫前少一頁（引數那一頁）。wrap 區域變數的 box 是另一個機制，不變。
   - `array-literal`：AL2 的「其他 slot」由 9 個變 3 個：CG 圖層物件（`SelectableIndexArray<T>@Insert` 以 `A_REF` 交給 `Array.Insert`）與隨它留下的 5 個 slot 不再殘留。11 個 wrap box 不變；剩下的 3 個（2 個空字串、1 個 `CASPosF`）修前就在、種類相同，來源沒有追（〈範圍外的發現〉）。
+  > 2026-11-15 更新（W1，程式 `2227b07`）：上面兩條說「不變」的 wrap 區域變數的 box，W1 照原版讓 v14 的 wrap 型區域變數從 -1 開始之後不再配：25 → 0、398 → 0、11 → 0（其他 slot 仍是 3）。見 [wrap-local-init](../wrap-local-init/README.md)。
 - **合成方式改成照交出語意**：這三個探針原本以型別參數 2 交出一個只有探針自己一份參照的值，位元組碼不會這樣交（HP8）；修正之後呼叫會歸還一份，探針接著用那個值就讀到已釋放的頁或少一個參照。
   - `fill-copy-extra`：交給 `Fill#0` 的值改成一份複本（照這個 VM 的 `A_REF` 對純數值 struct 的做法），呼叫者保留原物件；加一條「呼叫後交出的複本已經釋放」。原本的斷言（每個元素各自獨立、寫入不外漏、heap 回到基準）都保留。
   - `dialogue-model`：以型別參數 2 呼叫 `Find` 之前，先替交出的值加一份參照（照 `A_REF` 共享有字串成員的 struct），先斷言它不是純數值 struct；`held` 仍是 1 的斷言保留。
