@@ -187,6 +187,10 @@ struct function_call {
 extern struct function_call call_stack[4096];
 extern int32_t call_stack_ptr;
 
+// the guard page of heap slot 0: an array page, element type void, 64 slots
+struct page;
+struct page *vm_alloc_guard_page(void);
+
 extern size_t instr_ptr;
 
 // Read argument N for the current instruction.

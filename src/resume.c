@@ -156,6 +156,28 @@ static cJSON *vm_image_to_json(const char *key)
 	return image;
 }
 
+/*
+ * The symbol of a function in an rsm image. Functions can share a name (v14
+ * overloads), and a bare name reads back as the first of them
+ * (ain_get_function). A later one is written "name#n", n its place among the
+ * functions of that name in function-number order, which ain_get_function
+ * reads back as that function. The first keeps its bare name, so images of
+ * functions that do not share a name are unchanged.
+ */
+static char *function_symbol(int fno)
+{
+	struct ain_function *f = &ain->functions[fno];
+	if (!f->name)
+		return strdup("");
+	int n = ain_get_function_index(ain, f);
+	if (n <= 0)
+		return strdup(f->name);
+	size_t len = strlen(f->name) + 16;
+	char *sym = xmalloc(len);
+	snprintf(sym, len, "%s#%d", f->name, n);
+	return sym;
+}
+
 static struct rsave_heap_frame *frame_page_to_rsave(struct page *page, int slot)
 {
 	struct rsave_heap_frame *o = xcalloc(1, sizeof(struct rsave_heap_frame) + page->nr_vars * sizeof(int32_t));
@@ -178,7 +200,7 @@ static struct rsave_heap_frame *frame_page_to_rsave(struct page *page, int slot)
 		}
 		struct ain_function *f = &ain->functions[page->index];
 		o->tag = RSAVE_LOCALS;
-		o->func.name = strdup(f->name ? f->name : "");
+		o->func.name = function_symbol(page->index);
 		vars = f->vars;
 		o->struct_ptr = page->local.struct_ptr;
 	}
@@ -376,7 +398,7 @@ static void save_call_stack_to_rsave(struct rsave *rs)
 			rs->return_records[i].return_addr = call->return_address;
 			rs->return_records[i].local_addr = call->return_address - prev_func->address;
 		}
-		rs->return_records[i + 1].caller_func = strdup(func->name ? func->name : "");
+		rs->return_records[i + 1].caller_func = function_symbol(call->fno);
 		rs->return_records[i + 1].crc = func->crc;
 		prev_func = func;
 	}
@@ -557,19 +579,25 @@ static void delete_heap(void)
 {
 	// free heap
 	for (size_t i = 0; i < heap_size; i++) {
-		if (!heap[i].ref)
-			continue;
-		switch (heap[i].type) {
-		case VM_PAGE:
-			if (heap[i].page)
-				free_page(heap[i].page);
-			break;
-		case VM_STRING:
-			free_string(heap[i].s);
-			break;
+		if (heap[i].ref) {
+			switch (heap[i].type) {
+			case VM_PAGE:
+				if (heap[i].page)
+					free_page(heap[i].page);
+				break;
+			case VM_STRING:
+				free_string(heap[i].s);
+				break;
+			}
 		}
+		// Clear the type and the pointer too: the loader fills only
+		// the slots the image has, and the collector frees the string
+		// of any unreferenced slot of nonzero type (a page is 0 and is
+		// skipped), so a string freed above would be freed again.
 		heap[i].ref = 0;
 		heap[i].seq = 0;
+		heap[i].type = 0;
+		heap[i].page = NULL;
 	}
 
 	// Clear free list — will be rebuilt after load completes
@@ -591,6 +619,49 @@ static void heap_rebuild_free_list(void)
 			heap_free_count++;
 		}
 	}
+}
+
+// v14 delegates do not own their objects; the object -> delegate lists
+// (see delegate_page_register) describe the heap before the load, so they are
+// built again once every object of the image is back. Otherwise releasing an
+// object of the image would leave the entries of its delegates pointing at
+// the freed slot.
+static void rebuild_delegate_targets(void)
+{
+	delegate_targets_reset();
+	for (size_t slot = 0; slot < heap_size; slot++) {
+		if (heap[slot].ref && heap[slot].type == VM_PAGE && heap[slot].page
+		    && heap[slot].page->type == DELEGATE_PAGE)
+			delegate_page_register(slot);
+	}
+}
+
+// Slot 0 is the guard page the VM starts with (vm_alloc_guard_page). An rsm
+// image cannot carry it: rank 0 is written as rank_minus_1 = -1 (values too),
+// and the reader takes rank_minus_1 < 0 for an empty array with no page. What
+// it holds is only what stray writes left there, so after a load of either
+// format it is the page of the start again, also for images of older builds.
+static void restore_guard_page(void)
+{
+	if (heap[0].ref) {
+		if (heap[0].type == VM_PAGE && heap[0].page)
+			free_page(heap[0].page);
+		else if (heap[0].type == VM_STRING && heap[0].s)
+			free_string(heap[0].s);
+	}
+	heap[0].ref = 1;
+	heap[0].type = VM_PAGE;
+	heap[0].page = vm_alloc_guard_page();
+}
+
+// What both readers do once the whole image is in the heap. delete_heap
+// emptied the free list; without it allocations after the load grow the heap,
+// or collect if the heap is big, free slots are few and the cooldown is over.
+static void finish_heap_load(void)
+{
+	heap_rebuild_free_list();
+	restore_guard_page();
+	rebuild_delegate_targets();
 }
 
 // Allocate a specific heap slot for save/load.
@@ -638,15 +709,37 @@ static void load_json_heap(cJSON *json)
 		}
 	}
 
-	// Rebuild free list after all slots are loaded
-	heap_rebuild_free_list();
+	finish_heap_load();
+}
+
+// A function's symbol as function_symbol writes it ("name" or "name#n"; an
+// image without "#n" reads every name as the first function of that name).
+// ain_get_function cuts "#n" off the string it is given, so it gets a copy:
+// the symbol in the image stays whole for messages and any further look.
+static int resolve_function_name(const char *name)
+{
+	char *copy = strdup(name);
+	int fno = ain_get_function(ain, copy);
+	free(copy);
+	return fno;
+}
+
+// A symbol for an error message. display_sjis0 frees its last buffer on each
+// call; _vm_error prints the message, a stack trace (more names), then formats
+// it again and would read a freed buffer, so the message gets a copy.
+static const char *message_name(const char *name, char *buf, size_t n)
+{
+	if (!name)
+		return "(by number)";
+	snprintf(buf, n, "%s", display_sjis0(name));
+	return buf;
 }
 
 static int resolve_func_symbol(struct rsave_symbol *sym)
 {
 	if (!sym->name)
 		return sym->id;
-	return ain_get_function(ain, sym->name);
+	return resolve_function_name(sym->name);
 }
 
 static int resolve_struct_symbol(struct rsave_symbol *sym)
@@ -667,6 +760,12 @@ static void load_rsave_frame(int slot, struct rsave_heap_frame *f)
 		vars = ain->globals;
 	} else {
 		int func = resolve_func_symbol(&f->func);
+		// the checks below read the function's variables
+		if (func < 0 || func >= ain->nr_functions) {
+			char name[512];
+			invalid_save_data("local page of function '%s': no such function",
+					  message_name(f->func.name, name, sizeof name));
+		}
 		page = alloc_page(LOCAL_PAGE, func, f->nr_slots);
 		nr_vars = ain->functions[func].nr_vars;
 		vars = ain->functions[func].vars;
@@ -735,7 +834,27 @@ static void load_rsave_array(int slot, struct rsave_heap_array *a)
 
 static void load_rsave_struct(int slot, struct rsave_heap_struct *s)
 {
+	// A struct page with no struct number (v14: a wrap box, see
+	// variable_initval) is written with an empty struct name and no member
+	// types (struct_page_to_rsave). It comes back as such a page with its
+	// values; there is no struct to check it against.
+	if (s->struct_type.name && !s->struct_type.name[0]) {
+		struct page *page = alloc_page(STRUCT_PAGE, -1, s->nr_slots);
+		for (int i = 0; i < s->nr_slots; i++)
+			page->values[i].i = s->slots[i];
+		alloc_heap_slot(slot);
+		heap[slot].ref = s->ref;
+		heap[slot].seq = s->seq;
+		heap[slot].type = VM_PAGE;
+		heap[slot].page = page;
+		return;
+	}
 	int struct_index = resolve_struct_symbol(&s->struct_type);
+	// the checks below read the struct's members
+	if (struct_index < 0 || struct_index >= ain->nr_structures) {
+		char name[512];
+		invalid_save_data("struct '%s': no such struct", message_name(s->struct_type.name, name, sizeof name));
+	}
 	struct page *page = alloc_page(STRUCT_PAGE, struct_index, s->nr_slots);
 
 	// type check
@@ -794,17 +913,17 @@ static void load_rsave_heap(struct rsave *save)
 		}
 	}
 	heap_next_seq = save->next_seq;
-	// v14 delegates do not own their objects; rebuild the object ->
-	// delegate lists once every object is back (see delegate_page_register).
-	delegate_targets_reset();
-	for (int slot = 0; slot < save->nr_heap_objs; slot++) {
-		if (*(enum rsave_heap_tag *)save->heap[slot] == RSAVE_DELEGATE)
-			delegate_page_register(slot);
-	}
+	finish_heap_load();
 }
+
+// call_stack is a fixed array; an image with more frames cannot be loaded.
+#define CALL_STACK_FRAMES_MAX ((int)(sizeof(call_stack) / sizeof(call_stack[0])))
 
 static void load_json_call_stack(cJSON *json)
 {
+	int nr_frames = cJSON_GetArraySize(json);
+	if (nr_frames > CALL_STACK_FRAMES_MAX)
+		invalid_save_data("too many call frames (%d, at most %d)", nr_frames, CALL_STACK_FRAMES_MAX);
 	call_stack_ptr = 0;
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
@@ -820,6 +939,13 @@ static void load_json_call_stack(cJSON *json)
 
 static void load_rsave_call_stack(struct rsave *save)
 {
+	int nr_frames = 0;
+	for (int i = 0; i < save->nr_call_frames; i++) {
+		if (save->call_frames[i].type != RSAVE_CALL_STACK_BOTTOM)
+			nr_frames++;
+	}
+	if (nr_frames > CALL_STACK_FRAMES_MAX)
+		invalid_save_data("too many call frames (%d, at most %d)", nr_frames, CALL_STACK_FRAMES_MAX);
 	call_stack_ptr = 0;
 
 	if (save->nr_return_records == 0 || save->return_records[0].return_addr != -1)
@@ -833,7 +959,7 @@ static void load_rsave_call_stack(struct rsave *save)
 	int32_t return_address = -1;
 	for (int i = 0; i < save->nr_call_frames; i++) {
 		if (save->call_frames[i].type != RSAVE_CALL_STACK_BOTTOM) {
-			int fno = ain_get_function(ain, rr->caller_func);
+			int fno = resolve_function_name(rr->caller_func);
 			if (fno < 0)
 				VM_ERROR("Failed to load VM image: function '%s' not found", display_sjis0(rr->caller_func));
 			if (ain->functions[fno].crc != rr->crc)

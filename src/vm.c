@@ -6224,6 +6224,17 @@ void vm_init_globals(void)
 	}
 }
 
+// The page of slot 0 (see vm_execute_ain); an image load puts a new one back
+// (resume.c), so that slot 0 is the same after a load as after the start.
+struct page *vm_alloc_guard_page(void)
+{
+	struct page *page = alloc_page(ARRAY_PAGE, AIN_VOID, 64);
+	// a cached page keeps the array metadata of its last use (alloc_page)
+	page->array.struct_type = 0;
+	page->array.rank = 0;
+	return page;
+}
+
 int vm_execute_ain(struct ain *program)
 {
 	ain = program;
@@ -6272,7 +6283,7 @@ int vm_execute_ain(struct ain *program)
 	heap[0].ref = 1;
 	heap[0].seq = heap_next_seq++;
 	heap[0].type = VM_PAGE;
-	heap[0].page = alloc_page(ARRAY_PAGE, AIN_VOID, 64);  // direct set, bypass heap_set_page guard
+	heap[0].page = vm_alloc_guard_page();  // direct set, bypass heap_set_page guard
 
 	// Initialize globals at slot 1 (not 0, so null refs don't alias global page)
 	heap[global_page_slot].ref = 1;
