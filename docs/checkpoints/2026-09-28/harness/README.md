@@ -4,6 +4,14 @@
 
 所有輸出都寫到 repo 外的 `XS4_WORK`，repo 本身不會被弄髒。
 
+## v14 列舉陣列成員的頁型別（2026-11-15）
+
+新增 `probe/array_enum_member_fixture.inc` 的 `array-enum-member`（AE1–AE11，20 案），全套由 142 增為 143 模式（程式 `ad0d4b9`，B2）。既有探針的期望沒有改。修前（父提交 `24919ee` 的五個程式檔加上這次提交的探針）：AE1–AE6 與 AE8 共 8 案如預期失敗（AE4 兩種映像格式各一案），都是語義失敗、沒有崩潰、sanitizer 0；其餘 12 案通過。提交前最後的來源預設／GBK 各 143 模式通過、sanitizer 0，每套 143 次啟動符合各自的探針 SHA-256；程式提交 `ad0d4b9` 上重做的修前對照兩種編碼各 8 案失敗、12 案通過，逐案和提交前相同；預設／GBK 各 143 模式通過、sanitizer 0，每套 143 次啟動符合各自的探針 SHA-256（見[完整套件](../research/array-enum-member/verify.tsv)）。
+
+AE1、AE2 驗不跑建構子建出的列舉陣列成員是 int 頁（直接配置；還原路線逐層建出的成員鏈），拆掉時元素值所指的物件參照數不變；AE3、AE8 驗 `system.DeserializeStruct` 還原進泛型舊頁時新頁照宣告是 int 頁（舊頁是空的；舊頁裝著活物件的槽號），替換與拆除都不加減參照；AE4 驗讀入 VM 映像（rsm、json）後，struct 成員宣告為列舉陣列、頁是一維泛型時改成 int 頁，同一份映像裡宣告為 wrap 陣列的泛型頁原樣不動；AE5 掃 AIN 裡全部宣告為泛型陣列的 struct 成員，不跑建構子的頁和 `X_A_INIT` 0 做的頁在值型別判定上一致、值型別時頁型別相同；AE6 驗 struct 指派的複製與 `A_REF` 副本保留值、不加參照。守衛：AE7 載入時目的沒有頁（int 頁、struct_type −1，和修前相同）；AE9 還原進宣告為參照元素的泛型舊頁時照抄舊頁的型別與版面、而且確實換了新頁；AE10 映像修補不改二維頁、每元素兩槽的頁、沒有 struct 成員指到的泛型頁；AE11 映像修補不改宣告為列舉陣列但頁是 float 或字串的具體頁。
+
+元素值用的是活物件的槽號，值被當成槽號時就看得到參照數改變。戰鬥獎勵那個成員與它的建立鏈用遊戲 AIN 的實際宣告；AE4、AE9 的參照型對照組在執行時自動挑 AIN 順序第一個宣告為單槽 wrap 陣列的成員，原始碼不寫死名字。AE5 每個成員印一列頁的型別、struct_type、每元素槽數與維度，探針本身只比值型別；非值型別成員修前修後逐欄位不變是在探針外一次性比過的，不在回歸套件裡。探針通過不能代替畫面驗收；結算畫面的實機與讀檔方式的驗證範圍見[列舉陣列成員研究](../research/array-enum-member/README.md)。探針檔頭沒有列沒涵蓋的範圍，以研究頁為準。
+
 ## v14 struct 值陣列的元素複本（2026-11-13）
 
 新增 `probe/array_struct_copy_fixture.inc` 的 `array-struct-copy`（SC1–SC72），全套由 141 增為 142 模式（程式 `b0261a8`，B1）。同一次改了兩個既有探針有案的期望：`hll-param-handover` 的 HP1–HP3（v14 struct 值陣列的元素是陣列自己的新物件，交出的參照照舊歸還；HP1 的卡片的 wrap 成員仍和元素共用，另加中間狀態的檢查，activity 的釋放次數不放鬆）與 `array-construct` 的 AC15 第 3 輪（遺失的是 PushBack 新做的元素，推入的 struct 只剩探針的一份參照）。修前（父提交 `bbb612b` 的 src／include 加最終探針）兩種組態各 221 案：`array-struct-copy` 53 案與 `hll-param-handover` 的 HP1–HP3 如預期失敗，其餘、`msgwin-rates`（16 案）、`key-events`（123 案）與 `key-consumer`（2 案）通過，sanitizer 0，沒有崩潰；`array-construct` 另外執行，只有 AC15 失敗。提交前最後的來源預設／GBK 各 142 模式通過、sanitizer 0，每套 142 次啟動符合各自的探針 SHA-256；程式提交 `b0261a8` 上就地重建後，修前 221 案逐案與原表相同，預設／GBK 各 142 模式通過、sanitizer 0，每套 142 次啟動符合各自的探針 SHA-256。
@@ -70,7 +78,7 @@ G1c 擴充既有 sound-groups（21 案）與 sound-rewind（10 案），不新�
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 142 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 143 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 # 注意：新機器、乾淨的 clone、清過快取或系統更新之後，無視窗的 GL 探針可能因為還沒有 Metal pipeline 快取而報 ENVIRONMENT FAILURE（rc 2）。先用有視窗的引擎跑一次（例如 gui-run.sh）建立快取，再跑 verify。（2026-11-09 補記（U2，程式 `6e4e673`）：這台 Mac 實測，只經 fork、沒有 exec 的子行程也編不出快取裡沒有的著色器，畫不出來；`mosaic-effect` 因此用 posix_spawn 另起輔助模式畫圖。）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -466,3 +474,4 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 - `probe/encoding_fixture.inc`：`encoding-select`（40 案）與 `mosaic-effect`（19 案）（2026-11-09，U2），遊戲用哪種字串編碼（`src/system4.c`）與 6 號效果交叉淡入的馬賽克（`shaders/effects/mosaic.f.glsl`）。`encoding-select`：兩層開關（`ain_is_gb18030` 與 libsys4 的字元規則；`game_charset_is_gbk()` 是兩者都開）。沒有指定編碼時只有嚴格判定成立才兩層都開（只有寬鬆分數成立的 Shift-JIS 表兩層都關，v5 與 v14 的合成表）；`gbk` 兩層都開、`sjis` 兩層都關（嚴格判定成立也一樣）；值來自 `--encoding`（`=` 或兩個引數，最後一個為準）、全域與遊戲資料夾的 `.xsys4rc` 的 `encoding` 鍵（遊戲資料夾的蓋過全域的，命令列蓋過兩者），不分大小寫，其他值（含空值）印一行寫出鍵或選項與值的警告後忽略；`XSYS4_STRING_CHARSET` 最後只改字元規則；啟動記錄沒有 AINCHECK、要寫出用了哪種編碼、沒有給錯值時沒有「Invalid value」；用法說明列出 `--encoding`。每案在暫存資料夾寫一個 AIN（版本、空的函式表與結構表、字串表，照引擎讀的方式加密；字串表是通用的介面詞：GBK、Shift-JIS、UTF-8、ASCII 或空；EN33、EN34 抄 harness 載入的那份 AIN 的字串表）與 `.xsys4rc`，先檢查分數是案例要的（否則是環境失敗），再在 fork 的子行程以新行程的狀態跑 `main` 加 `--audit`（編碼決定之後返回），讀兩層開關與記錄。`mosaic-effect`：照原版（英文版戰國蘭斯效果外掛的靜態反組譯；上游 `4233c7d` 把原點移到中心）：進度 p 時格子大小是奇數 2·⌊48·(1 − |2p − 1|)⌋ + 1（0 與 1 時 1、一半時 97、0..1 以外是 1），格線過 ⌊w/2⌋、⌊h/2⌋、間隔 c，每格（含邊上不完整的格子）取第一個像素（左上）的交叉淡入。每案 fork，再以 posix_spawn 起輔助模式 `mosaic-render`：無視窗的 CGL、引擎自己的 GL 初始化（`probe_gl_initialize`，著色器從 `XS4_SRC` 讀），以 `effect_update_texture(6, …)` 畫進空白紋理，結果寫檔給案例讀；舊、新畫面的紅是 2x、綠是 2y、藍 0 與 255；同一個輔助行程畫的一般交叉淡入要原樣重現輸入，否則是環境失敗。MZ1–MZ6、MZ13–MZ15 格線（120×100、800×600、1280×720）；MZ7、MZ8、MZ16、MZ19 每個像素等於它那一格第一個像素（含奇數畫面、最大的格子）；MZ9–MZ12、MZ17、MZ18 進度 0、1、接近 0 與 1、0..1 以外時是逐像素的交叉淡入。沒有案守的部分見檔頭的 Not covered（決定之後選的存檔資料夾、不是字串的 rc 值、真的畫面表面、原版交叉淡入的顏色與捨入不同的時刻等）。原版依據、移植策略、突變與實機見[字串編碼與 6 號馬賽克](../research/encoding-select/README.md)及它的[修前對照](../research/encoding-select/before.tsv)。
 - `probe/drag_flag_fixture.inc`：`drag-flag`（9 案）（2026-11-10，G12a），九案各自隔離執行。DG1–DG3 是本次修正，DG4–DG9 為守衛／既有行為；兩種編碼鍵都經正式 pactex 載入，輸入與消費端沿正式訊息流程。詳見上方〈pactex 拖曳旗標〉與[研究](../research/drag-flag/README.md)。
 - `probe/array_struct_copy_fixture.inc`：`array-struct-copy`（72 案）（2026-11-13，B1），每案在子行程執行；exit 2 表示 AIN 缺少案例要找的 struct 形狀。SC1–SC19、SC31–SC33、SC35、SC36、SC38–SC40、SC44–SC55、SC58–SC61、SC63–SC72 是本次修正，SC57 是真實形狀，其餘是守衛。詳見上方〈v14 struct 值陣列的元素複本〉與[研究](../research/array-struct-copy/README.md)。
+- `probe/array_enum_member_fixture.inc`：`array-enum-member`（20 案）（2026-11-15，B2），每案在子行程執行。AE1–AE6、AE8 是本次修正，AE7、AE9、AE10、AE11 是守衛。詳見上方〈v14 列舉陣列成員的頁型別〉與[研究](../research/array-enum-member/README.md)。
