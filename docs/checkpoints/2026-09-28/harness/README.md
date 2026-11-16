@@ -4,6 +4,14 @@
 
 所有輸出都寫到 repo 外的 `XS4_WORK`，repo 本身不會被弄髒。
 
+## v14 引擎快照的讀回（2026-11-16）
+
+新增 `probe/resume_image_fixture.inc` 的 `resume-image`（33 案），全套由 144 增為 145 模式（程式 `372c83e`，R1a）。既有探針的期望沒有改。修前（父提交的 `src/resume.c`、`src/vm.c`、`include/vm.h` 加上這次的探針）：sanitizer 版 19 案如預期失敗（越界讀、二次釋放、寫過呼叫堆疊的陣列尾、讀回的框變成別的多載、第 0 號槽是空頁或留著雜值、json 讀回後 delegate 項目指向已釋放的物件、新寫的檔沒有序號），另 14 案是護欄，修前修後都通過；不連 sanitizer 的一般建置 18 案失敗（盒子那一案的越界讀剛好讀到可用的值，所以那一案要靠 sanitizer 版）。提交前最後的來源（兩輪只改註解的小修正之後）預設／GBK 各 145 模式通過、sanitizer 0，每套 145 次啟動符合各自的探針 SHA-256；程式提交上就地重建，重跑修前對照（兩種編碼各 19 案失敗、14 案通過，逐案和提交前相同）與兩組套件（各 145 模式通過、sanitizer 0）（見[完整套件](../research/resume-image/verify.tsv)）。
+
+新模式驗的是：引擎快照（`system.ResumeSave`／`ResumeLoad` 寫讀的 VM 映像）寫出什麼就讀回什麼，讀完的堆積是 VM 其他部分預期的狀態；每案在子行程執行，和格式有關的案 rsm、json 各一次。涵蓋：沒有結構編號的一格 struct 頁（盒子）的往返；結構名、區域頁的函式名查不到與序號超出同名個數；四種多載（變數較多、較少、同數不同型別、形狀與雜湊都和同名第一個相同）各推兩框存讀，讀回後框、區域頁與指令位址都還是那個函式；檔裡的符號（同名第一個只寫名字、後面的寫「名字#n」、截掉「#n」的舊式檔讀成同名第一個）；長到一萬槽以上、映像裡是空的槽在讀回前被佔住的大堆積（讀回後參照數 0 的槽沒有型別與指標、空閒數等於這種槽的數目，再配置 2,000 個會觸發回收），以及兩種格式讀回後的空閒數相同；第 0 號槽讀回後是開機時的保護頁（三種情形）；delegate 目標表（讀回前先釋放的物件、寫映像之後才登記的項目）；比呼叫堆疊多一框與剛好一樣多。要做壞的或舊式的檔，用 libsys4 的 rsm 讀寫函式與 cJSON 改暫存資料夾裡的檔。
+
+「預期讀入被拒」的案在孫行程裡讀、把輸出寫到暫存檔再讀回來判：退出碼必須是 1（不是訊號；sanitizer 版報錯時會變成訊號 6，所以分得出來），輸出含指定的訊息，而且沒有 sanitizer 報告（`Sanitizer`、`runtime error` 字樣）。探針原始碼沒有寫死腳本名稱：主程式取 AIN 記載的那一個，物件取第一個成員全是 int 的結構，多載依函式編號取第一個符合條件的。探針只用移植版寫的檔（libsys4 的 rsm 第 9 版）；原版寫的是第 14 版、另一套配置，libsys4 讀不了，兩邊互不相容（對照見研究）。新模式沒有驗讀回後呼叫框的其他內部欄位與 delegate 頁的游標（提交之後才查清楚這是讀回之後操作不正常的原因之一，下一組修）。探針通過不能代替畫面驗收，兩個重試鈕與重播的實機見[研究](../research/resume-image/README.md)。
+
 ## v14 wrap 型區域變數的初值（2026-11-15）
 
 新增 `probe/wrap_local_init_fixture.inc` 的 `wrap-local-init`（10 案），全套由 143 增為 144 模式（程式 `2227b07`，W1）。修前（父提交 `5922dc0` 的程式加上這次提交的探針）：8 案如預期失敗，都是語義失敗、沒有崩潰、sanitizer 0；另 2 案（v14 之前與 `variable_initval` 本身仍做盒子、回傳值暫存不漏）是護欄，修前修後都通過。提交前最後的來源預設／GBK 各 144 模式通過、sanitizer 0，每套 144 次啟動符合各自的探針 SHA-256；程式提交 `2227b07` 上就地重建重跑：修前對照（父提交的程式加上這次提交的探針）兩種編碼各 8 案失敗、2 案通過，逐案和提交前相同；預設／GBK 各 144 模式通過、sanitizer 0，每套 144 次啟動符合各自的探針 SHA-256（見[完整套件](../research/wrap-local-init/verify.tsv)）。
@@ -86,7 +94,7 @@ G1c 擴充既有 sound-groups（21 案）與 sound-rewind（10 案），不新�
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 144 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 145 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 # 注意：新機器、乾淨的 clone、清過快取或系統更新之後，無視窗的 GL 探針可能因為還沒有 Metal pipeline 快取而報 ENVIRONMENT FAILURE（rc 2）。先用有視窗的引擎跑一次（例如 gui-run.sh）建立快取，再跑 verify。（2026-11-09 補記（U2，程式 `6e4e673`）：這台 Mac 實測，只經 fork、沒有 exec 的子行程也編不出快取裡沒有的著色器，畫不出來；`mosaic-effect` 因此用 posix_spawn 另起輔助模式畫圖。）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -484,3 +492,4 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 - `probe/array_struct_copy_fixture.inc`：`array-struct-copy`（72 案）（2026-11-13，B1），每案在子行程執行；exit 2 表示 AIN 缺少案例要找的 struct 形狀。SC1–SC19、SC31–SC33、SC35、SC36、SC38–SC40、SC44–SC55、SC58–SC61、SC63–SC72 是本次修正，SC57 是真實形狀，其餘是守衛。詳見上方〈v14 struct 值陣列的元素複本〉與[研究](../research/array-struct-copy/README.md)。
 - `probe/array_enum_member_fixture.inc`：`array-enum-member`（20 案）（2026-11-15，B2），每案在子行程執行。AE1–AE6、AE8 是本次修正，AE7、AE9、AE10、AE11 是守衛。詳見上方〈v14 列舉陣列成員的頁型別〉與[研究](../research/array-enum-member/README.md)。
 - `probe/wrap_local_init_fixture.inc`：`wrap-local-init`（10 案）（2026-11-15，W1），每案在子行程執行。8 案是本次修正，2 案是護欄。詳見上方〈v14 wrap 型區域變數的初值〉與[研究](../research/wrap-local-init/README.md)。
+- `probe/resume_image_fixture.inc`：`resume-image`（33 案）（2026-11-16，R1a），每案在子行程執行；預期讀入被拒的案在孫行程裡讀。19 案是本次修正，14 案是護欄。詳見上方〈v14 引擎快照的讀回〉與[研究](../research/resume-image/README.md)。
