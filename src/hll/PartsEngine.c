@@ -974,30 +974,89 @@ static void PE_v14_RemoveController(int erase_slot, int index)
 	}
 }
 
-// v14: Save/SaveWithoutHideParts/Load are declared with a wrap<> first
-// argument, which the FFI passes as an int heap slot — not the page**
-// the legacy declarations produce. Adapt around the legacy savers.
+// v14: Save/SaveWithoutHideParts/Load are declared with a wrap<array<int>>
+// first argument, which the FFI passes as an int heap slot — not the page**
+// the legacy declarations produce. The caller owns an array<int>, which
+// may initially have no elements after X_A_INIT 0, or no page at all.
+// The original writes the save into that array object (0x589535 ->
+// 0x59b580 -> 0x5405a0), so saving replaces the page in the caller's slot;
+// no replacement slot is needed. Loading reads the page of that slot.
+// An array with no elements (or no page) is no save, so loading fails
+// before anything is released. A one-slot wrap box (a struct page
+// without a struct number) is read through its inner slot. Saving
+// allocates a new inner slot only when the box does not have one.
+// The box then owns that inner slot's reference.
+static int pe_v14_save_slot(int slot, bool make)
+{
+	if (slot <= 0 || (size_t)slot >= heap_size || heap[slot].type != VM_PAGE)
+		return -1;
+	struct page *page = heap[slot].page;
+	if (!page || page->type == ARRAY_PAGE)
+		return slot;
+	if (page->type != STRUCT_PAGE || page->index != -1 || page->nr_vars != 1)
+		return -1;
+	int inner = page->values[0].i;
+	if (inner > 0 && (size_t)inner < heap_size && heap[inner].type == VM_PAGE
+	    && (!heap[inner].page || heap[inner].page->type == ARRAY_PAGE))
+		return inner;
+	if (!make || inner > 0)
+		return -1;
+	inner = heap_alloc_slot(VM_PAGE);
+	wrap_set_slot(slot, 0, inner);
+	heap_unref(inner);	// the box holds the only reference
+	return inner;
+}
+
+static bool pe_save_to_wrap(int buf_slot, bool (*save)(struct page **))
+{
+	if (ain->version < 14) {
+		// Older callers replace the box's reference on success. The box
+		// owns the previous reference until the new image is installed.
+		struct page *image = NULL;
+		if (!save(&image))
+			return false;
+		int inner = heap_alloc_page(image);
+		wrap_set_slot(buf_slot, 0, inner);
+		heap_unref(inner);
+		return true;
+	}
+	int slot = pe_v14_save_slot(buf_slot, true);
+	if (slot < 0) {
+		WARNING("PartsEngine save: argument %d is not an array", buf_slot);
+		return false;
+	}
+	struct page *buf = NULL;
+	if (!save(&buf))
+		return false;
+	struct page *old = heap[slot].page;
+	heap_set_page(slot, buf);
+	if (old) {
+		delete_page_vars(old);
+		free_page(old);
+	}
+	return true;
+}
+
 static bool PE_v14_Save(int buf_slot)
 {
-	struct page *buf = wrap_get_page(buf_slot, 0);
-	bool ok = PE_Save(&buf);
-	if (ok)
-		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
-	return ok;
+	return pe_save_to_wrap(buf_slot, PE_Save);
 }
 
 static bool PE_v14_SaveWithoutHideParts(int buf_slot)
 {
-	struct page *buf = wrap_get_page(buf_slot, 0);
-	bool ok = PE_SaveWithoutHideParts(&buf);
-	if (ok)
-		wrap_set_slot(buf_slot, 0, heap_alloc_page(buf));
-	return ok;
+	return pe_save_to_wrap(buf_slot, PE_SaveWithoutHideParts);
 }
 
 static bool PE_v14_Load(int buf_slot)
 {
-	struct page *buf = wrap_get_page(buf_slot, 0);
+	if (ain->version < 14) {
+		struct page *buf = wrap_get_page(buf_slot, 0);
+		return PE_Load(&buf);
+	}
+	int slot = pe_v14_save_slot(buf_slot, false);
+	struct page *buf = slot > 0 ? heap[slot].page : NULL;
+	if (buf && !buf->nr_vars)
+		buf = NULL;
 	return PE_Load(&buf);
 }
 

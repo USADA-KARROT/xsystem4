@@ -3776,6 +3776,96 @@ bool PE_IsEnableSpeedUp(int parts_no)
 	return !parts_get(parts_no)->speed_up_disabled;
 }
 
+/*
+ * Diagnostics (XSYS4_PARTS_CTRL_TRACE=1; off by default, and then nothing
+ * here prints): every change of the controller stack (push, pop, move, the
+ * active controller, a stack set by a load) as one line with the stack from
+ * bottom to top, and summaries of the parts tree (parts_tree_trace) and of
+ * the saves and loads of the parts engine (save.c).
+ */
+bool parts_ctrl_trace_on(void)
+{
+	static int on = -1;
+	if (!ain || ain->version < 14)
+		return false;
+	if (on < 0) {
+		const char *v = getenv("XSYS4_PARTS_CTRL_TRACE");
+		on = v && *v && strcmp(v, "0");
+	}
+	return on;
+}
+
+static void ctrl_stack_string(char *buf, size_t n)
+{
+	size_t len = 0;
+	buf[0] = 0;
+	for (int i = 0; i < ctrl_stack.nr_controllers && len + 16 < n; i++)
+		len += snprintf(buf + len, n - len, "%s%d", i ? " " : "", ctrl_stack.ids[i]);
+	if (len + 16 >= n)
+		snprintf(buf + len, n - len, " ...");
+}
+
+void parts_ctrl_trace(const char *what, int arg)
+{
+	if (!parts_ctrl_trace_on())
+		return;
+	char buf[512];
+	ctrl_stack_string(buf, sizeof buf);
+	NOTICE("PCTL %s arg=%d active=%d nr=%d stack=[%s]", what, arg, ctrl_stack.active,
+		ctrl_stack.nr_controllers, buf);
+}
+
+// One line per controller: its root, its parts (not counting the root), and
+// the top-level parts (those without a parent other than a root) whose
+// current state covers the screen; then the parts on no controller of the
+// stack (the system overlay controller, an ID that is gone).
+void parts_tree_trace(const char *tag)
+{
+	if (!parts_ctrl_trace_on())
+		return;
+	char buf[1024];
+	struct parts *p;
+	for (int i = 0; i <= ctrl_stack.nr_controllers; i++) {
+		bool other = i == ctrl_stack.nr_controllers;
+		int id = other ? -1 : ctrl_stack.ids[i];
+		unsigned nr = 0, top = 0, len = 0, texts = 0, empty = 0, numerals = 0, unknown = 0;
+		buf[0] = 0;
+		PARTS_LIST_FOREACH(p) {
+			if (parts_is_controller_root(p))
+				continue;
+			if (other ? parts_controller_index(p->controller_no) >= 0 : p->controller_no != id)
+				continue;
+			nr++;
+			// the states that are texts, and those of them without a line
+			for (int s = 0; s < PARTS_NR_STATES; s++) {
+				if (p->states[s].type == PARTS_TEXT) {
+					texts++;
+					empty += !p->states[s].text.nr_lines;
+				}
+				if (p->states[s].type == PARTS_NUMERAL) {
+					numerals++;
+					unknown += p->states[s].num.unknown_type;
+				}
+			}
+			if (p->parent && !parts_is_controller_root(p->parent))
+				continue;
+			top++;
+			struct parts_common *c = &p->states[p->state].common;
+			if ((c->w < 1280 || c->h < 720) && !other)
+				continue;
+			if (len + 80 < sizeof buf)
+				len += snprintf(buf + len, sizeof buf - len, "%s%d:t%d:s%d:a%d:z%d:c%d:%dx%d:ctl%d",
+					len ? " " : "", p->no, p->states[p->state].type, p->global.show,
+					p->global.alpha, p->global.z, p->clickable, c->w, c->h, p->controller_no);
+		}
+		if (other && !nr)
+			continue;
+		NOTICE("PTREE %s ctrl=%d pos=%d root=%d active=%d parts=%u top=%u texts=%u empty-texts=%u numerals=%u numerals-untyped=%u full=[%s]",
+			tag, id, other ? -1 : i, other ? 0 : parts_try_get(id) != NULL, ctrl_stack.active, nr, top,
+			texts, empty, numerals, unknown, buf);
+	}
+}
+
 static void ctrl_stack_init(void)
 {
 	free(ctrl_stack.ids);
@@ -3950,6 +4040,7 @@ void parts_controller_set_stack(int nr, const int *ids)
 		ctrl_insert(i, ids ? ids[i] : parts_controller_default_id(i));
 		parts_controller_root(ctrl_stack.ids[i]);
 	}
+	parts_ctrl_trace("set-stack", nr);
 }
 
 // Adds a new controller to the stack, makes it active and returns its ID.
@@ -3977,6 +4068,7 @@ int PE_AddController(int index)
 		int no = ctrl_stack.nr_controllers;
 		ctrl_insert(no, no);
 		ctrl_stack.active = no;
+		parts_ctrl_trace("add", index);
 		return no;
 	}
 
@@ -3994,6 +4086,7 @@ int PE_AddController(int index)
 	if (parts_table)
 		ctrl_root_create(id);
 	ctrl_resort_from(pos + 1);
+	parts_ctrl_trace("add", index);
 	return id;
 }
 
@@ -4048,6 +4141,7 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 		if (ctrl_stack.active == id)
 			ctrl_stack.active = ctrl_stack.ids[max(pos - 1, 0)];
 		ctrl_resort_from(pos);
+		parts_ctrl_trace("remove", id);
 		return;
 	}
 
@@ -4077,6 +4171,7 @@ void PE_RemoveController(struct page **erase_number_list, int index)
 			&& ctrl_stack.active != PARTS_CONTROLLER_SYSTEM_OVERLAY) {
 		ctrl_stack.active--;
 	}
+	parts_ctrl_trace("remove", index);
 }
 
 // v14 MoveController (0x53d740): moves the controller with this ID to
@@ -4093,6 +4188,7 @@ void parts_controller_move(int id, int index)
 	ctrl_remove_at(pos);
 	ctrl_insert(index, id);
 	ctrl_resort_from(min(pos, index));
+	parts_ctrl_trace("move", id);
 }
 
 void PE_set_active_controller(int controller_no)
@@ -4103,7 +4199,10 @@ void PE_set_active_controller(int controller_no)
 		if (controller_no != PARTS_CONTROLLER_SYSTEM_OVERLAY
 				&& parts_controller_index(controller_no) < 0)
 			controller_no = -1;
+		bool changed = ctrl_stack.active != controller_no;
 		ctrl_stack.active = controller_no;
+		if (changed)
+			parts_ctrl_trace("set-active", controller_no);
 		return;
 	}
 	if (controller_no == PARTS_CONTROLLER_SYSTEM_OVERLAY ||

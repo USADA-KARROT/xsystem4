@@ -830,6 +830,22 @@ static void member_set(int varno, int32_t value)
 	struct_page()->values[varno].i = value;
 }
 
+// Diagnostics for engine images (XSYS4_RESUME_TRACE=1): see vm_resume_trace.
+static int resume_trace = -1;
+static int resume_trace_frames;	// frames of the image read back last that are still there
+static unsigned resume_trace_underflows, resume_trace_unbalanced, resume_trace_no_env;
+
+static bool resume_trace_on(void)
+{
+	if (!ain || ain->version < 14)
+		return false;
+	if (resume_trace < 0) {
+		const char *v = getenv("XSYS4_RESUME_TRACE");
+		resume_trace = v && *v && strcmp(v, "0");
+	}
+	return resume_trace > 0;
+}
+
 union vm_value stack_peek(int n)
 {
 	return stack[stack_ptr - (1 + n)];
@@ -848,6 +864,9 @@ union vm_value stack_pop(void)
 				 && call_stack[call_stack_ptr-1].fno < ain->nr_functions)
 				 ? display_game0(ain->functions[call_stack[call_stack_ptr-1].fno].name) : "?");
 		}
+		if (unlikely(resume_trace != 0) && resume_trace_on() && resume_trace_underflows++ < 50)
+			NOTICE("RTRACE underflow n=%u fno=%d frames=%d", resume_trace_underflows,
+				call_stack_ptr > 0 ? call_stack[call_stack_ptr-1].fno : -1, call_stack_ptr);
 		stack_ptr = 0;
 		return (union vm_value){.i = 0};
 	}
@@ -1985,6 +2004,332 @@ static void delegate_call(int dg_no, int return_address)
 	}
 }
 
+/*
+ * Diagnostics for engine images (XSYS4_RESUME_TRACE=1; off by default, and
+ * then none of this prints and nothing changes). The base frame record
+ * stores the function, return address, local page and struct page.
+ * v14 images additionally store frame metadata through resume.c.
+ * vm_resume_trace prints the runtime frame fields, together with values
+ * inferred from call instructions and delegate entries for comparison:
+ * the call instruction ending at the return address (CALLMETHOD: a
+ * method; DG_CALL: a delegate call and its expected result slots), and
+ * the delegate entry naming the frame's function and object (its closure
+ * environment, the cursor just past it and the delegate's entries).
+ * After a read-back it also prints returns from restored frames.
+ * These diagnostics describe the available state without changing it.
+ * the image. At any time it reports stack underflows, X_GETENV in a frame
+ * without an environment, and returns whose stack does not hold what the
+ * function returns (the balance function_return enforces).
+ */
+
+struct resume_rule {
+	const char *op;
+	int matches;	// call opcodes that end at the return address
+	int method, dg, dg_ret;
+	int dg_page, entry, entries, entry_hits, env;
+};
+
+static void resume_rule_frame(int i, struct resume_rule *r)
+{
+	static const enum opcode ops[] = {
+		DG_CALL, CALLMETHOD, CALLFUNC, CALLFUNC2, SH_STRUCTREF_CALLMETHOD_NO_PARAM,
+		SH_STRUCTREF2_CALLMETHOD_NO_PARAM, THISCALLMETHOD_NOPARAM, _MSG,
+	};
+	struct function_call *f = &call_stack[i];
+	*r = (struct resume_rule){ .op = "-", .dg_page = -1, .entry = -1, .env = -1 };
+	if (i == 0) {
+		r->op = "bottom";
+	} else if (f->return_address == VM_RETURN) {
+		r->op = "c-entry";
+	} else {
+		for (unsigned k = 0; k < sizeof ops / sizeof ops[0]; k++) {
+			int w = instruction_width(ops[k]);
+			uint32_t ret = f->return_address;
+			if (ret < (uint32_t)w || ret > ain->code_size
+			    || LittleEndian_getW(ain->code, ret - w) != ops[k])
+				continue;
+			if (!r->matches++) {
+				r->op = instructions[ops[k]].name;
+				r->method = ain->version >= 14 && ops[k] == CALLMETHOD;
+				r->dg = ops[k] == DG_CALL;
+				if (r->dg) {
+					int dg_no = LittleEndian_getDW(ain->code, ret - w + 2);
+					r->dg_ret = dg_no >= 0 && dg_no < ain->nr_delegates
+						? delegate_return_slots(&ain->delegates[dg_no].return_type) : -1;
+				}
+			}
+		}
+	}
+	if (!r->dg)
+		return;
+	for (size_t s = 1; s < heap_size; s++) {
+		if (!heap[s].ref || heap[s].type != VM_PAGE || !heap[s].page
+		    || heap[s].page->type != DELEGATE_PAGE)
+			continue;
+		struct page *d = heap[s].page;
+		for (int e = 0; e + 2 < d->nr_vars; e += 3) {
+			if (d->values[e].i != f->struct_page || d->values[e+1].i != f->fno)
+				continue;
+			if (!r->entry_hits++) {
+				r->dg_page = s;
+				r->entry = e / 3;
+				r->entries = d->nr_vars / 3;
+				r->env = d->values[e+2].i;
+			}
+		}
+	}
+}
+
+void vm_resume_trace(const char *tag, const char *path)
+{
+	if (!resume_trace_on())
+		return;
+	int in_call = 0;
+	for (size_t s = 1; s < heap_size; s++) {
+		if (heap[s].ref && heap[s].type == VM_PAGE && heap[s].page
+		    && heap[s].page->type == DELEGATE_PAGE && heap[s].page->dg.limit)
+			in_call++;
+	}
+	NOTICE("RTRACE %s path=%s frames=%d sp=%d ip=%zu delegates-in-call=%d underflows=%u unbalanced=%u no-env=%u",
+		tag, display_sjis0(path), call_stack_ptr, stack_ptr, instr_ptr, in_call,
+		resume_trace_underflows, resume_trace_unbalanced, resume_trace_no_env);
+	for (int i = 0; i < call_stack_ptr; i++) {
+		struct function_call *f = &call_stack[i];
+		struct resume_rule r;
+		resume_rule_frame(i, &r);
+		int dgp = -1, dgi = -1, cur = -1, lim = -1, phantom = -1;
+		if (f->is_delegate_call && f->base_sp >= 2 && f->base_sp <= stack_ptr) {
+			dgp = stack[f->base_sp - 2].i;
+			dgi = stack[f->base_sp - 1].i;
+			struct page *d = heap_index_valid(dgp) && heap[dgp].type == VM_PAGE
+				? heap[dgp].page : NULL;
+			if (d && d->type == DELEGATE_PAGE) {
+				cur = d->dg.cursor;
+				lim = d->dg.limit;
+			}
+		}
+		if (f->is_method && f->base_sp >= 1 && f->base_sp <= stack_ptr)
+			phantom = stack[f->base_sp - 1].i == f->struct_page;
+		int rcur = -1, rlim = -1;
+		if (r.dg_page > 0 && heap[r.dg_page].page) {
+			rcur = heap[r.dg_page].page->dg.cursor;
+			rlim = heap[r.dg_page].page->dg.limit;
+		}
+		NOTICE("RTRACE %s f=%d fno=%d ret=%d page=%d struct=%d | bs=%d m=%d dg=%d dr=%d env=%d pin=%d,%d"
+			" | dgp=%d dgi=%d cur=%d lim=%d phantom=%d | op=%s ops=%d rm=%d rdg=%d rdr=%d"
+			" rdgp=%d rentry=%d rentries=%d rhits=%d renv=%d rcur=%d rlim=%d | res=%d pend=%d rpage=%d",
+			tag, i, f->fno, (int)f->return_address, f->page_slot, f->struct_page,
+			f->base_sp, f->is_method, f->is_delegate_call, f->dg_return_slots, f->env_page,
+			f->delegate_obj_ref, f->delegate_env_ref,
+			dgp, dgi, cur, lim, phantom,
+			r.op, r.matches, r.method, r.dg, r.dg_ret,
+			r.dg_page, r.entry, r.entries, r.entry_hits, r.env, rcur, rlim,
+			f->resumed, f->dg_resume_pending, f->resume_dg_page);
+	}
+	if (!strcmp(tag, "load"))
+		resume_trace_frames = call_stack_ptr;
+}
+
+/*
+ * The port's own call frame fields, once an engine image is back.
+ *
+ * The base image record stores four fields of a frame: function,
+ * return address, local page and struct page. v14 loads restore the
+ * port's additional runtime fields from optional metadata and the
+ * available call opcodes. Images without metadata use the limited
+ * fallbacks below; those fallbacks cannot recover every call shape.
+ * Metadata also distinguishes supported non-delegate C method entries.
+ * Such entries have VM_RETURN rather than a caller bytecode address.
+ *
+ * - is_method, is_delegate_call, dg_return_slots: the instruction that
+ *   ends at the return address in the caller's code, walked from the
+ *   caller's start. CALLMETHOD (v14) leaves the object below the
+ *   arguments (method_call); DG_CALL identifies a delegate call, whose
+ *   delegate type supplies the expected result slots (delegate_call).
+ *   Supported C method entries instead use their saved method metadata.
+ * - base_sp is not stored. A restored frame derives its base from the
+ *   declared result slot count when it returns. For supported v14
+ *   delegate results, function_return adapts the handler's result to
+ *   the delegate's expected result. Wrap results have no reliable count.
+ *   This reconstruction does not prove that every image is balanced.
+ *   Frames called above a restored frame use the ordinary return path.
+ *   See function_return for the result adaptation and method checks.
+ * - env_page and the two references a delegate call holds (delegate_obj_ref
+ *   on its object, delegate_env_ref on its environment): written into the
+ *   image (resume.c), with the delegate a delegate call goes through and
+ *   that delegate's cursor and limit. The references are counted in the
+ *   image's heap already (the frame held them when it was written), so
+ *   they are taken back as they were and released when the frame returns.
+ * - An image with none of that (written by an earlier build): the object
+ *   reference is the frame's object, as delegate_call takes it; the
+ *   environment is the third slot of the delegate entry for the frame's
+ *   object and function, when the delegates of the image have exactly one
+ *   such environment (measured: 19 of 20 delegate frames; otherwise none,
+ *   as before); the cursor and limit are set when the frame returns: the
+ *   cursor is the call index below the frame (DG_CALL counts it up with
+ *   the cursor), the limit the delegate's entries (measured: 20 of 20),
+ *   unless the delegate has been called again since (its cursor or limit
+ *   is no longer 0: a nested call of a delegate ends the outer one).
+ */
+
+// The opcode of the instruction that ends at frame i's return address in
+// its caller's code, and its first argument; -1 if there is none.
+static int resume_call_opcode(int i, int32_t *arg0)
+{
+	struct function_call *f = &call_stack[i];
+	if (i == 0 || f->return_address == VM_RETURN)
+		return -1;
+	int caller = call_stack[i-1].fno;
+	if (caller < 0 || caller >= ain->nr_functions)
+		return -1;
+	uint32_t a = ain->functions[caller].address, ret = f->return_address;
+	if (a >= ain->code_size || ret > ain->code_size || ret <= a)
+		return -1;
+	while (a < ret) {
+		uint16_t op = LittleEndian_getW(ain->code, a);
+		if (op >= NR_OPCODES)
+			return -1;
+		uint32_t w = instruction_width(op);
+		if (a + w == ret) {
+			if (arg0)
+				*arg0 = instructions[op].nr_args > 0 ? LittleEndian_getDW(ain->code, a + 2) : 0;
+			return op;
+		}
+		a += w;
+	}
+	return -1;
+}
+
+// The delegate frame f goes through, if that is known: [..., dg_page,
+// dg_index] are below its base (delegate_call), or the image named it.
+static struct page *resume_frame_delegate(struct function_call *f, int *slot)
+{
+	int s = 0;
+	if (f->resumed)
+		s = f->resume_dg_page;
+	else if (f->base_sp >= 2 && f->base_sp <= stack_ptr)
+		s = stack[f->base_sp - 2].i;
+	struct page *d = s > 0 && heap_index_valid(s) && heap[s].type == VM_PAGE ? heap[s].page : NULL;
+	if (!d || d->type != DELEGATE_PAGE)
+		return NULL;
+	*slot = s;
+	return d;
+}
+
+void vm_resume_frame_extra(int i, struct resume_frame_extra *out)
+{
+	struct function_call *f = &call_stack[i];
+	*out = (struct resume_frame_extra) {
+		.present = true,
+		.fno = f->fno,
+		.env_page = f->env_page,
+		.delegate_obj_ref = f->delegate_obj_ref,
+		.delegate_env_ref = f->delegate_env_ref,
+		.c_method_present = true,
+		.c_method = f->return_address == VM_RETURN && f->is_method,
+	};
+	int slot;
+	struct page *d;
+	if (f->is_delegate_call && (d = resume_frame_delegate(f, &slot))) {
+		out->dg_page = slot;
+		out->dg_cursor = d->dg.cursor;
+		out->dg_limit = d->dg.limit;
+	} else if (ain->version >= 14 && !f->is_delegate_call
+		   && f->return_address == VM_RETURN && f->is_method)
+		out->dg_page = RESUME_C_METHOD_MARKER;
+}
+
+// An image without the environment: the one environment that the
+// delegate entries for the frame's object and function have, or 0. A
+// lambda entry with no object runs on an enclosing frame's object
+// (delegate_call), so for a lambda an entry with no object counts too.
+static int resume_env_by_entry(struct function_call *f)
+{
+	int env = 0, found = 0;
+	bool lambda = func_flags[f->fno] & FUNC_FLAG_LAMBDA;
+	for (size_t s = 1; s < heap_size; s++) {
+		if (!heap[s].ref || heap[s].type != VM_PAGE || !heap[s].page
+		    || heap[s].page->type != DELEGATE_PAGE)
+			continue;
+		struct page *d = heap[s].page;
+		for (int e = 0; e + 2 < d->nr_vars; e += 3) {
+			int obj = d->values[e].i;
+			if (d->values[e+1].i != f->fno
+			    || (obj != f->struct_page && !(lambda && obj <= 0)))
+				continue;
+			if (found++ && d->values[e+2].i != env)
+				return 0;
+			env = d->values[e+2].i;
+		}
+	}
+	return env;
+}
+
+void vm_resume_frames_loaded(const struct resume_frame_extra *extra)
+{
+	if (!ain || ain->version < 14)
+		return;
+	for (int i = 0; i < call_stack_ptr; i++) {
+		struct function_call *f = &call_stack[i];
+		int32_t arg0 = 0;
+		int op = resume_call_opcode(i, &arg0);
+		f->base_sp = 0;
+		f->resumed = true;
+		f->is_method = ain->version >= 14 && op == CALLMETHOD;
+		f->is_delegate_call = op == DG_CALL;
+		f->dg_return_slots = f->is_delegate_call && arg0 >= 0 && arg0 < ain->nr_delegates
+			? delegate_return_slots(&ain->delegates[arg0].return_type) : 0;
+		f->env_page = f->delegate_obj_ref = f->delegate_env_ref = 0;
+		f->dg_resume_pending = false;
+		f->resume_dg_page = 0;
+		const struct resume_frame_extra *x = extra && extra[i].present
+			&& extra[i].fno == f->fno ? &extra[i] : NULL;
+		if (x) {
+			/* RSM keeps its existing seven fields; non-delegate C methods
+			 * mark the unused delegate-page field. JSON may also name the
+			 * flag explicitly. Old images have neither and are not guessed. */
+			bool c_method = x->c_method_present ? x->c_method
+				: x->dg_page == RESUME_C_METHOD_MARKER;
+			if (!f->is_delegate_call && f->return_address == VM_RETURN && c_method) {
+				int object = f->struct_page;
+				f->is_method = object > 0 && heap_index_valid(object)
+					&& heap[object].type == VM_PAGE && heap[object].page
+					&& heap[object].page->type == STRUCT_PAGE;
+			}
+			int env = x->env_page;
+			if (env > 0 && heap_index_valid(env) && heap[env].type == VM_PAGE
+			    && heap[env].page && (heap[env].page->type == LOCAL_PAGE
+				|| heap[env].page->type == STRUCT_PAGE))
+				f->env_page = env;
+			if (x->delegate_obj_ref > 0 && heap_index_valid(x->delegate_obj_ref))
+				f->delegate_obj_ref = x->delegate_obj_ref;
+			if (x->delegate_env_ref > 0 && heap_index_valid(x->delegate_env_ref))
+				f->delegate_env_ref = x->delegate_env_ref;
+			if (f->is_delegate_call) {
+				struct page *d = x->dg_page > 0 && heap_index_valid(x->dg_page)
+					&& heap[x->dg_page].type == VM_PAGE ? heap[x->dg_page].page : NULL;
+				if (d && d->type == DELEGATE_PAGE) {
+					d->dg.cursor = x->dg_cursor;
+					d->dg.limit = x->dg_limit;
+					f->resume_dg_page = x->dg_page;
+				} else {
+					f->dg_resume_pending = true;
+				}
+			}
+			continue;
+		}
+		if (!f->is_delegate_call)
+			continue;
+		// an image of an earlier build (see above)
+		if (heap_index_valid(f->struct_page))
+			f->delegate_obj_ref = f->struct_page;
+		f->env_page = resume_env_by_entry(f);
+		if (heap_index_valid(f->env_page))
+			f->delegate_env_ref = f->env_page;
+		f->dg_resume_pending = true;
+	}
+}
+
 void vm_call(int fno, int struct_page)
 {
 	if (unlikely(fno < 0 || fno >= ain->nr_functions)) return;
@@ -2261,6 +2606,56 @@ static void function_return(void)
 		int dg_ret = call_stack[call_stack_ptr-1].dg_return_slots;
 		if (dg_ret > 0)
 			expected_return = dg_ret;
+	}
+
+	// A frame read back from an image has no base (vm_resume_frames_loaded):
+	// what it returns is on top of the stack, the values below are its
+	// caller's. Then a delegate call whose delegate's cursor and limit the
+	// image did not have gets them from the stack, before the caller's
+	// DG_CALL reads them.
+	if (unlikely(call_stack[call_stack_ptr-1].resumed)) {
+		struct function_call *rf = &call_stack[call_stack_ptr-1];
+		/* A v14 delegate handler can return a different number of slots
+		 * from its delegate. Recover the base from the handler's declared
+		 * result, then let the existing delegate balance check below adapt
+		 * that result to the delegate. Wrap results have no reliable count. */
+		int returned = expected_return;
+		if (ain->version >= 14 && is_dg && ret_data != AIN_WRAP
+		    && fno >= 0 && fno < ain->nr_functions)
+			returned = ain_return_slots_type(&ain->functions[fno].return_type);
+		base_sp = stack_ptr - returned;
+		if (base_sp < 0)
+			base_sp = 0;
+		/* A saved C method flag is optional metadata. A damaged image may
+		 * not have its object at the inferred position; never shift through
+		 * a missing or unrelated stack slot in that case. */
+		if (rf->is_method && rf->return_address == VM_RETURN
+		    && (base_sp < 1 || stack[base_sp - 1].i != rf->struct_page))
+			rf->is_method = false;
+		rf->base_sp = base_sp;
+		delta = stack_ptr - base_sp;
+		if (rf->dg_resume_pending && base_sp >= 2) {
+			int dgp = stack[base_sp - 2].i;
+			struct page *d = heap_index_valid(dgp) && heap[dgp].type == VM_PAGE
+				? heap[dgp].page : NULL;
+			if (d && d->type == DELEGATE_PAGE && d->dg.cursor <= 0 && d->dg.limit <= 0) {
+				d->dg.cursor = stack[base_sp - 1].i;
+				d->dg.limit = d->nr_vars / 3;
+			}
+		}
+		rf->dg_resume_pending = false;
+	}
+
+	if (unlikely(resume_trace != 0) && resume_trace_on()) {
+		if (delta != expected_return && !skip_enforce && resume_trace_unbalanced++ < 40)
+			NOTICE("RTRACE unbalanced n=%u fno=%d delta=%d expected=%d dg=%d frames=%d",
+				resume_trace_unbalanced, fno, delta, expected_return, is_dg, call_stack_ptr);
+		if (resume_trace_frames && call_stack_ptr <= resume_trace_frames) {
+			NOTICE("RTRACE return f=%d fno=%d sp=%d bs=%d delta=%d expected=%d m=%d dg=%d",
+				call_stack_ptr - 1, fno, stack_ptr, base_sp, delta, expected_return,
+				call_stack[call_stack_ptr-1].is_method, is_dg);
+			resume_trace_frames = call_stack_ptr - 1;
+		}
 	}
 
 	if (is_dg && delta != expected_return && delta >= 0) {
@@ -5400,6 +5795,10 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			env_result = call_stack[call_stack_ptr-1].env_page;
 		} else {
 			env_result = struct_page_slot();
+			if (unlikely(resume_trace != 0) && ain->version >= 14 && resume_trace_on()
+			    && resume_trace_no_env++ < 40)
+				NOTICE("RTRACE no-env n=%u fno=%d frame=%d", resume_trace_no_env,
+					call_stack[call_stack_ptr-1].fno, call_stack_ptr - 1);
 		}
 		stack[stack_ptr - 1].i = env_result;
 		break;

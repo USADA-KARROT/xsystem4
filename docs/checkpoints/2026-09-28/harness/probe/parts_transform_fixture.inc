@@ -457,9 +457,11 @@ static void pt_save_with_layers(void)
 	PT_CHECK(PE_Save(&saved) && saved, "PE_Save failed");
 	if (!saved)
 		return;
-	int n = 4, section = ci_id_section(saved, n), end = saved->nr_vars - section;
+	int n = 4, section = ci_id_section(saved, n), pact = ci_empty_pact_section(saved, n);
+	int end = saved->nr_vars - section - (pact > 0 ? pact : 0);
 	PT_CHECK(ca_save_version(saved) >= 8, "XPE version %d, want 8 or later", ca_save_version(saved));
 	PT_CHECK(section == n + 3, "the save does not end with the controller ID section of %d layers", n);
+	PT_CHECK(pact >= 0, "invalid empty activity section before the controller IDs");
 	PT_CHECK(end >= 3 && saved->values[end - 3].i == 0 && saved->values[end - 2].i == 1 && saved->values[end - 1].i == CI_PA,
 		 "the words before the ID section are %d %d %d; want 0 (no hidden parts), 1 and %d (one sub colour parts)",
 		 end >= 3 ? saved->values[end - 3].i : -1, end >= 2 ? saved->values[end - 2].i : -1,

@@ -93,8 +93,9 @@
  *       controller mode; four layers, one inserted in the middle, so that
  *       their IDs are not the IDs of their positions), with a CG deform, a
  *       wheel flag and the names of parts of two layers: the optional
- *       sections follow the parts lists as PCDF, PWHE, PSND, each right
- *       where the one before it ends, and PCID is the last nr + 3 words (a
+ *       sections follow the parts lists as PCDF, PWHE, PSND and PUID (the two
+ *       buttons have unique IDs), then an optional empty PACT section and
+ *       PCID as the final nr + 3 words (a
  *       reader from before PSND reads PCDF and PWHE where they were and the
  *       IDs from the end, then stops at the mark it does not know; WE13's
  *       rule for PWHE). After Load the layers, the active one, the wheel
@@ -894,6 +895,7 @@ static void ps_save(void)
 #define PS_SAVE_WHEEL 0x45485750	/* "PWHE" */
 #define PS_SAVE_NAMES 0x444e5350	/* "PSND" */
 #define PS_SAVE_IDS 0x44494350		/* "PCID" */
+#define PS_SAVE_UIDS 0x44495550		/* "PUID" */
 enum { PS_SAVE_LOW = 19641, PS_SAVE_BOX, PS_SAVE_CG };
 static int ps_sl_a, ps_sl_b, ps_sl_c;	/* the layers [scene, a, c, b], active c */
 
@@ -947,6 +949,9 @@ static int ps_section_words(struct page *p, int pos, int *nos, int *nr_nos)
 		break;
 	case PS_SAVE_IDS:
 		k += count + 1;	/* the IDs, then the active one */
+		break;
+	case PS_SAVE_UIDS:
+		k += count * 2;	/* each parts: its number and its unique ID */
 		break;
 	default:
 		return -1;
@@ -1059,15 +1064,18 @@ static void ps_save_layers(void)
 	/* the layout */
 	int nos_w[8], nos_s[8], nr_w = 0, nr_s = 0, nr = ctrl_stack.nr_controllers, words = saved->nr_vars;
 	int d = ps_mark_at(saved, PS_SAVE_DEFORMS), w = ps_mark_at(saved, PS_SAVE_WHEEL);
-	int s = ps_mark_at(saved, PS_SAVE_NAMES), c = ps_mark_at(saved, PS_SAVE_IDS);
+	int s = ps_mark_at(saved, PS_SAVE_NAMES), c = ps_mark_at(saved, PS_SAVE_IDS), u = ps_mark_at(saved, PS_SAVE_UIDS);
+	int pact = ci_empty_pact_section(saved, nr);
 	int nd = ps_section_words(saved, d, NULL, NULL), nw = ps_section_words(saved, w, nos_w, &nr_w);
 	int ns = ps_section_words(saved, s, nos_s, &nr_s), nc = ps_section_words(saved, c, NULL, NULL);
-	printf("    PS9M %d words, %d layers: PCDF at %d (%d words), PWHE at %d (%d), PSND at %d (%d), PCID at %d (%d)\n",
-	       words, nr, d, nd, w, nw, s, ns, c, nc);
-	PS_CHECK(nr == 4 && d > 0 && nd > 0 && w == d + nd && nw > 0 && s == w + nw && ns > 0 && c == s + ns && nc == nr + 3
-		 && c + nc == words,
-		 "PS9M the sections are not PCDF, PWHE, PSND, PCID one right after the other with PCID the last %d words: "
-		 "PCDF %d+%d, PWHE %d+%d, PSND %d+%d, PCID %d+%d of %d words", nr + 3, d, nd, w, nw, s, ns, c, nc, words);
+	int nu = ps_section_words(saved, u, NULL, NULL);
+	printf("    PS9M %d words, %d layers: PCDF at %d (%d words), PWHE at %d (%d), PSND at %d (%d), PUID at %d (%d), PCID at %d (%d)\n",
+	       words, nr, d, nd, w, nw, s, ns, u, nu, c, nc);
+	PS_CHECK(pact >= 0, "PS9M invalid empty activity section before controller IDs");
+	PS_CHECK(nr == 4 && d > 0 && nd > 0 && w == d + nd && nw > 0 && s == w + nw && ns > 0 && u == s + ns && nu == 2 + 2 * 2
+		 && c == u + nu + (pact > 0 ? pact : 0) && nc == nr + 3 && c + nc == words,
+		 "PS9M unexpected section order or spacing before the final %d controller-ID words: "
+		 "PCDF %d+%d, PWHE %d+%d, PSND %d+%d, PUID %d+%d, PCID %d+%d of %d words", nr + 3, d, nd, w, nw, s, ns, u, nu, c, nc, words);
 	PS_CHECK(nr_w == 1 && nos_w[0] == PS_SAVE_BOX, "PS9M PWHE has %d parts (first %d), want the box's %d alone", nr_w,
 		 nr_w ? nos_w[0] : 0, PS_SAVE_BOX);
 	PS_CHECK(nr_s == 2 && ((nos_s[0] == PS_SAVE_LOW && nos_s[1] == PS_SAVE_BOX) || (nos_s[0] == PS_SAVE_BOX && nos_s[1] == PS_SAVE_LOW)),
@@ -1489,7 +1497,7 @@ static int test_parts_sound_name(void)
 		"the link resolved by name in its own activity; the AIN Set and Get",
 		"guard: no link is 0",
 		"the save: the names and the link survive Save and Load",
-		"the save in the game's mode: PCDF, PWHE, PSND, PCID; without PSND; a broken PSND",
+		"the multi-controller save: PCDF, PWHE, PSND, PUID, optional empty PACT, PCID; without PSND; a broken PSND",
 		"guard: v13, the number API and the old input path",
 		"guard: the same under the GBK, SJIS and flag-only string rules",
 		"the click-miss name is kept and not played",

@@ -519,6 +519,24 @@ static int ci_id_section(struct page *saved, int nr)
 		&& saved->values[saved->nr_vars - len + 1].i == nr ? len : 0;
 }
 
+/* These synthetic controller cases have no activities or released activity
+ * parts. A new writer puts this six-word empty PACT immediately before PCID;
+ * an old writer has no PACT. Return -1 for a present but malformed section. */
+static int ci_empty_pact_section(struct page *saved, int nr)
+{
+	int id = ci_id_section(saved, nr);
+	if (!saved || !id)
+		return -1;
+	int p = saved->nr_vars - id - 6;
+	if (p < 0 || saved->values[p].i != 0x54434150)
+		return 0;
+	if (saved->values[p + 1].i != 4 || saved->values[p + 2].i != 1 ||
+	    saved->values[p + 3].i != 0 || saved->values[p + 4].i != 900000 ||
+	    saved->values[p + 5].i != 0)
+		return -1;
+	return 6;
+}
+
 /* Rewrites a version 8 to 14 save of `nr` layers as the version 7 writer wrote
  * it (9 to 14 have more construction operation types, none in these saves):
  * version 8 only added the list of the parts in 減算色モード, between the
@@ -531,13 +549,19 @@ static int ci_to_v7(struct page *saved, int nr)
 	struct iarray_reader r;
 	if (!saved || !iarray_init_reader(&r, saved, "XPE"))
 		return 0;
-	int section = ci_id_section(saved, nr), list = saved->nr_vars - section - 1;
+	int section = ci_id_section(saved, nr);
+	int pact = ci_empty_pact_section(saved, nr);
+	if (!section || pact < 0)
+		return 0;
+	int list = saved->nr_vars - section - pact - 1;
 	if (saved->values[r.pos].i < 8 || saved->values[r.pos].i > 14 || list <= (int)r.pos || saved->values[list].i != 0)
 		return 0;
-	memmove(saved->values + list, saved->values + list + 1, section * sizeof(union vm_value));
+	/* Work only on this private copy: remove the v8 list and new extension,
+	 * then move the intact ID section to the version 7 position. */
+	memmove(saved->values + list, saved->values + list + 1 + pact, section * sizeof(union vm_value));
 	saved->values[r.pos].i = 7;
-	saved->nr_vars--;
-	return 1;
+	saved->nr_vars -= 1 + pact;
+	return 1 + pact;
 }
 
 /* Is any of the four parts of ci_inserted, or any layer's root, in
@@ -603,8 +627,10 @@ static void ci_save_load(void)
 	 * parts): with the section the layers keep their IDs, without it they
 	 * get the positions'. */
 	struct page *v7 = copy_page(saved);
+	int pact = ci_empty_pact_section(saved, n);
+	CI_CHECK(pact >= 0, "invalid empty activity section before the controller IDs");
 	int cut = ci_to_v7(v7, n);
-	CI_CHECK(cut == 1 && ca_save_version(v7) == 7 && ci_id_section(v7, n) == tail,
+	CI_CHECK(cut == 1 + (pact > 0 ? pact : 0) && ca_save_version(v7) == 7 && ci_id_section(v7, n) == tail,
 		 "could not rewrite the save as version 7 (cut %d, version %d, section %d)", cut, ca_save_version(v7), ci_id_section(v7, n));
 	ci_part(CI_PX);
 	CI_CHECK(PE_Load(&v7), "PE_Load of a version 7 save with the section failed");
@@ -769,16 +795,16 @@ static void ci_push_pop(void)
 	 * that. Before, a pushed-only stack had none.) The words and the hash
 	 * printed are those of the version 7 form, which is what they were
 	 * before the IDs and before version 8. */
-	int section = ci_id_section(saved, 4);
-	saved->nr_vars -= section;
-	CI_CHECK(saved->values[saved->nr_vars - 1].i == 0 && saved->values[saved->nr_vars - 2].i == 0,
+	int section = ci_id_section(saved, 4), pact = ci_empty_pact_section(saved, 4);
+	CI_CHECK(section == 7 && pact >= 0, "invalid controller ID or empty activity section");
+	int old_end = saved->nr_vars - section - (pact > 0 ? pact : 0);
+	CI_CHECK(old_end >= 2 && saved->values[old_end - 1].i == 0 && saved->values[old_end - 2].i == 0,
 		 "the save of a pushed-only stack ends with %d %d before its ID section, want the 0 of the hidden list and of the sub colour list",
-		 saved->values[saved->nr_vars - 2].i, saved->values[saved->nr_vars - 1].i);
-	printf("  CI14 pushed-only save (as written): %d words\n", ci_words(saved));
-	saved->nr_vars += section;
+		 old_end >= 2 ? saved->values[old_end - 2].i : -1, old_end >= 1 ? saved->values[old_end - 1].i : -1);
+	printf("  CI14 pushed-only save (as written): %d words\n", ci_words(saved) - section);
 	struct page *v7 = copy_page(saved);
 	int cut = ci_to_v7(v7, 4);
-	CI_CHECK(cut == 1, "could not rewrite the pushed-only save as version 7");
+	CI_CHECK(cut == 1 + (pact > 0 ? pact : 0), "could not rewrite the pushed-only save as version 7");
 	v7->nr_vars -= section;
 	printf("  CI14 pushed-only save: %d words, hash %08x\n", ci_words(v7), ci_hash(v7));
 	CI_CHECK(ci_words(v7) == 337 && ci_hash(v7) == 0x70d03dcau,

@@ -114,13 +114,39 @@ static cJSON *heap_to_json(void)
 	return cJSON_CreateArray_cb(heap_size, heap_item_to_json, NULL);
 }
 
-static cJSON *funcall_to_json(struct function_call *call)
+/*
+ * Port-owned frame metadata for v14 images (resume_frame_extra and
+ * vm_resume_frames_loaded). JSON stores it in the call-stack entries;
+ * RSM stores it in an engine-reserved comment (RESUME_FRAMES_TAG).
+ * Both forms carry runtime frame state in addition to the base record's
+ * function, return address, local page and struct page. The loader uses
+ * this metadata when restoring the port's runtime frame state.
+ * The reserved RSM comment is engine data: script-facing comment
+ * readers omit it, and the comment writer preserves it separately from
+ * comments supplied by the script.
+ */
+#define CALL_STACK_FRAMES_MAX ((int)(sizeof(call_stack) / sizeof(call_stack[0])))
+#define RESUME_FRAMES_TAG "xsystem4-frames 1"
+
+static cJSON *funcall_to_json(int i)
 {
+	struct function_call *call = &call_stack[i];
 	cJSON *json = cJSON_CreateObject();
 	cJSON_AddNumberToObject(json, "function", call->fno);
 	cJSON_AddNumberToObject(json, "return-address", call->return_address);
 	cJSON_AddNumberToObject(json, "local-page", call->page_slot);
 	cJSON_AddNumberToObject(json, "struct-page", call->struct_page);
+	if (ain->version >= 14) {
+		struct resume_frame_extra x;
+		vm_resume_frame_extra(i, &x);
+		cJSON_AddNumberToObject(json, "env-page", x.env_page);
+		cJSON_AddNumberToObject(json, "delegate-obj-ref", x.delegate_obj_ref);
+		cJSON_AddNumberToObject(json, "delegate-env-ref", x.delegate_env_ref);
+		cJSON_AddNumberToObject(json, "delegate-page", x.dg_page);
+		cJSON_AddNumberToObject(json, "delegate-cursor", x.dg_cursor);
+		cJSON_AddNumberToObject(json, "delegate-limit", x.dg_limit);
+		cJSON_AddNumberToObject(json, "c-method", x.c_method);
+	}
 	return json;
 }
 
@@ -128,9 +154,94 @@ static cJSON *call_stack_to_json(void)
 {
 	cJSON *json = cJSON_CreateArray();
 	for (int i = 0; i < call_stack_ptr; i++) {
-		cJSON_AddItemToArray(json, funcall_to_json(&call_stack[i]));
+		cJSON_AddItemToArray(json, funcall_to_json(i));
 	}
 	return json;
+}
+
+// "xsystem4-frames 1 <frames>", then for each frame
+// "|<function> <env> <object ref> <env ref> <delegate> <cursor> <limit>".
+static char *resume_frames_comment(void)
+{
+	size_t cap = 64 + (size_t)call_stack_ptr * 96, len = 0;
+	char *s = xmalloc(cap);
+	len += snprintf(s + len, cap - len, "%s %d", RESUME_FRAMES_TAG, call_stack_ptr);
+	for (int i = 0; i < call_stack_ptr; i++) {
+		struct resume_frame_extra x;
+		vm_resume_frame_extra(i, &x);
+		len += snprintf(s + len, cap - len, "|%d %d %d %d %d %d %d", x.fno, x.env_page,
+				x.delegate_obj_ref, x.delegate_env_ref, x.dg_page, x.dg_cursor, x.dg_limit);
+	}
+	return s;
+}
+
+static bool is_resume_frames_comment(const char *s)
+{
+	return ain && ain->version >= 14 && s
+		&& !strncmp(s, RESUME_FRAMES_TAG " ", strlen(RESUME_FRAMES_TAG) + 1);
+}
+
+/* Only the last comment can be the port's frame record. The writer puts
+ * it there, so even an identical earlier script comment remains visible.
+ * Historical files without a source marker cannot distinguish a final
+ * script comment that exactly matches a valid record. */
+static int resume_saved_frame_count(const struct rsave *save)
+{
+	if (save->comments_only)
+		return 0;
+	int n = 0;
+	for (int i = 0; i < save->nr_call_frames; i++)
+		n += save->call_frames[i].type != RSAVE_CALL_STACK_BOTTOM;
+	return n;
+}
+
+static struct resume_frame_extra *resume_frames_from_comments(struct rsave *save, int nr_frames)
+{
+	if (save->comments_only || nr_frames <= 0 ||
+	    nr_frames > CALL_STACK_FRAMES_MAX || save->nr_comments <= 0)
+		return NULL;
+	const char *s = save->comments[save->nr_comments - 1];
+	if (!is_resume_frames_comment(s))
+		return NULL;
+	s += strlen(RESUME_FRAMES_TAG);
+	char *end;
+	long n = strtol(s, &end, 10);
+	if (end == s || n != nr_frames)
+		return NULL;
+	struct resume_frame_extra *x = xcalloc(nr_frames, sizeof *x);
+	s = end;
+	for (int i = 0; i < nr_frames; i++) {
+		long v[7];
+		if (*s++ != '|')
+			goto bad;
+		for (int k = 0; k < 7; k++) {
+			if (k && *s++ != ' ')
+				goto bad;
+			v[k] = strtol(s, &end, 10);
+			if (end == s || v[k] < INT32_MIN || v[k] > INT32_MAX)
+				goto bad;
+			s = end;
+		}
+		x[i] = (struct resume_frame_extra) {
+			.present = true, .fno = v[0], .env_page = v[1],
+			.delegate_obj_ref = v[2], .delegate_env_ref = v[3],
+			.dg_page = v[4], .dg_cursor = v[5], .dg_limit = v[6],
+		};
+	}
+	if (*s)
+		goto bad;
+	return x;
+bad:
+	free(x);
+	return NULL;
+}
+
+static bool resume_has_frame_comment(struct rsave *save)
+{
+	struct resume_frame_extra *x = resume_frames_from_comments(save, resume_saved_frame_count(save));
+	bool found = x != NULL;
+	free(x);
+	return found;
 }
 
 static cJSON *stack_to_json(void)
@@ -450,6 +561,11 @@ static struct rsave *vm_image_to_rsave(const char *key)
 	save_call_stack_to_rsave(save);
 	save_stack_to_rsave(save);
 	save_func_names_to_rsave(save);
+	if (ain->version >= 14 && save->version >= 7) {
+		save->nr_comments = 1;
+		save->comments = xcalloc(1, sizeof(char*));
+		save->comments[0] = resume_frames_comment();
+	}
 	return save;
 }
 
@@ -488,6 +604,7 @@ static int save_json_image(const char *key, const char *path)
 
 int vm_save_image(const char *key, const char *path)
 {
+	vm_resume_trace("save", path);
 	switch (config.save_format) {
 	case SAVE_FORMAT_RSM:
 		return save_rsave_image(key, path);
@@ -917,7 +1034,6 @@ static void load_rsave_heap(struct rsave *save)
 }
 
 // call_stack is a fixed array; an image with more frames cannot be loaded.
-#define CALL_STACK_FRAMES_MAX ((int)(sizeof(call_stack) / sizeof(call_stack[0])))
 
 static void load_json_call_stack(cJSON *json)
 {
@@ -928,22 +1044,73 @@ static void load_json_call_stack(cJSON *json)
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
 		type_check(cJSON_Object, item);
+		if (ain->version < 14) {
+			call_stack[call_stack_ptr++] = (struct function_call) {
+				.fno            = type_check(cJSON_Number, cJSON_GetObjectItem(item, "function"))->valueint,
+				.return_address = type_check(cJSON_Number, cJSON_GetObjectItem(item, "return-address"))->valueint,
+				.page_slot      = type_check(cJSON_Number, cJSON_GetObjectItem(item, "local-page"))->valueint,
+				.struct_page    = type_check(cJSON_Number, cJSON_GetObjectItem(item, "struct-page"))->valueint,
+			};
+			continue;
+		}
+		cJSON *ret = type_check(cJSON_Number, cJSON_GetObjectItem(item, "return-address"));
+		/* cJSON's valueint saturates at INT_MAX. Existing JSON writers put
+		 * the unsigned VM_RETURN value in this field; older files may use -1. */
+		uint32_t return_address = ret->valuedouble == (double)UINT32_MAX || ret->valuedouble == -1.0
+			? UINT32_MAX : (uint32_t)ret->valueint;
 		call_stack[call_stack_ptr++] = (struct function_call) {
 			.fno            = type_check(cJSON_Number, cJSON_GetObjectItem(item, "function"))->valueint,
-			.return_address = type_check(cJSON_Number, cJSON_GetObjectItem(item, "return-address"))->valueint,
+			.return_address = return_address,
 			.page_slot      = type_check(cJSON_Number, cJSON_GetObjectItem(item, "local-page"))->valueint,
 			.struct_page    = type_check(cJSON_Number, cJSON_GetObjectItem(item, "struct-page"))->valueint,
 		};
 	}
 }
 
+// The frame fields of a json image (funcall_to_json); an entry without them
+// (an image of an earlier build) is not present. NULL if no entry has them.
+static struct resume_frame_extra *load_json_frame_extra(cJSON *json)
+{
+	static const char *const keys[] = { "env-page", "delegate-obj-ref", "delegate-env-ref",
+		"delegate-page", "delegate-cursor", "delegate-limit" };
+	int n = cJSON_GetArraySize(json), any = 0;
+	if (n <= 0)
+		return NULL;
+	struct resume_frame_extra *x = xcalloc(n, sizeof *x);
+	for (int i = 0; i < n; i++) {
+		cJSON *item = cJSON_GetArrayItem(json, i);
+		int32_t v[6];
+		bool ok = true;
+		for (int k = 0; k < 6 && ok; k++) {
+			cJSON *m = cJSON_GetObjectItem(item, keys[k]);
+			ok = m && cJSON_IsNumber(m);
+			v[k] = ok ? m->valueint : 0;
+		}
+		if (!ok)
+			continue;
+		cJSON *fno = cJSON_GetObjectItem(item, "function");
+		x[i] = (struct resume_frame_extra) {
+			.present = true, .fno = fno ? fno->valueint : -1, .env_page = v[0],
+			.delegate_obj_ref = v[1], .delegate_env_ref = v[2],
+			.dg_page = v[3], .dg_cursor = v[4], .dg_limit = v[5],
+		};
+		cJSON *method = cJSON_GetObjectItem(item, "c-method");
+		if (cJSON_IsNumber(method) && (method->valuedouble == 0 || method->valuedouble == 1)) {
+			x[i].c_method_present = true;
+			x[i].c_method = method->valuedouble == 1;
+		}
+		any++;
+	}
+	if (!any) {
+		free(x);
+		return NULL;
+	}
+	return x;
+}
+
 static void load_rsave_call_stack(struct rsave *save)
 {
-	int nr_frames = 0;
-	for (int i = 0; i < save->nr_call_frames; i++) {
-		if (save->call_frames[i].type != RSAVE_CALL_STACK_BOTTOM)
-			nr_frames++;
-	}
+	int nr_frames = resume_saved_frame_count(save);
 	if (nr_frames > CALL_STACK_FRAMES_MAX)
 		invalid_save_data("too many call frames (%d, at most %d)", nr_frames, CALL_STACK_FRAMES_MAX);
 	call_stack_ptr = 0;
@@ -1035,8 +1202,14 @@ static void load_json_image(const char *key, const char *path)
 	}
 	cJSON *ip = type_check(cJSON_Number, cJSON_GetObjectItem(save, "ip"));
 	load_json_heap(type_check(cJSON_Array, cJSON_GetObjectItem(save, "heap")));
-	load_json_call_stack(type_check(cJSON_Array, cJSON_GetObjectItem(save, "call-stack")));
+	cJSON *frames = type_check(cJSON_Array, cJSON_GetObjectItem(save, "call-stack"));
+	load_json_call_stack(frames);
 	load_json_stack(type_check(cJSON_Array, cJSON_GetObjectItem(save, "stack")));
+	if (ain->version >= 14) {
+		struct resume_frame_extra *extra = load_json_frame_extra(frames);
+		vm_resume_frames_loaded(extra);
+		free(extra);
+	}
 	instr_ptr = ip->valueint;
 	if (ain->nr_delegates > 0) {
 		cJSON *next_seq = type_check(cJSON_Number, cJSON_GetObjectItem(save, "next_seq"));
@@ -1060,6 +1233,11 @@ static enum savefile_error load_rsave_image(const char *key, const char *path)
 	load_rsave_heap(save);
 	load_rsave_call_stack(save);
 	load_rsave_stack(save);
+	if (ain->version >= 14) {
+		struct resume_frame_extra *extra = resume_frames_from_comments(save, call_stack_ptr);
+		vm_resume_frames_loaded(extra);
+		free(extra);
+	}
 	rsave_free(save);
 	return SAVEFILE_SUCCESS;
 }
@@ -1110,11 +1288,13 @@ void vm_load_image(const char *key, const char *path)
 	switch (error) {
 	case SAVEFILE_SUCCESS:
 		fix_value_array_members();
+		vm_resume_trace("load", path);
 		return;
 	case SAVEFILE_INVALID_SIGNATURE:
 		// If not a System4 resume save file, read as a json.
 		load_json_image(key, path);
 		fix_value_array_members();
+		vm_resume_trace("load", path);
 		return;
 	default:
 		VM_ERROR("Failed to read VM image '%s': %s", display_sjis0(path), savefile_strerror(error));
@@ -1161,26 +1341,42 @@ static struct page *load_json_image_comments(const char *key, const char *path, 
 static struct page *load_rsave_image_comments(const char *key, const char *path, enum savefile_error *error)
 {
 	char *full_path = savedir_path(path);
-	struct rsave *save = rsave_read(full_path, RSAVE_READ_COMMENTS, error);
+	struct savefile *file = savefile_read(full_path, error);
 	free(full_path);
-	if (*error != SAVEFILE_SUCCESS)
+	if (!file)
 		return NULL;
-	if (strcmp(key, save->key))
-		invalid_save_data("Key doesn't match");
-	if (save->nr_comments == 0) {
+	struct rsave *save = xcalloc(1, sizeof *save);
+	*error = rsave_parse(file->buf, file->len, RSAVE_READ_COMMENTS, save);
+	if (*error != SAVEFILE_SUCCESS) {
+		savefile_free(file);
 		rsave_free(save);
 		return NULL;
 	}
-	union vm_value dims = { .i = save->nr_comments };
+	bool has_frames = false;
+	/* Read the frames from the same bytes as the comments. Ordinary
+	 * comments do not require parsing the rest of the image. */
+	if (save->nr_comments > 0 && is_resume_frames_comment(save->comments[save->nr_comments - 1])) {
+		struct rsave *full = xcalloc(1, sizeof *full);
+		if (rsave_parse(file->buf, file->len, RSAVE_READ_ALL, full) == SAVEFILE_SUCCESS)
+			has_frames = resume_has_frame_comment(full);
+		rsave_free(full);
+	}
+	savefile_free(file);
+	if (strcmp(key, save->key))
+		invalid_save_data("Key doesn't match");
+	int nr = save->nr_comments - has_frames;
+	if (nr == 0) {
+		rsave_free(save);
+		return NULL;
+	}
+	union vm_value dims = { .i = nr };
 	struct page *array = alloc_array(1, &dims, AIN_ARRAY_STRING, 0, false);
-	for (int i = 0; i < dims.i; i++) {
-		int slot = heap_alloc_slot(VM_STRING);
-		if (!save->comments[i][0]) {
-			heap[slot].s = string_ref(&EMPTY_STRING);
-		} else {
-			heap[slot].s = make_string(save->comments[i], strlen(save->comments[i]));
+	for (int i = 0; i < nr; i++) {
+		if (save->comments[i][0]) {
+			struct string *str = make_string(save->comments[i], strlen(save->comments[i]));
+			heap_string_assign(array->values[i].i, str);
+			free_string(str);
 		}
-		array->values[i].i = slot;
 	}
 	rsave_free(save);
 	return array;
@@ -1228,15 +1424,18 @@ static int write_rsave_image_comments(const char *key, const char *path, struct 
 		save->version = 7;
 	}
 
-	for (int i = 0; i < save->nr_comments; i++) {
+	// Preserve only a valid final frame record, after all script comments.
+	bool has_frames = resume_has_frame_comment(save);
+	char *frames = has_frames ? save->comments[save->nr_comments - 1] : NULL;
+	for (int i = 0; i < save->nr_comments - has_frames; i++)
 		free(save->comments[i]);
-	}
 	free(save->comments);
-	save->nr_comments = comments->nr_vars;
-	save->comments = xcalloc(save->nr_comments, sizeof(char*));
-	for (int i = 0; i < save->nr_comments; i++) {
+	save->nr_comments = comments->nr_vars + has_frames;
+	save->comments = xcalloc(ain->version >= 14 && !save->nr_comments ? 1 : save->nr_comments, sizeof(char*));
+	for (int i = 0; i < comments->nr_vars; i++)
 		save->comments[i] = xstrdup(heap_get_string(comments->values[i].i)->text);
-	}
+	if (frames)
+		save->comments[comments->nr_vars] = frames;
 
 	FILE *fp = file_open_utf8(full_path, "wb");
 	if (!fp) {

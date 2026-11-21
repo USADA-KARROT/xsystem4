@@ -82,11 +82,37 @@
  * know it stops before it; without it a loaded parts has no names and keeps
  * the sound numbers of its record. The numbers of a parts with names are
  * made from them again.
+ *
+ * The optional unique ID section (SAVE_UNIQUE_IDS) follows the sound names
+ * and precedes the controller IDs: its mark, a count, and for each parts
+ * whose record the save has and whose unique ID (SetEventID) is not 0, the
+ * number and the ID. Event handlers can validate messages against the saved
+ * unique ID. The delegate index remains in the main parts record, so
+ * restoring it without its corresponding ID can reject later events.
+ * Both values must therefore survive a save/load round trip.
+ * This optional section is written only when a saved parts has an ID.
+ * A reader that does not recognize the section stops before it.
+ * Controller IDs remain available from the final section.
+ *
+ * The optional v14 numeral section (SAVE_NUMERALS) follows the unique IDs
+ * and precedes the controller IDs: its mark, a count, and for each numeral
+ * state of the parts whose records the save has, the number, the state,
+ * the 表示タイプ, ゼロパディング, 全角, the ＣＧ名 (string or null), the twelve
+ * widths of a linked CG, the font (text style and 太さ). A numeral record
+ * keeps only the number, its spacing, comma, length and CG font, so without
+ * these a font numeral read back was not drawn until the script set its
+ * type again (the numbers of the party cards on the map after a retry). It
+ * is written only when a saved parts has a numeral state; a reader that
+ * does not know it stops before it, and a save without it is read as
+ * before (load_parts_numeral).
  */
 #define CURRENT_SAVE_VERSION 14
 #define SAVE_CG_DEFORMS 0x46444350 /* "PCDF" */
 #define SAVE_WHEELABLE 0x45485750 /* "PWHE" */
 #define SAVE_SOUND_NAMES 0x444e5350 /* "PSND" */
+#define SAVE_UNIQUE_IDS 0x44495550 /* "PUID" */
+#define SAVE_NUMERALS 0x4d554e50 /* "PNUM" */
+#define SAVE_USER_COMPONENTS 0x43555350 /* "PSUC" */
 
 /*
  * Controllers in a save. The controller fields (the active controller, each
@@ -321,9 +347,11 @@ static void load_parts_numeral(struct iarray_reader *r, struct parts *parts,
 	num->font_no = iarray_read(r);
 
 	// A v14 numeral's 表示タイプ, font, ＣＧ名, 全角 and ゼロパディング are
-	// not saved (XPE 8 and 9). One with a CG font is drawn again with it; one
-	// without (a font numeral, or a CG numeral with no CG) keeps the size
-	// that was read and is not built until the script gives its type.
+	// not in the record (XPE 8 and 9); the numeral section after the lists
+	// has them (load_numerals). Until then, and in a save without it, one
+	// with a CG font is drawn again with it; one without (a font numeral,
+	// or a CG numeral with no CG) keeps the size that was read and is not
+	// built until the script gives its type.
 	if (ain->version >= 14 && num->font_no < 0) {
 		num->unknown_type = true;
 		return;
@@ -1210,6 +1238,311 @@ static void load_sound_names(struct iarray_reader *r)
 	free(buf);
 }
 
+// The unique ID section (see CURRENT_SAVE_VERSION), for the parts whose
+// records the save has.
+static void save_unique_ids(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, count = 0;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!save_hidden && !parts->global.show)
+			continue;
+		if (!parts->want_save || parts_is_controller_root(parts) || !parts->unique_id)
+			continue;
+		if (!count) {
+			iarray_write(w, SAVE_UNIQUE_IDS);
+			count_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+		}
+		iarray_write(w, parts->no);
+		iarray_write(w, parts->unique_id);
+		count++;
+	}
+	if (count)
+		iarray_write_at(w, count_pos, count);
+}
+
+// A section that does not read as one is warned about and left.
+static void load_unique_ids(struct iarray_reader *r)
+{
+	if (r->error || r->pos >= r->size || r->data[r->pos].i != SAVE_UNIQUE_IDS)
+		return;
+	iarray_read(r);
+	int nr = iarray_read(r);
+	if (r->error || nr < 0 || (unsigned)nr > (r->size - r->pos) / 2) {
+		WARNING("invalid unique ID section");
+		return;
+	}
+	for (int i = 0; i < nr; i++) {
+		int no = iarray_read(r);
+		int id = iarray_read(r);
+		struct parts *parts = no > 0 ? parts_try_get(no) : NULL;
+		if (parts)
+			parts->unique_id = id;
+	}
+}
+
+// The v14 numeral section (see CURRENT_SAVE_VERSION), for the parts whose
+// records the save has.
+static void save_numerals(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, count = 0;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!save_hidden && !parts->global.show)
+			continue;
+		if (!parts->want_save || parts_is_controller_root(parts))
+			continue;
+		for (int s = 0; s < PARTS_NR_STATES; s++) {
+			if (parts->states[s].type != PARTS_NUMERAL)
+				continue;
+			struct parts_numeral *num = &parts->states[s].num;
+			if (!count) {
+				iarray_write(w, SAVE_NUMERALS);
+				count_pos = iarray_writer_pos(w);
+				iarray_write(w, 0);
+			}
+			iarray_write(w, parts->no);
+			iarray_write(w, s);
+			iarray_write(w, num->show_type);
+			iarray_write(w, num->zero_pad);
+			iarray_write(w, num->full_pitch);
+			iarray_write_string_or_null(w, num->cg_name);
+			for (int i = 0; i < 12; i++)
+				iarray_write(w, num->cg_widths[i]);
+			iarray_write_text_style(w, &num->font);
+			iarray_write_float(w, num->font.bold_weight);
+			count++;
+		}
+	}
+	if (count)
+		iarray_write_at(w, count_pos, count);
+}
+
+// A section that does not read as one is warned about and left. A numeral
+// of the section is drawn again as its setters draw it (its CG font, the
+// index the record has, is in the save's numeral fonts).
+static void load_numerals(struct iarray_reader *r)
+{
+	if (r->error || r->pos >= r->size || r->data[r->pos].i != SAVE_NUMERALS)
+		return;
+	iarray_read(r);
+	int nr = iarray_read(r);
+	if (r->error || nr < 0 || (unsigned)nr > r->size - r->pos) {
+		WARNING("invalid numeral section");
+		return;
+	}
+	for (int i = 0; i < nr; i++) {
+		int no = iarray_read(r);
+		int s = iarray_read(r);
+		int show_type = iarray_read(r);
+		bool zero_pad = iarray_read(r);
+		bool full_pitch = iarray_read(r);
+		struct string *cg_name = iarray_read_string_or_null(r);
+		int widths[12];
+		for (int k = 0; k < 12; k++)
+			widths[k] = iarray_read(r);
+		struct text_style ts = {0};
+		iarray_read_text_style(r, &ts);
+		ts.bold_weight = iarray_read_float(r);
+		if (r->error) {
+			WARNING("invalid numeral section");
+			if (cg_name)
+				free_string(cg_name);
+			return;
+		}
+		struct parts *parts = no > 0 ? parts_try_get(no) : NULL;
+		if (!parts || s < 0 || s >= PARTS_NR_STATES || parts->states[s].type != PARTS_NUMERAL
+		    || show_type < 0 || show_type > PARTS_NUMERAL_SHOW_FONT) {
+			if (cg_name)
+				free_string(cg_name);
+			continue;
+		}
+		struct parts_numeral *num = &parts->states[s].num;
+		num->show_type = show_type;
+		num->zero_pad = zero_pad;
+		num->full_pitch = full_pitch;
+		if (num->cg_name)
+			free_string(num->cg_name);
+		num->cg_name = cg_name;
+		memcpy(num->cg_widths, widths, sizeof widths);
+		num->font = ts;
+		num->unknown_type = false;
+		parts_numeral_update(parts, num);
+	}
+}
+
+/* The component's strings are bytes, not character codes. */
+static void save_uc_string(struct iarray_writer *w, const char *str)
+{
+	int len = str ? strlen(str) : -1;
+	iarray_write(w, len);
+	for (int i = 0; i < len; i++)
+		iarray_write(w, (unsigned char)str[i]);
+}
+
+static char *load_uc_string(struct iarray_reader *r, bool *ok)
+{
+	int len = iarray_read(r);
+	if (r->error || len < -1 || (len >= 0 && (unsigned)len > r->size - r->pos)) {
+		*ok = false;
+		return NULL;
+	}
+	if (len == -1)
+		return NULL;
+	char *s = xmalloc((size_t)len + 1);
+	for (int i = 0; i < len; i++) {
+		int c = iarray_read(r);
+		if (c <= 0 || c > 255) *ok = false;
+		s[i] = c;
+	}
+	s[len] = 0;
+	return s;
+}
+
+static void save_user_components(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, length_pos = 0, start = 0;
+	int count = 0;
+	struct parts *p;
+	PARTS_LIST_FOREACH(p) {
+		if (!p->want_save || parts_is_controller_root(p) || (!save_hidden && !p->global.show))
+			continue;
+		if (!p->user_component_name && !p->nr_uc_data)
+			continue;
+		if (!count) {
+			iarray_write(w, SAVE_USER_COMPONENTS);
+			length_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+			start = iarray_writer_pos(w);
+			count_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+		}
+		iarray_write(w, p->no);
+		save_uc_string(w, p->user_component_name);
+		iarray_write(w, p->nr_uc_data / 2);
+		for (int i = 0; i + 1 < p->nr_uc_data; i += 2) {
+			save_uc_string(w, p->uc_data[i]);
+			save_uc_string(w, p->uc_data[i + 1]);
+		}
+		count++;
+	}
+	if (count) {
+		iarray_write_at(w, count_pos, count);
+		iarray_write_at(w, length_pos, iarray_writer_pos(w) - start);
+	}
+}
+
+static bool read_user_components(struct iarray_reader *r, bool apply)
+{
+	if (r->error) return false;
+	if (r->pos >= r->size || r->data[r->pos].i != SAVE_USER_COMPONENTS)
+		return true;
+	iarray_read(r);
+	int length = iarray_read(r);
+	if (r->error || length < 0 || (unsigned)length > r->size - r->pos)
+		return false;
+	struct iarray_reader section = *r;
+	section.size = section.pos + length;
+	struct iarray_reader *outer = r;
+	r = &section;
+	int count = iarray_read(r);
+	if (r->error || count < 0 || (unsigned)count > (r->size - r->pos) / 3)
+		return false;
+	for (int i = 0; i < count; i++) {
+		int no = iarray_read(r);
+		bool ok = true;
+		char *name = load_uc_string(r, &ok);
+		int pairs = iarray_read(r);
+		if (!ok || r->error || pairs < 0 || (unsigned)pairs > (r->size - r->pos) / 2) {
+			free(name);
+			return false;
+		}
+		struct parts *p = apply && no > 0 ? parts_try_get(no) : NULL;
+		if (p) {
+			free(p->user_component_name);
+			p->user_component_name = name;
+		} else {
+			free(name);
+		}
+		for (int j = 0; j < pairs; j++) {
+			char *key = load_uc_string(r, &ok);
+			char *value = load_uc_string(r, &ok);
+			if (!ok || !key || !value || r->error) {
+				free(key);
+				free(value);
+				return false;
+			}
+			if (p) parts_uc_data_set(p, key, value);
+			free(key);
+			free(value);
+		}
+	}
+	if (r->error || r->pos != r->size)
+		return false;
+	outer->pos = r->pos;
+	return true;
+}
+
+static bool load_user_components(struct iarray_reader *r)
+{
+	struct iarray_reader check = *r;
+	if (!read_user_components(&check, false))
+		return false;
+	return read_user_components(r, true);
+}
+
+/* Native 0x551771 -> 0x55179a writes the component's speed-up flag (parts
+ * +0x22d, its parameter block's +0x1a9) with the block, and 0x551ee9 reads
+ * it back for data version 36 and later. XPE keeps the numbers of the saved
+ * parts that have it disabled in an optional section after the activity
+ * section (the controller ID section stays the end). A reader that does not
+ * know it stops before it; without it every parts is enabled, as a new
+ * parts is (0x550a9c). Controller roots have no record and are not listed. */
+#define SAVE_SPEED_UP_DISABLED 0x55505350 /* "PSPU" */
+
+static void save_speed_up_disabled(struct iarray_writer *w, bool save_hidden)
+{
+	unsigned count_pos = 0, count = 0;
+	struct parts *parts;
+	PARTS_LIST_FOREACH(parts) {
+		if (!save_hidden && !parts->global.show)
+			continue;
+		if (!parts->want_save || parts_is_controller_root(parts) || !parts->speed_up_disabled)
+			continue;
+		if (!count) {
+			iarray_write(w, SAVE_SPEED_UP_DISABLED);
+			count_pos = iarray_writer_pos(w);
+			iarray_write(w, 0);
+		}
+		iarray_write(w, parts->no);
+		count++;
+	}
+	if (count)
+		iarray_write_at(w, count_pos, count);
+}
+
+// A section that does not read as one fails the load. A number sets only a
+// parts the records made; it never makes one.
+static bool load_speed_up_disabled(struct iarray_reader *r)
+{
+	if (r->error || r->pos >= r->size || r->data[r->pos].i != SAVE_SPEED_UP_DISABLED)
+		return true;
+	iarray_read(r);
+	int nr = iarray_read(r);
+	if (r->error || nr < 0 || (unsigned)nr > r->size - r->pos) {
+		WARNING("invalid speed-up section");
+		return false;
+	}
+	for (int i = 0; i < nr; i++) {
+		int no = iarray_read(r);
+		struct parts *parts = no > 0 ? parts_try_get(no) : NULL;
+		if (parts && !parts_is_controller_root(parts))
+			parts->speed_up_disabled = true;
+	}
+	return true;
+}
+
 static bool parts_engine_save(struct page **buffer, bool save_hidden)
 {
 	// get parts into clean state first
@@ -1294,12 +1627,72 @@ static bool parts_engine_save(struct page **buffer, bool save_hidden)
 		save_cg_deforms(&w, save_hidden);
 		save_wheelable(&w, save_hidden);
 		save_sound_names(&w, save_hidden);
+		save_unique_ids(&w, save_hidden);
+		save_numerals(&w, save_hidden);
+		save_user_components(&w, save_hidden);
+		if (!pe_v14_activity_save(&w)) {
+			WARNING("activity table exceeds save limits");
+			iarray_free_writer(&w);
+			return false;
+		}
+		save_speed_up_disabled(&w, save_hidden);
 	}
 
 	// The controller ID section is the end of the save, after every list
 	// (load_controller_ids takes it from there).
 	if (version >= 7 && parts_multi_controller)
 		save_controller_ids(&w);
+
+	if (parts_ctrl_trace_on()) {
+		unsigned all = 0, unsaved = 0, hidden = 0;
+		PARTS_LIST_FOREACH(parts) {
+			if (parts_is_controller_root(parts))
+				continue;
+			all++;
+			if (!parts->want_save)
+				unsaved++;
+			else if (!save_hidden && !parts->global.show)
+				hidden++;
+		}
+		NOTICE("PCTL save words=%u version=%d parts=%u records=%u not-want-save=%u hidden-left=%u "
+			"controllers=%d active=%d", w.size, version, all, count, unsaved, hidden,
+			ctrl_stack.nr_controllers, ctrl_stack.active);
+		// What the records leave out: the parts (with a record) that have
+		// it set.
+		enum { UC, UCDATA, BTN, BTNOFF, BTNTEXT, CHECK, RADIO, SCROLL, LOOK, MSG, MWLINK,
+			LAYOUT, SPEEDUP, PIXEL, PANEL, UID, NR_CENSUS };
+		unsigned c[NR_CENSUS] = {0};
+		static const struct parts_scrollbar no_scrollbar;
+		PARTS_LIST_FOREACH(parts) {
+			if (!parts->want_save || parts_is_controller_root(parts)
+			    || (!save_hidden && !parts->global.show))
+				continue;
+			c[UC] += parts->user_component_name != NULL;
+			c[UCDATA] += parts->nr_uc_data > 0;
+			c[BTN] += parts->button_cg_name != NULL;
+			c[BTNOFF] += parts->button_disabled;
+			c[BTNTEXT] += parts->button_text != NULL;
+			c[CHECK] += parts->checkbox != NULL;
+			c[RADIO] += parts->radio_box != NULL;
+			c[SCROLL] += memcmp(&parts->scrollbar, &no_scrollbar, sizeof no_scrollbar) != 0;
+			c[LOOK] += parts->scrollbar_look != NULL;
+			c[MSG] += parts->message != NULL;
+			c[MWLINK] += parts->message_window_effect_link;
+			c[LAYOUT] += parts->layout_offset.x || parts->layout_offset.y;
+			c[SPEEDUP] += parts->speed_up_disabled;
+			c[PIXEL] += parts->pixel_hittest;
+			c[PANEL] += parts->panel.valid;
+			c[UID] += parts->unique_id != 0;
+		}
+		NOTICE("PCTL save-census user-component=%u uc-data=%u button=%u button-disabled=%u button-text=%u "
+			"checkbox=%u radio=%u scrollbar=%u scrollbar-look=%u message=%u mw-link=%u layout-offset=%u "
+			"speedup-off=%u pixel-hit=%u panel=%u unique-id=%u", c[UC], c[UCDATA], c[BTN], c[BTNOFF],
+			c[BTNTEXT], c[CHECK], c[RADIO], c[SCROLL], c[LOOK], c[MSG], c[MWLINK], c[LAYOUT],
+			c[SPEEDUP], c[PIXEL], c[PANEL], c[UID]);
+		parts_tree_trace("save");
+		if (ain->version >= 14)
+			pe_v14_activity_trace("save");
+	}
 
 	if (*buffer) {
 		delete_page_vars(*buffer);
@@ -1321,25 +1714,52 @@ bool PE_Save(struct page **buffer)
 	return parts_engine_save(buffer, true);
 }
 
+// Diagnostics (XSYS4_PARTS_CTRL_TRACE=1): the end of a load and the tree it
+// left.
+static bool load_trace_end(bool ok)
+{
+	if (parts_ctrl_trace_on()) {
+		NOTICE("PCTL load %s", ok ? "ok" : "failed");
+		if (ok)
+			parts_tree_trace("after-load");
+		if (ok && ain->version >= 14)
+			pe_v14_activity_trace("after-load");
+	}
+	return ok;
+}
+
 bool PE_Load(struct page **buffer)
 {
+	if (parts_ctrl_trace_on()) {
+		NOTICE("PCTL load begin words=%d", *buffer ? (*buffer)->nr_vars : -1);
+		parts_tree_trace("before-load");
+		if (ain->version >= 14)
+			pe_v14_activity_trace("before-load");
+	}
 	if (!(*buffer)) {
 		WARNING("savedata array is empty");
-		return false;
+		return load_trace_end(false);
 	}
 
 	struct iarray_reader r;
 	if (!iarray_init_reader(&r, *buffer, "XPE")) {
 		WARNING("unrecognized savedata magic");
-		return false;
+		return load_trace_end(false);
 	}
 	int version = iarray_read(&r);
 	if (version > CURRENT_SAVE_VERSION) {
 		WARNING("unrecognized savedata version");
-		return false;
+		return load_trace_end(false);
 	}
 
 	parts_release_all();
+	// v14: the queued messages name parts, delegate indices and unique IDs
+	// of the state just released; given to the script after the load they
+	// would reach the loaded parts' handlers. (Whether the original's Load
+	// also empties its queue is not established; its Load starts from an
+	// empty manager, 0x56d870 -> 0x53d150.)
+	if (ain->version >= 14)
+		pe_v14_message_reset();
 
 	if (version > 1)
 		load_numeral_fonts(&r);
@@ -1366,7 +1786,7 @@ bool PE_Load(struct page **buffer)
 	if (nr_parts < 0) {
 		WARNING("invalid parts count");
 		free(ids);
-		return false;
+		return load_trace_end(false);
 	}
 
 	for (int i = 0; i < nr_parts; i++) {
@@ -1400,9 +1820,20 @@ bool PE_Load(struct page **buffer)
 		load_cg_deforms(&r);
 		if (!load_wheelable(&r)) {
 			free(ids);
-			return false;
+			return load_trace_end(false);
 		}
 		load_sound_names(&r);
+		load_unique_ids(&r);
+		load_numerals(&r);
+		if (!load_user_components(&r) || !pe_v14_activity_load(&r)) {
+			WARNING("invalid activity or component section");
+			free(ids);
+			return load_trace_end(false);
+		}
+		if (!load_speed_up_disabled(&r)) {
+			free(ids);
+			return load_trace_end(false);
+		}
 	}
 	// (the controller ID section follows the lists; it was read first)
 	if (parts_multi_controller && ain->version >= 14) {
@@ -1425,5 +1856,5 @@ bool PE_Load(struct page **buffer)
 		PE_UpdateComponent(0);
 
 	parts_engine_clean();
-	return true;
+	return load_trace_end(true);
 }

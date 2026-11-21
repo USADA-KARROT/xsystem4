@@ -788,9 +788,10 @@ struct parts {
 	// == 1 by 0x554b75, default 1; native +0x22d, on in a new parts
 	// 0x550a9c), stored inverted so a new parts starts enabled: its update
 	// takes the scaled passed time of UpdateComponent instead of the passed
-	// time (0x5352b1). Only the message window reads it so far. Not saved
-	// here; the original's parts block carries it (+0x1a9, read back at
-	// 0x551ee9), as its message window block carries the text speed.
+	// time (0x5352b1). Only the message window reads it so far. The
+	// original's parts block carries it (+0x1a9, read back at 0x551ee9),
+	// as its message window block carries the text speed; an XPE image
+	// keeps the flag in an optional section (save.c).
 	bool speed_up_disabled;
 	bool message_window;
 	// v14 MessageWindowEffectLink (native +0xae): the parts' own alpha and
@@ -912,6 +913,11 @@ bool parts_is_controller_root(struct parts *parts);
 // Puts every parts that has no parent or a root as its parent under the root
 // of the controller it belongs to (after loading a save).
 void parts_controller_relink_roots(void);
+// Diagnostics (XSYS4_PARTS_CTRL_TRACE=1): the controller stack after a change,
+// and a summary of the parts tree.
+bool parts_ctrl_trace_on(void);
+void parts_ctrl_trace(const char *what, int arg);
+void parts_tree_trace(const char *tag);
 
 // pe_v14_activity.c
 // A controller is releasing the parts of this number; if it is an activity
@@ -919,6 +925,12 @@ void parts_controller_relink_roots(void);
 // entries (and IsExistActivity its answer) when a controller releases parts.
 void pe_v14_activity_parts_released(int parts_no);
 void pe_v14_activity_reset(void);
+struct iarray_writer;
+struct iarray_reader;
+bool pe_v14_activity_save(struct iarray_writer *w);
+bool pe_v14_activity_load(struct iarray_reader *r);
+// Diagnostics (XSYS4_PARTS_CTRL_TRACE=1): the activity table.
+void pe_v14_activity_trace(const char *tag);
 void parts_v14_restart(void);
 void pe_v14_message_reset(void);
 bool pe_v14_activity_number_released(int parts_no);

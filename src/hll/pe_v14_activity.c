@@ -45,6 +45,7 @@
 #include "parts.h"
 #include "../parts/parts_internal.h"
 #include "hll.h"
+#include "iarray.h"
 #include "xsystem4.h"
 
 extern struct string *sjis_to_gbk_string(const char *src, size_t len);
@@ -161,6 +162,203 @@ void pe_v14_activity_reset(void)
 	free(controller_released);
 	controller_released = NULL;
 	controller_released_size = 0;
+}
+
+/* Port-owned optional XPE section. PCID remains the last section. Names are
+ * stored as bytes, independent of the currently selected string charset. */
+#define SAVE_ACTIVITIES 0x54434150 /* PACT */
+#define ACTIVITY_RELEASED_LIMIT (16 * 1024 * 1024)
+
+static void activity_write_name(struct iarray_writer *w, const char *name)
+{
+	int len = strlen(name);
+	iarray_write(w, len);
+	for (int i = 0; i < len; i++)
+		iarray_write(w, (unsigned char)name[i]);
+}
+
+static bool activity_read_name(struct iarray_reader *r, char name[256])
+{
+	int len = iarray_read(r);
+	if (r->error || len < 0 || len >= 256 || (unsigned)len > r->size - r->pos)
+		return false;
+	for (int i = 0; i < len; i++) {
+		int c = iarray_read(r);
+		if (c <= 0 || c > 255)
+			return false;
+		name[i] = c;
+	}
+	name[len] = 0;
+	return true;
+}
+
+bool pe_v14_activity_save(struct iarray_writer *w)
+{
+	if (next_activity_parts_no < ACTIVITY_PARTS_BASE ||
+	    next_activity_parts_no >= ACTIVITY_PARTS_BASE + ACTIVITY_RELEASED_LIMIT)
+		return false;
+	for (int i = 0; i < nr_activities; i++)
+		for (int j = 0; j < activities[i].nr_parts; j++)
+			if (activities[i].parts[j].number == ACTIVITY_PARTS_BASE + ACTIVITY_RELEASED_LIMIT - 1)
+				return false;
+	for (int i = ACTIVITY_RELEASED_LIMIT; i < controller_released_size; i++)
+		if (controller_released[i])
+			return false;
+	iarray_write(w, SAVE_ACTIVITIES);
+	unsigned len_pos = iarray_writer_pos(w);
+	iarray_write(w, 0);
+	unsigned start = iarray_writer_pos(w);
+	iarray_write(w, 1); /* section version */
+	iarray_write(w, nr_activities);
+	iarray_write(w, next_activity_parts_no);
+	int released = 0;
+	for (int i = 0; i < controller_released_size; i++)
+		released += controller_released[i] != 0;
+	iarray_write(w, released);
+	for (int i = 0; i < controller_released_size; i++)
+		if (controller_released[i])
+			iarray_write(w, i);
+	for (int i = 0; i < nr_activities; i++) {
+		struct activity *a = &activities[i];
+		activity_write_name(w, a->name);
+		iarray_write(w, a->nr_parts);
+		for (int j = 0; j < a->nr_parts; j++) {
+			activity_write_name(w, a->parts[j].name);
+			iarray_write(w, a->parts[j].number);
+		}
+		iarray_write(w, a->nr_close_parts);
+		for (int j = 0; j < a->nr_close_parts; j++)
+			activity_write_name(w, a->close_parts[j]);
+		iarray_write(w, a->nr_end_keys);
+		for (int j = 0; j < a->nr_end_keys; j++)
+			iarray_write(w, a->end_keys[j]);
+	}
+	iarray_write_at(w, len_pos, iarray_writer_pos(w) - start);
+	return true;
+}
+
+/* A missing section keeps the pre-existing table, as old images did. A
+ * malformed section never installs a partially decoded activity table. */
+bool pe_v14_activity_load(struct iarray_reader *r)
+{
+	if (r->error)
+		return false;
+	if (r->pos >= r->size || r->data[r->pos].i != SAVE_ACTIVITIES)
+		return true;
+	iarray_read(r);
+	int len = iarray_read(r);
+	if (r->error || len < 0 || (unsigned)len > r->size - r->pos)
+		return false;
+	struct iarray_reader s = *r;
+	s.size = s.pos + len;
+	int version = iarray_read(&s);
+	int count = iarray_read(&s);
+	int next = iarray_read(&s);
+	int released = iarray_read(&s);
+	if (s.error || version != 1 || count < 0 ||
+	    (unsigned)count > (s.size - s.pos) / 4 ||
+	    (size_t)count > SIZE_MAX / sizeof(struct activity) || next < ACTIVITY_PARTS_BASE ||
+	    next >= ACTIVITY_PARTS_BASE + ACTIVITY_RELEASED_LIMIT ||
+	    released < 0 || (unsigned)released > s.size - s.pos)
+		return false;
+	struct activity *table = count ? calloc(count, sizeof(*table)) : NULL;
+	if (count && !table)
+		return false;
+	uint8_t *deleted = NULL;
+	int deleted_size = 0;
+	bool valid = true;
+	/* Saved indices are increasing. Scan once before allocating so a long
+	 * list neither causes quadratic reallocations nor excessive allocation. */
+	struct iarray_reader deleted_scan = s;
+	int previous = -1;
+	for (int i = 0; i < released && valid; i++) {
+		int index = iarray_read(&deleted_scan);
+		if (deleted_scan.error || index <= previous || index >= ACTIVITY_RELEASED_LIMIT ||
+		    index >= next - ACTIVITY_PARTS_BASE) {
+			valid = false;
+			break;
+		}
+		previous = index;
+	}
+	if (valid && released) {
+		deleted_size = previous + 1;
+		deleted = calloc(deleted_size, 1);
+		if (!deleted) valid = false;
+	}
+	for (int i = 0; i < released && valid; i++) {
+		int index = iarray_read(&s);
+		deleted[index] = 1;
+	}
+	for (int i = 0; i < count && valid; i++) {
+		struct activity *a = &table[i];
+		if (!activity_read_name(&s, a->name)) { valid = false; break; }
+		a->nr_parts = iarray_read(&s);
+		if (s.error || a->nr_parts < 0 || a->nr_parts > MAX_ACTIVITY_PARTS ||
+		    (unsigned)a->nr_parts > (s.size - s.pos) / 2) { valid = false; break; }
+		for (int j = 0; j < a->nr_parts && valid; j++) {
+			valid = activity_read_name(&s, a->parts[j].name);
+			if (valid) a->parts[j].number = iarray_read(&s);
+			if (s.error) valid = false;
+		}
+		a->nr_close_parts = iarray_read(&s);
+		if (s.error || a->nr_close_parts < 0 || a->nr_close_parts > MAX_ACTIVITY_PARTS ||
+		    (unsigned)a->nr_close_parts > s.size - s.pos) { valid = false; break; }
+		for (int j = 0; j < a->nr_close_parts && valid; j++)
+			valid = activity_read_name(&s, a->close_parts[j]);
+		a->nr_end_keys = iarray_read(&s);
+		if (s.error || a->nr_end_keys < 0 || a->nr_end_keys > MAX_ACTIVITY_END_KEYS ||
+		    (unsigned)a->nr_end_keys > s.size - s.pos) { valid = false; break; }
+		for (int j = 0; j < a->nr_end_keys; j++) {
+			a->end_keys[j] = iarray_read(&s);
+			if (j && a->end_keys[j] <= a->end_keys[j-1]) valid = false;
+		}
+	}
+	if (!valid || s.error || s.pos != s.size) {
+		free(table);
+		free(deleted);
+		return false;
+	}
+	/* Activity registrations can include arbitrary parts numbers. Keep them,
+	 * and advance the restored cursor past those in the supported automatic
+	 * range, even if the saved cursor was too small. */
+	for (int i = 0; i < count; i++) {
+		for (int j = 0; j < table[i].nr_parts; j++) {
+			int no = table[i].parts[j].number;
+			if (no >= next && no < ACTIVITY_PARTS_BASE + ACTIVITY_RELEASED_LIMIT)
+				next = no + 1;
+		}
+	}
+	if (next >= ACTIVITY_PARTS_BASE + ACTIVITY_RELEASED_LIMIT) {
+		free(table);
+		free(deleted);
+		return false;
+	}
+	free(activities);
+	free(controller_released);
+	activities = table;
+	activities_capacity = nr_activities = count;
+	next_activity_parts_no = next;
+	controller_released = deleted;
+	controller_released_size = deleted_size;
+	r->pos = s.pos;
+	return true;
+}
+
+// Diagnostics (XSYS4_PARTS_CTRL_TRACE=1): the current activity table
+// and, for each entry, how many registered parts currently exist.
+void pe_v14_activity_trace(const char *tag)
+{
+	if (!parts_ctrl_trace_on())
+		return;
+	NOTICE("PACT %s activities=%d next-number=%d", tag, nr_activities, next_activity_parts_no);
+	for (int i = 0; i < nr_activities; i++) {
+		struct activity *a = &activities[i];
+		int present = 0;
+		for (int k = 0; k < a->nr_parts; k++)
+			present += parts_try_get(a->parts[k].number) != NULL;
+		NOTICE("PACT %s %d name=%s parts=%d present=%d first=%d", tag, i, display_sjis0(a->name),
+			a->nr_parts, present, a->nr_parts ? a->parts[0].number : -1);
+	}
 }
 
 bool pe_v14_activity_number_released(int parts_no)

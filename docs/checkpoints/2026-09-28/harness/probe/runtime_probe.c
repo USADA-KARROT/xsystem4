@@ -18,6 +18,7 @@ static void global_init_probe_return(int fno);
 static void delegate_cursor_probe_step(void);
 static void array_construct_probe_step(void);
 static void key_consumer_probe_step(void);
+static void resume_frames_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -54,6 +55,7 @@ static void probe_step(unsigned op) {
     global_init_probe_step();
     delegate_cursor_probe_step();
     array_construct_probe_step();
+    resume_frames_probe_step();
 }
 static size_t live_slots(void) {
     size_t n=0;for(size_t i=2;i<heap_size;i++)if(HEAP_REF(i)>0)n++;return n;
@@ -211,6 +213,18 @@ static void init_probe(const char *path) {
 #include "array_enum_member_fixture.inc"
 #include "wrap_local_init_fixture.inc"
 #include "resume_image_fixture.inc"
+#include "resume_v13_guard_fixture.inc"
+#include "parts_image_fixture.inc"
+#include "parts_v13_wrap_ffi_fixture.inc"
+#include "activity_image_fixture.inc"
+#include "user_component_image_fixture.inc"
+#include "parts_speedup_image_fixture.inc"
+#include "resume_frames_fixture.inc"
+#include "resume_comments_fixture.inc"
+#include "resume_env_guard_fixture.inc"
+#include "resume_delegate_mismatch_fixture.inc"
+#include "resume_c_entry_fixture.inc"
+#include "resume_marker_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -346,6 +360,18 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"array-enum-member"))return test_array_enum_member();
     if(!strcmp(argv[2],"wrap-local-init"))return test_wrap_local_init();
     if(!strcmp(argv[2],"resume-image"))return test_resume_image();
+    if(!strcmp(argv[2],"resume-v13-guard"))return test_resume_v13_guard();
+    if(!strcmp(argv[2],"parts-image"))return test_parts_image();
+    if(!strcmp(argv[2],"parts-v13-wrap-ffi"))return test_parts_v13_wrap_ffi();
+    if(!strcmp(argv[2],"activity-image"))return test_activity_image();
+    if(!strcmp(argv[2],"user-component-image"))return test_user_component_image();
+    if(!strcmp(argv[2],"parts-speedup-image"))return test_parts_speedup_image();
+    if(!strcmp(argv[2],"resume-frames"))return test_resume_frames();
+    if(!strcmp(argv[2],"resume-comments"))return test_resume_comments();
+    if(!strcmp(argv[2],"resume-env-guard"))return test_resume_env_guard();
+    if(!strcmp(argv[2],"resume-delegate-mismatch"))return test_resume_delegate_mismatch();
+    if(!strcmp(argv[2],"resume-c-entry"))return test_resume_c_entry();
+    if(!strcmp(argv[2],"resume-marker"))return test_resume_marker();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

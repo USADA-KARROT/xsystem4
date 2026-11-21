@@ -67,10 +67,16 @@
  *       texture, length 1, CG font by number); v14 off the grid (SJIS rule)
  *       sizes a font numeral by the renderer's advances.
  *   NM10 save and load: a font numeral in a layout box keeps its size, and
- *       the box its layout, through PE_Save and PE_Load and a number set
- *       afterwards (the save does not say what it is drawn with), until
- *       SetNumeralFont gives the type again; a CG font whose CG does not
- *       load has no pictures; a CG font number out of range draws nothing.
+ *       the box its layout, through PE_Save and PE_Load; it comes back a
+ *       font numeral, and a number set afterwards is drawn with its font; a
+ *       CG font whose CG does not load has no pictures; a CG font number out
+ *       of range draws nothing.
+ *   NM11 the numeral section of a save: the 表示タイプ, the font, the ＣＧ名
+ *       and widths, 全角 and ゼロパディング of a font, a linked CG and a CG
+ *       numeral come back over changes made after the save; the font numeral
+ *       is drawn again and a later number with its font; a save of no
+ *       numeral has no section.
+ *   NM12 a save without the section (an earlier build): read as before.
  *
  * Requires base_ui_fixture.inc, layout_box_fixture.inc,
  * construction_fixture.inc and text_size_fixture.inc.
@@ -1194,13 +1200,12 @@ static void nm_guards(void)
 }
 
 /* --- NM10 --- */
-/* A save (XPE 8 and 9) keeps a numeral's number, 字間隔, コンマ表示, 桁數 and CG
- * font number, and the state's size, but not the 表示タイプ, the font, the
- * ＣＧ名, 全角 or ゼロパディング. A numeral read back without a CG font cannot
- * be built again from that: it keeps the size it was saved with, and the box
- * around it its layout, as before the v14 numeral was implemented (it is not
- * drawn again either, which is the older limit). Building it as the type the
- * reset state holds, a CG numeral with no CG, made it 0 high. */
+/* A numeral record (XPE 8 and 9) keeps a numeral's number, 字間隔, コンマ表示,
+ * 桁數 and CG font number, and the state's size; the 表示タイプ, the font, the
+ * ＣＧ名, 全角 and ゼロパディング are in the save's numeral section. A font
+ * numeral read back is drawn again with its font: the same size, the box
+ * around it its layout, and a number set afterwards drawn as on a numeral
+ * never saved. (A save without the section is NM12.) */
 static void nm_save_load(void)
 {
 	gk_enable();
@@ -1249,26 +1254,28 @@ static void nm_save_load(void)
 	NM_CHECK(NM_PE("Parts_GetNumeralNumber", BU_I(n), BU_I(1)).i == 999 && NM_PE("Parts_GetNumeralSpace", BU_I(n), BU_I(1)).i == -1,
 		 "NM10 after loading: number %d, 字間隔 %d, want 999 and -1",
 		 NM_PE("Parts_GetNumeralNumber", BU_I(n), BU_I(1)).i, NM_PE("Parts_GetNumeralSpace", BU_I(n), BU_I(1)).i);
-	/* The script's own SetNumeralNumber (unconditional rebuild, 0x567460)
-	 * has no more to build it with than the load had. */
+	/* Setting the same number rebuilds it using the restored format
+	 * and preserves its saved size and layout. */
 	NM_PE("Parts_SetNumeralNumber", BU_I(n), BU_I(999), BU_I(1));
 	NM10_AS_SAVED("the same number set after loading");
-	NM_PE("Parts_SetNumeralNumber", BU_I(n), BU_I(5), BU_I(1));
-	NM10_AS_SAVED("another number set after loading");
-	NM_CHECK(NM_PE("Parts_GetNumeralNumber", BU_I(n), BU_I(1)).i == 5, "NM10 the number set after loading is not kept");
-	NM_PE("Parts_SetNumeralSpace", BU_I(n), BU_I(-2), BU_I(1));
-	NM10_AS_SAVED("字間隔 set after loading");
 #undef NM10_AS_SAVED
-	/* SetNumeralFont says what it is: built again, as one never saved. */
-	NM_PE("SetNumeralFont", BU_I(n), BU_I(0), BU_I(19), BU_I(255), BU_I(255), BU_I(255), BU_F(0), BU_I(0), BU_I(0), BU_I(0),
-	      BU_F(2), BU_I(1));
-	nm_font_numeral(REF, 19, 0, 2, -2, 5);
+	NM_CHECK(nm_num(n)->show_type == PARTS_NUMERAL_SHOW_FONT && !nm_num(n)->unknown_type,
+		 "NM10 after loading: type %d, unknown %d; want a font numeral", nm_num(n)->show_type, nm_num(n)->unknown_type);
+	/* Another number is drawn with the font the save has. */
+	nm_font_numeral(REF, 19, 0, 2, -1, 5);
 	PE_UpdateComponent(0);
 	const int fw = PE_GetPartsWidth(REF, 1), fh = PE_GetPartsHeight(REF, 1);
 	NM_CHECK(fw > 0 && fh > 0 && fw < w, "NM10 the reference \"5\" is %dx%d (the saved \"999\" was %d wide)", fw, fh, w);
-	nm_expect_size(n, fw, fh, "NM10 \"5\" after loading and SetNumeralFont");
-	NM_CHECK(lb_x(r) == fw && lb_width(box) == fw + 5, "NM10 after SetNumeralFont: rect at x %d, box %d wide, want %d and %d",
+	NM_PE("Parts_SetNumeralNumber", BU_I(n), BU_I(5), BU_I(1));
+	NM_CHECK(NM_PE("Parts_GetNumeralNumber", BU_I(n), BU_I(1)).i == 5, "NM10 the number set after loading is not kept");
+	nm_expect_size(n, fw, fh, "NM10 \"5\" set after loading");
+	PE_UpdateComponent(0);
+	NM_CHECK(lb_x(r) == fw && lb_width(box) == fw + 5, "NM10 \"5\" set after loading: rect at x %d, box %d wide, want %d and %d",
 		 lb_x(r), lb_width(box), fw, fw + 5);
+	/* SetNumeralFont as the activity gave it: the same size. */
+	NM_PE("SetNumeralFont", BU_I(n), BU_I(0), BU_I(19), BU_I(255), BU_I(255), BU_I(255), BU_F(0), BU_I(0), BU_I(0), BU_I(0),
+	      BU_F(2), BU_I(1));
+	nm_expect_size(n, fw, fh, "NM10 \"5\" after SetNumeralFont");
 
 	/* The CG font came back by its CG number. Its CG does not load here:
 	 * twelve empty characters, not a read of the missing CG. */
@@ -1287,12 +1294,179 @@ static void nm_save_load(void)
 	printf("NM10 save and load: %s\n", nm_failures ? "FAIL" : "ok");
 }
 
+/* --- NM11, NM12 --- */
+#define NM_NUM_MARK 0x4d554e50 /* "PNUM" */
+#define NM_PCID_MARK 0x44494350 /* "PCID" */
+
+static int nm_count_mark(struct page *p, int mark)
+{
+	int n = 0;
+	for (int i = 0; p && i < p->nr_vars; i++)
+		n += p->values[i].i == mark;
+	return n;
+}
+
+struct nm_kept {
+	int type, pad, full, w, h, unknown;
+	struct text_style font;
+	char cg[64];
+	int widths[12];
+};
+
+static void nm_keep(int no, struct nm_kept *k)
+{
+	struct parts_numeral *num = nm_num(no);
+	memset(k, 0, sizeof *k);
+	if (!num)
+		return;
+	k->type = num->show_type;
+	k->pad = num->zero_pad;
+	k->full = num->full_pitch;
+	k->w = PE_GetPartsWidth(no, 1);
+	k->h = PE_GetPartsHeight(no, 1);
+	k->unknown = num->unknown_type;
+	k->font = num->font;
+	k->font.font_size = NULL;
+	snprintf(k->cg, sizeof k->cg, "%s", num->cg_name ? num->cg_name->text : "");
+	memcpy(k->widths, num->cg_widths, sizeof k->widths);
+}
+
+static void nm_expect_kept(int no, const struct nm_kept *want, const char *what)
+{
+	struct nm_kept got;
+	nm_keep(no, &got);
+	NM_CHECK(got.type == want->type && got.pad == want->pad && got.full == want->full && !got.unknown,
+		 "%s: type %d padding %d full %d unknown %d; want %d %d %d 0", what, got.type, got.pad, got.full, got.unknown,
+		 want->type, want->pad, want->full);
+	NM_CHECK(!memcmp(&got.font, &want->font, sizeof got.font), "%s: the font differs (face %u size %g bold %g edge %g)",
+		 what, got.font.face, got.font.size, got.font.bold_weight, text_style_edge_width(&got.font));
+	NM_CHECK(!strcmp(got.cg, want->cg) && !memcmp(got.widths, want->widths, sizeof got.widths),
+		 "%s: CG name \"%s\" (want \"%s\") or widths differ", what, got.cg, want->cg);
+	NM_CHECK(got.w == want->w && got.h == want->h, "%s: size %dx%d, want %dx%d", what, got.w, got.h, want->w, want->h);
+}
+
+/* NM11: a save keeps the 表示タイプ, the font, the ＣＧ名 and widths, 全角 and
+ * ゼロパディング of each numeral (the numeral section), and a font numeral is
+ * drawn again after the load. */
+static void nm_section(void)
+{
+	gk_enable();
+	cn_gl_setup();
+	const int F = 9441, K = 9442, C = 9443, P = 9444;
+	nm_font_numeral(F, 20, 0.3f, 2, -1, 7);
+	NM_PE("SetNumeralFullPitch", BU_I(F), BU_I(1), BU_I(1));
+	NM_PE("SetNumeralShowPadding", BU_I(F), BU_I(0), BU_I(1));
+	NM_PE("Parts_SetNumeralLength", BU_I(F), BU_I(3), BU_I(1));
+	static const int w[12] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+	parts_get(K);
+	nm_linked(K, "nm11-no-such-cg", w, 1);
+	NM_PE("Parts_SetNumeralNumber", BU_I(K), BU_I(12), BU_I(1));
+	parts_get(C);
+	nm_set_cg(C, "nm11-no-such-cg-either", 1);
+	NM_PE("Parts_SetNumeralNumber", BU_I(C), BU_I(34), BU_I(1));
+	/* a font numeral of another font, set after the save, to see it go back */
+	nm_font_numeral(P, 24, 0, 0, 0, 56);
+	PE_UpdateComponent(0);
+	struct nm_kept kf, kk, kc, kp;
+	nm_keep(F, &kf);
+	nm_keep(K, &kk);
+	nm_keep(C, &kc);
+	nm_keep(P, &kp);
+	NM_CHECK(kf.type == PARTS_NUMERAL_SHOW_FONT && kf.w > 0 && kf.h > 0, "NM11 before saving: the font numeral is %dx%d, type %d",
+		 kf.w, kf.h, kf.type);
+	struct page *saved = NULL;
+	NM_CHECK(PE_Save(&saved), "NM11 PE_Save failed");
+	if (!saved)
+		return;
+	NM_CHECK(nm_count_mark(saved, NM_NUM_MARK) == 1, "NM11 %d numeral sections in the save, want 1",
+		 nm_count_mark(saved, NM_NUM_MARK));
+	/* changes after the save */
+	NM_PE("SetNumeralFont", BU_I(F), BU_I(1), BU_I(30), BU_I(1), BU_I(2), BU_I(3), BU_F(0), BU_I(4), BU_I(5), BU_I(6),
+	      BU_F(0), BU_I(1));
+	NM_PE("SetNumeralFullPitch", BU_I(F), BU_I(0), BU_I(1));
+	NM_PE("SetNumeralShowPadding", BU_I(F), BU_I(1), BU_I(1));
+	NM_PE("SetNumeralShowType", BU_I(K), BU_I(2), BU_I(1));
+	nm_set_cg(P, "nm11-later", 1);
+	NM_CHECK(PE_Load(&saved), "NM11 PE_Load failed");
+	ca_free_buffer(saved);
+	PE_UpdateComponent(0);
+	nm_expect_kept(F, &kf, "NM11 the font numeral");
+	nm_expect_kept(K, &kk, "NM11 the linked CG numeral");
+	nm_expect_kept(C, &kc, "NM11 the CG numeral");
+	nm_expect_kept(P, &kp, "NM11 the numeral changed after the save");
+	struct parts_numeral *f = nm_num(F);
+	NM_CHECK(f && f->common.texture.handle && f->common.texture.w == kf.w && f->common.texture.h == kf.h,
+		 "NM11 the font numeral is not drawn after the load (texture %dx%d)", f && f->common.texture.handle ?
+		 f->common.texture.w : 0, f && f->common.texture.handle ? f->common.texture.h : 0);
+	/* a number set afterwards is drawn with the font that came back */
+	NM_PE("Parts_SetNumeralNumber", BU_I(F), BU_I(1234), BU_I(1));
+	NM_CHECK(PE_GetPartsWidth(F, 1) > kf.w, "NM11 \"1234\" after the load is %d wide, \"7\" (3 cells) was %d",
+		 PE_GetPartsWidth(F, 1), kf.w);
+	/* a save of no numeral has no section */
+	probe_init_parts_table();
+	parts_get(9445);
+	struct page *plain = NULL;
+	NM_CHECK(PE_Save(&plain) && nm_count_mark(plain, NM_NUM_MARK) == 0, "NM11 a save without numerals has a numeral section");
+	ca_free_buffer(plain);
+	printf("NM11 the numeral section: %s\n", nm_failures ? "FAIL" : "ok");
+}
+
+/* NM12: a save without the section (an earlier build) reads as before: a
+ * font numeral keeps its size and is not built until a setter gives it its
+ * type. */
+static void nm_without_section(void)
+{
+	gk_enable();
+	cn_gl_setup();
+	const int F = 9451;
+	nm_font_numeral(F, 20, 0, 2, -1, 999);
+	PE_UpdateComponent(0);
+	const int w = PE_GetPartsWidth(F, 1), h = PE_GetPartsHeight(F, 1);
+	struct page *saved = NULL;
+	NM_CHECK(PE_Save(&saved), "NM12 PE_Save failed");
+	if (!saved)
+		return;
+	int at = -1, end = -1;
+	for (int i = 0; i < saved->nr_vars; i++) {
+		if (saved->values[i].i == NM_NUM_MARK && at < 0)
+			at = i;
+		if (saved->values[i].i == NM_PCID_MARK)
+			end = i;
+	}
+	/* Remove PNUM and later extensions before PCID, or before the end. */
+	if (end < at)
+		end = saved->nr_vars;
+	NM_CHECK(at > 0 && end > at, "NM12 the save has no numeral section (%d, %d)", at, end);
+	if (at > 0 && end > at) {
+		union vm_value dim = { .i = saved->nr_vars - (end - at) };
+		struct page *old = alloc_array(1, &dim, AIN_ARRAY_INT, 0, false);
+		for (int i = 0, k = 0; i < saved->nr_vars; i++)
+			if (i < at || i >= end)
+				old->values[k++] = saved->values[i];
+		ca_free_buffer(saved);
+		saved = old;
+	}
+	NM_PE("Parts_SetNumeralNumber", BU_I(F), BU_I(5), BU_I(1));
+	NM_CHECK(PE_Load(&saved), "NM12 PE_Load failed");
+	ca_free_buffer(saved);
+	PE_UpdateComponent(0);
+	struct parts_numeral *num = nm_num(F);
+	NM_CHECK(num && num->unknown_type, "NM12 a numeral read from a save without the section has its type");
+	NM_CHECK(PE_GetPartsWidth(F, 1) == w && PE_GetPartsHeight(F, 1) == h, "NM12 size %dx%d after the load, want %dx%d as saved",
+		 PE_GetPartsWidth(F, 1), PE_GetPartsHeight(F, 1), w, h);
+	NM_PE("Parts_SetNumeralNumber", BU_I(F), BU_I(5), BU_I(1));
+	NM_CHECK(PE_GetPartsWidth(F, 1) == w, "NM12 a number set after the load rebuilt the numeral (%d wide, saved %d)",
+		 PE_GetPartsWidth(F, 1), w);
+	printf("NM12 a save without the section: %s\n", nm_failures ? "FAIL" : "ok");
+}
+
 static int test_numeral(void)
 {
 	static const struct { const char *name; void (*fn)(void); } cases[] = {
 		{ "NM1", nm_damage_number }, { "NM2", nm_collection }, { "NM3", nm_hll }, { "NM4", nm_characters },
 		{ "NM5", nm_sizes }, { "NM6", nm_pixels }, { "NM7", nm_cg_numerals }, { "NM8", nm_loader },
-		{ "NM9", nm_guards }, { "NM10", nm_save_load },
+		{ "NM9", nm_guards }, { "NM10", nm_save_load }, { "NM11", nm_section },
+		{ "NM12", nm_without_section },
 	};
 	const int n = sizeof cases / sizeof cases[0];
 	int failed = 0, env = 0;

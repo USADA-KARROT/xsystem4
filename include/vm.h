@@ -182,14 +182,52 @@ struct function_call {
 	bool is_method;         // v14: struct_page left on stack below base_sp
 	bool is_delegate_call;  // called via delegate: skip return-value stack adjustment
 	int32_t dg_return_slots; // delegate-call: expected return slots (from delegate type)
+	// Read back from an engine image (vm_resume_frames_loaded): base_sp is
+	// not known, so function_return takes what the function returns from
+	// the top of the stack and leaves the values below it.
+	bool resumed;
+	// A resumed delegate call whose delegate's cursor and limit were not in
+	// the image: they are set from the stack when the frame returns.
+	bool dg_resume_pending;
+	// A resumed delegate call: the delegate it goes through, if the image
+	// named it (0 otherwise), so that a later image can name it again.
+	int32_t resume_dg_page;
 };
 
 extern struct function_call call_stack[4096];
 extern int32_t call_stack_ptr;
 
+/*
+ * What an engine image keeps of a call frame besides its function, return
+ * address, local page and struct page (resume.c writes and reads it; see
+ * vm_resume_frames_loaded). `present` is false when the image has none for
+ * the frame (an image of an earlier build).
+ */
+/* A non-delegate C method uses the otherwise unused delegate-page field. */
+#define RESUME_C_METHOD_MARKER INT32_MIN
+struct resume_frame_extra {
+	bool present;
+	int32_t fno;			// checked against the frame read back
+	int32_t env_page;
+	int32_t delegate_obj_ref, delegate_env_ref;
+	int32_t dg_page;		// a delegate call: its delegate (0: not known)
+	int32_t dg_cursor, dg_limit;	// and that delegate's cursor and limit
+	bool c_method_present, c_method;	// explicit VM_RETURN method flag, if saved
+};
+
+// The extra fields of frame i of the call stack, for an image being written.
+void vm_resume_frame_extra(int i, struct resume_frame_extra *out);
+// Once an image is back (heap, call stack and stack): makes the port's own
+// frame fields again. extra is NULL or has one entry per frame.
+void vm_resume_frames_loaded(const struct resume_frame_extra *extra);
+
 // the guard page of heap slot 0: an array page, element type void, 64 slots
 struct page;
 struct page *vm_alloc_guard_page(void);
+
+// Diagnostics (XSYS4_RESUME_TRACE=1): the call frames of an image being
+// written ("save") or just read back ("load"); see vm.c.
+void vm_resume_trace(const char *tag, const char *path);
 
 extern size_t instr_ptr;
 
