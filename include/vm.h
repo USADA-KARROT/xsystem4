@@ -156,6 +156,9 @@ enum vm_ask_type {
 // whether to quit the game. unshown is the answer when the box cannot be
 // shown. See vm.c for when nobody is asked.
 bool vm_ask(enum vm_ask_type type, const char *text, bool unshown);
+// An engine image that cannot be read back: tells the player which file
+// (path in the game's encoding) and ends the program. See vm.c.
+_Noreturn void vm_image_unreadable(const char *path);
 
 #if defined(__ANDROID__) || defined(RELEASE)
 // Report the error with a message box and exit.
@@ -249,7 +252,10 @@ uint32_t get_switch_address(int no, int val);
 uint32_t get_strswitch_address(int no, struct string *str);
 
 int vm_save_image(const char *key, const char *path);
-void vm_load_image(const char *key, const char *path);
+// True once the image is back; false (the VM as it was) for an image of a
+// rsm version libsys4 does not read. Any other failure does not return (see
+// resume.c).
+bool vm_load_image(const char *key, const char *path);
 struct page *vm_load_image_comments(const char *key, const char *path, int *success);
 int vm_write_image_comments(const char *key, const char *path, struct page *comments);
 

@@ -19,6 +19,7 @@ static void delegate_cursor_probe_step(void);
 static void array_construct_probe_step(void);
 static void key_consumer_probe_step(void);
 static void resume_frames_probe_step(void);
+static void resume_unreadable_probe_step(void);
 #include "instrumented-vm.inc"
 #include FFI_SOURCE
 
@@ -56,6 +57,7 @@ static void probe_step(unsigned op) {
     delegate_cursor_probe_step();
     array_construct_probe_step();
     resume_frames_probe_step();
+    resume_unreadable_probe_step();
 }
 static size_t live_slots(void) {
     size_t n=0;for(size_t i=2;i<heap_size;i++)if(HEAP_REF(i)>0)n++;return n;
@@ -226,6 +228,7 @@ static void init_probe(const char *path) {
 #include "resume_delegate_mismatch_fixture.inc"
 #include "resume_c_entry_fixture.inc"
 #include "resume_marker_fixture.inc"
+#include "resume_unreadable_fixture.inc"
 #include "../deleted_event_fixture.inc"
 int main(int argc,char **argv) {
     assert(argc==3);init_probe(argv[1]);
@@ -374,6 +377,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"resume-delegate-mismatch"))return test_resume_delegate_mismatch();
     if(!strcmp(argv[2],"resume-c-entry"))return test_resume_c_entry();
     if(!strcmp(argv[2],"resume-marker"))return test_resume_marker();
+    if(!strcmp(argv[2],"resume-unreadable"))return test_resume_unreadable();
     if(!strcmp(argv[2],"save-seed"))return test_save_seed();
     if(!strcmp(argv[2],"save-localgame"))return test_save_localgame();
     if(!strcmp(argv[2],"overload-shapes-str"))return test_overload_shapes_str();

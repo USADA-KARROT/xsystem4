@@ -58,26 +58,27 @@ static bool system_ResumeSave(struct string *keyName, struct string *fileName, i
 	stack_pop();
 	stack_pop();
 
-	// Match SYS_RESUME_SAVE convention: result = vm_save_image() return (1=OK, 0=fail)
+	// The original (0x6727e0, in the release this port runs; others were
+	// not compared) writes whether the image was written into the third
+	// argument and returns true either way, as SYS_RESUME_SAVE does; false
+	// is the return of a read-back (the CALLHLL handler in vm.c), so a
+	// failed save must not return it.
 	if (result_out)
 		*result_out = ok;
-	return ok ? true : false;
+	return true;
 }
 
 // [1] ResumeLoad(keyName, fileName) -> void
 // Defers the actual load to the CALLHLL handler because vm_load_image
 // replaces the entire VM state. Cannot be called from within hll_call
 // since the write-back phase would operate on stale heap references.
+// A file that is not there is not read back either: vm_load_image ends the
+// program as for any other image it cannot read. The original (the release
+// this port runs) does not look for the file first (0x672960 -> 0x67b990
+// starts with reading it). An image of an rsm version the port does not
+// read is the one failure that returns to the script (see vm_load_image).
 static void system_ResumeLoad(struct string *keyName, struct string *fileName)
 {
-	// Check if save file exists before scheduling load
-	char *full_path = savedir_path(fileName->text);
-	bool exists = access(full_path, F_OK) == 0;
-	free(full_path);
-
-	if (!exists)
-		return;
-
 	free(resume_load_key_pending);
 	free(resume_load_path_pending);
 	resume_load_key_pending = strdup(keyName->text);

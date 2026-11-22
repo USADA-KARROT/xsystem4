@@ -2795,18 +2795,23 @@ static bool show_two_button_box(SDL_Window *window, const char *title, const cha
  */
 struct ask_words {
 	const char *ok, *cancel, *yes, *no, *quit;
+	const char *unreadable;	// vm_image_unreadable; %s is the file
 };
 
 static const struct ask_words *ask_words_for(const char *lang, const char *country)
 {
 	static const struct ask_words en = { "OK", "Cancel", "Yes", "No",
-		"The game is about to close.\n\nProgress that has not been saved will not be kept. Close it?" };
+		"The game is about to close.\n\nProgress that has not been saved will not be kept. Close it?",
+		"The resume data \"%s\" could not be read.\n\nThe game will now close." };
 	static const struct ask_words ja = { "OK", "キャンセル", "はい", "いいえ",
-		"ゲームを閉じようとしています。\n\nセーブしていない進行状況は保持されません。閉じますか？" };
+		"ゲームを閉じようとしています。\n\nセーブしていない進行状況は保持されません。閉じますか？",
+		"再開用のデータ「%s」を読み込めませんでした。\n\nゲームを終了します。" };
 	static const struct ask_words zh_hant = { "確定", "取消", "是", "否",
-		"即將關閉遊戲。\n\n還沒有存檔的進度不會保留，是否關閉？" };
+		"即將關閉遊戲。\n\n還沒有存檔的進度不會保留，是否關閉？",
+		"無法讀取續玩資料「%s」。\n\n遊戲即將關閉。" };
 	static const struct ask_words zh_hans = { "确定", "取消", "是", "否",
-		"即将关闭游戏。\n\n还没有存档的进度不会保留，是否关闭？" };
+		"即将关闭游戏。\n\n还没有存档的进度不会保留，是否关闭？",
+		"无法读取续玩数据「%s」。\n\n游戏即将关闭。" };
 	if (!strncmp(lang, "ja", 2))
 		return &ja;
 	if (strncmp(lang, "zh", 2))
@@ -2905,6 +2910,65 @@ bool vm_ask(enum vm_ask_type type, const char *text, bool unshown)
 	return ok;
 }
 
+/*
+ * An engine image (system.ResumeLoad) that cannot be read back: the player
+ * is told which file it is, in a box with one button, and the program ends
+ * the way system.Exit ends it (vm_exit). The words are the port's own.
+ *
+ * In the original's executable (the release this port runs; others were
+ * not compared), ResumeLoad (0x672960) calls 0x668d30 when the read fails
+ * for any reason but a function checksum that does not match, and pushes no
+ * result. 0x668d30 shows a message box naming the file and clears the VM's
+ * run flag, so the script does not go on, unless a field of the VM is 2
+ * (0x668d5c; what that state is was not read), when it does neither. A
+ * checksum that does not match goes instead to the box system.Error shows
+ * (0x668e90), after which the original can go back to the script or, when
+ * the player chooses to end there, stop.
+ * The port ends the program in that case too (the port's own handling).
+ *
+ * The box is shown when vm_ask() would ask; when it would answer by itself
+ * (XSYS4_AUTO_MSGBOX, no window) the text only goes to the log.
+ */
+_Noreturn void vm_image_unreadable(const char *path)
+{
+	const struct ask_words *words = ask_words();
+	char *name = game_to_utf8(path ? path : "", path ? strlen(path) : 0);
+	size_t n = strlen(words->unreadable) + strlen(name) + 1;
+	char *text = xmalloc(n);
+	snprintf(text, n, words->unreadable, name);
+	free(name);
+	char *line = xstrdup(text);
+	for (char *p = line; *p; p++) {
+		if (*p == '\n')
+			*p = ' ';
+	}
+
+	const char *automatic = getenv("XSYS4_AUTO_MSGBOX");
+	if (automatic && strcmp(automatic, "ok") && strcmp(automatic, "cancel"))
+		automatic = NULL;
+	SDL_Window *window = gfx_dialog_window();
+	if (automatic || (!window && !vm_ask_test.show)) {
+		WARNING("Message box not shown: %s", line);
+	} else {
+		const SDL_MessageBoxButtonData button = {
+			SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 1, words->ok
+		};
+		const char *game = config.game_name ? config.game_name : "";
+		char *title = game_to_utf8(game, strlen(game));
+		const SDL_MessageBoxData mbox = { SDL_MESSAGEBOX_ERROR, window, title, text, 1, &button, NULL };
+		int pressed = 0;
+		bool shown = vm_ask_test.show ? !vm_ask_test.show(&mbox, &pressed) : !SDL_ShowMessageBox(&mbox, &pressed);
+		free(title);
+		if (shown)
+			NOTICE("Message box shown: %s", line);
+		else
+			WARNING("Message box could not be shown (%s): %s", SDL_GetError(), line);
+	}
+	free(line);
+	free(text);
+	vm_exit(1);
+}
+
 static struct string *get_func_stack_name(int index)
 {
 	int i = call_stack_ptr - (1 + index);
@@ -2987,8 +3051,12 @@ static void system_call(enum syscall_code code)
 	case SYS_RESUME_LOAD: {
 		int filename_slot = stack_pop().i;
 		int key_slot = stack_pop().i;
-		vm_load_image(heap_get_string(key_slot)->text, heap_get_string(filename_slot)->text);
-		stack_push(0);
+		// Read back: the VM goes on from the save, result false (the strings
+		// went with the old heap). Not read (a version the port does not read):
+		// no result (void in libsys4's system call table), strings released.
+		if (vm_load_image(heap_get_string(key_slot)->text, heap_get_string(filename_slot)->text))
+			stack_push(0);
+		else { heap_unref(filename_slot); heap_unref(key_slot); }
 		break;
 	}
 	case SYS_EXISTS_FILE: { // system.ExistsFile(string szFileName)
@@ -3873,13 +3941,15 @@ static inline __attribute__((always_inline)) enum opcode execute_instruction(enu
 			char *path = resume_load_path_pending;
 			resume_load_key_pending = NULL;
 			resume_load_path_pending = NULL;
-				vm_load_image(key, path);
+			bool loaded = vm_load_image(key, path);
 			free(key);
 			free(path);
 			// vm_load_image restored instr_ptr to the save point's CALLHLL addr.
 			// ip_inc (14 for CALLHLL v11+) will advance to the next instruction.
 			// Push bool false (0) as ResumeSave's return value (= "loaded").
-			stack_push(0);
+			// Not read, the script goes on after ResumeLoad (void).
+			if (loaded)
+				stack_push(0);
 		}
 		// system.Reset: the original runs no instruction after the call
 		// (its instruction handler 0x667ef0 only waits on the host once

@@ -18,6 +18,7 @@
 #define VM_PRIVATE
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -25,6 +26,8 @@
 
 #include "system4.h"
 #include "system4/file.h"
+#include "system4/instructions.h"
+#include "system4/little_endian.h"
 #include "system4/savefile.h"
 #include "system4/string.h"
 
@@ -53,7 +56,7 @@ static enum page_type string_to_page_type(const char *str)
 	if (!strcmp(str, "struct"))   return STRUCT_PAGE;
 	if (!strcmp(str, "array"))    return ARRAY_PAGE;
 	if (!strcmp(str, "delegate")) return DELEGATE_PAGE;
-	VM_ERROR("Invalid page type: %s", str);
+	return -1;
 }
 
 static cJSON *value_to_json(union vm_value v)
@@ -100,7 +103,9 @@ static cJSON *heap_item_to_json(int i, possibly_unused void *_)
 		cJSON_AddItemToArray(item, resume_page_to_json(heap[i].page));
 		break;
 	case VM_STRING:
-		cJSON_AddItemToArray(item, cJSON_CreateString(heap[i].s->text));
+		// a string slot without a string is written as an empty one, as
+		// the rsm writer does (heap_item_to_rsave)
+		cJSON_AddItemToArray(item, cJSON_CreateString(heap[i].s ? heap[i].s->text : ""));
 		break;
 	}
 	if (ain->nr_delegates > 0) {
@@ -478,8 +483,32 @@ static void save_heap_to_rsave(struct rsave *rs)
 	}
 }
 
-static void save_call_stack_to_rsave(struct rsave *rs)
+/*
+ * A frame entered from C (return address VM_RETURN, 0xFFFFFFFF) above the
+ * bottom one.
+ * Its return record is written with return_addr RSAVE_C_ENTRY_RETURN and
+ * local_addr RSAVE_C_ENTRY_OFFSET, keeping the caller's symbol and CRC: a
+ * record whose return_addr is -1 is written without them, and the reader
+ * would have no function for the frame below. No return into a function
+ * has a negative offset. (The port's own convention for its rsm images.)
+ */
+#define RSAVE_C_ENTRY_RETURN (-2)
+#define RSAVE_C_ENTRY_OFFSET (-1)
+
+// An image needs a frame to resume in and a function for every frame (the
+// return records name them); otherwise the image is not written.
+static bool save_call_stack_to_rsave(struct rsave *rs)
 {
+	if (call_stack_ptr <= 0) {
+		WARNING("save_call_stack: no call frame");
+		return false;
+	}
+	for (int i = 0; i < call_stack_ptr; i++) {
+		if (call_stack[i].fno < 0 || call_stack[i].fno >= ain->nr_functions) {
+			WARNING("save_call_stack: invalid fno=%d at frame %d", call_stack[i].fno, i);
+			return false;
+		}
+	}
 	rs->nr_call_frames = call_stack_ptr + 1;
 	rs->call_frames = xcalloc(rs->nr_call_frames, sizeof(struct rsave_call_frame));
 	rs->call_frames[0].type = RSAVE_CALL_STACK_BOTTOM;
@@ -491,10 +520,6 @@ static void save_call_stack_to_rsave(struct rsave *rs)
 	struct ain_function *prev_func = NULL;
 	for (int i = 0; i < call_stack_ptr; i++) {
 		struct function_call *call = &call_stack[i];
-		if (call->fno < 0 || call->fno >= ain->nr_functions) {
-			WARNING("save_call_stack: invalid fno=%d at frame %d", call->fno, i);
-			continue;
-		}
 		struct ain_function *func = &ain->functions[call->fno];
 		if (call->struct_page >= 0) {
 			rs->call_frames[i + 1].type = RSAVE_METHOD_CALL;
@@ -505,7 +530,10 @@ static void save_call_stack_to_rsave(struct rsave *rs)
 		}
 		rs->call_frames[i + 1].local_ptr = call->page_slot;
 		rs->call_frames[i + 1].struct_ptr = call->struct_page;
-		if (i > 0 && prev_func) {
+		if (i > 0 && prev_func && call->return_address == UINT32_MAX) {
+			rs->return_records[i].return_addr = RSAVE_C_ENTRY_RETURN;
+			rs->return_records[i].local_addr = RSAVE_C_ENTRY_OFFSET;
+		} else if (i > 0 && prev_func) {
 			rs->return_records[i].return_addr = call->return_address;
 			rs->return_records[i].local_addr = call->return_address - prev_func->address;
 		}
@@ -516,6 +544,7 @@ static void save_call_stack_to_rsave(struct rsave *rs)
 	rs->ip = rs->return_records[call_stack_ptr];
 	rs->ip.return_addr = instr_ptr + 6;
 	rs->ip.local_addr = instr_ptr - prev_func->address + 6;
+	return true;
 }
 
 static void save_stack_to_rsave(struct rsave *rs)
@@ -558,7 +587,10 @@ static struct rsave *vm_image_to_rsave(const char *key)
 	struct rsave *save = make_rsave(key);
 	save->next_seq = heap_next_seq;
 	save_heap_to_rsave(save);
-	save_call_stack_to_rsave(save);
+	if (!save_call_stack_to_rsave(save)) {
+		rsave_free(save);
+		return NULL;
+	}
 	save_stack_to_rsave(save);
 	save_func_names_to_rsave(save);
 	if (ain->version >= 14 && save->version >= 7) {
@@ -569,37 +601,90 @@ static struct rsave *vm_image_to_rsave(const char *key)
 	return save;
 }
 
+/*
+ * An image is written to "<file>.xs4tmp" and renamed over the file once it
+ * is complete: a failed write leaves the previous image whole, and a later
+ * read gets it, older than the write was for (the port's own handling). Where
+ * rename() does not replace a file (Windows), it is written in place as before.
+ */
+static char *image_write_path(const char *full_path)
+{
+#ifdef _WIN32
+	return xstrdup(full_path);
+#else
+	size_t n = strlen(full_path) + 8;
+	char *tmp = xmalloc(n);
+	snprintf(tmp, n, "%s.xs4tmp", full_path);
+	return tmp;
+#endif
+}
+
+// Closes fp; with ok, puts the written file in place. True if it is there.
+static bool image_write_finish(FILE *fp, bool ok, const char *tmp, const char *full_path)
+{
+	if (fclose(fp))
+		ok = false;
+#ifndef _WIN32
+	if (ok && rename(tmp, full_path)) {
+		WARNING("Failed to replace save file %s: %s", display_utf0(full_path), strerror(errno));
+		ok = false;
+	}
+	if (!ok)
+		remove(tmp);
+#endif
+	return ok;
+}
+
 static int save_rsave_image(const char *key, const char *path)
 {
 	struct rsave *save = vm_image_to_rsave(key);
 	if (!save)
 		return 0;
 	char *full_path = savedir_path(path);
-	FILE *fp = file_open_utf8(full_path, "wb");
+	char *tmp = image_write_path(full_path);
+	FILE *fp = file_open_utf8(tmp, "wb");
 	if (!fp) {
-		WARNING("Failed to open save file %s: %s", display_utf0(full_path), strerror(errno));
+		WARNING("Failed to open save file %s: %s", display_utf0(tmp), strerror(errno));
+		free(tmp);
 		free(full_path);
 		rsave_free(save);
 		return 0;
 	}
-	free(full_path);
 
 	bool encrypt = true;
 	int compression_level = 1;
 	enum savefile_error error = rsave_write(save, fp, encrypt, compression_level);
 	if (error != SAVEFILE_SUCCESS)
 		WARNING("Failed to write save file: %s", savefile_strerror(error));
-	fclose(fp);
+	bool ok = image_write_finish(fp, error == SAVEFILE_SUCCESS, tmp, full_path);
+	free(tmp);
+	free(full_path);
 	rsave_free(save);
-	return 1;
+	return ok;
 }
 
+// The text save_json writes, through image_write_path.
 static int save_json_image(const char *key, const char *path)
 {
 	cJSON *image = vm_image_to_json(key);
-	int r = save_json(path, image);
+	char *full_path = savedir_path(path);
+	char *tmp = image_write_path(full_path);
+	char *text = cJSON_Print(image);
 	cJSON_Delete(image);
-	return r;
+	bool ok = false;
+	FILE *fp = file_open_utf8(tmp, "w");
+	if (!fp) {
+		WARNING("Failed to open save file: %s: %s", display_utf0(tmp), strerror(errno));
+	} else {
+		bool written = text && fwrite(text, strlen(text), 1, fp) == 1;
+		if (!written)
+			WARNING("Failed to write save file: %s", strerror(errno));
+		ok = image_write_finish(fp, written, tmp, full_path);
+	}
+	free(text);
+	free(tmp);
+	free(full_path);
+	return ok;
 }
 
 int vm_save_image(const char *key, const char *path)
@@ -614,8 +699,19 @@ int vm_save_image(const char *key, const char *path)
 	return 0;
 }
 
-#define _invalid_save_data(file, func, line, fmt, ...)	\
-	_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", file, func, line, ##__VA_ARGS__)
+/*
+ * While vm_load_image reads an image, bad data ends the program through
+ * image_unreadable (a message to the player first); elsewhere (the comment
+ * readers and writers) it is a VM error as before.
+ */
+static const char *loading_image;
+static bool loading_image_touched;	// the load has begun to replace the heap
+static _Noreturn void image_unreadable(const char *fmt, ...);
+#define _invalid_save_data(file, func, line, fmt, ...) do {				\
+		if (loading_image)							\
+			image_unreadable("(%s:%s:%d) " fmt, file, func, line, ##__VA_ARGS__); \
+		_vm_error("*ERROR*(%s:%s:%d): " fmt "\n", file, func, line, ##__VA_ARGS__); \
+	} while (0)
 #define invalid_save_data(fmt, ...) \
 	_invalid_save_data(__FILE__, __func__, __LINE__, fmt, ##__VA_ARGS__)
 
@@ -655,6 +751,8 @@ static void load_json_page(int slot, cJSON *json)
 	cJSON *values  = type_check(cJSON_Array,  cJSON_GetObjectItem(json, "values"));
 
 	enum page_type page_type = string_to_page_type(cJSON_GetStringValue(type));
+	if ((int)page_type < 0)
+		invalid_save_data("Invalid page type: %.64s", cJSON_GetStringValue(type));
 	if (page_type == ARRAY_PAGE) {
 		cJSON *_struct_type = type_check(cJSON_Number, cJSON_GetObjectItem(json, "struct-type"));
 		cJSON *_rank        = type_check(cJSON_Number, cJSON_GetObjectItem(json, "rank"));
@@ -781,6 +879,21 @@ static void finish_heap_load(void)
 	rebuild_delegate_targets();
 }
 
+/*
+ * The most heap slots an image may give (the port's own bound): the reader
+ * grows the heap to the slot numbers it is given and clears the slot table up
+ * to as much as twice the largest. An image this port writes has as many slots
+ * as the heap had (heap_size, which the VM grows by doubling up to 4M slots
+ * and by 4M at a time past that). The largest heap among the images the game
+ * wrote with the port in its tests had 8M slots (1 << 23, builds that leaked
+ * slots); images of the builds since have had at most 512K (1 << 19). The
+ * VM's own bound is far higher (heap.c: HEAP_MAX_SLOTS, what the mmap
+ * reservation holds, in the mmap case only), too high to keep a bad slot
+ * number from taking the memory; an image of a heap past this bound is not
+ * read.
+ */
+#define RESUME_HEAP_SLOTS_MAX (1 << 24)
+
 // Allocate a specific heap slot for save/load.
 static void alloc_heap_slot(int slot)
 {
@@ -795,6 +908,7 @@ static void alloc_heap_slot(int slot)
 
 static void load_json_heap(cJSON *json)
 {
+	loading_image_touched = true;
 	delete_heap();
 
 	cJSON *item;
@@ -809,6 +923,12 @@ static void load_json_heap(cJSON *json)
 		int seq = ain->nr_delegates > 0
 			? type_check(cJSON_Number, cJSON_GetArrayItem(item, 3))->valueint
 			: slot;
+		// alloc_heap_slot would not end on a negative slot; a slot given
+		// twice would leak the first page or string
+		if (slot < 0 || slot >= RESUME_HEAP_SLOTS_MAX)
+			invalid_save_data("heap slot %d", slot);
+		if ((size_t)slot < heap_size && heap[slot].ref)
+			invalid_save_data("heap slot %d given twice", slot);
 
 		alloc_heap_slot(slot);
 		heap[slot].ref = ref;
@@ -852,6 +972,55 @@ static const char *message_name(const char *name, char *buf, size_t n)
 	return buf;
 }
 
+/*
+ * The end of a load that cannot go on: the reason goes to the log, the
+ * player is told which file could not be read, and the program ends
+ * (vm_image_unreadable). What the load had already put in the heap is
+ * dropped first, so the end of the program does not release a half-read
+ * heap. For what the original does, see vm_image_unreadable.
+ */
+static _Noreturn void image_unreadable(const char *fmt, ...)
+{
+	char reason[1024], name[512];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(reason, sizeof reason, fmt, ap);
+	va_end(ap);
+	WARNING("Failed to read VM image '%s': %s", message_name(loading_image, name, sizeof name), reason);
+	if (loading_image_touched) {
+		delete_heap();
+		call_stack_ptr = 0;
+		stack_ptr = 0;
+	}
+	vm_image_unreadable(loading_image);
+}
+
+// Whether addr lies in the code from function fno's start on. Where a
+// function ends is not checked: the code of a lambda can lie inside another's.
+static bool in_function_code(int fno, uint32_t addr)
+{
+	if (fno < 0 || fno >= ain->nr_functions)
+		return false;
+	uint32_t a = ain->functions[fno].address;
+	return a < ain->code_size && addr < ain->code_size && addr >= a;
+}
+
+// Whether addr is, in addition, the start of an instruction (the walk of
+// resume_call_opcode in vm.c).
+static bool at_instruction(int fno, uint32_t addr)
+{
+	if (!in_function_code(fno, addr))
+		return false;
+	uint32_t a = ain->functions[fno].address;
+	while (a < addr) {
+		uint16_t op = LittleEndian_getW(ain->code, a);
+		if (op >= NR_OPCODES)
+			return false;
+		a += instruction_width(op);
+	}
+	return a == addr;
+}
+
 static int resolve_func_symbol(struct rsave_symbol *sym)
 {
 	if (!sym->name)
@@ -871,6 +1040,8 @@ static void load_rsave_frame(int slot, struct rsave_heap_frame *f)
 	struct page *page;
 	int nr_vars;
 	struct ain_variable *vars;
+	if (f->nr_slots < 0)
+		invalid_save_data("page with %d slots", f->nr_slots);
 	if (f->tag == RSAVE_GLOBALS) {
 		page = alloc_page(GLOBAL_PAGE, 0, f->nr_slots);
 		nr_vars = ain->nr_globals;
@@ -893,6 +1064,9 @@ static void load_rsave_frame(int slot, struct rsave_heap_frame *f)
 	if (nr_vars < f->nr_types) {
 		invalid_save_data("call frame has too many variables");
 	}
+	// the VM reads every variable of the page
+	if (f->nr_slots < nr_vars)
+		invalid_save_data("call frame has %d slots for %d variables", f->nr_slots, nr_vars);
 	for (int i = 0; i < f->nr_types; i++) {
 		if (f->types[i] != vars[i].type.data) {
 			invalid_save_data(
@@ -914,6 +1088,9 @@ static void load_rsave_frame(int slot, struct rsave_heap_frame *f)
 
 static void load_rsave_string(int slot, struct rsave_heap_string *s)
 {
+	// the length counts the terminating zero
+	if (s->len <= 0)
+		invalid_save_data("string of length %d", s->len);
 	alloc_heap_slot(slot);
 	heap[slot].ref = s->ref;
 	heap[slot].seq = s->seq;
@@ -930,6 +1107,14 @@ static void load_rsave_array(int slot, struct rsave_heap_array *a)
 		heap[slot].type = VM_PAGE;
 		heap[slot].page = NULL;
 		return;
+	}
+	if (a->nr_slots < 0)
+		invalid_save_data("array with %d slots", a->nr_slots);
+	// the writer names only structs of the AIN (array_page_to_rsave)
+	if (a->struct_type.name && a->struct_type.name[0] && resolve_struct_symbol(&a->struct_type) < 0) {
+		char name[512];
+		invalid_save_data("array of struct '%s': no such struct",
+				  message_name(a->struct_type.name, name, sizeof name));
 	}
 	struct page *page = alloc_page(ARRAY_PAGE, a->data_type, a->nr_slots);
 	page->array.struct_type = resolve_struct_symbol(&a->struct_type);
@@ -955,6 +1140,8 @@ static void load_rsave_struct(int slot, struct rsave_heap_struct *s)
 	// variable_initval) is written with an empty struct name and no member
 	// types (struct_page_to_rsave). It comes back as such a page with its
 	// values; there is no struct to check it against.
+	if (s->nr_slots < 0)
+		invalid_save_data("struct page with %d slots", s->nr_slots);
 	if (s->struct_type.name && !s->struct_type.name[0]) {
 		struct page *page = alloc_page(STRUCT_PAGE, -1, s->nr_slots);
 		for (int i = 0; i < s->nr_slots; i++)
@@ -979,6 +1166,10 @@ static void load_rsave_struct(int slot, struct rsave_heap_struct *s)
 	if (as->nr_members < s->nr_types) {
 		invalid_save_data("Struct %s has too many members", as->name);
 	}
+	// every member is read; a page without slots is what alloc_struct
+	// makes when structs nest too deep, and comes back as it was
+	if (s->nr_slots && s->nr_slots < as->nr_members)
+		invalid_save_data("struct page has %d slots for %d members", s->nr_slots, as->nr_members);
 	for (int i = 0; i < s->nr_types; i++) {
 		if (s->types[i] != as->members[i].type.data) {
 			invalid_save_data(
@@ -1002,6 +1193,8 @@ static void load_rsave_struct(int slot, struct rsave_heap_struct *s)
 
 static void load_rsave_delegate(int slot, struct rsave_heap_delegate *d)
 {
+	if (d->nr_slots < 0)
+		invalid_save_data("delegate with %d slots", d->nr_slots);
 	struct page *page = alloc_page(DELEGATE_PAGE, 0, d->nr_slots);
 	for (int i = 0; i < d->nr_slots; i++)
 		page->values[i].i = d->slots[i];
@@ -1015,6 +1208,7 @@ static void load_rsave_delegate(int slot, struct rsave_heap_delegate *d)
 
 static void load_rsave_heap(struct rsave *save)
 {
+	loading_image_touched = true;
 	delete_heap();
 
 	for (int slot = 0; slot < save->nr_heap_objs; slot++) {
@@ -1033,6 +1227,38 @@ static void load_rsave_heap(struct rsave *save)
 	finish_heap_load();
 }
 
+/*
+ * Once the heap and the frames are back: every frame's local page is a live
+ * page with at least as many slots as the frame's function has variables (the
+ * VM reads the frame's variables from it). Its page type is not checked: these
+ * checks keep the VM from reading out of bounds, and an image of an earlier
+ * build can hold a page of another type in that slot, which reads back as it
+ * did before. A frame's struct page, and the struct pointer kept in a local
+ * page, are only checked to be none (negative) or to lie in the heap: from v14
+ * on a frame holds no reference to its struct page (keep_alive_enabled), so
+ * the slot of an object deleted during its own method can hold something else
+ * by the time of the save, and the VM skips negative slots when it releases a
+ * frame.
+ */
+static void check_frame_pages(void)
+{
+	for (int i = 0; i < call_stack_ptr; i++) {
+		int s = call_stack[i].page_slot;
+		if (s < 0 || (size_t)s >= heap_size || !heap[s].ref || heap[s].type != VM_PAGE
+		    || !heap[s].page)
+			invalid_save_data("call frame %d: slot %d is not a page", i, s);
+		struct page *page = heap[s].page;
+		int nr_vars = ain->functions[call_stack[i].fno].nr_vars;
+		if (page->nr_vars < nr_vars)
+			invalid_save_data("call frame %d: page of %d slots for %d variables", i, page->nr_vars, nr_vars);
+		if (page->type == LOCAL_PAGE && page->local.struct_ptr >= 0
+		    && (size_t)page->local.struct_ptr >= heap_size)
+			invalid_save_data("call frame %d: struct pointer %d is past the heap", i, page->local.struct_ptr);
+		if (call_stack[i].struct_page >= 0 && (size_t)call_stack[i].struct_page >= heap_size)
+			invalid_save_data("call frame %d: struct page %d is past the heap", i, call_stack[i].struct_page);
+	}
+}
+
 // call_stack is a fixed array; an image with more frames cannot be loaded.
 
 static void load_json_call_stack(cJSON *json)
@@ -1040,6 +1266,8 @@ static void load_json_call_stack(cJSON *json)
 	int nr_frames = cJSON_GetArraySize(json);
 	if (nr_frames > CALL_STACK_FRAMES_MAX)
 		invalid_save_data("too many call frames (%d, at most %d)", nr_frames, CALL_STACK_FRAMES_MAX);
+	if (nr_frames < 1)
+		invalid_save_data("no call frame");
 	call_stack_ptr = 0;
 	cJSON *item;
 	cJSON_ArrayForEach(item, json) {
@@ -1064,6 +1292,17 @@ static void load_json_call_stack(cJSON *json)
 			.page_slot      = type_check(cJSON_Number, cJSON_GetObjectItem(item, "local-page"))->valueint,
 			.struct_page    = type_check(cJSON_Number, cJSON_GetObjectItem(item, "struct-page"))->valueint,
 		};
+		// above the bottom a frame returns to C or into the code of the
+		// function below it
+		struct function_call *f = &call_stack[call_stack_ptr - 1];
+		if (call_stack_ptr > 1 && f->return_address != UINT32_MAX
+		    && !in_function_code(call_stack[call_stack_ptr - 2].fno, f->return_address))
+			invalid_save_data("call frame %d: return address %u is not in its code",
+					  call_stack_ptr - 1, f->return_address);
+	}
+	for (int i = 0; i < call_stack_ptr; i++) {
+		if (call_stack[i].fno < 0 || call_stack[i].fno >= ain->nr_functions)
+			invalid_save_data("call frame %d: no function %d", i, call_stack[i].fno);
 	}
 }
 
@@ -1116,21 +1355,43 @@ static void load_rsave_call_stack(struct rsave *save)
 	call_stack_ptr = 0;
 
 	if (save->nr_return_records == 0 || save->return_records[0].return_addr != -1)
-		ERROR("invalid resume save");
+		invalid_save_data("invalid resume save: no bottom return record");
 	struct rsave_return_record *rr = save->return_records;
 	if (save->nr_return_records == save->nr_call_frames)
 		rr++;
 	else if (save->nr_return_records != save->nr_call_frames - 1)
-		ERROR("invalid resume save");
+		invalid_save_data("invalid resume save: %d return records for %d call frames",
+				  save->nr_return_records, save->nr_call_frames);
 
 	int32_t return_address = -1;
 	for (int i = 0; i < save->nr_call_frames; i++) {
 		if (save->call_frames[i].type != RSAVE_CALL_STACK_BOTTOM) {
+			char name[512];
+			// with as many records as frames and a single frame, the
+			// record after the bottom one is past the end
+			if (rr != &save->ip && rr >= save->return_records + save->nr_return_records)
+				invalid_save_data("call frame %d has no return record", i);
+			// a record with return address -1 has no function: an image
+			// of an earlier build with a frame entered from C above the
+			// bottom (see RSAVE_C_ENTRY_RETURN)
+			if (!rr->caller_func)
+				invalid_save_data("call frame %d has no function", i);
 			int fno = resolve_function_name(rr->caller_func);
 			if (fno < 0)
-				VM_ERROR("Failed to load VM image: function '%s' not found", display_sjis0(rr->caller_func));
+				invalid_save_data("function '%s' not found", message_name(rr->caller_func, name, sizeof name));
 			if (ain->functions[fno].crc != rr->crc)
-				VM_ERROR("Failed to load VM image: CRC mismatch for function '%s'", display_sjis0(rr->caller_func));
+				invalid_save_data("CRC mismatch for function '%s'", message_name(rr->caller_func, name, sizeof name));
+			// the return address of the next frame lies in this function's
+			// code, and the instruction pointer (rr is the ip record) is an
+			// instruction of it
+			bool ip = rr == &save->ip;
+			bool c_entry = !ip && rr->return_addr == RSAVE_C_ENTRY_RETURN
+				&& rr->local_addr == RSAVE_C_ENTRY_OFFSET;
+			uint32_t at = ain->functions[fno].address + rr->local_addr - (ip ? 6 : 0);
+			if (!c_entry && !(ip ? at_instruction(fno, at) : in_function_code(fno, at)))
+				invalid_save_data("%s %d of function '%s' is not %s", ip ? "instruction pointer" : "return offset",
+						  rr->local_addr, message_name(rr->caller_func, name, sizeof name),
+						  ip ? "an instruction" : "in its code");
 			call_stack[call_stack_ptr++] = (struct function_call) {
 				.fno            = fno,
 				.return_address = return_address,
@@ -1139,11 +1400,14 @@ static void load_rsave_call_stack(struct rsave *save)
 			};
 			// Calculate return address from the function address and offset
 			// to make it robust to ain changes.
-			return_address = ain->functions[fno].address + rr->local_addr;
+			return_address = c_entry ? -1 : (int32_t)(ain->functions[fno].address + rr->local_addr);
 		}
 		if (++rr == save->return_records + save->nr_return_records)
 			rr = &save->ip;
 	}
+	// an image of the bottom frame only has nothing to resume in
+	if (call_stack_ptr < 1)
+		invalid_save_data("no call frame");
 	// RSM records instruction pointer after the CALLSYS instruction, but
 	// xsystem4 expects the address of the CALLSYS instruction, so -6.
 	instr_ptr = return_address - 6;
@@ -1151,6 +1415,9 @@ static void load_rsave_call_stack(struct rsave *save)
 
 static void load_json_stack(cJSON *json)
 {
+	// the two arguments of the save are taken off below
+	if (cJSON_GetArraySize(json) < 2)
+		invalid_save_data("%d stack values", cJSON_GetArraySize(json));
 	stack_ptr = 0;
 
 	cJSON *item;
@@ -1197,13 +1464,15 @@ static cJSON *read_json_image(const char *keyname, const char *path)
 static void load_json_image(const char *key, const char *path)
 {
 	cJSON *save = read_json_image(key, path);
-	if (!save) {
-		VM_ERROR("Failed to read VM image: '%s'", display_sjis0(path));
-	}
+	if (!save)
+		invalid_save_data("the file could not be read");
 	cJSON *ip = type_check(cJSON_Number, cJSON_GetObjectItem(save, "ip"));
 	load_json_heap(type_check(cJSON_Array, cJSON_GetObjectItem(save, "heap")));
 	cJSON *frames = type_check(cJSON_Array, cJSON_GetObjectItem(save, "call-stack"));
 	load_json_call_stack(frames);
+	check_frame_pages();
+	if (ain->version >= 14 && !at_instruction(call_stack[call_stack_ptr - 1].fno, (uint32_t)ip->valueint))
+		invalid_save_data("instruction pointer %d is not an instruction", ip->valueint);
 	load_json_stack(type_check(cJSON_Array, cJSON_GetObjectItem(save, "stack")));
 	if (ain->version >= 14) {
 		struct resume_frame_extra *extra = load_json_frame_extra(frames);
@@ -1220,18 +1489,67 @@ static void load_json_image(const char *key, const char *path)
 	cJSON_Delete(save);
 }
 
+/*
+ * rsave_read (libsys4) in its two steps, savefile_read and rsave_parse, the
+ * same on good data. On bad data: an error the library would end the program
+ * with (sys_error: a read past the data, a count it cannot allocate; while
+ * the handler is set, from any thread, as it is the whole program's) ends it
+ * through image_unreadable instead; and an image the parser gave up on part
+ * way is freed only up to the first heap entry it did not read, which is
+ * NULL and which rsave_free would read. (The port's own; libsys4 unchanged.)
+ */
+static void (*library_error_handler)(const char *msg);
+
+static void image_library_error(const char *msg)
+{
+	// an error from here on ends the program as it did before
+	sys_error_handler = library_error_handler;
+	image_unreadable("%.*s", (int)strcspn(msg, "\n"), msg);
+}
+
+static struct rsave *read_rsave(const char *full_path, enum savefile_error *error)
+{
+	library_error_handler = sys_error_handler;
+	sys_error_handler = image_library_error;
+	struct rsave *rs = NULL;
+	struct savefile *file = savefile_read(full_path, error);
+	if (file) {
+		rs = xcalloc(1, sizeof *rs);
+		*error = rsave_parse(file->buf, file->len, RSAVE_READ_ALL, rs);
+		savefile_free(file);
+		if (*error != SAVEFILE_SUCCESS) {
+			for (int i = 0; i < rs->nr_heap_objs; i++) {
+				if (!rs->heap[i]) {
+					rs->nr_heap_objs = i;
+					break;
+				}
+			}
+			rsave_free(rs);
+			rs = NULL;
+		}
+	}
+	sys_error_handler = library_error_handler;
+	return rs;
+}
+
 static enum savefile_error load_rsave_image(const char *key, const char *path)
 {
 	char *full_path = savedir_path(path);
 	enum savefile_error error;
-	struct rsave *save = rsave_read(full_path, RSAVE_READ_ALL, &error);
+	struct rsave *save = read_rsave(full_path, &error);
 	free(full_path);
 	if (error != SAVEFILE_SUCCESS)
 		return error;
 	if (strcmp(key, save->key))
 		invalid_save_data("Key doesn't match");
+	// a file the comment writer made holds comments only
+	if (save->comments_only)
+		invalid_save_data("the file holds no image");
+	if (save->nr_heap_objs > RESUME_HEAP_SLOTS_MAX)
+		invalid_save_data("%d heap slots", save->nr_heap_objs);
 	load_rsave_heap(save);
 	load_rsave_call_stack(save);
+	check_frame_pages();
 	load_rsave_stack(save);
 	if (ain->version >= 14) {
 		struct resume_frame_extra *extra = resume_frames_from_comments(save, call_stack_ptr);
@@ -1281,23 +1599,45 @@ static void fix_value_array_members(void)
 	}
 }
 
-void vm_load_image(const char *key, const char *path)
+/*
+ * True once the image is back. False, with the VM as it was, for an rsm file
+ * of a version libsys4 does not read: an image of another program (the
+ * images of the original's release this port runs are version 14), which the
+ * port can only meet in a file left from another run; as read in the script
+ * of the game this port runs, going on from where the game was left and a
+ * quick load go on when nothing is read back, and the quick load looks for
+ * the file first. (The port's own handling: the original never meets a
+ * format it did not write.) Any other image that cannot be read back, also a
+ * file that is not there, ends the program through image_unreadable (for the
+ * original, see vm_image_unreadable: it differs on a checksum mismatch).
+ */
+static bool load_image(const char *key, const char *path)
 {
+	loading_image = path;
+	loading_image_touched = false;
 	// First, try to read as a rsave.
 	enum savefile_error error = load_rsave_image(key, path);
 	switch (error) {
 	case SAVEFILE_SUCCESS:
+		loading_image = NULL;
 		fix_value_array_members();
 		vm_resume_trace("load", path);
-		return;
+		return true;
 	case SAVEFILE_INVALID_SIGNATURE:
 		// If not a System4 resume save file, read as a json.
 		load_json_image(key, path);
+		loading_image = NULL;
 		fix_value_array_members();
 		vm_resume_trace("load", path);
-		return;
+		return true;
+	case SAVEFILE_UNSUPPORTED_FORMAT: {
+		char name[512];
+		WARNING("VM image '%s' not read: %s", message_name(path, name, sizeof name), savefile_strerror(error));
+		loading_image = NULL;
+		return false;
+	}
 	default:
-		VM_ERROR("Failed to read VM image '%s': %s", display_sjis0(path), savefile_strerror(error));
+		image_unreadable("%s", savefile_strerror(error));
 	}
 }
 
@@ -1488,4 +1828,19 @@ int vm_write_image_comments(const char *key, const char *path, struct page *comm
 		return write_json_image_comments(key, path, comments);
 	}
 	return 0;
+}
+
+/*
+ * load_image with copies of the key and the file name: they can be the text
+ * of strings in the VM's heap (the system call SYS_RESUME_LOAD passes its
+ * arguments'), which the load frees when it replaces the heap, and the log
+ * and the box of a load that fails name the file.
+ */
+bool vm_load_image(const char *key, const char *path)
+{
+	char *own_key = xstrdup(key), *own_path = xstrdup(path);
+	bool loaded = load_image(own_key, own_path);
+	free(own_key);
+	free(own_path);
+	return loaded;
 }
