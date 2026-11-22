@@ -4,6 +4,16 @@
 
 所有輸出都寫到 repo 外的 `XS4_WORK`，repo 本身不會被弄髒。
 
+## 聲音停止型淡出被打斷（2026-11-22）
+
+新增 `probe/sound_fade_interrupt_fixture.inc` 的 `sound-fade-interrupt`（13 案），全套由 157 增為 158 模式（程式 `6b42512`）。既有探針的期望沒有改。案在子行程跑，經 AIN 的宣告（hll_call）呼叫 `KiwiSoundEngine` 的函式，走真的聲道池與混音器，資料沿用 `sound-gain` 的合成 PCM（固定值的單聲道，電平就是增益）；需要電平的案沒有音訊裝置，在本執行緒拉回呼取樣，牆鐘是 SDL 的；讀取函式拿鎖那一案用 dummy 音訊驅動與它的回呼執行緒，另起一條執行緒握住裝置的鎖 400 ms。版本情境：v14 GBK 有群組表、v14 GBK 沒有群組表；v13 GBK、v15 GBK、v14 SJIS、只有 GB18030 旗標而規則是 SJIS 四組是舊路徑的護欄；另直接呼叫 HLL 走不到的 C 入口（讀音量與取樣位置的函式、在打開中斷時鐘的聲道上用舊入口下淡變）。判「淡變已經結束」的檢查至少等淡變時間加 60 ms，判「還在進行」的至少留 600 ms 餘裕，機器忙只會讓等待變長；有一案依賴每塊 1024 幀與 44.1 kHz 的合成資料（改了其中一個，那一案的預期電平要跟著改）。
+
+這個模式驗的是：停止型淡出被定時、即時、即時帶停止的淡變打斷時先停聲（非停止型只被取代）；打斷後換上的定時淡變在聲道停止期間照時間進行，之後的播放、停止、移位置、讀位置、停止淡變、釋放後重建都看到結算後的狀態；時間 0 與負的時間即時；停止或播完時還在進行的淡變照時間結束、跑完剩下的時間、從已到達的增益起算，之後的淡變不算打斷；牆鐘淡變的增益是內插值；被打斷過的聲道之後的淡變照牆鐘、沒被打斷過的照混音幀；在還沒播放的聲道上下的定時淡變照時間走；讀取函式只在有牆鐘淡變時才拿鎖；舊路徑（v13）的停止淡變、時間 0 帶停止、負的時間照舊。期望值照原版（v14 GBK 樣本）的靜態讀法另寫，檔頭標 `port` 的是移植版自己的做法（只對 v14 GBK、照混音幀推進到第一次被打斷、讀取函式有條件拿鎖、`Play` 不重設音量、照混音幀推進的淡變上 `StopFade` 跳到終值），當護欄守著不讓它不知不覺改掉。
+
+修前（程式提交之後量的：父提交 `31a6dde` 的五個引擎檔加上這次提交的探針與模式清單，sanitizer 版）：兩種編碼都是 13 案中 12 案失敗、逐案相同，失敗都在兩個 v14 GBK 情境，通過的一案是舊路徑的護欄；`audio-init`、`movie-audio-only`、`sound-groups`、`sound-gain`、`sound-rewind`、`parts-sound-name`、`sound-se`、`movie-audio-length`、`system-reset`（98 案）和修後逐案相同。提交前（探針只改註解之前的來源）與程式提交上重建，預設／GBK 各 158 模式通過、sanitizer 0；只改註解之後，新模式兩種編碼重跑逐案相同（見[逐案表](../research/sound-fade-interrupt/before-after.tsv)）。
+
+沒有涵蓋：淡變曲線型別、群組或串流聲道最後一圈被打斷後重播、真實音訊裝置與原版的輸出、握鎖那一案以外和真實音訊執行緒的爭用、其他 v14 遊戲；`StopFade` 之後、下一個混音區塊之前就停止的順序（讀移植版程式的推論是 `IsFade` 會一直是真，沒有案）。探針通過不能代替聽感，實機見[研究](../research/sound-fade-interrupt/README.md)。
+
 ## v14 引擎快照讀回後的場景狀態（2026-11-22）
 
 新增 12 個模式，全套由 145 增為 157 模式（程式 `7444591`，R1b）：`parts-image`（10 案）、`activity-image`（14 案；另一案只在 `XS4_ACTIVITY_STRESS=1` 時跑）、`user-component-image`（8 案）、`parts-speedup-image`（11 案）、`resume-frames`（14 案）、`resume-env-guard`（1 案）、`resume-delegate-mismatch`（2 案；另 2 案一律印 SKIP）、`resume-c-entry`（4 案）、`resume-marker`（4 案）、`resume-comments`（8 案）、`resume-v13-guard`（6 案）、`parts-v13-wrap-ffi`（6 案）。既有模式：`numeral` 由 10 案增為 12 案，並改了一案的預期（存過的字型數字讀回後要帶回字型，以前是讀回成未定型）；`controller-id`、`parts-sound-name`、`parts-transform` 改成允許控制器編號段前面多一個空的活動段（舊寫出端沒有這一段、新寫出端有），`parts-sound-name` 另外在段的順序檢查裡加上唯一編號段，案數不變。新探針的 fixture 用的號碼都是合成的，不是遊戲的部件號碼。
@@ -102,7 +112,7 @@ G1c 擴充既有 sound-groups（21 案）與 sound-rewind（10 案），不新�
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 157 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 158 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 # 注意：新機器、乾淨的 clone、清過快取或系統更新之後，無視窗的 GL 探針可能因為還沒有 Metal pipeline 快取而報 ENVIRONMENT FAILURE（rc 2）。先用有視窗的引擎跑一次（例如 gui-run.sh）建立快取，再跑 verify。（2026-11-09 補記（U2，程式 `6e4e673`）：這台 Mac 實測，只經 fork、沒有 exec 的子行程也編不出快取裡沒有的著色器，畫不出來；`mosaic-effect` 因此用 posix_spawn 另起輔助模式畫圖。）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -514,4 +524,5 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 - `probe/resume_comments_fixture.inc`：`resume-comments`（8 案）（2026-11-22，R1b），腳本 comment 的往返；要放在 `resume_frames_fixture.inc` 之後。v14 寫出的 rsm 影像保留最後一則保留紀錄，前面每一則使用者的 comment（含逐位元組相同的重複、和紀錄開頭相似的文字）照順序看得到、可以替換、清空與重寫；v13 的 rsm 與 v14 的 json 的一般 comment 也照舊；舊的完整 rsm 影像裡相似前綴的一般文字看得到、可以替換。兩種字元規則各一次（GBK 那一組照套件的設定）。修前（快照框紀錄之前的來源）8 案中 3 案失敗。
 - `probe/resume_v13_guard_fixture.inc`：`resume-v13-guard`（6 案）（2026-11-22，R1b），合成的 v13 相容護欄；要放在 `resume_image_fixture.inc` 之後。載入 v14 的 AIN、初始化指令表之後把版本設成 13，只驗版本分派與影像資料：這不是真的 v13 AIN、不是位元組碼的執行測試，也不是舊遊戲完全相容的證據。各案在子行程執行，不用任何遊戲的存檔；v13 的 json 讀入照舊用 cJSON 的整數值（返回位址 4294967295 會飽和成 INT_MAX），探針只看讀回的框、不執行那個返回位址。
 - `probe/parts_v13_wrap_ffi_fixture.inc`：`parts-v13-wrap-ffi`（6 案）（2026-11-22，R1b），合成的 v13 部件存讀經 wrap 盒的交接；要放在 `parts_image_fixture.inc` 之後。AIN 與指令表是 v14 的、只把版本設成 13；`Save` 與 `Load` 的宣告取自載入的 AIN，`SaveWithoutHideParts` 由一個引數的 `Save` 合成。驗的是版本分派，不證明真正的 v13 ABI 相容。各案在子行程執行，sanitizer 的失敗要看得到、不擋其他五案；R1a 的轉接會在放開舊的堆積槽之前先釋放頁，父提交與候選的輸出要分開記，父提交當掉不能當成通過。
+- `probe/sound_fade_interrupt_fixture.inc`：`sound-fade-interrupt`（13 案）（2026-11-22），v14 GBK 的停止型淡出被打斷、照牆鐘的淡變、讀取函式只在有牆鐘淡變時拿鎖；見上面〈聲音停止型淡出被打斷〉。
 - 這一組改的既有模式：`numeral`（10 → 12 案）新增「字型、連結 CG、CG 三種數字部件的表示タイプ、字型、ＣＧ名與寬度、全角、ゼロパディング 存了之後被改，讀回回到存的值，字型數字讀回後照讀回的字型重畫，之後設的數字也用那個字型；沒有數字部件的存出沒有段」與「沒有數字段的存出（較早的建置）照舊讀」兩案，原本的第十案改成存過的字型數字讀回後帶回字型（以前預期讀回成未定型）；修前（第一回合的引擎碼）新的與改的三案都失敗。`controller-id`、`parts-transform`：控制器編號段之前允許一個六個字的空活動段（舊寫出端沒有、新寫出端有；格式不對時失敗），改寫成第 7 版的輔助函式一併去掉它。`parts-sound-name`：段的順序檢查加上唯一編號段，並允許控制器編號段之前的空活動段。四個模式的案數以外不變。
