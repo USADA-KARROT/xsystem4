@@ -68,6 +68,8 @@ int wav_set_loop_end_pos(int id, int pos);
 int bgm_set_loop_end_pos(int id, int pos);
 int wav_fade(int id, int time, int volume, bool stop);
 int bgm_fade(int id, int time, int volume, bool stop);
+int wav_fade_v14(int id, int time, int volume, bool stop);
+int bgm_fade_v14(int id, int time, int volume, bool stop);
 int wav_stop_fade(int id);
 int bgm_stop_fade(int id);
 bool wav_is_fading(int id);

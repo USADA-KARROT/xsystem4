@@ -100,6 +100,7 @@ int channel_get_loop_count(struct channel *ch);
 int channel_set_loop_start_pos(struct channel *ch, int pos);
 int channel_set_loop_end_pos(struct channel *ch, int pos);
 int channel_fade(struct channel *ch, int time, int volume, bool stop);
+int channel_fade_v14(struct channel *ch, int time, int volume, bool stop);
 int channel_stop_fade(struct channel *ch);
 int channel_is_fading(struct channel *ch);
 int channel_pause(struct channel *ch);

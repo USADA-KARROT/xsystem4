@@ -59,6 +59,24 @@ struct fade {
 	uint_least32_t elapsed;
 	float start_volume;
 	float end_volume;
+	/*
+	 * Wall time (as read in the v14 GBK sample, the original's fades all
+	 * run on it). Once a v14 stop fade of a channel is interrupted, the
+	 * channel's later timed v14 fades use it; so does a timed v14 fade
+	 * begun while its channel does not play, and a v14 fade that is still
+	 * running when its channel is stopped or its sound ends. Other fades
+	 * advance with the mixed frames, as before. The getters read
+	 * wall_active without the lock. Whatever settles a wall-time fade
+	 * writes fading and the volume first and clears wall_active last (all
+	 * atomics), so a getter that sees it clear also sees those settled. A
+	 * stop the fade asks for at its end comes after that: IsPlay or GetPos
+	 * read without the lock in between see the voice as it was a moment
+	 * before, as any read that comes a little earlier does.
+	 */
+	atomic_bool wall_active;
+	bool v14;
+	uint64_t wall_start_ms;
+	uint32_t wall_duration_ms;
 };
 
 struct channel {
@@ -86,6 +104,7 @@ struct channel {
 	uint_least32_t loop_end;
 	atomic_uint loop_count;
 	struct fade fade;
+	bool v14_interruption_clock;
 
 	// v14 sound groups: refilled by cb_read_frames_grouped (see there)
 	bool grouped;
@@ -326,6 +345,64 @@ static float channel_gain(struct channel *ch, float volume)
 	return clamp(0.0f, 1.0f, volume * internal_volume[ch->mixer_no]);
 }
 
+/* Called under the audio device lock, or from its callback.  A stopped
+ * channel has no refill, so public operations also settle this clock lazily.
+ * The gain is the interpolated value itself; ch->volume keeps the integer
+ * the game reads back.  Return true when the completed fade asks its playing
+ * voice to stop. */
+static bool channel_update_wall_fade(struct channel *ch, float *gain)
+{
+	struct fade *fade = &ch->fade;
+	if (!fade->wall_active)
+		return false;
+	uint64_t elapsed = SDL_GetTicks64() - fade->wall_start_ms;
+	if (elapsed >= fade->wall_duration_ms) {
+		// wall_active last (see struct fade)
+		fade->fading = false;
+		ch->volume = fade->end_volume * 100.0f;
+		fade->wall_active = false;
+		if (gain)
+			*gain = fade->end_volume;
+		return fade->stop;
+	}
+	float progress = (float)elapsed / (float)fade->wall_duration_ms;
+	float volume = fade->start_volume + (fade->end_volume - fade->start_volume) * progress;
+	volume = clamp(0.0f, 1.0f, volume);
+	ch->volume = volume * 100.0f;
+	if (gain)
+		*gain = volume;
+	return false;
+}
+
+/*
+ * A v14 fade that advances with the mixed frames would stop advancing when
+ * its channel stops or its sound ends; the original's fade thread goes on by
+ * wall time (read in the v14 GBK sample: 0x4a52e0 and 0x4a53d0 only set and
+ * read the buffer's volume and call its Stop, they never ask whether it
+ * plays; Stop, 0x4a3700, does not end the thread; no call to the cancel
+ * routine, 0x4a5220, was found on the end-of-sound path). The rest of it
+ * then runs on wall time from here, from the gain it has reached. Under the
+ * lock or in the callback.
+ */
+static void channel_keep_v14_fade_running(struct channel *ch)
+{
+	struct fade *fade = &ch->fade;
+	if (!fade->v14 || !fade->fading || fade->wall_active || fade->elapsed >= fade->frames)
+		return;
+	fade->start_volume = cb_calc_fade(fade);
+	fade->wall_duration_ms = muldiv(fade->frames - fade->elapsed, 1000, ch->info.samplerate);
+	fade->wall_start_ms = SDL_GetTicks64();
+	fade->wall_active = true;
+}
+
+static void channel_stop_locked(struct channel *ch);
+
+static void channel_sync_wall_fade_locked(struct channel *ch)
+{
+	if (channel_update_wall_fade(ch, NULL))
+		channel_stop_locked(ch);
+}
+
 static int refill_stream(sts_mixer_sample_t *sample, void *data)
 {
 	struct channel *ch = data;
@@ -354,7 +431,15 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	}
 
 	// set gain for fade
-	if (ch->fade.fading) {
+	if (ch->fade.wall_active) {
+		float gain = ch->volume / 100.0f;
+		bool stop = channel_update_wall_fade(ch, &gain);
+		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = channel_gain(ch, gain);
+		if (stop) {
+			cb_seek(ch, 0);
+			r = STS_STREAM_COMPLETE;
+		}
+	} else if (ch->fade.fading) {
 		float gain = cb_calc_fade(&ch->fade);
 		mixers[ch->mixer_no].mixer.voices[ch->voice].gain = channel_gain(ch, gain);
 		ch->volume = gain * 100.0;
@@ -394,12 +479,14 @@ static int refill_stream(sts_mixer_sample_t *sample, void *data)
 	 * keeps its own end (cb_loop: the loop's begin). This runs on the audio
 	 * thread with the device locked, as every other seek of the channel's
 	 * file does. The seek comes before voice = -1 and both are atomics, so
-	 * for the readers without the lock (IsPlay, GetPos) IsPlay false
-	 * implies GetPos 0; keep that order.
+	 * for the readers that do not take the lock (IsPlay, GetPos while no
+	 * wall-time fade runs; see channel_is_playing) IsPlay false implies
+	 * GetPos 0; keep that order.
 	 */
 	if (r == STS_STREAM_COMPLETE) {
 		if (ch->grouped)
 			cb_seek(ch, 0);
+		channel_keep_v14_fade_running(ch);
 		ch->voice = -1;
 	}
 
@@ -420,6 +507,7 @@ static int refill_mixer(sts_mixer_sample_t *sample, void *data)
 int channel_play(struct channel *ch)
 {
 	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
 	if (ch->voice >= 0) {
 		SDL_UnlockAudioDevice(audio_device);
 		return 1;
@@ -430,23 +518,43 @@ int channel_play(struct channel *ch)
 	return 1;
 }
 
-int channel_stop(struct channel *ch)
+/* Caller holds the audio device lock. */
+static void channel_stop_locked(struct channel *ch)
 {
-	SDL_LockAudioDevice(audio_device);
-	if (ch->voice < 0) {
-		SDL_UnlockAudioDevice(audio_device);
-		return 1;
-	}
+	if (ch->voice < 0)
+		return;
 	cb_seek(ch, 0);
 	sts_mixer_stop_voice(&mixers[ch->mixer_no].mixer, ch->voice);
 	ch->voice = -1;
+}
+
+int channel_stop(struct channel *ch)
+{
+	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	if (ch->voice >= 0)
+		channel_keep_v14_fade_running(ch);
+	channel_stop_locked(ch);
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
 
+/*
+ * The getters below read without the lock, as before, unless a wall-time
+ * fade runs on the channel: then they take it and settle the fade first
+ * (struct fade says what a read without the lock sees around a settlement).
+ * They are called for many channels every frame, and the audio callback
+ * holds the lock while it mixes.
+ */
 int channel_is_playing(struct channel *ch)
 {
-	return ch->voice >= 0;
+	if (!ch->fade.wall_active)
+		return ch->voice >= 0;
+	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	int playing = ch->voice >= 0;
+	SDL_UnlockAudioDevice(audio_device);
+	return playing;
 }
 
 int channel_set_loop_count(struct channel *ch, int count)
@@ -478,12 +586,36 @@ int channel_set_loop_end_pos(struct channel *ch, int pos)
 	return 1;
 }
 
-int channel_fade(struct channel *ch, int time, int volume, bool stop)
+static int channel_fade_impl(struct channel *ch, int time, int volume, bool stop, bool v14)
 {
-	if (!time && stop)
-		return channel_stop(ch);
-
 	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	/* The original waits for the old fade before replacing its stop flag
+	 * (read in the v14 GBK sample, 0x4a5082..0x4a50e1). */
+	bool interrupted_stop = v14 && ch->fade.fading && ch->fade.stop;
+	if (interrupted_stop)
+		ch->v14_interruption_clock = true;
+	if (v14 && time < 1) {
+		/* The original's time below 1, negative too, is immediate (v14
+		 * GBK sample, 0x4a518d): the old fade ends first, then the target
+		 * volume, then the stop. wall_active last (see struct fade). */
+		ch->fade.fading = false;
+		if (interrupted_stop)
+			channel_stop_locked(ch);
+		ch->volume = max(0, min(100, volume));
+		if (stop)
+			channel_stop_locked(ch);
+		ch->fade.wall_active = false;
+		SDL_UnlockAudioDevice(audio_device);
+		return 1;
+	}
+	if (interrupted_stop || (!time && stop))
+		channel_stop_locked(ch);
+	if (!time && stop && !interrupted_stop) {
+		SDL_UnlockAudioDevice(audio_device);
+		return 1;
+	}
+	ch->fade.wall_active = false;
 	if (!time) {
 		// XXX: Fade with time=0 is used to set volume. This needs to
 		//      take effect immediately, not via the audio callback
@@ -503,24 +635,61 @@ int channel_fade(struct channel *ch, int time, int volume, bool stop)
 		ch->fade.frames = muldiv(time, ch->info.samplerate, 1000);
 		ch->fade.elapsed = 0;
 		ch->fade.end_volume = clamp(0.0f, 1.0f, (float)volume / 100.0f);
+		ch->fade.v14 = v14;
+		/* A v14 fade begun while the channel does not play runs by wall
+		 * time as well: by the mixed frames it would wait for a Play. As
+		 * read in the v14 GBK sample, Fade starts the timed thread
+		 * whether the buffer plays or not (0x4a51fc -> 0x4a5380), and a
+		 * Play after its end plays at its target (0x4a3640). It does not
+		 * turn the channel's clock on. */
+		if (v14 && (ch->v14_interruption_clock || ch->voice < 0)) {
+			ch->fade.wall_start_ms = SDL_GetTicks64();
+			ch->fade.wall_duration_ms = time;
+			ch->fade.wall_active = true;
+		}
 	}
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
 
+int channel_fade(struct channel *ch, int time, int volume, bool stop)
+{
+	return channel_fade_impl(ch, time, volume, stop, false);
+}
+
+int channel_fade_v14(struct channel *ch, int time, int volume, bool stop)
+{
+	return channel_fade_impl(ch, time, volume, stop, true);
+}
+
 int channel_stop_fade(struct channel *ch)
 {
 	SDL_LockAudioDevice(audio_device);
-	// XXX: we need to set the volume to end_volume and potentially stop the
-	//      stream here; better to let the callback do it
-	ch->fade.elapsed = ch->fade.frames;
+	channel_sync_wall_fade_locked(ch);
+	if (ch->fade.wall_active) {
+		// the volume stays where the sync above left it; wall_active last
+		bool stop = ch->fade.stop;
+		ch->fade.fading = false;
+		if (stop)
+			channel_stop_locked(ch);
+		ch->fade.wall_active = false;
+	} else {
+		// XXX: let the callback finish the legacy fade.
+		ch->fade.elapsed = ch->fade.frames;
+	}
 	SDL_UnlockAudioDevice(audio_device);
 	return 1;
 }
 
 int channel_is_fading(struct channel *ch)
 {
-	return ch->fade.fading;
+	if (!ch->fade.wall_active)
+		return ch->fade.fading;
+	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	int fading = ch->fade.fading;
+	SDL_UnlockAudioDevice(audio_device);
+	return fading;
 }
 
 int channel_pause(possibly_unused struct channel *ch)
@@ -544,7 +713,13 @@ int channel_is_paused(possibly_unused struct channel *ch)
 
 int channel_get_pos(struct channel *ch)
 {
-	return muldiv(ch->frame, 1000, ch->info.samplerate);
+	if (!ch->fade.wall_active)
+		return muldiv(ch->frame, 1000, ch->info.samplerate);
+	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	int pos = muldiv(ch->frame, 1000, ch->info.samplerate);
+	SDL_UnlockAudioDevice(audio_device);
+	return pos;
 }
 
 int channel_get_length(struct channel *ch)
@@ -555,7 +730,13 @@ int channel_get_length(struct channel *ch)
 
 int channel_get_sample_pos(struct channel *ch)
 {
-	return ch->frame;
+	if (!ch->fade.wall_active)
+		return ch->frame;
+	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	int pos = ch->frame;
+	SDL_UnlockAudioDevice(audio_device);
+	return pos;
 }
 
 int channel_get_sample_length(struct channel *ch)
@@ -567,6 +748,7 @@ int channel_seek(struct channel *ch, int pos)
 {
 	// NOTE: SACT2.Music_Seek doesn't seem to do anything in Sengoku Rance...
 	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
 	int r = cb_seek(ch, muldiv(pos, ch->info.samplerate, 1000));
 	SDL_UnlockAudioDevice(audio_device);
 	return r;
@@ -580,7 +762,13 @@ int channel_reverse_LR(struct channel *ch)
 
 int channel_get_volume(struct channel *ch)
 {
-	return ch->volume;
+	if (!ch->fade.wall_active)
+		return ch->volume;
+	SDL_LockAudioDevice(audio_device);
+	channel_sync_wall_fade_locked(ch);
+	int volume = ch->volume;
+	SDL_UnlockAudioDevice(audio_device);
+	return volume;
 }
 
 int channel_get_time_length(struct channel *ch)

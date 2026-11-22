@@ -520,15 +520,17 @@ static int audio_set_loop_end_pos(struct id_pool *pool, int id, int pos)
 int wav_set_loop_end_pos(int id, int pos) { return audio_set_loop_end_pos(&wav, id, pos); }
 int bgm_set_loop_end_pos(int id, int pos) { return audio_set_loop_end_pos(&bgm, id, pos); }
 
-static int audio_fade(struct id_pool *pool, int id, int time, int volume, bool stop)
+static int audio_fade(struct id_pool *pool, int id, int time, int volume, bool stop, bool v14)
 {
 	struct channel *ch = id_pool_get(pool, id);
 	if (!ch)
 		return 0;
-	return channel_fade(ch, time, volume, stop);
+	return v14 ? channel_fade_v14(ch, time, volume, stop) : channel_fade(ch, time, volume, stop);
 }
-int wav_fade(int id, int time, int volume, bool stop) { return audio_fade(&wav, id, time, volume, stop); }
-int bgm_fade(int id, int time, int volume, bool stop) { return audio_fade(&bgm, id, time, volume, stop); }
+int wav_fade(int id, int time, int volume, bool stop) { return audio_fade(&wav, id, time, volume, stop, false); }
+int bgm_fade(int id, int time, int volume, bool stop) { return audio_fade(&bgm, id, time, volume, stop, false); }
+int wav_fade_v14(int id, int time, int volume, bool stop) { return audio_fade(&wav, id, time, volume, stop, true); }
+int bgm_fade_v14(int id, int time, int volume, bool stop) { return audio_fade(&bgm, id, time, volume, stop, true); }
 
 static int audio_stop_fade(struct id_pool *pool, int id)
 {

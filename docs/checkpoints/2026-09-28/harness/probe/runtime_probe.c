@@ -188,6 +188,7 @@ static void init_probe(const char *path) {
 #include "wheel_events_fixture.inc"
 #include "sound_groups_fixture.inc"
 #include "sound_gain_fixture.inc"
+#include "sound_fade_interrupt_fixture.inc"
 #include "construction_preview_fixture.inc"
 #include "sound_rewind_fixture.inc"
 #include "layer_input_fixture.inc"
@@ -332,6 +333,7 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[2],"wheel-events"))return test_wheel_events();
     if(!strcmp(argv[2],"sound-groups"))return test_sound_groups();
     if(!strcmp(argv[2],"sound-gain"))return test_sound_gain();
+    if(!strcmp(argv[2],"sound-fade-interrupt"))return test_sound_fade_interrupt();
     if(!strcmp(argv[2],"construction-preview"))return test_construction_preview();
     if(!strcmp(argv[2],"sound-rewind"))return test_sound_rewind();
     if(!strcmp(argv[2],"layer-input"))return test_layer_input();

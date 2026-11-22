@@ -302,6 +302,12 @@ static bool KiwiSoundEngine_Fade(int id, int time, float volume, bool stop, int 
 	int vol = (int)(volume * 100.0f);
 	if (vol < 0) vol = 0;
 	if (vol > 100) vol = 100;
+	/* The interruption rule was read in the v14 GBK original. */
+	if (ain && ain->version == 14 && game_charset_is_gbk()) {
+		if (wav_fade_v14(id, time, vol, stop))
+			return true;
+		return bgm_fade_v14(id, time, vol, stop);
+	}
 	if (wav_fade(id, time, vol, stop))
 		return true;
 	return bgm_fade(id, time, vol, stop);
