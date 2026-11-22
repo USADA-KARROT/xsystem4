@@ -4,6 +4,16 @@
 
 所有輸出都寫到 repo 外的 `XS4_WORK`，repo 本身不會被弄髒。
 
+## 引擎快照讀不回時（2026-11-22，R1c 提交一）
+
+新增 `probe/resume_unreadable_fixture.inc` 的 `resume-unreadable`（71 案），全套由 158 增為 159 模式（程式 `3d31ef1`）。既有探針的期望沒有改；這個檔用 `resume_image_fixture.inc`、`resume_frames_fixture.inc`、`resume_c_entry_fixture.inc` 的輔助函式，要放在它們之後。訊息框經 `vm.c` 的測試替身（`vm_ask_test.show`），替身印出框的按鈕數與文字，以及開框當下的呼叫框數、運算堆疊深度與存活的格數；每次讀入在另一個子行程裡跑、限時 20 秒，輸出寫到暫存檔再讀回來判。讀不回的案要求：子行程以結束碼 1 結束、框只有一個按鈕而且寫出檔名、紀錄有「Failed to read VM image」與該案自己的原因、沒有重複釋放的警告、沒有 sanitizer 報告、讀入沒有返回。
+
+這個模式驗的是：從 C 進入的框在呼叫堆疊中間與最上面時，rsm 與 json 都照寫出的樣子讀回（每一框的函式、返回位址、區域頁與結構頁、指令位址）；經 CALLHLL 的 `ResumeSave` 回傳真、第三個引數寫成 1 或 0，讀回後腳本在存的地方接著走、拿到假，v14 之前的系統呼叫照舊；資料夾不可寫、寫到一半失敗（檔案大小限制）、同名的是資料夾時回報失敗、舊檔原樣、沒有暫存檔，寫出端拒絕沒有呼叫框與有一框沒有函式的 rsm 影像，json 把沒有字串的字串格寫成空字串；第 14 版的 rsm 直接讀、經 CALLHLL、經系統呼叫都不跳框、VM 維持原狀、腳本接著跑、運算堆疊頂端不變，經系統呼叫時兩個字串引數各放掉一次；讀不回的檔各一案——檔案不存在（經 CALLHLL 時腳本不可以接著走；框用日文、繁體中文、簡體中文各一案；自動回答模式只寫紀錄）、截斷、key 不同、框數過多、返回紀錄筆數不合、最底下的返回紀錄形狀不對、只有最底框、一框卻有一樣多的返回紀錄、返回位址在程式碼之外或所屬函式之前、指令位址不在指令上、區域頁不是活的頁或格數不足或結構指標超出堆積、結構頁超出堆積、長度 0 的字串、只有註解的檔、全域頁與結構頁格數不足（後者另經 CALLHLL 且呼叫堆疊上有框、與經系統呼叫，堆積讀到一半才失敗：開框時框數、堆疊與存活的格數都是 0，框裡的檔名仍正確）、陣列的結構不在 AIN 裡、返回紀錄沒有函式或檢查碼不符或函式不在 AIN 裡、堆積格數超過上限、程式庫解析器會停下的兩種資料；json 的負的堆積格號（修前不會結束）、超出上限或重複的格號、堆積不是陣列、不認識的頁型別、運算堆疊少於兩個值、框沒有函式、沒有框、文字解析不了。區域頁是格數足夠的別種頁那一案要讀得回（頁型別不查，守住較早建置寫的快照）。兩個限制案（負的格數、負的字串長度：程式庫的解析器在移植版看到之前就寫出界）只要求讀入不返回，而且沒有 sanitizer 報告、或每一行 sanitizer 摘要都指到解析器的那個檔。期望照原版的靜態讀法寫的是：讀不回就結束、不推回傳值、`ResumeSave` 回傳真並寫第三個引數；檔頭標明哪些是移植版自己的做法（一個按鈕的框與自己的文字、框不看 VM 狀態、檢查碼不符也結束、外來格式不讀、先寫暫存檔再改名、各項讀入檢查與上限）。
+
+修前（父提交 `61985f2` 的引擎加上這個提交的探針，sanitizer 版；提交後量）：71 案兩種編碼都是 62 案失敗、逐案相同；前 69 案和提交前的量法（四個引擎檔照父提交——這四個檔從 R1b 的程式提交 `7444591` 之後沒有變——加上較早一版的這個探針；60 案失敗）逐案相同，最後兩案在父提交的引擎上也失敗。修後：71 案兩種編碼全過，主行程 sanitizer 0；子行程裡只有兩個限制案有程式庫解析器裡的報告（每案只轉印前 40 行，計數是下限，判定用完整輸出）。`activity-image`、`array-enum-member`、`array-literal`、`confirm-exit`、`parts-image`、`parts-speedup-image`、`parts-v13-wrap-ffi`、`resume-c-entry`、`resume-comments`、`resume-delegate-mismatch`、`resume-env-guard`、`resume-frames`、`resume-image`、`resume-marker`、`resume-v13-guard`、`save-roundtrip`、`system-reset`、`user-component-image`、`wrap-local-init` 兩種編碼的結果行修改前後相同；`sound-fade-interrupt` 修後兩種編碼 13／13。預設／GBK 各 159 模式通過、sanitizer 0（見[逐案表](../research/resume-unreadable/before-after.tsv)）。提交後在程式提交上重建、重跑：19 個既有模式兩種編碼的結果行父提交的引擎與提交後相同；預設／GBK 各 159 模式通過、sanitizer 0。
+
+沒有涵蓋：真的訊息框（探針用替身；實機趟見研究）；程式庫解析器在錯誤處理之前就出事的資料（兩個限制案只要求不返回）；探針沒有初始化各模組，失敗收尾時各模組的收尾函式沒有被執行；系統呼叫入口「讀回了」那一支如果誤放兩個字串，沒有案能抓到；區域頁是格數夠多的別種頁或別的函式的區域頁、全域頁那一格放了別種頁（不擋）；真的 v14 之前的遊戲。實機見[研究](../research/resume-unreadable/README.md)。
+
 ## 聲音停止型淡出被打斷（2026-11-22）
 
 新增 `probe/sound_fade_interrupt_fixture.inc` 的 `sound-fade-interrupt`（13 案），全套由 157 增為 158 模式（程式 `6b42512`）。既有探針的期望沒有改。案在子行程跑，經 AIN 的宣告（hll_call）呼叫 `KiwiSoundEngine` 的函式，走真的聲道池與混音器，資料沿用 `sound-gain` 的合成 PCM（固定值的單聲道，電平就是增益）；需要電平的案沒有音訊裝置，在本執行緒拉回呼取樣，牆鐘是 SDL 的；讀取函式拿鎖那一案用 dummy 音訊驅動與它的回呼執行緒，另起一條執行緒握住裝置的鎖 400 ms。版本情境：v14 GBK 有群組表、v14 GBK 沒有群組表；v13 GBK、v15 GBK、v14 SJIS、只有 GB18030 旗標而規則是 SJIS 四組是舊路徑的護欄；另直接呼叫 HLL 走不到的 C 入口（讀音量與取樣位置的函式、在打開中斷時鐘的聲道上用舊入口下淡變）。判「淡變已經結束」的檢查至少等淡變時間加 60 ms，判「還在進行」的至少留 600 ms 餘裕，機器忙只會讓等待變長；有一案依賴每塊 1024 幀與 44.1 kHz 的合成資料（改了其中一個，那一案的預期電平要跟著改）。
@@ -112,7 +122,7 @@ G1c 擴充既有 sound-groups（21 案）與 sound-rewind（10 案），不新�
 export XS4_GAME=/path/to/game-workcopy XS4_MASTER_GAME=/path/to/original
 H=docs/checkpoints/2026-09-28/harness
 bash $H/setup.sh                        # 第一次：meson 建兩棵樹（optimized 給 GUI、ASan 給探針）並連結探針
-bash $H/verify-step.sh <tag>            # 重建並跑全部 158 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
+bash $H/verify-step.sh <tag>            # 重建並跑全部 159 個模式；最後一行 VERDICT PASS/FAIL，exit code 同義
 # 注意：新機器、乾淨的 clone、清過快取或系統更新之後，無視窗的 GL 探針可能因為還沒有 Metal pipeline 快取而報 ENVIRONMENT FAILURE（rc 2）。先用有視窗的引擎跑一次（例如 gui-run.sh）建立快取，再跑 verify。（2026-11-09 補記（U2，程式 `6e4e673`）：這台 Mac 實測，只經 fork、沒有 exec 的子行程也編不出快取裡沒有的著色器，畫不出來；`mosaic-effect` 因此用 posix_spawn 另起輔助模式畫圖。）
 bash $H/before-check.sh <rev> <mode>..  # 用 <rev> 的 src/include 跑指定模式（證明修正前會失敗），結束自動還原
 bash $H/gui-run.sh <name> [秒數]         # 無人值守 GUI：新遊戲、按住 Return、每 1.2 秒點畫面中央、每 2 秒存 framebuffer PNG
@@ -525,4 +535,5 @@ RUN_HOLD_KEYS=13,17 RUN_AUTO_CLICK= RUN_SHOTS=0,500,100 \
 - `probe/resume_v13_guard_fixture.inc`：`resume-v13-guard`（6 案）（2026-11-22，R1b），合成的 v13 相容護欄；要放在 `resume_image_fixture.inc` 之後。載入 v14 的 AIN、初始化指令表之後把版本設成 13，只驗版本分派與影像資料：這不是真的 v13 AIN、不是位元組碼的執行測試，也不是舊遊戲完全相容的證據。各案在子行程執行，不用任何遊戲的存檔；v13 的 json 讀入照舊用 cJSON 的整數值（返回位址 4294967295 會飽和成 INT_MAX），探針只看讀回的框、不執行那個返回位址。
 - `probe/parts_v13_wrap_ffi_fixture.inc`：`parts-v13-wrap-ffi`（6 案）（2026-11-22，R1b），合成的 v13 部件存讀經 wrap 盒的交接；要放在 `parts_image_fixture.inc` 之後。AIN 與指令表是 v14 的、只把版本設成 13；`Save` 與 `Load` 的宣告取自載入的 AIN，`SaveWithoutHideParts` 由一個引數的 `Save` 合成。驗的是版本分派，不證明真正的 v13 ABI 相容。各案在子行程執行，sanitizer 的失敗要看得到、不擋其他五案；R1a 的轉接會在放開舊的堆積槽之前先釋放頁，父提交與候選的輸出要分開記，父提交當掉不能當成通過。
 - `probe/sound_fade_interrupt_fixture.inc`：`sound-fade-interrupt`（13 案）（2026-11-22），v14 GBK 的停止型淡出被打斷、照牆鐘的淡變、讀取函式只在有牆鐘淡變時拿鎖；見上面〈聲音停止型淡出被打斷〉。
+- `probe/resume_unreadable_fixture.inc`：`resume-unreadable`（71 案）（2026-11-22，R1c 提交一），快照寫不了、從 C 進入的框不在最底下、以及讀不回時的處理；要放在 `resume_image_fixture.inc`、`resume_frames_fixture.inc`、`resume_c_entry_fixture.inc` 之後；見上面〈引擎快照讀不回時〉。
 - 這一組改的既有模式：`numeral`（10 → 12 案）新增「字型、連結 CG、CG 三種數字部件的表示タイプ、字型、ＣＧ名與寬度、全角、ゼロパディング 存了之後被改，讀回回到存的值，字型數字讀回後照讀回的字型重畫，之後設的數字也用那個字型；沒有數字部件的存出沒有段」與「沒有數字段的存出（較早的建置）照舊讀」兩案，原本的第十案改成存過的字型數字讀回後帶回字型（以前預期讀回成未定型）；修前（第一回合的引擎碼）新的與改的三案都失敗。`controller-id`、`parts-transform`：控制器編號段之前允許一個六個字的空活動段（舊寫出端沒有、新寫出端有；格式不對時失敗），改寫成第 7 版的輔助函式一併去掉它。`parts-sound-name`：段的順序檢查加上唯一編號段，並允許控制器編號段之前的空活動段。四個模式的案數以外不變。
